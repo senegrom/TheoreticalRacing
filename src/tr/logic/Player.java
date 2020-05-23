@@ -10,11 +10,11 @@ import java.util.LinkedList;
  * @author CGH
  */
 public class Player {
-	public final static int	INIT_POS	= -100000;
+	public final static int INIT_POS = -100000;
 
 	public final static Color brighterCol(final Color c) {
-		return new Color(c.getRed() + (255 - c.getRed()) / 2, c.getGreen() + (255 - c.getGreen()) / 2, c.getBlue() + (255 - c.getBlue())
-				/ 2);
+		return new Color(c.getRed() + (255 - c.getRed()) / 2, c.getGreen() + (255 - c.getGreen()) / 2,
+				c.getBlue() + (255 - c.getBlue()) / 2);
 	}
 
 	private final Color				brightColor;
@@ -35,7 +35,7 @@ public class Player {
 		position = new int[]{INIT_POS, INIT_POS };
 		velocity = new int[]{0, 0 };
 		finishedPlace = 0;
-		history = new LinkedList<int[]>();
+		history = new LinkedList<>();
 	}
 
 	public Color getBrightColor() {

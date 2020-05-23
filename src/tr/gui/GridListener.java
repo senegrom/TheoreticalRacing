@@ -11,7 +11,7 @@ import tr.logic.RaceGame;
  */
 public class GridListener implements MouseListener {
 
-	private final RaceGame	game;
+	private final RaceGame game;
 
 	public GridListener(final RaceGame game) {
 		super();

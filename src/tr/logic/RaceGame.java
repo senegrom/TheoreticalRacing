@@ -296,7 +296,7 @@ public class RaceGame {
 			rui.setVelVector(null, -1);
 			rui.setPrePath(null);
 
-			final Hashtable<Integer, String> place = new Hashtable<Integer, String>();
+			final Hashtable<Integer, String> place = new Hashtable<>();
 			for (final Player p : players) {
 				if (p.getFinishedPlace() == 0)
 					p.setFinishedPlace(finishedFirst + 1);
@@ -351,7 +351,7 @@ public class RaceGame {
 				int py = pos[1];
 				if (vx == 0 && vy == 0)
 					return;
-				final LinkedList<int[]> prePath = new LinkedList<int[]>();
+				final LinkedList<int[]> prePath = new LinkedList<>();
 				while (vx != 0 || vy != 0) {
 					px = px + vx;
 					py = py + vy;
@@ -368,11 +368,11 @@ public class RaceGame {
 				rui.setPrePath(prePath);
 				gameFrame.repaint();
 			} else {
-				final LinkedList<int[]> move = new LinkedList<int[]>();
+				final LinkedList<int[]> move = new LinkedList<>();
 				move.add(pos);
 				move.add(newpos);
-				final double dx = ((double) (newpos[0] - pos[0])) / (checkIntervalSplit);
-				final double dy = ((double) (newpos[1] - pos[1])) / (checkIntervalSplit);
+				final double dx = (double) (newpos[0] - pos[0]) / checkIntervalSplit;
+				final double dy = (double) (newpos[1] - pos[1]) / checkIntervalSplit;
 				final double[][] chkpoints = new double[checkIntervalSplit - 1][2];
 				int j;
 				for (j = 0; j < checkIntervalSplit - 1; j++) {
@@ -382,8 +382,8 @@ public class RaceGame {
 				boolean leavesTrack = false;
 				j = 0;
 				while (!leavesTrack && j < checkIntervalSplit - 1) {
-					leavesTrack = (!trackA.contains(chkpoints[j][0], chkpoints[j][1]))
-							&& (!startZoneA.contains(chkpoints[j][0], chkpoints[j][1]));
+					leavesTrack = !trackA.contains(chkpoints[j][0], chkpoints[j][1])
+							&& !startZoneA.contains(chkpoints[j][0], chkpoints[j][1]);
 					j++;
 				}
 				if (checkIntersect(new int[]{finishLine[0], finishLine[1] }, new int[]{finishLine[2], finishLine[3] }, pos, newpos,
@@ -401,7 +401,7 @@ public class RaceGame {
 						return;
 					}
 				} else if (leavesTrack || isCrashingPlayer(newpos[0], newpos[1], players[subgamestate].getNumber())
-						|| ((!trackA.contains(newpos[0], newpos[1])) && (!startZoneA.contains(newpos[0], newpos[1])))
+						|| !trackA.contains(newpos[0], newpos[1]) && !startZoneA.contains(newpos[0], newpos[1])
 						|| checkIntersect(move, track.getLeft(), true) || checkIntersect(move, track.getRight(), true)) {
 					final int answ = JOptionPane.showConfirmDialog(gameFrame, "Going there will crash you. Do you really want to?", NAME,
 							JOptionPane.YES_NO_OPTION);
@@ -515,7 +515,7 @@ public class RaceGame {
 				dispMessage("Track too short.");
 				return;
 			}
-			final LinkedList<int[]> tTrack = new LinkedList<int[]>();
+			final LinkedList<int[]> tTrack = new LinkedList<>();
 			Iterator<int[]> it = track.getLeft().iterator();
 			while (it.hasNext())
 				tTrack.add(it.next());
@@ -582,7 +582,7 @@ public class RaceGame {
 				subgamestate--;
 				if (subgamestate == -1)
 					subgamestate = players.length - 1;
-				;
+
 			} while (players[subgamestate].isFinished());
 			final int[] vel = players[subgamestate].getVelocity();
 			players[subgamestate].setVelocity(oldVel);
@@ -672,7 +672,7 @@ public class RaceGame {
 		for (final Player player : players) {
 			if (player.getNumber() == i)
 				continue;
-			if ((player.getPosition()[0] == x) && (player.getPosition()[1] == y))
+			if (player.getPosition()[0] == x && player.getPosition()[1] == y)
 				return true;
 		}
 		return false;
@@ -684,7 +684,7 @@ public class RaceGame {
 			if (players[i].isFinished())
 				s = players[i].getFinishedPlace() + ".";
 			else
-				s = players[i].getVelocity()[0] + " " + (-players[i].getVelocity()[1]);
+				s = players[i].getVelocity()[0] + " " + -players[i].getVelocity()[1];
 			gameFrame.setPlayerInfo(s, i);
 		}
 	}

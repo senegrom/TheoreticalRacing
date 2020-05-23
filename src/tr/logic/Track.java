@@ -12,8 +12,8 @@ public class Track {
 	private final LinkedList<int[]>	rhs;
 
 	public Track() {
-		lhs = new LinkedList<int[]>();
-		rhs = new LinkedList<int[]>();
+		lhs = new LinkedList<>();
+		rhs = new LinkedList<>();
 	}
 
 	public void addLeft(final int x, final int y) {

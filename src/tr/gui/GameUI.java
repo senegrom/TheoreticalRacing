@@ -190,10 +190,10 @@ public class GameUI extends JFrame {
 		gridContainer.add(scroller);
 		scroller.setBorder(new LineBorder(null, 0));
 		scroller.setSize(
-				Math.min(contSize.width, minSize.width
-						+ (contSize.height < minSize.height ? scroller.getVerticalScrollBar().getMinimumSize().width : 0)),
-				Math.min(contSize.height, minSize.height
-						+ (contSize.width < minSize.width ? scroller.getHorizontalScrollBar().getMinimumSize().height : 0)));
+				Math.min(contSize.width,
+						minSize.width + (contSize.height < minSize.height ? scroller.getVerticalScrollBar().getMinimumSize().width : 0)),
+				Math.min(contSize.height,
+						minSize.height + (contSize.width < minSize.width ? scroller.getHorizontalScrollBar().getMinimumSize().height : 0)));
 		scroller.setLocation(Math.max((contSize.width - minSize.width) / 2, 0), Math.max((contSize.height - minSize.height) / 2, 0));
 
 		g.addMouseListener(new GridListener(game));

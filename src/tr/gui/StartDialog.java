@@ -21,6 +21,7 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.WindowConstants;
 import tr.logic.RaceGame;
 
 /**
@@ -180,7 +181,7 @@ public class StartDialog extends JFrame {
 		setSize(400, 400);
 		setLocationRelativeTo(null);
 		setResizable(false);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
 		setLayout(new BorderLayout());
 		final JPanel southContainer = new JPanel();

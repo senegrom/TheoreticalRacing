@@ -13,7 +13,7 @@ import tr.logic.RaceGame;
  */
 public class ExitListener implements ActionListener, WindowListener {
 
-	private final RaceGame	game;
+	private final RaceGame game;
 
 	public ExitListener(final RaceGame game) {
 		super();

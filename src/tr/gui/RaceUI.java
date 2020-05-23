@@ -29,8 +29,8 @@ public class RaceUI {
 	private final static Color	colTrack			= Color.BLACK;
 	private final static Color	colTrackFill		= new Color(245, 255, 245);
 	public final static int		GRID_DIST			= 15;
-	private final static Stroke	strkFinish			= new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1f, new float[]{3f,
-			3f										}, 0f);
+	private final static Stroke	strkFinish			= new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1f,
+			new float[]{3f, 3f }, 0f);
 	private final static Stroke	strkPlayer			= new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, null, 0f);
 	private final static Stroke	strkSglTrack		= new BasicStroke(4f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, null, 0f);
 	private final static Stroke	strkSimple			= new BasicStroke(1f);
