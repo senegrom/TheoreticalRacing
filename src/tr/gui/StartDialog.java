@@ -84,19 +84,15 @@ public class StartDialog extends JFrame {
 	}
 
 	private final void chooseName(final int i) {
-		boolean notFirstRun = false;
-		String s, sTemp;
-		do {
-			if (notFirstRun)
-				JOptionPane.showMessageDialog(this, "Not a valid name.", RaceGame.NAME, JOptionPane.OK_OPTION);
-			try {
-				sTemp = prop.getProperty("player" + (i + 1) + "Name");
-			} catch (final Exception e) {
-				sTemp = "Player " + (i + 1);
-			}
-			s = JOptionPane.showInputDialog(this, "Enter a name for Player " + (i + 1), sTemp);
-			notFirstRun = true;
-		} while (s == null);
+		String sTemp;
+		try {
+			sTemp = prop.getProperty("player" + (i + 1) + "Name");
+		} catch (final Exception e) {
+			sTemp = "Player " + (i + 1);
+		}
+		final String s = JOptionPane.showInputDialog(this, "Enter a name for Player " + (i + 1), sTemp);
+		if (s == null || s.isEmpty())
+			return;
 		btnPlayer[i].setText(s);
 		prop.put("player" + (i + 1) + "Name", s);
 	}

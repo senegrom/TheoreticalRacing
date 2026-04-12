@@ -646,7 +646,6 @@ public class RaceGame {
 	private Player[] getPlayers() {
 		String s;
 		int i, temp;
-		Scanner sc;
 		try {
 			temp = Integer.valueOf(prop.getProperty("nPlayers"));
 		} catch (final Exception e) {
@@ -655,9 +654,15 @@ public class RaceGame {
 		final Player[] players = new Player[temp];
 		for (i = 0; i < players.length; i++) {
 			s = prop.getProperty("player" + (i + 1) + "Name");
-			sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"));
-			players[i] = new Player(s, i + 1, new Color(sc.nextInt(), sc.nextInt(), sc.nextInt()));
-			sc.close();
+			Color c;
+			try {
+				final Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"));
+				c = new Color(sc.nextInt(), sc.nextInt(), sc.nextInt());
+				sc.close();
+			} catch (final Exception e) {
+				c = defPlayerColors[i];
+			}
+			players[i] = new Player(s, i + 1, c);
 		}
 		return players;
 	}

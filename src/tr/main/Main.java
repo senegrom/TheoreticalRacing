@@ -28,23 +28,15 @@ public class Main {
 		System.out.println("=================================\n");
 
 		final Properties prop = new Properties();
-		FileInputStream input = null;
 
-		try {
-			input = new FileInputStream(RaceGame.userProperties);
+		try (FileInputStream input = new FileInputStream(RaceGame.userProperties)) {
 			prop.load(input);
 		} catch (final IOException e1) {
-			try {
-				input = new FileInputStream(RaceGame.defProperties);
+			try (FileInputStream input = new FileInputStream(RaceGame.defProperties)) {
 				prop.load(input);
 			} catch (final IOException e2) {
 				e2.printStackTrace();
 			}
-		}
-		try {
-			input.close();
-		} catch (final IOException e1) {
-			e1.printStackTrace();
 		}
 
 		EventQueue.invokeLater(() -> new RaceGame(prop).start());
