@@ -6,6 +6,7 @@ import java.awt.Graphics2D;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
+import java.awt.Toolkit;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -28,7 +29,7 @@ public class RaceUI {
 	private final static Color	colStartZOutline	= Color.BLACK;
 	private final static Color	colTrack			= Color.BLACK;
 	private final static Color	colTrackFill		= new Color(245, 255, 245);
-	public final static int		GRID_DIST			= 15;
+	public final static int		GRID_DIST			= Math.max(15, 15 * Toolkit.getDefaultToolkit().getScreenResolution() / 96);
 	private final static Stroke	strkFinish			= new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1f,
 			new float[]{3f, 3f }, 0f);
 	private final static Stroke	strkPlayer			= new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, null, 0f);
@@ -145,7 +146,7 @@ public class RaceUI {
 			Iterator<int[]> it;
 			for (i = 0; i < players.length; i++) {
 				g.setColor(players[i].getColor());
-				if (players[i].getHistory() != null && players[i].getHistory().size() > 1) {
+				if (players[i].getHistory().size() > 1) {
 					it = players[i].getHistory().iterator();
 					oldP = it.next();
 					while (it.hasNext()) {

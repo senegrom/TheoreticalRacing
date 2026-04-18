@@ -29,13 +29,13 @@ import tr.main.Main;
 public class RaceGame {
 	public final static String			AUTHOR				= "CGH";
 	private final static int			checkIntervalSplit	= 100;
-	private final static int			defCols				= 50;
+	private final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
 			Color.ORANGE, Color.GRAY, Color.MAGENTA, Color.BLACK };
 	public final static String			defProperties		= "default.properties";
-	private final static int			defRows				= 50;
-	private final static int			defWindowX			= 1600;
-	private final static int			defWindowY			= 900;
+	private final static int			defRows				= 48;
+	private final static int			defWindowX			= 1500;
+	private final static int			defWindowY			= 800;
 	public final static String			NAME				= "Theoretical Racing";
 	private final static float			startZoneWidth		= 2f;
 	private final static BasicStroke	strkTolerance		= new BasicStroke(.01f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
@@ -255,9 +255,9 @@ public class RaceGame {
 		try {
 			temp = Integer.parseInt(prop.getProperty("maxPlayers"));
 		} catch (final Exception e) {
-			temp = 9;
+			temp = defPlayerColors.length;
 		}
-		maxPlayers = temp;
+		maxPlayers = Math.max(1, Math.min(temp, defPlayerColors.length));
 		prop.put("maxPlayers", String.valueOf(maxPlayers));
 		track = null;
 		finishLine = null;
@@ -267,6 +267,7 @@ public class RaceGame {
 		} catch (final Exception e) {
 			temp = 2;
 		}
+		temp = Math.max(1, Math.min(temp, maxPlayers));
 		prop.put("nPlayers", String.valueOf(temp));
 		for (int i = 0; i < maxPlayers; i++) {
 			String sTemp;
@@ -660,6 +661,7 @@ public class RaceGame {
 		} catch (final Exception e) {
 			temp = 2;
 		}
+		temp = Math.max(1, Math.min(temp, maxPlayers));
 		final Player[] players = new Player[temp];
 		for (i = 0; i < players.length; i++) {
 			s = prop.getProperty("player" + (i + 1) + "Name");
