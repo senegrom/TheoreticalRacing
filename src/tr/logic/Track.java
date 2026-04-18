@@ -33,12 +33,12 @@ public class Track {
 	}
 
 	public void removeLastLeft() {
-		if (lhs.size() > 0)
+		if (!lhs.isEmpty())
 			lhs.removeLast();
 	}
 
 	public void removeLastRight() {
-		if (rhs.size() > 0)
+		if (!rhs.isEmpty())
 			rhs.removeLast();
 	}
 

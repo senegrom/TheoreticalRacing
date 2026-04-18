@@ -8,7 +8,7 @@ import java.awt.geom.Path2D;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.Arrays;
-import java.util.Hashtable;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Properties;
@@ -84,9 +84,21 @@ public class RaceGame {
 		final double dx2 = p22[0] - p21[0];
 		final double dy2 = p22[1] - p21[1];
 		final double d = dx2 * dy1 - dx1 * dy2;
-		if (d == 0 && seq != 0 && seq != 3) {
-			if (Math.signum(dx1) != Math.signum(dx2) || Math.signum(dy1) != Math.signum(dy2))
-				return true;
+		if (d == 0) {
+			if (seq != 0 && seq != 3) {
+				if (Math.signum(dx1) != Math.signum(dx2) || Math.signum(dy1) != Math.signum(dy2))
+					return true;
+				return false;
+			}
+			// parallel lines with seq 0 or 3: check colinearity and overlap
+			if ((x2 - x1) * dy1 - (y2 - y1) * dx1 != 0)
+				return false;
+			final double len1Sq = dx1 * dx1 + dy1 * dy1;
+			if (len1Sq == 0)
+				return false;
+			final double s1 = ((x2 - x1) * dx1 + (y2 - y1) * dy1) / len1Sq;
+			final double s2 = ((p22[0] - x1) * dx1 + (p22[1] - y1) * dy1) / len1Sq;
+			return Math.max(0, Math.min(s1, s2)) < Math.min(1, Math.max(s1, s2));
 		} else if (seq == 0 || seq == 3) {
 			final double s = (dy1 * x1 - dy1 * x2 - dx1 * y1 + dx1 * y2) / d;
 			final double t = (dy2 * x1 - dy2 * x2 - dx2 * y1 + dx2 * y2) / d;
@@ -180,7 +192,7 @@ public class RaceGame {
 	 * @return Polygon or path stored as Path2D.Float from input line paths
 	 */
 	private final static Path2D.Float newPrefilledPath(final LinkedList<int[]> left, final LinkedList<int[]> right) {
-		if (left == null || left.size() == 0)
+		if (left == null || left.isEmpty())
 			return null;
 		final Path2D.Float p = new Path2D.Float();
 		int[] pos = left.getFirst();
@@ -190,7 +202,7 @@ public class RaceGame {
 			pos = it.next();
 			p.lineTo(pos[0], pos[1]);
 		}
-		if (right == null || right.size() == 0)
+		if (right == null || right.isEmpty())
 			return p;
 		it = right.descendingIterator();
 		while (it.hasNext()) {
@@ -219,7 +231,7 @@ public class RaceGame {
 	private int					finishedLast, finishedFirst;
 	private int[]				finishLine;
 	private final GameUI		gameFrame;
-	private GameState			gamestate;
+	private volatile GameState	gamestate;
 	private int					isShowingPrePath;
 	private final int			maxPlayers;
 	private int[]				oldVel;
@@ -241,7 +253,7 @@ public class RaceGame {
 		gamestate = GameState.SETUP;
 
 		try {
-			temp = Integer.valueOf(prop.getProperty("maxPlayers"));
+			temp = Integer.parseInt(prop.getProperty("maxPlayers"));
 		} catch (final Exception e) {
 			temp = 9;
 		}
@@ -251,7 +263,7 @@ public class RaceGame {
 		finishLine = null;
 
 		try {
-			temp = Integer.valueOf(prop.getProperty("nPlayers"));
+			temp = Integer.parseInt(prop.getProperty("nPlayers"));
 		} catch (final Exception e) {
 			temp = 2;
 		}
@@ -268,12 +280,9 @@ public class RaceGame {
 			prop.put("player" + (i + 1) + "Name", sTemp);
 		}
 		for (int i = 0; i < maxPlayers; i++) {
-			final Scanner sc;
 			Color cTemp;
-			try {
-				sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"));
+			try (Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"))) {
 				cTemp = new Color(sc.nextInt(), sc.nextInt(), sc.nextInt());
-				sc.close();
 			} catch (final Exception e) {
 				cTemp = defPlayerColors[i];
 			}
@@ -296,7 +305,7 @@ public class RaceGame {
 			rui.setVelVector(null, -1);
 			rui.setPrePath(null);
 
-			final Hashtable<Integer, String> place = new Hashtable<>();
+			final HashMap<Integer, String> place = new HashMap<>();
 			for (final Player p : players) {
 				if (p.getFinishedPlace() == 0)
 					p.setFinishedPlace(finishedFirst + 1);
@@ -327,7 +336,6 @@ public class RaceGame {
 		if (gamestate == GameState.PLAY) {
 			int[] vel = players[subgamestate].getVelocity();
 			int[] newpos;
-			oldVel = vel;
 			{
 				int dvx = 0;
 				int dvy = 0;
@@ -421,6 +429,7 @@ public class RaceGame {
 					} else
 						return;
 				} else {
+					oldVel = players[subgamestate].getVelocity();
 					players[subgamestate].setVelocity(vel);
 					players[subgamestate].setPosition(newpos);
 					players[subgamestate].logPosition(newpos);
@@ -647,7 +656,7 @@ public class RaceGame {
 		String s;
 		int i, temp;
 		try {
-			temp = Integer.valueOf(prop.getProperty("nPlayers"));
+			temp = Integer.parseInt(prop.getProperty("nPlayers"));
 		} catch (final Exception e) {
 			temp = 2;
 		}
@@ -655,10 +664,8 @@ public class RaceGame {
 		for (i = 0; i < players.length; i++) {
 			s = prop.getProperty("player" + (i + 1) + "Name");
 			Color c;
-			try {
-				final Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"));
+			try (Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"))) {
 				c = new Color(sc.nextInt(), sc.nextInt(), sc.nextInt());
-				sc.close();
 			} catch (final Exception e) {
 				c = defPlayerColors[i];
 			}
@@ -729,7 +736,7 @@ public class RaceGame {
 		new Thread(() -> startDial.setupUI()).start();
 
 		new Thread(() -> {
-			while (startDial.isActive())
+			while (startDial.isDialogActive())
 				try {
 					Thread.sleep(50L);
 				} catch (final InterruptedException e1) {
@@ -738,28 +745,28 @@ public class RaceGame {
 			int temp;
 			final int wx, wy, rows, cols;
 			try {
-				temp = Integer.valueOf(prop.getProperty("gameX"));
+				temp = Integer.parseInt(prop.getProperty("gameX"));
 			} catch (final Exception e2) {
 				temp = defCols;
 			}
 			cols = temp;
 			prop.put("gameX", String.valueOf(cols));
 			try {
-				temp = Integer.valueOf(prop.getProperty("gameY"));
+				temp = Integer.parseInt(prop.getProperty("gameY"));
 			} catch (final Exception e3) {
 				temp = defRows;
 			}
 			rows = temp;
 			prop.put("gameY", String.valueOf(rows));
 			try {
-				temp = Integer.valueOf(prop.getProperty("windowX"));
+				temp = Integer.parseInt(prop.getProperty("windowX"));
 			} catch (final Exception e4) {
 				temp = defWindowX;
 			}
 			wx = temp;
 			prop.put("windowX", String.valueOf(wx));
 			try {
-				temp = Integer.valueOf(prop.getProperty("windowY"));
+				temp = Integer.parseInt(prop.getProperty("windowY"));
 			} catch (final Exception e5) {
 				temp = defWindowY;
 			}

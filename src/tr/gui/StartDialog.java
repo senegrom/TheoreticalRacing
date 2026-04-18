@@ -40,9 +40,9 @@ public class StartDialog extends JFrame {
 	private final JButton[]		btnPlayer;
 	private final JButton[]		btnPlayerCol;
 	private final JButton		btnPlus;
+	private volatile boolean	dialogActive		= true;
 	private final GridBagLayout	gridBag;
 	private final JPanel		gridContainer;
-	private boolean				isActive			= true;
 	private final JLabel[]		lblPlayerCol;
 	private final int			maxPlayers;
 	private int					nPlayers;
@@ -53,8 +53,8 @@ public class StartDialog extends JFrame {
 	public StartDialog(final String s, final Properties prop) {
 		super(s);
 		this.prop = prop;
-		maxPlayers = Integer.valueOf(prop.getProperty("maxPlayers"));
-		nPlayers = Integer.valueOf(prop.getProperty("nPlayers"));
+		maxPlayers = Integer.parseInt(prop.getProperty("maxPlayers"));
+		nPlayers = Integer.parseInt(prop.getProperty("nPlayers"));
 		btnOK = new JButton("OK");
 		btnExit = new JButton("Exit");
 		btnPlus = new JButton("+");
@@ -97,9 +97,8 @@ public class StartDialog extends JFrame {
 		prop.put("player" + (i + 1) + "Name", s);
 	}
 
-	@Override
-	public boolean isActive() {
-		return isActive;
+	public boolean isDialogActive() {
+		return dialogActive;
 	}
 
 	private final void minusPlayer() {
@@ -115,22 +114,20 @@ public class StartDialog extends JFrame {
 	}
 
 	private final void refreshSizeValues() {
-		String propName = null;
+		final String[] propNames = {"windowX", "windowY", "gameX", "gameY" };
+		final int[] mins = {200, 200, 2, 2 };
+		final int[] maxs = {10000, 10000, 500, 500 };
 		for (int i = 0; i < 4; i++) {
-			if (i == 0)
-				propName = "windowX";
-			else if (i == 1)
-				propName = "windowY";
-			else if (i == 2)
-				propName = "gameX";
-			else if (i == 3)
-				propName = "gameY";
+			int val;
 			try {
-				Integer.valueOf(txtSize[i].getText());
-			} catch (final Exception e) {
-				txtSize[i].setText(prop.getProperty(propName));
+				val = Integer.parseInt(txtSize[i].getText());
+				if (val < mins[i] || val > maxs[i])
+					throw new NumberFormatException();
+			} catch (final NumberFormatException e) {
+				txtSize[i].setText(prop.getProperty(propNames[i]));
+				continue;
 			}
-			prop.put(propName, txtSize[i].getText());
+			prop.put(propNames[i], String.valueOf(val));
 		}
 	}
 
@@ -202,12 +199,12 @@ public class StartDialog extends JFrame {
 		gridContainer.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 		setupGridBag();
 		for (i = 0; i < maxPlayers; i++) {
-			final Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"));
-			lblPlayerCol[i].setBackground(new Color(sc.nextInt(), sc.nextInt(), sc.nextInt()));
+			try (Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"))) {
+				lblPlayerCol[i].setBackground(new Color(sc.nextInt(), sc.nextInt(), sc.nextInt()));
+			}
 			btnPlayerCol[i].add(lblPlayerCol[i]);
 			lblPlayerCol[i].setOpaque(true);
 			btnPlayerCol[i].setLayout(new GridLayout(1, 1));
-			sc.close();
 		}
 
 		southContainer.setLayout(new BoxLayout(southContainer, BoxLayout.X_AXIS));
@@ -237,7 +234,7 @@ public class StartDialog extends JFrame {
 				me.minusPlayer();
 			else if (source == btnOK) {
 				refreshSizeValues();
-				isActive = false;
+				dialogActive = false;
 				me.dispose();
 			} else if (source == btnExit)
 				System.exit(0);

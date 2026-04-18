@@ -162,7 +162,7 @@ public class RaceUI {
 								VELVEC_SIZE * 2);
 					g.drawRect((velVector[0] - 1) * GRID_DIST, (velVector[1] - 1) * GRID_DIST, GRID_DIST * 2, GRID_DIST * 2);
 				}
-				if (prePath != null && velVectorPlayer == i && prePath.size() > 0) {
+				if (prePath != null && velVectorPlayer == i && !prePath.isEmpty()) {
 					g.setColor(players[i].getBrightColor());
 					oldP = pos;
 					it = prePath.iterator();
