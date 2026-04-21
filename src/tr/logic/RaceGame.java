@@ -23,7 +23,7 @@ import tr.main.Main;
 /**
  * Main game logic component of TheoreticRacing
  *
- * @version 0.2.0
+ * @version 0.2.1
  * @author CGH
  */
 public class RaceGame {
@@ -40,7 +40,7 @@ public class RaceGame {
 	private final static float			startZoneWidth		= 2f;
 	private final static BasicStroke	strkTolerance		= new BasicStroke(.01f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
 	public final static String			userProperties		= "user.properties";
-	public final static String			VERSION				= "0.2.0";
+	public final static String			VERSION				= "0.2.1";
 
 	/**
 	 * Add element to track
