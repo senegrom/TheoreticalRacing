@@ -67,6 +67,49 @@ public class RaceGame {
 		return installDir().resolve("last_game.log");
 	}
 
+	/** Directory containing .track files. */
+	public static Path tracksDir() {
+		return installDir().resolve("tracks");
+	}
+
+	/** List names of available tracks (file stem, without .track suffix). */
+	public static java.util.List<String> listTracks() {
+		final Path dir = tracksDir();
+		if (!Files.isDirectory(dir))
+			return java.util.List.of();
+		try (java.util.stream.Stream<Path> s = Files.list(dir)) {
+			return s.filter(p -> p.toString().endsWith(".track"))
+					.map(p -> p.getFileName().toString().replaceFirst("\\.track$", ""))
+					.sorted()
+					.toList();
+		} catch (final IOException e) {
+			return java.util.List.of();
+		}
+	}
+
+	/** Load a named track into {@code prop}, replacing lastTrack* + gameX/gameY. */
+	public static boolean loadTrack(final Properties prop, final String name) {
+		final Path file = tracksDir().resolve(name + ".track");
+		if (!Files.isRegularFile(file))
+			return false;
+		final Properties tp = new Properties();
+		try (java.io.InputStream in = Files.newInputStream(file)) {
+			tp.load(in);
+		} catch (final IOException e) {
+			return false;
+		}
+		if (tp.getProperty("trackLeft") == null || tp.getProperty("trackRight") == null)
+			return false;
+		prop.put("lastTrackLeft", tp.getProperty("trackLeft"));
+		prop.put("lastTrackRight", tp.getProperty("trackRight"));
+		if (tp.getProperty("gameX") != null)
+			prop.put("gameX", tp.getProperty("gameX"));
+		if (tp.getProperty("gameY") != null)
+			prop.put("gameY", tp.getProperty("gameY"));
+		prop.put("useLastTrack", "true");
+		return true;
+	}
+
 	/**
 	 * @param seq 0: all endpoints checked; 1: p11==p22 allowed; 2: p12==p21
 	 *            allowed; 3: equal endpoints always allowed.
@@ -539,8 +582,9 @@ public class RaceGame {
 			}
 		}
 		final long tBfs = System.nanoTime();
-		System.out.printf("[reachability] init=%.0fms bfs=%.0fms total=%.0fms alive=%d%n",
-				(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tBfs - t0) / 1e6, aliveStates.cardinality());
+		if (autoMode)
+			System.out.printf("[reachability] init=%.0fms bfs=%.0fms total=%.0fms alive=%d%n",
+					(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tBfs - t0) / 1e6, aliveStates.cardinality());
 	}
 
 	/** True iff state (x,y,vx,vy) has at least one geometry-legal successor or reaches the finish. */

@@ -29,12 +29,31 @@ public class Main {
 		System.out.println("=================================\n");
 
 		boolean auto = false;
-		for (final String a : args) {
+		String trackName = null;
+		boolean listTracks = false;
+		for (int i = 0; i < args.length; i++) {
+			final String a = args[i];
 			if ("--auto".equals(a))
 				auto = true;
+			else if ("--track".equals(a) && i + 1 < args.length)
+				trackName = args[++i];
+			else if ("--list-tracks".equals(a))
+				listTracks = true;
+		}
+
+		if (listTracks) {
+			for (final String name : RaceGame.listTracks())
+				System.out.println(name);
+			return;
 		}
 
 		final Properties prop = loadProperties();
+		if (trackName != null && !RaceGame.loadTrack(prop, trackName)) {
+			System.err.println("Track not found: " + trackName);
+			System.err.println("Available: " + RaceGame.listTracks());
+			System.exit(2);
+		}
+
 		final boolean autoMode = auto;
 		EventQueue.invokeLater(() -> {
 			final RaceGame game = new RaceGame(prop);
