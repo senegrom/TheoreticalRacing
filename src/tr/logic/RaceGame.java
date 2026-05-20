@@ -33,7 +33,6 @@ import tr.gui.StartDialog;
  * @author CGH
  */
 public class RaceGame {
-	private final static int			checkIntervalSplit	= 100;
 	private final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
 			Color.ORANGE, Color.GRAY, Color.MAGENTA, Color.BLACK };
@@ -295,6 +294,8 @@ public class RaceGame {
 	private final StringBuilder	gameLog		= new StringBuilder();
 	private int					turnCounter	= 0;
 	private boolean				autoMode	= false;
+	private volatile boolean	reachabilityReady;
+	private Thread				reachabilityThread;
 
 	/** Create new RaceGame. Call {@link #start()} afterwards. */
 	public RaceGame(final Properties prop) {
@@ -432,13 +433,21 @@ public class RaceGame {
 				&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
 	}
 
-	/** Geometry-only legality (no player crash check). Same algorithm as isMoveLegal. */
+	/**
+	 * Geometry-only legality (no player crash check). The interval scan is
+	 * scaled by move length: ~2 samples per unit of euclidean distance. This
+	 * keeps cost low for short moves while still catching cases where the line
+	 * dips outside the polygon between two border vertices (e.g. tangent moves
+	 * across an inside corner of the corridor).
+	 */
 	private boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
 		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
 			return false;
-		final double dx = (double) (x2 - x1) / checkIntervalSplit;
-		final double dy = (double) (y2 - y1) / checkIntervalSplit;
-		for (int j = 1; j < checkIntervalSplit; j++) {
+		final int dxi = x2 - x1, dyi = y2 - y1;
+		final int n = Math.max(2, (int) Math.ceil(Math.sqrt(dxi * dxi + dyi * dyi) * 2));
+		final double dx = (double) dxi / n;
+		final double dy = (double) dyi / n;
+		for (int j = 1; j < n; j++) {
 			final double cx = x1 + j * dx;
 			final double cy = y1 + j * dy;
 			if (!trackA.contains(cx, cy) && !startZoneA.contains(cx, cy))
@@ -772,6 +781,7 @@ public class RaceGame {
 
 	/** Dispatches to AI1 (optimal min-turns) or AI2 (2-step greedy) based on the player's kind. */
 	private Direction computeAiMove() {
+		ensureReachabilityReady();
 		final Player p = players[subgamestate];
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
@@ -1068,8 +1078,34 @@ public class RaceGame {
 		trackA = getToleranceExpandedShape(newPrefilledPath(track.getLeft(), track.getRight()));
 		rui.finishTrack();
 		computeDistMap();
-		computeReachability();
+		startReachabilityCompute();
 		saveTrackToProperties();
+	}
+
+	/** Kick off reverse-BFS reachability on a daemon thread so it doesn't block the UI. */
+	private void startReachabilityCompute() {
+		reachabilityReady = false;
+		final Thread t = new Thread(() -> {
+			computeReachability();
+			reachabilityReady = true;
+		}, "reachability-compute");
+		t.setDaemon(true);
+		reachabilityThread = t;
+		t.start();
+	}
+
+	/** Wait for reachability if the background BFS hasn't finished yet. */
+	private void ensureReachabilityReady() {
+		if (reachabilityReady)
+			return;
+		final Thread t = reachabilityThread;
+		if (t == null)
+			return;
+		try {
+			t.join();
+		} catch (final InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	private static String pointListToString(final LinkedList<int[]> list) {
