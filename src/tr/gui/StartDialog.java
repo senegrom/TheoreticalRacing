@@ -10,13 +10,13 @@ import java.awt.GridLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.util.List;
 import java.util.Properties;
 import java.util.Scanner;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
-import javax.swing.JCheckBox;
 import javax.swing.JColorChooser;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
@@ -28,9 +28,10 @@ import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import tr.logic.Player;
 import tr.logic.RaceGame;
+import tr.logic.RaceGame.TrackData;
 
 /**
- * Start dialog: name/colour/AI per player, dimensions, then go.
+ * Start dialog: name/colour/AI per player, dimensions, track chooser, then go.
  *
  * @author CGH
  */
@@ -38,24 +39,28 @@ public class StartDialog extends JFrame {
 	private final static String	defTextFiller		= "00000";
 	private static final long	serialVersionUID	= -5996002806608660877L;
 
-	private final JButton		btnExit;
-	private final JButton		btnMinus;
-	private final JButton		btnOK;
-	private final JButton[]			btnPlayer;
-	private final JButton[]			btnPlayerCol;
-	private final JComboBox<String>[]	cmbKind;
-	private final JButton			btnPlus;
-	private final JCheckBox			chkUseLastTrack;
-	private final GridBagLayout	gridBag;
-	private final JPanel		gridContainer;
-	private final JLabel[]		lblPlayerCol;
-	private final int			maxPlayers;
-	private int					nPlayers;
-	private final JPanel		pnlSize;
-	private final Properties	prop;
-	private final JTextField[]	txtSize;
+	private static final String	TRACK_DRAW_NEW		= "<Draw new>";
+	private static final String	TRACK_LAST			= "<Last>";
 
-	private Runnable			onConfirm, onCancel, onSave;
+	private final JButton				btnExit;
+	private final JButton				btnMinus;
+	private final JButton				btnOK;
+	private final JButton[]				btnPlayer;
+	private final JButton[]				btnPlayerCol;
+	private final JComboBox<String>[]	cmbKind;
+	private final JButton				btnPlus;
+	private final JComboBox<String>		cmbTrack;
+	private final TrackPreviewPanel		previewPanel;
+	private final GridBagLayout			gridBag;
+	private final JPanel				gridContainer;
+	private final JLabel[]				lblPlayerCol;
+	private final int					maxPlayers;
+	private int							nPlayers;
+	private final JPanel				pnlSize;
+	private final Properties			prop;
+	private final JTextField[]			txtSize;
+
+	private Runnable					onConfirm, onCancel, onSave;
 
 	public StartDialog(final String title, final Properties prop) {
 		super(title);
@@ -85,10 +90,25 @@ public class StartDialog extends JFrame {
 		gridBag = new GridBagLayout();
 		txtSize = new JTextField[4];
 		pnlSize = new JPanel();
-		chkUseLastTrack = new JCheckBox("Use last track", Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")));
-		chkUseLastTrack.setEnabled(RaceGame.hasLastTrack(prop));
-		if (!RaceGame.hasLastTrack(prop))
-			chkUseLastTrack.setSelected(false);
+		cmbTrack = new JComboBox<>();
+		previewPanel = new TrackPreviewPanel();
+		populateTrackCombo();
+	}
+
+	private void populateTrackCombo() {
+		cmbTrack.removeAllItems();
+		cmbTrack.addItem(TRACK_DRAW_NEW);
+		if (RaceGame.hasLastTrack(prop))
+			cmbTrack.addItem(TRACK_LAST);
+		final List<String> names = RaceGame.listTracks();
+		for (final String n : names)
+			cmbTrack.addItem(n);
+
+		final boolean useLast = Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")) && RaceGame.hasLastTrack(prop);
+		if (useLast)
+			cmbTrack.setSelectedItem(TRACK_LAST);
+		else
+			cmbTrack.setSelectedItem(TRACK_DRAW_NEW);
 	}
 
 	public void setOnConfirm(final Runnable r) {
@@ -151,12 +171,36 @@ public class StartDialog extends JFrame {
 		}
 	}
 
-	private void commitKindSelections() {
+	private void commitSelections() {
 		for (int i = 0; i < maxPlayers; i++) {
 			final String sel = String.valueOf(cmbKind[i].getSelectedItem());
 			prop.put("player" + (i + 1) + "Kind", "Human".equals(sel) ? "HUMAN" : sel);
 		}
-		prop.put("useLastTrack", String.valueOf(chkUseLastTrack.isSelected()));
+		final String trackSel = (String) cmbTrack.getSelectedItem();
+		if (trackSel == null || TRACK_DRAW_NEW.equals(trackSel)) {
+			prop.put("useLastTrack", "false");
+		} else if (TRACK_LAST.equals(trackSel)) {
+			prop.put("useLastTrack", "true");
+		} else {
+			RaceGame.loadTrack(prop, trackSel);
+		}
+	}
+
+	private void updateTrackPreview() {
+		final String sel = (String) cmbTrack.getSelectedItem();
+		if (sel == null || TRACK_DRAW_NEW.equals(sel)) {
+			previewPanel.clearTrack("Draw a new track");
+			return;
+		}
+		final TrackData td;
+		if (TRACK_LAST.equals(sel))
+			td = RaceGame.loadLastTrackData(prop);
+		else
+			td = RaceGame.loadTrackData(sel);
+		if (td == null)
+			previewPanel.clearTrack("Track unavailable");
+		else
+			previewPanel.setTrack(td.gameX(), td.gameY(), td.left(), td.right(), td.name());
 	}
 
 	/** Redraw the player rows. */
@@ -201,7 +245,7 @@ public class StartDialog extends JFrame {
 	}
 
 	public void setupUI() {
-		setSize(500, 450);
+		setSize(820, 480);
 		setLocationRelativeTo(null);
 		setResizable(false);
 		setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -235,9 +279,18 @@ public class StartDialog extends JFrame {
 			btnPlayerCol[i].setLayout(new GridLayout(1, 1));
 		}
 
+		final JPanel trackPanel = new JPanel(new BorderLayout(6, 6));
+		trackPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+		final JPanel trackHeader = new JPanel(new BorderLayout(6, 0));
+		trackHeader.add(new JLabel("Track:"), BorderLayout.WEST);
+		trackHeader.add(cmbTrack, BorderLayout.CENTER);
+		trackPanel.add(trackHeader, BorderLayout.NORTH);
+		previewPanel.setPreferredSize(new Dimension(280, 200));
+		previewPanel.setBorder(BorderFactory.createLineBorder(new Color(180, 180, 180)));
+		trackPanel.add(previewPanel, BorderLayout.CENTER);
+
 		southContainer.setLayout(new BoxLayout(southContainer, BoxLayout.X_AXIS));
 		southContainer.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
-		southContainer.add(chkUseLastTrack);
 		southContainer.add(Box.createHorizontalGlue());
 		southContainer.add(btnMinus);
 		southContainer.add(btnPlus);
@@ -246,6 +299,7 @@ public class StartDialog extends JFrame {
 		southContainer.add(btnOK);
 
 		add(gridContainer, BorderLayout.CENTER);
+		add(trackPanel, BorderLayout.EAST);
 		add(southContainer, BorderLayout.SOUTH);
 
 		setVisible(true);
@@ -288,11 +342,14 @@ public class StartDialog extends JFrame {
 			btnPlayer[i].addActionListener(btnListener);
 			btnPlayerCol[i].addActionListener(btnListener);
 		}
+
+		cmbTrack.addActionListener(e -> updateTrackPreview());
+		updateTrackPreview();
 	}
 
 	private void doConfirm() {
 		refreshSizeValues();
-		commitKindSelections();
+		commitSelections();
 		dispose();
 		if (onSave != null)
 			onSave.run();
@@ -302,7 +359,7 @@ public class StartDialog extends JFrame {
 
 	private void doCancel() {
 		refreshSizeValues();
-		commitKindSelections();
+		commitSelections();
 		dispose();
 		if (onCancel != null)
 			onCancel.run();

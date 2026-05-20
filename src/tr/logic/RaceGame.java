@@ -86,25 +86,67 @@ public class RaceGame {
 		}
 	}
 
-	/** Load a named track into {@code prop}, replacing lastTrack* + gameX/gameY. */
-	public static boolean loadTrack(final Properties prop, final String name) {
+	/** Parsed track data — used by the chooser for previews and by loadTrack to update props. */
+	public static record TrackData(String name, int gameX, int gameY, LinkedList<int[]> left, LinkedList<int[]> right) {}
+
+	/** Parse a named .track file. Returns null on miss / parse failure. */
+	public static TrackData loadTrackData(final String name) {
 		final Path file = tracksDir().resolve(name + ".track");
 		if (!Files.isRegularFile(file))
-			return false;
+			return null;
 		final Properties tp = new Properties();
 		try (java.io.InputStream in = Files.newInputStream(file)) {
 			tp.load(in);
 		} catch (final IOException e) {
-			return false;
+			return null;
 		}
-		if (tp.getProperty("trackLeft") == null || tp.getProperty("trackRight") == null)
+		final LinkedList<int[]> left = parsePointList(tp.getProperty("trackLeft"));
+		final LinkedList<int[]> right = parsePointList(tp.getProperty("trackRight"));
+		if (left.size() < 2 || right.size() < 2)
+			return null;
+		int gx;
+		int gy;
+		try {
+			gx = Integer.parseInt(tp.getProperty("gameX", String.valueOf(defCols)));
+			gy = Integer.parseInt(tp.getProperty("gameY", String.valueOf(defRows)));
+		} catch (final NumberFormatException e) {
+			gx = defCols;
+			gy = defRows;
+		}
+		return new TrackData(tp.getProperty("name", name), gx, gy, left, right);
+	}
+
+	/** Parse the "last track" data straight out of a Properties bundle. Null if missing/invalid. */
+	public static TrackData loadLastTrackData(final Properties prop) {
+		final String left = prop.getProperty("lastTrackLeft");
+		final String right = prop.getProperty("lastTrackRight");
+		if (left == null || right == null || left.isEmpty() || right.isEmpty())
+			return null;
+		final LinkedList<int[]> l = parsePointList(left);
+		final LinkedList<int[]> r = parsePointList(right);
+		if (l.size() < 2 || r.size() < 2)
+			return null;
+		int gx;
+		int gy;
+		try {
+			gx = Integer.parseInt(prop.getProperty("gameX", String.valueOf(defCols)));
+			gy = Integer.parseInt(prop.getProperty("gameY", String.valueOf(defRows)));
+		} catch (final NumberFormatException e) {
+			gx = defCols;
+			gy = defRows;
+		}
+		return new TrackData("Last", gx, gy, l, r);
+	}
+
+	/** Load a named track into {@code prop}, replacing lastTrack* + gameX/gameY. */
+	public static boolean loadTrack(final Properties prop, final String name) {
+		final TrackData td = loadTrackData(name);
+		if (td == null)
 			return false;
-		prop.put("lastTrackLeft", tp.getProperty("trackLeft"));
-		prop.put("lastTrackRight", tp.getProperty("trackRight"));
-		if (tp.getProperty("gameX") != null)
-			prop.put("gameX", tp.getProperty("gameX"));
-		if (tp.getProperty("gameY") != null)
-			prop.put("gameY", tp.getProperty("gameY"));
+		prop.put("lastTrackLeft", pointListToString(td.left()));
+		prop.put("lastTrackRight", pointListToString(td.right()));
+		prop.put("gameX", String.valueOf(td.gameX()));
+		prop.put("gameY", String.valueOf(td.gameY()));
 		prop.put("useLastTrack", "true");
 		return true;
 	}
