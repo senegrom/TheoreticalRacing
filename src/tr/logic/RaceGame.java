@@ -14,11 +14,9 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.BitSet;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.Scanner;
 import javax.swing.JButton;
@@ -423,6 +421,7 @@ public class RaceGame {
 	}
 
 	private BitSet	aliveStates;
+	private int[]	turnsArr;
 	private int		aliveW, aliveH, aliveVMAX;
 
 	private int aliveIdx(final int x, final int y, final int vx, final int vy) {
@@ -441,17 +440,31 @@ public class RaceGame {
 		return aliveStates.get(aliveIdx(x, y, vx, vy));
 	}
 
+	/** Minimum number of turns from (x,y,vx,vy) to crossing the finish, or MAX_VALUE if unreachable. */
+	private int turnsToFinish(final int x, final int y, final int vx, final int vy) {
+		if (turnsArr == null)
+			return Integer.MAX_VALUE;
+		if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+			return Integer.MAX_VALUE;
+		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
+			return Integer.MAX_VALUE;
+		return turnsArr[aliveIdx(x, y, vx, vy)];
+	}
+
 	/**
-	 * Reverse-BFS from finish-line-crossing states: a state s is alive iff there
-	 * exists a direction d such that the move from s under d either crosses the
-	 * finish or leads to an alive state. Computed once per track build.
+	 * Reverse-BFS from finish-line-crossing states: computes both the alive set
+	 * AND the exact minimum number of turns from each state to crossing the finish.
+	 * Run once per track build.
 	 */
-	private void computeAliveStates() {
+	private void computeReachability() {
 		aliveW = gameCols + 1;
 		aliveH = gameRows + 1;
 		aliveVMAX = AI_MAX_SPEED;
 		final int span = 2 * aliveVMAX + 1;
-		aliveStates = new BitSet(aliveW * aliveH * span * span);
+		final int total = aliveW * aliveH * span * span;
+		aliveStates = new BitSet(total);
+		turnsArr = new int[total];
+		Arrays.fill(turnsArr, Integer.MAX_VALUE);
 		final ArrayDeque<int[]> queue = new ArrayDeque<>();
 
 		for (int x = 0; x < aliveW; x++) {
@@ -471,7 +484,8 @@ public class RaceGame {
 								final int idx = aliveIdx(x, y, vx, vy);
 								if (!aliveStates.get(idx)) {
 									aliveStates.set(idx);
-									queue.push(new int[]{x, y, vx, vy });
+									turnsArr[idx] = 1;
+									queue.offer(new int[]{x, y, vx, vy });
 								}
 								break;
 							}
@@ -482,8 +496,9 @@ public class RaceGame {
 		}
 
 		while (!queue.isEmpty()) {
-			final int[] cur = queue.pop();
+			final int[] cur = queue.poll();
 			final int xp = cur[0], yp = cur[1], vxp = cur[2], vyp = cur[3];
+			final int turns = turnsArr[aliveIdx(xp, yp, vxp, vyp)];
 			final int x = xp - vxp;
 			final int y = yp - vyp;
 			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
@@ -500,7 +515,8 @@ public class RaceGame {
 				final int idx = aliveIdx(x, y, vx, vy);
 				if (!aliveStates.get(idx)) {
 					aliveStates.set(idx);
-					queue.push(new int[]{x, y, vx, vy });
+					turnsArr[idx] = turns + 1;
+					queue.offer(new int[]{x, y, vx, vy });
 				}
 			}
 		}
@@ -702,9 +718,8 @@ public class RaceGame {
 	}
 
 	private final static int		AI_MAX_SPEED	= 12;
-	private final static int		AI_MAX_ITER		= 15000;
 
-	/** Dispatches to AI1 (A*) or AI2 (2-step greedy) based on the player's kind. */
+	/** Dispatches to AI1 (optimal min-turns) or AI2 (2-step greedy) based on the player's kind. */
 	private Direction computeAiMove() {
 		final Player p = players[subgamestate];
 		final int[] vel = p.getVelocity();
@@ -713,62 +728,59 @@ public class RaceGame {
 
 		if (p.getKind() == Player.Kind.AI2)
 			return twoStepGreedy(pos, vel, playerNum);
-		// AI1: A* with 2-step greedy as fallback
-		final Direction astar = aStarSearch(pos, vel, playerNum);
-		return astar != null ? astar : twoStepGreedy(pos, vel, playerNum);
+		return optimalMove(pos, vel, playerNum);
 	}
 
-	private Direction aStarSearch(final int[] pos0, final int[] vel0, final int playerNum) {
-		final PriorityQueue<int[]> open = new PriorityQueue<>(Comparator.comparingInt(n -> n[5]));
-		final HashMap<Long, Integer> bestG = new HashMap<>();
-		final int[] start = {pos0[0], pos0[1], vel0[0], vel0[1], 0, aiHeuristic(pos0[0], pos0[1]), -1 };
-		open.add(start);
-		bestG.put(stateKey(start[0], start[1], start[2], start[3]), 0);
-
-		int iter = 0;
-		while (!open.isEmpty() && iter++ < AI_MAX_ITER) {
-			final int[] cur = open.poll();
-			if (bestG.getOrDefault(stateKey(cur[0], cur[1], cur[2], cur[3]), Integer.MAX_VALUE) < cur[4])
+	/**
+	 * AI1: pick the move whose successor state has the minimum precomputed
+	 * turns-to-finish. Optimal modulo opponent positions (which can shift the
+	 * crash check between turns but not the underlying reachability map).
+	 */
+	private Direction optimalMove(final int[] pos, final int[] vel, final int playerNum) {
+		Direction best = null;
+		int bestTurns = Integer.MAX_VALUE;
+		Direction bestLegal = null;
+		double bestLegalScore = Double.MAX_VALUE;
+		Direction fallback = Direction.NONE;
+		double fallbackScore = Double.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int newVx = vel[0] + d.dx;
+			final int newVy = vel[1] + d.dy;
+			if (Math.abs(newVx) > AI_MAX_SPEED || Math.abs(newVy) > AI_MAX_SPEED)
 				continue;
-			for (final Direction d : Direction.values()) {
-				final int newVx = cur[2] + d.dx;
-				final int newVy = cur[3] + d.dy;
-				if (Math.abs(newVx) > AI_MAX_SPEED || Math.abs(newVy) > AI_MAX_SPEED)
-					continue;
-				final int newX = cur[0] + newVx;
-				final int newY = cur[1] + newVy;
-				final int firstDir = cur[6] < 0 ? d.ordinal() : cur[6];
-
-				if (crossesFinish(cur[0], cur[1], newX, newY))
-					return Direction.fromIndex(firstDir);
-
-				if (!isMoveLegalGeometryCached(cur[0], cur[1], newX, newY))
-					continue;
-				// Only check player crash on the FIRST step (other players will move during the plan).
-				if (cur[6] < 0 && isCrashingPlayer(newX, newY, playerNum))
-					continue;
-				// Reject states from which the finish cannot be reached at all.
-				if (!isAlive(newX, newY, newVx, newVy))
-					continue;
-
-				final int newG = cur[4] + 1;
-				final long childKey = stateKey(newX, newY, newVx, newVy);
-				if (bestG.getOrDefault(childKey, Integer.MAX_VALUE) <= newG)
-					continue;
-				bestG.put(childKey, newG);
-				open.add(new int[]{newX, newY, newVx, newVy, newG, newG + aiHeuristic(newX, newY), firstDir });
+			final int newX = pos[0] + newVx;
+			final int newY = pos[1] + newVy;
+			if (crossesFinish(pos[0], pos[1], newX, newY))
+				return d;
+			final double sc = scorePos(newX, newY, newVx, newVy);
+			if (!isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+				if (sc < fallbackScore) {
+					fallbackScore = sc;
+					fallback = d;
+				}
+				continue;
+			}
+			if (isCrashingPlayer(newX, newY, playerNum))
+				continue;
+			if (sc < bestLegalScore) {
+				bestLegalScore = sc;
+				bestLegal = d;
+			}
+			final int turns = turnsToFinish(newX, newY, newVx, newVy);
+			if (turns < bestTurns) {
+				bestTurns = turns;
+				best = d;
 			}
 		}
-		return null;
+		if (best != null)
+			return best;
+		if (bestLegal != null)
+			return bestLegal;
+		return fallback;
 	}
 
 	private static long stateKey(final int x, final int y, final int vx, final int vy) {
 		return ((long) x & 0xFFFF) << 48 | ((long) y & 0xFFFF) << 32 | ((long) (vx + 32) & 0xFF) << 16 | (long) (vy + 32) & 0xFF;
-	}
-
-	private int aiHeuristic(final int x, final int y) {
-		final int d = distAt(x, y);
-		return d == Integer.MAX_VALUE ? 100_000 : Math.max(1, d / AI_MAX_SPEED);
 	}
 
 	/** Fallback when A* runs out of budget. */
@@ -1003,7 +1015,7 @@ public class RaceGame {
 		trackA = getToleranceExpandedShape(newPrefilledPath(track.getLeft(), track.getRight()));
 		rui.finishTrack();
 		computeDistMap();
-		computeAliveStates();
+		computeReachability();
 		saveTrackToProperties();
 	}
 
