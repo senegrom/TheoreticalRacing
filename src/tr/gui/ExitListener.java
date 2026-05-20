@@ -2,21 +2,20 @@ package tr.gui;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.awt.event.WindowListener;
 import tr.logic.RaceGame;
 
 /**
- * Listen to all exit buttons
+ * Funnels Exit button clicks and window-close events into {@code game.exitMe()}.
  *
  * @author CGH
  */
-public class ExitListener implements ActionListener, WindowListener {
+public class ExitListener extends WindowAdapter implements ActionListener {
 
 	private final RaceGame game;
 
 	public ExitListener(final RaceGame game) {
-		super();
 		this.game = game;
 	}
 
@@ -26,27 +25,7 @@ public class ExitListener implements ActionListener, WindowListener {
 	}
 
 	@Override
-	public void windowActivated(final WindowEvent arg0) {}
-
-	@Override
-	public void windowClosed(final WindowEvent arg0) {}
-
-	@Override
 	public void windowClosing(final WindowEvent arg0) {
 		game.exitMe();
-		// arg0.getWindow().
 	}
-
-	@Override
-	public void windowDeactivated(final WindowEvent arg0) {}
-
-	@Override
-	public void windowDeiconified(final WindowEvent arg0) {}
-
-	@Override
-	public void windowIconified(final WindowEvent arg0) {}
-
-	@Override
-	public void windowOpened(final WindowEvent arg0) {}
-
 }

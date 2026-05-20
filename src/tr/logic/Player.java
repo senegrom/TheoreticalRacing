@@ -4,38 +4,61 @@ import java.awt.Color;
 import java.util.LinkedList;
 
 /**
- * Represents a player, its position and velocity and additional infos (color,
- * player track...)
+ * Position, velocity, identity and history of a single player.
  *
  * @author CGH
  */
 public class Player {
 	public final static int INIT_POS = -100000;
 
-	public final static Color brighterCol(final Color c) {
+	public enum Kind {
+		HUMAN, AI1, AI2;
+
+		public static Kind parse(final String s) {
+			if (s == null)
+				return HUMAN;
+			final String t = s.trim().toLowerCase();
+			return switch (t) {
+				case "ai1", "true" -> AI1;
+				case "ai2" -> AI2;
+				default -> HUMAN;
+			};
+		}
+
+		public String label() {
+			return this == HUMAN ? "" : " [" + name() + "]";
+		}
+	}
+
+	private static Color brighterCol(final Color c) {
 		return new Color(c.getRed() + (255 - c.getRed()) / 2, c.getGreen() + (255 - c.getGreen()) / 2,
 				c.getBlue() + (255 - c.getBlue()) / 2);
 	}
 
+	private final Kind				kind;
 	private final Color				brightColor;
 	private final Color				color;
 	private int						finishedPlace;
-	private final LinkedList<int[]>	history;
+	private final LinkedList<int[]>	history		= new LinkedList<>();
 	private final String			name;
 	private final int				number;
-	private int[]					position;
+	private int[]					position	= {INIT_POS, INIT_POS };
+	private int[]					velocity	= {0, 0 };
 
-	private int[]					velocity;
-
-	public Player(final String name, final int number, final Color color) {
+	public Player(final String name, final int number, final Color color, final Kind kind) {
 		this.name = name;
 		this.number = number;
 		this.color = color;
-		brightColor = brighterCol(color);
-		position = new int[]{INIT_POS, INIT_POS };
-		velocity = new int[]{0, 0 };
-		finishedPlace = 0;
-		history = new LinkedList<>();
+		this.kind = kind;
+		this.brightColor = brighterCol(color);
+	}
+
+	public boolean isAi() {
+		return kind != Kind.HUMAN;
+	}
+
+	public Kind getKind() {
+		return kind;
 	}
 
 	public Color getBrightColor() {
@@ -72,6 +95,10 @@ public class Player {
 
 	public boolean isFinished() {
 		return finishedPlace != 0;
+	}
+
+	public String statusLabel() {
+		return isFinished() ? finishedPlace + "." : velocity[0] + " " + (-velocity[1]);
 	}
 
 	public void logPosition(final int[] position) {

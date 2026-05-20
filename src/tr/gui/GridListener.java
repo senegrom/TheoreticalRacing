@@ -1,43 +1,26 @@
 package tr.gui;
 
+import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
 import tr.logic.RaceGame;
 
 /**
- * Listener for the game grid (to place start positions)
+ * Forwards grid mouse-clicks to the game in grid-coord space.
  *
  * @author CGH
  */
-public class GridListener implements MouseListener {
+public class GridListener extends MouseAdapter {
 
 	private final RaceGame game;
 
 	public GridListener(final RaceGame game) {
-		super();
 		this.game = game;
 	}
 
 	@Override
-	public void mouseClicked(final MouseEvent arg0) {}
-
-	@Override
-	public void mouseEntered(final MouseEvent arg0) {}
-
-	@Override
-	public void mouseExited(final MouseEvent arg0) {}
-
-	@Override
-	public void mousePressed(final MouseEvent arg0) {
-		double x = arg0.getX();
-		double y = arg0.getY();
-		x = x / RaceUI.GRID_DIST;
-		y = y / RaceUI.GRID_DIST;
-
-		game.clickedGrid((int) Math.round(x), (int) Math.round(y));
+	public void mousePressed(final MouseEvent e) {
+		final int x = (int) Math.round(e.getX() / (double) RaceUI.GRID_DIST);
+		final int y = (int) Math.round(e.getY() / (double) RaceUI.GRID_DIST);
+		game.clickedGrid(x, y);
 	}
-
-	@Override
-	public void mouseReleased(final MouseEvent arg0) {}
-
 }

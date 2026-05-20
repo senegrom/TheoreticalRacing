@@ -1,14 +1,16 @@
 package tr.main;
 
 import java.awt.EventQueue;
-import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Properties;
 import javax.swing.UIManager;
 import tr.logic.RaceGame;
 
 /**
- * Starts the game
+ * Starts the game.
  *
  * @author CGH
  */
@@ -16,7 +18,6 @@ public class Main {
 
 	static {
 		try {
-			// Set System L&F
 			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		} catch (final Exception e) {
 			e.printStackTrace();
@@ -27,18 +28,51 @@ public class Main {
 		System.out.println(RaceGame.NAME + " " + RaceGame.VERSION);
 		System.out.println("=================================\n");
 
-		final Properties prop = new Properties();
-
-		try (FileInputStream input = new FileInputStream(RaceGame.userProperties)) {
-			prop.load(input);
-		} catch (final IOException e1) {
-			try (FileInputStream input = new FileInputStream(RaceGame.defProperties)) {
-				prop.load(input);
-			} catch (final IOException e2) {
-				e2.printStackTrace();
-			}
+		boolean auto = false;
+		for (final String a : args) {
+			if ("--auto".equals(a))
+				auto = true;
 		}
 
-		EventQueue.invokeLater(() -> new RaceGame(prop).start());
+		final Properties prop = loadProperties();
+		final boolean autoMode = auto;
+		EventQueue.invokeLater(() -> {
+			final RaceGame game = new RaceGame(prop);
+			game.setAutoMode(autoMode);
+			game.start();
+		});
+	}
+
+	private static Properties loadProperties() {
+		final Properties prop = new Properties();
+		// 1. User properties from user-home dir (preferred)
+		final Path userProp = RaceGame.userPropertiesPath();
+		if (Files.isRegularFile(userProp)) {
+			try (InputStream in = Files.newInputStream(userProp)) {
+				prop.load(in);
+				return prop;
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
+		// 2. CWD-relative default.properties (backwards compat)
+		final Path defProp = Path.of(RaceGame.defProperties);
+		if (Files.isRegularFile(defProp)) {
+			try (InputStream in = Files.newInputStream(defProp)) {
+				prop.load(in);
+				return prop;
+			} catch (final IOException e) {
+				e.printStackTrace();
+			}
+		}
+		// 3. Bundled default.properties resource
+		try (InputStream in = Main.class.getResourceAsStream("/default.properties")) {
+			if (in != null)
+				prop.load(in);
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+		// 4. Any missing keys are filled in by RaceGame's constructor defaults
+		return prop;
 	}
 }

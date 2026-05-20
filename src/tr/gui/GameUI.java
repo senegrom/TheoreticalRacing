@@ -15,11 +15,12 @@ import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import javax.swing.border.LineBorder;
+import tr.logic.Direction;
 import tr.logic.Player;
 import tr.logic.RaceGame;
 
 /**
- * JFrame extension containing the main game
+ * Main game window.
  *
  * @author CGH
  */
@@ -35,36 +36,25 @@ public class GameUI extends JFrame {
 	private final JLabel[]		lblPlayerInfo;
 	private final JLabel		lblStatus;
 
-	public GameUI(final String s, final int maxPlayers) {
-		super(s);
+	public GameUI(final String title, final int maxPlayers) {
+		super(title);
 		lblStatus = new JLabel(" ");
 		btnOK = new JButton("OK");
 		btnUndo = new JButton("Undo");
 		btnUndo.setEnabled(false);
 		btnExit = new JButton("Exit");
 		btnRestart = new JButton("Restart");
-		btnDirections = new JButton[9];
-		for (int i = 0; i < 9; i++)
-			btnDirections[i] = new JButton();
-		btnDirections[0].setText("NW");
-		btnDirections[1].setText("N");
-		btnDirections[2].setText("NE");
-		btnDirections[3].setText("W");
-		btnDirections[4].setText("-");
-		btnDirections[5].setText("E");
-		btnDirections[6].setText("SW");
-		btnDirections[7].setText("S");
-		btnDirections[8].setText("SE");
-
+		btnDirections = new JButton[Direction.values().length];
+		for (int i = 0; i < btnDirections.length; i++)
+			btnDirections[i] = new JButton(Direction.fromIndex(i).label());
 		lblPlayerInfo = new JLabel[maxPlayers];
+		// pre-init so headless setPlayerInfo doesn't NPE before setupUI
+		for (int i = 0; i < maxPlayers; i++)
+			lblPlayerInfo[i] = new JLabel("-");
 	}
 
 	public JButton[] getBtnDirections() {
 		return btnDirections;
-	}
-
-	public JButton getBtnExit() {
-		return btnExit;
 	}
 
 	public JButton getBtnOK() {
@@ -75,20 +65,12 @@ public class GameUI extends JFrame {
 		return btnUndo;
 	}
 
-	public void setOKText(final String s) {
-		btnOK.setText(s);
-	}
-
 	public void setPlayerInfo(final String s, final int i) {
 		lblPlayerInfo[i].setText(s);
 	}
 
 	public void setStatus(final String s) {
 		lblStatus.setText(s);
-	}
-
-	public void setUndoText(final String s) {
-		btnUndo.setText(s);
 	}
 
 	public void setupUI(final Grid g, final RaceGame game, final int windowX, final int windowY, final Player[] players) {
@@ -112,7 +94,6 @@ public class GameUI extends JFrame {
 
 		add(gridContainer, BorderLayout.CENTER);
 		add(rightContainer, BorderLayout.EAST);
-
 		add(lblStatus, BorderLayout.SOUTH);
 		lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
@@ -126,14 +107,16 @@ public class GameUI extends JFrame {
 			else if (source == btnRestart)
 				game.restartMe();
 			else
-				for (int i = 0; i < 9; i++)
-					if (source == btnDirections[i])
-						game.clickedDirection(i);
+				for (int i = 0; i < btnDirections.length; i++)
+					if (source == btnDirections[i]) {
+						game.clickedDirection(Direction.fromIndex(i));
+						break;
+					}
 		};
 
-		for (int i = 0; i < 9; i++) {
-			directionContainer.add(btnDirections[i]);
-			btnDirections[i].addActionListener(lstnButton);
+		for (final JButton b : btnDirections) {
+			directionContainer.add(b);
+			b.addActionListener(lstnButton);
 		}
 		directionContainer.setMaximumSize(new Dimension(rightSize, rightSize));
 		btnContainer.setMaximumSize(new Dimension(rightSize, rightSize));
@@ -147,18 +130,15 @@ public class GameUI extends JFrame {
 		btnContainer.add(btnRestart);
 		btnContainer.add(btnExit);
 
-		JLabel temp;
-		JPanel tempP;
 		for (int i = 0; i < players.length; i++) {
-			temp = new JLabel();
-			tempP = new JPanel();
-			tempP.setLayout(new BorderLayout());
-			temp.setOpaque(true);
-			temp.setMaximumSize(new Dimension(10, 10));
-			temp.setBackground(players[i].getColor());
-			tempP.add(temp, BorderLayout.CENTER);
-			playerInfoContainer.add(tempP);
-			playerInfoContainer.add(new JLabel(players[i].getName()));
+			final JLabel colorLbl = new JLabel();
+			colorLbl.setOpaque(true);
+			colorLbl.setMaximumSize(new Dimension(10, 10));
+			colorLbl.setBackground(players[i].getColor());
+			final JPanel colorPanel = new JPanel(new BorderLayout());
+			colorPanel.add(colorLbl, BorderLayout.CENTER);
+			playerInfoContainer.add(colorPanel);
+			playerInfoContainer.add(new JLabel(players[i].getName() + players[i].getKind().label()));
 			lblPlayerInfo[i] = new JLabel("-");
 			playerInfoContainer.add(lblPlayerInfo[i]);
 		}
@@ -170,7 +150,6 @@ public class GameUI extends JFrame {
 		rightContainer.add(Box.createRigidArea(new Dimension(0, 10)));
 		rightContainer.add(playerInfoContainer);
 
-		// Listeners
 		btnOK.addActionListener(lstnButton);
 		btnUndo.addActionListener(lstnButton);
 		btnRestart.addActionListener(lstnButton);
@@ -179,7 +158,6 @@ public class GameUI extends JFrame {
 
 		setVisible(true);
 
-		// Adapt size
 		final Dimension minSize = new Dimension(g.cols * RaceUI.GRID_DIST + 1, g.rows * RaceUI.GRID_DIST + 1);
 		g.setSize(minSize);
 		g.setMinimumSize(minSize);

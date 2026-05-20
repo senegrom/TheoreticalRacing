@@ -4,68 +4,75 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Shape;
 import java.awt.geom.Area;
+import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
-import java.io.File;
-import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.BitSet;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.PriorityQueue;
 import java.util.Properties;
 import java.util.Scanner;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import tr.gui.GameUI;
 import tr.gui.RaceUI;
 import tr.gui.StartDialog;
-import tr.main.Main;
 
 /**
- * Main game logic component of TheoreticRacing
+ * Main game logic component of TheoreticRacing.
  *
- * @version 0.2.1
+ * @version 0.3.0
  * @author CGH
  */
 public class RaceGame {
-	public final static String			AUTHOR				= "CGH";
 	private final static int			checkIntervalSplit	= 100;
 	private final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
 			Color.ORANGE, Color.GRAY, Color.MAGENTA, Color.BLACK };
-	public final static String			defProperties		= "default.properties";
 	private final static int			defRows				= 48;
 	private final static int			defWindowX			= 1500;
 	private final static int			defWindowY			= 800;
 	public final static String			NAME				= "Theoretical Racing";
+	public final static String			VERSION				= "0.3.0";
+	public final static String			defProperties		= "default.properties";
+
 	private final static float			startZoneWidth		= 2f;
 	private final static BasicStroke	strkTolerance		= new BasicStroke(.01f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
-	public final static String			userProperties		= "user.properties";
-	public final static String			VERSION				= "0.2.1";
 
-	/**
-	 * Add element to track
-	 *
-	 * @param track
-	 * @param x
-	 * @param y
-	 * @param isLeft
-	 */
-	private final static void addToTrack(final Track track, final int x, final int y, final boolean isLeft) {
-		if (isLeft)
-			track.addLeft(x, y);
-		else
-			track.addRight(x, y);
+	/** Directory containing the JAR (or the classes dir in dev runs). */
+	private static Path installDir() {
+		try {
+			final Path codeSource = Path.of(RaceGame.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+			return Files.isDirectory(codeSource) ? codeSource : codeSource.getParent();
+		} catch (final Exception e) {
+			return Path.of(".");
+		}
+	}
+
+	/** Path to the user's saved properties (next to the JAR). */
+	public static Path userPropertiesPath() {
+		return installDir().resolve("user.properties");
+	}
+
+	/** Path to the per-session game log (next to the JAR). */
+	public static Path gameLogPath() {
+		return installDir().resolve("last_game.log");
 	}
 
 	/**
-	 * @param p11
-	 * @param p12
-	 * @param p21
-	 * @param p22
-	 * @param seq
-	 *            0: all endpoints checked, 1: p11=p22 allowed, 2: p12=21
-	 *            allowed, 3: == always allowed
-	 * @return true iff the lines (p11,p12) and (p21,p22) intersect
+	 * @param seq 0: all endpoints checked; 1: p11==p22 allowed; 2: p12==p21
+	 *            allowed; 3: equal endpoints always allowed.
+	 * @return true iff the segments (p11,p12) and (p21,p22) intersect.
 	 */
 	private final static boolean checkIntersect(final int[] p11, final int[] p12, final int[] p21, final int[] p22, final byte seq) {
 		if (seq != 3 && (Arrays.equals(p11, p12) || Arrays.equals(p11, p21) || Arrays.equals(p12, p22) || Arrays.equals(p21, p22)))
@@ -75,14 +82,9 @@ public class RaceGame {
 		if (seq != 2 && seq != 3 && Arrays.equals(p12, p21))
 			return true;
 
-		final double x1 = p11[0];
-		final double y1 = p11[1];
-		final double x2 = p21[0];
-		final double y2 = p21[1];
-		final double dx1 = p12[0] - p11[0];
-		final double dy1 = p12[1] - p11[1];
-		final double dx2 = p22[0] - p21[0];
-		final double dy2 = p22[1] - p21[1];
+		final double x1 = p11[0], y1 = p11[1], x2 = p21[0], y2 = p21[1];
+		final double dx1 = p12[0] - p11[0], dy1 = p12[1] - p11[1];
+		final double dx2 = p22[0] - p21[0], dy2 = p22[1] - p21[1];
 		final double d = dx2 * dy1 - dx1 * dy2;
 		if (d == 0) {
 			if (seq != 0 && seq != 3) {
@@ -90,7 +92,6 @@ public class RaceGame {
 					return true;
 				return false;
 			}
-			// parallel lines with seq 0 or 3: check colinearity and overlap
 			if ((x2 - x1) * dy1 - (y2 - y1) * dx1 != 0)
 				return false;
 			final double len1Sq = dx1 * dx1 + dy1 * dy1;
@@ -106,14 +107,16 @@ public class RaceGame {
 				return true;
 			if (seq == 0 && (s == 0 || s == 1) && (t == 0 || t == 1))
 				return true;
+			// Corner-clip: AI line interior crosses through a border vertex
+			// (s in code = AI line parameter, t in code = border parameter)
+			if (seq == 3 && s > 0 && s < 1 && (t == 0 || t == 1))
+				return true;
 		}
 		return false;
 	}
 
 	/**
-	 * @param p1
-	 * @param p2
-	 * @return true iff the line paths p1, p2 intersect anywhere
+	 * @return true iff the line paths p1, p2 intersect anywhere.
 	 */
 	private final static boolean checkIntersect(final LinkedList<int[]> p1, final LinkedList<int[]> p2, final boolean allowEqual) {
 		if (p1 == null || p2 == null || p1.size() < 2 || p2.size() < 2)
@@ -122,35 +125,28 @@ public class RaceGame {
 			return true;
 		if (p2.size() == 2 && Arrays.equals(p2.getFirst(), p2.getLast()))
 			return true;
-		Iterator<int[]> it1, it2;
-		it1 = p1.iterator();
-		int[] p11, p12, p21, p22;
-		p11 = null;
-		p12 = null;
+		final Iterator<int[]> it1 = p1.iterator();
+		int[] p11 = null, p12 = null;
 		while (it1.hasNext()) {
 			p12 = it1.next();
 			if (p11 != null) {
-				it2 = p2.iterator();
-				p21 = null;
-				p22 = null;
+				final Iterator<int[]> it2 = p2.iterator();
+				int[] p21 = null, p22 = null;
 				while (it2.hasNext()) {
 					p22 = it2.next();
-					if (p21 != null)
-						// not using equals but == to check if its the same
-						// point in the same path
-						if (p11 != p21 || p12 != p22) {
-							byte seq;
-							if (allowEqual)
-								seq = 3;
-							else if (p11 == p22)
-								seq = 1;
-							else if (p12 == p21)
-								seq = 2;
-							else
-								seq = 0;
-							if (checkIntersect(p11, p12, p21, p22, seq))
-								return true;
-						}
+					if (p21 != null && (p11 != p21 || p12 != p22)) {
+						final byte seq;
+						if (allowEqual)
+							seq = 3;
+						else if (p11 == p22)
+							seq = 1;
+						else if (p12 == p21)
+							seq = 2;
+						else
+							seq = 0;
+						if (checkIntersect(p11, p12, p21, p22, seq))
+							return true;
+					}
 					p21 = p22;
 				}
 			}
@@ -160,25 +156,55 @@ public class RaceGame {
 	}
 
 	/**
-	 * @param s
-	 * @return Expand Area s by strkTolerance
+	 * Cheap incremental self-intersection check: tests segment (prevLast,last)
+	 * of `active` against all earlier segments of `active` and all segments of
+	 * `other`. O(n) per call instead of O(n²).
 	 */
+	private final static boolean lastSegmentIntersects(final LinkedList<int[]> active, final LinkedList<int[]> other) {
+		if (active.size() < 2)
+			return false;
+		final int[] a2 = active.getLast();
+		final int[] a1 = active.get(active.size() - 2);
+		// Against earlier segments of active itself (skip the adjacent one)
+		int[] prev = null;
+		final Iterator<int[]> it = active.iterator();
+		int idx = 0;
+		final int limit = active.size() - 2;
+		while (it.hasNext() && idx <= limit) {
+			final int[] cur = it.next();
+			if (prev != null) {
+				// segments (prev,cur) and (a1,a2); they're non-adjacent if idx < limit
+				final boolean adjacent = idx == limit; // last segment before our new one
+				if (!adjacent) {
+					if (checkIntersect(prev, cur, a1, a2, (byte) 0))
+						return true;
+				} else {
+					// adjacent: shared endpoint (cur == a1). Allowed.
+					if (checkIntersect(prev, cur, a1, a2, (byte) 2))
+						return true;
+				}
+			}
+			prev = cur;
+			idx++;
+		}
+		// Against all segments of the other side
+		prev = null;
+		final Iterator<int[]> it2 = other.iterator();
+		while (it2.hasNext()) {
+			final int[] cur = it2.next();
+			if (prev != null && checkIntersect(prev, cur, a1, a2, (byte) 0))
+				return true;
+			prev = cur;
+		}
+		return false;
+	}
+
 	private final static Area getToleranceExpandedShape(final Shape s) {
 		final Area a = new Area(strkTolerance.createStrokedShape(s));
 		a.add(new Area(s));
 		return a;
 	}
 
-	private final static int[] makeFinishLine(final int[] pL, final int[] pR) {
-		return new int[]{pL[0], pL[1], pR[0], pR[1] };
-	}
-
-	/**
-	 * @param pL
-	 * @param pR
-	 * @return coordinates of the 4 vertices of the start zone
-	 *         {{x1,x2,x3,x4},{y1,y2,y3,y4}}
-	 */
 	private final static float[][] makeStartZone(final int[] pL, final int[] pR) {
 		final float len = (float) Math.sqrt((pR[0] - pL[0]) * (pR[0] - pL[0]) + (pR[1] - pL[1]) * (pR[1] - pL[1]));
 		final float dirX = (pL[1] - pR[1]) * startZoneWidth / len;
@@ -186,11 +212,6 @@ public class RaceGame {
 		return new float[][]{{pL[0], pR[0], pR[0] + dirX, pL[0] + dirX }, {pL[1], pR[1], pR[1] + dirY, pL[1] + dirY } };
 	}
 
-	/**
-	 * @param left
-	 * @param right
-	 * @return Polygon or path stored as Path2D.Float from input line paths
-	 */
 	private final static Path2D.Float newPrefilledPath(final LinkedList<int[]> left, final LinkedList<int[]> right) {
 		if (left == null || left.isEmpty())
 			return null;
@@ -213,26 +234,11 @@ public class RaceGame {
 		return p;
 	}
 
-	/**
-	 * Remove last element from track
-	 *
-	 * @param track
-	 * @param isLeft
-	 */
-	private final static void undoFromTrack(final Track track, final boolean isLeft) {
-		if (track == null)
-			return;
-		if (isLeft)
-			track.removeLastLeft();
-		else
-			track.removeLastRight();
-	}
-
-	private int					finishedLast, finishedFirst;
-	private int[]				finishLine;
+	private int					finishedLast	= 0, finishedFirst = 0;
+	private Line2D				finishLine;
 	private final GameUI		gameFrame;
-	private volatile GameState	gamestate;
-	private int					isShowingPrePath;
+	private volatile GameState	gamestate		= GameState.PRESTART;
+	private int					isShowingPrePath	= -1;
 	private final int			maxPlayers;
 	private int[]				oldVel;
 	private Player[]			players;
@@ -240,64 +246,109 @@ public class RaceGame {
 	private RaceUI				rui;
 	private float[][]			startZone;
 	private Area				startZoneA;
-	private int					subgamestate;
+	private int					subgamestate	= 0;
 	private Track				track;
 	private Area				trackA;
+	private int[][]				distToFinish;
+	private int					gameCols, gameRows;
+	private final StringBuilder	gameLog		= new StringBuilder();
+	private int					turnCounter	= 0;
+	private boolean				autoMode	= false;
 
-	/**
-	 * Create new RaceGame. (Start it afterwards)
-	 */
+	/** Create new RaceGame. Call {@link #start()} afterwards. */
 	public RaceGame(final Properties prop) {
-		int temp;
 		this.prop = prop;
-		gamestate = GameState.SETUP;
+		maxPlayers = sanitizeIntProp("maxPlayers", defPlayerColors.length, 1, defPlayerColors.length);
+		sanitizeIntProp("nPlayers", 2, 1, maxPlayers);
 
-		try {
-			temp = Integer.parseInt(prop.getProperty("maxPlayers"));
-		} catch (final Exception e) {
-			temp = defPlayerColors.length;
-		}
-		maxPlayers = Math.max(1, Math.min(temp, defPlayerColors.length));
-		prop.put("maxPlayers", String.valueOf(maxPlayers));
-		track = null;
-		finishLine = null;
-
-		try {
-			temp = Integer.parseInt(prop.getProperty("nPlayers"));
-		} catch (final Exception e) {
-			temp = 2;
-		}
-		temp = Math.max(1, Math.min(temp, maxPlayers));
-		prop.put("nPlayers", String.valueOf(temp));
 		for (int i = 0; i < maxPlayers; i++) {
-			String sTemp;
-			try {
-				sTemp = prop.getProperty("player" + (i + 1) + "Name");
-			} catch (final Exception e) {
-				sTemp = "Player " + (i + 1);
+			final String prefix = "player" + (i + 1);
+			final String name = prop.getProperty(prefix + "Name");
+			prop.put(prefix + "Name", name == null ? "Player " + (i + 1) : name);
+			final Color c = parseColor(prefix + "Color", i);
+			prop.put(prefix + "Color", c.getRed() + " " + c.getGreen() + " " + c.getBlue());
+			// Migrate legacy "Ai" → "Kind"
+			if (prop.getProperty(prefix + "Kind") == null) {
+				final String legacyAi = prop.getProperty(prefix + "Ai");
+				prop.put(prefix + "Kind", "true".equalsIgnoreCase(legacyAi) ? "AI1" : "HUMAN");
 			}
-			if (sTemp == null)
-				sTemp = "Player " + (i + 1);
-			prop.put("player" + (i + 1) + "Name", sTemp);
-		}
-		for (int i = 0; i < maxPlayers; i++) {
-			Color cTemp;
-			try (Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"))) {
-				cTemp = new Color(sc.nextInt(), sc.nextInt(), sc.nextInt());
-			} catch (final Exception e) {
-				cTemp = defPlayerColors[i];
-			}
-			if (cTemp == null)
-				cTemp = defPlayerColors[i];
-			prop.put("player" + (i + 1) + "Color", cTemp.getRed() + " " + cTemp.getGreen() + " " + cTemp.getBlue());
 		}
 
 		gameFrame = new GameUI(NAME + " " + VERSION, maxPlayers);
-		gamestate = GameState.PRESTART;
-		subgamestate = 0;
-		finishedLast = 0;
-		finishedFirst = 0;
-		isShowingPrePath = -1;
+	}
+
+	private int sanitizeIntProp(final String key, final int def, final int min, final int max) {
+		int v;
+		try {
+			v = Integer.parseInt(prop.getProperty(key));
+		} catch (final Exception e) {
+			v = def;
+		}
+		v = Math.max(min, Math.min(v, max));
+		prop.put(key, String.valueOf(v));
+		return v;
+	}
+
+	private Color parseColor(final String key, final int defIdx) {
+		try (Scanner sc = new Scanner(prop.getProperty(key))) {
+			return new Color(sc.nextInt(), sc.nextInt(), sc.nextInt());
+		} catch (final Exception e) {
+			return defPlayerColors[defIdx];
+		}
+	}
+
+	/** Enable headless auto-play (skip dialogs, exit on finish). */
+	public void setAutoMode(final boolean b) {
+		this.autoMode = b;
+	}
+
+	/** Show the start dialog and, on confirmation, build the play window. */
+	public void start() {
+		if (autoMode) {
+			setupGameUI();
+			return;
+		}
+		final StartDialog startDial = new StartDialog(NAME + " " + VERSION, prop);
+		startDial.setOnSave(this::saveProperties);
+		startDial.setOnConfirm(() -> setupGameUI());
+		startDial.setOnCancel(() -> {
+			saveProperties();
+			System.exit(0);
+		});
+		startDial.setupUI();
+	}
+
+	private void setupGameUI() {
+		gameCols = sanitizeIntProp("gameX", defCols, 2, 500);
+		gameRows = sanitizeIntProp("gameY", defRows, 2, 500);
+		final int wx = sanitizeIntProp("windowX", defWindowX, 200, 10000);
+		final int wy = sanitizeIntProp("windowY", defWindowY, 200, 10000);
+
+		rui = new RaceUI(gameRows, gameCols);
+		gameFrame.setStatus("Game setup...");
+		players = getPlayers();
+		rui.setPlayers(players);
+		if (!autoMode)
+			gameFrame.setupUI(rui.getGrid(), this, wx, wy, players);
+
+		final boolean useLast = Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")) || autoMode;
+		if (useLast && hasLastTrack(prop) && loadLastTrack()) {
+			gamestate = GameState.PLACEPLAYERS;
+			subgamestate = 0;
+			gameFrame.getBtnOK().setEnabled(false);
+			autoPlaceAiPlayers();
+			updatePlaceStatus();
+			gameFrame.repaint();
+			if (autoMode && subgamestate == players.length)
+				SwingUtilities.invokeLater(this::clickedOK);
+			return;
+		}
+		if (autoMode) {
+			System.err.println("--auto requires a saved track and all-AI players. Aborting.");
+			System.exit(2);
+		}
+		gameFrame.setStatus("Click OK to start.");
+		gamestate = GameState.START;
 	}
 
 	private boolean checkFinished() {
@@ -312,172 +363,736 @@ public class RaceGame {
 					p.setFinishedPlace(finishedFirst + 1);
 				place.put(p.getFinishedPlace(), p.getName());
 			}
-			String s = "The game has finished.\n";
+			final StringBuilder sb = new StringBuilder("The game has finished.\n");
 			for (int i = 1; i <= players.length; i++)
-				s += "\n" + i + ".   " + place.get(i);
+				sb.append("\n").append(i).append(".   ").append(place.get(i));
 			gameFrame.setStatus("The game has finished");
 			gameFrame.repaint();
-			dispMessage(s);
+			gameLog.append("# results\n");
+			for (int i = 1; i <= players.length; i++)
+				gameLog.append(i).append(". ").append(place.get(i)).append("\n");
+			writeGameLog();
+			dispMessage(sb.toString() + "\n\nLog written to " + gameLogPath());
 			gameFrame.getBtnUndo().setEnabled(false);
 			for (final JButton b : gameFrame.getBtnDirections())
 				b.setEnabled(false);
 			gameFrame.repaint();
+			if (autoMode) {
+				SwingUtilities.invokeLater(() -> System.exit(0));
+			}
 			return true;
 		}
 		return false;
 	}
 
-	/**
-	 * Gets activated when one of the direction buttons is clicked.
-	 *
-	 * @param direction
-	 *            0..8 stands for NW N NE W 0 E SW S SE
-	 */
-	public void clickedDirection(final int direction) {
-		if (gamestate == GameState.PLAY) {
-			int[] vel = players[subgamestate].getVelocity();
-			int[] newpos;
-			{
-				int dvx = 0;
-				int dvy = 0;
-				if (direction == 0 || direction == 3 || direction == 6)
-					dvx = -1;
-				else if (direction == 2 || direction == 5 || direction == 8)
-					dvx = 1;
-				if (direction == 0 || direction == 1 || direction == 2)
-					dvy = -1;
-				else if (direction == 6 || direction == 7 || direction == 8)
-					dvy = 1;
-				vel = new int[]{vel[0] + dvx, vel[1] + dvy };
-			}
-			int[] pos = players[subgamestate].getPosition();
-			newpos = new int[]{pos[0] + vel[0], pos[1] + vel[1] };
-			if (isShowingPrePath != direction) {
-				isShowingPrePath = direction;
-				int vx = vel[0];
-				int vy = vel[1];
-				int px = pos[0];
-				int py = pos[1];
-				if (vx == 0 && vy == 0)
-					return;
-				final LinkedList<int[]> prePath = new LinkedList<>();
-				while (vx != 0 || vy != 0) {
-					px = px + vx;
-					py = py + vy;
-					prePath.add(new int[]{px, py });
-					if (vx > 0)
-						vx--;
-					else if (vx < 0)
-						vx++;
-					if (vy > 0)
-						vy--;
-					else if (vy < 0)
-						vy++;
-				}
-				rui.setPrePath(prePath);
-				gameFrame.repaint();
-			} else {
-				final LinkedList<int[]> move = new LinkedList<>();
-				move.add(pos);
-				move.add(newpos);
-				final double dx = (double) (newpos[0] - pos[0]) / checkIntervalSplit;
-				final double dy = (double) (newpos[1] - pos[1]) / checkIntervalSplit;
-				final double[][] chkpoints = new double[checkIntervalSplit - 1][2];
-				int j;
-				for (j = 0; j < checkIntervalSplit - 1; j++) {
-					chkpoints[j][0] = pos[0] + (j + 1) * dx;
-					chkpoints[j][1] = pos[1] + (j + 1) * dy;
-				}
-				boolean leavesTrack = false;
-				j = 0;
-				while (!leavesTrack && j < checkIntervalSplit - 1) {
-					leavesTrack = !trackA.contains(chkpoints[j][0], chkpoints[j][1])
-							&& !startZoneA.contains(chkpoints[j][0], chkpoints[j][1]);
-					j++;
-				}
-				if (checkIntersect(new int[]{finishLine[0], finishLine[1] }, new int[]{finishLine[2], finishLine[3] }, pos, newpos,
-						(byte) 0)) {
-					finishedFirst++;
-					dispMessage(players[subgamestate].getName() + " finishes on place " + finishedFirst + ".");
-					players[subgamestate].logPosition(newpos);
-					players[subgamestate].setVelocity(new int[]{0, 0 });
-					players[subgamestate].setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
-					players[subgamestate].setFinishedPlace(finishedFirst);
-					redoPlayerLabels();
-					if (checkFinished()) {
-						redoPlayerLabels();
-						gameFrame.repaint();
-						return;
-					}
-				} else if (leavesTrack || isCrashingPlayer(newpos[0], newpos[1], players[subgamestate].getNumber())
-						|| !trackA.contains(newpos[0], newpos[1]) && !startZoneA.contains(newpos[0], newpos[1])
-						|| checkIntersect(move, track.getLeft(), true) || checkIntersect(move, track.getRight(), true)) {
-					final int answ = JOptionPane.showConfirmDialog(gameFrame, "Going there will crash you. Do you really want to?", NAME,
-							JOptionPane.YES_NO_OPTION);
-					if (answ == JOptionPane.YES_OPTION) {
-						dispMessage(players[subgamestate].getName() + " crashes.");
-						players[subgamestate].logPosition(newpos);
-						players[subgamestate].setVelocity(new int[]{0, 0 });
-						players[subgamestate].setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
-						players[subgamestate].setFinishedPlace(players.length - finishedLast);
-						finishedLast++;
-						redoPlayerLabels();
-						if (checkFinished()) {
-							redoPlayerLabels();
-							gameFrame.repaint();
-							return;
-						}
-					} else
-						return;
-				} else {
-					oldVel = players[subgamestate].getVelocity();
-					players[subgamestate].setVelocity(vel);
-					players[subgamestate].setPosition(newpos);
-					players[subgamestate].logPosition(newpos);
-					redoPlayerLabels();
-				}
+	/** Returns true if the move from `pos` to `newpos` is allowed for player i. */
+	private boolean isMoveLegal(final int[] pos, final int[] newpos, final int playerNumber) {
+		return isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1])
+				&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
+	}
 
-				do {
-					subgamestate++;
-					if (subgamestate == players.length)
-						subgamestate = 0;
-				} while (players[subgamestate].isFinished());
-
-				gameFrame.setStatus(players[subgamestate].getName() + "'s turn...");
-				vel = players[subgamestate].getVelocity();
-				pos = players[subgamestate].getPosition();
-				rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
-				rui.setPrePath(null);
-				isShowingPrePath = -1;
-				gameFrame.getBtnUndo().setEnabled(true);
-			}
+	/** Geometry-only legality (no player crash check). Same algorithm as isMoveLegal. */
+	private boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
+		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
+			return false;
+		final double dx = (double) (x2 - x1) / checkIntervalSplit;
+		final double dy = (double) (y2 - y1) / checkIntervalSplit;
+		for (int j = 1; j < checkIntervalSplit; j++) {
+			final double cx = x1 + j * dx;
+			final double cy = y1 + j * dy;
+			if (!trackA.contains(cx, cy) && !startZoneA.contains(cx, cy))
+				return false;
 		}
+		final int[] from = {x1, y1 };
+		final int[] to = {x2, y2 };
+		return !segmentCrossesPath(from, to, track.getLeft()) && !segmentCrossesPath(from, to, track.getRight());
+	}
 
-		gameFrame.repaint();
+	private final HashMap<Long, Boolean>	edgeLegalCache		= new HashMap<>();
+	private final HashMap<Long, Boolean>	stateContCache		= new HashMap<>();
+	private final HashMap<Long, Boolean>	stateLiveCache		= new HashMap<>();
+
+	private boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
+		final long key = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32 | ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
+		Boolean cached = edgeLegalCache.get(key);
+		if (cached != null)
+			return cached;
+		final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
+		edgeLegalCache.put(key, legal);
+		return legal;
+	}
+
+	private BitSet	aliveStates;
+	private int		aliveW, aliveH, aliveVMAX;
+
+	private int aliveIdx(final int x, final int y, final int vx, final int vy) {
+		final int span = 2 * aliveVMAX + 1;
+		return ((x * aliveH + y) * span + (vx + aliveVMAX)) * span + (vy + aliveVMAX);
+	}
+
+	/** True iff (x,y,vx,vy) can reach the finish via some legal sequence of moves. */
+	private boolean isAlive(final int x, final int y, final int vx, final int vy) {
+		if (aliveStates == null)
+			return true; // not yet computed — be permissive
+		if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+			return false;
+		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
+			return false;
+		return aliveStates.get(aliveIdx(x, y, vx, vy));
 	}
 
 	/**
-	 * Gets activated when the game grid is clicked with x- and y-coordinates in
-	 * the grid system.
-	 *
-	 * @param x
-	 * @param y
+	 * Reverse-BFS from finish-line-crossing states: a state s is alive iff there
+	 * exists a direction d such that the move from s under d either crosses the
+	 * finish or leads to an alive state. Computed once per track build.
 	 */
+	private void computeAliveStates() {
+		aliveW = gameCols + 1;
+		aliveH = gameRows + 1;
+		aliveVMAX = AI_MAX_SPEED;
+		final int span = 2 * aliveVMAX + 1;
+		aliveStates = new BitSet(aliveW * aliveH * span * span);
+		final ArrayDeque<int[]> queue = new ArrayDeque<>();
+
+		for (int x = 0; x < aliveW; x++) {
+			for (int y = 0; y < aliveH; y++) {
+				if (distAt(x, y) == Integer.MAX_VALUE)
+					continue;
+				if (distAt(x, y) > 2 * aliveVMAX + 5)
+					continue; // optimization: too far for direct finish-cross
+				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
+					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
+						for (final Direction d : Direction.values()) {
+							final int nvx = vx + d.dx;
+							final int nvy = vy + d.dy;
+							if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
+								continue;
+							if (crossesFinish(x, y, x + nvx, y + nvy)) {
+								final int idx = aliveIdx(x, y, vx, vy);
+								if (!aliveStates.get(idx)) {
+									aliveStates.set(idx);
+									queue.push(new int[]{x, y, vx, vy });
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		while (!queue.isEmpty()) {
+			final int[] cur = queue.pop();
+			final int xp = cur[0], yp = cur[1], vxp = cur[2], vyp = cur[3];
+			final int x = xp - vxp;
+			final int y = yp - vyp;
+			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
+				continue;
+			if (distAt(x, y) == Integer.MAX_VALUE)
+				continue;
+			if (!isMoveLegalGeometryCached(x, y, xp, yp))
+				continue;
+			for (final Direction d : Direction.values()) {
+				final int vx = vxp - d.dx;
+				final int vy = vyp - d.dy;
+				if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+					continue;
+				final int idx = aliveIdx(x, y, vx, vy);
+				if (!aliveStates.get(idx)) {
+					aliveStates.set(idx);
+					queue.push(new int[]{x, y, vx, vy });
+				}
+			}
+		}
+	}
+
+	/** True iff state (x,y,vx,vy) has at least one geometry-legal successor or reaches the finish. */
+	private boolean stateHasContinuation(final int x, final int y, final int vx, final int vy) {
+		final long key = stateKey(x, y, vx, vy);
+		Boolean cached = stateContCache.get(key);
+		if (cached != null)
+			return cached;
+		boolean result = false;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny) || isMoveLegalGeometryCached(x, y, nx, ny)) {
+				result = true;
+				break;
+			}
+		}
+		stateContCache.put(key, result);
+		return result;
+	}
+
+	/**
+	 * True iff state (x,y,vx,vy) has at least one legal successor whose
+	 * successor state itself has a continuation (or crosses finish in 1–2 steps).
+	 * 2-level dead-end detection — catches states whose only legal moves all
+	 * walk into next-turn-only-illegal positions.
+	 */
+	private boolean stateHasLiveContinuation(final int x, final int y, final int vx, final int vy) {
+		final long key = stateKey(x, y, vx, vy);
+		Boolean cached = stateLiveCache.get(key);
+		if (cached != null)
+			return cached;
+		boolean result = false;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny)) {
+				result = true;
+				break;
+			}
+			if (isMoveLegalGeometryCached(x, y, nx, ny) && stateHasContinuation(nx, ny, nvx, nvy)) {
+				result = true;
+				break;
+			}
+		}
+		stateLiveCache.put(key, result);
+		return result;
+	}
+
+	private static boolean segmentCrossesPath(final int[] from, final int[] to, final LinkedList<int[]> path) {
+		int[] prev = null;
+		for (final int[] cur : path) {
+			if (prev != null && checkIntersect(prev, cur, from, to, (byte) 3))
+				return true;
+			prev = cur;
+		}
+		return false;
+	}
+
+	private boolean crossesFinish(final double x1, final double y1, final double x2, final double y2) {
+		return Line2D.linesIntersect(finishLine.getX1(), finishLine.getY1(), finishLine.getX2(), finishLine.getY2(), x1, y1, x2, y2);
+	}
+
+	/** Activated when a direction button is clicked. */
+	public void clickedDirection(final Direction direction) {
+		if (gamestate != GameState.PLAY)
+			return;
+		if (isShowingPrePath != direction.ordinal()) {
+			final int[] vel = players[subgamestate].getVelocity();
+			isShowingPrePath = direction.ordinal();
+			showPreview(players[subgamestate].getPosition(), new int[]{vel[0] + direction.dx, vel[1] + direction.dy });
+			gameFrame.repaint();
+			return;
+		}
+		executeMove(direction);
+	}
+
+	private void executeMove(final Direction d) {
+		final int[] pos = players[subgamestate].getPosition();
+		final int[] vel = players[subgamestate].getVelocity();
+		final int[] newVel = {vel[0] + d.dx, vel[1] + d.dy };
+		final int[] newPos = {pos[0] + newVel[0], pos[1] + newVel[1] };
+		commitMove(pos, newVel, newPos);
+		gameFrame.repaint();
+		maybeAiTurn();
+	}
+
+	private void showPreview(final int[] pos, final int[] vel) {
+		int vx = vel[0], vy = vel[1];
+		int px = pos[0], py = pos[1];
+		if (vx == 0 && vy == 0) {
+			rui.setPrePath(null);
+			return;
+		}
+		final LinkedList<int[]> prePath = new LinkedList<>();
+		while (vx != 0 || vy != 0) {
+			px += vx;
+			py += vy;
+			prePath.add(new int[]{px, py });
+			if (vx > 0)
+				vx--;
+			else if (vx < 0)
+				vx++;
+			if (vy > 0)
+				vy--;
+			else if (vy < 0)
+				vy++;
+		}
+		rui.setPrePath(prePath);
+	}
+
+	private void commitMove(final int[] pos, final int[] vel, final int[] newpos) {
+		final Player player = players[subgamestate];
+		final int[] velBefore = player.getVelocity().clone();
+		final Direction d = directionOf(velBefore, vel);
+
+		if (crossesFinish(pos[0], pos[1], newpos[0], newpos[1])) {
+			finishedFirst++;
+			dispMessage(player.getName() + " finishes on place " + finishedFirst + ".");
+			logMove(player, d, velBefore, pos, vel, newpos, "FINISH place=" + finishedFirst);
+			finishPlayer(player, newpos, finishedFirst);
+			if (checkFinished())
+				return;
+		} else if (!isMoveLegal(pos, newpos, player.getNumber())) {
+			if (!player.isAi()) {
+				final int answ = JOptionPane.showConfirmDialog(gameFrame, "Going there will crash you. Do you really want to?", NAME,
+						JOptionPane.YES_NO_OPTION);
+				if (answ != JOptionPane.YES_OPTION)
+					return;
+			}
+			dispMessage(player.getName() + " crashes.");
+			logMove(player, d, velBefore, pos, vel, newpos, "CRASH place=" + (players.length - finishedLast));
+			finishPlayer(player, newpos, players.length - finishedLast);
+			finishedLast++;
+			if (checkFinished())
+				return;
+		} else {
+			oldVel = player.getVelocity();
+			logMove(player, d, velBefore, pos, vel, newpos, "ok");
+			player.setVelocity(vel);
+			player.setPosition(newpos);
+			player.logPosition(newpos);
+			redoPlayerLabels();
+		}
+		advanceToNextPlayer();
+	}
+
+	private static Direction directionOf(final int[] velBefore, final int[] velAfter) {
+		final int dx = velAfter[0] - velBefore[0];
+		final int dy = velAfter[1] - velBefore[1];
+		for (final Direction d : Direction.values())
+			if (d.dx == dx && d.dy == dy)
+				return d;
+		return Direction.NONE;
+	}
+
+	private void finishPlayer(final Player p, final int[] lastPos, final int place) {
+		p.logPosition(lastPos);
+		p.setVelocity(new int[]{0, 0 });
+		p.setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
+		p.setFinishedPlace(place);
+		redoPlayerLabels();
+	}
+
+	private void advanceToNextPlayer() {
+		do {
+			subgamestate++;
+			if (subgamestate == players.length)
+				subgamestate = 0;
+		} while (players[subgamestate].isFinished());
+
+		final int[] vel = players[subgamestate].getVelocity();
+		final int[] pos = players[subgamestate].getPosition();
+		gameFrame.setStatus(players[subgamestate].getName() + "'s turn...");
+		rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
+		rui.setPrePath(null);
+		isShowingPrePath = -1;
+		gameFrame.getBtnUndo().setEnabled(!players[subgamestate].isAi());
+	}
+
+	private void maybeAiTurn() {
+		if (gamestate != GameState.PLAY)
+			return;
+		if (!players[subgamestate].isAi())
+			return;
+		SwingUtilities.invokeLater(this::doAiTurn);
+	}
+
+	private void doAiTurn() {
+		if (gamestate == GameState.PLAY && players[subgamestate].isAi())
+			executeMove(computeAiMove());
+	}
+
+	private final static int		AI_MAX_SPEED	= 12;
+	private final static int		AI_MAX_ITER		= 15000;
+
+	/** Dispatches to AI1 (A*) or AI2 (2-step greedy) based on the player's kind. */
+	private Direction computeAiMove() {
+		final Player p = players[subgamestate];
+		final int[] vel = p.getVelocity();
+		final int[] pos = p.getPosition();
+		final int playerNum = p.getNumber();
+
+		if (p.getKind() == Player.Kind.AI2)
+			return twoStepGreedy(pos, vel, playerNum);
+		// AI1: A* with 2-step greedy as fallback
+		final Direction astar = aStarSearch(pos, vel, playerNum);
+		return astar != null ? astar : twoStepGreedy(pos, vel, playerNum);
+	}
+
+	private Direction aStarSearch(final int[] pos0, final int[] vel0, final int playerNum) {
+		final PriorityQueue<int[]> open = new PriorityQueue<>(Comparator.comparingInt(n -> n[5]));
+		final HashMap<Long, Integer> bestG = new HashMap<>();
+		final int[] start = {pos0[0], pos0[1], vel0[0], vel0[1], 0, aiHeuristic(pos0[0], pos0[1]), -1 };
+		open.add(start);
+		bestG.put(stateKey(start[0], start[1], start[2], start[3]), 0);
+
+		int iter = 0;
+		while (!open.isEmpty() && iter++ < AI_MAX_ITER) {
+			final int[] cur = open.poll();
+			if (bestG.getOrDefault(stateKey(cur[0], cur[1], cur[2], cur[3]), Integer.MAX_VALUE) < cur[4])
+				continue;
+			for (final Direction d : Direction.values()) {
+				final int newVx = cur[2] + d.dx;
+				final int newVy = cur[3] + d.dy;
+				if (Math.abs(newVx) > AI_MAX_SPEED || Math.abs(newVy) > AI_MAX_SPEED)
+					continue;
+				final int newX = cur[0] + newVx;
+				final int newY = cur[1] + newVy;
+				final int firstDir = cur[6] < 0 ? d.ordinal() : cur[6];
+
+				if (crossesFinish(cur[0], cur[1], newX, newY))
+					return Direction.fromIndex(firstDir);
+
+				if (!isMoveLegalGeometryCached(cur[0], cur[1], newX, newY))
+					continue;
+				// Only check player crash on the FIRST step (other players will move during the plan).
+				if (cur[6] < 0 && isCrashingPlayer(newX, newY, playerNum))
+					continue;
+				// Reject states from which the finish cannot be reached at all.
+				if (!isAlive(newX, newY, newVx, newVy))
+					continue;
+
+				final int newG = cur[4] + 1;
+				final long childKey = stateKey(newX, newY, newVx, newVy);
+				if (bestG.getOrDefault(childKey, Integer.MAX_VALUE) <= newG)
+					continue;
+				bestG.put(childKey, newG);
+				open.add(new int[]{newX, newY, newVx, newVy, newG, newG + aiHeuristic(newX, newY), firstDir });
+			}
+		}
+		return null;
+	}
+
+	private static long stateKey(final int x, final int y, final int vx, final int vy) {
+		return ((long) x & 0xFFFF) << 48 | ((long) y & 0xFFFF) << 32 | ((long) (vx + 32) & 0xFF) << 16 | (long) (vy + 32) & 0xFF;
+	}
+
+	private int aiHeuristic(final int x, final int y) {
+		final int d = distAt(x, y);
+		return d == Integer.MAX_VALUE ? 100_000 : Math.max(1, d / AI_MAX_SPEED);
+	}
+
+	/** Fallback when A* runs out of budget. */
+	private Direction twoStepGreedy(final int[] pos, final int[] vel, final int playerNum) {
+		Direction bestFirst = null;
+		double bestFirstScore = Double.MAX_VALUE;
+		Direction bestLive = null;
+		double bestLiveScore = Double.MAX_VALUE;
+		Direction bestLegal = null;
+		double bestLegalScore = Double.MAX_VALUE;
+		Direction fallback = Direction.NONE;
+		double fallbackScore = Double.MAX_VALUE;
+		for (final Direction d1 : Direction.values()) {
+			final int vx1 = vel[0] + d1.dx;
+			final int vy1 = vel[1] + d1.dy;
+			final int[] p1 = {pos[0] + vx1, pos[1] + vy1 };
+			if (crossesFinish(pos[0], pos[1], p1[0], p1[1]))
+				return d1;
+			final double s1 = scorePos(p1[0], p1[1], vx1, vy1);
+			if (!isMoveLegal(pos, p1, playerNum)) {
+				if (s1 < fallbackScore) {
+					fallbackScore = s1;
+					fallback = d1;
+				}
+				continue;
+			}
+			if (s1 < bestLegalScore) {
+				bestLegalScore = s1;
+				bestLegal = d1;
+			}
+			if (!isAlive(p1[0], p1[1], vx1, vy1))
+				continue;
+			if (s1 < bestLiveScore) {
+				bestLiveScore = s1;
+				bestLive = d1;
+			}
+			double best2 = Double.MAX_VALUE;
+			for (final Direction d2 : Direction.values()) {
+				final int vx2 = vx1 + d2.dx;
+				final int vy2 = vy1 + d2.dy;
+				final int[] p2 = {p1[0] + vx2, p1[1] + vy2 };
+				if (crossesFinish(p1[0], p1[1], p2[0], p2[1])) {
+					best2 = -1;
+					break;
+				}
+				if (!isMoveLegal(p1, p2, playerNum))
+					continue;
+				if (!isAlive(p2[0], p2[1], vx2, vy2))
+					continue;
+				final double s2 = scorePos(p2[0], p2[1], vx2, vy2);
+				if (s2 < best2)
+					best2 = s2;
+			}
+			if (best2 < Double.MAX_VALUE && best2 < bestFirstScore) {
+				bestFirstScore = best2;
+				bestFirst = d1;
+			}
+		}
+		if (bestFirst != null)
+			return bestFirst;
+		if (bestLive != null)
+			return bestLive;
+		if (bestLegal != null)
+			return bestLegal;
+		return fallback;
+	}
+
+	private double scorePos(final int x, final int y, final int vx, final int vy) {
+		final int dist = distAt(x, y);
+		double score = dist == Integer.MAX_VALUE ? 1e6 : dist;
+		final double speed = Math.sqrt(vx * vx + vy * vy);
+		if (speed > 5)
+			score += 2 * (speed - 5);
+		return score;
+	}
+
+	private int distAt(final int x, final int y) {
+		if (distToFinish == null)
+			return Integer.MAX_VALUE;
+		if (x < 0 || y < 0 || x >= distToFinish.length || y >= distToFinish[0].length)
+			return Integer.MAX_VALUE;
+		return distToFinish[x][y];
+	}
+
+	/**
+	 * 8-connected BFS from the finish line through track cells. Used as the AI's
+	 * "distance to finish along the track" heuristic.
+	 */
+	private void computeDistMap() {
+		final int w = gameCols + 1;
+		final int h = gameRows + 1;
+		distToFinish = new int[w][h];
+		for (final int[] col : distToFinish)
+			Arrays.fill(col, Integer.MAX_VALUE);
+
+		final ArrayDeque<int[]> queue = new ArrayDeque<>();
+		final double fx1 = finishLine.getX1(), fy1 = finishLine.getY1();
+		final double fx2 = finishLine.getX2(), fy2 = finishLine.getY2();
+		final int samples = (int) Math.ceil(Math.hypot(fx2 - fx1, fy2 - fy1) * 2) + 1;
+		for (int i = 0; i <= samples; i++) {
+			final double t = (double) i / samples;
+			final int x = (int) Math.round(fx1 + t * (fx2 - fx1));
+			final int y = (int) Math.round(fy1 + t * (fy2 - fy1));
+			if (x < 0 || x >= w || y < 0 || y >= h)
+				continue;
+			if (distToFinish[x][y] != Integer.MAX_VALUE)
+				continue;
+			distToFinish[x][y] = 0;
+			queue.add(new int[]{x, y });
+		}
+
+		while (!queue.isEmpty()) {
+			final int[] cell = queue.poll();
+			final int d = distToFinish[cell[0]][cell[1]];
+			for (int dx = -1; dx <= 1; dx++)
+				for (int dy = -1; dy <= 1; dy++) {
+					if (dx == 0 && dy == 0)
+						continue;
+					final int nx = cell[0] + dx, ny = cell[1] + dy;
+					if (nx < 0 || nx >= w || ny < 0 || ny >= h)
+						continue;
+					if (distToFinish[nx][ny] != Integer.MAX_VALUE)
+						continue;
+					if (!trackA.contains(nx, ny) && !startZoneA.contains(nx, ny))
+						continue;
+					distToFinish[nx][ny] = d + 1;
+					queue.add(new int[]{nx, ny });
+				}
+		}
+	}
+
+	private void autoPlaceAiPlayers() {
+		while (subgamestate < players.length && players[subgamestate].isAi()) {
+			final int[] pos = findStartPosition();
+			if (pos == null) {
+				dispMessage(players[subgamestate].getName() + " (AI) couldn't find a start position.");
+				return;
+			}
+			players[subgamestate].setPosition(pos);
+			subgamestate++;
+		}
+	}
+
+	private int[] findStartPosition() {
+		if (startZone == null)
+			return null;
+		float minX = Float.MAX_VALUE, maxX = -Float.MAX_VALUE;
+		float minY = Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
+		for (int i = 0; i < 4; i++) {
+			minX = Math.min(minX, startZone[0][i]);
+			maxX = Math.max(maxX, startZone[0][i]);
+			minY = Math.min(minY, startZone[1][i]);
+			maxY = Math.max(maxY, startZone[1][i]);
+		}
+		final int xMin = (int) Math.floor(minX), xMax = (int) Math.ceil(maxX);
+		final int yMin = (int) Math.floor(minY), yMax = (int) Math.ceil(maxY);
+		final int playerNum = players[subgamestate].getNumber();
+		for (int x = xMin; x <= xMax; x++)
+			for (int y = yMin; y <= yMax; y++) {
+				if (!startZoneA.contains(x, y))
+					continue;
+				if (isCrashingPlayer(x, y, playerNum))
+					continue;
+				return new int[]{x, y };
+			}
+		return null;
+	}
+
+	private void updatePlaceStatus() {
+		final boolean allPlaced = subgamestate >= players.length;
+		gameFrame.getBtnOK().setEnabled(allPlaced);
+		gameFrame.setStatus(allPlaced ? "Click OK to confirm." : "Place player " + players[subgamestate].getName());
+	}
+
+	private boolean isTrackSelfIntersecting() {
+		final LinkedList<int[]> closed = new LinkedList<>();
+		for (final int[] p : track.getLeft())
+			closed.add(p);
+		final Iterator<int[]> it = track.getRight().descendingIterator();
+		while (it.hasNext())
+			closed.add(it.next());
+		closed.add(track.getLeft().getFirst());
+		return checkIntersect(closed, closed, false);
+	}
+
+	private void initGameLog() {
+		gameLog.setLength(0);
+		turnCounter = 0;
+		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");
+		gameLog.append("# Grid ").append(gameCols).append("x").append(gameRows).append("\n");
+		gameLog.append("trackLeft=").append(pointListToString(track.getLeft())).append("\n");
+		gameLog.append("trackRight=").append(pointListToString(track.getRight())).append("\n");
+		for (final Player pl : players) {
+			gameLog.append("player").append(pl.getNumber()).append(" name=").append(pl.getName()).append(" kind=")
+					.append(pl.getKind().name()).append(" start=").append(pl.getPosition()[0]).append(",").append(pl.getPosition()[1])
+					.append("\n");
+		}
+		gameLog.append("# turns: turn player kind dir vBefore→vAfter pos→newPos outcome\n");
+	}
+
+	private void logMove(final Player pl, final Direction d, final int[] velBefore, final int[] posBefore, final int[] velAfter,
+			final int[] posAfter, final String outcome) {
+		turnCounter++;
+		gameLog.append(turnCounter).append(" p").append(pl.getNumber()).append(" ").append(pl.getKind().name()).append(" ").append(d.name())
+				.append(" v(").append(velBefore[0]).append(",").append(velBefore[1]).append(")→(").append(velAfter[0]).append(",")
+				.append(velAfter[1]).append(") (").append(posBefore[0]).append(",").append(posBefore[1]).append(")→(").append(posAfter[0])
+				.append(",").append(posAfter[1]).append(") ").append(outcome).append("\n");
+	}
+
+	private void writeGameLog() {
+		try {
+			Files.createDirectories(gameLogPath().getParent());
+			Files.writeString(gameLogPath(), gameLog.toString());
+		} catch (final IOException e) {
+			e.printStackTrace();
+		}
+	}
+
+	private void buildTrackGeometry() {
+		final int[] fL = track.getLeft().getLast();
+		final int[] fR = track.getRight().getLast();
+		finishLine = new Line2D.Double(fL[0], fL[1], fR[0], fR[1]);
+		rui.setFinishLine(fL, fR);
+		startZone = makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
+		rui.setStartZone(startZone);
+		final Path2D.Float p = new Path2D.Float();
+		p.moveTo(startZone[0][0], startZone[1][0]);
+		for (int i = 1; i < 4; i++)
+			p.lineTo(startZone[0][i], startZone[1][i]);
+		p.closePath();
+		startZoneA = getToleranceExpandedShape(p);
+		trackA = getToleranceExpandedShape(newPrefilledPath(track.getLeft(), track.getRight()));
+		rui.finishTrack();
+		computeDistMap();
+		computeAliveStates();
+		saveTrackToProperties();
+	}
+
+	private static String pointListToString(final LinkedList<int[]> list) {
+		final StringBuilder sb = new StringBuilder();
+		boolean first = true;
+		for (final int[] p : list) {
+			if (!first)
+				sb.append(";");
+			sb.append(p[0]).append(",").append(p[1]);
+			first = false;
+		}
+		return sb.toString();
+	}
+
+	private static LinkedList<int[]> parsePointList(final String s) {
+		final LinkedList<int[]> result = new LinkedList<>();
+		if (s == null || s.isEmpty())
+			return result;
+		for (final String pair : s.split(";")) {
+			final String[] xy = pair.split(",");
+			if (xy.length != 2)
+				continue;
+			try {
+				result.add(new int[]{Integer.parseInt(xy[0].trim()), Integer.parseInt(xy[1].trim()) });
+			} catch (final NumberFormatException ignored) {
+			}
+		}
+		return result;
+	}
+
+	private void saveTrackToProperties() {
+		if (track == null)
+			return;
+		prop.put("lastTrackLeft", pointListToString(track.getLeft()));
+		prop.put("lastTrackRight", pointListToString(track.getRight()));
+	}
+
+	public static boolean hasLastTrack(final Properties prop) {
+		final String left = prop.getProperty("lastTrackLeft");
+		final String right = prop.getProperty("lastTrackRight");
+		return left != null && right != null && !left.isEmpty() && !right.isEmpty();
+	}
+
+	private boolean loadLastTrack() {
+		final LinkedList<int[]> left = parsePointList(prop.getProperty("lastTrackLeft"));
+		final LinkedList<int[]> right = parsePointList(prop.getProperty("lastTrackRight"));
+		if (left.size() < 2 || right.size() < 2)
+			return false;
+		track = new Track();
+		for (final int[] p : left)
+			track.addLeft(p[0], p[1]);
+		for (final int[] p : right)
+			track.addRight(p[0], p[1]);
+		rui.setTrack(track);
+		if (isTrackSelfIntersecting()) {
+			track = null;
+			rui.setTrack(null);
+			return false;
+		}
+		buildTrackGeometry();
+		return true;
+	}
+
+	/** Activated when the game grid is clicked at grid coords (x,y). */
 	public void clickedGrid(final int x, final int y) {
 		if (gamestate == GameState.DRAWTRACK) {
 			if (track == null) {
 				track = new Track();
 				rui.setTrack(track);
 			}
-			addToTrack(track, x, y, subgamestate == 0);
-			if (checkIntersect(track.getLeft(), track.getLeft(), false) || checkIntersect(track.getLeft(), track.getRight(), false)
-					|| checkIntersect(track.getRight(), track.getRight(), false)) {
+			final boolean isLeft = subgamestate == 0;
+			if (isLeft)
+				track.addLeft(x, y);
+			else
+				track.addRight(x, y);
+
+			final LinkedList<int[]> active = isLeft ? track.getLeft() : track.getRight();
+			final LinkedList<int[]> other = isLeft ? track.getRight() : track.getLeft();
+			if (lastSegmentIntersects(active, other)) {
 				dispMessage("Tracks intersect.");
-				undoFromTrack(track, subgamestate == 0);
+				if (isLeft)
+					track.removeLastLeft();
+				else
+					track.removeLastRight();
 			}
 
 		} else if (gamestate == GameState.PLACEPLAYERS) {
-			if (subgamestate < 0 || subgamestate >= players.length) {
+			if (subgamestate >= players.length) {
 				dispMessage("No players left to place.");
 				return;
 			}
@@ -489,29 +1104,21 @@ public class RaceGame {
 				dispMessage("Player crashes with other player.");
 				return;
 			}
-
 			players[subgamestate].setPosition(new int[]{x, y });
 			subgamestate++;
-			if (subgamestate < players.length)
-				gameFrame.setStatus("Place player " + players[subgamestate].getName());
-			else {
-				gameFrame.getBtnOK().setEnabled(true);
-				gameFrame.setStatus("Click OK to confirm.");
-			}
+			autoPlaceAiPlayers();
+			updatePlaceStatus();
 		}
 		gameFrame.repaint();
 	}
 
-	/**
-	 * Gets activated when the btnOK is clicked.
-	 */
+	/** Activated when the OK button is clicked. */
 	public void clickedOK() {
 		if (gamestate == GameState.START) {
 			gameFrame.getBtnUndo().setEnabled(true);
 			gameFrame.setStatus("Draw left track border.");
 			gamestate = GameState.DRAWTRACK;
 			subgamestate = 0;
-
 		} else if (gamestate == GameState.DRAWTRACK && subgamestate == 0) {
 			if (track == null || track.getLeft().size() < 2) {
 				dispMessage("Track too short.");
@@ -519,44 +1126,21 @@ public class RaceGame {
 			}
 			gameFrame.setStatus("Draw right track border.");
 			subgamestate = 1;
-
 		} else if (gamestate == GameState.DRAWTRACK && subgamestate == 1) {
 			if (track == null || track.getRight().size() < 2) {
 				dispMessage("Track too short.");
 				return;
 			}
-			final LinkedList<int[]> tTrack = new LinkedList<>();
-			Iterator<int[]> it = track.getLeft().iterator();
-			while (it.hasNext())
-				tTrack.add(it.next());
-			it = track.getRight().descendingIterator();
-			while (it.hasNext())
-				tTrack.add(it.next());
-			tTrack.add(track.getLeft().getFirst());
-			if (checkIntersect(tTrack, tTrack, false)) {
+			if (isTrackSelfIntersecting()) {
 				dispMessage("Track/start line/finish line intersect.");
 				return;
 			}
 			gamestate = GameState.PLACEPLAYERS;
 			subgamestate = 0;
 			gameFrame.getBtnOK().setEnabled(false);
-			// make finishline
-			finishLine = makeFinishLine(track.getLeft().getLast(), track.getRight().getLast());
-			rui.setFinishLine(finishLine);
-			// make startzone
-			startZone = makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
-			rui.setStartZone(startZone);
-			final Path2D.Float p = new Path2D.Float();
-			p.moveTo(startZone[0][0], startZone[1][0]);
-			for (int i = 1; i < 4; i++)
-				p.lineTo(startZone[0][i], startZone[1][i]);
-			p.closePath();
-			startZoneA = getToleranceExpandedShape(p);
-			// make track
-			trackA = getToleranceExpandedShape(newPrefilledPath(track.getLeft(), track.getRight()));
-			rui.finishTrack();
-			gameFrame.setStatus("Place " + players[0].getName());
-
+			buildTrackGeometry();
+			autoPlaceAiPlayers();
+			updatePlaceStatus();
 		} else if (gamestate == GameState.PLACEPLAYERS && subgamestate == players.length) {
 			gameFrame.getBtnOK().setEnabled(false);
 			gameFrame.getBtnUndo().setEnabled(false);
@@ -569,31 +1153,30 @@ public class RaceGame {
 			rui.setPrePath(null);
 			isShowingPrePath = -1;
 			redoPlayerLabels();
-		} else if (gamestate == GameState.IDLE)
-			return;
-		else if (gamestate == GameState.EXIT)
+			initGameLog();
+			maybeAiTurn();
+		} else if (gamestate == GameState.EXIT)
 			System.exit(0);
 		gameFrame.repaint();
 	}
 
-	/**
-	 * Gets activated when the button btnUndo is clicked.
-	 */
+	/** Activated when the Undo button is clicked. */
 	public void clickedUndo() {
-		if (gamestate == GameState.DRAWTRACK)
-			undoFromTrack(track, subgamestate == 0);
-		else if (gamestate == GameState.PLACEPLAYERS && subgamestate > 0) {
+		if (gamestate == GameState.DRAWTRACK) {
+			if (subgamestate == 0)
+				track.removeLastLeft();
+			else
+				track.removeLastRight();
+		} else if (gamestate == GameState.PLACEPLAYERS && subgamestate > 0) {
 			subgamestate--;
 			players[subgamestate].setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
-			gameFrame.getBtnOK().setEnabled(false);
-			gameFrame.setStatus("Place player " + players[subgamestate].getName());
+			updatePlaceStatus();
 		} else if (gamestate == GameState.PLAY) {
 			do {
 				subgamestate--;
 				if (subgamestate == -1)
 					subgamestate = players.length - 1;
-
-			} while (players[subgamestate].isFinished());
+			} while (players[subgamestate].isFinished() || players[subgamestate].isAi());
 			final int[] vel = players[subgamestate].getVelocity();
 			players[subgamestate].setVelocity(oldVel);
 			final int[] pos = players[subgamestate].getPosition();
@@ -609,82 +1192,82 @@ public class RaceGame {
 		gameFrame.repaint();
 	}
 
-	/**
-	 * Displays a standard message dialog
-	 *
-	 * @param s
-	 *            Message to be displayed.
-	 */
-	public void dispMessage(final String s) {
+	private void dispMessage(final String s) {
+		if (autoMode) {
+			System.out.println("[msg] " + s);
+			return;
+		}
 		JOptionPane.showMessageDialog(gameFrame, s, NAME, JOptionPane.OK_OPTION);
 	}
 
-	/**
-	 * Exit the game after a prompt.
-	 */
+	/** Exit the game after a prompt. */
 	public void exitMe() {
-		final GameState oldGamestate = gamestate;
-		gamestate = GameState.EXIT;
-		final int answer = JOptionPane.showConfirmDialog(gameFrame, "Do you really want to exit?", NAME, JOptionPane.YES_NO_OPTION);
-		if (answer == JOptionPane.YES_OPTION) {
-			final File uP = new File(userProperties);
-			if (uP.exists())
-				uP.delete();
-			FileOutputStream out;
-			try {
-				out = new FileOutputStream(new File(userProperties));
-				prop.store(out, null);
-				out.close();
-			} catch (final Exception e) {
-				e.printStackTrace();
-			}
+		if (confirmAndSave("Do you really want to exit?", GameState.EXIT))
 			System.exit(0);
+	}
+
+	/** Restart the game after a prompt. */
+	public void restartMe() {
+		if (confirmAndSave("Do you really want to restart?", GameState.RESTART)) {
+			gameFrame.dispose();
+			SwingUtilities.invokeLater(() -> new RaceGame(prop).start());
 		}
-		gamestate = oldGamestate;
 	}
 
-	/**
-	 * @return the GameUI linked with this game
-	 */
-	public GameUI getGameFrame() {
-		return gameFrame;
+	private boolean confirmAndSave(final String question, final GameState transientState) {
+		final GameState old = gamestate;
+		gamestate = transientState;
+		final int answer = JOptionPane.showConfirmDialog(gameFrame, question, NAME, JOptionPane.YES_NO_OPTION);
+		if (answer == JOptionPane.YES_OPTION) {
+			saveProperties();
+			return true;
+		}
+		gamestate = old;
+		return false;
 	}
 
-	/**
-	 * @return Array of all players for the game
-	 */
-	private Player[] getPlayers() {
-		String s;
-		int i, temp;
+	/** Atomic property save: write to .tmp then rename. */
+	public void saveProperties() {
+		final Path target = userPropertiesPath();
 		try {
-			temp = Integer.parseInt(prop.getProperty("nPlayers"));
-		} catch (final Exception e) {
-			temp = 2;
+			Files.createDirectories(target.getParent());
+		} catch (final IOException e) {
+			e.printStackTrace();
+			return;
 		}
-		temp = Math.max(1, Math.min(temp, maxPlayers));
-		final Player[] players = new Player[temp];
-		for (i = 0; i < players.length; i++) {
-			s = prop.getProperty("player" + (i + 1) + "Name");
-			Color c;
-			try (Scanner sc = new Scanner(prop.getProperty("player" + (i + 1) + "Color"))) {
-				c = new Color(sc.nextInt(), sc.nextInt(), sc.nextInt());
-			} catch (final Exception e) {
-				c = defPlayerColors[i];
+		final Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
+		try (OutputStream out = Files.newOutputStream(tmp)) {
+			prop.store(out, null);
+		} catch (final IOException e) {
+			e.printStackTrace();
+			return;
+		}
+		try {
+			Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} catch (final IOException e) {
+			try {
+				Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
+			} catch (final IOException e2) {
+				e2.printStackTrace();
 			}
-			players[i] = new Player(s, i + 1, c);
 		}
-		return players;
 	}
 
-	/**
-	 * @param x
-	 * @param y
-	 * @param i
-	 * @return true iff player i crashes any other player
-	 */
-	private boolean isCrashingPlayer(final int x, final int y, final int i) {
+	private Player[] getPlayers() {
+		final int n = sanitizeIntProp("nPlayers", 2, 1, maxPlayers);
+		final Player[] result = new Player[n];
+		for (int i = 0; i < n; i++) {
+			final String prefix = "player" + (i + 1);
+			final Player.Kind kind = Player.Kind.parse(prop.getProperty(prefix + "Kind"));
+			result[i] = new Player(prop.getProperty(prefix + "Name"), i + 1, parseColor(prefix + "Color", i), kind);
+		}
+		return result;
+	}
+
+	/** True iff a player other than playerNumber is at (x,y). */
+	private boolean isCrashingPlayer(final int x, final int y, final int playerNumber) {
 		for (final Player player : players) {
-			if (player.getNumber() == i)
+			if (player.getNumber() == playerNumber || player.isFinished())
 				continue;
 			if (player.getPosition()[0] == x && player.getPosition()[1] == y)
 				return true;
@@ -693,95 +1276,8 @@ public class RaceGame {
 	}
 
 	private void redoPlayerLabels() {
-		String s;
-		for (int i = 0; i < players.length; i++) {
-			if (players[i].isFinished())
-				s = players[i].getFinishedPlace() + ".";
-			else
-				s = players[i].getVelocity()[0] + " " + -players[i].getVelocity()[1];
-			gameFrame.setPlayerInfo(s, i);
-		}
+		for (int i = 0; i < players.length; i++)
+			gameFrame.setPlayerInfo(players[i].statusLabel(), i);
 	}
 
-	/**
-	 * Restart the game after a prompt.
-	 */
-	public void restartMe() {
-		final GameState oldGamestate = gamestate;
-		gamestate = GameState.RESTART;
-		final int answer = JOptionPane.showConfirmDialog(gameFrame, "Do you really want to restart?", NAME, JOptionPane.YES_NO_OPTION);
-		if (answer == JOptionPane.YES_OPTION) {
-			final File uP = new File(userProperties);
-			if (uP.exists())
-				uP.delete();
-			FileOutputStream out;
-			try {
-				out = new FileOutputStream(new File(userProperties));
-				prop.store(out, null);
-				out.close();
-			} catch (final Exception e) {
-				e.printStackTrace();
-			}
-			gameFrame.dispose();
-			Main.main(null);
-		}
-		gamestate = oldGamestate;
-	}
-
-	/**
-	 * Start a new RaceGame
-	 */
-	public void start() {
-		final RaceGame me = this;
-
-		final StartDialog startDial = new StartDialog(NAME + " " + VERSION, prop);
-		new Thread(() -> startDial.setupUI()).start();
-
-		new Thread(() -> {
-			while (startDial.isDialogActive())
-				try {
-					Thread.sleep(50L);
-				} catch (final InterruptedException e1) {
-					e1.printStackTrace();
-				}
-			int temp;
-			final int wx, wy, rows, cols;
-			try {
-				temp = Integer.parseInt(prop.getProperty("gameX"));
-			} catch (final Exception e2) {
-				temp = defCols;
-			}
-			cols = temp;
-			prop.put("gameX", String.valueOf(cols));
-			try {
-				temp = Integer.parseInt(prop.getProperty("gameY"));
-			} catch (final Exception e3) {
-				temp = defRows;
-			}
-			rows = temp;
-			prop.put("gameY", String.valueOf(rows));
-			try {
-				temp = Integer.parseInt(prop.getProperty("windowX"));
-			} catch (final Exception e4) {
-				temp = defWindowX;
-			}
-			wx = temp;
-			prop.put("windowX", String.valueOf(wx));
-			try {
-				temp = Integer.parseInt(prop.getProperty("windowY"));
-			} catch (final Exception e5) {
-				temp = defWindowY;
-			}
-			wy = temp;
-			prop.put("windowY", String.valueOf(wy));
-
-			rui = new RaceUI(rows, cols);
-			gameFrame.setStatus("Game setup...");
-			players = getPlayers();
-			rui.setPlayers(players);
-			gameFrame.setupUI(rui.getGrid(), me, wx, wy, players);
-			gameFrame.setStatus("Click OK to start.");
-			gamestate = GameState.START;
-		}).start();
-	}
 }

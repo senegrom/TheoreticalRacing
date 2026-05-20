@@ -3,18 +3,13 @@ package tr.logic;
 import java.util.LinkedList;
 
 /**
- * Represents the track on which the game takes place
+ * Left and right border point lists of the track.
  *
  * @author CGH
  */
 public class Track {
-	private final LinkedList<int[]>	lhs;
-	private final LinkedList<int[]>	rhs;
-
-	public Track() {
-		lhs = new LinkedList<>();
-		rhs = new LinkedList<>();
-	}
+	private final LinkedList<int[]>	lhs	= new LinkedList<>();
+	private final LinkedList<int[]>	rhs	= new LinkedList<>();
 
 	public void addLeft(final int x, final int y) {
 		lhs.add(new int[]{x, y });
@@ -40,13 +35,5 @@ public class Track {
 	public void removeLastRight() {
 		if (!rhs.isEmpty())
 			rhs.removeLast();
-	}
-
-	public void removeLeft(final int i) {
-		lhs.remove(i);
-	}
-
-	public void removeRight(final int i) {
-		rhs.remove(i);
 	}
 }
