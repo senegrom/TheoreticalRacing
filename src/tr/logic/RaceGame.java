@@ -420,6 +420,21 @@ public class RaceGame {
 		return legal;
 	}
 
+	/**
+	 * Fast endpoint + segment-cross legality, skipping the 99-point interval scan.
+	 * Equivalent to {@link #isMoveLegalGeometry} for closed-corridor tracks
+	 * (Jordan curve: a line whose endpoints are inside and which doesn't cross
+	 * either border must stay inside). Used only by reverse-BFS where we touch
+	 * each edge exactly once and the cached interval check is pure overhead.
+	 */
+	private boolean isMoveLegalGeometryFast(final int x1, final int y1, final int x2, final int y2) {
+		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
+			return false;
+		final int[] from = {x1, y1 };
+		final int[] to = {x2, y2 };
+		return !segmentCrossesPath(from, to, track.getLeft()) && !segmentCrossesPath(from, to, track.getRight());
+	}
+
 	private BitSet	aliveStates;
 	private int[]	turnsArr;
 	private int		aliveW, aliveH, aliveVMAX;
@@ -457,6 +472,7 @@ public class RaceGame {
 	 * Run once per track build.
 	 */
 	private void computeReachability() {
+		final long t0 = System.nanoTime();
 		aliveW = gameCols + 1;
 		aliveH = gameRows + 1;
 		aliveVMAX = AI_MAX_SPEED;
@@ -495,6 +511,8 @@ public class RaceGame {
 			}
 		}
 
+		final long tInit = System.nanoTime();
+
 		while (!queue.isEmpty()) {
 			final int[] cur = queue.poll();
 			final int xp = cur[0], yp = cur[1], vxp = cur[2], vyp = cur[3];
@@ -505,7 +523,7 @@ public class RaceGame {
 				continue;
 			if (distAt(x, y) == Integer.MAX_VALUE)
 				continue;
-			if (!isMoveLegalGeometryCached(x, y, xp, yp))
+			if (!isMoveLegalGeometryFast(x, y, xp, yp))
 				continue;
 			for (final Direction d : Direction.values()) {
 				final int vx = vxp - d.dx;
@@ -520,6 +538,9 @@ public class RaceGame {
 				}
 			}
 		}
+		final long tBfs = System.nanoTime();
+		System.out.printf("[reachability] init=%.0fms bfs=%.0fms total=%.0fms alive=%d%n",
+				(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tBfs - t0) / 1e6, aliveStates.cardinality());
 	}
 
 	/** True iff state (x,y,vx,vy) has at least one geometry-legal successor or reaches the finish. */
