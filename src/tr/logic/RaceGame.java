@@ -463,20 +463,6 @@ public class RaceGame {
 		return legal;
 	}
 
-	/**
-	 * Fast endpoint + segment-cross legality, skipping the 99-point interval scan.
-	 * Equivalent to {@link #isMoveLegalGeometry} for closed-corridor tracks
-	 * (Jordan curve: a line whose endpoints are inside and which doesn't cross
-	 * either border must stay inside). Used only by reverse-BFS where we touch
-	 * each edge exactly once and the cached interval check is pure overhead.
-	 */
-	private boolean isMoveLegalGeometryFast(final int x1, final int y1, final int x2, final int y2) {
-		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
-			return false;
-		final int[] from = {x1, y1 };
-		final int[] to = {x2, y2 };
-		return !segmentCrossesPath(from, to, track.getLeft()) && !segmentCrossesPath(from, to, track.getRight());
-	}
 
 	private BitSet	aliveStates;
 	private int[]	turnsArr;
@@ -566,7 +552,7 @@ public class RaceGame {
 				continue;
 			if (distAt(x, y) == Integer.MAX_VALUE)
 				continue;
-			if (!isMoveLegalGeometryFast(x, y, xp, yp))
+			if (!isMoveLegalGeometryCached(x, y, xp, yp))
 				continue;
 			for (final Direction d : Direction.values()) {
 				final int vx = vxp - d.dx;
@@ -798,8 +784,10 @@ public class RaceGame {
 
 	/**
 	 * AI1: pick the move whose successor state has the minimum precomputed
-	 * turns-to-finish. Optimal modulo opponent positions (which can shift the
-	 * crash check between turns but not the underlying reachability map).
+	 * turns-to-finish. Opponents are handled lazily: if the best alive direction
+	 * is blocked by an opponent at the current turn, the next-best alive
+	 * direction wins instead. This is enough to avoid head-on crashes without
+	 * paying the cost of opponent-aware reachability re-planning.
 	 */
 	private Direction optimalMove(final int[] pos, final int[] vel, final int playerNum) {
 		Direction best = null;
