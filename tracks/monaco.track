@@ -1,0 +1,8 @@
+# Theoretical Racing track file
+# Approximate trace of the Monaco street circuit. Racing direction:
+# clockwise viewed from above; tight street-circuit corridor.
+name=Monaco
+gameX=120
+gameY=85
+trackLeft=45,72;65,78;85,78;100,74;110,65;115,52;110,38;102,28;92,18;78,12;62,10;48,14;34,22;22,32;14,45;14,60;24,72;38,72;42,72
+trackRight=45,62;65,68;82,68;92,62;100,55;102,42;98,32;90,25;80,20;68,18;55,20;42,24;32,30;25,40;26,52;32,62;38,62;42,62

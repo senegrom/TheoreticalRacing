@@ -1,0 +1,9 @@
+# Theoretical Racing track file
+# Approximate trace of Monza (Temple of Speed): long pit straight on
+# the south side, sweeping Parabolica, chicanes simplified to corners.
+# Racing direction: clockwise viewed from above.
+name=Monza
+gameX=150
+gameY=80
+trackLeft=30,60;55,64;85,64;110,62;130,55;142,42;142,25;132,12;110,5;85,5;58,7;38,12;22,22;13,38;13,55;22,62;25,60
+trackRight=30,50;55,54;83,54;105,52;122,46;132,35;130,22;118,14;100,11;82,11;62,13;48,18;35,28;28,40;25,50

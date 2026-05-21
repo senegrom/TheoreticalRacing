@@ -1,0 +1,9 @@
+# Theoretical Racing track file
+# Approximate trace of Spa-Francorchamps. La Source hairpin to Eau Rouge,
+# up Kemmel, Les Combes, Pouhon, Stavelot, Bus Stop chicane.
+# Racing direction: clockwise viewed from above.
+name=Spa-Francorchamps
+gameX=150
+gameY=110
+trackLeft=75,20;95,18;115,25;130,40;140,60;135,80;120,95;95,100;70,100;45,95;25,80;15,60;15,40;25,25;45,18;65,18;72,20
+trackRight=75,32;95,30;110,35;122,48;128,62;123,75;110,85;90,88;70,88;52,85;38,75;30,60;32,45;40,35;55,30;68,30;72,32

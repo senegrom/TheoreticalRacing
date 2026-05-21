@@ -1,0 +1,8 @@
+# Theoretical Racing track file
+# Approximate trace of modern Silverstone. Racing direction:
+# clockwise viewed from above; start line at right side of main straight.
+name=Silverstone
+gameX=140
+gameY=90
+trackLeft=50,80;75,84;105,84;125,78;138,65;142,48;138,30;125,15;105,7;80,5;55,8;35,15;20,28;12,45;12,65;22,78;40,84;47,80
+trackRight=50,70;75,74;100,74;118,68;128,58;130,42;125,28;115,18;95,13;75,13;55,15;40,20;28,30;22,42;25,58;32,70;42,74;47,70
