@@ -1,0 +1,6 @@
+# Theoretical Racing track file
+name=Chicane
+gameX=90
+gameY=25
+trackLeft=5,17;20,7;40,15;60,7;75,17;85,17
+trackRight=5,22;20,12;40,19;60,12;75,22;85,22
