@@ -882,17 +882,25 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2: min-turns with opponent-spread penalty. Picks the move that minimizes
-	 * turns-to-finish plus a small penalty for ending close to other live
-	 * players. This spreads AI2 away from AI1's racing line, reducing collisions
-	 * and trap situations on shared corridors. Falls back to safety tie-break
-	 * (most alive + non-crashing escape successors) when the spread-adjusted
-	 * cost ties.
+	 * AI2: 1-ply opponent-aware min-turns. Predicts where each live opponent
+	 * will move next by running AI1's min-turns logic on them, then for each
+	 * candidate AI2 move scores it by:
+	 *   - turns-to-finish from the destination (base cost),
+	 *   - heavy penalty if the destination's continuations are mostly blocked
+	 *     by the PREDICTED next-turn opponent positions (prevents 2-step
+	 *     traps where the obvious next move is taken by a faster rival),
+	 *   - tiny opponent-spread penalty to break ties laterally.
+	 *
+	 * This turns AI2 into a real 1-ply minimax-lite rather than a pure
+	 * reachability follower, which matters most on tight tracks where
+	 * AI1 frequently corners itself against an opponent occupying its
+	 * next planned cell.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
+		final int[][] predicted = predictedOpponentNextPositions(playerNum);
+
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
-		int bestSafety = -1;
 		Direction bestLegal = null;
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
@@ -917,6 +925,15 @@ public class RaceGame {
 			}
 			if (isCrashingPlayer(newX, newY, playerNum))
 				continue;
+			if (cellOccupiedByPrediction(newX, newY, predicted)) {
+				// Treat as a soft block: legal-but-someone-else-going-here. Update
+				// bestLegal so we still have a fallback, but never pick this as best.
+				if (sc < bestLegalScore) {
+					bestLegalScore = sc;
+					bestLegal = d;
+				}
+				continue;
+			}
 			if (sc < bestLegalScore) {
 				bestLegalScore = sc;
 				bestLegal = d;
@@ -924,17 +941,13 @@ public class RaceGame {
 			final int turns = turnsToFinish(newX, newY, newVx, newVy);
 			if (turns == Integer.MAX_VALUE)
 				continue;
-			final double score = turns + opponentSpreadPenalty(newX, newY, playerNum);
+			final int futureSafe = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
+			final double trapPenalty = futureSafe == 0 ? 50.0 : (futureSafe == 1 ? 4.0 : (futureSafe == 2 ? 1.5 : 0.0));
+			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
+			final double score = turns + trapPenalty + spread;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
-				bestSafety = countSafeSuccessors(newX, newY, newVx, newVy, playerNum);
-			} else if (score == bestScore) {
-				final int safety = countSafeSuccessors(newX, newY, newVx, newVy, playerNum);
-				if (safety > bestSafety) {
-					bestSafety = safety;
-					best = d;
-				}
 			}
 		}
 		if (best != null)
@@ -944,7 +957,35 @@ public class RaceGame {
 		return fallback;
 	}
 
-	/** Small penalty for ending up close to other live players, encouraging lateral spread. */
+	/** Predict next position for each live opponent by running AI1's logic on it. */
+	private int[][] predictedOpponentNextPositions(final int myPlayerNum) {
+		final int[][] result = new int[players.length][];
+		for (final Player p : players) {
+			if (p.getNumber() == myPlayerNum || p.isFinished())
+				continue;
+			final int[] oPos = p.getPosition();
+			final int[] oVel = p.getVelocity();
+			final Direction d = optimalMoveAI1(oPos, oVel, p.getNumber());
+			if (d == null)
+				continue;
+			final int nVx = oVel[0] + d.dx;
+			final int nVy = oVel[1] + d.dy;
+			if (Math.abs(nVx) > AI_MAX_SPEED || Math.abs(nVy) > AI_MAX_SPEED)
+				continue;
+			result[p.getNumber() - 1] = new int[]{oPos[0] + nVx, oPos[1] + nVy };
+		}
+		return result;
+	}
+
+	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
+		for (final int[] p : predicted) {
+			if (p != null && p[0] == x && p[1] == y)
+				return true;
+		}
+		return false;
+	}
+
+	/** Tiny penalty for ending up close to other live players, breaks lateral ties. */
 	private double opponentSpreadPenalty(final int x, final int y, final int playerNum) {
 		double penalty = 0;
 		for (final Player p : players) {
@@ -955,15 +996,20 @@ public class RaceGame {
 			final int dy = y - pp[1];
 			final int d2 = dx * dx + dy * dy;
 			if (d2 <= 4)
-				penalty += 0.5;
+				penalty += 0.3;
 			else if (d2 <= 9)
-				penalty += 0.2;
+				penalty += 0.1;
 		}
 		return penalty;
 	}
 
-	/** Count alive non-crashing 1-step successors from (x,y,vx,vy). */
-	private int countSafeSuccessors(final int x, final int y, final int vx, final int vy, final int playerNum) {
+	/**
+	 * Count alive 1-step successors of (x,y,vx,vy) that are NOT also predicted
+	 * to be occupied by an opponent's next move. Approximates the number of
+	 * still-viable continuations after one opponent reaction.
+	 */
+	private int countFutureSafeSuccessors(final int x, final int y, final int vx, final int vy, final int playerNum,
+			final int[][] predicted) {
 		int count = 0;
 		for (final Direction d : Direction.values()) {
 			final int nvx = vx + d.dx;
@@ -977,6 +1023,8 @@ public class RaceGame {
 			if (!isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
 			if (isCrashingPlayer(nx, ny, playerNum))
+				continue;
+			if (cellOccupiedByPrediction(nx, ny, predicted))
 				continue;
 			if (isAlive(nx, ny, nvx, nvy))
 				count++;
