@@ -925,15 +925,6 @@ public class RaceGame {
 			}
 			if (isCrashingPlayer(newX, newY, playerNum))
 				continue;
-			if (cellOccupiedByPrediction(newX, newY, predicted)) {
-				// Treat as a soft block: legal-but-someone-else-going-here. Update
-				// bestLegal so we still have a fallback, but never pick this as best.
-				if (sc < bestLegalScore) {
-					bestLegalScore = sc;
-					bestLegal = d;
-				}
-				continue;
-			}
 			if (sc < bestLegalScore) {
 				bestLegalScore = sc;
 				bestLegal = d;
@@ -942,9 +933,12 @@ public class RaceGame {
 			if (turns == Integer.MAX_VALUE)
 				continue;
 			final int futureSafe = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
-			final double trapPenalty = futureSafe == 0 ? 50.0 : (futureSafe == 1 ? 4.0 : (futureSafe == 2 ? 1.5 : 0.0));
+			final double trapPenalty = futureSafe == 0 ? 50.0 : (futureSafe == 1 ? 2.0 : (futureSafe == 2 ? 0.5 : 0.0));
+			// Soft penalty if our destination is also where some opponent is predicted to go.
+			// Faster opponents win the race for that cell; we don't want to bet on it.
+			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
-			final double score = turns + trapPenalty + spread;
+			final double score = turns + trapPenalty + conflict + spread;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
