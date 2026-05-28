@@ -821,7 +821,7 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 (optimal min-turns) or AI2 (2-step greedy) based on the player's kind. */
+	/** Dispatches to AI1 (pure min-turns) or AI2 (min-turns with safety tie-break). */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -830,18 +830,15 @@ public class RaceGame {
 		final int playerNum = p.getNumber();
 
 		if (p.getKind() == Player.Kind.AI2)
-			return twoStepGreedy(pos, vel, playerNum);
-		return optimalMove(pos, vel, playerNum);
+			return optimalMoveAI2(pos, vel, playerNum);
+		return optimalMoveAI1(pos, vel, playerNum);
 	}
 
 	/**
-	 * AI1: pick the move whose successor state has the minimum precomputed
-	 * turns-to-finish. Opponents are handled lazily: if the best alive direction
-	 * is blocked by an opponent at the current turn, the next-best alive
-	 * direction wins instead. This is enough to avoid head-on crashes without
-	 * paying the cost of opponent-aware reachability re-planning.
+	 * AI1: pure min-turns. Among all legal non-crashing moves, pick the one
+	 * whose successor state has the lowest precomputed turns-to-finish.
 	 */
-	private Direction optimalMove(final int[] pos, final int[] vel, final int playerNum) {
+	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
 		Direction bestLegal = null;
@@ -884,73 +881,111 @@ public class RaceGame {
 		return fallback;
 	}
 
-	private static long stateKey(final int x, final int y, final int vx, final int vy) {
-		return ((long) x & 0xFFFF) << 48 | ((long) y & 0xFFFF) << 32 | ((long) (vx + 32) & 0xFF) << 16 | (long) (vy + 32) & 0xFF;
-	}
-
-	/** Fallback when A* runs out of budget. */
-	private Direction twoStepGreedy(final int[] pos, final int[] vel, final int playerNum) {
-		Direction bestFirst = null;
-		double bestFirstScore = Double.MAX_VALUE;
-		Direction bestLive = null;
-		double bestLiveScore = Double.MAX_VALUE;
+	/**
+	 * AI2: min-turns with opponent-spread penalty. Picks the move that minimizes
+	 * turns-to-finish plus a small penalty for ending close to other live
+	 * players. This spreads AI2 away from AI1's racing line, reducing collisions
+	 * and trap situations on shared corridors. Falls back to safety tie-break
+	 * (most alive + non-crashing escape successors) when the spread-adjusted
+	 * cost ties.
+	 */
+	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
+		Direction best = null;
+		double bestScore = Double.MAX_VALUE;
+		int bestSafety = -1;
 		Direction bestLegal = null;
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
-		for (final Direction d1 : Direction.values()) {
-			final int vx1 = vel[0] + d1.dx;
-			final int vy1 = vel[1] + d1.dy;
-			final int[] p1 = {pos[0] + vx1, pos[1] + vy1 };
-			if (crossesFinish(pos[0], pos[1], p1[0], p1[1]))
-				return d1;
-			final double s1 = scorePos(p1[0], p1[1], vx1, vy1);
-			if (!isMoveLegal(pos, p1, playerNum)) {
-				if (s1 < fallbackScore) {
-					fallbackScore = s1;
-					fallback = d1;
+
+		for (final Direction d : Direction.values()) {
+			final int newVx = vel[0] + d.dx;
+			final int newVy = vel[1] + d.dy;
+			if (Math.abs(newVx) > AI_MAX_SPEED || Math.abs(newVy) > AI_MAX_SPEED)
+				continue;
+			final int newX = pos[0] + newVx;
+			final int newY = pos[1] + newVy;
+			if (crossesFinish(pos[0], pos[1], newX, newY))
+				return d;
+			final double sc = scorePos(newX, newY, newVx, newVy);
+			if (!isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+				if (sc < fallbackScore) {
+					fallbackScore = sc;
+					fallback = d;
 				}
 				continue;
 			}
-			if (s1 < bestLegalScore) {
-				bestLegalScore = s1;
-				bestLegal = d1;
-			}
-			if (!isAlive(p1[0], p1[1], vx1, vy1))
+			if (isCrashingPlayer(newX, newY, playerNum))
 				continue;
-			if (s1 < bestLiveScore) {
-				bestLiveScore = s1;
-				bestLive = d1;
+			if (sc < bestLegalScore) {
+				bestLegalScore = sc;
+				bestLegal = d;
 			}
-			double best2 = Double.MAX_VALUE;
-			for (final Direction d2 : Direction.values()) {
-				final int vx2 = vx1 + d2.dx;
-				final int vy2 = vy1 + d2.dy;
-				final int[] p2 = {p1[0] + vx2, p1[1] + vy2 };
-				if (crossesFinish(p1[0], p1[1], p2[0], p2[1])) {
-					best2 = -1;
-					break;
+			final int turns = turnsToFinish(newX, newY, newVx, newVy);
+			if (turns == Integer.MAX_VALUE)
+				continue;
+			final double score = turns + opponentSpreadPenalty(newX, newY, playerNum);
+			if (score < bestScore) {
+				bestScore = score;
+				best = d;
+				bestSafety = countSafeSuccessors(newX, newY, newVx, newVy, playerNum);
+			} else if (score == bestScore) {
+				final int safety = countSafeSuccessors(newX, newY, newVx, newVy, playerNum);
+				if (safety > bestSafety) {
+					bestSafety = safety;
+					best = d;
 				}
-				if (!isMoveLegal(p1, p2, playerNum))
-					continue;
-				if (!isAlive(p2[0], p2[1], vx2, vy2))
-					continue;
-				final double s2 = scorePos(p2[0], p2[1], vx2, vy2);
-				if (s2 < best2)
-					best2 = s2;
-			}
-			if (best2 < Double.MAX_VALUE && best2 < bestFirstScore) {
-				bestFirstScore = best2;
-				bestFirst = d1;
 			}
 		}
-		if (bestFirst != null)
-			return bestFirst;
-		if (bestLive != null)
-			return bestLive;
+		if (best != null)
+			return best;
 		if (bestLegal != null)
 			return bestLegal;
 		return fallback;
+	}
+
+	/** Small penalty for ending up close to other live players, encouraging lateral spread. */
+	private double opponentSpreadPenalty(final int x, final int y, final int playerNum) {
+		double penalty = 0;
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = x - pp[0];
+			final int dy = y - pp[1];
+			final int d2 = dx * dx + dy * dy;
+			if (d2 <= 4)
+				penalty += 0.5;
+			else if (d2 <= 9)
+				penalty += 0.2;
+		}
+		return penalty;
+	}
+
+	/** Count alive non-crashing 1-step successors from (x,y,vx,vy). */
+	private int countSafeSuccessors(final int x, final int y, final int vx, final int vy, final int playerNum) {
+		int count = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 9;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			if (isCrashingPlayer(nx, ny, playerNum))
+				continue;
+			if (isAlive(nx, ny, nvx, nvy))
+				count++;
+		}
+		return count;
+	}
+
+	private static long stateKey(final int x, final int y, final int vx, final int vy) {
+		return ((long) x & 0xFFFF) << 48 | ((long) y & 0xFFFF) << 32 | ((long) (vx + 32) & 0xFF) << 16 | (long) (vy + 32) & 0xFF;
 	}
 
 	private double scorePos(final int x, final int y, final int vx, final int vy) {
