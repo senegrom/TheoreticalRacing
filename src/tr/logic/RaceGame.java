@@ -821,7 +821,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 (pure min-turns) or AI2 (min-turns with safety tie-break). */
+	/** Dispatches to AI1 or AI2. Both start from the same 1-ply opponent-aware
+	 *  baseline; AI1 is the one we improve from there, AI2 stays frozen as the
+	 *  reference. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -835,10 +837,10 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI1: pure min-turns. Among all legal non-crashing moves, pick the one
-	 * whose successor state has the lowest precomputed turns-to-finish.
+	 * Pure min-turns lookup, no opponent reasoning. Used internally to predict
+	 * opponent moves; we DON'T want recursion through the smart AI variants.
 	 */
-	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
+	private Direction pureMinTurnsMove(final int[] pos, final int[] vel, final int playerNum) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
 		Direction bestLegal = null;
@@ -882,21 +884,119 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2: 1-ply opponent-aware min-turns. Predicts where each live opponent
-	 * will move next by running AI1's min-turns logic on them, then for each
-	 * candidate AI2 move scores it by:
+	 * AI1: depth-2 self-search with fixed-policy opponent prediction. Replaces
+	 * AI2's step-function trapPenalty with an exact opponent-aware turn count.
+	 * For each of my 9 candidate moves, computes "depth-2 turns" = 1 + min over
+	 * my next move of turnsToFinish(s2), where s2's cell must not be a
+	 * predicted opponent target. This catches traps the step penalty misses
+	 * (when the only "good" d2 lands on an opponent's path).
+	 */
+	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
+		final int[][] predicted = predictedOpponentNextPositions(playerNum);
+
+		Direction best = null;
+		double bestScore = Double.MAX_VALUE;
+		Direction bestLegal = null;
+		double bestLegalScore = Double.MAX_VALUE;
+		Direction fallback = Direction.NONE;
+		double fallbackScore = Double.MAX_VALUE;
+
+		for (final Direction d : Direction.values()) {
+			final int newVx = vel[0] + d.dx;
+			final int newVy = vel[1] + d.dy;
+			if (Math.abs(newVx) > AI_MAX_SPEED || Math.abs(newVy) > AI_MAX_SPEED)
+				continue;
+			final int newX = pos[0] + newVx;
+			final int newY = pos[1] + newVy;
+			if (crossesFinish(pos[0], pos[1], newX, newY))
+				return d;
+			final double sc = scorePos(newX, newY, newVx, newVy);
+			if (!isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+				if (sc < fallbackScore) {
+					fallbackScore = sc;
+					fallback = d;
+				}
+				continue;
+			}
+			if (isCrashingPlayer(newX, newY, playerNum))
+				continue;
+			if (sc < bestLegalScore) {
+				bestLegalScore = sc;
+				bestLegal = d;
+			}
+			final int turns1 = turnsToFinish(newX, newY, newVx, newVy);
+			if (turns1 == Integer.MAX_VALUE)
+				continue;
+
+			// Depth-2: find min remaining-turns from any d2 reachable without
+			// landing on a predicted opponent cell, AND count safe d2 options.
+			int bestD2 = Integer.MAX_VALUE;
+			int d2SafeCount = 0;
+			boolean finishViaD2 = false;
+			for (final Direction d2 : Direction.values()) {
+				final int newVx2 = newVx + d2.dx;
+				final int newVy2 = newVy + d2.dy;
+				if (Math.abs(newVx2) > AI_MAX_SPEED || Math.abs(newVy2) > AI_MAX_SPEED)
+					continue;
+				final int newX2 = newX + newVx2;
+				final int newY2 = newY + newVy2;
+				if (crossesFinish(newX, newY, newX2, newY2)) {
+					bestD2 = 0;
+					d2SafeCount = 9;
+					finishViaD2 = true;
+					break;
+				}
+				if (!isMoveLegalGeometryCached(newX, newY, newX2, newY2))
+					continue;
+				if (isCrashingPlayer(newX2, newY2, playerNum))
+					continue;
+				if (cellOccupiedByPrediction(newX2, newY2, predicted))
+					continue;
+				final int t2 = turnsToFinish(newX2, newY2, newVx2, newVy2);
+				if (t2 == Integer.MAX_VALUE)
+					continue;
+				d2SafeCount++;
+				if (t2 < bestD2)
+					bestD2 = t2;
+			}
+			if (bestD2 == Integer.MAX_VALUE)
+				continue;
+			final double depth2Turns = finishViaD2 ? 1 : 1 + bestD2;
+			final double trapPenalty = d2SafeCount == 0 ? 50.0
+					: d2SafeCount == 1 ? 2.0
+							: d2SafeCount == 2 ? 0.5
+									: 0.0;
+			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
+			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
+			final double score = depth2Turns + trapPenalty + conflict + spread;
+			if (score < bestScore) {
+				bestScore = score;
+				best = d;
+			}
+		}
+		if (best != null)
+			return best;
+		if (bestLegal != null)
+			return bestLegal;
+		return fallback;
+	}
+
+	/**
+	 * AI2 (FROZEN BASELINE): 1-ply opponent-aware min-turns. Predicts where each
+	 * live opponent will move next via pureMinTurnsMove, then scores each
+	 * candidate move by:
 	 *   - turns-to-finish from the destination (base cost),
 	 *   - heavy penalty if the destination's continuations are mostly blocked
-	 *     by the PREDICTED next-turn opponent positions (prevents 2-step
-	 *     traps where the obvious next move is taken by a faster rival),
-	 *   - tiny opponent-spread penalty to break ties laterally.
-	 *
-	 * This turns AI2 into a real 1-ply minimax-lite rather than a pure
-	 * reachability follower, which matters most on tight tracks where
-	 * AI1 frequently corners itself against an opponent occupying its
-	 * next planned cell.
+	 *     by the PREDICTED next-turn opponent positions,
+	 *   - +3 soft penalty if the cell itself is a predicted opponent target,
+	 *   - tiny opponent-spread penalty for lateral tie-breaks.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
+		return safetyAwareMinTurnsMove(pos, vel, playerNum);
+	}
+
+	/** Shared body for the 1-ply safety-aware variant (AI1 starts here; AI2 stays here). */
+	private Direction safetyAwareMinTurnsMove(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][] predicted = predictedOpponentNextPositions(playerNum);
 
 		Direction best = null;
@@ -934,8 +1034,6 @@ public class RaceGame {
 				continue;
 			final int futureSafe = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
 			final double trapPenalty = futureSafe == 0 ? 50.0 : (futureSafe == 1 ? 2.0 : (futureSafe == 2 ? 0.5 : 0.0));
-			// Soft penalty if our destination is also where some opponent is predicted to go.
-			// Faster opponents win the race for that cell; we don't want to bet on it.
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			final double score = turns + trapPenalty + conflict + spread;
@@ -951,7 +1049,7 @@ public class RaceGame {
 		return fallback;
 	}
 
-	/** Predict next position for each live opponent by running AI1's logic on it. */
+	/** Predict next position for each live opponent using the pure min-turns logic. */
 	private int[][] predictedOpponentNextPositions(final int myPlayerNum) {
 		final int[][] result = new int[players.length][];
 		for (final Player p : players) {
@@ -959,7 +1057,7 @@ public class RaceGame {
 				continue;
 			final int[] oPos = p.getPosition();
 			final int[] oVel = p.getVelocity();
-			final Direction d = optimalMoveAI1(oPos, oVel, p.getNumber());
+			final Direction d = pureMinTurnsMove(oPos, oVel, p.getNumber());
 			if (d == null)
 				continue;
 			final int nVx = oVel[0] + d.dx;
