@@ -966,9 +966,16 @@ public class RaceGame {
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
+			// Soft corridor-width speed cap: when the local d2 options are few
+			// (tight corridor / tight corner) AND we're moving fast, add a
+			// quadratic penalty for going too fast for the corridor width.
+			final double speed = Math.hypot(newVx, newVy);
+			final int widthBudget = 4 + d2SafeCount;
+			final double overSpeed = Math.max(0.0, speed - widthBudget);
+			final double speedCap = overSpeed * overSpeed * 0.4;
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
-			final double score = depth2Turns + trapPenalty + conflict + spread;
+			final double score = depth2Turns + trapPenalty + speedCap + conflict + spread;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1075,6 +1082,46 @@ public class RaceGame {
 				return true;
 		}
 		return false;
+	}
+
+	/** True iff the predicted cell belongs to an opponent whose player number is
+	 *  LOWER than mine (so they would have moved before me this round, but their
+	 *  prediction reflects their NEXT round move -- not directly relevant) OR
+	 *  for an opponent later in this round (idx > mine - 1) AT their predicted
+	 *  target. For not-yet-moved opponents (player number greater than mine),
+	 *  I move first so I'll claim the cell -- no conflict.
+	 *  This function returns true ONLY when the cell is targeted by an already-
+	 *  moved opponent's next-round prediction AND that opponent currently sits
+	 *  in front of me (i.e., they'll likely be there when I arrive). */
+	private boolean predictedConflictByEarlierPlayer(final int x, final int y, final int[][] predicted, final int playerNum) {
+		for (int i = 0; i < predicted.length; i++) {
+			final int[] p = predicted[i];
+			if (p == null || p[0] != x || p[1] != y)
+				continue;
+			final int otherNum = i + 1;
+			// Player with LOWER number already moved this round; their predicted
+			// position is their NEXT round move. If their NEXT-round target is
+			// where I want to be NOW, they're already nearby and likely to be
+			// there by the time it matters.
+			if (otherNum < playerNum)
+				return true;
+		}
+		return false;
+	}
+
+	/** Count live opponents within squared distance r2 of (pos). */
+	private int countNearbyOpponents(final int[] pos, final int playerNum, final int r2) {
+		int count = 0;
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = pos[0] - pp[0];
+			final int dy = pos[1] - pp[1];
+			if (dx * dx + dy * dy <= r2)
+				count++;
+		}
+		return count;
 	}
 
 	/** Tiny penalty for ending up close to other live players, breaks lateral ties. */
