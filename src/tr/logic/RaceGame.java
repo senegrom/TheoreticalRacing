@@ -318,6 +318,11 @@ public class RaceGame {
 
 	private int					finishedLast	= 0, finishedFirst = 0;
 	private Line2D				finishLine;
+	/** Unit vector of the racing direction at the finish line. A move only
+	 *  counts as crossing the finish if it travels with this heading (positive
+	 *  dot) — blocks the "cross the adjacent finish backward from the start"
+	 *  exploit on closed-loop tracks with a small S/F gap. */
+	private double				finishFwdX, finishFwdY;
 	private final GameUI		gameFrame;
 	private volatile GameState	gamestate		= GameState.PRESTART;
 	private int					isShowingPrePath	= -1;
@@ -686,7 +691,42 @@ public class RaceGame {
 	}
 
 	private boolean crossesFinish(final double x1, final double y1, final double x2, final double y2) {
-		return Line2D.linesIntersect(finishLine.getX1(), finishLine.getY1(), finishLine.getX2(), finishLine.getY2(), x1, y1, x2, y2);
+		if (!Line2D.linesIntersect(finishLine.getX1(), finishLine.getY1(), finishLine.getX2(), finishLine.getY2(), x1, y1, x2, y2))
+			return false;
+		// Only a forward crossing counts (move heads in the racing direction).
+		// A zero-length or backward move across the line is not a finish.
+		return (x2 - x1) * finishFwdX + (y2 - y1) * finishFwdY > 0;
+	}
+
+	/**
+	 * Compute the racing-direction unit vector at the finish, as the average of
+	 * the last left and right border segments (which point from the track
+	 * interior outward through the finish line, i.e. the way a lapping car
+	 * travels). Falls back to the finish-line normal if those segments are
+	 * degenerate.
+	 */
+	private void computeFinishForward() {
+		final LinkedList<int[]> left = track.getLeft();
+		final LinkedList<int[]> right = track.getRight();
+		final int[] fL = left.getLast(), fR = right.getLast();
+		double hx = 0, hy = 0;
+		if (left.size() >= 2) {
+			final int[] p = left.get(left.size() - 2);
+			hx += fL[0] - p[0];
+			hy += fL[1] - p[1];
+		}
+		if (right.size() >= 2) {
+			final int[] p = right.get(right.size() - 2);
+			hx += fR[0] - p[0];
+			hy += fR[1] - p[1];
+		}
+		if (hx == 0 && hy == 0) {
+			hx = -(fR[1] - fL[1]);
+			hy = fR[0] - fL[0];
+		}
+		final double len = Math.hypot(hx, hy);
+		finishFwdX = len == 0 ? 0 : hx / len;
+		finishFwdY = len == 0 ? 0 : hy / len;
 	}
 
 	/** Activated when a direction button is clicked. */
@@ -1374,6 +1414,7 @@ public class RaceGame {
 		final int[] fL = track.getLeft().getLast();
 		final int[] fR = track.getRight().getLast();
 		finishLine = new Line2D.Double(fL[0], fL[1], fR[0], fR[1]);
+		computeFinishForward();
 		rui.setFinishLine(fL, fR);
 		startZone = makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
 		rui.setStartZone(startZone);

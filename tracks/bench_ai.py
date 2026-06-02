@@ -15,12 +15,13 @@ import re
 import subprocess
 import sys
 
-# Skip lemans and nurburgring: both are degenerate benchmarks with an
-# exploitable near-instant finish across the S/F gap (depth-4 search finishes
-# nurburgring in ~4 moves), so their move counts are a tie-break artifact
-# rather than a measure of racing quality.
+# nurburgring is back in the set now that the directional-finish fix kills its
+# backward-cross exploit (it does honest ~83-92 move laps). lemans is still
+# excluded: its OSM-stitched S/F gap leaves the finish forward-reachable in a
+# few moves (a track-geometry defect, not a finish-direction one). circle is a
+# 1-move synthetic track but harmless to the bench (always a tie).
 DEFAULT_TRACKS = [
-    'silverstone', 'monza', 'spa', 'monaco', 'spielberg',
+    'silverstone', 'monza', 'spa', 'monaco', 'spielberg', 'nurburgring',
     'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
     'chicane', 'bigoval', 'curve',
 ]
