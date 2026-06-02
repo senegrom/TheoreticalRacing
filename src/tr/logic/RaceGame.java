@@ -885,11 +885,8 @@ public class RaceGame {
 
 	/**
 	 * AI1: depth-2 self-search with fixed-policy opponent prediction. Replaces
-	 * AI2's step-function trapPenalty with an exact opponent-aware turn count.
-	 * For each of my 9 candidate moves, computes "depth-2 turns" = 1 + min over
-	 * my next move of turnsToFinish(s2), where s2's cell must not be a
-	 * predicted opponent target. This catches traps the step penalty misses
-	 * (when the only "good" d2 lands on an opponent's path).
+	 * AI2's step-function trapPenalty with an exact opponent-aware turn count
+	 * plus a quadratic over-speed cap keyed off local maneuverability.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][] predicted = predictedOpponentNextPositions(playerNum);
