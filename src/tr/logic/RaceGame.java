@@ -883,13 +883,28 @@ public class RaceGame {
 		return fallback;
 	}
 
+	/** Number of my own moves AI1 searches below the candidate move (d1). 1 =
+	 *  depth-2 total (AI1.6), 2 = depth-3, 3 = depth-4. Opponents are predicted
+	 *  this many steps forward (one prediction layer per search level). */
+	private final static int		AI1_LOOKAHEAD	= 1;
+
 	/**
-	 * AI1: depth-2 self-search with fixed-policy opponent prediction. Replaces
-	 * AI2's step-function trapPenalty with an exact opponent-aware turn count
-	 * plus a quadratic over-speed cap keyed off local maneuverability.
+	 * AI1: depth-(1+AI1_LOOKAHEAD) self-search with multi-step fixed-policy
+	 * opponent prediction. For each candidate move d1, the cost is the
+	 * opponent-aware minimum turns to finish, found by searching AI1_LOOKAHEAD
+	 * of my own moves deep (filtering each level against the opponents'
+	 * predicted positions at that step) and using the precomputed reachability
+	 * map for the tail. On top of the cost we keep AI1.6's narrow-escape trap
+	 * penalty, corridor-width over-speed cap, conflict and spread terms — all
+	 * keyed off the immediate 1-step maneuverability of s1.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
-		final int[][] predicted = predictedOpponentNextPositions(playerNum);
+		// Only one prediction layer: opponents are filtered at the FIRST search
+		// level (d2) only. 2+-step opponent forecasts are too noisy to prune on
+		// (they cause over-commitment in traffic); deeper levels improve my own
+		// trajectory planning without betting on where rivals will be.
+		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
+		final int[][] predicted = predictedSteps[0];
 
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -921,58 +936,30 @@ public class RaceGame {
 				bestLegalScore = sc;
 				bestLegal = d;
 			}
-			final int turns1 = turnsToFinish(newX, newY, newVx, newVy);
-			if (turns1 == Integer.MAX_VALUE)
+			if (turnsToFinish(newX, newY, newVx, newVy) == Integer.MAX_VALUE)
 				continue;
 
-			// Depth-2: find min remaining-turns from any d2 reachable without
-			// landing on a predicted opponent cell, AND count safe d2 options.
-			int bestD2 = Integer.MAX_VALUE;
-			int d2SafeCount = 0;
-			boolean finishViaD2 = false;
-			for (final Direction d2 : Direction.values()) {
-				final int newVx2 = newVx + d2.dx;
-				final int newVy2 = newVy + d2.dy;
-				if (Math.abs(newVx2) > AI_MAX_SPEED || Math.abs(newVy2) > AI_MAX_SPEED)
-					continue;
-				final int newX2 = newX + newVx2;
-				final int newY2 = newY + newVy2;
-				if (crossesFinish(newX, newY, newX2, newY2)) {
-					bestD2 = 0;
-					d2SafeCount = 9;
-					finishViaD2 = true;
-					break;
-				}
-				if (!isMoveLegalGeometryCached(newX, newY, newX2, newY2))
-					continue;
-				if (isCrashingPlayer(newX2, newY2, playerNum))
-					continue;
-				if (cellOccupiedByPrediction(newX2, newY2, predicted))
-					continue;
-				final int t2 = turnsToFinish(newX2, newY2, newVx2, newVy2);
-				if (t2 == Integer.MAX_VALUE)
-					continue;
-				d2SafeCount++;
-				if (t2 < bestD2)
-					bestD2 = t2;
-			}
-			if (bestD2 == Integer.MAX_VALUE)
+			// Opponent-aware min-turns from s1, searching AI1_LOOKAHEAD of my
+			// own moves. Returns MAX if every continuation within the horizon is
+			// blocked (a 2..N-step trap) -- skip those.
+			final int deep = searchMinTurns(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
+			if (deep == Integer.MAX_VALUE)
 				continue;
-			final double depth2Turns = finishViaD2 ? 1 : 1 + bestD2;
+			final double costToFinish = deep;
+
+			// Immediate (1-step) maneuverability of s1, for the safety penalties.
+			final int d2SafeCount = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
-			// Soft corridor-width speed cap: when the local d2 options are few
-			// (tight corridor / tight corner) AND we're moving fast, add a
-			// quadratic penalty for going too fast for the corridor width.
 			final double speed = Math.hypot(newVx, newVy);
 			final int widthBudget = 4 + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			final double speedCap = overSpeed * overSpeed * 0.4;
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
-			final double score = depth2Turns + trapPenalty + speedCap + conflict + spread;
+			final double score = costToFinish + trapPenalty + speedCap + conflict + spread;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -983,6 +970,76 @@ public class RaceGame {
 		if (bestLegal != null)
 			return bestLegal;
 		return fallback;
+	}
+
+	/**
+	 * Opponent-aware minimum turns from (x,y,vx,vy) to crossing the finish.
+	 * The first {@code levels} of my moves are searched explicitly, filtering
+	 * each level's destination against the opponents' predicted positions at
+	 * that step ({@code predictedSteps[stepIdx]}); beyond the horizon the
+	 * opponent-blind precomputed map ({@link #turnsToFinish}) takes over.
+	 * Returns {@link Integer#MAX_VALUE} if no continuation reaches the finish.
+	 */
+	private int searchMinTurns(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
+			final int[][][] predictedSteps, final int playerNum) {
+		if (levels == 0)
+			return turnsToFinish(x, y, vx, vy);
+		int best = Integer.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 1; // finishing in one move is the global minimum
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			if (isCrashingPlayer(nx, ny, playerNum))
+				continue;
+			if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+				continue;
+			final int sub = searchMinTurns(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum);
+			if (sub == Integer.MAX_VALUE)
+				continue;
+			if (1 + sub < best)
+				best = 1 + sub;
+		}
+		return best;
+	}
+
+	/**
+	 * Project each live opponent forward {@code steps} of their own moves using
+	 * the pure min-turns policy. {@code result[k][opponentIdx]} is that
+	 * opponent's position after {@code k+1} moves (null if it can't be
+	 * projected that far). result[0] equals {@link #predictedOpponentNextPositions}.
+	 */
+	private int[][][] predictedOpponentSteps(final int myPlayerNum, final int steps) {
+		final int[][][] result = new int[Math.max(1, steps)][][];
+		for (int k = 0; k < result.length; k++)
+			result[k] = new int[players.length][];
+		for (final Player p : players) {
+			if (p.getNumber() == myPlayerNum || p.isFinished())
+				continue;
+			int px = p.getPosition()[0], py = p.getPosition()[1];
+			int pvx = p.getVelocity()[0], pvy = p.getVelocity()[1];
+			for (int k = 0; k < steps; k++) {
+				final Direction d = pureMinTurnsMove(new int[]{px, py }, new int[]{pvx, pvy }, p.getNumber());
+				if (d == null)
+					break;
+				final int nvx = pvx + d.dx;
+				final int nvy = pvy + d.dy;
+				if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+					break;
+				px += nvx;
+				py += nvy;
+				pvx = nvx;
+				pvy = nvy;
+				result[k][p.getNumber() - 1] = new int[]{px, py };
+			}
+		}
+		return result;
 	}
 
 	/**
