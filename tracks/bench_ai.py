@@ -15,9 +15,12 @@ import re
 import subprocess
 import sys
 
-# Skip lemans for now (degenerate S/F gap on that trace).
+# Skip lemans and nurburgring: both are degenerate benchmarks with an
+# exploitable near-instant finish across the S/F gap (depth-4 search finishes
+# nurburgring in ~4 moves), so their move counts are a tie-break artifact
+# rather than a measure of racing quality.
 DEFAULT_TRACKS = [
-    'silverstone', 'monza', 'spa', 'monaco', 'spielberg', 'nurburgring',
+    'silverstone', 'monza', 'spa', 'monaco', 'spielberg',
     'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
     'chicane', 'bigoval', 'curve',
 ]

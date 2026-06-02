@@ -1100,7 +1100,12 @@ public class RaceGame {
 			final double speedCap = overSpeed * overSpeed * 0.4;
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
-			final double score = costToFinish + trapPenalty + speedCap + conflict + spread;
+			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
+			// prefer the one carrying more usable speed (covers more ground, keeps
+			// the line flowing). Weight is tiny so it can never override a real
+			// turn or penalty difference.
+			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
+			final double score = costToFinish + trapPenalty + speedCap + conflict + spread - momentum;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1112,6 +1117,8 @@ public class RaceGame {
 			return bestLegal;
 		return fallback;
 	}
+
+	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
 
 	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
 		for (final int[] p : predicted) {
