@@ -1,6 +1,6 @@
 # Theoretical Racing track file
 name=Triangle
-gameX=60
-gameY=40
-trackLeft=10,35;5,20;30,5;55,20;50,35
-trackRight=18,33;15,22;30,15;45,22;42,33
+gameX=56
+gameY=36
+trackLeft=8,33;3,18;28,3;53,18;48,33
+trackRight=16,31;13,20;28,13;43,20;40,31
