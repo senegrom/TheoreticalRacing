@@ -15,13 +15,13 @@ import re
 import subprocess
 import sys
 
-# nurburgring is back in the set now that the directional-finish fix kills its
-# backward-cross exploit (it does honest ~83-92 move laps). lemans is still
-# excluded: its OSM-stitched S/F gap leaves the finish forward-reachable in a
-# few moves (a track-geometry defect, not a finish-direction one). circle is a
-# 1-move synthetic track but harmless to the bench (always a tie).
+# lemans is back now that build_lemans.py uses angular ordering (clean loop,
+# honest ~72-84 move laps) instead of the old greedy stitch that tangled.
+# nurburgring is honest since the directional-finish fix. circle is a 1-move
+# synthetic ring (tiny S/F gap, can't be made lap-honest without the checkpoint
+# system) but harmless to the bench (always a tie).
 DEFAULT_TRACKS = [
-    'silverstone', 'monza', 'spa', 'monaco', 'spielberg', 'nurburgring',
+    'silverstone', 'monza', 'spa', 'monaco', 'spielberg', 'nurburgring', 'lemans',
     'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
     'chicane', 'bigoval', 'curve',
 ]
