@@ -134,13 +134,17 @@ def main():
     # the corridor. Reverse the inner ring so it is CCW too.
     inner = list(reversed(inner))
 
-    # Choose the S/F cut: midpoint of the longest centerline segment (likely the
-    # main straight). Then cut both rings at the position closest to that
-    # midpoint. This puts the gap at a real straight section.
+    # S/F cut: at the longest centerline segment within a small window around
+    # coords[0] (the real start/finish, where the bacinger trace begins). This
+    # puts the in-game S/F on the real pit straight (matching the original) while
+    # snapping to the longest local straight so the ring-cut stays clean (cutting
+    # at a point that sits on a curve self-intersects the corridor).
     n = len(pts_m)
+    window = max(2, n // 12)
     long_i = 0
     long_d = -1.0
-    for i in range(n):
+    for off in range(-window, window + 1):
+        i = off % n
         j = (i + 1) % n
         dx = pts_m[j][0] - pts_m[i][0]
         dy = pts_m[j][1] - pts_m[i][1]
@@ -228,6 +232,25 @@ def main():
     m = min(len(left_grid), len(right_grid))
     left_grid = left_grid[:m]
     right_grid = right_grid[:m]
+
+    # Force the real racing direction (all our circuits race CLOCKWISE as drawn
+    # north-up). The grid is screen-y-down, where a clockwise loop has positive
+    # shoelace. If the generated corridor came out counter-clockwise, reverse the
+    # traversal by swapping the two borders and reversing point order -- this
+    # leaves the corridor polygon (hence its validity) untouched, only flipping
+    # which way is "forward" start->finish.
+    def corridor_shoelace(left, right):
+        loop = left + right[::-1]
+        s = 0.0
+        k = len(loop)
+        for i in range(k):
+            x1, y1 = loop[i]
+            x2, y2 = loop[(i + 1) % k]
+            s += x1 * y2 - x2 * y1
+        return s
+
+    if corridor_shoelace(left_grid, right_grid) < 0:  # counter-clockwise -> flip
+        left_grid, right_grid = right_grid[::-1], left_grid[::-1]
 
     with open(output_path, 'w') as f:
         f.write("# Theoretical Racing track file\n")
