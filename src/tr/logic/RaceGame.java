@@ -1050,6 +1050,45 @@ public class RaceGame {
 	}
 
 	/**
+	 * Same search as {@link #searchMinTurns} but additionally counts how many
+	 * follow-up moves achieve the minimum (the "plateau width"). A candidate
+	 * whose best continuation is achievable many ways is a robust, wide line;
+	 * one whose minimum hinges on a single follow-up is a knife-edge. Used by
+	 * AI2's robustness tie-break. Returns {min, countAtMin}; a finish-crossing
+	 * follow-up short-circuits as {1, 9} (the global minimum, maximally robust).
+	 */
+	private int[] searchMinTurnsCounted(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
+			final int[][][] predictedSteps, final int playerNum) {
+		int best = Integer.MAX_VALUE;
+		int countAtMin = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return new int[]{1, 9 };
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			if (isCrashingPlayer(nx, ny, playerNum))
+				continue;
+			if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+				continue;
+			final int sub = searchMinTurns(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum);
+			if (sub == Integer.MAX_VALUE)
+				continue;
+			if (1 + sub < best) {
+				best = 1 + sub;
+				countAtMin = 1;
+			} else if (1 + sub == best)
+				countAtMin++;
+		}
+		return new int[]{best, countAtMin };
+	}
+
+	/**
 	 * Project each live opponent forward {@code steps} of their own moves using
 	 * the pure min-turns policy. {@code result[k][opponentIdx]} is that
 	 * opponent's position after {@code k+1} moves (null if it can't be
@@ -1089,6 +1128,17 @@ public class RaceGame {
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
+		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
+		// moved through/off its predicted cell by the time I could occupy it --
+		// blocking those cells causes phantom detours. Null out transiting
+		// opponents' predictions; only slow/parked rivals stay blocked.
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pv = p.getVelocity();
+			if (Math.hypot(pv[0], pv[1]) >= 3)
+				predictedSteps[0][p.getNumber() - 1] = null;
+		}
 		final int[][] predicted = predictedSteps[0];
 
 		Direction best = null;
@@ -1121,13 +1171,17 @@ public class RaceGame {
 				bestLegalScore = sc;
 				bestLegal = d;
 			}
-			if (turnsToFinish(newX, newY, newVx, newVy) == Integer.MAX_VALUE)
+			final int ownTurns = turnsToFinish(newX, newY, newVx, newVy);
+			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			final int deep = searchMinTurns(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
-			if (deep == Integer.MAX_VALUE)
-				continue;
-			final double costToFinish = deep;
+			final int[] deepCounted = searchMinTurnsCounted(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
+			final int deep = deepCounted[0];
+			// Soft trap: if every depth-2 continuation is blocked but the state
+			// itself can still reach the finish, keep the move alive with a
+			// large finite surcharge instead of hard-skipping (which would drop
+			// the AI to the foresight-free bestLegal/fallback pick).
+			final double costToFinish = deep == Integer.MAX_VALUE ? ownTurns + 20.0 : deep;
 
 			final int d2SafeCount = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
@@ -1145,7 +1199,11 @@ public class RaceGame {
 			// the line flowing). Weight is tiny so it can never override a real
 			// turn or penalty difference.
 			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
-			final double score = costToFinish + trapPenalty + speedCap + conflict + spread - momentum;
+			// Plateau-width robustness tie-break: prefer candidates whose best
+			// follow-up is achievable many ways (a wide line) over knife-edge
+			// lines whose minimum hinges on a single follow-up move.
+			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(deepCounted[1], 5);
+			final double score = costToFinish + trapPenalty + speedCap + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1159,6 +1217,7 @@ public class RaceGame {
 	}
 
 	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
+	private final static double	AI2_PLATEAU_TIEBREAK	= 0.05;
 
 	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
 		for (final int[] p : predicted) {
