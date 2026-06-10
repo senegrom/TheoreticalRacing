@@ -861,8 +861,8 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN reference (the AI1.6
-	 *  depth-2 self-search champion); AI2 is forked from it and is the one we
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.2
+	 *  parallel-sweep champion); AI1 is forked from it and is the one we
 	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
@@ -929,21 +929,23 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1: depth-(1+AI1_LOOKAHEAD) self-search with multi-step fixed-policy
-	 * opponent prediction. For each candidate move d1, the cost is the
-	 * opponent-aware minimum turns to finish, found by searching AI1_LOOKAHEAD
-	 * of my own moves deep (filtering each level against the opponents'
-	 * predicted positions at that step) and using the precomputed reachability
-	 * map for the tail. On top of the cost we keep AI1.6's narrow-escape trap
-	 * penalty, corridor-width over-speed cap, conflict and spread terms — all
-	 * keyed off the immediate 1-step maneuverability of s1.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked from the AI2.2 standard. Identical to
+	 * {@link #optimalMoveAI2} at fork time; improvements are applied here while
+	 * AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
-		// Only one prediction layer: opponents are filtered at the FIRST search
-		// level (d2) only. 2+-step opponent forecasts are too noisy to prune on
-		// (they cause over-commitment in traffic); deeper levels improve my own
-		// trajectory planning without betting on where rivals will be.
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
+		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
+		// moved through/off its predicted cell by the time I could occupy it --
+		// blocking those cells causes phantom detours. Null out transiting
+		// opponents' predictions; only slow/parked rivals stay blocked.
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pv = p.getVelocity();
+			if (Math.hypot(pv[0], pv[1]) >= 3)
+				predictedSteps[0][p.getNumber() - 1] = null;
+		}
 		final int[][] predicted = predictedSteps[0];
 
 		Direction best = null;
@@ -976,18 +978,18 @@ public class RaceGame {
 				bestLegalScore = sc;
 				bestLegal = d;
 			}
-			if (turnsToFinish(newX, newY, newVx, newVy) == Integer.MAX_VALUE)
+			final int ownTurns = turnsToFinish(newX, newY, newVx, newVy);
+			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			// Opponent-aware min-turns from s1, searching AI1_LOOKAHEAD of my
-			// own moves. Returns MAX if every continuation within the horizon is
-			// blocked (a 2..N-step trap) -- skip those.
-			final int deep = searchMinTurns(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
-			if (deep == Integer.MAX_VALUE)
-				continue;
-			final double costToFinish = deep;
+			final int[] deepCounted = searchMinTurnsCounted(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
+			final int deep = deepCounted[0];
+			// Soft trap: if every depth-2 continuation is blocked but the state
+			// itself can still reach the finish, keep the move alive with a
+			// large finite surcharge instead of hard-skipping (which would drop
+			// the AI to the foresight-free bestLegal/fallback pick).
+			final double costToFinish = deep == Integer.MAX_VALUE ? ownTurns + 20.0 : deep;
 
-			// Immediate (1-step) maneuverability of s1, for the safety penalties.
 			final int d2SafeCount = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
@@ -999,7 +1001,13 @@ public class RaceGame {
 			final double speedCap = overSpeed * overSpeed * 0.4;
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
-			final double score = costToFinish + trapPenalty + speedCap + conflict + spread;
+			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
+			// prefer the one carrying more usable speed.
+			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
+			// Plateau-width robustness tie-break: prefer candidates whose best
+			// follow-up is achievable many ways over knife-edge lines.
+			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(deepCounted[1], 5);
+			final double score = costToFinish + trapPenalty + speedCap + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1122,9 +1130,11 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (EXPERIMENTAL FRONTIER): forked from the AI1.6 depth-2 self-search
-	 * champion. Identical to {@link #optimalMoveAI1} at fork time; improvements
-	 * are applied here while AI1 stays frozen as the reference.
+	 * AI2 (FROZEN STANDARD): the AI2.2 parallel-sweep champion — depth-2
+	 * self-search plus four bench-verified mechanisms: vacated-cell prediction
+	 * filtering, soft-trap fallback, plateau-width robustness tie-break, and
+	 * the momentum tie-break. Don't change AI2 — it's the yardstick; AI1 is
+	 * the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
