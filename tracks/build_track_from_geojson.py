@@ -68,6 +68,7 @@ def main():
     grid_y = int(sys.argv[5])
     target = int(sys.argv[6]) if len(sys.argv) >= 7 else 60
     width_m = float(sys.argv[7]) if len(sys.argv) >= 8 else 18.0
+    smooth_iters = int(sys.argv[8]) if len(sys.argv) >= 9 else 6
 
     with open(geojson_path) as f:
         data = json.load(f)
@@ -79,8 +80,11 @@ def main():
     lat0 = sum(c[1] for c in coords) / len(coords)
     pts_m = [project(c[0], c[1], lat0) for c in coords]
 
-    # Moderate smoothing so the buffer doesn't pinch through tight corners.
-    pts_m = smooth(pts_m, iterations=6)
+    # Smoothing keeps the buffer from pinching through tight corners, but each
+    # pass also erases tight REAL features (Monaco's Loews hairpin survives only
+    # 2-3 passes). Tracks with signature tight corners should pass a lower
+    # smooth_iters and compensate with a slightly narrower corridor width.
+    pts_m = smooth(pts_m, iterations=smooth_iters)
 
     # Densify so long straights get enough sample points; the buffer's outer/inner
     # rings inherit density from the input. Without this, the cut point near a
