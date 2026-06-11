@@ -1217,9 +1217,9 @@ public class RaceGame {
 			double uncertified = 0.0;
 			if (speed > 4.0) {
 				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
-				// is sheddable on the empty track -- waive most of the penalty.
+				// is sheddable on the empty track -- waive the penalty entirely.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
-					speedCap *= 0.10;
+					speedCap = 0.0;
 				// Trap surcharge: an opponent is converging on this stretch AND fewer
 				// than two ROOMY escape descents exist -- the knife-edge thread can be
 				// broken by that traffic; tax the move into it, scaled by carried speed.
