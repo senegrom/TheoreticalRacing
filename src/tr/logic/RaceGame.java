@@ -998,7 +998,20 @@ public class RaceGame {
 			final double speed = Math.hypot(newVx, newVy);
 			final int widthBudget = 4 + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
-			final double speedCap = overSpeed * overSpeed * 0.4;
+			double speedCap = overSpeed * overSpeed * 0.4;
+			double uncertified = 0.0;
+			if (speed > 4.0) {
+				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
+				// is sheddable on the empty track -- waive most of the penalty.
+				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
+					speedCap *= 0.25;
+				// Trap surcharge: an opponent is converging on this stretch AND fewer
+				// than two ROOMY escape descents exist -- the knife-edge thread can be
+				// broken by that traffic; tax the move into it, scaled by carried speed.
+				if (hasConvergingOpponent(newX, newY, playerNum)
+						&& countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true) < 2)
+					uncertified = (speed - 4.0) * 2.0;
+			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -1007,7 +1020,7 @@ public class RaceGame {
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + conflict + spread - momentum - robustness;
+			final double score = costToFinish + trapPenalty + speedCap + uncertified + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1277,6 +1290,29 @@ public class RaceGame {
 		return count;
 	}
 
+	/** True iff a live opponent is both spatially near (squared distance <= 144)
+	 *  and at similar track progress (|distAt difference| <= 15) to cell (x,y) --
+	 *  i.e. actually converging on the same stretch of road, not merely across a
+	 *  wall on another part of the circuit. */
+	private boolean hasConvergingOpponent(final int x, final int y, final int playerNum) {
+		final int myDist = distAt(x, y);
+		if (myDist == Integer.MAX_VALUE)
+			return true; // off-map: be conservative
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = x - pp[0];
+			final int dy = y - pp[1];
+			if (dx * dx + dy * dy > 144)
+				continue;
+			final int oDist = distAt(pp[0], pp[1]);
+			if (oDist != Integer.MAX_VALUE && Math.abs(oDist - myDist) <= 15)
+				return true;
+		}
+		return false;
+	}
+
 	/** Tiny penalty for ending up close to other live players, breaks lateral ties. */
 	private double opponentSpreadPenalty(final int x, final int y, final int playerNum) {
 		double penalty = 0;
@@ -1322,6 +1358,114 @@ public class RaceGame {
 				count++;
 		}
 		return count;
+	}
+
+	/** Count certified braking descents from (x,y,vx,vy) down to targetSpeed
+	 *  (see canShedSpeed); proofs are first braking moves that are geometry-legal,
+	 *  alive, not on a predicted opponent cell, recursively roomy when
+	 *  {@code requireRoomy}, and complete the descent within 2 more moves. If
+	 *  bestBrake is non-null, the accel of the proof move with the lowest
+	 *  resulting speed (ties: Direction order) is written to it. Stops counting
+	 *  at 2 (only "< 2" vs ">= 2" matters).
+	 */
+	private int countBrakeProofs(final int x, final int y, final int vx, final int vy, final double targetSpeed,
+			final int[][] predicted, final int[] bestBrake, final boolean requireRoomy) {
+		int proofs = 0;
+		double bestSpeed = Double.MAX_VALUE;
+		final double speed = Math.hypot(vx, vy);
+		for (final Direction bd : Direction.values()) {
+			final int bvx = vx + bd.dx;
+			final int bvy = vy + bd.dy;
+			if (Math.abs(bvx) > AI_MAX_SPEED || Math.abs(bvy) > AI_MAX_SPEED)
+				continue;
+			final double bSpeed = Math.hypot(bvx, bvy);
+			if (bSpeed > speed)
+				continue; // braking cone only
+			final int bx = x + bvx;
+			final int by = y + bvy;
+			if (!isMoveLegalGeometryCached(x, y, bx, by))
+				continue;
+			if (!isAlive(bx, by, bvx, bvy))
+				continue;
+			if (cellOccupiedByPrediction(bx, by, predicted))
+				continue;
+			if (requireRoomy && !isRoomy(bx, by, bvx, bvy, 1))
+				continue;
+			if (canShedSpeed(bx, by, bvx, bvy, targetSpeed, 2, requireRoomy)) {
+				proofs++;
+				if (bestBrake != null && bSpeed < bestSpeed) {
+					bestSpeed = bSpeed;
+					bestBrake[0] = bd.dx;
+					bestBrake[1] = bd.dy;
+				}
+				if (proofs >= 2 && bestBrake == null)
+					break;
+			}
+		}
+		return proofs;
+	}
+
+	/** True iff speed can be reduced to <= targetSpeed within {@code depth} moves
+	 *  using only non-speed-increasing, geometry-legal moves through alive
+	 *  states -- additionally recursively roomy states when {@code requireRoomy}
+	 *  ({@link #isRoomy} -- knife-edge single-file threads don't count).
+	 *  Opponent-blind beyond the first move, like the reachability map. */
+	private boolean canShedSpeed(final int x, final int y, final int vx, final int vy, final double targetSpeed, final int depth,
+			final boolean requireRoomy) {
+		if (Math.hypot(vx, vy) <= targetSpeed)
+			return true;
+		if (depth == 0)
+			return false;
+		final double speed = Math.hypot(vx, vy);
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			if (Math.hypot(nvx, nvy) > speed)
+				continue; // braking cone only
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			if (!isAlive(nx, ny, nvx, nvy))
+				continue;
+			if (requireRoomy && !isRoomy(nx, ny, nvx, nvy, 1))
+				continue;
+			if (canShedSpeed(nx, ny, nvx, nvy, targetSpeed, depth - 1, requireRoomy))
+				return true;
+		}
+		return false;
+	}
+
+	/** True iff (x,y,vx,vy) has at least two one-step continuations that are
+	 *  geometry-legal, alive and -- for depth > 0 -- themselves recursively
+	 *  roomy. Finish-crossings count unconditionally. Distinguishes genuinely
+	 *  open road from alive-but-knife-edge single-file threads. */
+	private boolean isRoomy(final int x, final int y, final int vx, final int vy, final int depth) {
+		int count = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny)) {
+				count++;
+			} else {
+				if (!isMoveLegalGeometryCached(x, y, nx, ny))
+					continue;
+				if (!isAlive(nx, ny, nvx, nvy))
+					continue;
+				if (depth > 0 && !isRoomy(nx, ny, nvx, nvy, depth - 1))
+					continue;
+				count++;
+			}
+			if (count >= 2)
+				return true;
+		}
+		return false;
 	}
 
 	private static long stateKey(final int x, final int y, final int vx, final int vy) {
