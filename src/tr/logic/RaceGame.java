@@ -861,9 +861,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.2
-	 *  parallel-sweep champion); AI1 is forked from it and is the one we
-	 *  improve from here. */
+	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN STANDARD (the AI1.7
+	 *  synthesis champion); AI2 is forked from it and is the one we improve
+	 *  from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -929,9 +929,10 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked from the AI2.2 standard. Identical to
-	 * {@link #optimalMoveAI2} at fork time; improvements are applied here while
-	 * AI2 stays frozen as the reference.
+	 * AI1 (FROZEN STANDARD): the AI1.7 synthesis champion — the AI2.2 base plus
+	 * the certified-speed pace waiver and the convergence-gated trap surcharge;
+	 * first crash-free full-gauntlet AI (105/0, mv 52.96). Don't change AI1 —
+	 * it's the yardstick; AI2 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1143,11 +1144,9 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.2 parallel-sweep champion — depth-2
-	 * self-search plus four bench-verified mechanisms: vacated-cell prediction
-	 * filtering, soft-trap fallback, plateau-width robustness tie-break, and
-	 * the momentum tie-break. Don't change AI2 — it's the yardstick; AI1 is
-	 * the experimental copy being improved.
+	 * AI2 (EXPERIMENTAL FRONTIER): forked verbatim from the AI1.7 synthesis
+	 * standard. Identical to {@link #optimalMoveAI1} at fork time; improvements
+	 * are applied here while AI1 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1214,7 +1213,20 @@ public class RaceGame {
 			final double speed = Math.hypot(newVx, newVy);
 			final int widthBudget = 4 + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
-			final double speedCap = overSpeed * overSpeed * 0.4;
+			double speedCap = overSpeed * overSpeed * 0.4;
+			double uncertified = 0.0;
+			if (speed > 4.0) {
+				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
+				// is sheddable on the empty track -- waive most of the penalty.
+				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
+					speedCap *= 0.25;
+				// Trap surcharge: an opponent is converging on this stretch AND fewer
+				// than two ROOMY escape descents exist -- the knife-edge thread can be
+				// broken by that traffic; tax the move into it, scaled by carried speed.
+				if (hasConvergingOpponent(newX, newY, playerNum)
+						&& countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true) < 2)
+					uncertified = (speed - 4.0) * 2.0;
+			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -1226,7 +1238,7 @@ public class RaceGame {
 			// follow-up is achievable many ways (a wide line) over knife-edge
 			// lines whose minimum hinges on a single follow-up move.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + conflict + spread - momentum - robustness;
+			final double score = costToFinish + trapPenalty + speedCap + uncertified + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
