@@ -1219,11 +1219,11 @@ public class RaceGame {
 				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
 				// is sheddable on the empty track -- waive most of the penalty.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
-					speedCap *= 0.25;
+					speedCap *= 0.10;
 				// Trap surcharge: an opponent is converging on this stretch AND fewer
 				// than two ROOMY escape descents exist -- the knife-edge thread can be
 				// broken by that traffic; tax the move into it, scaled by carried speed.
-				if (hasConvergingOpponent(newX, newY, playerNum)
+				if (hasConvergingOpponentAhead(newX, newY, playerNum)
 						&& countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true) < 2)
 					uncertified = (speed - 4.0) * 2.0;
 			}
@@ -1320,6 +1320,29 @@ public class RaceGame {
 				continue;
 			final int oDist = distAt(pp[0], pp[1]);
 			if (oDist != Integer.MAX_VALUE && Math.abs(oDist - myDist) <= 15)
+				return true;
+		}
+		return false;
+	}
+
+	/** Like {@link #hasConvergingOpponent} but only counts opponents at-or-ahead
+	 *  in track progress (smaller-or-similar distAt): a chaser behind cannot
+	 *  occupy my escape thread ahead of me, so it shouldn't trigger the trap
+	 *  surcharge. The +3 slack keeps side-by-side cars counted. */
+	private boolean hasConvergingOpponentAhead(final int x, final int y, final int playerNum) {
+		final int myDist = distAt(x, y);
+		if (myDist == Integer.MAX_VALUE)
+			return true; // off-map: be conservative
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = x - pp[0];
+			final int dy = y - pp[1];
+			if (dx * dx + dy * dy > 144)
+				continue;
+			final int oDist = distAt(pp[0], pp[1]);
+			if (oDist != Integer.MAX_VALUE && Math.abs(oDist - myDist) <= 15 && oDist <= myDist + 3)
 				return true;
 		}
 		return false;
