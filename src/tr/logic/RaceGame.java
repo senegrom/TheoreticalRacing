@@ -996,7 +996,7 @@ public class RaceGame {
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
-			final int widthBudget = 4 + d2SafeCount;
+			final int widthBudget = 5 + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
 			double uncertified = 0.0;
