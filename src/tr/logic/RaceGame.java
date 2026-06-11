@@ -861,9 +861,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN STANDARD (the AI1.7
-	 *  synthesis champion); AI2 is forked from it and is the one we improve
-	 *  from here. */
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.3
+	 *  traffic-sharpened champion); AI1 is forked from it and is the one we
+	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -929,10 +929,9 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (FROZEN STANDARD): the AI1.7 synthesis champion — the AI2.2 base plus
-	 * the certified-speed pace waiver and the convergence-gated trap surcharge;
-	 * first crash-free full-gauntlet AI (105/0, mv 52.96). Don't change AI1 —
-	 * it's the yardstick; AI2 is the experimental copy being improved.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.3 standard.
+	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+	 * applied here while AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1003,13 +1002,13 @@ public class RaceGame {
 			double uncertified = 0.0;
 			if (speed > 4.0) {
 				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
-				// is sheddable on the empty track -- waive most of the penalty.
+				// is sheddable on the empty track -- waive the penalty entirely.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
-					speedCap *= 0.25;
+					speedCap = 0.0;
 				// Trap surcharge: an opponent is converging on this stretch AND fewer
 				// than two ROOMY escape descents exist -- the knife-edge thread can be
 				// broken by that traffic; tax the move into it, scaled by carried speed.
-				if (hasConvergingOpponent(newX, newY, playerNum)
+				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)
 						&& countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true) < 2)
 					uncertified = (speed - 4.0) * 2.0;
 			}
@@ -1144,9 +1143,14 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (EXPERIMENTAL FRONTIER): forked verbatim from the AI1.7 synthesis
-	 * standard. Identical to {@link #optimalMoveAI1} at fork time; improvements
-	 * are applied here while AI1 stays frozen as the reference.
+	 * AI2 (FROZEN STANDARD): the AI2.3 traffic-sharpened champion — the AI1.7
+	 * synthesis base plus three bench-verified refinements: the ahead-only
+	 * surcharge gate (chasers can't block), the full certified-speed waiver,
+	 * and the roomy-blocker receding rule (stable-gap processions on open road
+	 * don't trigger the surcharge; compression-zone blockers do). Full pace
+	 * parity with the historic AI2.2 at perfect safety (105/0, mv 52.22).
+	 * Don't change AI2 — it's the yardstick; AI1 is the experimental copy
+	 * being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1302,30 +1306,10 @@ public class RaceGame {
 		return count;
 	}
 
-	/** True iff a live opponent is both spatially near (squared distance <= 144)
-	 *  and at similar track progress (|distAt difference| <= 15) to cell (x,y) --
-	 *  i.e. actually converging on the same stretch of road, not merely across a
-	 *  wall on another part of the circuit. */
-	private boolean hasConvergingOpponent(final int x, final int y, final int playerNum) {
-		final int myDist = distAt(x, y);
-		if (myDist == Integer.MAX_VALUE)
-			return true; // off-map: be conservative
-		for (final Player p : players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pp = p.getPosition();
-			final int dx = x - pp[0];
-			final int dy = y - pp[1];
-			if (dx * dx + dy * dy > 144)
-				continue;
-			final int oDist = distAt(pp[0], pp[1]);
-			if (oDist != Integer.MAX_VALUE && Math.abs(oDist - myDist) <= 15)
-				return true;
-		}
-		return false;
-	}
-
-	/** Like {@link #hasConvergingOpponent} but only counts opponents at-or-ahead
+	/** True iff a live opponent genuinely threatens my escape thread at cell
+	 *  (x,y): spatially near (squared distance <= 144), at similar track
+	 *  progress (|distAt difference| <= 15 -- not merely across a wall on
+	 *  another part of the circuit), and at-or-ahead
 	 *  in track progress (smaller-or-similar distAt): a chaser behind cannot
 	 *  occupy my escape thread ahead of me, so it shouldn't trigger the trap
 	 *  surcharge. The +3 slack keeps side-by-side cars counted. Blockers moving
