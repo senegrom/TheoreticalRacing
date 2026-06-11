@@ -1005,12 +1005,14 @@ public class RaceGame {
 				// is sheddable on the empty track -- waive the penalty entirely.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
 					speedCap = 0.0;
-				// Trap surcharge: an opponent is converging on this stretch AND fewer
-				// than two ROOMY escape descents exist -- the knife-edge thread can be
-				// broken by that traffic; tax the move into it, scaled by carried speed.
-				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)
-						&& countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true) < 2)
-					uncertified = (speed - 4.0) * 2.0;
+				// Trap surcharge, graded by certified escape count: zero roomy
+				// escapes is a genuine trap; a single knife-edge escape is
+				// survivable and only worth a mild detour.
+				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)) {
+					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true);
+					if (proofs < 2)
+						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
+				}
 			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
