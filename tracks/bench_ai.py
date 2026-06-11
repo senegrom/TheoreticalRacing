@@ -40,6 +40,16 @@ def set_all_to(kind):
         f.write(text)
 
 
+def set_kinds(kinds):
+    """kinds: list of 8 'AI1'/'AI2' strings for slots 1..8."""
+    with open(PROPS) as f:
+        text = f.read()
+    for i, k in enumerate(kinds, start=1):
+        text = re.sub(r'(player%dKind=)AI[12]' % i, r'\g<1>' + k, text)
+    with open(PROPS, 'w') as f:
+        f.write(text)
+
+
 def run_track(track, timeout=240):
     r = subprocess.run(['java', '-jar', JAR, '--auto', '--track', track],
                        capture_output=True, text=True, timeout=timeout)
@@ -115,6 +125,103 @@ def bench(tracks):
     print(f'{"TOTAL":18} | f={f1} c={c1} mv={m1:.2f} | f={f2} c={c2} mv={m2:.2f} | {m1-m2:+.2f}')
 
 
+def run_track_h2h(track, timeout=240):
+    """Run one race with the current PROPS kinds. Returns
+    {kind: (sum_places, count, crashes)} or None if invalid."""
+    r = subprocess.run(['java', '-jar', JAR, '--auto', '--track', track],
+                       capture_output=True, text=True, timeout=timeout)
+    if 'Aborting' in r.stdout:
+        return None
+    name_kind = {}
+    place_name = {}
+    crashes = {'AI1': 0, 'AI2': 0}
+    in_results = False
+    with open(LOG, encoding='utf-8') as f:
+        for line in f:
+            m = re.match(r'^player\d+ name=(\S+) kind=(AI[12])', line)
+            if m:
+                name_kind[m.group(1)] = m.group(2)
+                continue
+            m = re.match(r'^\d+ p\d+ (AI[12]) .*CRASH', line)
+            if m:
+                crashes[m.group(1)] += 1
+                continue
+            if line.startswith('# results'):
+                in_results = True
+                continue
+            if in_results:
+                m = re.match(r'^(\d+)\. (\S+)', line)
+                if m:
+                    place_name[int(m.group(1))] = m.group(2)
+    out = {}
+    for kind in ('AI1', 'AI2'):
+        places = [p for p, n in place_name.items() if name_kind.get(n) == kind]
+        out[kind] = (sum(places), len(places), crashes[kind])
+    return out
+
+
+def bench_h2h(tracks):
+    """Mixed-field head-to-head: 4xAI1 vs 4xAI2 in one race, run in both
+    grid orderings to cancel start-position bias. Metric: mean finishing
+    place per kind (1-8; the two means sum to 9, lower is better)."""
+    with open(PROPS) as f:
+        backup = f.read()
+    try:
+        front = ['AI1'] * 4 + ['AI2'] * 4
+        rows = {}
+        tot = {'AI1': [0, 0, 0], 'AI2': [0, 0, 0]}
+        for t in tracks:
+            agg = {'AI1': [0, 0, 0], 'AI2': [0, 0, 0]}
+            ok = True
+            for kinds in (front, list(reversed(front))):
+                set_kinds(kinds)
+                try:
+                    r = run_track_h2h(t)
+                except subprocess.TimeoutExpired:
+                    r = None
+                if r is None:
+                    ok = False
+                    break
+                for kind in ('AI1', 'AI2'):
+                    s, n, c = r[kind]
+                    agg[kind][0] += s
+                    agg[kind][1] += n
+                    agg[kind][2] += c
+            if not ok:
+                rows[t] = None
+                print(f'  [h2h] {t:18}: INVALID')
+                continue
+            rows[t] = agg
+            for kind in ('AI1', 'AI2'):
+                for i in range(3):
+                    tot[kind][i] += agg[kind][i]
+    finally:
+        with open(PROPS, 'w') as f:
+            f.write(backup)
+
+    print()
+    print(f'{"track":18} | {"AI1 place/cr":>14} | {"AI2 place/cr":>14}')
+    print('-' * 56)
+    for t in tracks:
+        agg = rows.get(t)
+        if agg is None:
+            print(f'{t:18} | {"INVALID":>14} | {"INVALID":>14}')
+            continue
+        p1 = agg['AI1'][0] / max(1, agg['AI1'][1])
+        p2 = agg['AI2'][0] / max(1, agg['AI2'][1])
+        print(f'{t:18} | {p1:6.2f} c={agg["AI1"][2]}    | {p2:6.2f} c={agg["AI2"][2]}')
+    print('-' * 56)
+    p1 = tot['AI1'][0] / max(1, tot['AI1'][1])
+    p2 = tot['AI2'][0] / max(1, tot['AI2'][1])
+    print(f'{"TOTAL mean place":18} | {p1:6.3f} c={tot["AI1"][2]}   | {p2:6.3f} c={tot["AI2"][2]}')
+
+
 if __name__ == '__main__':
-    tracks = sys.argv[1:] if len(sys.argv) > 1 else DEFAULT_TRACKS
-    bench(tracks)
+    args = sys.argv[1:]
+    h2h = '--h2h' in args
+    args = [a for a in args if a != '--h2h']
+    tracks = args if args else DEFAULT_TRACKS
+    if h2h:
+        bench_h2h(tracks)
+    else:
+        bench(tracks)
