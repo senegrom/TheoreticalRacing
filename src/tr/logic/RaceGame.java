@@ -523,6 +523,15 @@ public class RaceGame {
 	private BitSet	aliveStates;
 	private int[]	turnsArr;
 	private int		aliveW, aliveH, aliveVMAX;
+	/** Precomputed {@link #isRoomy} (depth 0 / depth 1) over all alive states;
+	 *  non-alive states stay unset (isRoomy is false there — they can have
+	 *  neither legal alive successors nor finish crossings). */
+	private BitSet	roomy0, roomy1;
+	/** Precomputed minimum |v|^2 over all states reachable in <= 2 braking
+	 *  moves (legal edges, alive landings; the Roomy variant additionally
+	 *  requires roomy1 landings). Unsigned bytes, clamped to 255. Together
+	 *  they answer {@link #canShedSpeed}(..., depth=2, ...) in O(1). */
+	private byte[]	minShed2, minShed2Roomy;
 
 	private int aliveIdx(final int x, final int y, final int vx, final int vy) {
 		final int span = 2 * aliveVMAX + 1;
@@ -624,9 +633,177 @@ public class RaceGame {
 			}
 		}
 		final long tBfs = System.nanoTime();
+
+		// --- Precomputed AI maps ------------------------------------------
+		// One-time sweeps over the alive states turn the runtime questions
+		// isRoomy(depth <= 1) and canShedSpeed(depth == 2) into O(1) lookups
+		// with exactly the original semantics (see those methods). Non-alive
+		// states keep unset/255 entries: they can have neither legal alive
+		// successors (alive-closure of the BFS above) nor finish crossings
+		// (those are seeded with turns == 1), so isRoomy is false there, and
+		// the shed maps are only ever consulted behind an isAlive check.
+		final short[] legalAlive = buildLegalAliveMask(total);
+		final long tMask = System.nanoTime();
+		final BitSet r0 = new BitSet(total);
+		sweepRoomy(legalAlive, null, r0);
+		final long tRoomy0 = System.nanoTime();
+		final BitSet r1 = new BitSet(total);
+		sweepRoomy(legalAlive, r0, r1);
+		final long tRoomy1 = System.nanoTime();
+		final byte[] shed0 = initMinShed(total);
+		final byte[] shed = relaxMinShed(relaxMinShed(shed0, legalAlive, null), legalAlive, null);
+		final long tShed = System.nanoTime();
+		final byte[] shedRoomy = relaxMinShed(relaxMinShed(shed0, legalAlive, r1), legalAlive, r1);
+		final long tShedRoomy = System.nanoTime();
+		roomy0 = r0;
+		roomy1 = r1;
+		minShed2 = shed;
+		minShed2Roomy = shedRoomy;
 		if (autoMode)
-			System.out.printf("[reachability] init=%.0fms bfs=%.0fms total=%.0fms alive=%d%n",
-					(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tBfs - t0) / 1e6, aliveStates.cardinality());
+			System.out.printf(
+					"[reachability] init=%.0fms bfs=%.0fms mask=%.0fms roomy0=%.0fms roomy1=%.0fms shed=%.0fms shedRoomy=%.0fms total=%.0fms alive=%d%n",
+					(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tMask - tBfs) / 1e6, (tRoomy0 - tMask) / 1e6,
+					(tRoomy1 - tRoomy0) / 1e6, (tShed - tRoomy1) / 1e6, (tShedRoomy - tShed) / 1e6, (tShedRoomy - t0) / 1e6,
+					aliveStates.cardinality());
+	}
+
+	/** Sweep helper for {@link #computeReachability}: per-alive-state bitmask
+	 *  over {@link Direction} ordinals — bit d set iff the successor under d
+	 *  stays in the velocity range, its edge is geometry-legal and its landing
+	 *  is alive (the shared non-crossing qualifying conditions of
+	 *  {@link #isRoomy} and {@link #canShedSpeed}). Every legality query here
+	 *  hits {@code edgeLegalCache}: when the BFS popped an alive landing it
+	 *  already checked the edge from the landing's unique cell-predecessor,
+	 *  which is exactly the source cell used here. */
+	private short[] buildLegalAliveMask(final int total) {
+		final Direction[] dirs = Direction.values();
+		final int span = 2 * aliveVMAX + 1;
+		final short[] mask = new short[total];
+		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			int rest = idx;
+			final int vy = rest % span - aliveVMAX;
+			rest /= span;
+			final int vx = rest % span - aliveVMAX;
+			rest /= span;
+			final int y = rest % aliveH;
+			final int x = rest / aliveH;
+			short m = 0;
+			for (int di = 0; di < dirs.length; di++) {
+				final int nvx = vx + dirs[di].dx;
+				final int nvy = vy + dirs[di].dy;
+				if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
+					continue;
+				final int nx = x + nvx;
+				final int ny = y + nvy;
+				// Alive-first equals legal-first in result (both pure
+				// predicates); alive-first keeps the HashMap lookups to alive
+				// landings only (all of which are cache hits, see above).
+				if (isAlive(nx, ny, nvx, nvy) && isMoveLegalGeometryCached(x, y, nx, ny))
+					m |= 1 << di;
+			}
+			mask[idx] = m;
+		}
+		return mask;
+	}
+
+	/** Sweep helper for {@link #computeReachability}: sets in {@code out} every
+	 *  alive state with >= 2 qualifying continuations per the {@link #isRoomy}
+	 *  rule. A successor qualifies if it crosses the finish, or its
+	 *  {@code legalAlive} bit is set and (when {@code req != null}) its state
+	 *  bit is set in {@code req}. {@code req == null} computes depth 0;
+	 *  {@code req == roomy0} computes depth 1. */
+	private void sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {
+		final Direction[] dirs = Direction.values();
+		final int span = 2 * aliveVMAX + 1;
+		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			int rest = idx;
+			final int vy = rest % span - aliveVMAX;
+			rest /= span;
+			final int vx = rest % span - aliveVMAX;
+			rest /= span;
+			final int y = rest % aliveH;
+			final int x = rest / aliveH;
+			final int mask = legalAlive[idx];
+			int count = 0;
+			for (int di = 0; di < dirs.length; di++) {
+				final int nvx = vx + dirs[di].dx;
+				final int nvy = vy + dirs[di].dy;
+				if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
+					continue;
+				final int nx = x + nvx;
+				final int ny = y + nvy;
+				if (crossesFinish(x, y, nx, ny)) {
+					count++;
+				} else {
+					if ((mask & 1 << di) == 0)
+						continue;
+					if (req != null && !req.get(aliveIdx(nx, ny, nvx, nvy)))
+						continue;
+					count++;
+				}
+				if (count >= 2) {
+					out.set(idx);
+					break;
+				}
+			}
+		}
+	}
+
+	/** Sweep helper for {@link #computeReachability}: |v|^2 (clamped to 255)
+	 *  for every alive state, 255 for non-alive states (never read — the
+	 *  runtime consults the shed maps only behind an isAlive check). */
+	private byte[] initMinShed(final int total) {
+		final int span = 2 * aliveVMAX + 1;
+		final byte[] arr = new byte[total];
+		Arrays.fill(arr, (byte) 0xFF);
+		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			final int vy = idx % span - aliveVMAX;
+			final int vx = idx / span % span - aliveVMAX;
+			arr[idx] = (byte) Math.min(vx * vx + vy * vy, 255);
+		}
+		return arr;
+	}
+
+	/** Sweep helper for {@link #computeReachability}: one Jacobi relaxation of
+	 *  the min-|v|^2-reachable-by-braking map (unsigned bytes): out[s] =
+	 *  min(in[s], min in[succ]) over successors in the braking cone (|v|
+	 *  non-increasing — the integer-square compare is exactly the runtime's
+	 *  hypot compare) whose {@code legalAlive} bit is set and (when
+	 *  {@code roomyReq != null}) whose state bit is set in {@code roomyReq} —
+	 *  exactly the per-step conditions of {@link #canShedSpeed}. */
+	private byte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {
+		final Direction[] dirs = Direction.values();
+		final int span = 2 * aliveVMAX + 1;
+		final byte[] out = new byte[in.length];
+		Arrays.fill(out, (byte) 0xFF);
+		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			int rest = idx;
+			final int vy = rest % span - aliveVMAX;
+			rest /= span;
+			final int vx = rest % span - aliveVMAX;
+			rest /= span;
+			final int y = rest % aliveH;
+			final int x = rest / aliveH;
+			final int mask = legalAlive[idx];
+			final int v2 = vx * vx + vy * vy;
+			int best = in[idx] & 0xFF;
+			for (int di = 0; di < dirs.length; di++) {
+				if ((mask & 1 << di) == 0)
+					continue;
+				final int nvx = vx + dirs[di].dx;
+				final int nvy = vy + dirs[di].dy;
+				if (nvx * nvx + nvy * nvy > v2)
+					continue; // braking cone only
+				final int succ = aliveIdx(x + nvx, y + nvy, nvx, nvy);
+				if (roomyReq != null && !roomyReq.get(succ))
+					continue;
+				final int cand = in[succ] & 0xFF;
+				if (cand < best)
+					best = cand;
+			}
+			out[idx] = (byte) best;
+		}
+		return out;
 	}
 
 	/** True iff state (x,y,vx,vy) has at least one geometry-legal successor or reaches the finish. */
@@ -1429,7 +1606,21 @@ public class RaceGame {
 				continue;
 			if (requireRoomy && !isRoomy(bx, by, bvx, bvy, 1))
 				continue;
-			if (canShedSpeed(bx, by, bvx, bvy, targetSpeed, 2, requireRoomy)) {
+			// O(1) fast path via the precomputed min-|v|^2 maps:
+			// canShedSpeed(..., 2, ...) succeeds iff SOME state on a <=2-step
+			// braking chain has hypot <= targetSpeed, i.e. iff the minimum
+			// |v|^2 over those chains is <= targetSpeed^2. Exact for the
+			// integral targetSpeed of all callers (the widthBudget <= 14):
+			// while targetSpeed^2 < 255 the clamp can't flip the compare.
+			// Anything else falls back to the recursive reference code. The
+			// aliveIdx access is in range: isAlive above returned true.
+			final byte[] shedMap = requireRoomy ? minShed2Roomy : minShed2;
+			final boolean shed;
+			if (shedMap != null && targetSpeed >= 0 && targetSpeed == Math.rint(targetSpeed) && targetSpeed * targetSpeed < 255.0)
+				shed = (shedMap[aliveIdx(bx, by, bvx, bvy)] & 0xFF) <= targetSpeed * targetSpeed;
+			else
+				shed = canShedSpeed(bx, by, bvx, bvy, targetSpeed, 2, requireRoomy);
+			if (shed) {
 				proofs++;
 				if (bestBrake != null && bSpeed < bestSpeed) {
 					bestSpeed = bSpeed;
@@ -1481,6 +1672,15 @@ public class RaceGame {
 	 *  roomy. Finish-crossings count unconditionally. Distinguishes genuinely
 	 *  open road from alive-but-knife-edge single-file threads. */
 	private boolean isRoomy(final int x, final int y, final int vx, final int vy, final int depth) {
+		// O(1) fast path via the maps precomputed in computeReachability()
+		// (always ready in practice: ensureReachabilityReady() runs before any
+		// AI move). States outside the precomputed space fall through to the
+		// recursive body, which handles them exactly as before (its in-range
+		// sub-calls hit the maps).
+		final BitSet roomyMap = depth == 0 ? roomy0 : depth == 1 ? roomy1 : null;
+		if (roomyMap != null && Math.abs(vx) <= aliveVMAX && Math.abs(vy) <= aliveVMAX && x >= 0 && y >= 0 && x < aliveW
+				&& y < aliveH)
+			return roomyMap.get(aliveIdx(x, y, vx, vy));
 		int count = 0;
 		for (final Direction d : Direction.values()) {
 			final int nvx = vx + d.dx;
