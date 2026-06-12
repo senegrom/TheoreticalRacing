@@ -532,6 +532,14 @@ public class RaceGame {
 	 *  requires roomy1 landings). Unsigned bytes, clamped to 255. Together
 	 *  they answer {@link #canShedSpeed}(..., depth=2, ...) in O(1). */
 	private byte[]	minShed2, minShed2Roomy;
+	/** Per-state certified speed budget, squared (unsigned bytes; 255 =
+	 *  uncertified / non-alive): the SECOND-smallest entry of the multiset
+	 *  {state's own |v|^2} plus {minShed2 of every qualifying braking
+	 *  successor} -- i.e. the minimal T^2 such that at least two independent
+	 *  blind braking descents reach |v| <= T within the
+	 *  {@link #countBrakeProofs} horizon. Built by {@link #sweepCertSq};
+	 *  consumed via {@link #certBudget} by AI2 only. */
+	private byte[]	certSq;
 
 	private int aliveIdx(final int x, final int y, final int vx, final int vy) {
 		final int span = 2 * aliveVMAX + 1;
@@ -655,16 +663,19 @@ public class RaceGame {
 		final long tShed = System.nanoTime();
 		final byte[] shedRoomy = relaxMinShed(relaxMinShed(shed0, legalAlive, r1), legalAlive, r1);
 		final long tShedRoomy = System.nanoTime();
+		final byte[] cert = sweepCertSq(legalAlive, shed);
+		final long tCert = System.nanoTime();
 		roomy0 = r0;
 		roomy1 = r1;
 		minShed2 = shed;
 		minShed2Roomy = shedRoomy;
+		certSq = cert;
 		if (autoMode)
 			System.out.printf(
-					"[reachability] init=%.0fms bfs=%.0fms mask=%.0fms roomy0=%.0fms roomy1=%.0fms shed=%.0fms shedRoomy=%.0fms total=%.0fms alive=%d%n",
+					"[reachability] init=%.0fms bfs=%.0fms mask=%.0fms roomy0=%.0fms roomy1=%.0fms shed=%.0fms shedRoomy=%.0fms cert=%.0fms total=%.0fms alive=%d%n",
 					(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tMask - tBfs) / 1e6, (tRoomy0 - tMask) / 1e6,
-					(tRoomy1 - tRoomy0) / 1e6, (tShed - tRoomy1) / 1e6, (tShedRoomy - tShed) / 1e6, (tShedRoomy - t0) / 1e6,
-					aliveStates.cardinality());
+					(tRoomy1 - tRoomy0) / 1e6, (tShed - tRoomy1) / 1e6, (tShedRoomy - tShed) / 1e6, (tCert - tShedRoomy) / 1e6,
+					(tCert - t0) / 1e6, aliveStates.cardinality());
 	}
 
 	/** Sweep helper for {@link #computeReachability}: per-alive-state bitmask
@@ -804,6 +815,75 @@ public class RaceGame {
 			out[idx] = (byte) best;
 		}
 		return out;
+	}
+
+	/** Sweep helper for {@link #computeReachability}: per-state certified speed
+	 *  budget, squared (unsigned bytes, 255 = uncertified). For every alive
+	 *  state the sweep collects {@code shed[succ]} (= minShed2, the min |v|^2
+	 *  shed-able in <= 2 further braking moves) of each qualifying braking
+	 *  successor -- braking cone by |v|^2, legal edge, alive landing: exactly
+	 *  the first-move semantics of {@link #countBrakeProofs} minus the runtime
+	 *  opponent-prediction filter -- plus the state's own |v|^2 (the zero-move
+	 *  descent: the state is already at that speed). The entry written is the
+	 *  SECOND-smallest of that multiset: the minimal target T^2 such that at
+	 *  least two independent blind braking descents reach |v| <= T within the
+	 *  proof horizon; 255 if fewer than two entries qualify. Non-alive states
+	 *  keep 255 (only ever consulted behind an alive candidate). */
+	private byte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {
+		final Direction[] dirs = Direction.values();
+		final int span = 2 * aliveVMAX + 1;
+		final byte[] arr = new byte[shed.length];
+		Arrays.fill(arr, (byte) 0xFF);
+		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			int rest = idx;
+			final int vy = rest % span - aliveVMAX;
+			rest /= span;
+			final int vx = rest % span - aliveVMAX;
+			rest /= span;
+			final int y = rest % aliveH;
+			final int x = rest / aliveH;
+			final int mask = legalAlive[idx];
+			final int v2 = vx * vx + vy * vy;
+			// Two smallest entries of the witness multiset, seeded with the
+			// state's own |v|^2 (the zero-move descent).
+			int min1 = Math.min(v2, 255);
+			int min2 = 256; // sentinel: fewer than two entries so far
+			for (int di = 0; di < dirs.length; di++) {
+				if ((mask & 1 << di) == 0)
+					continue;
+				final int nvx = vx + dirs[di].dx;
+				final int nvy = vy + dirs[di].dy;
+				if (nvx * nvx + nvy * nvy > v2)
+					continue; // braking cone only
+				final int cand = shed[aliveIdx(x + nvx, y + nvy, nvx, nvy)] & 0xFF;
+				if (cand < min1) {
+					min2 = min1;
+					min1 = cand;
+				} else if (cand < min2)
+					min2 = cand;
+			}
+			arr[idx] = (byte) Math.min(min2, 255);
+		}
+		return arr;
+	}
+
+	/** Certified per-state speed budget for AI2's pace discipline: the minimal
+	 *  integer target T such that at least two independent blind braking
+	 *  descents from (x,y,vx,vy) reach |v| <= T within the
+	 *  {@link #countBrakeProofs} horizon -- {@code ceil(sqrt(certSq))} over
+	 *  the precomputed map (the uncertified 255 maps to 16, an effectively
+	 *  unbounded budget). Replaces the global constant base 5 of the
+	 *  pre-certification widthBudget with local, heading- and speed-exact map
+	 *  truth. Conservative 0 for states outside the precomputed space or
+	 *  before the map exists (never the case after ensureReachabilityReady). */
+	private int certBudget(final int x, final int y, final int vx, final int vy) {
+		if (certSq == null)
+			return 0;
+		if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+			return 0;
+		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
+			return 0;
+		return (int) Math.ceil(Math.sqrt(certSq[aliveIdx(x, y, vx, vy)] & 0xFF));
 	}
 
 	/** True iff state (x,y,vx,vy) has at least one geometry-legal successor or reaches the finish. */
@@ -1326,9 +1406,18 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (EXPERIMENTAL FRONTIER): forked verbatim from the AI1.8 standard.
-	 * Identical to {@link #optimalMoveAI1} at fork time; improvements are
-	 * applied here while AI1 stays frozen as the reference.
+	 * AI2 (EXPERIMENTAL FRONTIER): the AI1.8 standard with a per-state
+	 * CERTIFIED speed budget. The global widthBudget base 5 (a one-size proxy
+	 * for "what speed can this place handle", found by probing) is replaced by
+	 * {@link #certBudget}: the map-certified minimal target T such that at
+	 * least two independent blind braking descents from the candidate state
+	 * reach |v| <= T within the {@link #countBrakeProofs} horizon. Unlike the
+	 * old per-cell vCap idea (a max over ALL headings) this is heading- and
+	 * speed-exact, and unlike a global base bump it is local truth: tighter
+	 * exactly where the track is tight, looser where the speed is provably
+	 * sheddable -- budgets move BOTH directions vs the old 5 + d2SafeCount.
+	 * Everything downstream of widthBudget is unchanged from
+	 * {@link #optimalMoveAI1}, which stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1393,7 +1482,23 @@ public class RaceGame {
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
-			final int widthBudget = 5 + d2SafeCount;
+			// Per-state certified budget with a legacy floor (the experiment):
+			// the constant base 5 was secretly two parameters -- a corner-speed
+			// proxy above the speed-4 gate AND a floor guaranteeing zero pace
+			// penalties at speed <= 4 (5 + d2 >= 5 => overSpeed = 0 below speed
+			// 5). Math.max(5, ...) preserves that zero-penalty regime at low
+			// speed (where certBudget is trivially 0-2 and traffic-depressed
+			// d2SafeCount would otherwise yield un-waivable speedCaps under the
+			// speed > 4.0 waiver gate); above it the map-certified budget
+			// governs. certBudget() is the minimal target T such that >= 2
+			// independent blind braking descents from this very candidate state
+			// (heading- and speed-exact) reach |v| <= T within the proof
+			// horizon. All downstream consumers -- overSpeed/speedCap, the
+			// pace-waiver target and the trap-surcharge target -- take the
+			// budget unchanged. Budgets above 15 push countBrakeProofs onto its
+			// recursive reference path (the map path needs T^2 < 255): correct,
+			// merely slower.
+			final int widthBudget = Math.max(5, certBudget(newX, newY, newVx, newVy)) + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
 			double uncertified = 0.0;
