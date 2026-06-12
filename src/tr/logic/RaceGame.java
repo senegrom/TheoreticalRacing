@@ -1118,9 +1118,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN STANDARD (the AI1.8
-	 *  retuned champion); AI2 is forked from it and is the one we improve
-	 *  from here. */
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.4
+	 *  certified-budget champion); AI1 is forked from it and is the one we
+	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -1186,13 +1186,9 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (FROZEN STANDARD): the AI1.8 retuned champion — the AI2.3 traffic
-	 * stack plus the escape-count-graded trap surcharge and the widthBudget
-	 * base raised to 5 (the pre-certification base throttled the waiver,
-	 * the brake-descent target and the surcharge proofs at once). Fastest
-	 * crash-free AI to date (105/0, mv 51.85; beats AI2.3 wheel-to-wheel
-	 * 4.42 vs 4.58 mean place). Don't change AI1 — it's the yardstick; AI2
-	 * is the experimental copy being improved.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.4 standard.
+	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+	 * applied here while AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1257,7 +1253,11 @@ public class RaceGame {
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
-			final int widthBudget = 5 + d2SafeCount;
+			// Per-state certified budget with a legacy floor: the map-certified
+			// minimal target T (>= 2 independent blind braking descents reach
+			// |v| <= T from this candidate state) governs above the floor; the
+			// floor preserves the zero-penalty regime at low speed.
+			final int widthBudget = Math.max(5, certBudget(newX, newY, newVx, newVy)) + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
 			double uncertified = 0.0;
@@ -1406,18 +1406,16 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (EXPERIMENTAL FRONTIER): the AI1.8 standard with a per-state
-	 * CERTIFIED speed budget. The global widthBudget base 5 (a one-size proxy
-	 * for "what speed can this place handle", found by probing) is replaced by
-	 * {@link #certBudget}: the map-certified minimal target T such that at
-	 * least two independent blind braking descents from the candidate state
-	 * reach |v| <= T within the {@link #countBrakeProofs} horizon. Unlike the
-	 * old per-cell vCap idea (a max over ALL headings) this is heading- and
-	 * speed-exact, and unlike a global base bump it is local truth: tighter
-	 * exactly where the track is tight, looser where the speed is provably
-	 * sheddable -- budgets move BOTH directions vs the old 5 + d2SafeCount.
-	 * Everything downstream of widthBudget is unchanged from
-	 * {@link #optimalMoveAI1}, which stays frozen as the reference.
+	 * AI2 (FROZEN STANDARD): the AI2.4 certified-budget champion — the AI1.8
+	 * base with the widthBudget constant replaced by map truth above a legacy
+	 * floor: Math.max(5, {@link #certBudget}) + d2SafeCount, where certBudget
+	 * is the precomputed minimal target T such that at least two independent
+	 * blind braking descents from the candidate state reach |v| <= T within
+	 * the {@link #countBrakeProofs} horizon (heading- and speed-exact local
+	 * truth; the floor preserves the zero-penalty regime at low speed).
+	 * Fastest crash-free AI to date (105/0, mv 51.79; beats AI1.8
+	 * wheel-to-wheel 4.46 vs 4.54 mean place). Don't change AI2 — it's the
+	 * yardstick; AI1 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
