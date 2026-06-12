@@ -861,9 +861,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.3
-	 *  traffic-sharpened champion); AI1 is forked from it and is the one we
-	 *  improve from here. */
+	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN STANDARD (the AI1.8
+	 *  retuned champion); AI2 is forked from it and is the one we improve
+	 *  from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -929,9 +929,13 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.3 standard.
-	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
-	 * applied here while AI2 stays frozen as the reference.
+	 * AI1 (FROZEN STANDARD): the AI1.8 retuned champion — the AI2.3 traffic
+	 * stack plus the escape-count-graded trap surcharge and the widthBudget
+	 * base raised to 5 (the pre-certification base throttled the waiver,
+	 * the brake-descent target and the surcharge proofs at once). Fastest
+	 * crash-free AI to date (105/0, mv 51.85; beats AI2.3 wheel-to-wheel
+	 * 4.42 vs 4.58 mean place). Don't change AI1 — it's the yardstick; AI2
+	 * is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1145,14 +1149,9 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.3 traffic-sharpened champion — the AI1.7
-	 * synthesis base plus three bench-verified refinements: the ahead-only
-	 * surcharge gate (chasers can't block), the full certified-speed waiver,
-	 * and the roomy-blocker receding rule (stable-gap processions on open road
-	 * don't trigger the surcharge; compression-zone blockers do). Full pace
-	 * parity with the historic AI2.2 at perfect safety (105/0, mv 52.22).
-	 * Don't change AI2 — it's the yardstick; AI1 is the experimental copy
-	 * being improved.
+	 * AI2 (EXPERIMENTAL FRONTIER): forked verbatim from the AI1.8 standard.
+	 * Identical to {@link #optimalMoveAI1} at fork time; improvements are
+	 * applied here while AI1 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1217,7 +1216,7 @@ public class RaceGame {
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
-			final int widthBudget = 4 + d2SafeCount;
+			final int widthBudget = 5 + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
 			double uncertified = 0.0;
@@ -1226,12 +1225,14 @@ public class RaceGame {
 				// is sheddable on the empty track -- waive the penalty entirely.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
 					speedCap = 0.0;
-				// Trap surcharge: an opponent is converging on this stretch AND fewer
-				// than two ROOMY escape descents exist -- the knife-edge thread can be
-				// broken by that traffic; tax the move into it, scaled by carried speed.
-				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)
-						&& countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true) < 2)
-					uncertified = (speed - 4.0) * 2.0;
+				// Trap surcharge, graded by certified escape count: zero roomy
+				// escapes is a genuine trap; a single knife-edge escape is
+				// survivable and only worth a mild detour.
+				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)) {
+					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true);
+					if (proofs < 2)
+						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
+				}
 			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
