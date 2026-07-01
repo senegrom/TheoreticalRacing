@@ -88,10 +88,36 @@ def gen_cog(lobes=5, radius=105.0, amp=9.0, step=6.0):
     return c, True
 
 
+def gen_polygon(sides=5, radius=80.0, step=6.0, rounding=2):
+    """A regular polygon with corners rounded (Chaikin) into a smooth closed
+    loop -- a `sides`-cornered speedway. Distinct from cog (which scallops the
+    radius). Closed."""
+    verts = [(radius * math.cos(2 * math.pi * i / sides + math.pi / 2),
+              radius * math.sin(2 * math.pi * i / sides + math.pi / 2)) for i in range(sides)]
+    pts = []
+    for i in range(sides):
+        a, b = verts[i], verts[(i + 1) % sides]
+        d = math.hypot(b[0] - a[0], b[1] - a[1])
+        n = max(2, int(d / step))
+        for j in range(n):
+            t = j / n
+            pts.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
+    for _ in range(rounding):  # Chaikin corner-cutting on the closed loop
+        new = []
+        m = len(pts)
+        for i in range(m):
+            p, q = pts[i], pts[(i + 1) % m]
+            new.append((0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]))
+            new.append((0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]))
+        pts = new
+    return pts, True
+
+
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
     'cog': gen_cog,
+    'polygon': gen_polygon,
 }
 
 
@@ -167,7 +193,14 @@ def main():
         print(f"unknown pattern {pattern}; choose from {list(GENERATORS)}", file=sys.stderr)
         sys.exit(2)
 
-    center, closed = GENERATORS[pattern]()
+    # Extra key=value args tune the generator (e.g. lanes=4 length=95 pitch=24).
+    kwargs = {}
+    for a in sys.argv[7:]:
+        if '=' in a:
+            k, v = a.split('=', 1)
+            kwargs[k] = float(v) if '.' in v else int(v)
+
+    center, closed = GENERATORS[pattern](**kwargs)
     left, right = offset(center, closed, width)
     if closed:
         left, right = open_closed_borders(left, right)

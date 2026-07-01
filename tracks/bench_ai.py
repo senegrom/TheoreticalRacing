@@ -5,9 +5,12 @@ Sets all 8 player slots to AI1, runs each track with --auto, then repeats
 with all 8 set to AI2. Compares finishes/crashes/avg-moves per finish.
 
 Usage:
-  python bench_ai.py [track1 track2 ...]
+  python bench_ai.py [track1 track2 ...]   # explicit tracks
+  python bench_ai.py                        # regular fast bench (DEFAULT_TRACKS)
+  python bench_ai.py --slow                 # second bench: the slow synthetic tracks
+  python bench_ai.py --h2h [...]            # mixed 4v4 head-to-head instead
 
-If no track args are given, runs the full default bench set.
+If no track args are given, runs DEFAULT_TRACKS (or SLOW_TRACKS with --slow).
 """
 
 import os
@@ -29,7 +32,16 @@ DEFAULT_TRACKS = [
     'interlagos', 'zandvoort', 'hungaroring',
     'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
     'chicane', 'bigoval', 'curve',
+    # Fast synthetic geometric patterns (build_synthetic.py, small grids ->
+    # reachability 2-6s): a small serpentine, spiral, and scalloped ring.
+    'zigzag', 'coil', 'gear',
 ]
+
+# SECOND BENCH (run with --slow): the wide/large synthetic tracks whose
+# reachability is too heavy (27-57s) for every regular run. Use this as a
+# regression guard on the slow tracks before promoting a new frozen standard
+# -- confirm the new AI is at least as good as the old one here too.
+SLOW_TRACKS = ['serpentine', 'spiral', 'cog']
 
 JAR = r'E:\OneDrive\Coding\Java\theoreticRacing\theoreticRacing.jar'
 LOG = r'E:\OneDrive\Coding\Java\theoreticRacing\last_game.log'
@@ -224,8 +236,9 @@ def bench_h2h(tracks):
 if __name__ == '__main__':
     args = sys.argv[1:]
     h2h = '--h2h' in args
-    args = [a for a in args if a != '--h2h']
-    tracks = args if args else DEFAULT_TRACKS
+    slow = '--slow' in args
+    args = [a for a in args if a not in ('--h2h', '--slow')]
+    tracks = args if args else (SLOW_TRACKS if slow else DEFAULT_TRACKS)
     if h2h:
         bench_h2h(tracks)
     else:
