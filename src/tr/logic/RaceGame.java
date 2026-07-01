@@ -1186,9 +1186,28 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.4 standard.
-	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
-	 * applied here while AI2 stays frozen as the reference.
+	 * AI1 (EXPERIMENTAL FRONTIER): the certified-budget standard plus the FULL
+	 * SOFT WORLD-STEP. Every candidate simulates the whole round in actual turn
+	 * order, conditioned on its landing ({@link #simulateRound}); the resulting
+	 * occupancy feeds two SOFT consumers instead of hard stepIdx-0 filters:
+	 * <ul>
+	 * <li>the deep search {@link #searchMinTurnsCountedSoft} PRICES a stepIdx-0
+	 * landing on a sim-occupied cell (+3.0, the conflict weight) rather than
+	 * treating it as a wall or a guaranteed vacancy -- a mispredicted body costs
+	 * a detour, not a crash trap, so the search degrades gracefully when the
+	 * greedy sim disagrees with a real opponent;
+	 * <li>the safe-successor count is OPTIMISM-FLOORED:
+	 * {@code Math.max(countFutureSafeSuccessors(..predicted), countFutureSafeSuccessorsTimed(..world))}
+	 * -- the sim removing phantom stale bodies ADDS successors (pace) while its
+	 * model-dependent pessimism (a mispredicted fast leader) can only LOWER the
+	 * timed count, so the max keeps the optimism and discards the pessimism
+	 * (never more cautious than the crash-free frozen standard).
+	 * </ul>
+	 * The nulling heuristic and {@code predicted} still feed the conflict term
+	 * and the waiver/surcharge filters, and the per-state certified budget
+	 * ({@code Math.max(5, certBudget) + d2SafeCount}) is retained unchanged.
+	 * Everything else is identical to {@link #optimalMoveAI2}, which stays
+	 * frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1239,15 +1258,28 @@ public class RaceGame {
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			final int[] deepCounted = searchMinTurnsCounted(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
-			final int deep = deepCounted[0];
+			// SOFT WORLD-STEP (the experiment): simulate the whole round in
+			// actual turn order, conditioned on THIS candidate landing, so the
+			// soft filters below see where the bodies actually are when I move
+			// next (mutual exclusion enforced; a blocked opponent stays put).
+			final int[][] world = simulateRound(playerNum, newX, newY);
+			final double[] deepCounted = searchMinTurnsCountedSoft(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps,
+					playerNum, world);
+			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
 			// large finite surcharge instead of hard-skipping (which would drop
 			// the AI to the foresight-free bestLegal/fallback pick).
-			final double costToFinish = deep == Integer.MAX_VALUE ? ownTurns + 20.0 : deep;
+			final double costToFinish = deep == Double.MAX_VALUE ? ownTurns + 20.0 : deep;
 
-			final int d2SafeCount = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
+			// Optimism-floored safe-successor count: the sim removing phantom
+			// stale bodies ADDS safe successors (pace), while its model-dependent
+			// pessimism (a mispredicted fast leader) can only LOWER the timed
+			// count -- so max() with the frozen count keeps the optimism and
+			// discards the pessimism, never more cautious than the crash-free
+			// frozen standard.
+			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
@@ -1282,7 +1314,7 @@ public class RaceGame {
 			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
-			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(deepCounted[1], 5);
+			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
@@ -1294,6 +1326,224 @@ public class RaceGame {
 		if (bestLegal != null)
 			return bestLegal;
 		return fallback;
+	}
+
+	/** {@link #pureMinTurnsMove} against a simulated occupancy instead of the
+	 *  live player positions: used by {@link #simulateRound}. occupied[i] is
+	 *  the current simulated cell of player i+1 (null = ignore). */
+	private Direction pureMinTurnsMoveSim(final int[] pos, final int[] vel, final int[][] occupied) {
+		Direction best = null;
+		int bestTurns = Integer.MAX_VALUE;
+		Direction bestLegal = null;
+		double bestLegalScore = Double.MAX_VALUE;
+		Direction fallback = Direction.NONE;
+		double fallbackScore = Double.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int newVx = vel[0] + d.dx;
+			final int newVy = vel[1] + d.dy;
+			if (Math.abs(newVx) > AI_MAX_SPEED || Math.abs(newVy) > AI_MAX_SPEED)
+				continue;
+			final int newX = pos[0] + newVx;
+			final int newY = pos[1] + newVy;
+			if (crossesFinish(pos[0], pos[1], newX, newY))
+				return d;
+			final double sc = scorePos(newX, newY, newVx, newVy);
+			if (!isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+				if (sc < fallbackScore) {
+					fallbackScore = sc;
+					fallback = d;
+				}
+				continue;
+			}
+			if (cellOccupiedByPrediction(newX, newY, occupied))
+				continue;
+			if (sc < bestLegalScore) {
+				bestLegalScore = sc;
+				bestLegal = d;
+			}
+			final int turns = turnsToFinish(newX, newY, newVx, newVy);
+			if (turns < bestTurns) {
+				bestTurns = turns;
+				best = d;
+			}
+		}
+		if (best != null)
+			return best;
+		if (bestLegal != null)
+			return bestLegal;
+		return fallback;
+	}
+
+	/** Step every live opponent one move in ACTUAL turn order, conditioned on
+	 *  my candidate landing: players numbered after me take their round-r move
+	 *  (they see my landing and all earlier sim moves), then players numbered
+	 *  before me take their round-r+1 move. Movers use the greedy policy
+	 *  against the updating occupancy; a mover with no legal unoccupied move
+	 *  stays put. Returns occupancy[i] = player (i+1)'s simulated cell when I
+	 *  make my next move (null for me and finished players).
+	 *  <p>
+	 *  Velocity note: every mover steps once from its CURRENT velocity, and
+	 *  that is timing-exact for BOTH classes -- later movers' current state is
+	 *  pre-round-r (their round-r move is the one simulated), while earlier
+	 *  movers already moved this round, so their current velocity is
+	 *  post-round-r and one step from it IS their round-r+1 move. Only the
+	 *  policy (greedy min-turns instead of each opponent's real scorer) is
+	 *  approximate; the sequencing and mutual exclusion are exact. */
+	private int[][] simulateRound(final int playerNum, final int candX, final int candY) {
+		final int[][] occ = new int[players.length][];
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			occ[p.getNumber() - 1] = p.getPosition();
+		}
+		final int[][] blocked = occ.clone();           // shallow: shares position refs
+		blocked[playerNum - 1] = new int[]{candX, candY }; // my landing blocks
+		// later movers (round r), then earlier movers (round r+1), each once
+		for (int pass = 0; pass < 2; pass++) {
+			for (final Player p : players) {
+				final boolean later = p.getNumber() > playerNum;
+				if (p.getNumber() == playerNum || p.isFinished() || (pass == 0 ? !later : later))
+					continue;
+				final int idx = p.getNumber() - 1;
+				final int[] cur = occ[idx];
+				blocked[idx] = null;                   // the mover vacates its own cell
+				final Direction d = pureMinTurnsMoveSim(cur, p.getVelocity(), blocked);
+				int nx = cur[0], ny = cur[1];
+				if (d != null) {
+					final int nvx = p.getVelocity()[0] + d.dx;
+					final int nvy = p.getVelocity()[1] + d.dy;
+					if (Math.abs(nvx) <= AI_MAX_SPEED && Math.abs(nvy) <= AI_MAX_SPEED
+							&& isMoveLegalGeometryCached(cur[0], cur[1], cur[0] + nvx, cur[1] + nvy)
+							&& !cellOccupiedByPrediction(cur[0] + nvx, cur[1] + nvy, blocked)) {
+						nx = cur[0] + nvx;
+						ny = cur[1] + nvy;
+					}
+				}
+				occ[idx] = new int[]{nx, ny };
+				blocked[idx] = occ[idx];
+			}
+		}
+		occ[playerNum - 1] = null;
+		return occ;
+	}
+
+	/** Soft-priced timing-exact search (AI1 frontier): like the hard
+	 *  {@code searchMinTurnsTimed} but a stepIdx-0 move onto a sim-occupied
+	 *  cell is PRICED (+3.0, the conflict weight) instead of hard-skipped, so
+	 *  a mispredicted body costs a detour rather than acting as a wall/vacancy
+	 *  -- graceful degradation when the greedy sim disagrees with a real
+	 *  opponent. Geometry stays hard; a finish crossing escapes pricing. */
+	private double searchMinTurnsSoft(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
+			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy) {
+		if (levels == 0) {
+			final int t = turnsToFinish(x, y, vx, vy);
+			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
+		}
+		double best = Double.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 1;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			double price = 0.0;
+			if (stepIdx == 0) {
+				if (cellOccupiedByPrediction(nx, ny, occupancy))
+					price = 3.0;
+			} else {
+				if (isCrashingPlayer(nx, ny, playerNum))
+					continue;
+				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+					continue;
+			}
+			final double sub = searchMinTurnsSoft(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum, occupancy);
+			if (sub == Double.MAX_VALUE)
+				continue;
+			if (1.0 + price + sub < best)
+				best = 1.0 + price + sub;
+		}
+		return best;
+	}
+
+	/** Soft-priced plateau-counting twin of {@link #searchMinTurnsSoft} (AI1
+	 *  frontier): the same soft stepIdx-0 pricing (+3.0 for a sim-occupied
+	 *  landing instead of a hard skip) and the same finish short-circuit, but it
+	 *  additionally reports the plateau width -- how many follow-up moves achieve
+	 *  the minimum cost -- for the robustness tie-break. Returns
+	 *  {@code {min, countAtMin}} as doubles; the prices are exact small
+	 *  constants so the plateau compare stays an exact {@code ==}. A
+	 *  finish-crossing follow-up short-circuits as {@code {1, 9}} (the global
+	 *  minimum, maximally robust). Recurses into {@link #searchMinTurnsSoft}. */
+	private double[] searchMinTurnsCountedSoft(final int x, final int y, final int vx, final int vy, final int levels,
+			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy) {
+		double best = Double.MAX_VALUE;
+		int countAtMin = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return new double[]{1, 9 };
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			double price = 0.0;
+			if (stepIdx == 0) {
+				if (cellOccupiedByPrediction(nx, ny, occupancy))
+					price = 3.0;
+			} else {
+				if (isCrashingPlayer(nx, ny, playerNum))
+					continue;
+				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+					continue;
+			}
+			final double sub = searchMinTurnsSoft(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum, occupancy);
+			if (sub == Double.MAX_VALUE)
+				continue;
+			final double total = 1.0 + price + sub;
+			if (total < best) {
+				best = total;
+				countAtMin = 1;
+			} else if (total == best)
+				countAtMin++;
+		}
+		return new double[]{best, countAtMin };
+	}
+
+	/**
+	 * Timing-exact variant of {@link #countFutureSafeSuccessors} (AI1
+	 * frontier), used to floor the safe-successor count with the sim's
+	 * optimism. The successors counted here are ply-2 questions -- moves I
+	 * would make in round r+1, by which time every live opponent has moved
+	 * exactly once (see {@link #searchMinTurnsSoft} for the move-order
+	 * derivation) -- so the stale-body check ({@link #isCrashingPlayer}) and
+	 * the nulled prediction check are replaced by a single test against
+	 * {@code occupancy}, the simulated round-step positions of all live
+	 * opponents (current cells as conservative fallback where unmoved).
+	 */
+	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy, final int playerNum,
+			final int[][] occupancy) {
+		int count = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 9;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			if (cellOccupiedByPrediction(nx, ny, occupancy))
+				continue;
+			if (isAlive(nx, ny, nvx, nvy))
+				count++;
+		}
+		return count;
 	}
 
 	/**
