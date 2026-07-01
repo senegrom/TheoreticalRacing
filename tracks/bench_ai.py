@@ -20,8 +20,13 @@ import sys
 # nurburgring is honest since the directional-finish fix. circle is a 1-move
 # synthetic ring (tiny S/F gap, can't be made lap-honest without the checkpoint
 # system) but harmless to the bench (always a tie).
+# interlagos/zandvoort/hungaroring added 2026-07: real circuits (bacinger
+# GeoJSON) that race a full 8-AI field to completion with fast reachability
+# (2-5s). The other new tracks (serpentine/spiral/cog) are left out -- their
+# wide corridors make reachability slow (37-57s), too heavy for every run.
 DEFAULT_TRACKS = [
     'silverstone', 'monza', 'spa', 'monaco', 'spielberg', 'nurburgring', 'lemans',
+    'interlagos', 'zandvoort', 'hungaroring',
     'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
     'chicane', 'bigoval', 'curve',
 ]
