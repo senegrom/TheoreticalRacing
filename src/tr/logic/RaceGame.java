@@ -1118,8 +1118,8 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.4
-	 *  certified-budget champion); AI1 is forked from it and is the one we
+	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN STANDARD (the AI1.9
+	 *  soft-world-step champion); AI2 is forked from it and is the one we
 	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
@@ -1186,28 +1186,16 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): the certified-budget standard plus the FULL
-	 * SOFT WORLD-STEP. Every candidate simulates the whole round in actual turn
-	 * order, conditioned on its landing ({@link #simulateRound}); the resulting
-	 * occupancy feeds two SOFT consumers instead of hard stepIdx-0 filters:
-	 * <ul>
-	 * <li>the deep search {@link #searchMinTurnsCountedSoft} PRICES a stepIdx-0
-	 * landing on a sim-occupied cell (+3.0, the conflict weight) rather than
-	 * treating it as a wall or a guaranteed vacancy -- a mispredicted body costs
-	 * a detour, not a crash trap, so the search degrades gracefully when the
-	 * greedy sim disagrees with a real opponent;
-	 * <li>the safe-successor count is OPTIMISM-FLOORED:
-	 * {@code Math.max(countFutureSafeSuccessors(..predicted), countFutureSafeSuccessorsTimed(..world))}
-	 * -- the sim removing phantom stale bodies ADDS successors (pace) while its
-	 * model-dependent pessimism (a mispredicted fast leader) can only LOWER the
-	 * timed count, so the max keeps the optimism and discards the pessimism
-	 * (never more cautious than the crash-free frozen standard).
-	 * </ul>
-	 * The nulling heuristic and {@code predicted} still feed the conflict term
-	 * and the waiver/surcharge filters, and the per-state certified budget
-	 * ({@code Math.max(5, certBudget) + d2SafeCount}) is retained unchanged.
-	 * Everything else is identical to {@link #optimalMoveAI2}, which stays
-	 * frozen as the reference.
+	 * AI1 (FROZEN STANDARD): the AI1.9 soft-world-step champion — the AI2.4
+	 * certified-budget base plus the full soft sequenced world-step (every
+	 * candidate runs {@link #simulateRound}; the occupancy soft-prices the deep
+	 * search via {@link #searchMinTurnsCountedSoft} at +3.0 and optimism-floors
+	 * the safe-successor count with {@code Math.max(countFutureSafeSuccessors,
+	 * countFutureSafeSuccessorsTimed)} — a mispredicted body costs a detour, not
+	 * a crash trap, and the count is never more cautious than the frozen base).
+	 * Fastest crash-free AI to date (105/0, mv 51.73) and wins wheel-to-wheel
+	 * 4.20 vs 4.80 mean place, crash-free in mixed fields. Don't change AI1 —
+	 * it's the yardstick; AI2 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1656,16 +1644,9 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.4 certified-budget champion — the AI1.8
-	 * base with the widthBudget constant replaced by map truth above a legacy
-	 * floor: Math.max(5, {@link #certBudget}) + d2SafeCount, where certBudget
-	 * is the precomputed minimal target T such that at least two independent
-	 * blind braking descents from the candidate state reach |v| <= T within
-	 * the {@link #countBrakeProofs} horizon (heading- and speed-exact local
-	 * truth; the floor preserves the zero-penalty regime at low speed).
-	 * Fastest crash-free AI to date (105/0, mv 51.79; beats AI1.8
-	 * wheel-to-wheel 4.46 vs 4.54 mean place). Don't change AI2 — it's the
-	 * yardstick; AI1 is the experimental copy being improved.
+	 * AI2 (EXPERIMENTAL FRONTIER): forked verbatim from the AI1.9 soft-world-step
+	 * standard. Identical to {@link #optimalMoveAI1} at fork time; improvements
+	 * are applied here while AI1 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1716,21 +1697,34 @@ public class RaceGame {
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			final int[] deepCounted = searchMinTurnsCounted(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps, playerNum);
-			final int deep = deepCounted[0];
+			// SOFT WORLD-STEP: simulate the whole round in actual turn order,
+			// conditioned on THIS candidate landing, so the soft filters below
+			// see where the bodies actually are when I move next (mutual
+			// exclusion enforced; a blocked opponent stays put).
+			final int[][] world = simulateRound(playerNum, newX, newY);
+			final double[] deepCounted = searchMinTurnsCountedSoft(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps,
+					playerNum, world);
+			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
 			// large finite surcharge instead of hard-skipping (which would drop
 			// the AI to the foresight-free bestLegal/fallback pick).
-			final double costToFinish = deep == Integer.MAX_VALUE ? ownTurns + 20.0 : deep;
+			final double costToFinish = deep == Double.MAX_VALUE ? ownTurns + 20.0 : deep;
 
-			final int d2SafeCount = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
+			// Optimism-floored safe-successor count: the sim removing phantom
+			// stale bodies ADDS safe successors (pace), while its model-dependent
+			// pessimism (a mispredicted fast leader) can only LOWER the timed
+			// count -- so max() with the frozen count keeps the optimism and
+			// discards the pessimism, never more cautious than the crash-free
+			// frozen standard.
+			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
-			// Per-state certified budget with a legacy floor (the experiment):
+			// Per-state certified budget with a legacy floor:
 			// the constant base 5 was secretly two parameters -- a corner-speed
 			// proxy above the speed-4 gate AND a floor guaranteeing zero pace
 			// penalties at speed <= 4 (5 + d2 >= 5 => overSpeed = 0 below speed
@@ -1774,7 +1768,7 @@ public class RaceGame {
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways (a wide line) over knife-edge
 			// lines whose minimum hinges on a single follow-up move.
-			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(deepCounted[1], 5);
+			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
