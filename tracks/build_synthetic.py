@@ -88,6 +88,24 @@ def gen_cog(lobes=5, radius=105.0, amp=9.0, step=6.0):
     return c, True
 
 
+def gen_slalom(waves=3, length=230.0, amp=24.0, step=6.0):
+    """A flowing sine-wave corridor -- a smooth left-right slalom, gentler than
+    the serpentine's hairpins. Open. Amplitude/wavelength kept mild so the wave
+    crests' curvature radius stays above the corridor half-width."""
+    c = []
+    x = 0.0
+    while x < length:
+        c.append((x, amp * math.sin(2 * math.pi * waves * x / length)))
+        x += step
+    c.append((length, amp * math.sin(2 * math.pi * waves)))
+    return c, False
+
+
+# NOTE: closed patterns (cog, polygon) produce a degenerate race in this engine
+# -- a closed loop cut into a tiny start/finish gap lets cars cross the finish
+# in a few moves without lapping (the same issue as the `circle` track). They
+# are only honest with a lap-checkpoint system, which doesn't exist yet, so the
+# shipped synthetic tracks are all OPEN (serpentine, spiral, slalom).
 def gen_polygon(sides=5, radius=80.0, step=6.0, rounding=2):
     """A regular polygon with corners rounded (Chaikin) into a smooth closed
     loop -- a `sides`-cornered speedway. Distinct from cog (which scallops the
@@ -116,6 +134,7 @@ def gen_polygon(sides=5, radius=80.0, step=6.0, rounding=2):
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
+    'slalom': gen_slalom,
     'cog': gen_cog,
     'polygon': gen_polygon,
 }
@@ -207,6 +226,25 @@ def main():
 
     left_g, right_g, scale = to_grid(left, right, grid_x, grid_y)
     left_g, right_g = dedupe(left_g), dedupe(right_g)
+
+    # Closed loops: force the racing direction so a FORWARD finish crossing
+    # requires a full lap (else the start sits just forward of the finish and
+    # cars dart across the S/F gap in a few moves, like the degenerate circle
+    # track). Screen-y is down, so a clockwise corridor has positive shoelace;
+    # if it came out counter-clockwise, swap+reverse the borders (leaves the
+    # corridor identical, only flips which way is start->finish forward).
+    if closed:
+        def corridor_shoelace(lft, rgt):
+            loop = lft + rgt[::-1]
+            s = 0.0
+            k = len(loop)
+            for i in range(k):
+                x1, y1 = loop[i]
+                x2, y2 = loop[(i + 1) % k]
+                s += x1 * y2 - x2 * y1
+            return s
+        if corridor_shoelace(left_g, right_g) < 0:
+            left_g, right_g = right_g[::-1], left_g[::-1]
 
     with open(out_path, 'w') as f:
         f.write("# Theoretical Racing track file\n")

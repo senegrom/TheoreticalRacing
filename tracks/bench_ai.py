@@ -33,15 +33,18 @@ DEFAULT_TRACKS = [
     'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
     'chicane', 'bigoval', 'curve',
     # Fast synthetic geometric patterns (build_synthetic.py, small grids ->
-    # reachability 2-6s): a small serpentine, spiral, and scalloped ring.
-    'zigzag', 'coil', 'gear',
+    # reachability 1-6s): a small serpentine zig-zag, an inward spiral, and a
+    # flowing slalom. All OPEN (start != finish) so the race is honest; closed
+    # synthetic loops dart across the S/F gap (the circle problem) and are left
+    # out until a lap-checkpoint system exists.
+    'zigzag', 'coil', 'slalom',
 ]
 
 # SECOND BENCH (run with --slow): the wide/large synthetic tracks whose
-# reachability is too heavy (27-57s) for every regular run. Use this as a
-# regression guard on the slow tracks before promoting a new frozen standard
-# -- confirm the new AI is at least as good as the old one here too.
-SLOW_TRACKS = ['serpentine', 'spiral', 'cog']
+# reachability is too heavy (serpentine ~37s, spiral ~57s) for every regular
+# run. Use this as a regression guard on the slow tracks before promoting a new
+# frozen standard -- confirm the new AI is at least as good as the old one here.
+SLOW_TRACKS = ['serpentine', 'spiral']
 
 JAR = r'E:\OneDrive\Coding\Java\theoreticRacing\theoreticRacing.jar'
 LOG = r'E:\OneDrive\Coding\Java\theoreticRacing\last_game.log'
