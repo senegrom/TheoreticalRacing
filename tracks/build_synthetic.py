@@ -227,24 +227,22 @@ def main():
     left_g, right_g, scale = to_grid(left, right, grid_x, grid_y)
     left_g, right_g = dedupe(left_g), dedupe(right_g)
 
-    # Closed loops: force the racing direction so a FORWARD finish crossing
-    # requires a full lap (else the start sits just forward of the finish and
-    # cars dart across the S/F gap in a few moves, like the degenerate circle
-    # track). Screen-y is down, so a clockwise corridor has positive shoelace;
-    # if it came out counter-clockwise, swap+reverse the borders (leaves the
-    # corridor identical, only flips which way is start->finish forward).
+    # Closed loops: the start zone (a 2-deep band the game extends off the
+    # start line, +90 degrees of right0->left0) must point OUTWARD, away from
+    # the loop interior. If it points inward it overlaps the finish line just
+    # across the S/F cut, so cars cross the finish in a couple of moves without
+    # lapping (the degenerate dart). Swapping the two borders flips that band
+    # 180 degrees while leaving the corridor polygon identical -- so the zone
+    # ends up outside the loop and a forward finish crossing needs a full lap.
     if closed:
-        def corridor_shoelace(lft, rgt):
-            loop = lft + rgt[::-1]
-            s = 0.0
-            k = len(loop)
-            for i in range(k):
-                x1, y1 = loop[i]
-                x2, y2 = loop[(i + 1) % k]
-                s += x1 * y2 - x2 * y1
-            return s
-        if corridor_shoelace(left_g, right_g) < 0:
-            left_g, right_g = right_g[::-1], left_g[::-1]
+        allp = left_g + right_g
+        cx = sum(p[0] for p in allp) / len(allp)
+        cy = sum(p[1] for p in allp) / len(allp)
+        l0, r0 = left_g[0], right_g[0]
+        dir_x, dir_y = l0[1] - r0[1], r0[0] - l0[0]  # matches makeStartZone
+        out_x, out_y = (l0[0] + r0[0]) / 2 - cx, (l0[1] + r0[1]) / 2 - cy
+        if dir_x * out_x + dir_y * out_y < 0:  # zone points inward -> flip it out
+            left_g, right_g = right_g, left_g
 
     with open(out_path, 'w') as f:
         f.write("# Theoretical Racing track file\n")
