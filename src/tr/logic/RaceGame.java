@@ -1758,6 +1758,34 @@ public class RaceGame {
 						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
 				}
 			}
+			// AI2 knife-edge corner-entry brake (hungaroring S/F hairpin fix):
+			// A candidate carrying real speed (> 4.0) whose one-step escape thread
+			// is almost entirely non-roomy is diving into a single-file funnel. On
+			// its own that is just a narrow racing line -- fine when driven alone --
+			// but it turns lethal the moment a PACK plugs the pocket ahead of you
+			// (forensic: p4 chose SW into (97,152) v(2,4), roomySucc=1, with FOUR
+			// rivals within 6 cells, over the roomy braking line NW->(97,150)
+			// v(2,2), roomySucc=5, by a razor 0.38; the funnel then dead-ended at
+			// (99,156) with cars fore and aft and it fell to an illegal fallback
+			// into the outer wall). The optimism-floored d2SafeCount counts those
+			// non-roomy alive successors as safe, so the trap ladder rates the
+			// funnel a mere 0.5. This term prices roomy-successor scarcity directly
+			// -- and, unlike the converging-opponent surcharge, it fires at the
+			// corner-ENTRY state (converging reads false there because the leaders
+			// look like they are receding into the corner). Three AND-gates keep it
+			// surgical: speed > 4.0 (every synthetic track and all low-speed play
+			// untouched), roomySucc <= 1 (>= 2 roomy escapes is genuine open road),
+			// and a real pack around the target (>= 2 opponents within squared
+			// distance 36). The pack gate is what spares the lone fast knife-edge
+			// that IS the racing line on tight circuits (monaco/zandvoort): there a
+			// solo car keeps its pace, and only a genuine corner-entry traffic jam
+			// nudges the car onto the adjacent roomy braking line.
+			double cornerEntry = 0.0;
+			if (speed > 4.0) {
+				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
+				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, 36) >= 2)
+					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
+			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -1769,7 +1797,7 @@ public class RaceGame {
 			// follow-up is achievable many ways (a wide line) over knife-edge
 			// lines whose minimum hinges on a single follow-up move.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + uncertified + conflict + spread - momentum - robustness;
+			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1917,6 +1945,38 @@ public class RaceGame {
 			if (cellOccupiedByPrediction(nx, ny, predicted))
 				continue;
 			if (isAlive(nx, ny, nvx, nvy))
+				count++;
+		}
+		return count;
+	}
+
+	/**
+	 * AI2-only twin of {@link #countFutureSafeSuccessors} keyed on ROOMINESS
+	 * rather than mere aliveness, and opponent-blind (geometry + reachability
+	 * only). Counts the geometry-legal one-step successors of (x,y,vx,vy) that
+	 * are alive AND {@link #isRoomy roomy} at depth 0 -- i.e. escape moves onto
+	 * genuinely open road, not alive-but-single-file knife-edge threads. A
+	 * finish crossing short-circuits to a large count (a candidate that can end
+	 * the race is never a corner-entry trap). Used solely by the AI2 knife-edge
+	 * corner-entry brake as the geometric half of that gate; the traffic half
+	 * (a pack around the target) is applied separately at the call site, because
+	 * the funnel geometry is a fixed property of the state while the danger only
+	 * materialises when rivals are packed at the corner entry.
+	 */
+	private int countRoomySuccessors(final int x, final int y, final int vx, final int vy, final int playerNum) {
+		int count = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx;
+			final int nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx;
+			final int ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 9;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			if (isAlive(nx, ny, nvx, nvy) && isRoomy(nx, ny, nvx, nvy, 0))
 				count++;
 		}
 		return count;
