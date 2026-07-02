@@ -1118,8 +1118,8 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.5
-	 *  corner-entry-brake champion); AI1 is forked from it and is the one we
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.6
+	 *  open-running depth-2 champion); AI1 is forked from it and is the one we
 	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
@@ -1207,17 +1207,9 @@ public class RaceGame {
 	private final static double	AI1_PLY2_PRICE	= 3.0;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): AI2.5 + depth-2 soft search priced against
-	 * a two-round world simulation (variant B2). Forked from the AI2.5
-	 * standard; the single change is the deep-search core:
-	 * {@link #simulateTwoRounds} extends the greedy turn-order opponent
-	 * simulation a second round (tracking simulated velocities), and
-	 * {@link #searchMinTurnsCountedSoft2} searches TWO of my moves explicitly
-	 * -- ply 1 priced +3.0 against world1 exactly as before, the previously
-	 * dead ply 2 now priced +3.0 against world2 -- so the search horizon and
-	 * the opponent-simulation horizon extend together. B2: at ply 2 the
-	 * doubly-stale isCrashingPlayer hard-skip is dropped (variant B1 kept it
-	 * and its phantom walls crashed p1 on hungaroring's top-left pocket).
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.6 standard.
+	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+	 * applied here while AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1851,13 +1843,17 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.5 corner-entry-brake champion — the AI1.9
-	 * soft-world-step base plus a pack-gated knife-edge corner-entry brake
-	 * (speed>4 && <=1 roomy escape successor && >=2 rivals within squared
-	 * distance 36 -> cornerEntry surcharge), which fixes the hungaroring S/F-
-	 * hairpin crash. First fully crash-free 22-track AI (f=154 c=0 mv=64.25;
-	 * h2h mean place 4.494 vs the old AI1.9's 4.506). Don't change AI2 — it's
-	 * the yardstick; AI1 is the experimental copy being improved.
+	 * AI2 (FROZEN STANDARD): the AI2.6 open-running depth-2 champion — the
+	 * AI2.5 corner-entry-brake base plus a second explicit search ply priced
+	 * against a second simulated opponent round ({@link #simulateTwoRounds} /
+	 * {@link #searchMinTurnsCountedSoft2}), active in open running only: with
+	 * any rival within squared distance 36 the ply-2 price is disabled, which
+	 * is bit-identical to AI2.5's behavior, so packs are never conceded (the
+	 * pricing is cooperative-optimal but competitively dominated -- pricing
+	 * packs LOST the mixed-field h2h despite faster solo pace). Gates: pace
+	 * f=154 c=0 mv=64.19 vs 64.25; h2h 4.483 vs 4.517 c=0; --slow 80.33 vs
+	 * 80.48. Don't change AI2 — it's the yardstick; AI1 is the experimental
+	 * copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1873,6 +1869,10 @@ public class RaceGame {
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
+		// v4 pack gate for the ply-2 price: any rival within squared distance
+		// 36 of where I stand means a ceded line is a ceded PLACE -- the ply-2
+		// price is disabled for this whole move (see AI1_PLY2_PRICE).
+		final boolean packNearby = countNearbyOpponents(pos, playerNum, 36) >= 1;
 
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -1908,13 +1908,20 @@ public class RaceGame {
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			// SOFT WORLD-STEP: simulate the whole round in actual turn order,
-			// conditioned on THIS candidate landing, so the soft filters below
-			// see where the bodies actually are when I move next (mutual
-			// exclusion enforced; a blocked opponent stays put).
-			final int[][] world = simulateRound(playerNum, newX, newY);
-			final double[] deepCounted = searchMinTurnsCountedSoft(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps,
-					playerNum, world);
+			// TWO-ROUND SOFT WORLD-STEP (the experiment): simulate TWO whole
+			// rounds in actual turn order, conditioned on THIS candidate
+			// landing. worlds[0] answers the round-r+1 questions (safe
+			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
+			// bodies' cells when I make my round-r+2 move, pricing the second
+			// explicit search ply -- but only in OPEN RUNNING (v4, see
+			// AI1_PLY2_PRICE): with any rival within squared distance 36 the
+			// ply-2 price is disabled (null), which is proven bit-identical to
+			// the frozen standard's behavior, so the frontier never cedes a
+			// contested line in a pack.
+			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
+			final int[][] world = worlds[0];
+			final double[] deepCounted = searchMinTurnsCountedSoft2(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
+					predictedSteps, playerNum, worlds[0], packNearby ? null : worlds[1]);
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -1935,22 +1942,10 @@ public class RaceGame {
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
-			// Per-state certified budget with a legacy floor:
-			// the constant base 5 was secretly two parameters -- a corner-speed
-			// proxy above the speed-4 gate AND a floor guaranteeing zero pace
-			// penalties at speed <= 4 (5 + d2 >= 5 => overSpeed = 0 below speed
-			// 5). Math.max(5, ...) preserves that zero-penalty regime at low
-			// speed (where certBudget is trivially 0-2 and traffic-depressed
-			// d2SafeCount would otherwise yield un-waivable speedCaps under the
-			// speed > 4.0 waiver gate); above it the map-certified budget
-			// governs. certBudget() is the minimal target T such that >= 2
-			// independent blind braking descents from this very candidate state
-			// (heading- and speed-exact) reach |v| <= T within the proof
-			// horizon. All downstream consumers -- overSpeed/speedCap, the
-			// pace-waiver target and the trap-surcharge target -- take the
-			// budget unchanged. Budgets above 15 push countBrakeProofs onto its
-			// recursive reference path (the map path needs T^2 < 255): correct,
-			// merely slower.
+			// Per-state certified budget with a legacy floor: the map-certified
+			// minimal target T (>= 2 independent blind braking descents reach
+			// |v| <= T from this candidate state) governs above the floor; the
+			// floor preserves the zero-penalty regime at low speed.
 			final int widthBudget = Math.max(5, certBudget(newX, newY, newVx, newVy)) + d2SafeCount;
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
@@ -1969,28 +1964,12 @@ public class RaceGame {
 						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
 				}
 			}
-			// AI2 knife-edge corner-entry brake (hungaroring S/F hairpin fix):
-			// A candidate carrying real speed (> 4.0) whose one-step escape thread
-			// is almost entirely non-roomy is diving into a single-file funnel. On
-			// its own that is just a narrow racing line -- fine when driven alone --
-			// but it turns lethal the moment a PACK plugs the pocket ahead of you
-			// (forensic: p4 chose SW into (97,152) v(2,4), roomySucc=1, with FOUR
-			// rivals within 6 cells, over the roomy braking line NW->(97,150)
-			// v(2,2), roomySucc=5, by a razor 0.38; the funnel then dead-ended at
-			// (99,156) with cars fore and aft and it fell to an illegal fallback
-			// into the outer wall). The optimism-floored d2SafeCount counts those
-			// non-roomy alive successors as safe, so the trap ladder rates the
-			// funnel a mere 0.5. This term prices roomy-successor scarcity directly
-			// -- and, unlike the converging-opponent surcharge, it fires at the
-			// corner-ENTRY state (converging reads false there because the leaders
-			// look like they are receding into the corner). Three AND-gates keep it
-			// surgical: speed > 4.0 (every synthetic track and all low-speed play
-			// untouched), roomySucc <= 1 (>= 2 roomy escapes is genuine open road),
-			// and a real pack around the target (>= 2 opponents within squared
-			// distance 36). The pack gate is what spares the lone fast knife-edge
-			// that IS the racing line on tight circuits (monaco/zandvoort): there a
-			// solo car keeps its pace, and only a genuine corner-entry traffic jam
-			// nudges the car onto the adjacent roomy braking line.
+			// Pack-gated knife-edge corner-entry brake: price roomy-successor
+			// scarcity when a pack is packed at a corner entry (>= 2 rivals
+			// within squared distance 36 and <= 1 roomy escape) -- fires where
+			// the converging-opponent surcharge reads false. The pack gate
+			// spares the lone fast knife-edge that is the racing line on tight
+			// circuits, so only genuine corner-entry traffic jams brake.
 			double cornerEntry = 0.0;
 			if (speed > 4.0) {
 				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
@@ -2000,13 +1979,10 @@ public class RaceGame {
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
-			// prefer the one carrying more usable speed (covers more ground, keeps
-			// the line flowing). Weight is tiny so it can never override a real
-			// turn or penalty difference.
+			// prefer the one carrying more usable speed.
 			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
 			// Plateau-width robustness tie-break: prefer candidates whose best
-			// follow-up is achievable many ways (a wide line) over knife-edge
-			// lines whose minimum hinges on a single follow-up move.
+			// follow-up is achievable many ways over knife-edge lines.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
