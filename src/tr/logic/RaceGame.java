@@ -1185,10 +1185,39 @@ public class RaceGame {
 	 *  this many steps forward (one prediction layer per search level). */
 	private final static int		AI1_LOOKAHEAD	= 1;
 
+	/** AI1 frontier only: explicit search depth for the depth-2 soft search
+	 *  ({@link #searchMinTurnsCountedSoft2}) -- my next TWO moves are searched
+	 *  explicitly, each ply priced against its own simulated opponent round
+	 *  (world1 at stepIdx 0, world2 at stepIdx 1) before the opponent-blind
+	 *  map takes over. AI1_LOOKAHEAD stays shared with the frozen AI2. */
+	private final static int		AI1_DEEP_LOOKAHEAD	= 2;
+
+	/** AI1 frontier only: soft price for landing, at the second explicit search
+	 *  ply (stepIdx 1), on a round-2-simulated body -- applied in OPEN RUNNING
+	 *  only (v4): with any rival within squared distance 36 of my current cell
+	 *  the price is disabled for the move (occupancy2 = null), because a
+	 *  two-rounds-out detour ceded while a rival is close enough to take the
+	 *  vacated line converts saved time into lost PLACES (h2h forensics:
+	 *  price-all lost 4.540/4.460, ahead-only lost harder 4.597/4.403 -- a
+	 *  coordination asymmetry, since in all-frontier fields the collective
+	 *  spreading is what buys the pace). Probes proved the price LEVEL is a
+	 *  dead knob (2.0 == 3.0 bench-identical; 0.0 reverts to the exact frozen
+	 *  baseline -- the entire depth-2 gain flows through this pricing), so the
+	 *  structure, not the level, carries the design. */
+	private final static double	AI1_PLY2_PRICE	= 3.0;
+
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.5 standard.
-	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
-	 * applied here while AI2 stays frozen as the reference.
+	 * AI1 (EXPERIMENTAL FRONTIER): AI2.5 + depth-2 soft search priced against
+	 * a two-round world simulation (variant B2). Forked from the AI2.5
+	 * standard; the single change is the deep-search core:
+	 * {@link #simulateTwoRounds} extends the greedy turn-order opponent
+	 * simulation a second round (tracking simulated velocities), and
+	 * {@link #searchMinTurnsCountedSoft2} searches TWO of my moves explicitly
+	 * -- ply 1 priced +3.0 against world1 exactly as before, the previously
+	 * dead ply 2 now priced +3.0 against world2 -- so the search horizon and
+	 * the opponent-simulation horizon extend together. B2: at ply 2 the
+	 * doubly-stale isCrashingPlayer hard-skip is dropped (variant B1 kept it
+	 * and its phantom walls crashed p1 on hungaroring's top-left pocket).
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1204,6 +1233,10 @@ public class RaceGame {
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
+		// v4 pack gate for the ply-2 price: any rival within squared distance
+		// 36 of where I stand means a ceded line is a ceded PLACE -- the ply-2
+		// price is disabled for this whole move (see AI1_PLY2_PRICE).
+		final boolean packNearby = countNearbyOpponents(pos, playerNum, 36) >= 1;
 
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -1239,13 +1272,20 @@ public class RaceGame {
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			// SOFT WORLD-STEP (the experiment): simulate the whole round in
-			// actual turn order, conditioned on THIS candidate landing, so the
-			// soft filters below see where the bodies actually are when I move
-			// next (mutual exclusion enforced; a blocked opponent stays put).
-			final int[][] world = simulateRound(playerNum, newX, newY);
-			final double[] deepCounted = searchMinTurnsCountedSoft(newX, newY, newVx, newVy, AI1_LOOKAHEAD, 0, predictedSteps,
-					playerNum, world);
+			// TWO-ROUND SOFT WORLD-STEP (the experiment): simulate TWO whole
+			// rounds in actual turn order, conditioned on THIS candidate
+			// landing. worlds[0] answers the round-r+1 questions (safe
+			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
+			// bodies' cells when I make my round-r+2 move, pricing the second
+			// explicit search ply -- but only in OPEN RUNNING (v4, see
+			// AI1_PLY2_PRICE): with any rival within squared distance 36 the
+			// ply-2 price is disabled (null), which is proven bit-identical to
+			// the frozen standard's behavior, so the frontier never cedes a
+			// contested line in a pack.
+			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
+			final int[][] world = worlds[0];
+			final double[] deepCounted = searchMinTurnsCountedSoft2(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
+					predictedSteps, playerNum, worlds[0], packNearby ? null : worlds[1]);
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -1420,6 +1460,75 @@ public class RaceGame {
 		return occ;
 	}
 
+	/** AI1 frontier only: {@link #simulateRound} extended one more round.
+	 *  Round 1 replays simulateRound's algorithm EXACTLY (same two-pass turn
+	 *  order, same mutual exclusion via {@code blocked}, a blocked mover stays
+	 *  put) while additionally tracking each opponent's simulated velocity --
+	 *  bookkeeping only, it cannot alter any round-1 decision, so
+	 *  {@code result[0]} is cell-identical to {@code simulateRound(...)}. Round
+	 *  2 then runs the same two-pass loop again from the round-1 cells and
+	 *  velocities, yielding {@code result[1]} = the opponents' cells when I
+	 *  make my round-r+2 move. For round 2 my candidate cell no longer blocks
+	 *  ({@code blocked[playerNum-1] = null}): by then I have moved off it to a
+	 *  cell this sim cannot know, and leaving the stale cell blocked would wall
+	 *  off a lane I have actually vacated -- an honest approximation.
+	 *  Returns {@code {world1, world2}}. */
+	private int[][][] simulateTwoRounds(final int playerNum, final int candX, final int candY) {
+		final int[][] occ = new int[players.length][];
+		final int[][] simVel = new int[players.length][];
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			occ[p.getNumber() - 1] = p.getPosition();
+			simVel[p.getNumber() - 1] = p.getVelocity();
+		}
+		final int[][] blocked = occ.clone();           // shallow: shares position refs
+		blocked[playerNum - 1] = new int[]{candX, candY }; // my landing blocks round 1
+		simulateRoundPass(playerNum, occ, simVel, blocked);
+		occ[playerNum - 1] = null;
+		final int[][] world1 = occ.clone();            // round 2 reassigns cells, never mutates them
+		blocked[playerNum - 1] = null;                 // round 2: I have vacated my candidate cell
+		simulateRoundPass(playerNum, occ, simVel, blocked);
+		occ[playerNum - 1] = null;
+		return new int[][][]{world1, occ };
+	}
+
+	/** One full two-pass opponent round for {@link #simulateTwoRounds}: every
+	 *  live opponent steps once from its simulated cell/velocity in actual
+	 *  turn order (players numbered after me first, then players numbered
+	 *  before me), updating {@code occ}/{@code simVel}/{@code blocked} in
+	 *  place. Mirrors {@link #simulateRound}'s loop exactly; the only addition
+	 *  is recording the step a legal mover already took into {@code simVel}
+	 *  (a stay-put mover keeps its old velocity). */
+	private void simulateRoundPass(final int playerNum, final int[][] occ, final int[][] simVel, final int[][] blocked) {
+		for (int pass = 0; pass < 2; pass++) {
+			for (final Player p : players) {
+				final boolean later = p.getNumber() > playerNum;
+				if (p.getNumber() == playerNum || p.isFinished() || (pass == 0 ? !later : later))
+					continue;
+				final int idx = p.getNumber() - 1;
+				final int[] cur = occ[idx];
+				blocked[idx] = null;                   // the mover vacates its own cell
+				final int[] vel = simVel[idx];
+				final Direction d = pureMinTurnsMoveSim(cur, vel, blocked);
+				int nx = cur[0], ny = cur[1];
+				if (d != null) {
+					final int nvx = vel[0] + d.dx;
+					final int nvy = vel[1] + d.dy;
+					if (Math.abs(nvx) <= AI_MAX_SPEED && Math.abs(nvy) <= AI_MAX_SPEED
+							&& isMoveLegalGeometryCached(cur[0], cur[1], cur[0] + nvx, cur[1] + nvy)
+							&& !cellOccupiedByPrediction(cur[0] + nvx, cur[1] + nvy, blocked)) {
+						nx = cur[0] + nvx;
+						ny = cur[1] + nvy;
+						simVel[idx] = new int[]{nvx, nvy };
+					}
+				}
+				occ[idx] = new int[]{nx, ny };
+				blocked[idx] = occ[idx];
+			}
+		}
+	}
+
 	/** Soft-priced timing-exact search (AI1 frontier): like the hard
 	 *  {@code searchMinTurnsTimed} but a stepIdx-0 move onto a sim-occupied
 	 *  cell is PRICED (+3.0, the conflict weight) instead of hard-skipped, so
@@ -1494,6 +1603,99 @@ public class RaceGame {
 					continue;
 			}
 			final double sub = searchMinTurnsSoft(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum, occupancy);
+			if (sub == Double.MAX_VALUE)
+				continue;
+			final double total = 1.0 + price + sub;
+			if (total < best) {
+				best = total;
+				countAtMin = 1;
+			} else if (total == best)
+				countAtMin++;
+		}
+		return new double[]{best, countAtMin };
+	}
+
+	/** Depth-2 twin of {@link #searchMinTurnsSoft} (AI1 frontier only): takes
+	 *  the SECOND simulated round {@code occupancy2} (nullable -- the v4 pack
+	 *  gate passes null to disable ply-2 pricing entirely, see
+	 *  {@link #AI1_PLY2_PRICE}) and, at {@code stepIdx == 1}, prices a landing
+	 *  on a round-2-simulated body {@link #AI1_PLY2_PRICE}, so the second
+	 *  explicit ply is priced against the world as simulated when I make that
+	 *  move. Variant B2: the stepIdx-1 {@code isCrashingPlayer}
+	 *  hard-skip is REMOVED here (opponents' round-r-start cells are doubly
+	 *  stale two plies out -- phantom walls that prune real escape lanes); the
+	 *  only opponent term at stepIdx 1 is the occupancy2 price. The
+	 *  (inert, length-1 predictedSteps) prediction check is kept. */
+	private double searchMinTurnsSoft2(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
+			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final int[][] occupancy2) {
+		if (levels == 0) {
+			final int t = turnsToFinish(x, y, vx, vy);
+			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
+		}
+		double best = Double.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 1;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			double price = 0.0;
+			if (stepIdx == 0) {
+				if (cellOccupiedByPrediction(nx, ny, occupancy))
+					price = 3.0;
+			} else {
+				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+					continue;
+				if (stepIdx == 1 && occupancy2 != null && cellOccupiedByPrediction(nx, ny, occupancy2))
+					price = AI1_PLY2_PRICE;
+			}
+			final double sub = searchMinTurnsSoft2(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
+					occupancy, occupancy2);
+			if (sub == Double.MAX_VALUE)
+				continue;
+			if (1.0 + price + sub < best)
+				best = 1.0 + price + sub;
+		}
+		return best;
+	}
+
+	/** Depth-2 twin of {@link #searchMinTurnsCountedSoft} (AI1 frontier only):
+	 *  same behavioral change as {@link #searchMinTurnsSoft2} -- at
+	 *  {@code stepIdx == 1} a landing on a round-2-simulated body
+	 *  ({@code occupancy2}, nullable via the v4 pack gate) is PRICED
+	 *  {@link #AI1_PLY2_PRICE}, and (variant B2) the doubly-stale
+	 *  {@code isCrashingPlayer} phantom-wall hard-skip is removed -- and it
+	 *  recurses into {@link #searchMinTurnsSoft2}. Prices stay exact small
+	 *  constants, so the plateau compare remains an exact {@code ==}. */
+	private double[] searchMinTurnsCountedSoft2(final int x, final int y, final int vx, final int vy, final int levels,
+			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy,
+			final int[][] occupancy2) {
+		double best = Double.MAX_VALUE;
+		int countAtMin = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return new double[]{1, 9 };
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			double price = 0.0;
+			if (stepIdx == 0) {
+				if (cellOccupiedByPrediction(nx, ny, occupancy))
+					price = 3.0;
+			} else {
+				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+					continue;
+				if (stepIdx == 1 && occupancy2 != null && cellOccupiedByPrediction(nx, ny, occupancy2))
+					price = AI1_PLY2_PRICE;
+			}
+			final double sub = searchMinTurnsSoft2(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
+					occupancy, occupancy2);
 			if (sub == Double.MAX_VALUE)
 				continue;
 			final double total = 1.0 + price + sub;
