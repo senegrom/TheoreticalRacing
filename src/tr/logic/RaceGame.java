@@ -1118,8 +1118,8 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI1 is now the FROZEN STANDARD (the AI1.9
-	 *  soft-world-step champion); AI2 is forked from it and is the one we
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.5
+	 *  corner-entry-brake champion); AI1 is forked from it and is the one we
 	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
@@ -1186,16 +1186,9 @@ public class RaceGame {
 	private final static int		AI1_LOOKAHEAD	= 1;
 
 	/**
-	 * AI1 (FROZEN STANDARD): the AI1.9 soft-world-step champion — the AI2.4
-	 * certified-budget base plus the full soft sequenced world-step (every
-	 * candidate runs {@link #simulateRound}; the occupancy soft-prices the deep
-	 * search via {@link #searchMinTurnsCountedSoft} at +3.0 and optimism-floors
-	 * the safe-successor count with {@code Math.max(countFutureSafeSuccessors,
-	 * countFutureSafeSuccessorsTimed)} — a mispredicted body costs a detour, not
-	 * a crash trap, and the count is never more cautious than the frozen base).
-	 * Fastest crash-free AI to date (105/0, mv 51.73) and wins wheel-to-wheel
-	 * 4.20 vs 4.80 mean place, crash-free in mixed fields. Don't change AI1 —
-	 * it's the yardstick; AI2 is the experimental copy being improved.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.5 standard.
+	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+	 * applied here while AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1295,6 +1288,18 @@ public class RaceGame {
 						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
 				}
 			}
+			// Pack-gated knife-edge corner-entry brake: price roomy-successor
+			// scarcity when a pack is packed at a corner entry (>= 2 rivals
+			// within squared distance 36 and <= 1 roomy escape) -- fires where
+			// the converging-opponent surcharge reads false. The pack gate
+			// spares the lone fast knife-edge that is the racing line on tight
+			// circuits, so only genuine corner-entry traffic jams brake.
+			double cornerEntry = 0.0;
+			if (speed > 4.0) {
+				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
+				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, 36) >= 2)
+					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
+			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -1303,7 +1308,7 @@ public class RaceGame {
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + uncertified + conflict + spread - momentum - robustness;
+			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1644,9 +1649,13 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (EXPERIMENTAL FRONTIER): forked verbatim from the AI1.9 soft-world-step
-	 * standard. Identical to {@link #optimalMoveAI1} at fork time; improvements
-	 * are applied here while AI1 stays frozen as the reference.
+	 * AI2 (FROZEN STANDARD): the AI2.5 corner-entry-brake champion — the AI1.9
+	 * soft-world-step base plus a pack-gated knife-edge corner-entry brake
+	 * (speed>4 && <=1 roomy escape successor && >=2 rivals within squared
+	 * distance 36 -> cornerEntry surcharge), which fixes the hungaroring S/F-
+	 * hairpin crash. First fully crash-free 22-track AI (f=154 c=0 mv=64.25;
+	 * h2h mean place 4.494 vs the old AI1.9's 4.506). Don't change AI2 — it's
+	 * the yardstick; AI1 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
