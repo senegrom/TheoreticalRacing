@@ -1207,9 +1207,14 @@ public class RaceGame {
 	private final static double	AI1_PLY2_PRICE	= 3.0;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.6 standard.
-	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
-	 * applied here while AI2 stays frozen as the reference.
+	 * AI1 (EXPERIMENTAL FRONTIER): AI2.6 + pack-gate threshold 2 -- the ply-2
+	 * traffic price stays active with a single nearby rival (1-on-1 traffic)
+	 * and is only disabled in multi-car packs (>= 2 rivals within squared
+	 * distance 36) -- plus the v5.1 queue-compression corner guard (see
+	 * queueBox below), which prices the one trap state the reshuffled traffic
+	 * can produce that every frozen danger term is blind to. Everything else
+	 * is verbatim AI2.6, which stays frozen in {@link #optimalMoveAI2} as the
+	 * reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1228,6 +1233,8 @@ public class RaceGame {
 		// v4 pack gate for the ply-2 price: any rival within squared distance
 		// 36 of where I stand means a ceded line is a ceded PLACE -- the ply-2
 		// price is disabled for this whole move (see AI1_PLY2_PRICE).
+		// (Threshold 2 was benched: honest pace -0.03 but three h2h tracks
+		// gave back a place each -- 1-on-1 ceding is real; reverted.)
 		final boolean packNearby = countNearbyOpponents(pos, playerNum, 36) >= 1;
 
 		Direction best = null;
@@ -1269,11 +1276,11 @@ public class RaceGame {
 			// landing. worlds[0] answers the round-r+1 questions (safe
 			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
 			// bodies' cells when I make my round-r+2 move, pricing the second
-			// explicit search ply -- but only in OPEN RUNNING (v4, see
-			// AI1_PLY2_PRICE): with any rival within squared distance 36 the
-			// ply-2 price is disabled (null), which is proven bit-identical to
-			// the frozen standard's behavior, so the frontier never cedes a
-			// contested line in a pack.
+			// explicit search ply -- disabled only in multi-car packs (v5, see
+			// AI1_PLY2_PRICE): with >= 2 rivals within squared distance 36 the
+			// ply-2 price is dropped (null), reverting to the frozen standard's
+			// behavior; a lone nearby rival keeps the price active, betting
+			// that 1-on-1 the recovered pace outweighs the odd ceded line.
 			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
 			final int[][] world = worlds[0];
 			final double[] deepCounted = searchMinTurnsCountedSoft2(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
@@ -1332,6 +1339,23 @@ public class RaceGame {
 				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, 36) >= 2)
 					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
+			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
+			// only): the corner-entry brake above is opponent-BLIND in its
+			// escape count, the brake proofs ignore transiting (|v| >= 3)
+			// rivals, and the round-sims behind d2SafeCount and the ply-2
+			// price assume a hairpin queue keeps flowing -- so a fast coast
+			// whose timed margin is already thin (d2SafeCount <= 2) while
+			// >= 2 SLOWER rivals sit within squared distance 36 at-or-ahead
+			// of the landing (compression, not a chase) is one round from
+			// being boxed: on zandvoort both alive continuations of
+			// (43,66)v(-4,3) were bodily occupied by the compressed queue
+			// when the victim arrived, after the coast had beaten the
+			// covered brake by 0.278. Price the coast like the survivable
+			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
+			double queueBox = 0.0;
+			if (speed > 4.0 && d2SafeCount <= 2 && cornerEntry == 0.0
+					&& countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
+				queueBox = (speed - 4.0) * 1.5;
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -1340,7 +1364,7 @@ public class RaceGame {
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + conflict + spread - momentum - robustness;
+			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
@@ -1351,6 +1375,46 @@ public class RaceGame {
 		if (bestLegal != null)
 			return bestLegal;
 		return fallback;
+	}
+
+	/**
+	 * AI1 v5.1 queue-compression support (zandvoort forensic, round 21): count
+	 * live rivals within squared distance 36 of the candidate landing (x,y)
+	 * that are at-or-ahead of it in track progress and genuinely SLOWER than
+	 * the landing speed. Ahead-ness reuses {@link #hasConvergingOpponentAhead}
+	 * semantics exactly (same-progress slack +3, |diff| <= 15 wall exclusion);
+	 * slower reuses its 1.0 speed margin. Two or more such rivals directly in
+	 * front of a fast landing are a compressing corner queue -- traffic that
+	 * will NOT have flowed on by the time I arrive, whatever the greedy
+	 * round-sims claim.
+	 */
+	private int countSlowerRivalsAhead(final int x, final int y, final double mySpeed, final int playerNum) {
+		final int myDist = distAt(x, y);
+		if (myDist == Integer.MAX_VALUE)
+			return 0;
+		int count = 0;
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = x - pp[0];
+			final int dy = y - pp[1];
+			if (dx * dx + dy * dy > 36)
+				continue;
+			final int oDist = distAt(pp[0], pp[1]);
+			if (oDist == Integer.MAX_VALUE || Math.abs(oDist - myDist) > 15 || oDist > myDist + 3)
+				continue; // behind me, or across a wall: no compression
+			final int[] pv = p.getVelocity();
+			// v2: only genuinely STALLED rivals count as a boxing queue (the
+			// zandvoort doom queue crawled at |v| 1-2). A merely-slower but
+			// FLOWING train clears the corridor before I arrive -- braking for
+			// it is pure place-ceding in mixed fields (h2h: zandvoort 4.75,
+			// interlagos 4.62 under the old relative test). With the outer
+			// speed > 4 gate, <= 2.5 also implies the old mySpeed-1 margin.
+			if (Math.hypot(pv[0], pv[1]) <= 2.5)
+				count++;
+		}
+		return count;
 	}
 
 	/** {@link #pureMinTurnsMove} against a simulated occupancy instead of the
