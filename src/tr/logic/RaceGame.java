@@ -1353,9 +1353,23 @@ public class RaceGame {
 			// covered brake by 0.278. Price the coast like the survivable
 			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
 			double queueBox = 0.0;
-			if (speed > 4.0 && d2SafeCount <= 2 && cornerEntry == 0.0
-					&& countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
-				queueBox = (speed - 4.0) * 1.5;
+			if (speed > 4.0 && cornerEntry == 0.0) {
+				if (d2SafeCount <= 2 && countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
+					queueBox = (speed - 4.0) * 1.5;
+				else {
+					// v3 long-range trigger: the near trigger needs d2SafeCount
+					// to collapse, but at speed 5+ the zandvoort pinch killed
+					// from 10-20 cells out -- by the time the local box shows,
+					// stopping is impossible (the victims were in forced-move
+					// territory two moves before death; 3rd kill in 3 rounds).
+					// Fire when >= 2 STALLED rivals sit ahead INSIDE my
+					// stopping distance ~ (s^2 - 2.5^2) / 2 cells (shedding
+					// ~1/round from s down to the stalled threshold 2.5).
+					final double stopCells = (speed * speed - 6.25) / 2.0;
+					if (stopCells > 0 && countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2)
+						queueBox = (speed - 4.0) * 1.5;
+				}
+			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -1411,6 +1425,38 @@ public class RaceGame {
 			// it is pure place-ceding in mixed fields (h2h: zandvoort 4.75,
 			// interlagos 4.62 under the old relative test). With the outer
 			// speed > 4 gate, <= 2.5 also implies the old mySpeed-1 margin.
+			if (Math.hypot(pv[0], pv[1]) <= 2.5)
+				count++;
+		}
+		return count;
+	}
+
+	/** AI1 frontier only (queueBox v3 long-range trigger): count STALLED
+	 *  rivals (|v| <= 2.5, the {@link #countSlowerRivalsAhead} threshold)
+	 *  at-or-ahead of (x,y) in track progress within {@code reachCells}
+	 *  euclidean cells -- my stopping distance, so unlike the near trigger
+	 *  this must see the queue BEFORE the local successor count collapses.
+	 *  Ahead-ness keeps the +3 same-progress slack; the wall exclusion
+	 *  scales with reach (a rival physically near but further along the
+	 *  corridor than I can even travel while stopping is across a wall). */
+	private int countStalledRivalsWithin(final int x, final int y, final double reachCells, final int playerNum) {
+		final int myDist = distAt(x, y);
+		if (myDist == Integer.MAX_VALUE)
+			return 0;
+		final double reachSq = reachCells * reachCells;
+		int count = 0;
+		for (final Player p : players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = x - pp[0];
+			final int dy = y - pp[1];
+			if (dx * dx + dy * dy > reachSq)
+				continue;
+			final int oDist = distAt(pp[0], pp[1]);
+			if (oDist == Integer.MAX_VALUE || myDist - oDist > reachCells + 3 || oDist > myDist + 3)
+				continue; // behind me, or across a wall: no compression
+			final int[] pv = p.getVelocity();
 			if (Math.hypot(pv[0], pv[1]) <= 2.5)
 				count++;
 		}
