@@ -1118,8 +1118,8 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.6
-	 *  open-running depth-2 champion); AI1 is forked from it and is the one we
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.7
+	 *  queue-sensing champion); AI1 is forked from it and is the one we
 	 *  improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
@@ -1207,14 +1207,9 @@ public class RaceGame {
 	private final static double	AI1_PLY2_PRICE	= 3.0;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): AI2.6 + pack-gate threshold 2 -- the ply-2
-	 * traffic price stays active with a single nearby rival (1-on-1 traffic)
-	 * and is only disabled in multi-car packs (>= 2 rivals within squared
-	 * distance 36) -- plus the v5.1 queue-compression corner guard (see
-	 * queueBox below), which prices the one trap state the reshuffled traffic
-	 * can produce that every frozen danger term is blind to. Everything else
-	 * is verbatim AI2.6, which stays frozen in {@link #optimalMoveAI2} as the
-	 * reference.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.7 standard.
+	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+	 * applied here while AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1953,17 +1948,18 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.6 open-running depth-2 champion — the
-	 * AI2.5 corner-entry-brake base plus a second explicit search ply priced
-	 * against a second simulated opponent round ({@link #simulateTwoRounds} /
-	 * {@link #searchMinTurnsCountedSoft2}), active in open running only: with
-	 * any rival within squared distance 36 the ply-2 price is disabled, which
-	 * is bit-identical to AI2.5's behavior, so packs are never conceded (the
-	 * pricing is cooperative-optimal but competitively dominated -- pricing
-	 * packs LOST the mixed-field h2h despite faster solo pace). Gates: pace
-	 * f=154 c=0 mv=64.19 vs 64.25; h2h 4.483 vs 4.517 c=0; --slow 80.33 vs
-	 * 80.48. Don't change AI2 — it's the yardstick; AI1 is the experimental
-	 * copy being improved.
+	 * AI2 (FROZEN STANDARD): the AI2.7 queue-sensing champion — the AI2.6
+	 * open-running depth-2 base plus the two-trigger queue-boxing brake
+	 * (queueBox): near trigger (boxed next to a stalled queue: d2SafeCount
+	 * <= 2 and >= 2 stalled rivals within 6 cells) and the v3 long-range
+	 * can't-stop trigger (>= 2 STALLED rivals, |v| <= 2.5, at-or-ahead
+	 * within my stopping distance (s^2-2.5^2)/2 cells — the zandvoort pinch
+	 * killed from 10-20 cells out where the near trigger sees nothing).
+	 * Stalled-only is what keeps the brake profitable: flowing trains clear
+	 * before arrival and braking for them cedes places. Gates: pace f=154
+	 * c=0 mv=64.16 vs 64.19; h2h WIN 4.477 vs 4.523 c=0; --slow 80.43 vs
+	 * 80.33 (serpentine +0.3, the one traded track). Don't change AI2 — it's
+	 * the yardstick; AI1 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1982,6 +1978,8 @@ public class RaceGame {
 		// v4 pack gate for the ply-2 price: any rival within squared distance
 		// 36 of where I stand means a ceded line is a ceded PLACE -- the ply-2
 		// price is disabled for this whole move (see AI1_PLY2_PRICE).
+		// (Threshold 2 was benched: honest pace -0.03 but three h2h tracks
+		// gave back a place each -- 1-on-1 ceding is real; reverted.)
 		final boolean packNearby = countNearbyOpponents(pos, playerNum, 36) >= 1;
 
 		Direction best = null;
@@ -2023,11 +2021,11 @@ public class RaceGame {
 			// landing. worlds[0] answers the round-r+1 questions (safe
 			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
 			// bodies' cells when I make my round-r+2 move, pricing the second
-			// explicit search ply -- but only in OPEN RUNNING (v4, see
-			// AI1_PLY2_PRICE): with any rival within squared distance 36 the
-			// ply-2 price is disabled (null), which is proven bit-identical to
-			// the frozen standard's behavior, so the frontier never cedes a
-			// contested line in a pack.
+			// explicit search ply -- disabled only in multi-car packs (v5, see
+			// AI1_PLY2_PRICE): with >= 2 rivals within squared distance 36 the
+			// ply-2 price is dropped (null), reverting to the frozen standard's
+			// behavior; a lone nearby rival keeps the price active, betting
+			// that 1-on-1 the recovered pace outweighs the odd ceded line.
 			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
 			final int[][] world = worlds[0];
 			final double[] deepCounted = searchMinTurnsCountedSoft2(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
@@ -2086,6 +2084,37 @@ public class RaceGame {
 				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, 36) >= 2)
 					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
+			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
+			// only): the corner-entry brake above is opponent-BLIND in its
+			// escape count, the brake proofs ignore transiting (|v| >= 3)
+			// rivals, and the round-sims behind d2SafeCount and the ply-2
+			// price assume a hairpin queue keeps flowing -- so a fast coast
+			// whose timed margin is already thin (d2SafeCount <= 2) while
+			// >= 2 SLOWER rivals sit within squared distance 36 at-or-ahead
+			// of the landing (compression, not a chase) is one round from
+			// being boxed: on zandvoort both alive continuations of
+			// (43,66)v(-4,3) were bodily occupied by the compressed queue
+			// when the victim arrived, after the coast had beaten the
+			// covered brake by 0.278. Price the coast like the survivable
+			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
+			double queueBox = 0.0;
+			if (speed > 4.0 && cornerEntry == 0.0) {
+				if (d2SafeCount <= 2 && countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
+					queueBox = (speed - 4.0) * 1.5;
+				else {
+					// v3 long-range trigger: the near trigger needs d2SafeCount
+					// to collapse, but at speed 5+ the zandvoort pinch killed
+					// from 10-20 cells out -- by the time the local box shows,
+					// stopping is impossible (the victims were in forced-move
+					// territory two moves before death; 3rd kill in 3 rounds).
+					// Fire when >= 2 STALLED rivals sit ahead INSIDE my
+					// stopping distance ~ (s^2 - 2.5^2) / 2 cells (shedding
+					// ~1/round from s down to the stalled threshold 2.5).
+					final double stopCells = (speed * speed - 6.25) / 2.0;
+					if (stopCells > 0 && countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2)
+						queueBox = (speed - 4.0) * 1.5;
+				}
+			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
@@ -2094,7 +2123,7 @@ public class RaceGame {
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + conflict + spread - momentum - robustness;
+			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + conflict + spread - momentum - robustness;
 			if (score < bestScore) {
 				bestScore = score;
 				best = d;
