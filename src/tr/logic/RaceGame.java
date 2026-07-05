@@ -1118,9 +1118,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.7
-	 *  queue-sensing champion); AI1 is forked from it and is the one we
-	 *  improve from here. */
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.8
+	 *  pace-ceiling champion: AI2.7 + always-on ahead-rival ply-2 foresight);
+	 *  AI1 is forked from it and is the one we improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -1207,16 +1207,9 @@ public class RaceGame {
 	private final static double	AI1_PLY2_PRICE	= 3.0;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.7 standard.
-	 * Frontier = AI2.7 + always-on, ahead-only ply-2 foresight: the second
-	 * explicit search ply is ALWAYS priced against the round-2-simulated world
-	 * (no pack gate -- {@code worlds[1]} passed unconditionally), but only
-	 * bodies of rivals currently AHEAD of me on track are priced (see
-	 * {@link #occupiedByAheadRival} and {@link #searchMinTurnsCountedSoft3}).
-	 * A chaser's body is deliberately not priced: a detour ceded two rounds out
-	 * to a car behind me surrenders race position for nothing. Goal: maximum
-	 * solo pace; the head-to-head trade is to be measured. AI2 stays frozen as
-	 * the reference.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.8 standard.
+	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+	 * applied here while AI2 stays frozen as the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -2062,18 +2055,20 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.7 queue-sensing champion — the AI2.6
-	 * open-running depth-2 base plus the two-trigger queue-boxing brake
-	 * (queueBox): near trigger (boxed next to a stalled queue: d2SafeCount
-	 * <= 2 and >= 2 stalled rivals within 6 cells) and the v3 long-range
-	 * can't-stop trigger (>= 2 STALLED rivals, |v| <= 2.5, at-or-ahead
-	 * within my stopping distance (s^2-2.5^2)/2 cells — the zandvoort pinch
-	 * killed from 10-20 cells out where the near trigger sees nothing).
-	 * Stalled-only is what keeps the brake profitable: flowing trains clear
-	 * before arrival and braking for them cedes places. Gates: pace f=154
-	 * c=0 mv=64.16 vs 64.19; h2h WIN 4.477 vs 4.523 c=0; --slow 80.43 vs
-	 * 80.33 (serpentine +0.3, the one traded track). Don't change AI2 — it's
-	 * the yardstick; AI1 is the experimental copy being improved.
+	 * AI2 (FROZEN STANDARD): the AI2.8 pace-ceiling champion — the AI2.7
+	 * queue-sensing base (open-running depth-2 + two-trigger queueBox) plus
+	 * ALWAYS-ON ply-2 traffic foresight priced against the round-2-simulated
+	 * world, but only for bodies of rivals currently AHEAD on track (the pack
+	 * gate is removed; {@link #occupiedByAheadRival} /
+	 * {@link #searchMinTurnsCountedSoft3} do the ahead-only pricing). The
+	 * queueBox brakes guard the corridors this always-on foresight would
+	 * otherwise risk. Fastest zero-crash AI of the campaign. Gates: pace f=154
+	 * c=0 mv=64.10 vs AI2.7's 64.16; --slow 80.24 vs 80.43. NOTE it trades
+	 * head-to-head: mixed-field mean place 4.562 vs AI2.7's 4.438 (the
+	 * detour-around-traffic that buys the pace cedes places) — promoted by
+	 * explicit user decision prioritizing raw solo pace over the racecraft
+	 * gate. Don't change AI2 — it's the yardstick; AI1 is the experimental
+	 * copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -2089,12 +2084,15 @@ public class RaceGame {
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
-		// v4 pack gate for the ply-2 price: any rival within squared distance
-		// 36 of where I stand means a ceded line is a ceded PLACE -- the ply-2
-		// price is disabled for this whole move (see AI1_PLY2_PRICE).
-		// (Threshold 2 was benched: honest pace -0.03 but three h2h tracks
-		// gave back a place each -- 1-on-1 ceding is real; reverted.)
-		final boolean packNearby = countNearbyOpponents(pos, playerNum, 36) >= 1;
+		// In-traffic ply-2 foresight RESTORED (fore2): the v4/v5 pack gate that
+		// disabled the ply-2 price whenever any rival sat within squared
+		// distance 36 is GONE -- the round-2 world (worlds[1]) is now priced on
+		// every move. Ahead-rivals only: only bodies of rivals currently AHEAD
+		// of me on track are priced (see occupiedByAheadRival +
+		// searchMinTurnsCountedSoft3 below); a chaser's body is not priced,
+		// since ceding a line two rounds out to a car behind me trades race
+		// position for nothing. The queue brakes (queueBox, cornerEntry) now
+		// guard the corridors the old gate was protecting.
 
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -2135,15 +2133,16 @@ public class RaceGame {
 			// landing. worlds[0] answers the round-r+1 questions (safe
 			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
 			// bodies' cells when I make my round-r+2 move, pricing the second
-			// explicit search ply -- disabled only in multi-car packs (v5, see
-			// AI1_PLY2_PRICE): with >= 2 rivals within squared distance 36 the
-			// ply-2 price is dropped (null), reverting to the frozen standard's
-			// behavior; a lone nearby rival keeps the price active, betting
-			// that 1-on-1 the recovered pace outweighs the odd ceded line.
+			// explicit search ply -- ALWAYS on now (fore2, no pack gate), but
+			// ahead-rivals only: searchMinTurnsCountedSoft3 prices the ply-2
+			// landing only when the round-2 body belongs to a rival currently
+			// AHEAD of me on track (myDist = distAt of my CURRENT cell); a
+			// chaser's body is left unpriced (ceding a line two rounds out to
+			// a car behind me trades race position for nothing).
 			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
 			final int[][] world = worlds[0];
-			final double[] deepCounted = searchMinTurnsCountedSoft2(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictedSteps, playerNum, worlds[0], packNearby ? null : worlds[1]);
+			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
+					predictedSteps, playerNum, worlds[0], worlds[1], distAt(pos[0], pos[1]));
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
