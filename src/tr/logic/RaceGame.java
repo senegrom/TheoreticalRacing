@@ -1208,8 +1208,15 @@ public class RaceGame {
 
 	/**
 	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.7 standard.
-	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
-	 * applied here while AI2 stays frozen as the reference.
+	 * Frontier = AI2.7 + always-on, ahead-only ply-2 foresight: the second
+	 * explicit search ply is ALWAYS priced against the round-2-simulated world
+	 * (no pack gate -- {@code worlds[1]} passed unconditionally), but only
+	 * bodies of rivals currently AHEAD of me on track are priced (see
+	 * {@link #occupiedByAheadRival} and {@link #searchMinTurnsCountedSoft3}).
+	 * A chaser's body is deliberately not priced: a detour ceded two rounds out
+	 * to a car behind me surrenders race position for nothing. Goal: maximum
+	 * solo pace; the head-to-head trade is to be measured. AI2 stays frozen as
+	 * the reference.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -1225,12 +1232,15 @@ public class RaceGame {
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
-		// v4 pack gate for the ply-2 price: any rival within squared distance
-		// 36 of where I stand means a ceded line is a ceded PLACE -- the ply-2
-		// price is disabled for this whole move (see AI1_PLY2_PRICE).
-		// (Threshold 2 was benched: honest pace -0.03 but three h2h tracks
-		// gave back a place each -- 1-on-1 ceding is real; reverted.)
-		final boolean packNearby = countNearbyOpponents(pos, playerNum, 36) >= 1;
+		// In-traffic ply-2 foresight RESTORED (fore2): the v4/v5 pack gate that
+		// disabled the ply-2 price whenever any rival sat within squared
+		// distance 36 is GONE -- the round-2 world (worlds[1]) is now priced on
+		// every move. Ahead-rivals only: only bodies of rivals currently AHEAD
+		// of me on track are priced (see occupiedByAheadRival +
+		// searchMinTurnsCountedSoft3 below); a chaser's body is not priced,
+		// since ceding a line two rounds out to a car behind me trades race
+		// position for nothing. The queue brakes (queueBox, cornerEntry) now
+		// guard the corridors the old gate was protecting.
 
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -1271,15 +1281,16 @@ public class RaceGame {
 			// landing. worlds[0] answers the round-r+1 questions (safe
 			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
 			// bodies' cells when I make my round-r+2 move, pricing the second
-			// explicit search ply -- disabled only in multi-car packs (v5, see
-			// AI1_PLY2_PRICE): with >= 2 rivals within squared distance 36 the
-			// ply-2 price is dropped (null), reverting to the frozen standard's
-			// behavior; a lone nearby rival keeps the price active, betting
-			// that 1-on-1 the recovered pace outweighs the odd ceded line.
+			// explicit search ply -- ALWAYS on now (fore2, no pack gate), but
+			// ahead-rivals only: searchMinTurnsCountedSoft3 prices the ply-2
+			// landing only when the round-2 body belongs to a rival currently
+			// AHEAD of me on track (myDist = distAt of my CURRENT cell); a
+			// chaser's body is left unpriced (ceding a line two rounds out to
+			// a car behind me trades race position for nothing).
 			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
 			final int[][] world = worlds[0];
-			final double[] deepCounted = searchMinTurnsCountedSoft2(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictedSteps, playerNum, worlds[0], packNearby ? null : worlds[1]);
+			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
+					predictedSteps, playerNum, worlds[0], worlds[1], distAt(pos[0], pos[1]));
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -1793,6 +1804,109 @@ public class RaceGame {
 			}
 			final double sub = searchMinTurnsSoft2(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
 					occupancy, occupancy2);
+			if (sub == Double.MAX_VALUE)
+				continue;
+			final double total = 1.0 + price + sub;
+			if (total < best) {
+				best = total;
+				countAtMin = 1;
+			} else if (total == best)
+				countAtMin++;
+		}
+		return new double[]{best, countAtMin };
+	}
+
+	/** Is cell (x,y) occupied in the simulated occupancy by a rival currently
+	 *  strictly AHEAD of me on track ({@code myDist} from {@link #distAt})?
+	 *  Chaser bodies are deliberately not priced: a detour ceded two rounds out
+	 *  to a car behind me surrenders race position for nothing. */
+	private boolean occupiedByAheadRival(final int x, final int y, final int[][] occupancy, final int myDist) {
+		for (int i = 0; i < occupancy.length; i++) {
+			final int[] cell = occupancy[i];
+			if (cell != null && cell[0] == x && cell[1] == y) {
+				final int[] rivalPos = players[i].getPosition();
+				return distAt(rivalPos[0], rivalPos[1]) < myDist;
+			}
+		}
+		return false;
+	}
+
+	/** Ahead-only twin of {@link #searchMinTurnsSoft2} (AI1 frontier, fore2):
+	 *  identical except the {@code stepIdx == 1} ply-2 price fires only when the
+	 *  round-2 body ({@code occupancy2}) belongs to a rival currently AHEAD of me
+	 *  on track ({@code myDist} = distAt of my CURRENT cell), priced via
+	 *  {@link #occupiedByAheadRival} instead of {@link #cellOccupiedByPrediction}.
+	 *  A chaser's body is left unpriced; {@code myDist} threads unchanged through
+	 *  the recursion. The existing Soft2 pair is untouched (AI2 uses it). */
+	private double searchMinTurnsSoft3(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
+			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final int[][] occupancy2,
+			final int myDist) {
+		if (levels == 0) {
+			final int t = turnsToFinish(x, y, vx, vy);
+			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
+		}
+		double best = Double.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return 1;
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			double price = 0.0;
+			if (stepIdx == 0) {
+				if (cellOccupiedByPrediction(nx, ny, occupancy))
+					price = 3.0;
+			} else {
+				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+					continue;
+				if (stepIdx == 1 && occupancy2 != null && occupiedByAheadRival(nx, ny, occupancy2, myDist))
+					price = AI1_PLY2_PRICE;
+			}
+			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
+					occupancy, occupancy2, myDist);
+			if (sub == Double.MAX_VALUE)
+				continue;
+			if (1.0 + price + sub < best)
+				best = 1.0 + price + sub;
+		}
+		return best;
+	}
+
+	/** Ahead-only twin of {@link #searchMinTurnsCountedSoft2} (AI1 frontier,
+	 *  fore2): same ahead-only ply-2 pricing as {@link #searchMinTurnsSoft3}
+	 *  (at {@code stepIdx == 1} only bodies of rivals AHEAD of me are priced),
+	 *  recursing into {@link #searchMinTurnsSoft3}. {@code myDist} is threaded
+	 *  from the caller (distAt of my CURRENT cell). Prices stay exact small
+	 *  constants, so the plateau compare remains an exact {@code ==}. */
+	private double[] searchMinTurnsCountedSoft3(final int x, final int y, final int vx, final int vy, final int levels,
+			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy,
+			final int[][] occupancy2, final int myDist) {
+		double best = Double.MAX_VALUE;
+		int countAtMin = 0;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (crossesFinish(x, y, nx, ny))
+				return new double[]{1, 9 };
+			if (!isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			double price = 0.0;
+			if (stepIdx == 0) {
+				if (cellOccupiedByPrediction(nx, ny, occupancy))
+					price = 3.0;
+			} else {
+				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+					continue;
+				if (stepIdx == 1 && occupancy2 != null && occupiedByAheadRival(nx, ny, occupancy2, myDist))
+					price = AI1_PLY2_PRICE;
+			}
+			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
+					occupancy, occupancy2, myDist);
 			if (sub == Double.MAX_VALUE)
 				continue;
 			final double total = 1.0 + price + sub;
