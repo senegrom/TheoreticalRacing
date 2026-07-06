@@ -1118,9 +1118,9 @@ public class RaceGame {
 
 	private final static int		AI_MAX_SPEED	= 12;
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.8
-	 *  pace-ceiling champion: AI2.7 + always-on ahead-rival ply-2 foresight);
-	 *  AI1 is forked from it and is the one we improve from here. */
+	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.9
+	 *  zero-conflict champion: AI2.8 + conflict penalty zeroed); AI1 is forked
+	 *  from it and is the one we improve from here. */
 	private Direction computeAiMove() {
 		ensureReachabilityReady();
 		final Player p = players[subgamestate];
@@ -1207,7 +1207,7 @@ public class RaceGame {
 	private final static double	AI1_PLY2_PRICE	= 3.0;
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.8 standard.
+	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.9 standard.
 	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
 	 * applied here while AI2 stays frozen as the reference.
 	 */
@@ -2055,20 +2055,20 @@ public class RaceGame {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.8 pace-ceiling champion — the AI2.7
-	 * queue-sensing base (open-running depth-2 + two-trigger queueBox) plus
-	 * ALWAYS-ON ply-2 traffic foresight priced against the round-2-simulated
-	 * world, but only for bodies of rivals currently AHEAD on track (the pack
-	 * gate is removed; {@link #occupiedByAheadRival} /
-	 * {@link #searchMinTurnsCountedSoft3} do the ahead-only pricing). The
-	 * queueBox brakes guard the corridors this always-on foresight would
-	 * otherwise risk. Fastest zero-crash AI of the campaign. Gates: pace f=154
-	 * c=0 mv=64.10 vs AI2.7's 64.16; --slow 80.24 vs 80.43. NOTE it trades
-	 * head-to-head: mixed-field mean place 4.562 vs AI2.7's 4.438 (the
-	 * detour-around-traffic that buys the pace cedes places) — promoted by
-	 * explicit user decision prioritizing raw solo pace over the racecraft
-	 * gate. Don't change AI2 — it's the yardstick; AI1 is the experimental
-	 * copy being improved.
+	 * AI2 (FROZEN STANDARD): the AI2.9 zero-conflict champion — the AI2.8
+	 * pace-ceiling base (queue-sensing + always-on ahead-rival ply-2 foresight)
+	 * with the predicted-cell conflict penalty ZEROED. That +3.0 was redundant
+	 * soft caution atop the hard isCrashingPlayer collision check, so removing
+	 * it takes more direct lines and claims contested cells a conflict&gt;0 field
+	 * yields. Found by the mixed-field auto-tuner (v2) — invisible to same-AI
+	 * hand-tuning. Gates: pace f=154 c=0 mv=63.81 vs AI2.8's 64.10 (FIRST
+	 * sub-64.10, fastest zero-crash ever); h2h LANDSLIDE 3.926 vs 5.074 c=0
+	 * (biggest margin of the campaign); --slow 80.05 vs 80.24. all-conflict0 is
+	 * crash-free on all 22 (the hard check prevents real collisions among
+	 * equally-aggressive cars); it wins by aggressive line-claiming that can
+	 * squeeze a differently-behaving opponent into a wall (~1/59 mixed races) —
+	 * a FEATURE in a racing game, per the user. Don't change AI2 — it's the
+	 * yardstick; AI1 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
@@ -2228,7 +2228,7 @@ public class RaceGame {
 						queueBox = (speed - 4.0) * 1.5;
 				}
 			}
-			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
+			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 0.0 : 0.0; // AI2.9: conflict penalty ZEROED (auto-tuner v2) -- +3.0 was redundant soft caution atop the hard isCrashingPlayer check; removing it is faster (63.81 vs 64.10) AND a landslide h2h win (3.926 vs 5.074), crash-free everywhere
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
 			// prefer the one carrying more usable speed.
