@@ -1369,7 +1369,7 @@ public class RaceGame {
 						queueBox = (speed - 4.0) * 1.5;
 				}
 			}
-			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 3.0 : 0.0;
+			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 0.0 : 0.0; // AI2.9: conflict penalty ZEROED (auto-tuner v2) -- +3.0 was redundant soft caution atop the hard isCrashingPlayer check; removing it is faster (63.81 vs 64.10) AND a landslide h2h win (3.926 vs 5.074), crash-free everywhere
 			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
 			// prefer the one carrying more usable speed.
