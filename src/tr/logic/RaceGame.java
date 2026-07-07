@@ -391,6 +391,14 @@ public class RaceGame {
 		this.autoMode = b;
 	}
 
+	/** When set, build geometry + reachability headlessly, dump the
+	 *  turnsToFinish map to this path, and exit (no game is played). */
+	private String dumpReachPath = null;
+
+	public void setDumpReachPath(final String p) {
+		this.dumpReachPath = p;
+	}
+
 	/** Show the start dialog and, on confirmation, build the play window. */
 	public void start() {
 		if (autoMode) {
@@ -2387,7 +2395,32 @@ public class RaceGame {
 		rui.finishTrack();
 		computeDistMap();
 		startReachabilityCompute();
+		if (dumpReachPath != null) {
+			ensureReachabilityReady();
+			writeReachability(dumpReachPath);
+			System.exit(0);
+		}
 		saveTrackToProperties();
+	}
+
+	/** Dump the turnsToFinish reachability map for the loaded track: a little-
+	 *  endian binary of [aliveW, aliveH, aliveVMAX] then turnsArr (int32 each,
+	 *  Integer.MAX_VALUE = unreachable). Python decodes with the same aliveIdx
+	 *  formula: ((x*aliveH+y)*span + (vx+VMAX))*span + (vy+VMAX), span=2*VMAX+1. */
+	private void writeReachability(final String path) {
+		try (java.io.OutputStream out = new java.io.BufferedOutputStream(new java.io.FileOutputStream(path))) {
+			final java.nio.ByteBuffer buf = java.nio.ByteBuffer
+					.allocate((3 + turnsArr.length) * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			buf.putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
+			for (final int v : turnsArr)
+				buf.putInt(v);
+			out.write(buf.array());
+		} catch (final java.io.IOException e) {
+			e.printStackTrace();
+			System.exit(3);
+		}
+		System.out.println("dumped reachability " + aliveW + "x" + aliveH + " vmax=" + aliveVMAX
+				+ " (" + turnsArr.length + " states) -> " + path);
 	}
 
 	/** Kick off reverse-BFS reachability on a daemon thread so it doesn't block the UI. */

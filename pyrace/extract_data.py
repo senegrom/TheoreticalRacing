@@ -15,7 +15,8 @@ import sys
 import numpy as np
 
 from track import Track
-from features import compute_dist_map, encode, accel_index, BIG, EGO_DIM, OPP_DIM, MAX_OPP, N_ACTIONS
+from features import compute_dist_map, encode, accel_index, BIG, JAVA_MAX
+from reachability import ensure_reach
 from gamelog import parse_log
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -43,10 +44,14 @@ def run_track(track: str) -> bool:
 
 
 def extract_track(track_name: str):
-    """Replay one track's log -> list of (ego, opps, opp_mask, act_mask, action)."""
+    """Replay one track's log -> list of (ego, opps, opp_mask, act_mask,
+    succ_turns, action)."""
     t = Track.load(os.path.join(ROOT, "tracks", f"{track_name}.track"))
     dist = compute_dist_map(t)
     maxd = float(dist[dist < BIG].max()) if (dist < BIG).any() else 1.0
+    reach = ensure_reach(track_name)
+    finite = reach.turns[reach.turns < JAVA_MAX]
+    maxt = float(finite.max()) if finite.size else 1.0
     starts, moves = parse_log(LOG)
     n = max(starts)
     cars = [[*starts[i + 1], 0, 0, False] for i in range(n)]   # x,y,vx,vy,done
@@ -58,8 +63,8 @@ def extract_track(track_name: str):
         if mv["tag"] in ("ok", "FINISH"):     # imitate successful choices only
             board = [tuple(cc) for cc in cars]
             ax, ay = mv["nvx"] - mv["vx"], mv["nvy"] - mv["vy"]
-            ego, opps, om, am = encode(board, mover, t, dist, maxd)
-            out.append((ego, opps, om, am, accel_index(ax, ay)))
+            ego, opps, om, am, st, _ = encode(board, mover, t, dist, maxd, reach, maxt)
+            out.append((ego, opps, om, am, st, accel_index(ax, ay)))
         c[0], c[1], c[2], c[3] = mv["nx"], mv["ny"], mv["nvx"], mv["nvy"]
         if mv["tag"] in ("FINISH", "CRASH"):
             c[4] = True
@@ -93,12 +98,14 @@ def main() -> int:
     opps = np.stack([r[1] for r in records])
     om = np.stack([r[2] for r in records])
     am = np.stack([r[3] for r in records])
-    act = np.array([r[4] for r in records], dtype=np.int64)
+    st = np.stack([r[4] for r in records])
+    act = np.array([r[5] for r in records], dtype=np.int64)
     os.makedirs(os.path.join(HERE, "data"), exist_ok=True)
     path = os.path.join(HERE, "data", "bc_data.npz")
-    np.savez_compressed(path, ego=ego, opps=opps, opp_mask=om, act_mask=am, action=act)
+    np.savez_compressed(path, ego=ego, opps=opps, opp_mask=om, act_mask=am,
+                        succ_turns=st, action=act)
     print(f"\nsaved {len(records)} examples -> {path}")
-    print(f"  ego {ego.shape} opps {opps.shape} act_mask {am.shape} action {act.shape}")
+    print(f"  ego {ego.shape} opps {opps.shape} succ_turns {st.shape} action {act.shape}")
     return 0
 
 

@@ -18,7 +18,8 @@ import torch
 
 from track import Track
 from engine import RaceState, Car, ACCELS
-from features import compute_dist_map, encode, coast_stoppable, BIG
+from features import compute_dist_map, encode, BIG, JAVA_MAX
+from reachability import ensure_reach
 from gamelog import parse_log
 from model import RacePolicy
 
@@ -30,28 +31,19 @@ PROPS = os.path.join(ROOT, "user.properties")
 from extract_data import DEFAULT_TRACKS, set_all_ai1, run_track
 
 
-def make_policy(model, track, dist, maxd, safe_filter=True):
+def make_policy(model, track, dist, maxd, reach, maxt, safe_filter=True):
     def policy(state: RaceState, i: int):
-        c = state.cars[i]
         board = [(cc.x, cc.y, cc.vx, cc.vy, cc.done) for cc in state.cars]
-        ego, opps, om, am = encode(board, i, track, dist, maxd)
+        ego, opps, om, am, st, alive = encode(board, i, track, dist, maxd, reach, maxt)
         with torch.no_grad():
             lo = model(torch.tensor(ego[None]), torch.tensor(opps[None]),
-                       torch.tensor(om[None]), torch.tensor(am[None]))
+                       torch.tensor(om[None]), torch.tensor(am[None]), torch.tensor(st[None]))
         lo = lo[0].numpy()
         if safe_filter:
-            # restrict to legal moves whose resulting state can still brake to a
-            # stop in the corridor (or crosses the finish) -- prevents the clone
-            # from over-speeding into a dead end. Fall back to legal if none.
-            safe = np.zeros(len(ACCELS), dtype=np.float32)
-            for a_idx, (ax, ay) in enumerate(ACCELS):
-                if am[a_idx] == 0:
-                    continue
-                nvx, nvy = c.vx + ax, c.vy + ay
-                nx, ny = c.x + nvx, c.y + nvy
-                if track.crosses_finish(c.x, c.y, nx, ny) or coast_stoppable(track, nx, ny, nvx, nvy):
-                    safe[a_idx] = 1.0
-            mask = safe if safe.any() else am
+            # restrict to ALIVE moves (result on a feasible line to the finish)
+            # -- AI2.9's exact isAlive check via turnsToFinish, so no over-caution.
+            # Fall back to legal if somehow none alive.
+            mask = alive if alive.any() else am
             lo = np.where(mask > 0, lo, -1e9)
         return ACCELS[int(lo.argmax())]
     return policy
@@ -76,9 +68,12 @@ def eval_track(model, track_name: str):
     t = Track.load(os.path.join(ROOT, "tracks", f"{track_name}.track"))
     dist = compute_dist_map(t)
     maxd = float(dist[dist < BIG].max()) if (dist < BIG).any() else 1.0
+    reach = ensure_reach(track_name)
+    finite = reach.turns[reach.turns < JAVA_MAX]
+    maxt = float(finite.max()) if finite.size else 1.0
     starts, _ = parse_log(LOG)
     n = max(starts)
-    pol = make_policy(model, t, dist, maxd)
+    pol = make_policy(model, t, dist, maxd, reach, maxt)
 
     state = RaceState(track=t, cars=[Car(*starts[i + 1]) for i in range(n)])
     moves_of = [0] * n

@@ -47,10 +47,11 @@ def coast_stoppable(track: Track, x: int, y: int, vx: int, vy: int, target: int 
 
 MAX_CARS = 8
 MAX_OPP = MAX_CARS - 1
-EGO_DIM = 6
+EGO_DIM = 7               # +1: ego turns_to_finish
 OPP_DIM = 7
 N_ACTIONS = len(ACCELS)   # 9
 BIG = 1 << 30
+JAVA_MAX = 2147483647     # unreachable/dead in the reachability map
 
 
 def compute_dist_map(track: Track) -> np.ndarray:
@@ -88,17 +89,23 @@ def dist_at(dist: np.ndarray, x: int, y: int) -> int:
     return BIG
 
 
-def encode(cars: list[tuple], mover: int, track: Track, dist: np.ndarray, maxd: float):
+def encode(cars: list[tuple], mover: int, track: Track, dist: np.ndarray, maxd: float,
+           reach, maxt: float):
     """cars: list of (x, y, vx, vy, done). Returns numpy arrays:
-       ego [EGO_DIM], opps [MAX_OPP, OPP_DIM], opp_mask [MAX_OPP], act_mask [N_ACTIONS]."""
+       ego [EGO_DIM], opps [MAX_OPP, OPP_DIM], opp_mask [MAX_OPP],
+       act_mask [N_ACTIONS] (legal), succ_turns [N_ACTIONS] (normalized
+       turns_to_finish of each move's result; 1.0 = dead), alive_mask
+       [N_ACTIONS] (result is alive / on a feasible line)."""
     gx, gy = track.grid_x, track.grid_y
     x, y, vx, vy, _ = cars[mover]
     ego_d = dist_at(dist, x, y)
+    ego_t = reach.turns_to_finish(x, y, vx, vy)
     ego = np.array([
         vx / AI_MAX_SPEED, vy / AI_MAX_SPEED,
         np.hypot(vx, vy) / AI_MAX_SPEED,
         x / gx, y / gy,
         min(ego_d, maxd) / maxd,
+        1.0 if ego_t >= JAVA_MAX else min(ego_t, maxt) / maxt,
     ], dtype=np.float32)
 
     opps = np.zeros((MAX_OPP, OPP_DIM), dtype=np.float32)
@@ -118,17 +125,31 @@ def encode(cars: list[tuple], mover: int, track: Track, dist: np.ndarray, maxd: 
         opp_mask[j] = 1.0
         j += 1
 
-    # action mask: which accelerations are a legal move (or a finish crossing)
+    # per-action: legality, the result's turns_to_finish (the key signal), and
+    # whether the result is alive (on a feasible line). A finishing move is the
+    # best possible (turns 0); a dead successor keeps succ_turns=1.0.
     st = RaceState(track=track, cars=[Car(*c) for c in cars], turn=mover)
     act_mask = np.zeros(N_ACTIONS, dtype=np.float32)
+    succ_turns = np.ones(N_ACTIONS, dtype=np.float32)
+    alive_mask = np.zeros(N_ACTIONS, dtype=np.float32)
     for a_idx, (ax, ay) in enumerate(ACCELS):
         nvx, nvy = vx + ax, vy + ay
         if abs(nvx) > AI_MAX_SPEED or abs(nvy) > AI_MAX_SPEED:
             continue
         nx, ny = x + nvx, y + nvy
-        if track.crosses_finish(x, y, nx, ny) or st.is_legal(x, y, nx, ny, mover):
-            act_mask[a_idx] = 1.0
-    return ego, opps, opp_mask, act_mask
+        crosses = track.crosses_finish(x, y, nx, ny)
+        if not (crosses or st.is_legal(x, y, nx, ny, mover)):
+            continue
+        act_mask[a_idx] = 1.0
+        if crosses:
+            succ_turns[a_idx] = 0.0
+            alive_mask[a_idx] = 1.0
+        else:
+            tt = reach.turns_to_finish(nx, ny, nvx, nvy)
+            if tt < JAVA_MAX:
+                succ_turns[a_idx] = min(tt, maxt) / maxt
+                alive_mask[a_idx] = 1.0
+    return ego, opps, opp_mask, act_mask, succ_turns, alive_mask
 
 
 def accel_index(dx: int, dy: int) -> int:

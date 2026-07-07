@@ -31,6 +31,7 @@ public class Main {
 		boolean auto = false;
 		String trackName = null;
 		boolean listTracks = false;
+		String dumpReach = null;
 		for (int i = 0; i < args.length; i++) {
 			final String a = args[i];
 			if ("--auto".equals(a))
@@ -39,6 +40,8 @@ public class Main {
 				trackName = args[++i];
 			else if ("--list-tracks".equals(a))
 				listTracks = true;
+			else if ("--dump-reach".equals(a) && i + 1 < args.length)
+				dumpReach = args[++i];
 		}
 
 		if (listTracks) {
@@ -54,10 +57,13 @@ public class Main {
 			System.exit(2);
 		}
 
-		final boolean autoMode = auto;
+		final boolean autoMode = auto || dumpReach != null;
+		final String dumpReachPath = dumpReach;
 		EventQueue.invokeLater(() -> {
 			final RaceGame game = new RaceGame(prop);
 			game.setAutoMode(autoMode);
+			if (dumpReachPath != null)
+				game.setDumpReachPath(dumpReachPath);
 			game.start();
 		});
 	}

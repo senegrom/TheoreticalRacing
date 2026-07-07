@@ -26,14 +26,14 @@ def load():
     t = lambda k, dt: torch.tensor(d[k], dtype=dt)
     return (t("ego", torch.float32), t("opps", torch.float32),
             t("opp_mask", torch.float32), t("act_mask", torch.float32),
-            t("action", torch.long))
+            t("succ_turns", torch.float32), t("action", torch.long))
 
 
 def main() -> int:
     epochs = int(sys.argv[1]) if len(sys.argv) > 1 else 60
     torch.set_num_threads(1)   # tiny model: 1 thread avoids oversubscription overhead
     torch.manual_seed(0)
-    ego, opps, om, am, act = load()
+    ego, opps, om, am, st, act = load()
     n = ego.size(0)
     g = torch.Generator().manual_seed(0)
     perm = torch.randperm(n, generator=g)
@@ -49,7 +49,7 @@ def main() -> int:
     def acc(idx):
         model.eval()
         with torch.no_grad():
-            lo = model(ego[idx], opps[idx], om[idx], am[idx])
+            lo = model(ego[idx], opps[idx], om[idx], am[idx], st[idx])
             return (lo.argmax(1) == act[idx]).float().mean().item()
 
     bs = 256
@@ -58,7 +58,7 @@ def main() -> int:
         for b in torch.randperm(ti.size(0)).split(bs):
             i = ti[b]
             opt.zero_grad()
-            lo = model(ego[i], opps[i], om[i], am[i])
+            lo = model(ego[i], opps[i], om[i], am[i], st[i])
             loss = lossf(lo, act[i])
             loss.backward()
             opt.step()
