@@ -24,15 +24,16 @@ def _sgn(v: int) -> int:
     return (v > 0) - (v < 0)
 
 
-def coast_stoppable(track: Track, x: int, y: int, vx: int, vy: int) -> bool:
-    """Can the car brake to a stop from (x,y,vx,vy) without leaving the
-    corridor? A cheap proxy for AI2.9's alive/feasibility check: decelerate
-    toward zero velocity, requiring every step to stay legal (a finish crossing
-    counts as a safe escape). This is the braking signal distAt lacks -- a
-    state carrying too much speed toward a wall fails it."""
+def coast_stoppable(track: Track, x: int, y: int, vx: int, vy: int, target: int = 0) -> bool:
+    """Can the car brake down to a manageable corner speed (both |v| components
+    <= target) from (x,y,vx,vy) without leaving the corridor? A cheap proxy for
+    AI2.9's alive/feasibility check -- the braking signal distAt lacks. target=0
+    means brake to a full stop (strict); target~2-3 allows carrying speed
+    through corners the way AI2.9 does, so the clone isn't over-cautious. A
+    finish crossing counts as a safe escape."""
     px, py, cvx, cvy = x, y, vx, vy
     for _ in range(2 * AI_MAX_SPEED + 2):
-        if cvx == 0 and cvy == 0:
+        if abs(cvx) <= target and abs(cvy) <= target:
             return True
         cvx -= _sgn(cvx)
         cvy -= _sgn(cvy)
