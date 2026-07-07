@@ -31,6 +31,7 @@ def load():
 
 def main() -> int:
     epochs = int(sys.argv[1]) if len(sys.argv) > 1 else 60
+    torch.set_num_threads(1)   # tiny model: 1 thread avoids oversubscription overhead
     torch.manual_seed(0)
     ego, opps, om, am, act = load()
     n = ego.size(0)
