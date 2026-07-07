@@ -38,6 +38,7 @@ class Car:
     vy: int = 0
     place: int = 0          # 0 = still racing; >0 = final finishing place
     done: bool = False
+    crashed: bool = False
 
 
 @dataclass
@@ -90,7 +91,7 @@ class RaceState:
         elif not self.is_legal(c.x, c.y, nx, ny, self.turn):
             c.place = len(self.cars) - self.finished_last
             self.finished_last += 1
-            c.x, c.y, c.vx, c.vy, c.done = nx, ny, nvx, nvy, True
+            c.x, c.y, c.vx, c.vy, c.done, c.crashed = nx, ny, nvx, nvy, True, True
             outcome = "crash"
         else:
             c.x, c.y, c.vx, c.vy = nx, ny, nvx, nvy

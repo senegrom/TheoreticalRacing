@@ -23,18 +23,29 @@ class RacePolicy(nn.Module):
         self.head = nn.Sequential(
             nn.Linear(d_model, d_model), nn.GELU(), nn.Linear(d_model, N_ACTIONS)
         )
+        self.value_head = nn.Sequential(
+            nn.Linear(d_model, d_model), nn.GELU(), nn.Linear(d_model, 1)
+        )
         # learnable prior: prefer moves with lower turns_to_finish (AI2.9
         # minimizes turns). succ_turns in [0,1] (0 = finishing move, 1 = dead).
         self.turns_weight = nn.Parameter(torch.tensor(3.0))
 
-    def forward(self, ego, opps, opp_mask, act_mask, succ_turns):
-        # ego [B,EGO_DIM]  opps [B,MAX_OPP,OPP_DIM]  masks [B,MAX_OPP],[B,N_ACTIONS]
+    def _trunk(self, ego, opps, opp_mask):
         ego_tok = self.ego_proj(ego).unsqueeze(1)          # [B,1,d]
         opp_tok = self.opp_proj(opps)                       # [B,MAX_OPP,d]
         tokens = torch.cat([ego_tok, opp_tok], dim=1)       # [B,1+MAX_OPP,d]
         pad = torch.cat([torch.zeros(ego.size(0), 1, device=ego.device),
                          1.0 - opp_mask], dim=1).bool()     # True = ignore (padding)
-        enc = self.encoder(tokens, src_key_padding_mask=pad)
-        logits = self.head(enc[:, 0])                       # ego token -> [B,N_ACTIONS]
-        logits = logits - self.turns_weight * succ_turns    # prefer low turns
+        return self.encoder(tokens, src_key_padding_mask=pad)[:, 0]   # ego token [B,d]
+
+    def _logits(self, emb, act_mask, succ_turns):
+        logits = self.head(emb) - self.turns_weight * succ_turns
         return logits.masked_fill(act_mask == 0, -1e9)
+
+    def forward(self, ego, opps, opp_mask, act_mask, succ_turns):
+        return self._logits(self._trunk(ego, opps, opp_mask), act_mask, succ_turns)
+
+    def act_value(self, ego, opps, opp_mask, act_mask, succ_turns):
+        """Both heads from one trunk pass (for RL). Returns (logits, value)."""
+        emb = self._trunk(ego, opps, opp_mask)
+        return self._logits(emb, act_mask, succ_turns), self.value_head(emb).squeeze(-1)
