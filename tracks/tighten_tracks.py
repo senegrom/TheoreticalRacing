@@ -11,7 +11,6 @@ Usage: python tighten_tracks.py [--apply]   (default: dry-run preview)
 
 import glob
 import os
-import re
 import sys
 
 MARGIN = 3

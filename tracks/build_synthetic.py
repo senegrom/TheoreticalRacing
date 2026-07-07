@@ -101,42 +101,11 @@ def gen_slalom(waves=3, length=230.0, amp=24.0, step=6.0):
     return c, False
 
 
-# NOTE: closed patterns (cog, polygon) produce a degenerate race in this engine
-# -- a closed loop cut into a tiny start/finish gap lets cars cross the finish
-# in a few moves without lapping (the same issue as the `circle` track). They
-# are only honest with a lap-checkpoint system, which doesn't exist yet, so the
-# shipped synthetic tracks are all OPEN (serpentine, spiral, slalom).
-def gen_polygon(sides=5, radius=80.0, step=6.0, rounding=2):
-    """A regular polygon with corners rounded (Chaikin) into a smooth closed
-    loop -- a `sides`-cornered speedway. Distinct from cog (which scallops the
-    radius). Closed."""
-    verts = [(radius * math.cos(2 * math.pi * i / sides + math.pi / 2),
-              radius * math.sin(2 * math.pi * i / sides + math.pi / 2)) for i in range(sides)]
-    pts = []
-    for i in range(sides):
-        a, b = verts[i], verts[(i + 1) % sides]
-        d = math.hypot(b[0] - a[0], b[1] - a[1])
-        n = max(2, int(d / step))
-        for j in range(n):
-            t = j / n
-            pts.append((a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t))
-    for _ in range(rounding):  # Chaikin corner-cutting on the closed loop
-        new = []
-        m = len(pts)
-        for i in range(m):
-            p, q = pts[i], pts[(i + 1) % m]
-            new.append((0.75 * p[0] + 0.25 * q[0], 0.75 * p[1] + 0.25 * q[1]))
-            new.append((0.25 * p[0] + 0.75 * q[0], 0.25 * p[1] + 0.75 * q[1]))
-        pts = new
-    return pts, True
-
-
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
     'slalom': gen_slalom,
     'cog': gen_cog,
-    'polygon': gen_polygon,
 }
 
 

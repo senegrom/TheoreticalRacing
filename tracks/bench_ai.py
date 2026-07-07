@@ -13,7 +13,6 @@ Usage:
 If no track args are given, runs DEFAULT_TRACKS (or SLOW_TRACKS with --slow).
 """
 
-import os
 import re
 import subprocess
 import sys

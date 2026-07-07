@@ -23,15 +23,6 @@ def project(lon, lat, lat0):
     return x, y
 
 
-def signed_area(pts):
-    n = len(pts)
-    a = 0.0
-    for i in range(n):
-        j = (i + 1) % n
-        a += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1]
-    return 0.5 * a
-
-
 def smooth(pts, iterations=2):
     """Chaikin-style smoothing on an open polyline."""
     for _ in range(iterations):
