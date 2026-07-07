@@ -17,7 +17,32 @@ from collections import deque
 import numpy as np
 
 from track import Track, AI_MAX_SPEED
-from engine import RaceState, Car, ACCELS
+from engine import RaceState, Car, ACCELS, geometry_legal
+
+
+def _sgn(v: int) -> int:
+    return (v > 0) - (v < 0)
+
+
+def coast_stoppable(track: Track, x: int, y: int, vx: int, vy: int) -> bool:
+    """Can the car brake to a stop from (x,y,vx,vy) without leaving the
+    corridor? A cheap proxy for AI2.9's alive/feasibility check: decelerate
+    toward zero velocity, requiring every step to stay legal (a finish crossing
+    counts as a safe escape). This is the braking signal distAt lacks -- a
+    state carrying too much speed toward a wall fails it."""
+    px, py, cvx, cvy = x, y, vx, vy
+    for _ in range(2 * AI_MAX_SPEED + 2):
+        if cvx == 0 and cvy == 0:
+            return True
+        cvx -= _sgn(cvx)
+        cvy -= _sgn(cvy)
+        nx, ny = px + cvx, py + cvy
+        if track.crosses_finish(px, py, nx, ny):
+            return True
+        if not geometry_legal(track, px, py, nx, ny):
+            return False
+        px, py = nx, ny
+    return True
 
 MAX_CARS = 8
 MAX_OPP = MAX_CARS - 1

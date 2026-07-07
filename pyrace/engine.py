@@ -17,6 +17,19 @@ from track import Track, AI_MAX_SPEED
 ACCELS = [(dx, dy) for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
 
 
+def geometry_legal(track, x1, y1, x2, y2) -> bool:
+    """Ported RaceGame.isMoveLegalGeometry: destination + ~2-per-unit interior
+    samples inside the corridor, and the segment must not cross a border."""
+    if not track.in_corridor(x2, y2):
+        return False
+    dxi, dyi = x2 - x1, y2 - y1
+    n = max(2, math.ceil(math.hypot(dxi, dyi) * 2))
+    for j in range(1, n):
+        if not track.in_corridor(x1 + j * dxi / n, y1 + j * dyi / n):
+            return False
+    return not track.crosses_border(x1, y1, x2, y2)
+
+
 @dataclass
 class Car:
     x: int
@@ -37,15 +50,7 @@ class RaceState:
     over: bool = False
 
     def geometry_legal(self, x1: int, y1: int, x2: int, y2: int) -> bool:
-        t = self.track
-        if not t.in_corridor(x2, y2):
-            return False
-        dxi, dyi = x2 - x1, y2 - y1
-        n = max(2, math.ceil(math.hypot(dxi, dyi) * 2))
-        for j in range(1, n):
-            if not t.in_corridor(x1 + j * dxi / n, y1 + j * dyi / n):
-                return False
-        return not t.crosses_border(x1, y1, x2, y2)
+        return geometry_legal(self.track, x1, y1, x2, y2)
 
     def crashing_car(self, x: int, y: int, mover: int) -> bool:
         for i, c in enumerate(self.cars):

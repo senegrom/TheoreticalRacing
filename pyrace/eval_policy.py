@@ -18,7 +18,7 @@ import torch
 
 from track import Track
 from engine import RaceState, Car, ACCELS
-from features import compute_dist_map, encode, BIG
+from features import compute_dist_map, encode, coast_stoppable, BIG
 from gamelog import parse_log
 from model import RacePolicy
 
@@ -30,14 +30,30 @@ PROPS = os.path.join(ROOT, "user.properties")
 from extract_data import DEFAULT_TRACKS, set_all_ai1, run_track
 
 
-def make_policy(model, track, dist, maxd):
+def make_policy(model, track, dist, maxd, safe_filter=True):
     def policy(state: RaceState, i: int):
-        board = [(c.x, c.y, c.vx, c.vy, c.done) for c in state.cars]
+        c = state.cars[i]
+        board = [(cc.x, cc.y, cc.vx, cc.vy, cc.done) for cc in state.cars]
         ego, opps, om, am = encode(board, i, track, dist, maxd)
         with torch.no_grad():
             lo = model(torch.tensor(ego[None]), torch.tensor(opps[None]),
                        torch.tensor(om[None]), torch.tensor(am[None]))
-        return ACCELS[int(lo.argmax(1))]
+        lo = lo[0].numpy()
+        if safe_filter:
+            # restrict to legal moves whose resulting state can still brake to a
+            # stop in the corridor (or crosses the finish) -- prevents the clone
+            # from over-speeding into a dead end. Fall back to legal if none.
+            safe = np.zeros(len(ACCELS), dtype=np.float32)
+            for a_idx, (ax, ay) in enumerate(ACCELS):
+                if am[a_idx] == 0:
+                    continue
+                nvx, nvy = c.vx + ax, c.vy + ay
+                nx, ny = c.x + nvx, c.y + nvy
+                if track.crosses_finish(c.x, c.y, nx, ny) or coast_stoppable(track, nx, ny, nvx, nvy):
+                    safe[a_idx] = 1.0
+            mask = safe if safe.any() else am
+            lo = np.where(mask > 0, lo, -1e9)
+        return ACCELS[int(lo.argmax())]
     return policy
 
 
