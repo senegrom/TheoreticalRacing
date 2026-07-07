@@ -506,8 +506,6 @@ public class RaceGame {
 	}
 
 	private final HashMap<Long, Boolean>	edgeLegalCache		= new HashMap<>();
-	private final HashMap<Long, Boolean>	stateContCache		= new HashMap<>();
-	private final HashMap<Long, Boolean>	stateLiveCache		= new HashMap<>();
 
 	private boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
 		final long key = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32 | ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
@@ -886,57 +884,6 @@ public class RaceGame {
 		return (int) Math.ceil(Math.sqrt(certSq[aliveIdx(x, y, vx, vy)] & 0xFF));
 	}
 
-	/** True iff state (x,y,vx,vy) has at least one geometry-legal successor or reaches the finish. */
-	private boolean stateHasContinuation(final int x, final int y, final int vx, final int vy) {
-		final long key = stateKey(x, y, vx, vy);
-		Boolean cached = stateContCache.get(key);
-		if (cached != null)
-			return cached;
-		boolean result = false;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx;
-			final int nvy = vy + d.dy;
-			final int nx = x + nvx;
-			final int ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny) || isMoveLegalGeometryCached(x, y, nx, ny)) {
-				result = true;
-				break;
-			}
-		}
-		stateContCache.put(key, result);
-		return result;
-	}
-
-	/**
-	 * True iff state (x,y,vx,vy) has at least one legal successor whose
-	 * successor state itself has a continuation (or crosses finish in 1–2 steps).
-	 * 2-level dead-end detection — catches states whose only legal moves all
-	 * walk into next-turn-only-illegal positions.
-	 */
-	private boolean stateHasLiveContinuation(final int x, final int y, final int vx, final int vy) {
-		final long key = stateKey(x, y, vx, vy);
-		Boolean cached = stateLiveCache.get(key);
-		if (cached != null)
-			return cached;
-		boolean result = false;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx;
-			final int nvy = vy + d.dy;
-			final int nx = x + nvx;
-			final int ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny)) {
-				result = true;
-				break;
-			}
-			if (isMoveLegalGeometryCached(x, y, nx, ny) && stateHasContinuation(nx, ny, nvx, nvy)) {
-				result = true;
-				break;
-			}
-		}
-		stateLiveCache.put(key, result);
-		return result;
-	}
-
 	private static boolean segmentCrossesPath(final int[] from, final int[] to, final LinkedList<int[]> path) {
 		int[] prev = null;
 		for (final int[] cur : path) {
@@ -1180,16 +1127,11 @@ public class RaceGame {
 		return fallback;
 	}
 
-	/** Number of my own moves AI1 searches below the candidate move (d1). 1 =
-	 *  depth-2 total (AI1.6), 2 = depth-3, 3 = depth-4. Opponents are predicted
-	 *  this many steps forward (one prediction layer per search level). */
-	private final static int		AI1_LOOKAHEAD	= 1;
-
-	/** AI1 frontier only: explicit search depth for the depth-2 soft search
-	 *  ({@link #searchMinTurnsCountedSoft2}) -- my next TWO moves are searched
+	/** Explicit search depth for the soft depth-2 search
+	 *  ({@link #searchMinTurnsCountedSoft3}) -- my next TWO moves are searched
 	 *  explicitly, each ply priced against its own simulated opponent round
 	 *  (world1 at stepIdx 0, world2 at stepIdx 1) before the opponent-blind
-	 *  map takes over. AI1_LOOKAHEAD stays shared with the frozen AI2. */
+	 *  map takes over. */
 	private final static int		AI1_DEEP_LOOKAHEAD	= 2;
 
 	/** AI1 frontier only: soft price for landing, at the second explicit search
@@ -1630,185 +1572,6 @@ public class RaceGame {
 		}
 	}
 
-	/** Soft-priced timing-exact search (AI1 frontier): like the hard
-	 *  {@code searchMinTurnsTimed} but a stepIdx-0 move onto a sim-occupied
-	 *  cell is PRICED (+3.0, the conflict weight) instead of hard-skipped, so
-	 *  a mispredicted body costs a detour rather than acting as a wall/vacancy
-	 *  -- graceful degradation when the greedy sim disagrees with a real
-	 *  opponent. Geometry stays hard; a finish crossing escapes pricing. */
-	private double searchMinTurnsSoft(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy) {
-		if (levels == 0) {
-			final int t = turnsToFinish(x, y, vx, vy);
-			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
-		}
-		double best = Double.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
-				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny))
-				return 1;
-			if (!isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			double price = 0.0;
-			if (stepIdx == 0) {
-				if (cellOccupiedByPrediction(nx, ny, occupancy))
-					price = 3.0;
-			} else {
-				if (isCrashingPlayer(nx, ny, playerNum))
-					continue;
-				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
-					continue;
-			}
-			final double sub = searchMinTurnsSoft(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum, occupancy);
-			if (sub == Double.MAX_VALUE)
-				continue;
-			if (1.0 + price + sub < best)
-				best = 1.0 + price + sub;
-		}
-		return best;
-	}
-
-	/** Soft-priced plateau-counting twin of {@link #searchMinTurnsSoft} (AI1
-	 *  frontier): the same soft stepIdx-0 pricing (+3.0 for a sim-occupied
-	 *  landing instead of a hard skip) and the same finish short-circuit, but it
-	 *  additionally reports the plateau width -- how many follow-up moves achieve
-	 *  the minimum cost -- for the robustness tie-break. Returns
-	 *  {@code {min, countAtMin}} as doubles; the prices are exact small
-	 *  constants so the plateau compare stays an exact {@code ==}. A
-	 *  finish-crossing follow-up short-circuits as {@code {1, 9}} (the global
-	 *  minimum, maximally robust). Recurses into {@link #searchMinTurnsSoft}. */
-	private double[] searchMinTurnsCountedSoft(final int x, final int y, final int vx, final int vy, final int levels,
-			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy) {
-		double best = Double.MAX_VALUE;
-		int countAtMin = 0;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
-				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny))
-				return new double[]{1, 9 };
-			if (!isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			double price = 0.0;
-			if (stepIdx == 0) {
-				if (cellOccupiedByPrediction(nx, ny, occupancy))
-					price = 3.0;
-			} else {
-				if (isCrashingPlayer(nx, ny, playerNum))
-					continue;
-				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
-					continue;
-			}
-			final double sub = searchMinTurnsSoft(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum, occupancy);
-			if (sub == Double.MAX_VALUE)
-				continue;
-			final double total = 1.0 + price + sub;
-			if (total < best) {
-				best = total;
-				countAtMin = 1;
-			} else if (total == best)
-				countAtMin++;
-		}
-		return new double[]{best, countAtMin };
-	}
-
-	/** Depth-2 twin of {@link #searchMinTurnsSoft} (AI1 frontier only): takes
-	 *  the SECOND simulated round {@code occupancy2} (nullable -- the v4 pack
-	 *  gate passes null to disable ply-2 pricing entirely, see
-	 *  {@link #AI1_PLY2_PRICE}) and, at {@code stepIdx == 1}, prices a landing
-	 *  on a round-2-simulated body {@link #AI1_PLY2_PRICE}, so the second
-	 *  explicit ply is priced against the world as simulated when I make that
-	 *  move. Variant B2: the stepIdx-1 {@code isCrashingPlayer}
-	 *  hard-skip is REMOVED here (opponents' round-r-start cells are doubly
-	 *  stale two plies out -- phantom walls that prune real escape lanes); the
-	 *  only opponent term at stepIdx 1 is the occupancy2 price. The
-	 *  (inert, length-1 predictedSteps) prediction check is kept. */
-	private double searchMinTurnsSoft2(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final int[][] occupancy2) {
-		if (levels == 0) {
-			final int t = turnsToFinish(x, y, vx, vy);
-			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
-		}
-		double best = Double.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
-				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny))
-				return 1;
-			if (!isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			double price = 0.0;
-			if (stepIdx == 0) {
-				if (cellOccupiedByPrediction(nx, ny, occupancy))
-					price = 3.0;
-			} else {
-				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
-					continue;
-				if (stepIdx == 1 && occupancy2 != null && cellOccupiedByPrediction(nx, ny, occupancy2))
-					price = AI1_PLY2_PRICE;
-			}
-			final double sub = searchMinTurnsSoft2(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
-					occupancy, occupancy2);
-			if (sub == Double.MAX_VALUE)
-				continue;
-			if (1.0 + price + sub < best)
-				best = 1.0 + price + sub;
-		}
-		return best;
-	}
-
-	/** Depth-2 twin of {@link #searchMinTurnsCountedSoft} (AI1 frontier only):
-	 *  same behavioral change as {@link #searchMinTurnsSoft2} -- at
-	 *  {@code stepIdx == 1} a landing on a round-2-simulated body
-	 *  ({@code occupancy2}, nullable via the v4 pack gate) is PRICED
-	 *  {@link #AI1_PLY2_PRICE}, and (variant B2) the doubly-stale
-	 *  {@code isCrashingPlayer} phantom-wall hard-skip is removed -- and it
-	 *  recurses into {@link #searchMinTurnsSoft2}. Prices stay exact small
-	 *  constants, so the plateau compare remains an exact {@code ==}. */
-	private double[] searchMinTurnsCountedSoft2(final int x, final int y, final int vx, final int vy, final int levels,
-			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy,
-			final int[][] occupancy2) {
-		double best = Double.MAX_VALUE;
-		int countAtMin = 0;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
-				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny))
-				return new double[]{1, 9 };
-			if (!isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			double price = 0.0;
-			if (stepIdx == 0) {
-				if (cellOccupiedByPrediction(nx, ny, occupancy))
-					price = 3.0;
-			} else {
-				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
-					continue;
-				if (stepIdx == 1 && occupancy2 != null && cellOccupiedByPrediction(nx, ny, occupancy2))
-					price = AI1_PLY2_PRICE;
-			}
-			final double sub = searchMinTurnsSoft2(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
-					occupancy, occupancy2);
-			if (sub == Double.MAX_VALUE)
-				continue;
-			final double total = 1.0 + price + sub;
-			if (total < best) {
-				best = total;
-				countAtMin = 1;
-			} else if (total == best)
-				countAtMin++;
-		}
-		return new double[]{best, countAtMin };
-	}
-
 	/** Is cell (x,y) occupied in the simulated occupancy by a rival currently
 	 *  strictly AHEAD of me on track ({@code myDist} from {@link #distAt})?
 	 *  Chaser bodies are deliberately not priced: a detour ceded two rounds out
@@ -1824,13 +1587,15 @@ public class RaceGame {
 		return false;
 	}
 
-	/** Ahead-only twin of {@link #searchMinTurnsSoft2} (AI1 frontier, fore2):
-	 *  identical except the {@code stepIdx == 1} ply-2 price fires only when the
+	/** The champion's soft-priced depth-2 search (both AI bodies). Each of my
+	 *  next TWO moves is searched explicitly: a {@code stepIdx == 0} landing on a
+	 *  round-1 sim body is priced (+3.0, the conflict weight) rather than
+	 *  hard-skipped, and a {@code stepIdx == 1} landing is priced only when the
 	 *  round-2 body ({@code occupancy2}) belongs to a rival currently AHEAD of me
-	 *  on track ({@code myDist} = distAt of my CURRENT cell), priced via
+	 *  on track ({@code myDist} = distAt of my CURRENT cell), via
 	 *  {@link #occupiedByAheadRival} instead of {@link #cellOccupiedByPrediction}.
 	 *  A chaser's body is left unpriced; {@code myDist} threads unchanged through
-	 *  the recursion. The existing Soft2 pair is untouched (AI2 uses it). */
+	 *  the recursion. Geometry stays hard; a finish crossing escapes pricing. */
 	private double searchMinTurnsSoft3(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
 			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final int[][] occupancy2,
 			final int myDist) {
@@ -1868,12 +1633,14 @@ public class RaceGame {
 		return best;
 	}
 
-	/** Ahead-only twin of {@link #searchMinTurnsCountedSoft2} (AI1 frontier,
-	 *  fore2): same ahead-only ply-2 pricing as {@link #searchMinTurnsSoft3}
-	 *  (at {@code stepIdx == 1} only bodies of rivals AHEAD of me are priced),
-	 *  recursing into {@link #searchMinTurnsSoft3}. {@code myDist} is threaded
-	 *  from the caller (distAt of my CURRENT cell). Prices stay exact small
-	 *  constants, so the plateau compare remains an exact {@code ==}. */
+	/** Plateau-counting twin of {@link #searchMinTurnsSoft3} (both AI bodies):
+	 *  same ahead-only ply-2 pricing (at {@code stepIdx == 1} only bodies of
+	 *  rivals AHEAD of me are priced), recursing into
+	 *  {@link #searchMinTurnsSoft3}, and additionally reporting the plateau
+	 *  width (how many follow-ups achieve the minimum) for the robustness
+	 *  tie-break. {@code myDist} is threaded from the caller (distAt of my
+	 *  CURRENT cell). Prices stay exact small constants, so the plateau compare
+	 *  remains an exact {@code ==}. */
 	private double[] searchMinTurnsCountedSoft3(final int x, final int y, final int vx, final int vy, final int levels,
 			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy,
 			final int[][] occupancy2, final int myDist) {
@@ -1917,7 +1684,7 @@ public class RaceGame {
 	 * frontier), used to floor the safe-successor count with the sim's
 	 * optimism. The successors counted here are ply-2 questions -- moves I
 	 * would make in round r+1, by which time every live opponent has moved
-	 * exactly once (see {@link #searchMinTurnsSoft} for the move-order
+	 * exactly once (see {@link #simulateRoundPass} for the move-order
 	 * derivation) -- so the stale-body check ({@link #isCrashingPlayer}) and
 	 * the nulled prediction check are replaced by a single test against
 	 * {@code occupancy}, the simulated round-step positions of all live
@@ -1943,82 +1710,6 @@ public class RaceGame {
 				count++;
 		}
 		return count;
-	}
-
-	/**
-	 * Opponent-aware minimum turns from (x,y,vx,vy) to crossing the finish.
-	 * The first {@code levels} of my moves are searched explicitly, filtering
-	 * each level's destination against the opponents' predicted positions at
-	 * that step ({@code predictedSteps[stepIdx]}); beyond the horizon the
-	 * opponent-blind precomputed map ({@link #turnsToFinish}) takes over.
-	 * Returns {@link Integer#MAX_VALUE} if no continuation reaches the finish.
-	 */
-	private int searchMinTurns(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final int[][][] predictedSteps, final int playerNum) {
-		if (levels == 0)
-			return turnsToFinish(x, y, vx, vy);
-		int best = Integer.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx;
-			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
-				continue;
-			final int nx = x + nvx;
-			final int ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny))
-				return 1; // finishing in one move is the global minimum
-			if (!isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			if (isCrashingPlayer(nx, ny, playerNum))
-				continue;
-			if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
-				continue;
-			final int sub = searchMinTurns(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum);
-			if (sub == Integer.MAX_VALUE)
-				continue;
-			if (1 + sub < best)
-				best = 1 + sub;
-		}
-		return best;
-	}
-
-	/**
-	 * Same search as {@link #searchMinTurns} but additionally counts how many
-	 * follow-up moves achieve the minimum (the "plateau width"). A candidate
-	 * whose best continuation is achievable many ways is a robust, wide line;
-	 * one whose minimum hinges on a single follow-up is a knife-edge. Used by
-	 * AI2's robustness tie-break. Returns {min, countAtMin}; a finish-crossing
-	 * follow-up short-circuits as {1, 9} (the global minimum, maximally robust).
-	 */
-	private int[] searchMinTurnsCounted(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final int[][][] predictedSteps, final int playerNum) {
-		int best = Integer.MAX_VALUE;
-		int countAtMin = 0;
-		for (final Direction d : Direction.values()) {
-			final int nvx = vx + d.dx;
-			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
-				continue;
-			final int nx = x + nvx;
-			final int ny = y + nvy;
-			if (crossesFinish(x, y, nx, ny))
-				return new int[]{1, 9 };
-			if (!isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			if (isCrashingPlayer(nx, ny, playerNum))
-				continue;
-			if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
-				continue;
-			final int sub = searchMinTurns(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum);
-			if (sub == Integer.MAX_VALUE)
-				continue;
-			if (1 + sub < best) {
-				best = 1 + sub;
-				countAtMin = 1;
-			} else if (1 + sub == best)
-				countAtMin++;
-		}
-		return new int[]{best, countAtMin };
 	}
 
 	/**
@@ -2255,31 +1946,6 @@ public class RaceGame {
 	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
 		for (final int[] p : predicted) {
 			if (p != null && p[0] == x && p[1] == y)
-				return true;
-		}
-		return false;
-	}
-
-	/** True iff the predicted cell belongs to an opponent whose player number is
-	 *  LOWER than mine (so they would have moved before me this round, but their
-	 *  prediction reflects their NEXT round move -- not directly relevant) OR
-	 *  for an opponent later in this round (idx > mine - 1) AT their predicted
-	 *  target. For not-yet-moved opponents (player number greater than mine),
-	 *  I move first so I'll claim the cell -- no conflict.
-	 *  This function returns true ONLY when the cell is targeted by an already-
-	 *  moved opponent's next-round prediction AND that opponent currently sits
-	 *  in front of me (i.e., they'll likely be there when I arrive). */
-	private boolean predictedConflictByEarlierPlayer(final int x, final int y, final int[][] predicted, final int playerNum) {
-		for (int i = 0; i < predicted.length; i++) {
-			final int[] p = predicted[i];
-			if (p == null || p[0] != x || p[1] != y)
-				continue;
-			final int otherNum = i + 1;
-			// Player with LOWER number already moved this round; their predicted
-			// position is their NEXT round move. If their NEXT-round target is
-			// where I want to be NOW, they're already nearby and likely to be
-			// there by the time it matters.
-			if (otherNum < playerNum)
 				return true;
 		}
 		return false;
@@ -2550,10 +2216,6 @@ public class RaceGame {
 				return true;
 		}
 		return false;
-	}
-
-	private static long stateKey(final int x, final int y, final int vx, final int vy) {
-		return ((long) x & 0xFFFF) << 48 | ((long) y & 0xFFFF) << 32 | ((long) (vx + 32) & 0xFF) << 16 | (long) (vy + 32) & 0xFF;
 	}
 
 	private double scorePos(final int x, final int y, final int vx, final int vy) {
