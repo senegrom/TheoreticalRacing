@@ -103,7 +103,6 @@ final class RaceAi {
 	private final static int		AI1_SEAL_MAXRIVALS	= 3;	// endgame seal fires when <= this many rivals remain
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;	// aggressive pace floor applies only when <= this many rivals remain
-	private final static double	AI1_PACE_SACRIFICE	= 2.0;	// max score the paceOverride may give up vs the scorer's pick (packed fields)
 
 	/**
 	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.9 standard.
@@ -133,7 +132,6 @@ final class RaceAi {
 		// escape route is FULLY roomy (robust to opponent-prediction error -- lower
 		// thresholds crashed 1 h2h game). Pinches keep full caution.
 		int poBestT = Integer.MAX_VALUE, poScorerT = Integer.MAX_VALUE;
-		double poBestScore = Double.MAX_VALUE;
 		Direction poDir = null;
 		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
 		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
@@ -158,11 +156,6 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
-		final boolean dbg = AI_DEBUG_PLAYER == playerNum;
-		if (dbg)
-			System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ")");
-		final double[] trapByDir = new double[Direction.values().length];
-		java.util.Arrays.fill(trapByDir, Double.MAX_VALUE);
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -181,29 +174,21 @@ final class RaceAi {
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
 			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
-				if (dbg)
-					System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") SKIP wall");
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
 				}
 				continue;
 			}
-			if (game.isCrashingPlayer(newX, newY, playerNum)) {
-				if (dbg)
-					System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") SKIP body");
+			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
-			}
 			if (sc < bestLegalScore) {
 				bestLegalScore = sc;
 				bestLegal = d;
 			}
 			final int ownTurns = reach.turnsToFinish(newX, newY, newVx, newVy);
-			if (ownTurns == Integer.MAX_VALUE) {
-				if (dbg)
-					System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") v=(" + newVx + "," + newVy + ") SKIP dead");
+			if (ownTurns == Integer.MAX_VALUE)
 				continue;
-			}
 
 			// TWO-ROUND SOFT WORLD-STEP (the experiment): simulate TWO whole
 			// rounds in actual turn order, conditioned on THIS candidate
@@ -233,22 +218,12 @@ final class RaceAi {
 			// count -- so max() with the frozen count keeps the optimism and
 			// discards the pessimism, never more cautious than the crash-free
 			// frozen standard.
-			final int cntFrozen = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
-			final int cntTimed = countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world);
-			final int d2SafeCount = Math.max(cntFrozen, cntTimed);
-			// trapCount (round 37, AI1): the TRAP LADDER reads the timing-exact
-			// count, not the optimism-floored max. The max() was built as a pure
-			// pace lever (discard phantom stale bodies), but it also discards the
-			// sim's GENUINE pessimism -- an incoming rival that will occupy the
-			// escape cell at my arrival instant. Zandvoort s4 (scorer-chosen, no
-			// override): W landing cF=2 cT=1 -> max=2 -> trap 0.5, so W beat the
-			// clean N by 0.33 and died 4 moves later; cT=1 -> trap 2.0 -> N wins.
-			// The widthBudget/speedCap axis KEEPS the optimistic max (pace).
-			final double trapPenalty = cntTimed == 0 ? 50.0
-					: cntTimed == 1 ? 2.0
-							: cntTimed == 2 ? 0.5
+			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
+			final double trapPenalty = d2SafeCount == 0 ? 50.0
+					: d2SafeCount == 1 ? 2.0
+							: d2SafeCount == 2 ? 0.5
 									: 0.0;
-			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
 			// minimal target T (>= 2 independent blind braking descents reach
@@ -326,14 +301,6 @@ final class RaceAi {
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + conflict + spread - momentum - robustness;
 			final int poT = reach.turnsArr != null && reach.isAlive(newX, newY, newVx, newVy)
 					? reach.turnsArr[reach.aliveIdx(newX, newY, newVx, newVy)] : Integer.MAX_VALUE;
-			if (dbg)
-				System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") v=(" + newVx + "," + newVy
-						+ ") ownT=" + ownTurns + " deep=" + deep + " plat=" + (int) deepCounted[1]
-						+ " cF=" + cntFrozen + " cT=" + cntTimed + " trap=" + trapPenalty + " corner=" + cornerEntry
-						+ " qbox=" + queueBox + " cap=" + speedCap + " unc=" + uncertified + " spread=" + spread
-						+ " score=" + score + " poT=" + (poT == Integer.MAX_VALUE ? "INF" : String.valueOf(poT))
-						+ " poRoom=" + futureMobility4(newX, newY, newVx, newVy, playerNum, true)
-						+ " seal=" + sealable(newX, newY, newVx, newVy, playerNum));
 			if (poT < poBestT) {
 				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
@@ -342,7 +309,6 @@ final class RaceAi {
 							&& !sealable(newX, newY, newVx, newVy, playerNum))) {
 					poBestT = poT;
 					poDir = d;
-					poBestScore = score;
 				}
 			}
 			if (score < bestScore) {
@@ -351,25 +317,7 @@ final class RaceAi {
 				poScorerT = poT;
 			}
 		}
-		// paceGuard v5 (round 36): the paceOverride may not overturn a LANDSLIDE.
-		// It is meant to break near-ties where the scorer's caution is unwarranted
-		// (its tie-breaks are +-0.05..0.5 scale), not to buy one map turn at any
-		// price: silverstone s4 traded a clean 66.67 line for a 105.08 one
-		// (corner 21.1 + uncertified 17.6) and died two moves later, invisible to
-		// the trap/deep veto (trap 0.5, deep == ownTurns). Bounding the SACRIFICE
-		// rather than the candidate's own flags is the point: where every option is
-		// flagged the sacrifice is ~0 and this stays inert (that is where v1's
-		// absolute trap veto needlessly cost silverstone -0.9).
-		final boolean poSacrificeVeto = sealRivals > AI1_SPARSE_RIVALS && poDir != null
-				&& poBestScore - bestScore > AI1_PACE_SACRIFICE;
-		if (dbg && poSacrificeVeto && poBestT < poScorerT)
-			System.err.println("AIDBG  VETO override(sacrifice) " + poDir + " score=" + poBestScore
-					+ " vs best=" + bestScore);
-		Direction chosen = (poDir != null && !poSacrificeVeto && poBestT < poScorerT) ? poDir : best;
-		if (dbg)
-			System.err.println("AIDBG pick best=" + best + " bestScore=" + bestScore + " poDir=" + poDir
-					+ " poBestT=" + poBestT + " poScorerT=" + poScorerT + " chosen=" + chosen
-					+ (poDir != null && poBestT < poScorerT ? " OVERRIDE" : ""));
+		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
 		if (chosen != null) {
 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
 			// matching, legality-checked covers). If the chosen landing is
@@ -397,27 +345,14 @@ final class RaceAi {
 						continue;
 					if (sealable(nx, ny, nvx, nvy, playerNum))
 						continue;
-					// trapVeto (round 35): only repick to a target the scorer's trap
-					// ladder does not flag; with no clean unsealable alternative, keep
-					// the scorer's original choice (the 1-ply worst-case box never
-					// materialises vs greedy rivals, but the repick killed for real --
-					// twice -- by fleeing into faster trap-flagged funnel landings).
-					if (sealRivals > AI1_SPARSE_RIVALS && trapByDir[d.ordinal()] >= 2.0) {
-						if (dbg)
-							System.err.println("AIDBG  VETO repick cand " + d);
-						continue;
-					}
 					final int tt = reach.turnsArr != null ? reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)] : 0;
 					if (tt < bestT) {
 						bestT = tt;
 						safest = d;
 					}
 				}
-				if (safest != null) {
-					if (dbg)
-						System.err.println("AIDBG sealguard repick " + chosen + " -> " + safest);
+				if (safest != null)
 					chosen = safest;
-				}
 			}
 			return chosen;
 		}
@@ -902,9 +837,6 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
-		final boolean dbg = AI_DEBUG_PLAYER == playerNum;
-		if (dbg)
-			System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ")");
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -923,29 +855,21 @@ final class RaceAi {
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
 			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
-				if (dbg)
-					System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") SKIP wall");
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
 				}
 				continue;
 			}
-			if (game.isCrashingPlayer(newX, newY, playerNum)) {
-				if (dbg)
-					System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") SKIP body");
+			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
-			}
 			if (sc < bestLegalScore) {
 				bestLegalScore = sc;
 				bestLegal = d;
 			}
 			final int ownTurns = reach.turnsToFinish(newX, newY, newVx, newVy);
-			if (ownTurns == Integer.MAX_VALUE) {
-				if (dbg)
-					System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") v=(" + newVx + "," + newVy + ") SKIP dead");
+			if (ownTurns == Integer.MAX_VALUE)
 				continue;
-			}
 
 			// TWO-ROUND SOFT WORLD-STEP (the experiment): simulate TWO whole
 			// rounds in actual turn order, conditioned on THIS candidate
@@ -975,9 +899,8 @@ final class RaceAi {
 			// count -- so max() with the frozen count keeps the optimism and
 			// discards the pessimism, never more cautious than the crash-free
 			// frozen standard.
-			final int cntFrozen = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
-			final int cntTimed = countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world);
-			final int d2SafeCount = Math.max(cntFrozen, cntTimed);
+			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
@@ -1059,14 +982,6 @@ final class RaceAi {
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + conflict + spread - momentum - robustness;
 			final int poT = reach.turnsArr != null && reach.isAlive(newX, newY, newVx, newVy)
 					? reach.turnsArr[reach.aliveIdx(newX, newY, newVx, newVy)] : Integer.MAX_VALUE;
-			if (dbg)
-				System.err.println("AIDBG  cand " + d + " land=(" + newX + "," + newY + ") v=(" + newVx + "," + newVy
-						+ ") ownT=" + ownTurns + " deep=" + deep + " plat=" + (int) deepCounted[1]
-						+ " cF=" + cntFrozen + " cT=" + cntTimed + " trap=" + trapPenalty + " corner=" + cornerEntry
-						+ " qbox=" + queueBox + " cap=" + speedCap + " unc=" + uncertified + " spread=" + spread
-						+ " score=" + score + " poT=" + (poT == Integer.MAX_VALUE ? "INF" : String.valueOf(poT))
-						+ " poRoom=" + futureMobility4(newX, newY, newVx, newVy, playerNum, true)
-						+ " seal=" + sealable(newX, newY, newVx, newVy, playerNum));
 			if (poT < poBestT) {
 				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
@@ -1084,10 +999,6 @@ final class RaceAi {
 			}
 		}
 		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
-		if (dbg)
-			System.err.println("AIDBG pick best=" + best + " bestScore=" + bestScore + " poDir=" + poDir
-					+ " poBestT=" + poBestT + " poScorerT=" + poScorerT + " chosen=" + chosen
-					+ (poDir != null && poBestT < poScorerT ? " OVERRIDE" : ""));
 		if (chosen != null) {
 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
 			// matching, legality-checked covers). If the chosen landing is
@@ -1121,11 +1032,8 @@ final class RaceAi {
 						safest = d;
 					}
 				}
-				if (safest != null) {
-					if (dbg)
-						System.err.println("AIDBG sealguard repick " + chosen + " -> " + safest);
+				if (safest != null)
 					chosen = safest;
-				}
 			}
 			return chosen;
 		}
@@ -1133,9 +1041,6 @@ final class RaceAi {
 			return bestLegal;
 		return fallback;
 	}
-
-	/** Forensic dump gate: -Dai.debug.player=N dumps that player's per-candidate scoring to stderr. */
-	private final static int	AI_DEBUG_PLAYER			= Integer.getInteger("ai.debug.player", -1);
 
 	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
 	private final static double	AI2_PLATEAU_TIEBREAK	= 0.05;
