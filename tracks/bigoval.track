@@ -1,0 +1,6 @@
+# Theoretical Racing track file
+name=Big Oval
+gameX=76
+gameY=48
+trackLeft=8,45;3,32;3,18;13,7;33,3;53,3;68,8;73,20;73,32;68,45
+trackRight=18,42;13,32;15,20;20,13;33,11;48,11;58,15;60,22;60,32;56,42
