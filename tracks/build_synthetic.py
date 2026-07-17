@@ -26,12 +26,24 @@ def unit(dx, dy):
 
 # ---------------------------------------------------------------- centerlines
 
-def gen_serpentine(lanes=5, length=170.0, pitch=34.0, step=6.0):
+def gen_serpentine(lanes=5, length=170.0, pitch=34.0, step=6.0, pitch_jitter=0.0):
     """Horizontal lanes stacked `pitch` apart, joined by semicircular hairpins on
-    alternating ends -- a boustrophedon snake you drive lane by lane. Open."""
+    alternating ends -- a boustrophedon snake you drive lane by lane. Open.
+
+    pitch_jitter>0 gives every hairpin a slightly different radius: the gap to the
+    next lane becomes pitch + pitch_jitter*(offset in [-1,1)), where the offsets
+    are a golden-ratio low-discrepancy sequence -- deterministic, and each curve
+    distinct rather than repeating. The smallest gap must still exceed the corridor
+    width (each hairpin radius = gap/2 must stay above the half-width, else the
+    inner offset border pinches). jitter=0 reproduces the uniform serpentine."""
+    phi = 0.6180339887498949  # golden-ratio conjugate: well-spread distinct offsets
+    gaps = [pitch + pitch_jitter * (2.0 * (((k + 1) * phi) % 1.0) - 1.0) for k in range(lanes - 1)]
+    ys = [0.0]
+    for g in gaps:
+        ys.append(ys[-1] + g)
     c = []
     for k in range(lanes):
-        y = k * pitch
+        y = ys[k]
         if k % 2 == 0:  # rightward
             x = 0.0
             while x < length:
@@ -46,8 +58,8 @@ def gen_serpentine(lanes=5, length=170.0, pitch=34.0, step=6.0):
                 x -= step
             c.append((0.0, y))
             end_x, side = 0.0, -1.0
-        if k < lanes - 1:  # semicircular hairpin up to the next lane
-            r = pitch / 2.0
+        if k < lanes - 1:  # semicircular hairpin up to the next lane, its own radius
+            r = gaps[k] / 2.0
             cy = y + r
             steps = max(6, int(math.pi * r / step))
             for s in range(1, steps):  # skip endpoints (lane ends supply them)
