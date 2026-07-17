@@ -236,9 +236,17 @@ final class RaceAi {
 			final int cntFrozen = countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted);
 			final int cntTimed = countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world);
 			final int d2SafeCount = Math.max(cntFrozen, cntTimed);
-			final double trapPenalty = d2SafeCount == 0 ? 50.0
-					: d2SafeCount == 1 ? 2.0
-							: d2SafeCount == 2 ? 0.5
+			// trapCount (round 37, AI1): the TRAP LADDER reads the timing-exact
+			// count, not the optimism-floored max. The max() was built as a pure
+			// pace lever (discard phantom stale bodies), but it also discards the
+			// sim's GENUINE pessimism -- an incoming rival that will occupy the
+			// escape cell at my arrival instant. Zandvoort s4 (scorer-chosen, no
+			// override): W landing cF=2 cT=1 -> max=2 -> trap 0.5, so W beat the
+			// clean N by 0.33 and died 4 moves later; cT=1 -> trap 2.0 -> N wins.
+			// The widthBudget/speedCap axis KEEPS the optimistic max (pace).
+			final double trapPenalty = cntTimed == 0 ? 50.0
+					: cntTimed == 1 ? 2.0
+							: cntTimed == 2 ? 0.5
 									: 0.0;
 			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
