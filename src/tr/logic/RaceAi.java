@@ -103,6 +103,16 @@ final class RaceAi {
 	private final static int		AI1_SEAL_MAXRIVALS	= 3;	// endgame seal fires when <= this many rivals remain
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;	// aggressive pace floor applies only when <= this many rivals remain
+	// Gate thresholds (round 39 tuning surface): each was hand-picked in a
+	// past forensic and never jointly optimized. Values = champion's.
+	private final static double	AI1_PO_ROOM_HI	= 0.88;	// paceOverride: fully-roomy clause
+	private final static double	AI1_PO_ROOM_MID	= 0.78;	// paceOverride: mid-roominess clause (slow landings)
+	private final static int		AI1_PO_SPD_MAX	= 4;		// paceOverride: max |v| component for the mid clause
+	private final static double	AI1_BRAKE_SPEED	= 4.0;	// arming gate + slope base of the speed brakes
+	private final static int		AI1_PACK_R2		= 36;	// cornerEntry pack radius^2
+	private final static double	AI1_VACATE_V	= 3;		// rival speed >= this: predicted cell nulled (transiting)
+	private final static double	AI1_TRAP_L1		= 2.0;	// trap ladder: 1 safe successor
+	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
 
 	/**
 	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.9 standard.
@@ -142,7 +152,7 @@ final class RaceAi {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
 			final int[] pv = p.getVelocity();
-			if (Math.hypot(pv[0], pv[1]) >= 3)
+			if (Math.hypot(pv[0], pv[1]) >= AI1_VACATE_V)
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
@@ -221,8 +231,8 @@ final class RaceAi {
 			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
 					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
 			final double trapPenalty = d2SafeCount == 0 ? 50.0
-					: d2SafeCount == 1 ? 2.0
-							: d2SafeCount == 2 ? 0.5
+					: d2SafeCount == 1 ? AI1_TRAP_L1
+							: d2SafeCount == 2 ? AI1_TRAP_L2
 									: 0.0;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
@@ -233,7 +243,7 @@ final class RaceAi {
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
 			double uncertified = 0.0;
-			if (speed > 4.0) {
+			if (speed > AI1_BRAKE_SPEED) {
 				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
 				// is sheddable on the empty track -- waive the penalty entirely.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
@@ -244,7 +254,7 @@ final class RaceAi {
 				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)) {
 					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true);
 					if (proofs < 2)
-						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
+						uncertified = (speed - AI1_BRAKE_SPEED) * (proofs == 0 ? 2.5 : 1.0);
 				}
 			}
 			// Pack-gated knife-edge corner-entry brake: price roomy-successor
@@ -254,10 +264,10 @@ final class RaceAi {
 			// spares the lone fast knife-edge that is the racing line on tight
 			// circuits, so only genuine corner-entry traffic jams brake.
 			double cornerEntry = 0.0;
-			if (speed > 4.0) {
+			if (speed > AI1_BRAKE_SPEED) {
 				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
-				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, 36) >= 2)
-					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
+				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, AI1_PACK_R2) >= 2)
+					cornerEntry = (speed - AI1_BRAKE_SPEED) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
 			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
 			// only): the corner-entry brake above is opponent-BLIND in its
@@ -273,9 +283,9 @@ final class RaceAi {
 			// covered brake by 0.278. Price the coast like the survivable
 			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
 			double queueBox = 0.0;
-			if (speed > 4.0 && cornerEntry == 0.0) {
+			if (speed > AI1_BRAKE_SPEED && cornerEntry == 0.0) {
 				if (d2SafeCount <= 2 && countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
-					queueBox = (speed - 4.0) * 1.5;
+					queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
 				else {
 					// v3 long-range trigger: the near trigger needs d2SafeCount
 					// to collapse, but at speed 5+ the zandvoort pinch killed
@@ -287,7 +297,7 @@ final class RaceAi {
 					// ~1/round from s down to the stalled threshold 2.5).
 					final double stopCells = (speed * speed - 6.25) / 2.0;
 					if (stopCells > 0 && countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2)
-						queueBox = (speed - 4.0) * 1.5;
+						queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
 				}
 			}
 			final double conflict = cellOccupiedByPrediction(newX, newY, predicted) ? 0.0 : 0.0; // AI2.9: conflict penalty ZEROED (auto-tuner v2) -- +3.0 was redundant soft caution atop the hard isCrashingPlayer check; removing it is faster (63.81 vs 64.10) AND a landslide h2h win (3.926 vs 5.074), crash-free everywhere
@@ -304,7 +314,7 @@ final class RaceAi {
 			if (poT < poBestT) {
 				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
-				if (poRoom >= 0.88 || (poRoom >= 0.78 && poSpd <= 4)
+				if (poRoom >= AI1_PO_ROOM_HI || (poRoom >= AI1_PO_ROOM_MID && poSpd <= AI1_PO_SPD_MAX)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
 							&& !sealable(newX, newY, newVx, newVy, playerNum))) {
 					poBestT = poT;
