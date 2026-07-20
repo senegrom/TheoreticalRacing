@@ -51,7 +51,7 @@ DEFAULT_TRACKS = [
 # reachability is too heavy (serpentine ~37s, spiral ~57s, cog ~27s) for every
 # regular run. Use this as a regression guard on the slow tracks before
 # promoting a new frozen standard -- confirm the new AI is >= the old one here.
-SLOW_TRACKS = ['serpentine', 'spiral', 'cog']
+SLOW_TRACKS = ['serpentine', 'serpentine2', 'spiral', 'cog']
 
 JAR = r'E:\OneDrive\Coding\Java\theoreticRacing\theoreticRacing.jar'
 LOG = r'E:\OneDrive\Coding\Java\theoreticRacing\last_game.log'
