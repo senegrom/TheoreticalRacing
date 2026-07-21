@@ -102,7 +102,8 @@ final class RaceAi {
 	private final static double	AI1_PLY2_PRICE	= 3.0;
 	private final static int		AI1_SEAL_MAXRIVALS	= 3;	// endgame seal fires when <= this many rivals remain
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
-	private final static int		AI1_SPARSE_RIVALS	= 3;	// aggressive pace floor applies only when <= this many rivals remain
+	private final static int		AI1_SPARSE_RIVALS	= 3;
+	private final static int		AI1_DJS_ROUNDS	= 3;	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
 	// Gate thresholds (round 39 tuning surface): each was hand-picked in a
 	// past forensic and never jointly optimized. Values = champion's.
 	private final static double	AI1_PO_ROOM_HI	= 0.88;	// paceOverride: fully-roomy clause
@@ -166,6 +167,7 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
+		final double[] trapByDir = new double[Direction.values().length];
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -234,6 +236,7 @@ final class RaceAi {
 					: d2SafeCount == 1 ? AI1_TRAP_L1
 							: d2SafeCount == 2 ? AI1_TRAP_L2
 									: 0.0;
+			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
 			// minimal target T (>= 2 independent blind braking descents reach
@@ -364,6 +367,15 @@ final class RaceAi {
 				if (safest != null)
 					chosen = safest;
 			}
+			// Danger joint search (round 40): in flagged states (the landing's
+			// trap ladder >= 0.5, i.e. <= 2 safe successors) roll the joint game
+			// 3 rounds forward on a detached greedy board. STRICTLY asymmetric:
+			// only override when the pick provably dies in-sim and an alternative
+			// survives -- a surviving pick is always kept (fs1's false-alarm
+			// evasion crashes came from warning-based re-picks; survival-only
+			// switching cannot fire on a line that was actually fine).
+			if (trapByDir[chosen.ordinal()] >= 0.5)
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen);
 			return chosen;
 		}
 		if (bestLegal != null)
@@ -784,6 +796,133 @@ final class RaceAi {
 		return result;
 	}
 
+
+	/** Greedy min-turnsToFinish move for a car at (x,y) vel (cvx,cvy) over a
+	 *  DETACHED array board (alive cars at px/py). Returns {nx,ny,nvx,nvy} for the
+	 *  best legal, non-crashing, alive move, or null if boxed. Used by simOutcome. */
+	private int[] greedyMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
+			final int[] px, final int[] py, final boolean[] alive) {
+		int bestT = Integer.MAX_VALUE;
+		int[] best = null;
+		for (final Direction d : Direction.values()) {
+			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
+			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (game.crossesFinish(x, y, nx, ny))
+				return new int[]{nx, ny, nvx, nvy };
+			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			boolean occ = false;
+			for (int j = 0; j < px.length; j++) {
+				if (j == self || !alive[j])
+					continue;
+				if (px[j] == nx && py[j] == ny) {
+					occ = true;
+					break;
+				}
+			}
+			if (occ)
+				continue;
+			if (!reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			final int tt = reach.turnsToFinish(nx, ny, nvx, nvy);
+			if (tt < bestT) {
+				bestT = tt;
+				best = new int[]{nx, ny, nvx, nvy };
+			}
+		}
+		return best;
+	}
+
+	/** Roll the joint game forward from MY candidate landing over a DETACHED
+	 *  board copy: every car plays greedy min-turnsToFinish; move-order aware
+	 *  (the first simulated round covers only the players who still move after
+	 *  me this round). Returns my turnsToFinish after {@code rounds} full
+	 *  rounds, or -1 if I end up boxed (no legal alive move at one of my
+	 *  slots). No mutation of live players[] -- deterministic, cannot
+	 *  livelock. AI1 only (round 40 danger joint search). */
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds) {
+		final int n = game.players.length;
+		final int[] px = new int[n], py = new int[n], vx = new int[n], vy = new int[n];
+		final boolean[] alive = new boolean[n];
+		int myIdx = 0;
+		for (int i = 0; i < n; i++) {
+			final Player p = game.players[i];
+			final int[] pp = p.getPosition(), pv = p.getVelocity();
+			px[i] = pp[0];
+			py[i] = pp[1];
+			vx[i] = pv[0];
+			vy[i] = pv[1];
+			alive[i] = !p.isFinished();
+			if (p.getNumber() == playerNum)
+				myIdx = i;
+		}
+		px[myIdx] = myX;
+		py[myIdx] = myY;
+		vx[myIdx] = myVx;
+		vy[myIdx] = myVy;
+		for (int r = 0; r < rounds; r++) {
+			// First simulated round: only players after me in this real round's
+			// move order still move before my next slot.
+			final int from = r == 0 ? game.subgamestate + 1 : 0;
+			for (int i = from; i < n; i++) {
+				if (!alive[i] || i == myIdx && r == 0)
+					continue;
+				final int[] mv = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
+				if (mv == null) {
+					if (i == myIdx)
+						return -1;
+					alive[i] = false;
+					continue;
+				}
+				px[i] = mv[0];
+				py[i] = mv[1];
+				vx[i] = mv[2];
+				vy[i] = mv[3];
+			}
+		}
+		return reach.turnsToFinish(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+	}
+
+	/** Danger joint search (round 40, AI1 only): if the chosen landing DIES in
+	 *  the joint rollout, switch to the surviving candidate with the best
+	 *  sim-final turnsToFinish; keep the chosen move in every other case. */
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen) {
+		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
+		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
+		if (game.crossesFinish(pos[0], pos[1], cx, cy))
+			return chosen;
+		if (simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_ROUNDS) >= 0)
+			return chosen;
+		Direction best = null;
+		int bestT = Integer.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			if (d == chosen)
+				continue;
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				continue;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			if (game.crossesFinish(pos[0], pos[1], nx, ny))
+				return d;
+			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+				continue;
+			if (game.isCrashingPlayer(nx, ny, playerNum))
+				continue;
+			if (!reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS);
+			if (t >= 0 && t < bestT) {
+				bestT = t;
+				best = d;
+			}
+		}
+		return best != null ? best : chosen;
+	}
+
 	/**
 	 * AI2 (FROZEN STANDARD): the AI2.9 zero-conflict champion — the AI2.8
 	 * pace-ceiling base (queue-sensing + always-on ahead-rival ply-2 foresight)
@@ -847,6 +986,7 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
+		final double[] trapByDir = new double[Direction.values().length];
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -915,6 +1055,7 @@ final class RaceAi {
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
+			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
 			// minimal target T (>= 2 independent blind braking descents reach
@@ -1045,6 +1186,10 @@ final class RaceAi {
 				if (safest != null)
 					chosen = safest;
 			}
+			// Danger joint search (round 40, PROMOTED): survival-only override
+			// in flagged states -- see dangerJointSearch.
+			if (trapByDir[chosen.ordinal()] >= 0.5)
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen);
 			return chosen;
 		}
 		if (bestLegal != null)
