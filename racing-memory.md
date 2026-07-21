@@ -91,21 +91,42 @@ Full-gate record vs prior champion (all logs in the scratchpad, djs_*.log):
 
 ## Immediate pending work (in order)
 
-1. **Coil s6 relocation forensic**: DJS introduced one coil crash —
-   seed 6, p8, move 328, (70,48) v(1,-4) -> NW (70,43). Was it a DJS
-   switch that killed (sim model error worth a refinement) or pure
-   traffic reflow (accept)? Method: `run_debug.py` replay (needs the
-   AIDBG instrumentation re-added — it is NOT in the champion; re-apply
-   patch_debug.py-style dumps or add a DJS-specific debug print).
-2. **serpentine2 slow relocation forensic**: single race, default grid
-   (`SEEDS=[None]` — run java WITHOUT `--seed`), DJS car crashes where
-   champion didn't. Same question as coil.
-3. **Lever 5** (endgame solver).
+1. **Coil s6 relocation forensic — DONE (2026-07-21+), verdict: ACCEPT,
+   pure reflow.** Replay shows the only DJS divergence in the race is p6's
+   survival switch at (9,45), other side of the track, 14 p8-turns before
+   the death. p8's own kill is the ancestral trigger-too-late class: trap
+   ladder 0.0 for 11 turns at speed 6-7, first flagged landing (50,70) ->
+   DJS "DIES in-sim, no survivor" (all 9 candidates dead), forced moves to
+   the wall. DJS innocent; it even diagnosed the death 5 moves early.
+2. **serpentine2 slow relocation forensic — DONE, verdict: ACCEPT (DJS
+   collateral, user-endorsed aggression), fold into item 4.** Corrected
+   story after testing the pre-DJS champion on the same default grid
+   (NO crash): BOTH sim death-verdicts in the DJS race were FALSE
+   (greedy-me model error) — p6 "DIES" would have lived on its old line;
+   p7 "no survivor" threads through pre-DJS. The false verdict made p6
+   switch to (113,114), and that rescue body landed in p7's speed-10
+   braking corridor -> p7's real box. A switch safe for the switcher that
+   killed a rival = collateral aggression (p6 gained; h2h gate showed
+   place parity + halved crashes; round-40 gate priced it at net -5).
+   LESSON: DJS false-death verdicts don't self-harm (survival-only
+   asymmetry) but DO perturb the equilibrium via unnecessary switches —
+   sim fidelity is the shared root with item 4.
+3. **Lever 5** (endgame solver) — NEXT.
 4. Ancestral singles (silverstone s6, zandvoort s7, lemans s4/s10-class,
-   chicane s3, zigzag s4): need better sim fidelity (greedy-me != real-me
-   is the known model-error class) or earlier triggers. The trigger misses
-   shapes whose trap ladder stays 0 until all alternatives are dead
-   (silverstone s6 = speed-10 into a corner, body takes the escape).
+   chicane s3, zigzag s4, coil s6 above): need better sim fidelity
+   (greedy-me != real-me is the known model-error class) or earlier
+   triggers + longer horizon. The trigger misses shapes whose trap ladder
+   stays 0 until all alternatives are dead (silverstone s6 / coil s6 /
+   serpentine2 p7 = speed 7-10 into a corner). DESIGN FACT: the
+   survival-only asymmetry makes the DJS trigger a pure COST gate —
+   broadening it (even to every move) cannot reintroduce fs1-style
+   false-alarm evasions; the frontier is sim fidelity + horizon, not
+   trigger safety.
+
+AIDBG instrumentation (turn dump `-Dai.debug.player=N` + DJS-death events
+`-Dai.debug.djs`, both bodies, prints-only, off by default) is now IN the
+champion source (committed) — run_debug.py uses both; seed 'none' replays
+the default grid.
 
 ## Methodology laws (hard-won, do not relearn)
 

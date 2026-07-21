@@ -104,6 +104,10 @@ final class RaceAi {
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
 	private final static int		AI1_DJS_ROUNDS	= 3;	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
+	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
+	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
+	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
+	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
 	// Gate thresholds (round 39 tuning surface): each was hand-picked in a
 	// past forensic and never jointly optimized. Values = champion's.
 	private final static double	AI1_PO_ROOM_HI	= 0.88;	// paceOverride: fully-roomy clause
@@ -374,6 +378,9 @@ final class RaceAi {
 			// survives -- a surviving pick is always kept (fs1's false-alarm
 			// evasion crashes came from warning-based re-picks; survival-only
 			// switching cannot fire on a line that was actually fine).
+			if (AI_DEBUG_PLAYER == playerNum)
+				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
+						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
 			if (trapByDir[chosen.ordinal()] >= 0.5)
 				chosen = dangerJointSearch(pos, vel, playerNum, chosen);
 			return chosen;
@@ -897,6 +904,10 @@ final class RaceAi {
 			return chosen;
 		if (simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_ROUNDS) >= 0)
 			return chosen;
+		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
+		if (dbg)
+			System.err.println("AIDBG DJS p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0]
+					+ "," + vel[1] + ") chosen=" + chosen + " DIES in-sim");
 		Direction best = null;
 		int bestT = Integer.MAX_VALUE;
 		for (final Direction d : Direction.values()) {
@@ -915,11 +926,17 @@ final class RaceAi {
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS);
+			if (dbg)
+				System.err.println("AIDBG DJS  alt " + d + " land=(" + nx + "," + ny + ") simT="
+						+ (t < 0 ? "DIES" : String.valueOf(t)));
 			if (t >= 0 && t < bestT) {
 				bestT = t;
 				best = d;
 			}
 		}
+		if (dbg)
+			System.err.println("AIDBG DJS  -> " + (best != null ? "SWITCH " + best + " simT=" + bestT
+					: "KEEP " + chosen + " (no survivor)"));
 		return best != null ? best : chosen;
 	}
 
@@ -1188,6 +1205,9 @@ final class RaceAi {
 			}
 			// Danger joint search (round 40, PROMOTED): survival-only override
 			// in flagged states -- see dangerJointSearch.
+			if (AI_DEBUG_PLAYER == playerNum)
+				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
+						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
 			if (trapByDir[chosen.ordinal()] >= 0.5)
 				chosen = dangerJointSearch(pos, vel, playerNum, chosen);
 			return chosen;
