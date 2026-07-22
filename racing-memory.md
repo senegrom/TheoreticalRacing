@@ -153,6 +153,47 @@ AIDBG instrumentation (turn dump `-Dai.debug.player=N` + DJS-death events
 champion source (committed) — run_debug.py uses both; seed 'none' replays
 the default grid.
 
+## Traffic-pace frontier DECOMPOSED — round 47 (lever 2 forensic)
+
+Per-move forensic (scratchpad/pace_forensic.py, NO Java/bench: reach_*.bin
+dump gives exact velocity-aware ttf; each move should cut ttf by 1; a move
+cutting it by <1 lost that fraction). For each lost move it decides whether
+the fastest next cell was rival-BLOCKED (irreducible), free-but-KNIFE-EDGE
+(<3 open 1-ply escapes -> the pace/crash frontier: taking it converts to
+crashes, proven), or free-and-ROOMY (>=3 escapes -> genuine over-caution,
+the only safely-recoverable pool). Results (champion, seed 1, finishers):
+- lemans (biggest sink, +11.8%): 68 lost = 16 irreducible + 38 knife-edge
+  frontier + 14 roomy over-caution.
+- sprint (+10.0%): 11 lost = 9 irreducible + 2 roomy + 0 frontier.
+- triangle (+8.6%): 11 lost = 11 IRREDUCIBLE, 0 recoverable.
+CONCLUSION: ~90% of the 5.25% traffic gap is irreducible (a rival is
+genuinely in the fast cell; someone must yield) or knife-edge frontier
+(the memory's proven pace->crash conversion). The safely-recoverable
+over-caution pool is SMALL (~14 moves/race on the worst track, ~1%
+campaign-wide) AND every slice of it is justified: the very-open slice is
+START-GRID idling (NONE at tick 1 from standstill -- pileup avoidance,
+lemans start boxes are real, state_probe confirmed greedy=64 vs chosen
+NONE=65); the rest is room=3-5 mid-race where 1-ply openness exceeds the
+champion's 4-ply foresight, which prior rounds PROVED load-bearing
+(removing foresight crashes). So the heuristic is near the equilibrium
+limit on BOTH axes now (crashes AND traffic pace). The genuine remaining
+lever for the traffic gap is the SAME as for the crash floor:
+MULTI-AGENT COORDINATION (predict rival yields to cut mutual detours) --
+the learned-AI direction (pyrace), where RL previously did not beat
+greedy. Tools: pace_forensic.py, state_probe.py (both in scratchpad,
+reusable on any track+seed with a reach dump).
+- **PROBE RUN & REJECTED (round 47): start-grid anti-idle.** Added an AI1
+  override -- from a standstill, if the scorer idles (NONE) while a faster
+  advance lands clear of predicted AND live rivals with >=6 open 1-ply
+  escapes, take the advance. It NEVER FIRED: all-AI1 races are MOVE-IDENTICAL
+  to the champion on all 5 sink tracks (lemans/sprint/triangle/hairpin/
+  monaco). Every start-grid NONE has a rival predicted into the advance ->
+  the idle is real pileup-avoidance, not gratuitous. Reverted (patch_antiidle.py
+  archived). This is the CODE-LEVEL confirmation of the forensic: the
+  heuristic has no recoverable traffic pace. BOTH axes (crashes, pace) are
+  now at the equilibrium limit; the only lever left is learned multi-agent
+  coordination.
+
 ## Crash floor REACHED — rounds 45-46 (all neutral, do not re-grind)
 
 The round-44 champion's residual crashes (8-car c=3 s1-5 / c=5 s6-10, the
