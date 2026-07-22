@@ -117,10 +117,22 @@ def bench(tracks):
     # Backup props once before doing anything
     with open(PROPS) as f:
         backup = f.read()
+    # Frozen-champion cache: AI2 is the promoted standard and is IDENTICAL on
+    # every candidate run, so re-benching it doubles wall time for nothing. Set
+    # BENCH_BASELINE=<file> to run only the AI1 (candidate) column and read AI2
+    # from the cache; the first run with no cache seeds it. Delete the file when
+    # the champion changes (a new promotion).
+    baseline_path = os.environ.get('BENCH_BASELINE')
+    baseline = None
+    if baseline_path and os.path.exists(baseline_path):
+        import json
+        with open(baseline_path) as f:
+            baseline = {k: tuple(v) if v else None for k, v in json.load(f).items()}
+    kinds = ('AI1',) if baseline is not None else ('AI1', 'AI2')
     try:
         set_nplayers(8)   # canonical full field; robust to a prior killed bench
         results = {}
-        for kind in ('AI1', 'AI2'):
+        for kind in kinds:
             set_all_to(kind)
             rows = {}
             tf = tc = 0
@@ -157,6 +169,20 @@ def bench(tracks):
     finally:
         with open(PROPS, 'w') as f:
             f.write(backup)
+
+    if baseline is not None:
+        # Reconstruct the AI2 column from the cache (per-track rows + totals).
+        r2rows = {t: baseline.get(t) for t in tracks}
+        tf2 = sum(v[0] for v in r2rows.values() if v)
+        tc2 = sum(v[1] for v in r2rows.values() if v)
+        nt2 = sum(1 for v in r2rows.values() if v)
+        tm2 = sum(v[2] for v in r2rows.values() if v) / max(1, nt2)
+        results['AI2'] = (tf2, tc2, tm2, r2rows)
+    elif baseline_path:
+        import json
+        with open(baseline_path, 'w') as f:
+            json.dump(results['AI2'][3], f)
+        print(f'# seeded champion baseline -> {os.path.basename(baseline_path)}')
 
     # Report
     print()

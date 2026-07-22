@@ -153,6 +153,47 @@ AIDBG instrumentation (turn dump `-Dai.debug.player=N` + DJS-death events
 champion source (committed) — run_debug.py uses both; seed 'none' replays
 the default grid.
 
+## Crash floor REACHED — rounds 45-46 (all neutral, do not re-grind)
+
+The round-44 champion's residual crashes (8-car c=3 s1-5 / c=5 s6-10, the
+"ancestral" sites: silverstone s6, zandvoort s7/s8, coil s6/s10, zigzag
+s4, lemans s4, hungaroring s1 guard) are at the EQUILIBRIUM FLOOR. Every
+DJS refinement tried came back byte-neutral at the ancestral screen:
+- R45 arm A (always-on DJS trigger, drop the trap>=0.5 gate): REJECTED —
+  6 switches/race, false-DEATH model errors perturbed the field into new
+  doom pockets (hungaroring guard 1->5). LAW: the trap gate bounds
+  exposure to sim model error; it is not a pure cost gate.
+- R45 arm B (finished cars vanish from the sim board): SHIPPED (22af7ad)
+  as groundwork — full 7-stage battery PERFECT ties. Neutral because
+  gated fires are rare and no gated verdict flipped on benched seeds.
+- R46 (trap-aware greedy sim policy, prefer roomy landings): neutral,
+  reverted.
+- R46c (horizon rounds 3->4): neutral, reverted.
+CONCLUSION: DJS is saturated at its trigger; better sim fidelity and
+deeper horizon do NOT touch the ancestral floor. Crash reduction via
+DJS is EXHAUSTED. The next crash gain (if any) needs a different
+mechanism class (the shapes are speed-7-10 corner entries where a body
+takes the escape; a real-me sim or a pre-emptive speed brake, not more
+DJS). NOT the place to spend hours — see the pace frontier (lever 2).
+
+## Bench speed (IMPORTANT — was the "taking hours" complaint)
+
+Root causes: (1) every bench re-ran the FROZEN champion AI2 column =
+~50% pure waste; (2) the 7-stage gate (both seed sets x all field sizes)
+is deliberately large (small samples give false wins); (3) the champion
+got costlier per move (joint sims + solver); (4) worst of all, full
+batteries were spent on candidates in the mined-out crash region that the
+equilibrium law already predicted neutral.
+FIXES: bench_ai.py now honours BENCH_BASELINE=<json>: runs ONLY the AI1
+candidate column and reads AI2 from the cache (first run with no cache
+seeds it; delete on promotion). Champion caches seeded in scratchpad
+(champ_8car_s1.json / _s6.json from r45bat). => every candidate bench is
+~2x faster. PROCESS FIX: use the cheap targeted ancestral screen
+(~30 min, crash_harvest on the specific sites) as the go/no-go; run the
+full battery ONLY for a candidate that MOVES the screen. Rounds 45-46
+never moved the screen and never needed batteries (R45B's battery was the
+avoidable waste).
+
 ## Methodology laws (hard-won, do not relearn)
 
 - **Forensic-first**: never build before reading the actual crash/decision
