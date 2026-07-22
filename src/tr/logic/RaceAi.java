@@ -983,9 +983,21 @@ final class RaceAi {
 		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS) {
 			final int ri = decisiveRival(playerNum);
 			if (ri > game.subgamestate && rivalEscapes(ri, -1, -1, playerNum) >= 1) {
-				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum, true);
+				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum, false);
 				if (sd != null)
 					return sd;
+			}
+		}
+		// Endgame solver (round 43, PROMOTED round 44): 1v1 exact paranoid
+		// minimax near the finish -- acts ONLY on proven wins; unproven values
+		// fall through to the normal scorer. See endgameSolve.
+		if (sealRivals == 1) {
+			final Direction eg = endgameSolve(pos, vel, playerNum);
+			if (eg != null) {
+				if (AI_DEBUG_PLAYER == playerNum || AI_DEBUG_DJS)
+					System.err.println("AIDBG EG p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+							+ ") vel=(" + vel[0] + "," + vel[1] + ") WIN via " + eg);
+				return eg;
 			}
 		}
 		// paceOverride (round 34, PROMOTED): AI2.9 was NOT pace-optimal -- pure
@@ -1172,7 +1184,7 @@ final class RaceAi {
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
 				if (poRoom >= 0.88 || (poRoom >= 0.78 && poSpd <= 4)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
-							&& !sealable(newX, newY, newVx, newVy, playerNum, true))) {
+							&& !sealable(newX, newY, newVx, newVy, playerNum, false))) {
 					poBestT = poT;
 					poDir = d;
 				}
@@ -1190,7 +1202,7 @@ final class RaceAi {
 			// sealable, take the FASTEST unsealable alternative instead.
 			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum, true)) {
+			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum, false)) {
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
 				for (final Direction d : Direction.values()) {
@@ -1209,7 +1221,7 @@ final class RaceAi {
 						continue;
 					if (!reach.isAlive(nx, ny, nvx, nvy))
 						continue;
-					if (sealable(nx, ny, nvx, nvy, playerNum, true))
+					if (sealable(nx, ny, nvx, nvy, playerNum, false))
 						continue;
 					final int tt = reach.turnsArr != null ? reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)] : 0;
 					if (tt < bestT) {
