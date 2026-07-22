@@ -398,8 +398,15 @@ final class RaceAi {
 			if (AI_DEBUG_PLAYER == playerNum)
 				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
+			// round 45 (AI1): sim fidelity only -- finished cars vanish from the
+			// sim board (the real game removes them; ghosts caused phantom
+			// blockage verdicts). The always-on trigger arm was REJECTED by the
+			// ancestral screen: 6 DJS switches/race (vs 0-1) -> false-death
+			// model errors perturbed the field into new doom pockets
+			// (hungaroring guard 1->5). The trap gate is not just a cost gate;
+			// it bounds exposure to sim model error.
 			if (trapByDir[chosen.ordinal()] >= 0.5)
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen);
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true);
 			return chosen;
 		}
 		if (bestLegal != null)
@@ -867,7 +874,7 @@ final class RaceAi {
 	 *  slots). No mutation of live players[] -- deterministic, cannot
 	 *  livelock. AI1 only (round 40 danger joint search). */
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
-			final int playerNum, final int rounds) {
+			final int playerNum, final int rounds, final boolean simFinishVanish) {
 		final int n = game.players.length;
 		final int[] px = new int[n], py = new int[n], vx = new int[n], vy = new int[n];
 		final boolean[] alive = new boolean[n];
@@ -895,6 +902,12 @@ final class RaceAi {
 				if (!alive[i] || i == myIdx && r == 0)
 					continue;
 				final int[] mv = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
+				if (simFinishVanish && mv != null && game.crossesFinish(px[i], py[i], mv[0], mv[1])) {
+					if (i == myIdx)
+						return 0;	// I finish in-sim: unambiguous survival
+					alive[i] = false;	// finished cars vanish from the board
+					continue;
+				}
 				if (mv == null) {
 					if (i == myIdx)
 						return -1;
@@ -914,12 +927,12 @@ final class RaceAi {
 	 *  the joint rollout, switch to the surviving candidate with the best
 	 *  sim-final turnsToFinish; keep the chosen move in every other case. */
 	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
-			final Direction chosen) {
+			final Direction chosen, final boolean simFinishVanish) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
-		if (simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_ROUNDS) >= 0)
+		if (simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_ROUNDS, simFinishVanish) >= 0)
 			return chosen;
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 		if (dbg)
@@ -942,7 +955,7 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS);
+			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, simFinishVanish);
 			if (dbg)
 				System.err.println("AIDBG DJS  alt " + d + " land=(" + nx + "," + ny + ") simT="
 						+ (t < 0 ? "DIES" : String.valueOf(t)));
@@ -1238,7 +1251,7 @@ final class RaceAi {
 				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
 			if (trapByDir[chosen.ordinal()] >= 0.5)
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen);
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen, false);
 			return chosen;
 		}
 		if (bestLegal != null)
