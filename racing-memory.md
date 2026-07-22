@@ -111,7 +111,26 @@ Full-gate record vs prior champion (all logs in the scratchpad, djs_*.log):
    LESSON: DJS false-death verdicts don't self-harm (survival-only
    asymmetry) but DO perturb the equilibrium via unnecessary switches —
    sim fidelity is the shared root with item 4.
-3. **Lever 5** (endgame solver) — NEXT.
+3. **Lever 5 (endgame solver) — DONE, SHIPPED (round 43, commit 3895855,
+   AI1 only).** 1v1 exact memoized paranoid minimax (trigger: sole live
+   rival + both within AI1_EG_ETA=12 of the finish; AI1_EG_DEPTH=10
+   rounds; AI1_EG_NODES=50_000 -- 200k ran the 1v1 bench ~2x long on
+   UNPROVABLE positions, and real proofs are shallow forcing lines, 50k
+   smoke byte-identical). Acts ONLY on guaranteed wins (cross first /
+   rival forced to crash); unproven -> normal scorer. Gate: 1v1 duel
+   place parity 1.500/1.500 crashes 0v1 (all duels position-decided vs an
+   equal AI, as the plan predicted); 8-car self-play bit-inert (f=767 c=3
+   rows identical); h2h 4.498/4.502 c 3v4 (unchanged). Smoke: chains
+   proven wins when ahead (hairpin 4 forced moves), silent when behind.
+   Value target = humans/weaker AIs, unmeasurable in symmetric benching.
+   ALSO SHIPPED THIS SESSION (round 42, commit 979084f): the sealable()
+   selfByIndex off-by-one fix, AI1 only -- full gate net -5 crashes at
+   equal pace (4-car 10-seed c=1 vs 4 both sets confirmed, 2-car 0v1,
+   slow 0v1 incl. the serpentine2 DJS-collateral save; 8-car wash, h2h
+   parity). AI1 = DJS + sealfix + endgame solver; AI2 = DJS champion
+   (sealable bug-compatible via selfByIndex=true). PROMOTION of both into
+   AI2 is a pending user decision -- promotion = flip AI2's selfByIndex
+   flags to false + add the solver trigger to AI2's method top.
 4. Ancestral singles (silverstone s6, zandvoort s7, lemans s4/s10-class,
    chicane s3, zigzag s4, coil s6 above): need better sim fidelity
    (greedy-me != real-me is the known model-error class) or earlier
