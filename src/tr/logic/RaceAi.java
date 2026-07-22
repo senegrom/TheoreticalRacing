@@ -134,7 +134,7 @@ final class RaceAi {
 		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS) {
 			final int ri = decisiveRival(playerNum);
 			if (ri > game.subgamestate && rivalEscapes(ri, -1, -1, playerNum) >= 1) {
-				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum);
+				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum, false);
 				if (sd != null)
 					return sd;
 			}
@@ -323,7 +323,7 @@ final class RaceAi {
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
 				if (poRoom >= AI1_PO_ROOM_HI || (poRoom >= AI1_PO_ROOM_MID && poSpd <= AI1_PO_SPD_MAX)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
-							&& !sealable(newX, newY, newVx, newVy, playerNum))) {
+							&& !sealable(newX, newY, newVx, newVy, playerNum, false))) {
 					poBestT = poT;
 					poDir = d;
 				}
@@ -341,7 +341,7 @@ final class RaceAi {
 			// sealable, take the FASTEST unsealable alternative instead.
 			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
+			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum, false)) {
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
 				for (final Direction d : Direction.values()) {
@@ -360,7 +360,7 @@ final class RaceAi {
 						continue;
 					if (!reach.isAlive(nx, ny, nvx, nvy))
 						continue;
-					if (sealable(nx, ny, nvx, nvy, playerNum))
+					if (sealable(nx, ny, nvx, nvy, playerNum, false))
 						continue;
 					final int tt = reach.turnsArr != null ? reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)] : 0;
 					if (tt < bestT) {
@@ -966,7 +966,7 @@ final class RaceAi {
 		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS) {
 			final int ri = decisiveRival(playerNum);
 			if (ri > game.subgamestate && rivalEscapes(ri, -1, -1, playerNum) >= 1) {
-				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum);
+				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum, true);
 				if (sd != null)
 					return sd;
 			}
@@ -1155,7 +1155,7 @@ final class RaceAi {
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
 				if (poRoom >= 0.88 || (poRoom >= 0.78 && poSpd <= 4)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
-							&& !sealable(newX, newY, newVx, newVy, playerNum))) {
+							&& !sealable(newX, newY, newVx, newVy, playerNum, true))) {
 					poBestT = poT;
 					poDir = d;
 				}
@@ -1173,7 +1173,7 @@ final class RaceAi {
 			// sealable, take the FASTEST unsealable alternative instead.
 			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
+			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum, true)) {
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
 				for (final Direction d : Direction.values()) {
@@ -1192,7 +1192,7 @@ final class RaceAi {
 						continue;
 					if (!reach.isAlive(nx, ny, nvx, nvy))
 						continue;
-					if (sealable(nx, ny, nvx, nvy, playerNum))
+					if (sealable(nx, ny, nvx, nvy, playerNum, true))
 						continue;
 					final int tt = reach.turnsArr != null ? reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)] : 0;
 					if (tt < bestT) {
@@ -1443,7 +1443,8 @@ final class RaceAi {
 	/** A safe move of mine (alive, non-crashing, not self-sealable) that leaves
 	 *  rival {@code ri} with zero legal moves -- forcing its crash this turn --
 	 *  or null if none exists. */
-	private Direction findForcedCrashMove(final int[] pos, final int[] vel, final int ri, final int playerNum) {
+	private Direction findForcedCrashMove(final int[] pos, final int[] vel, final int ri, final int playerNum,
+			final boolean selfByIndex) {
 		for (final Direction d : Direction.values()) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
@@ -1457,7 +1458,7 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			if (sealable(nx, ny, nvx, nvy, playerNum))
+			if (sealable(nx, ny, nvx, nvy, playerNum, selfByIndex))
 				continue;
 			if (rivalEscapes(ri, nx, ny, playerNum) == 0)
 				return d;
@@ -1469,7 +1470,8 @@ final class RaceAi {
 	 *  every escape (geometry-legal alive successor) with DISTINCT cars whose
 	 *  landings are geometry-legal for them (worst-case physics, matching via
 	 *  Kuhn). A finishing escape is never sealable. */
-	private boolean sealable(final int x, final int y, final int vx, final int vy, final int playerNum) {
+	private boolean sealable(final int x, final int y, final int vx, final int vy, final int playerNum,
+			final boolean selfByIndex) {
 		final java.util.List<int[]> esc = new java.util.ArrayList<>();
 		for (final Direction d : Direction.values()) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
@@ -1493,7 +1495,11 @@ final class RaceAi {
 		final int[] cover = new int[ne];
 		int oi = 0;
 		for (int i = 0; i < game.players.length; i++) {
-			if (i == playerNum || game.players[i].isFinished())
+			// selfByIndex=true preserves the champion's off-by-one (index-vs-number:
+			// self included as a phantom cover, rival number playerNum+1 ignored);
+			// false is the fix (round 42, AI1). Flip on promotion.
+			if ((selfByIndex ? i == playerNum : game.players[i].getNumber() == playerNum)
+					|| game.players[i].isFinished())
 				continue;
 			final int bit = 1 << oi;
 			oi++;
