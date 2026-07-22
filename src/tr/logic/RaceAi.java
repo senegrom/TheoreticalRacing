@@ -108,6 +108,9 @@ final class RaceAi {
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
+	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
+	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
+	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
 	// Gate thresholds (round 39 tuning surface): each was hand-picked in a
 	// past forensic and never jointly optimized. Values = champion's.
 	private final static double	AI1_PO_ROOM_HI	= 0.88;	// paceOverride: fully-roomy clause
@@ -137,6 +140,20 @@ final class RaceAi {
 				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum, false);
 				if (sd != null)
 					return sd;
+			}
+		}
+		// Endgame solver (round 43, lever 5, AI1 only): 1v1 exact paranoid
+		// minimax near the finish. Acts ONLY on proven wins (I finish first or
+		// the rival is forced to crash under its best defense) -- the deep
+		// generalization of the 1-ply seal above; unproven values fall through
+		// to the normal scorer (insurance-premium law: no paranoid defense).
+		if (sealRivals == 1) {
+			final Direction eg = endgameSolve(pos, vel, playerNum);
+			if (eg != null) {
+				if (AI_DEBUG_PLAYER == playerNum || AI_DEBUG_DJS)
+					System.err.println("AIDBG EG p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+							+ ") vel=(" + vel[0] + "," + vel[1] + ") WIN via " + eg);
+				return eg;
 			}
 		}
 		// paceOverride (round 34, PROMOTED): AI2.9 was NOT pace-optimal -- pure
@@ -1464,6 +1481,155 @@ final class RaceAi {
 				return d;
 		}
 		return null;
+	}
+
+	private java.util.HashMap<Long, Boolean>	egMemo;
+	private int									egNodes;
+
+	/** Lever 5 (round 43, AI1 only): 1v1 exact endgame solver. When the sole
+	 *  live rival and I are both within {@link #AI1_EG_ETA} turns of the
+	 *  finish, run a boolean paranoid minimax over the joint state (strict
+	 *  me/rival alternation -- exact for two live movers regardless of index
+	 *  order; landing-cell blocking, the campaign's board convention) to
+	 *  {@link #AI1_EG_DEPTH} rounds. Returns the FASTEST move with a
+	 *  guaranteed win (I cross first, or the rival is forced to crash while
+	 *  my state stays alive) or null. A blown node budget claims nothing. */
+	private Direction endgameSolve(final int[] pos, final int[] vel, final int playerNum) {
+		final int ri = decisiveRival(playerNum);
+		if (ri < 0)
+			return null;
+		final int myT = reach.turnsToFinish(pos[0], pos[1], vel[0], vel[1]);
+		final int[] rp = game.players[ri].getPosition(), rv = game.players[ri].getVelocity();
+		final int rT = reach.turnsToFinish(rp[0], rp[1], rv[0], rv[1]);
+		if (myT > AI1_EG_ETA || rT > AI1_EG_ETA)
+			return null;
+		egMemo = new java.util.HashMap<>();
+		egNodes = 0;
+		Direction best = null;
+		int bestT = Integer.MAX_VALUE;
+		for (final Direction d : Direction.values()) {
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				continue;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			if (game.crossesFinish(pos[0], pos[1], nx, ny))
+				return d;		// immediate finish: the fastest win there is
+			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+				continue;
+			if (nx == rp[0] && ny == rp[1])
+				continue;
+			if (!reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			final int t = reach.turnsToFinish(nx, ny, nvx, nvy);
+			if (best != null && t >= bestT)
+				continue;		// only a strictly faster win can improve
+			if (egRival(nx, ny, nvx, nvy, rp[0], rp[1], rv[0], rv[1], AI1_EG_DEPTH * 2 - 1)) {
+				best = d;
+				bestT = t;
+			}
+			if (egNodes > AI1_EG_NODES)
+				return null;	// budget blown mid-search: results untrusted
+		}
+		return best;
+	}
+
+	/** Rival ply: TRUE iff my win survives EVERY legal rival reply (worst
+	 *  case; suicidal blocking lines included -- only geometry and my body
+	 *  restrict it). A boxed rival crashes: my win iff my state is alive. */
+	private boolean egRival(final int mx, final int my, final int mvx, final int mvy,
+			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
+		egNodes++;
+		if (depth <= 0)
+			return false;		// horizon: no guarantee
+		final Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
+		final Boolean memo = egMemo.get(key);
+		if (memo != null)
+			return memo;
+		boolean anyMove = false;
+		boolean win = true;
+		for (final Direction d : Direction.values()) {
+			if (egNodes > AI1_EG_NODES) {
+				win = false;	// budget: conservative, claim nothing
+				break;
+			}
+			final int nvx = rvx + d.dx, nvy = rvy + d.dy;
+			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				continue;
+			final int nx = rx + nvx, ny = ry + nvy;
+			if (game.crossesFinish(rx, ry, nx, ny)) {
+				win = false;	// rival crosses first
+				anyMove = true;
+				break;
+			}
+			if (!game.isMoveLegalGeometryCached(rx, ry, nx, ny))
+				continue;
+			if (nx == mx && ny == my)
+				continue;
+			anyMove = true;
+			if (!egMy(mx, my, mvx, mvy, nx, ny, nvx, nvy, depth - 1)) {
+				win = false;
+				break;
+			}
+		}
+		if (!anyMove)
+			win = reach.isAlive(mx, my, mvx, mvy);
+		egMemo.put(key, win);
+		return win;
+	}
+
+	/** My ply: TRUE iff some alive (or finishing) move of mine keeps the
+	 *  guaranteed win alive. */
+	private boolean egMy(final int mx, final int my, final int mvx, final int mvy,
+			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
+		egNodes++;
+		if (depth <= 0)
+			return false;
+		final Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
+		final Boolean memo = egMemo.get(key);
+		if (memo != null)
+			return memo;
+		boolean win = false;
+		for (final Direction d : Direction.values()) {
+			if (egNodes > AI1_EG_NODES)
+				break;
+			final int nvx = mvx + d.dx, nvy = mvy + d.dy;
+			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				continue;
+			final int nx = mx + nvx, ny = my + nvy;
+			if (game.crossesFinish(mx, my, nx, ny)) {
+				win = true;
+				break;
+			}
+			if (!game.isMoveLegalGeometryCached(mx, my, nx, ny))
+				continue;
+			if (nx == rx && ny == ry)
+				continue;
+			if (!reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			if (egRival(nx, ny, nvx, nvy, rx, ry, rvx, rvy, depth - 1)) {
+				win = true;
+				break;
+			}
+		}
+		egMemo.put(key, win);
+		return win;
+	}
+
+	/** Pack a joint endgame state into a memo key: 8b coords, 5b velocity
+	 *  offsets (+12), 5b depth, 1b turn = 58 bits. */
+	private Long egKey(final int mx, final int my, final int mvx, final int mvy,
+			final int rx, final int ry, final int rvx, final int rvy, final int depth, final boolean rivalTurn) {
+		long k = mx;
+		k = k << 8 | my;
+		k = k << 5 | mvx + 12;
+		k = k << 5 | mvy + 12;
+		k = k << 8 | rx;
+		k = k << 8 | ry;
+		k = k << 5 | rvx + 12;
+		k = k << 5 | rvy + 12;
+		k = k << 5 | depth;
+		k = k << 1 | (rivalTurn ? 1 : 0);
+		return k;
 	}
 
 	/** TRUE iff state (x,y,vx,vy) is SEALABLE: opponents can jointly occupy
