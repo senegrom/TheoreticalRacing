@@ -26,12 +26,18 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
-## Current champion (HEAD = 9ad009b, pushed)
+## Current champion (round 44, commit b0f64c5, pushed)
 
-**Round-40 "danger joint search" (DJS) champion, promoted into AI2,
-self-tie verified.** Canonical 8-car seeds-1-5 numbers:
-**f=767 c=3 mv=64.06** (previous champion: f=763 c=7 mv=64.02; the +0.04
-is rescued-back-marker composition — per-track diffs +0.0).
+**DJS + sealfix + 1v1 endgame solver, promoted into AI2 per user
+2026-07-22, self-tie verified (8-car AND 4-car identical columns).**
+Canonical numbers: **8-car seeds 1-5 f=767 c=3 mv=64.07; 4-car seeds 1-5
+f=329 c=1 mv=61.97.** vs the round-40 DJS champion: sparse 10-seed
+crashes 4->1, 2-car 1->0, slow 1->0 (serpentine2 cleaned), 1v1 crash
+edge 0v1, all at equal pace; packed 8-car unchanged (wash relocations).
+Both AI bodies identical again; AI1 is free to diverge as the frontier.
+
+(Superseded: round-40 DJS-only champion was 9ad009b, canonical
+f=767 c=3 mv=64.06.)
 
 Mechanism (in both AI bodies, helpers shared):
 - Per-candidate `trapByDir[d]` records the trap ladder (d2SafeCount-based
