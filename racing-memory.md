@@ -194,6 +194,220 @@ reusable on any track+seed with a reach dump).
   now at the equilibrium limit; the only lever left is learned multi-agent
   coordination.
 
+## VERDICT on the rounds 48-53 pace campaign (read this first)
+
+The `unc` pace lever is **REJECTED**. It is real (~0.7% faster, consistent
+across every seed set) but it is NOT free: a third independent seed set
+(11-15) broke the tie decisively against it —
+
+| seed set | round 52 crashes | champion crashes |
+|----------|-----------------:|-----------------:|
+| 1-5      | 7 | 3 |
+| 6-10     | 3 | 5 |
+| **11-15**| **10** | **2** |
+| **total**| **20** | **10** |
+
+It DOUBLES the crash rate over 15 seeds. The seeds 6-10 result (3 vs 5,
+which looked like it beat the champion) was pure luck. **LAW: two seed sets
+are NOT enough when they disagree — a 5-seed crash delta of +/-2 is noise,
+and a candidate that wins one set and loses another must go to a third set
+before any conclusion.** This nearly promoted a crash-doubling regression.
+
+CONSEQUENCE: the `uncertified` surcharge IS load-bearing insurance despite
+its genuine coherence defect (it fires on speeds the map certifies). The
+counterfactual forensic was RIGHT that it overrides the deep search 51/51 —
+but the deep search is OPTIMISTIC about traffic, and this surcharge is
+precisely what pays for that optimism. Localising a term as "the thing
+costing pace" does NOT mean the term is wrong.
+
+**SURVIVOR: C+2** (certified pace tie-break + exact-self rollout) — the only
+candidate of the whole campaign that improves BOTH axes, confirmed on three
+independent seed sets:
+
+| seed set | C+2 f/c/mv | champion f/c/mv |
+|----------|------------|-----------------|
+| 1-5      | 767/**3**/64.04 | 767/3/64.07 |
+| 6-10     | 765/**5**/63.98 | 765/5/64.03 |
+| 11-15    | 770/**0**/64.01 | 768/2/64.06 |
+| total    | **c=8**    | c=10 |
+
+Never worse on any set, faster on all three, and c=0 on the very seed set
+where the `unc` lever collapsed (c=10 vs 2). Its safety comes from
+COMPOSITION, not from cutting caution — which is why it survives where every
+caution-reduction arm (A, B, 52, 53) failed.
+
+**FULL PROMOTION BATTERY: PASSED, CLEAN ON EVERY STAGE** (c2_battery.sh):
+
+| stage | C+2 (AI1) | champion (AI2) |
+|-------|-----------|----------------|
+| 8-car seeds 1-5   | 767/**3**/64.04 | 767/3/64.07 |
+| 8-car seeds 6-10  | 765/**5**/63.98 | 765/5/64.03 |
+| 8-car seeds 11-15 | 770/**0**/64.01 | 768/2/64.06 |
+| h2h places s1-5   | **4.430** c=**3** | 4.570 c=4 |
+| h2h places s6-10  | **4.484** c=**4** | 4.516 c=6 |
+| 4-car s1-5        | 329/1/61.97 (exact tie) | 329/1/61.97 |
+| 1v1 s1-5          | 110/0/60.95 (exact tie) | 110/0/60.95 |
+| slow synthetics   | 28/**0**/104.39 | 28/0/104.46 |
+
+h2h is the decisive stage the 8-car bench cannot see (insurance-premium law:
+caution can cede PLACES at equal crashes) — C+2 wins places AND crashes on
+BOTH seed sets. 4-car and 1v1 are exact ties: the certified tie-break
+correctly never fires in sparse fields, so the seal guard and the 1v1 solver
+are untouched. RECOMMENDED FOR PROMOTION (mirror the two AI1 mechanisms into
+AI2; delete the champ_8car_*.json caches on promotion).
+
+Mechanisms to mirror on promotion (both AI1-only today):
+1. `patch_r49c_certpace.py` — certified pace tie-break: scoreNSByDir/poTByDir
+   bookkeeping + the override block before `Direction chosen = ...`.
+2. `patch_r51_exactself.py` — `selfMoveOverState` + `safeSuccessorsOverState`
+   + the `exactSelf` flag threaded through simOutcome/dangerJointSearch
+   (flip the AI2 call sites to `true, true` when promoting).
+
+## Rounds 48-51: the traffic gap LOCALISED to two named terms
+
+Round 47 concluded "no recoverable traffic pace". That was WRONG in one
+respect and the correction is the most useful result since DJS: the pace
+forensic measured the gap per MOVE but never asked WHICH SCORE TERM decided
+it. Component-level attribution finds a real, broad, reproducible lever.
+
+### New tooling (scratchpad, reusable on any track+seed — use these FIRST)
+- **inert_probe.py** — the cheapest possible go/no-go for ANY AI1-only
+  change: races an all-AI1 field and an all-AI2 field on the same
+  track+seed and diffs the move logs (normalising the AI-kind field, which
+  is embedded in every log line — diffing without that gives a 100% false
+  divergence). Identical logs => the change is byte-inert; REVERT, never
+  bench. `PROBE_SEEDS=6,7,...` env to pick seeds. Caught rounds 48 and 51
+  in ~4 minutes each instead of a 40-minute gate.
+- **patch_comp_dump.py** — injects a print-only per-candidate score
+  breakdown into AI1 (gated `-Dai.debug.comp`): every scored candidate with
+  cost/trap/cap/unc/ce/qb/spread/mom/rob + raw map ttf.
+- **comp_forensic.py** — proportional blame per term for conceded pace.
+- **comp_counterfactual.py** — THE decisive one. Deletes each term, re-runs
+  the argmin, and measures the change in the WINNER's raw map ttf, i.e. the
+  honest ceiling of what removing that term could recover. Also splits, for
+  each flip, whether the deep search itself AGREED the faster cell was
+  cheaper / was exactly TIED / was AGAINST it. Proportional blame
+  over-attributes; always prefer the counterfactual.
+
+### The measurement (5 traffic sinks, seed 1, ttf recoverable)
+| term | lemans | monaco | sprint | triangle | hairpin | search verdict |
+|------|-------:|-------:|-------:|---------:|--------:|----------------|
+| unc    | 14 | 40 | – | – | 1 | AGREED 51/51 (overrode it) |
+| spread |  8 | 10 | 13 | 9 | 6 | TIED 46/46, AGAINST 0 |
+| trap   |  8 | 14 | – | – | – | agreed (load-bearing, leave alone) |
+
+Both have COHERENCE defects, not tuning defects:
+- **`spread`** (`opponentSpreadPenalty`, 0.3 within d2<=4 / 0.1 within
+  d2<=9, per rival) is documented as a "tiny penalty ... breaks lateral
+  ties", but its magnitude EXCEEDS the entire non-spread score spread in
+  the decisions it decides (all < 0.3). It is not breaking ties, it is
+  dominating them, and it outranks raw pace. Every flip is an exact
+  costToFinish tie where it picks the SLOWER line.
+- **`uncertified`** is gated on the flat `speed > AI1_BRAKE_SPEED` while its
+  sibling `speedCap` respects the per-state certified budget
+  (`widthBudget = max(5, certBudget) + d2SafeCount`). A term called
+  "uncertified" fires on speeds the map CERTIFIES. Arm B
+  (`patch_r49b_unc.py`, gate it on `overSpeed > 0`) is written and staged
+  but NOT YET RUN — this is the largest untested lever on the board.
+
+### Results so far
+- **Arm A (`AI1_SPREAD_W = 0.0`, delete spread): the lever is REAL but
+  uncertified.** 22 tracks x 10 seeds: mv 63.81/63.71 vs champion
+  64.07/64.03 (~0.45% faster on nearly EVERY track, both seed sets) but
+  crashes 15 vs 8, concentrated on the two most congested circuits
+  (hungaroring 1->6, lemans 1->5). Lateral spacing IS load-bearing there.
+  REJECT as-is; the constant `AI1_SPREAD_W` is a live tuning surface
+  (intermediate weights never tried).
+- **Arm C (certified pace tie-break, `patch_r49c_certpace.py`): NEUTRAL.**
+  Keeps spread at champion strength but overrides toward a strictly faster
+  line only when certified (weakly better on every non-spread term, zero
+  trap penalty, not sealable, survives the DJS rollout). c=10 vs 8,
+  mv -0.03/-0.05 over 10 seeds. The certification suppressed the pace
+  (-0.26 -> -0.04) without buying back the safety.
+- **Arm C + round 51 exact-self (the COMPOSITION): CRASH PARITY + pace.**
+  22 tracks x 10 seeds: s1-5 f=767 c=3 mv=64.04 vs champion 767/3/64.07;
+  s6-10 f=765 c=5 mv=63.98 vs 765/5/64.03. Crashes match the canonical
+  champion EXACTLY on both seed sets, pace -0.03/-0.05. The exact-self
+  rollout removed arm C's +1 crash on EACH seed set: idea 2 is inert alone
+  but LOAD-BEARING in composition, confirming the false-death hypothesis
+  (arm C certifies via simOutcome on a far broader state set than DJS's
+  narrow trap trigger, so self-fidelity finally matters). Per-track wins at
+  equal finishers: interlagos -0.3, hairpin -0.3, monaco/zandvoort/bigoval/
+  chicane/slalom -0.1. Gain is small (~0.05%) but it is the FIRST
+  crash-neutral pace improvement in many rounds.
+- **Arm B (`unc` gated on `overSpeed > 0`): THE BIGGEST PACE LEVER IN THE
+  CAMPAIGN, but uncertified.** 22 tracks x 10 seeds: mv 63.60/63.62 vs
+  champion 64.07/64.03 = **~0.7% faster**, consistent across both seed sets
+  (10x C+2's gain). Crashes disagree between seed sets: s1-5 c=7 vs 3
+  (WORSE), s6-10 c=4 vs 5 (BETTER) => +3 over 10 seeds. Fires only on the
+  big tracks the forensic predicted (lemans/monaco/interlagos/hungaroring/
+  zandvoort), never on the spread-dominated short ones — an independent
+  confirmation that the counterfactual attribution is measuring the right
+  thing. Better trade than arm A (-0.44 pace for +3 crashes, vs -0.29 for
+  +7) but still an uncertified caution cut.
+- **Round 52 (`patch_r52_certunc.py`): the synthesis under test** — keep the
+  surcharge as insurance and waive it only when certified on BOTH axes
+  (speed inside the certified budget AND the landing survives the
+  exact-self rollout). WARNING from the inert probe: it produced move
+  counts IDENTICAL to arm B on all 7 diverging probe races, i.e. the
+  survival check passes almost everywhere it fires, so it may reduce to
+  arm B behaviourally. If the gate confirms that, the survival proof is too
+  weak (a 3-round greedy-rival rollout rarely kills anything) and the
+  certification needs a stronger/adversarial form, or the arm C-style extra
+  conditions (trapPenalty == 0 and not sealable).
+- **Round 52 RESULT (certified waiver, survival proof only): arm B pace,
+  one crash better.** s1-5 f=763 c=7 mv=63.60 (BYTE-IDENTICAL to arm B --
+  the survival check certified NOTHING); s6-10 f=767 c=3 mv=63.62, which
+  BEATS the champion (765/5/64.03) on crashes AND finishers AND pace.
+  10-seed: c=10 vs 8, mv -0.44. LAW: `simOutcome >= 0` is a WEAK proof --
+  a 3-round rollout with greedy rivals almost never kills a landing. Use it
+  only in conjunction (as C+2 does), never as the sole gate.
+- **Round 53 (STRICTER certification: + trapPenalty == 0 + !sealable):
+  REJECTED — dominated by round 52 on BOTH axes.** s1-5 f=765 c=5 mv=63.83
+  (vs 767/3/64.07); s6-10 f=763 c=7 mv=63.79 (vs 765/5/64.03). 10-seed
+  c=12 vs 8 and only -0.23 pace, i.e. MORE crashes AND LESS pace than the
+  looser round 52 (c=10, -0.44). **KEY LAW: certification strictness does
+  NOT trade monotonically against safety here.** Tightening the gate did not
+  move along a pace/crash frontier — it reshuffled WHICH candidates get
+  waived and relocated crashes to new sites (hungaroring 2, interlagos 1,
+  zandvoort 3). Treat all of these arms as equilibrium RE-RANKINGS whose
+  crash outcome is close to chaotic; the only robust result in the whole
+  family is C+2's exact parity on BOTH independent seed sets. Do not spend
+  more rounds hand-tuning certification predicates.
+- **Round 50 (idea 4, predictedOpponentSteps 1->2): NEUTRAL, reverted.**
+  Fires on 12/15 probe races (the ply>=1 predicted-cell test is a HARD SKIP,
+  not a price, so this adds a ply-2 caution wall) but the gate is flat:
+  s1-5 767/3/64.06 vs 767/3/64.07; s6-10 766/4/64.03 vs 765/5/64.03.
+  Crashes merely RELOCATE (monaco/interlagos vs lemans/hungaroring).
+  WARNING recorded: the probe's lower move counts looked like a pace win but
+  are the mv composition artifact — probe move counts include crashed cars,
+  mv averages finishers only. Never read the probe as a pace measurement.
+- **Round 48 (idea 1, move-order/timing-exact world): CLOSED NEGATIVE,
+  STRUCTURALLY.** Right-of-way is ALREADY modelled — `simulateTwoRounds`
+  blocks rivals out of my candidate cell (`blocked[playerNum-1]`) and steps
+  them in true turn order. The one remaining stale-world site
+  (`countBrakeProofs`, a ply-2 question asked against `predicted`) was
+  floored with the timed world => byte-inert on 15 races. Instrumentation
+  (`patch_r48_debug.py`): the site is reached only **67 times in a 601-move
+  lemans race** and returned `pred=2` EVERY time — `predicted` never blocks
+  a braking descent, because AI1_VACATE_V already nulls exactly the fast
+  rivals that would be near a fast car. Both ply-2 consumers are now
+  provably correct. LAW: the speed-brake machinery (speedCap/waiver) is
+  nearly DORMANT; do not look for pace there.
+- **Round 51 (idea 2, exact-self rollout, `patch_r51_exactself.py`):
+  byte-INERT alone.** `simOutcome` rolls MY car as pure greedy min-turns
+  though the real me is the scorer (whose trap ladder refuses <=2 safe
+  successors), so it reports FALSE DEATHS ("zandvoort s7 is greedy-me model
+  error"). Fixed via a `selfMoveOverState` (maximise safe successors capped
+  at 3, then min ttf) threaded behind an explicit `exactSelf` flag
+  (AI1 true / AI2 false, since DJS is shared post-promotion). Result:
+  0/15 divergence on zandvoort (incl. s7) / hungaroring / coil, 1/15 on the
+  sinks. REASON (structural): DJS is SURVIVAL-ONLY, so it keeps a surviving
+  pick regardless of how survival was computed — the self-policy can only
+  matter when greedy-self DIES but trap-aware-self lives. Rare.
+  LAW: a fidelity fix behind a narrow trigger cannot pay; check the trigger
+  rate BEFORE building the fidelity fix.
+
 ## Crash floor REACHED — rounds 45-46 (all neutral, do not re-grind)
 
 The round-44 champion's residual crashes (8-car c=3 s1-5 / c=5 s6-10, the
