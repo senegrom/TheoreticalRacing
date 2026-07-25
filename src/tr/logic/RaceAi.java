@@ -1170,6 +1170,12 @@ final class RaceAi {
 		// guard the corridors the old gate was protecting.
 
 		final double[] trapByDir = new double[Direction.values().length];
+		// round 49 arm C: non-spread score and raw map ttf per candidate, for the
+		// certified pace tie-break after the loop.
+		final double[] scoreNSByDir = new double[Direction.values().length];
+		final int[] poTByDir = new int[Direction.values().length];
+		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
+		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -1316,6 +1322,8 @@ final class RaceAi {
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + conflict + spread - momentum - robustness;
 			final int poT = reach.turnsArr != null && reach.isAlive(newX, newY, newVx, newVy)
 					? reach.turnsArr[reach.aliveIdx(newX, newY, newVx, newVy)] : Integer.MAX_VALUE;
+			scoreNSByDir[d.ordinal()] = score - spread;
+			poTByDir[d.ordinal()] = poT;
 			if (poT < poBestT) {
 				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
@@ -1331,6 +1339,35 @@ final class RaceAi {
 				best = d;
 				poScorerT = poT;
 			}
+		}
+		// Certified pace tie-break (rounds 48-53, PROMOTED round 54): mirror of
+		// the AI1 frontier mechanism -- see optimalMoveAI1 for the derivation.
+		// Override `spread` toward a strictly faster line only when CERTIFIED:
+		// weakly better on every non-spread term (spread is the sole reason it
+		// lost), zero trap penalty, not sealable, and it survives the
+		// exact-self joint rollout. An uncertified faster line is never taken.
+		if (best != null) {
+			final double bestNS = scoreNSByDir[best.ordinal()];
+			int fastT = poTByDir[best.ordinal()];
+			Direction fast = null;
+			for (final Direction d : Direction.values()) {
+				if (d == best || poTByDir[d.ordinal()] >= fastT)
+					continue;
+				if (scoreNSByDir[d.ordinal()] > bestNS + 1e-9)
+					continue;
+				if (trapByDir[d.ordinal()] != 0.0)
+					continue;
+				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+				if (sealable(nx, ny, nvx, nvy, playerNum, false))
+					continue;
+				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true) < 0)
+					continue;
+				fast = d;
+				fastT = poTByDir[d.ordinal()];
+			}
+			if (fast != null)
+				best = fast;
 		}
 		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
 		if (chosen != null) {
@@ -1375,7 +1412,7 @@ final class RaceAi {
 				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
 			if (trapByDir[chosen.ordinal()] >= 0.5)
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen, false, false);
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true); // round 54: finish-vanish + exact-self promoted (matches AI1)
 			return chosen;
 		}
 		if (bestLegal != null)

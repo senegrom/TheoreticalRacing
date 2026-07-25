@@ -26,18 +26,26 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
-## Current champion (round 44, commit b0f64c5, pushed)
+## Current champion (round 54, promoted per user 2026-07-25)
 
-**DJS + sealfix + 1v1 endgame solver, promoted into AI2 per user
-2026-07-22, self-tie verified (8-car AND 4-car identical columns).**
-Canonical numbers: **8-car seeds 1-5 f=767 c=3 mv=64.07; 4-car seeds 1-5
-f=329 c=1 mv=61.97.** vs the round-40 DJS champion: sparse 10-seed
-crashes 4->1, 2-car 1->0, slow 1->0 (serpentine2 cleaned), 1v1 crash
-edge 0v1, all at equal pace; packed 8-car unchanged (wash relocations).
-Both AI bodies identical again; AI1 is free to diverge as the frontier.
+**DJS + sealfix + 1v1 endgame solver + certified pace tie-break +
+exact-self/finish-vanish rollout (C+2), mirrored into AI2
+(patch_promote_c2.py).** Self-tie verified at MOVE level: inert_probe
+27/27 races identical (5 sinks s1-3 + zandvoort/hungaroring/coil/
+silverstone s6-8) plus the 22-track bench-vs-cache tie. Canonical
+numbers: **8-car s1-5 f=767 c=3 mv=64.04; s6-10 765/5/63.98; s11-15
+770/0/64.01; 4-car s1-5 f=329 c=1 mv=61.97 (unchanged).** vs the
+round-44 champion: crashes 8 vs 10 over 15 seeds (never worse on any
+set), faster on all three sets, h2h places 4.430/4.484 vs 4.570/4.516
+with fewer crashes on both seed sets, 4-car/1v1 exact ties, slow
+synthetics crash-free -0.07. The AI2 DJS call now runs (true, true):
+finish-vanish (round 45) and exact-self (round 51) are champion
+mechanisms. Champion caches re-seeded from the gate's AI1 columns
+(champ_8car_s1/s6/s11.json). Both AI bodies identical again; AI1 is
+free to diverge as the frontier.
 
-(Superseded: round-40 DJS-only champion was 9ad009b, canonical
-f=767 c=3 mv=64.06.)
+(Superseded: round-44 champion b0f64c5, canonical 767/3/64.07; round-40
+DJS-only champion 9ad009b, canonical 767/3/64.06.)
 
 Mechanism (in both AI bodies, helpers shared):
 - Per-candidate `trapByDir[d]` records the trap ladder (d2SafeCount-based
@@ -253,15 +261,15 @@ h2h is the decisive stage the 8-car bench cannot see (insurance-premium law:
 caution can cede PLACES at equal crashes) — C+2 wins places AND crashes on
 BOTH seed sets. 4-car and 1v1 are exact ties: the certified tie-break
 correctly never fires in sparse fields, so the seal guard and the 1v1 solver
-are untouched. RECOMMENDED FOR PROMOTION (mirror the two AI1 mechanisms into
-AI2; delete the champ_8car_*.json caches on promotion).
+are untouched.
 
-Mechanisms to mirror on promotion (both AI1-only today):
-1. `patch_r49c_certpace.py` — certified pace tie-break: scoreNSByDir/poTByDir
-   bookkeeping + the override block before `Direction chosen = ...`.
-2. `patch_r51_exactself.py` — `selfMoveOverState` + `safeSuccessorsOverState`
-   + the `exactSelf` flag threaded through simOutcome/dangerJointSearch
-   (flip the AI2 call sites to `true, true` when promoting).
+**PROMOTED round 54 (user-approved 2026-07-25) via `patch_promote_c2.py`:**
+mirrored the scoreNSByDir/poTByDir bookkeeping + override block into the AI2
+body (second occurrence of each anchor) and flipped AI2's dangerJointSearch
+call (false, false) -> (true, true), which also promoted the round-45
+finish-vanish fidelity that had been AI1-only. Self-tie: inert_probe 27/27
+INERT + 22-track bench-vs-cache tie. Caches re-seeded from the gate's AI1
+columns via `extract_baseline.py <log> <json> 1`.
 
 ## Rounds 48-51: the traffic gap LOCALISED to two named terms
 
