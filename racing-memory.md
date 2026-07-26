@@ -143,6 +143,58 @@ and this arc finally REPRODUCED it in-sim. Story, laws and tools:
   untouched. Better than the round-40 DJS gate (net -5) on breadth AND
   the h2h margin. PROMOTED round 58 (user-approved 2026-07-26) -- see
   the champion header.
+## Round 59 (AI1, in gates): real-scorer rivals for the slow class
+
+The round-58 champion's ENTIRE residual (6 crashes/15 seeds) is the SLOW
+class (spd^2 <= 25): queue pockets + endgame scrums. Oracle census of all
+six: hungaroring s7/s12/s13 = the (64,115) pocket (doom-entry m389-class,
+saveable, chosen dies r2-3 with TWO survivors); lemans s4 = start-funnel
+doom entered at m63 through a TRAP-0 state (1-ply ladder reads 3 open,
+all secretly dead in 2-4 rounds; only visible at horizon 4-5); zigzag s4
+and hairpin s10 (race-end scrum at spd^2~2) unclassified in depth.
+
+KEY MEASUREMENT (policy_matrix, horizon 4-5): the smom proxy FAILS the
+slow class both ways (misses the pocket death AND falsely kills the good
+escape) -- dense slow traffic drifts beyond any 2-term proxy within ~2
+rounds. Real-scorer rivals + selfMove me ("orivals") flags BOTH slow
+dooms with survivors intact => recursion is the only faithful world.
+
+BUILD: scorerMoveOverState -- installs the sim board into the live
+Player objects (processQueries pattern), runs the rival's OWN scorer
+with recursive machinery suppressed (IN_SCORER_SIM static guards at the
+solver / certified tie-break / DJS in both bodies), restores in a
+finally. simOutcome gains scorerRivals: nearest AI1_SCORER_MAXRIVALS=3
+rivals within Chebyshev AI1_SCORER_NEAR=10 roll via the real scorer.
+AI1's DJS call: slow-class fires (landing spd^2 < 49) use scorer-rivals
+at AI1_DJS_SLOW_ROUNDS=5; fast fires keep smom at 3 (proven, untouched).
+
+SITE RESULTS: hungaroring s13 saved at exactly the oracle's doom-entry
+(m389 NONE->E, one intervention, 0 crashes); s7 + s12 saved; the whole
+pocket class is GONE. lemans s4 NOT saved (its trap-fires correctly say
+"no survivor"; the m63 entry is trap-0 so nothing fires -- KNOWN GAP).
+zigzag s4 / hairpin s10 not saved.
+
+GATES (round 59, ALL PASSED, never worse on any stage): probe 2/27
+diverge (the s7 save + a crash-neutral lemans-s3 funnel flip). 8car:
+s1-5 EXACT tie 768/2/64.04; s6-10 768/2/63.99 vs 768/2/64.00 (s7 saved,
+monaco s7 NEW -- see below); s11-15 **770/0/64.01** vs 768/2 (both
+pocket crashes saved, the perfect set). 15-seed c=4 vs 6 at flat pace.
+h2h: s1-5 exact parity 4.500/4.500 c=2/2; s6-10 4.501/4.499 (noise)
+c=1 vs 2. 4car/1v1/slow: EXACT ties (330/0, 110/0, 28/0).
+
+The monaco s7 relocation (oracle-classified): p8 squeezed in the tunnel
+narrows (x66-71,y75-76) at speed ~5, TOTALLY boxed by m480 (all 9
+segment-illegal -- board_at's "open" cells were wall-cut illusions,
+only the oracle mask sees segment legality), doomed before m472. Same
+slow-class family (trap-0 funnel entry), walk-back pending -- a
+round-60 target alongside lemans s4 / zigzag s4 / hairpin s10.
+
+ROUND-60 LEAD (measured, do NOT build a blanket trigger): slow+crowd2
+fires 218/race (crowd_rate.py) -- far too hot for scorer rollouts. The
+lemans entry needs a SELECTIVE escalation, e.g. run the cheap smom
+rollout first and escalate to scorer-rivals only when its final state is
+fragile (died OR final tier <= 1). Escalation rate unmeasured.
+
 - **The residual class is ONE localized pocket: hungaroring (64,115).**
   All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
   r57_hung_forensic.sh replays) die at the SAME cell with the SAME
