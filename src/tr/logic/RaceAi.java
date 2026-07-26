@@ -1485,8 +1485,13 @@ final class RaceAi {
 			if (AI_DEBUG_PLAYER == playerNum)
 				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
-			if (trapByDir[chosen.ordinal()] >= 0.5)
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, false); // round 54: finish-vanish + exact-self promoted (matches AI1)
+			// round 58 (PROMOTED): wide speed trigger (rounds 55) + smom rival
+			// sim (round 57) -- matches AI1; see the frontier body for the
+			// oracle derivation. Landing velocity recomputed: the sealGuard may
+			// have swapped chosen.
+			final int djvx = vel[0] + chosen.dx, djvy = vel[1] + chosen.dy;
+			if (trapByDir[chosen.ordinal()] >= 0.5 || djvx * djvx + djvy * djvy >= AI1_DJS_SPD2)
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true); // round 58: wide trigger + smom rivals promoted (matches AI1)
 			return chosen;
 		}
 		if (bestLegal != null)

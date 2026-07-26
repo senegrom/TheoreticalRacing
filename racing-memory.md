@@ -26,26 +26,30 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
-## Current champion (round 54, promoted per user 2026-07-25)
+## Current champion (round 58, promoted per user 2026-07-26)
 
-**DJS + sealfix + 1v1 endgame solver + certified pace tie-break +
-exact-self/finish-vanish rollout (C+2), mirrored into AI2
-(patch_promote_c2.py).** Self-tie verified at MOVE level: inert_probe
-27/27 races identical (5 sinks s1-3 + zandvoort/hungaroring/coil/
-silverstone s6-8) plus the 22-track bench-vs-cache tie. Canonical
-numbers: **8-car s1-5 f=767 c=3 mv=64.04; s6-10 765/5/63.98; s11-15
-770/0/64.01; 4-car s1-5 f=329 c=1 mv=61.97 (unchanged).** vs the
-round-44 champion: crashes 8 vs 10 over 15 seeds (never worse on any
-set), faster on all three sets, h2h places 4.430/4.484 vs 4.570/4.516
-with fewer crashes on both seed sets, 4-car/1v1 exact ties, slow
-synthetics crash-free -0.07. The AI2 DJS call now runs (true, true):
-finish-vanish (round 45) and exact-self (round 51) are champion
-mechanisms. Champion caches re-seeded from the gate's AI1 columns
-(champ_8car_s1/s6/s11.json). Both AI bodies identical again; AI1 is
-free to diverge as the frontier.
+**Round-54 base (DJS + sealfix + 1v1 solver + certified pace tie-break +
+exact-self/finish-vanish) PLUS the rounds 55-57 queue-box mechanisms:
+wide DJS speed trigger (AI1_DJS_SPD2 = 49) and the smom rival sim
+(rivalMoveOverState: min ttf + trap ladder, ties toward the FASTER
+landing) -- mirrored into AI2 by hand-edit of the AI2 trigger site
+(condition + (true,true,true) flags; helpers are shared).** Canonical
+numbers: **8-car s1-5 f=768 c=2 mv=64.04; s6-10 768/2/64.00; s11-15
+768/2/63.99; 4-car s1-5 f=330 c=0 mv=61.98.** vs the round-54 champion:
+8-car crashes 6 vs 10 over 15 seeds at dead-flat pace (silverstone/
+interlagos/zandvoort crashes GONE); h2h wins places AND crashes on both
+seed sets (4.491/4.486 vs 4.509/4.514, c 4 vs 8); 4-car 330/0 vs 329/1;
+1v1 and slow exact ties. Residual 15-seed crash set: lemans s1-5,
+zigzag s4, hungaroring+hairpin s6-10, hungaroring x2 s11-15 -- of which
+THREE die in the same slow pocket at hungaroring (64,115), the round-59
+target. Self-tie verified: inert_probe 27/27 move-identical + 22-track
+bench-vs-cache exact tie; caches re-seeded from the r57 gate's AI1
+columns (extract_baseline.py <log> <json> 1). Both AI bodies identical
+again; AI1 free to diverge as the frontier.
 
-(Superseded: round-44 champion b0f64c5, canonical 767/3/64.07; round-40
-DJS-only champion 9ad009b, canonical 767/3/64.06.)
+(Superseded: round-54 C+2 champion 4df1866, canonical 767/3/64.04;
+round-44 champion b0f64c5, canonical 767/3/64.07; round-40 DJS-only
+champion 9ad009b, canonical 767/3/64.06.)
 
 ## Rounds 55-57: the queue-box class cracked (candidate in gates)
 
@@ -137,8 +141,8 @@ and this arc finally REPRODUCED it in-sim. Story, laws and tools:
   8car crashes 6 vs 10 over 15 seeds; h2h wins BOTH axes on BOTH sets
   (margins beat even the C+2 promotion battery); 4car save; sparse/slow
   untouched. Better than the round-40 DJS gate (net -5) on breadth AND
-  the h2h margin. PROMOTION-READY; awaiting the user's word (convention:
-  promotion into AI2 is always an explicit user decision).
+  the h2h margin. PROMOTED round 58 (user-approved 2026-07-26) -- see
+  the champion header.
 - **The residual class is ONE localized pocket: hungaroring (64,115).**
   All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
   r57_hung_forensic.sh replays) die at the SAME cell with the SAME
