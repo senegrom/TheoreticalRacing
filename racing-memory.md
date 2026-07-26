@@ -47,6 +47,114 @@ free to diverge as the frontier.
 (Superseded: round-44 champion b0f64c5, canonical 767/3/64.07; round-40
 DJS-only champion 9ad009b, canonical 767/3/64.06.)
 
+## Rounds 55-57: the queue-box class cracked (candidate in gates)
+
+The remaining crash class was named in round 44 ("a body takes the escape")
+and this arc finally REPRODUCED it in-sim. Story, laws and tools:
+
+- **R55 (wide DJS trigger, AI1_DJS_SPD2=49): byte-inert alone, KEPT as
+  enabler.** Landing spd^2 >= 49 fires on 16.3% of moves (spd_rate.py;
+  silverstone 28.8%, sprint/triangle 0%) yet 27/27 probe races were
+  move-identical: under the champion's greedy-rival sim NO death verdict
+  fires anywhere -- trigger timing was never the frontier, sim fidelity was.
+- **LAW (cost a day): `-Dai.debug.djs` is Boolean.getBoolean -- it MUST be
+  `-Dai.debug.djs=true`.** The bare flag silently disables printing; several
+  "zero AIDBG events" reads were meaningless until this was caught via a
+  SIM_TRACE that also failed to print.
+- **Oracle tooling (the arc's permanent yield, all in scratchpad):**
+  `--query-moves - -` is now INTERACTIVE (stdin/stdout, one JVM serves
+  sequential queries; ~18s reachability once) and each reply carries a
+  9-candidate mask in Direction order (F finish / X illegal / B body /
+  D reach-dead / A alive). Drivers: oracle_roll.py (verify mode = roll the
+  real scorer as every car's policy and diff vs the log -- validated EXACT
+  MATCH; cand mode = per-candidate fate of a mover at any log move),
+  policy_matrix.py (replicates any cheap sim policy offline via mask
+  queries), board_at.py (board + candidate classification at any log move),
+  crash_scan.py (find crashed players in logs), champ_logs/ (round-54
+  champion move logs, 27 races). This kills the guess-build-replay loop:
+  policies are DERIVED offline, only the winner gets built in Java.
+- **Doom mechanics of the three covered champion crashes** (board_at +
+  oracle cand): silverstone s6 = one-cell certified corridor (83,117), p2
+  claims it one move early, the "open" (83,118) is segment-illegal, 7
+  dead-states -- all 9 fatal at m161, doom entered between m145 and m153.
+  hungaroring s6 = same corridor-queue shape (8 dead + 1 body at m197).
+  zandvoort s7 = empty-track doom (every candidate reach-dead by m140) --
+  entered a certified-dead corridor rounds earlier.
+- **Oracle verdicts: 2/3 saveable at wide-trigger points within horizon 3**
+  (silverstone m145: chosen W dies r2, brake N survives t=62; hungaroring
+  m181: chosen W dies r2, SIX survivors) -- only the rival model blocked
+  the saves. zandvoort not saveable at m140+ (all dead).
+- **Policy matrix (the decisive artifact): both boxes need BOTH terms.**
+  Rival policy vs (chosen / survivor) on both sites:
+  greedy: alive/alive + alive/alive (misses both boxes -- vacates lines);
+  gmom (greedy, tie->faster): catches silverstone only;
+  shape (ttf+trap ladder): catches hungaroring only (corridor claim);
+  **smom (ttf + trap, tie -> HIGHER landing speed): DEAD/alive on BOTH --
+  matches the real-scorer reference on all four cells.** The momentum
+  tie-break models the scorer holding speed down the racing line; the trap
+  term models it claiming one-lane corridors (ttf gain > trap 2.0). The
+  r56 lexicographic selfMove-as-rivals arm (tier FIRST) is the opposite
+  failure: refuses the corridors the real scorer claims -- probed inert,
+  reverted same day.
+- **R57 build: `rivalMoveOverState` (smom) behind exactRivals in the DJS
+  rollout only** (certification vetoes keep greedy rivals; exactSelf
+  unchanged -- one variable). AI1 DJS call = (true, true, true). In-game
+  replays: silverstone s6 saved (ONE intervention, m145 W->N, 0 crashes),
+  hungaroring s6 saved (m181 W->NW, 0 crashes). 27-race probe: 6/27
+  diverge; crashes 3 -> 1 -- ALL champion crashes saved including
+  zandvoort s7 (intervention at m124, BEFORE the oracle's doomed window:
+  the new sim sees the danger while escapes still exist); 1 NEW crash
+  (hungaroring s7, an early m29 switch reflowed the race; slow queue death
+  at m413 -- board_at: all 9 candidates reach-dead, the zandvoort doom
+  class, formed at low speed below every trigger).
+- **R57 8car screens (3 independent seed sets, vs cached champion): the
+  biggest crash gain since DJS itself, at DEAD-FLAT pace.**
+  | seed set | R57 f/c/mv | champion f/c/mv |
+  |----------|------------|-----------------|
+  | 1-5      | 768/**2**/64.04 | 767/3/64.04 |
+  | 6-10     | 768/**2**/64.00 | 765/5/63.99 |
+  | 11-15    | 768/2/63.99 | 770/**0**/64.01 |
+  | total    | **c=6** f=2304 | c=10 f=2302 |
+  Sites: silverstone/interlagos/zandvoort crashes GONE (s6-10 3->0);
+  hungaroring 2->3 across sets (s1-5 1->0, s6-10 1->1 wash, s11-15 0->2
+  NEW -- its one-lane corridor absorbs the reflow risk); lemans/zigzag/
+  hairpin slow-class untouched. The s11-15 regression is the round-52
+  warning shape but here the 15-seed total is strongly net (-4 crashes,
+  +2 finishers) rather than reversed. smom sim cost: NEGLIGIBLE (~17
+  min/set cached, same as champion).
+- **R57 FULL BATTERY: PASSED, the strongest gate of the campaign** --
+  wins or ties EVERY stage, no stage worse:
+  | stage | R57 (AI1) | champion (AI2) |
+  |-------|-----------|----------------|
+  | 8car s1-5   | 768/**2**/64.04 | 767/3/64.04 |
+  | 8car s6-10  | 768/**2**/64.00 | 765/5/63.99 |
+  | 8car s11-15 | 768/2/63.99 | 770/**0**/64.01 |
+  | h2h s1-5    | **4.491** c=**2** | 4.509 c=3 |
+  | h2h s6-10   | **4.486** c=**2** | 4.514 c=5 |
+  | 4car s1-5   | 330/**0**/61.98 | 329/1/61.97 |
+  | 1v1 s1-5    | 110/0/60.95 (exact tie) | 110/0/60.95 |
+  | slow        | 28/0/104.39 (exact tie) | 28/0/104.39 |
+  8car crashes 6 vs 10 over 15 seeds; h2h wins BOTH axes on BOTH sets
+  (margins beat even the C+2 promotion battery); 4car save; sparse/slow
+  untouched. Better than the round-40 DJS gate (net -5) on breadth AND
+  the h2h margin. PROMOTION-READY; awaiting the user's word (convention:
+  promotion into AI2 is always an explicit user decision).
+- **The residual class is ONE localized pocket: hungaroring (64,115).**
+  All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
+  r57_hung_forensic.sh replays) die at the SAME cell with the SAME
+  approach (59,116)->(62,116)->(64,115) at spd^2 10/9/5, all 9 candidates
+  reach-dead at the end (board_at). A slow-speed doom pocket below every
+  trigger (wide needs spd^2>=49; trap fires too late). ROUND-58 TARGET:
+  oracle cand walk-back on this pocket to find the doom-entry move and a
+  trigger shape for the slow class (zandvoort s7's family). The pocket is
+  a consistent attractor of the new equilibrium, so it should reproduce
+  deterministically for the forensic.
+- **Idea D (certified isolation sprint): CLOSED NEGATIVE by measurement**
+  (iso_pool.py, champ_logs): pace lost while spatially isolated from every
+  rival is ~0.2 ttf/race at Chebyshev >= 20 and ZERO at >= 25 -- in-race
+  fields never spread enough; the 1.10% solo-caution headroom exists only
+  in literally-solo races. Do not build.
+
 Mechanism (in both AI bodies, helpers shared):
 - Per-candidate `trapByDir[d]` records the trap ladder (d2SafeCount-based
   50/2/0.5/0 penalty) during the normal scoring loop.

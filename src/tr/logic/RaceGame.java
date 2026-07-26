@@ -578,13 +578,29 @@ public class RaceGame {
 	 *  pure function of the board + the (track-level) reachability map, so queries
 	 *  are independent -- no state carries between them. */
 	private void processQueries(final String inPath, final String outPath) {
-		try (java.io.BufferedReader br = java.nio.file.Files.newBufferedReader(java.nio.file.Path.of(inPath));
-				java.io.BufferedWriter bw = java.nio.file.Files.newBufferedWriter(java.nio.file.Path.of(outPath))) {
+		// "-" as the input path switches to interactive stdin/stdout mode (one
+		// answer per query line, flushed) so a driver can roll positions
+		// SEQUENTIALLY against one JVM instead of paying the reachability BFS
+		// per query batch. Replies are "dx,dy;MMMMMMMMM" -- the mover's chosen
+		// move plus a 9-char candidate mask in Direction.values() order
+		// (NW,N,NE,W,NONE,E,SW,S,SE): F crosses finish, X illegal (speed cap or
+		// geometry), B live body on the cell, D landing state cannot finish
+		// (reachability-dead), A alive. The mask is what lets an offline roller
+		// apply moves with the game's exact crash rules.
+		final boolean interactive = "-".equals(inPath);
+		try (java.io.BufferedReader br = interactive
+				? new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
+				: java.nio.file.Files.newBufferedReader(java.nio.file.Path.of(inPath));
+				java.io.BufferedWriter bw = interactive
+						? new java.io.BufferedWriter(new java.io.OutputStreamWriter(System.out))
+						: java.nio.file.Files.newBufferedWriter(java.nio.file.Path.of(outPath))) {
 			String line;
 			while ((line = br.readLine()) != null) {
 				line = line.trim();
 				if (line.isEmpty())
 					continue;
+				if ("quit".equals(line))
+					break;
 				final String[] parts = line.split(";");
 				final int mover = Integer.parseInt(parts[0].trim());
 				for (int i = 0; i < players.length && i + 1 < parts.length; i++) {
@@ -595,14 +611,37 @@ public class RaceGame {
 				}
 				subgamestate = mover;
 				final Direction d = ai.computeAiMove();
-				bw.write(d.dx + "," + d.dy);
+				final Player me = players[mover];
+				final int[] mp = me.getPosition(), mv = me.getVelocity();
+				final StringBuilder mask = new StringBuilder(9);
+				for (final Direction cd : Direction.values()) {
+					final int nvx = mv[0] + cd.dx, nvy = mv[1] + cd.dy;
+					final int nx = mp[0] + nvx, ny = mp[1] + nvy;
+					final char c;
+					if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+						c = 'X';
+					else if (crossesFinish(mp[0], mp[1], nx, ny))
+						c = 'F';
+					else if (!isMoveLegalGeometryCached(mp[0], mp[1], nx, ny))
+						c = 'X';
+					else if (isCrashingPlayer(nx, ny, me.getNumber()))
+						c = 'B';
+					else if (!reach.isAlive(nx, ny, nvx, nvy))
+						c = 'D';
+					else
+						c = 'A';
+					mask.append(c);
+				}
+				bw.write(d.dx + "," + d.dy + ";" + mask);
 				bw.newLine();
+				bw.flush();
 			}
 		} catch (final java.io.IOException e) {
 			e.printStackTrace();
 			System.exit(3);
 		}
-		System.out.println("answered queries -> " + outPath);
+		if (!interactive)
+			System.out.println("answered queries -> " + outPath);
 	}
 
 	private void saveTrackToProperties() {

@@ -104,6 +104,7 @@ final class RaceAi {
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
 	private final static int		AI1_DJS_ROUNDS	= 3;	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
+	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
@@ -387,7 +388,7 @@ final class RaceAi {
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				if (sealable(nx, ny, nvx, nvy, playerNum, false))
 					continue;
-				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true) < 0)
+				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false) < 0)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
@@ -449,8 +450,15 @@ final class RaceAi {
 			// model errors perturbed the field into new doom pockets
 			// (hungaroring guard 1->5). The trap gate is not just a cost gate;
 			// it bounds exposure to sim model error.
-			if (trapByDir[chosen.ordinal()] >= 0.5)
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true);
+			// round 55 (AI1): retry a wider trigger UNDER exact-self fidelity
+			// (round 51 fixed the false-death class that sank the round-45 arm):
+			// also fire at high landing speed, where the ancestral crash shapes
+			// live but the trap ladder still reads 0. Survival-only asymmetry
+			// unchanged -- extra fires can only override provably dying picks.
+			// Landing velocity recomputed: the sealGuard may have swapped chosen.
+			final int djvx = vel[0] + chosen.dx, djvy = vel[1] + chosen.dy;
+			if (trapByDir[chosen.ordinal()] >= 0.5 || djvx * djvx + djvy * djvy >= AI1_DJS_SPD2)
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true); // round 57: score-shaped rivals (rivalMoveOverState) in the rollout
 			return chosen;
 		}
 		if (bestLegal != null)
@@ -949,8 +957,9 @@ final class RaceAi {
 	 *  greedy-me model error, not horizon"). Maximise safe successors (capped at
 	 *  3, the ladder's zero-penalty boundary), then minimise turnsToFinish -- so
 	 *  among genuinely roomy landings this is exactly the greedy pace policy,
-	 *  and it only diverges where the real me would have refused. Rivals stay
-	 *  greedy: round 46 proved a roomy policy for EVERY car is neutral. */
+	 *  and it only diverges where the real me would have refused. Round 56:
+	 *  also the RIVAL policy inside the DJS rollout (exactRivals) -- the r55
+	 *  forensic proved greedy rivals dissolve every real box in-sim. */
 	private int[] selfMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
 			final int[] px, final int[] py, final boolean[] alive) {
 		int bestTier = -1, bestT = Integer.MAX_VALUE;
@@ -986,6 +995,60 @@ final class RaceAi {
 		return best;
 	}
 
+	/** Round 57 (AI1): RIVAL move inside the joint rollout -- the two loudest
+	 *  terms of the real scorer, correctly WEIGHTED: minimise turnsToFinish
+	 *  PLUS the trap ladder of the landing (50 / 2.0 / 0.5 / 0 for 0/1/2/>=3
+	 *  safe successors). The oracle forensic proved why both prior proxies
+	 *  miss real kills: greedy is trap-blind, and the lexicographic selfMove
+	 *  policy (tier first) REFUSES the one-lane corridor cells the real
+	 *  pace-seeking scorer claims (ttf gain > trap 2.0), so neither
+	 *  reconstructs the queue boxes that actually kill (silverstone s6 m145,
+	 *  hungaroring s6 m181: chosen dies in 2 rounds under real-scorer rivals,
+	 *  survivors exist -- both invisible under greedy AND selfMove rivals). */
+	private int[] rivalMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
+			final int[] px, final int[] py, final boolean[] alive) {
+		double bestScore = Double.MAX_VALUE;
+		int bestSpd2 = -1;
+		int[] best = null;
+		for (final Direction d : Direction.values()) {
+			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
+			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (game.crossesFinish(x, y, nx, ny))
+				return new int[]{nx, ny, nvx, nvy };
+			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+				continue;
+			boolean occ = false;
+			for (int j = 0; j < px.length; j++) {
+				if (j == self || !alive[j])
+					continue;
+				if (px[j] == nx && py[j] == ny) {
+					occ = true;
+					break;
+				}
+			}
+			if (occ || !reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
+			final double trap = tier == 0 ? 50.0 : tier == 1 ? AI1_TRAP_L1 : tier == 2 ? AI1_TRAP_L2 : 0.0;
+			final double score = reach.turnsToFinish(nx, ny, nvx, nvy) + trap;
+			// Momentum tie-break (policy matrix "smom"): among score-equal
+			// candidates the real scorer HOLDS SPEED down the racing line
+			// (deep cost + momentum), so prefer the faster landing. This is
+			// what reproduces the silverstone box; the trap term reproduces
+			// the hungaroring corridor claim -- smom matches the real-scorer
+			// reference on all four site/candidate cells of the matrix.
+			final int spd2 = nvx * nvx + nvy * nvy;
+			if (score < bestScore || score == bestScore && spd2 > bestSpd2) {
+				bestScore = score;
+				bestSpd2 = spd2;
+				best = new int[]{nx, ny, nvx, nvy };
+			}
+		}
+		return best;
+	}
+
 	/** Roll the joint game forward from MY candidate landing over a DETACHED
 	 *  board copy: every car plays greedy min-turnsToFinish; move-order aware
 	 *  (the first simulated round covers only the players who still move after
@@ -994,7 +1057,8 @@ final class RaceAi {
 	 *  slots). No mutation of live players[] -- deterministic, cannot
 	 *  livelock. AI1 only (round 40 danger joint search). */
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
-			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf) {
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals) {
 		final int n = game.players.length;
 		final int[] px = new int[n], py = new int[n], vx = new int[n], vy = new int[n];
 		final boolean[] alive = new boolean[n];
@@ -1023,9 +1087,18 @@ final class RaceAi {
 					continue;
 				// round 51 (AI1): my own car follows the trap-aware policy -- a greedy
 				// sim-self dies in boxes the real scorer would never enter.
-				final int[] mv = exactSelf && i == myIdx
-						? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive)
-						: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
+				// round 57 (AI1): rivals follow the score-shaped policy (ttf + trap
+				// ladder, weighted) -- greedy rivals dissolve every real box in-sim
+				// (zero death verdicts across whole crash races), and the r56
+				// lexicographic selfMove proxy refuses the corridor cells the real
+				// scorer claims. See rivalMoveOverState for the oracle derivation.
+				final int[] mv = i == myIdx
+						? exactSelf
+								? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive)
+								: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive)
+						: exactRivals
+								? rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive)
+								: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
 				if (simFinishVanish && mv != null && game.crossesFinish(px[i], py[i], mv[0], mv[1])) {
 					if (i == myIdx)
 						return 0;	// I finish in-sim: unambiguous survival
@@ -1051,12 +1124,13 @@ final class RaceAi {
 	 *  the joint rollout, switch to the surviving candidate with the best
 	 *  sim-final turnsToFinish; keep the chosen move in every other case. */
 	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
-			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf) {
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
-		if (simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_ROUNDS, simFinishVanish, exactSelf) >= 0)
+		if (simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_ROUNDS, simFinishVanish, exactSelf, exactRivals) >= 0)
 			return chosen;
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 		if (dbg)
@@ -1079,7 +1153,7 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, simFinishVanish, exactSelf);
+			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, simFinishVanish, exactSelf, exactRivals);
 			if (dbg)
 				System.err.println("AIDBG DJS  alt " + d + " land=(" + nx + "," + ny + ") simT="
 						+ (t < 0 ? "DIES" : String.valueOf(t)));
@@ -1361,7 +1435,7 @@ final class RaceAi {
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				if (sealable(nx, ny, nvx, nvy, playerNum, false))
 					continue;
-				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true) < 0)
+				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false) < 0)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
@@ -1412,7 +1486,7 @@ final class RaceAi {
 				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
 			if (trapByDir[chosen.ordinal()] >= 0.5)
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true); // round 54: finish-vanish + exact-self promoted (matches AI1)
+				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, false); // round 54: finish-vanish + exact-self promoted (matches AI1)
 			return chosen;
 		}
 		if (bestLegal != null)
