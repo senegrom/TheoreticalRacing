@@ -26,7 +26,22 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
-## Current champion (round 63, promoted per user 2026-07-26)
+## Current champion (round 66, promoted per user 2026-07-28)
+
+**The round-63 champion PLUS the round-65 pack-gated deep escalation,
+mirrored into AI2 (one call-site branch; the simOutcome outFinalTier
+overload and constants were already shared): fast fires with >= 3
+rivals within Chebyshev 10 of the landing run the cheap smom pre-screen
+at horizon 8 and escalate to the scorer-rival world on a
+dead-or-FRAGILE (final tier <= 1) verdict.** Canonical numbers:
+**8-car s1-5 769/1/63.81; s6-10 770/0/63.79; s11-15 770/0/63.79
+(2309/2310 finishers, the sole crash = lemans s4, provably invisible);
+4-car 330/0/61.84; 1v1 110/0/60.62; slow 28/0/104.25.** Self-tie:
+inert_probe 27/27 move-identical + bench-vs-cache per-track rows
+identical. Caches re-seeded from the r65 gate's AI1 columns. Both AI
+bodies identical again; AI1 free to diverge.
+
+## Superseded champion (round 63, promoted per user 2026-07-26)
 
 **The round-58 base (DJS + sealfix + 1v1 solver + certified pace
 tie-break + exact-self/finish-vanish + wide speed trigger + smom rival

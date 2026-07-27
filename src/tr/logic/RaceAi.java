@@ -1776,13 +1776,45 @@ final class RaceAi {
 			// real-scorer near-rival world at the 5-round horizon; trap-0 slow
 			// moves get the smom smoke test that escalates to the scorer
 			// rollout on a death verdict. Fast fires keep smom at 3 rounds.
+			// round 66 (PROMOTED round 65): fast fires WITH a pack (>= 3 rivals
+			// within Chebyshev 10 of the landing) run the deep smom pre-screen
+			// and escalate to the scorer-rival world at horizon 8 on a
+			// dead-or-fragile verdict -- the 5-7-round doom class.
 			// See the AI1 body for the oracle derivations.
 			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
 			if (!IN_SCORER_SIM) {
-				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow)
-					chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-							djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
-				else {
+				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
+					boolean deepHandled = false;
+					if (!djSlow) {
+						final int dcx = pos[0] + djvx, dcy = pos[1] + djvy;
+						int packNear = 0;
+						for (final Player pp : game.players) {
+							if (pp.getNumber() == playerNum || pp.isFinished())
+								continue;
+							final int[] ppos = pp.getPosition();
+							if (Math.abs(ppos[0] - dcx) <= AI1_DEEP_PACK_R
+									&& Math.abs(ppos[1] - dcy) <= AI1_DEEP_PACK_R)
+								packNear++;
+						}
+						if (packNear >= AI1_DEEP_PACK && !game.crossesFinish(pos[0], pos[1], dcx, dcy)) {
+							final int[] ft = new int[]{3 };
+							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
+									true, true, true, false, ft);
+							if (dv < 0 || ft[0] <= 1) {
+								if (AI_DEBUG_DJS)
+									System.err.println("AIDBG DEEP p=" + playerNum + " pos=(" + pos[0] + ","
+											+ pos[1] + ") chosen=" + chosen + " smom8 "
+											+ (dv < 0 ? "dies" : "fragile") + " -> scorer rollout");
+								chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+										true, AI1_DEEP_HORIZON);
+								deepHandled = true;
+							}
+						}
+					}
+					if (!deepHandled)
+						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+								djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+				} else {
 					final int scvx = vel[0] + chosen.dx, scvy = vel[1] + chosen.dy;
 					final int scx = pos[0] + scvx, scy = pos[1] + scvy;
 					if (!game.crossesFinish(pos[0], pos[1], scx, scy)
