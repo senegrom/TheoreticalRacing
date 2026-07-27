@@ -108,10 +108,12 @@ final class RaceAi {
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
+	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
+	private final static boolean	AI_DEBUG_COMP	= Boolean.getBoolean("ai.debug.comp");
 	/** Round 59: true while a rival's rollout move is computed by the REAL
 	 *  scorer (scorerMoveOverState) -- suppresses the recursive machinery
 	 *  (endgame solver, certified tie-break override, DJS) inside that call.
@@ -268,10 +270,20 @@ final class RaceAi {
 			// frozen standard.
 			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
 					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
-			final double trapPenalty = d2SafeCount == 0 ? 50.0
+			double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? AI1_TRAP_L1
 							: d2SafeCount == 2 ? AI1_TRAP_L2
 									: 0.0;
+			// round 61 (AI1): rival-conditional trap relief. The ladder prices a
+			// 1-2-wide certified thread as if a rival could claim the escape,
+			// but with NO live rival within AI1_TRAP_SOLO_R of the landing the
+			// thread is provably uncontestable for its consumption window and
+			// the map's reach-certification suffices (monaco (116,46): every
+			// car conceded 1 ttf to trap=2.0 on a SOLO thread the deep search
+			// itself preferred). 0-safe stays 50 -- entering a dead fan is bad
+			// even alone.
+			if (trapPenalty > 0.0 && d2SafeCount > 0 && !rivalWithinCheb(newX, newY, playerNum, AI1_TRAP_SOLO_R))
+				trapPenalty = 0.0;
 			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
@@ -350,6 +362,13 @@ final class RaceAi {
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + conflict + spread - momentum - robustness;
 			final int poT = reach.turnsArr != null && reach.isAlive(newX, newY, newVx, newVy)
 					? reach.turnsArr[reach.aliveIdx(newX, newY, newVx, newVy)] : Integer.MAX_VALUE;
+			if (AI_DEBUG_COMP)
+				System.err.println("R49C p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
+						+ vel[0] + "," + vel[1] + ") d=" + d + " land=(" + newX + "," + newY + ") ttf=" + poT
+						+ " score=" + score + " cost=" + costToFinish + " trap=" + trapPenalty
+						+ " cap=" + speedCap + " unc=" + uncertified + " ce=" + cornerEntry
+						+ " qb=" + queueBox + " spread=" + spread + " mom=" + momentum
+						+ " rob=" + robustness);
 			scoreNSByDir[d.ordinal()] = score - spread;
 			poTByDir[d.ordinal()] = poT;
 			if (poT < poBestT) {
@@ -1630,6 +1649,20 @@ final class RaceAi {
 	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
 		for (final int[] p : predicted) {
 			if (p != null && p[0] == x && p[1] == y)
+				return true;
+		}
+		return false;
+	}
+
+	/** Round 61: any live opponent within Chebyshev distance {@code cheb} of
+	 *  (x,y)? Chebyshev (not d^2) because the safety argument is per-axis:
+	 *  max per-axis displacement in one move is |v|+1 <= 13. */
+	private boolean rivalWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
+		for (final Player p : game.players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			if (Math.abs(pp[0] - x) <= cheb && Math.abs(pp[1] - y) <= cheb)
 				return true;
 		}
 		return false;

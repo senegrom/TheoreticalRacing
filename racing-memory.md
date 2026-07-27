@@ -235,6 +235,48 @@ future escalation signal), monaco s7 (tunnel squeeze, doomed 4+ rounds
 deep), hairpin s10 (strategic, doomed >= 7 rounds deep). PROMOTION-READY
 stack (r59 commit 11b2297 + r60a); awaiting the user's word.
 
+## Round 61 (AI1, in gates): rival-conditional trap relief (solo pace)
+
+The lemans-s4 fragility idea died by measurement (smom rollouts end
+tier=3 everywhere -- no cheap escalation signal exists; lemans s4 joins
+monaco s7 / hairpin s10 as accepted residuals). Pivot to PACE: the
+r57-60 reflows created a NEW equilibrium, so the round-47/48 pace
+decomposition was re-run (pace_forensic on fresh champion logs +
+patch_comp_dump re-applied, comp dump now permanent in source):
+- monaco s1 now shows a 26-move ROOMY pool (was negligible), with a
+  smoking-gun FIXED POINT: five different cars concede the identical
+  1 ttf at (116,46) v(-4,6). The comp dump shows the deep search itself
+  PREFERS the faster SW line (cost 65 vs 66) and the TRAP LADDER alone
+  (2.0, one-safe-successor thread) overrides the certain gain -- with
+  no rival anywhere near. The ladder is rival-blind in its price.
+- Secondary leak at the same state: `unc` fires 11.5 for SOME cars
+  (predicted-world dependent) on the solo thread -- round-62 candidate
+  with the same emptiness certificate. One variable at a time.
+
+R61 BUILD (AI1): waive L1/L2 trap (0-safe keeps 50) when no live rival
+is within Chebyshev AI1_TRAP_SOLO_R=16 of the landing -- max per-axis
+closure is |v|+1 <= 13/round, so the thread is uncontestable for its
+consumption window; the map's reach-certification suffices solo.
+
+**R61 GATES: PASSED -- the first simultaneous pace+crash gain of the
+campaign, and the pace gain SCALES WITH SOLITUDE (mechanism-confirming):**
+| stage | r59+60+61 (AI1) | champion r58 (AI2) |
+|-------|-----------------|--------------------|
+| 8car s1-5   | 769/**1**/**63.98** | 768/2/64.04 |
+| 8car s6-10  | 768/2/**63.94** | 768/2/64.00 |
+| 8car s11-15 | **770/0/63.93** | 768/2/64.00 |
+| h2h s1-5    | 4.500 c=**1** | 4.500 c=2 |
+| h2h s6-10   | 4.502 c=1 (noise) | 4.498 c=1 |
+| 4car        | 330/0/**61.85** | 330/0/61.98 |
+| 1v1         | 110/0/**60.62** | 110/0/60.95 |
+| slow        | 28/0/104.39 (tie) | 28/0/104.39 |
+Probe: 11/27 diverge, ZERO crashes, every divergent race SHORTER
+(lemans -3/-3/-4, monaco -2/-3/-5, zandvoort -1 x3); short dense tracks
+inert. mv -0.06 uniform on all three 8car sets; 4car -0.13; 1v1 -0.34
+(solitude scaling: more solo running = more relief); slow ties (narrow
+serpentine queues are never solo within 16). 15-seed crashes 3 vs 6.
+The comp dump (-Dai.debug.comp) is now permanent gated instrumentation.
+
 - **The residual class is ONE localized pocket: hungaroring (64,115).**
   All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
   r57_hung_forensic.sh replays) die at the SAME cell with the SAME
