@@ -277,6 +277,42 @@ inert. mv -0.06 uniform on all three 8car sets; 4car -0.13; 1v1 -0.34
 serpentine queues are never solo within 16). 15-seed crashes 3 vs 6.
 The comp dump (-Dai.debug.comp) is now permanent gated instrumentation.
 
+## Round 62 (AI1, gate-clean): certified UNC override -- the unc pool won
+
+62a (descent-scaled range bound on the converging-opponent gate) probed
+BYTE-INERT vs r61 and was reverted the same hour. The counterfactual on
+the r61 equilibrium still showed `unc` holding the largest pool (monaco
+s1: 50 ttf ceiling, deep search agreeing 48/48; lemans 9). 62b takes it
+the way rounds 49-53 proved it must be taken -- with a PROOF, not a
+predicate: pay the surcharge everywhere EXCEPT where a strictly faster
+(raw ttf) candidate wins the unc-free score comparison AND has zero
+trap, is not sealable, and SURVIVES the round-59 scorer-rival rollout at
+the slow horizon (the proof round 52 lacked; solo flips have empty
+scorer sets so their proofs cost nothing). patch_r62_uncover.py,
+first-occurrence anchors, AI1 only.
+
+**GATES: the biggest pace gain since the depth-2 search, at the best
+crash floor ever, seed-set law satisfied the hard way:**
+| stage | r59+60+61+62 (AI1) | champion r58 (AI2) |
+|-------|--------------------|--------------------|
+| 8car s1-5   | 769/**1**/**63.81** | 768/2/64.04 |
+| 8car s6-10  | 769/**1**/**63.78** | 768/2/64.00 |
+| 8car s11-15 | **770/0/63.78** | 768/2/64.00 |
+| h2h s1-5    | **4.483** c=**1** | 4.517 c=3 |
+| h2h s6-10   | **4.481** c=4 | 4.519 c=1 |
+| h2h s11-15  | **4.465 c=0** | 4.535 c=1 |
+| 4car        | 330/0/**61.84** | 330/0/61.98 |
+| 1v1         | 110/0/**60.62** | 110/0/60.95 |
+| slow        | 28/0/**104.25** | 28/0/104.39 |
+8car 15-seed: crashes **2 vs 6**, mv **-0.22 uniform** on all three
+sets. h2h: the s6-10 c=4 (monaco 2 + hungaroring 1, on tracks where
+places were WON 4.38) triggered the third-set rule -- s11-15 came back
+4.465 **c=0**; 15-seed h2h places won on ALL THREE sets at crash
+parity 5-5. 4car/1v1/slow all faster, all crash-free (first slow-set
+movement in many rounds, -0.14). Probe: 18/27 diverge, zero crashes,
+every long-track race shorter (lemans -18/-9/-4, monaco -17/-11/-8,
+hungaroring -17/-11).
+
 - **The residual class is ONE localized pocket: hungaroring (64,115).**
   All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
   r57_hung_forensic.sh replays) die at the SAME cell with the SAME

@@ -206,6 +206,11 @@ final class RaceAi {
 		final int[] poTByDir = new int[Direction.values().length];
 		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
 		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
+		// round 62: full score and unc per candidate, for the certified UNC
+		// override after the loop.
+		final double[] scoreByDir = new double[Direction.values().length];
+		final double[] uncByDir = new double[Direction.values().length];
+		java.util.Arrays.fill(scoreByDir, Double.MAX_VALUE);
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -371,6 +376,8 @@ final class RaceAi {
 						+ " rob=" + robustness);
 			scoreNSByDir[d.ordinal()] = score - spread;
 			poTByDir[d.ordinal()] = poT;
+			scoreByDir[d.ordinal()] = score;
+			uncByDir[d.ordinal()] = uncertified;
 			if (poT < poBestT) {
 				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
@@ -416,6 +423,40 @@ final class RaceAi {
 				if (sealable(nx, ny, nvx, nvy, playerNum, false))
 					continue;
 				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false, false) < 0)
+					continue;
+				fast = d;
+				fastT = poTByDir[d.ordinal()];
+			}
+			if (fast != null)
+				best = fast;
+		}
+		// round 62 (AI1): certified UNC override. The counterfactual on the
+		// r61 equilibrium still attributes the largest recoverable pool to
+		// `uncertified` (monaco s1: 50 ttf, deep search agreeing 48/48), and
+		// rounds 49-53 proved the surcharge is load-bearing insurance that
+		// must NOT be cut by predicate alone. Pay it everywhere EXCEPT where
+		// a strictly faster line wins the unc-free comparison AND passes the
+		// strongest proof owned: zero trap, not sealable, and survival in the
+		// round-59 scorer-rival world (the proof round 52 lacked). Solo flips
+		// have empty scorer sets, so their proofs cost nothing.
+		if (best != null && !IN_SCORER_SIM) {
+			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
+			int fastT = poTByDir[best.ordinal()];
+			Direction fast = null;
+			for (final Direction d : Direction.values()) {
+				if (d == best || poTByDir[d.ordinal()] >= fastT)
+					continue;
+				if (uncByDir[d.ordinal()] <= 0.0 || scoreByDir[d.ordinal()] == Double.MAX_VALUE)
+					continue;
+				if (scoreByDir[d.ordinal()] - uncByDir[d.ordinal()] > bestNU + 1e-9)
+					continue;
+				if (trapByDir[d.ordinal()] != 0.0)
+					continue;
+				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+				if (sealable(nx, ny, nvx, nvy, playerNum, false))
+					continue;
+				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_SLOW_ROUNDS, true, true, true, true) < 0)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
