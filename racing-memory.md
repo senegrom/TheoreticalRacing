@@ -317,6 +317,33 @@ movement in many rounds, -0.14). Probe: 18/27 diverge, zero crashes,
 every long-track race shorter (lemans -18/-9/-4, monaco -17/-11/-8,
 hungaroring -17/-11).
 
+## Round 64: the certified-lane instrument is EXHAUSTED (closed negative)
+
+Fresh counterfactual on the round-63 champion (comp_r64_*.err): unc
+residual 59/16/23 ttf (monaco/lemans/interlagos), rob GREW to 28 on
+monaco (25 flips, search agreeing 24/25), spread ties 13/23/22. Built
+the certified ROB override (patch_r64_roblane.py, the exact r62 lane
+with the bonus added back on both sides): **byte-INERT on all three
+pool tracks** -- every rob-flip's fast candidate is refused by the
+proof stack (trap != 0 near rivals / sealable / scorer-rival death).
+REVERTED same hour (git checkout, uncommitted).
+
+LAW: after rounds 61-62 took everything the proof stack can certify,
+the ENTIRE remaining soft-term pool (unc residual + rob + spread ties,
+~100 ttf/seed across the big tracks) is certification-refused = the
+round-47 knife-edge frontier, now confirmed at the level of the
+strongest proof owned (scorer-rival rollouts). Taking more pace needs a
+STRONGER PROOF than the campaign possesses, not another lane. Do not
+add lanes; the instrument is done.
+
+Remaining open frontiers (for future rounds): (a) the strategic doom
+class (hairpin s10 / lemans s4, commitment 5-7+ rounds) -- would need
+horizon-7+ rollouts at some rare affordable trigger; hairpin's
+last-save move is UNKNOWN beyond m98 (walk-back stopped at all-fatal);
+(b) external-opponent value (h2h vs humans/weaker AIs) -- unmeasurable
+in self-play; (c) anything requiring game expansion is excluded by
+standing instruction.
+
 - **The residual class is ONE localized pocket: hungaroring (64,115).**
   All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
   r57_hung_forensic.sh replays) die at the SAME cell with the SAME
