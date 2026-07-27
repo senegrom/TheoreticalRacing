@@ -472,9 +472,31 @@ final class RaceAi {
 			// (oracle-proven at hungaroring-(64,115) and the lemans-s4
 			// funnel). Fast fires keep the proven smom world at 3 rounds.
 			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
-			if (!IN_SCORER_SIM && (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow))
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-						djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+			if (!IN_SCORER_SIM) {
+				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow)
+					chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+							djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+				else {
+					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
+					// test -- the vacate-optimistic ladder reads roomy at the
+					// zigzag-s4 doom entry (m102: count 0 in reality, death 4
+					// rounds out, smom sees it) so nothing fired there. A smom
+					// death ESCALATES to the faithful scorer-rival rollout,
+					// which re-verdicts the chosen and gates any switch -- smom
+					// false alarms are filtered before they can perturb.
+					final int scvx = vel[0] + chosen.dx, scvy = vel[1] + chosen.dy;
+					final int scx = pos[0] + scvx, scy = pos[1] + scvy;
+					if (!game.crossesFinish(pos[0], pos[1], scx, scy)
+							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
+									true, true, true, false) < 0) {
+						if (AI_DEBUG_DJS)
+							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
+									+ pos[1] + ") chosen=" + chosen + " smom-dies -> scorer rollout");
+						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+								true, AI1_DJS_SLOW_ROUNDS);
+					}
+				}
+			}
 			return chosen;
 		}
 		if (bestLegal != null)

@@ -195,6 +195,46 @@ lemans entry needs a SELECTIVE escalation, e.g. run the cheap smom
 rollout first and escalate to scorer-rivals only when its final state is
 fragile (died OR final tier <= 1). Escalation rate unmeasured.
 
+## Round 60 (AI1, in gates): smoke-test escalation for trap-0 entries
+
+Census of the round-59 residual (oracle walk-backs, per site):
+- **lemans s4**: last save m63, death 3-5 rounds out; smom rollout MISSES
+  it (says alive t=55) -- only scorer-rivals see it. NOT caught by r60a;
+  needs a future escalation signal (final-state fragility?).
+- **zigzag s4**: last save m102, chosen W dies @r4 (real) but even the
+  CHEAP smom-5 rollout flags it (@r1, me-proxy walks in faster); one
+  survivor SW (swing wide before the kink). The entry is trap-0 via
+  vacate-optimism: W's ladder read roomy at m102, actual 1-ply count 0
+  at m110. => Only a TRIGGER was missing.
+- **hairpin s10**: doom >= 7 rounds deep (all fatal at m98, best @r6,
+  race is ~17 rounds total) -- STRATEGIC class, beyond any rollout.
+  ACCEPT.
+- **monaco s7**: tunnel squeeze, totally boxed by m480 (all 9
+  segment-illegal; board_at's "open" cells were wall-cut illusions --
+  only the oracle mask sees segment legality), doomed before m472,
+  deep-commitment class like hairpin. ACCEPT (walk-back not exhausted).
+
+R60a BUILD (AI1): trap-0 slow moves (spd^2 < 49, trap < 0.5 -- today's
+no-fire gap) get a CHEAP smom-5 smoke test; a smom death ESCALATES to
+the scorer-rival rollout which re-verdicts the chosen and gates any
+switch (smom false alarms filtered before they can perturb -- monaco s1
+control: 1 escalation, scorer said alive, no switch). Replays: zigzag
+s4 SAVED at exactly m102 (one escalation, SWITCH SW, 0 crashes);
+lemans s4 unchanged (smom miss, expected); hungaroring/coil quiet.
+Escalation rate 0-1/race => cost nil.
+
+**R59+R60a GATES vs the round-58 champion: PASSED CLEAN, never worse.**
+Probe 3/27 diverge (2 saves + crash-neutral lemans s2/s3 flips). 8car:
+769/**1**/64.05, 768/2/64.00, **770/0**/64.01 vs 768/2 x3 => 15-seed
+c=3 vs 6 at flat pace -- s1-5 c=1 is the best s1-5 line of the
+campaign. h2h: 4.500 c=1 vs 4.500 c=2 and 4.505 c=1 vs 4.495 c=2
+(places parity/noise-band, crashes 2 vs 4). 4car 330/0, 1v1 110/0,
+slow 28/0: EXACT ties. The three residual crashes are all classified
+beyond-rollout classes: lemans s4 (smom-invisible funnel, needs a
+future escalation signal), monaco s7 (tunnel squeeze, doomed 4+ rounds
+deep), hairpin s10 (strategic, doomed >= 7 rounds deep). PROMOTION-READY
+stack (r59 commit 11b2297 + r60a); awaiting the user's word.
+
 - **The residual class is ONE localized pocket: hungaroring (64,115).**
   All three new-equilibrium casualties (s7 p5, s12 p8, s13 p5 -- found by
   r57_hung_forensic.sh replays) die at the SAME cell with the SAME
