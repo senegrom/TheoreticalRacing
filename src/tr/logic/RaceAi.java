@@ -109,6 +109,9 @@ final class RaceAi {
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
+	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7)
+	private final static int		AI1_DEEP_PACK	= 3;	// round 65: escalate only with >= this many rivals within AI1_DEEP_PACK_R of the landing (the doom class lives in packs; solo tunnels excluded)
+	private final static int		AI1_DEEP_PACK_R	= 10;	// round 65: Chebyshev pack radius for the deep escalation gate
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
@@ -533,10 +536,46 @@ final class RaceAi {
 			// funnel). Fast fires keep the proven smom world at 3 rounds.
 			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
 			if (!IN_SCORER_SIM) {
-				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow)
-					chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-							djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
-				else {
+				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
+					// round 65 (AI1): pack-gated DEEP escalation for fast fires.
+					// The 5-7-round doom class (hairpin s10: three candidates
+					// FINISH @r6 while the chosen dies @r7) is invisible to the
+					// 3-round world. With >= AI1_DEEP_PACK rivals within
+					// Chebyshev AI1_DEEP_PACK_R of the landing, run the cheap
+					// smom pre-screen at the deep horizon and escalate to the
+					// scorer-rival world on a dead-or-FRAGILE (final tier <= 1)
+					// verdict; the scorer-rival re-verdict gates any switch.
+					boolean deepHandled = false;
+					if (!djSlow) {
+						final int dcx = pos[0] + djvx, dcy = pos[1] + djvy;
+						int packNear = 0;
+						for (final Player pp : game.players) {
+							if (pp.getNumber() == playerNum || pp.isFinished())
+								continue;
+							final int[] ppos = pp.getPosition();
+							if (Math.abs(ppos[0] - dcx) <= AI1_DEEP_PACK_R
+									&& Math.abs(ppos[1] - dcy) <= AI1_DEEP_PACK_R)
+								packNear++;
+						}
+						if (packNear >= AI1_DEEP_PACK && !game.crossesFinish(pos[0], pos[1], dcx, dcy)) {
+							final int[] ft = new int[]{3 };
+							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
+									true, true, true, false, ft);
+							if (dv < 0 || ft[0] <= 1) {
+								if (AI_DEBUG_DJS)
+									System.err.println("AIDBG DEEP p=" + playerNum + " pos=(" + pos[0] + ","
+											+ pos[1] + ") chosen=" + chosen + " smom8 "
+											+ (dv < 0 ? "dies" : "fragile") + " -> scorer rollout");
+								chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+										true, AI1_DEEP_HORIZON);
+								deepHandled = true;
+							}
+						}
+					}
+					if (!deepHandled)
+						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+								djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+				} else {
 					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
 					// test -- the vacate-optimistic ladder reads roomy at the
 					// zigzag-s4 doom entry (m102: count 0 in reality, death 4
@@ -1219,6 +1258,13 @@ final class RaceAi {
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, null);
+	}
+
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int[] outFinalTier) {
 		final int n = game.players.length;
 		final int[] px = new int[n], py = new int[n], vx = new int[n], vy = new int[n];
 		final boolean[] alive = new boolean[n];
@@ -1285,8 +1331,11 @@ final class RaceAi {
 				else
 					mv = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
 				if (simFinishVanish && mv != null && game.crossesFinish(px[i], py[i], mv[0], mv[1])) {
-					if (i == myIdx)
+					if (i == myIdx) {
+						if (outFinalTier != null)
+							outFinalTier[0] = 3;	// finishing is never fragile
 						return 0;	// I finish in-sim: unambiguous survival
+					}
 					alive[i] = false;	// finished cars vanish from the board
 					continue;
 				}
@@ -1302,6 +1351,12 @@ final class RaceAi {
 				vy[i] = mv[3];
 			}
 		}
+		// round 65: report the final state's safe-successor tier when asked --
+		// a surviving-but-FRAGILE final (tier <= 1) is the escalation signal
+		// for the 5-7-round doom class (hairpin s10: smom-8 ends alive at
+		// tier 1 while the real line dies at round 7).
+		if (outFinalTier != null)
+			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx], myIdx, px, py, alive);
 		return reach.turnsToFinish(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
 	}
 

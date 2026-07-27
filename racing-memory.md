@@ -317,6 +317,36 @@ movement in many rounds, -0.14). Probe: 18/27 diverge, zero crashes,
 every long-track race shorter (lemans -18/-9/-4, monaco -17/-11/-8,
 hungaroring -17/-11).
 
+## Round 65 (AI1, in gates): pack-gated deep escalation
+
+The hairpin-s10 walk-back CONTINUED past the all-fatal m98: the save
+exists at m90 with a 7-ROUND commitment (three candidates FINISH @r6
+while the real chosen SE dies @r7 -- the scorer accelerated to v(8,1)
+into the pack hairpin). policy_matrix at horizon 8: orivals reproduces
+it exactly (chosen DEAD@r7, both survivors alive t=1); smom misses the
+death but ends FRAGILE (final tier=1) -- the escalation signal (which
+was dead at lemans but lives here). Escalation-rate samples
+(esc_sample.py): hairpin 17%, monaco 20% (too hot unedited),
+silverstone 0% => PACK GATE: escalate only with >= AI1_DEEP_PACK=3
+rivals within Chebyshev AI1_DEEP_PACK_R=10 of the landing (the doom
+class lives in packs; monaco's fragile hit was a solo tunnel). Start
+grids are slow => wide trigger off => no deep fires there.
+
+BUILD (AI1): simOutcome gains an outFinalTier out-param (overload, no
+caller churn). Fast fires with the pack: cheap smom pre-screen at
+AI1_DEEP_HORIZON=8; dead-or-fragile => dangerJointSearch with
+scorer-rivals at horizon 8 (re-verdict gates any switch). hairpin s10
+replay: TWO escalations, m82 correctly kept (scorer alive), m90 DIES ->
+SWITCH W simT=0 (the finish-in-sim line), 0 crashes.
+
+**GATES: PASSED, never worse on any stage.** Probe 4/27 diverge, zero
+crashes (hairpin +2 / zandvoort +3 move reflows, two same-length
+silverstone flips). 8car: s1-5 tie 769/1/63.81; s6-10 **770/0/63.79**
+(hairpin saved -- the set is PERFECT); s11-15 tie 770/0/63.79. h2h:
+4.502/4.498 c=1/1 parity; 4.499/4.501 c=**0**/1. 4car/1v1/slow: EXACT
+ties. **15-seed residual = ONE crash (lemans s4, the provably
+invisible funnel).** 2309 finishers of 2310 possible.
+
 ## Round 64: the certified-lane instrument is EXHAUSTED (closed negative)
 
 Fresh counterfactual on the round-63 champion (comp_r64_*.err): unc
