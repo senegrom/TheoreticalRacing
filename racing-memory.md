@@ -26,30 +26,34 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
-## Current champion (round 58, promoted per user 2026-07-26)
+## Current champion (round 63, promoted per user 2026-07-26)
 
-**Round-54 base (DJS + sealfix + 1v1 solver + certified pace tie-break +
-exact-self/finish-vanish) PLUS the rounds 55-57 queue-box mechanisms:
-wide DJS speed trigger (AI1_DJS_SPD2 = 49) and the smom rival sim
-(rivalMoveOverState: min ttf + trap ladder, ties toward the FASTER
-landing) -- mirrored into AI2 by hand-edit of the AI2 trigger site
-(condition + (true,true,true) flags; helpers are shared).** Canonical
-numbers: **8-car s1-5 f=768 c=2 mv=64.04; s6-10 768/2/64.00; s11-15
-768/2/63.99; 4-car s1-5 f=330 c=0 mv=61.98.** vs the round-54 champion:
-8-car crashes 6 vs 10 over 15 seeds at dead-flat pace (silverstone/
-interlagos/zandvoort crashes GONE); h2h wins places AND crashes on both
-seed sets (4.491/4.486 vs 4.509/4.514, c 4 vs 8); 4-car 330/0 vs 329/1;
-1v1 and slow exact ties. Residual 15-seed crash set: lemans s1-5,
-zigzag s4, hungaroring+hairpin s6-10, hungaroring x2 s11-15 -- of which
-THREE die in the same slow pocket at hungaroring (64,115), the round-59
-target. Self-tie verified: inert_probe 27/27 move-identical + 22-track
-bench-vs-cache exact tie; caches re-seeded from the r57 gate's AI1
-columns (extract_baseline.py <log> <json> 1). Both AI bodies identical
-again; AI1 free to diverge as the frontier.
+**The round-58 base (DJS + sealfix + 1v1 solver + certified pace
+tie-break + exact-self/finish-vanish + wide speed trigger + smom rival
+sim) PLUS the rounds 59-62 stack, mirrored into AI2 via
+patch_promote_r62.py: (r59) recursion-guarded REAL-SCORER rivals for
+slow-class DJS fires (scorerMoveOverState, nearest 3 within Chebyshev
+10, horizon 5); (r60) the trap-0 smom smoke test escalating to the
+scorer rollout on a death verdict; (r61) rival-conditional trap relief
+(L1/L2 waived with no rival within Chebyshev 16 of the landing); (r62)
+the certified UNC override (pay unc except where a strictly faster line
+wins the unc-free comparison AND passes zero-trap + !sealable +
+scorer-rival survival).** Canonical numbers: **8-car s1-5 769/1/63.81;
+s6-10 769/1/63.78; s11-15 770/0/63.78; 4-car 330/0/61.84; 1v1
+110/0/60.62; slow 28/0/104.25.** vs the round-58 champion: 8-car
+crashes 2 vs 6 over 15 seeds at mv -0.22 uniform; h2h places won on
+ALL THREE seed sets (4.483/4.481/4.465) at 15-seed crash parity 5-5;
+4car/1v1/slow all faster, all crash-free. Residual crashes (2/15
+seeds): lemans s4 (smom-invisible funnel) + hairpin s10 (strategic,
+doomed 7+ rounds out) -- both oracle-classified beyond rollout reach.
+Self-tie verified: inert_probe 27/27 move-identical + 22-track
+bench-vs-cache exact tie; caches re-seeded from the r62 gate's AI1
+columns. Both AI bodies identical again; AI1 free to diverge.
 
-(Superseded: round-54 C+2 champion 4df1866, canonical 767/3/64.04;
-round-44 champion b0f64c5, canonical 767/3/64.07; round-40 DJS-only
-champion 9ad009b, canonical 767/3/64.06.)
+(Superseded: round-58 champion 47b74c8, canonical 768/2/64.04;
+round-54 C+2 champion 4df1866, canonical 767/3/64.04; round-44
+champion b0f64c5, canonical 767/3/64.07; round-40 DJS-only champion
+9ad009b, canonical 767/3/64.06.)
 
 ## Rounds 55-57: the queue-box class cracked (candidate in gates)
 

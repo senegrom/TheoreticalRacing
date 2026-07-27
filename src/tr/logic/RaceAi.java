@@ -1435,6 +1435,11 @@ final class RaceAi {
 		final int[] poTByDir = new int[Direction.values().length];
 		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
 		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
+		// round 63 (PROMOTED round 62): score and unc per candidate for the
+		// certified UNC override -- see the AI1 body.
+		final double[] scoreByDir = new double[Direction.values().length];
+		final double[] uncByDir = new double[Direction.values().length];
+		java.util.Arrays.fill(scoreByDir, Double.MAX_VALUE);
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -1499,10 +1504,16 @@ final class RaceAi {
 			// frozen standard.
 			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
 					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
-			final double trapPenalty = d2SafeCount == 0 ? 50.0
+			double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
 									: 0.0;
+			// round 63 (PROMOTED round 61): rival-conditional trap relief -- a
+			// 1-2-wide certified thread is uncontestable with no live rival
+			// within AI1_TRAP_SOLO_R of the landing; the map's certification
+			// suffices solo. 0-safe stays 50. See the AI1 body.
+			if (trapPenalty > 0.0 && d2SafeCount > 0 && !rivalWithinCheb(newX, newY, playerNum, AI1_TRAP_SOLO_R))
+				trapPenalty = 0.0;
 			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
@@ -1583,6 +1594,8 @@ final class RaceAi {
 					? reach.turnsArr[reach.aliveIdx(newX, newY, newVx, newVy)] : Integer.MAX_VALUE;
 			scoreNSByDir[d.ordinal()] = score - spread;
 			poTByDir[d.ordinal()] = poT;
+			scoreByDir[d.ordinal()] = score;
+			uncByDir[d.ordinal()] = uncertified;
 			if (poT < poBestT) {
 				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
@@ -1621,6 +1634,35 @@ final class RaceAi {
 				if (sealable(nx, ny, nvx, nvy, playerNum, false))
 					continue;
 				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false, false) < 0)
+					continue;
+				fast = d;
+				fastT = poTByDir[d.ordinal()];
+			}
+			if (fast != null)
+				best = fast;
+		}
+		// round 63 (PROMOTED round 62): certified UNC override -- pay the
+		// surcharge everywhere except where a strictly faster line wins the
+		// unc-free comparison AND passes zero trap + !sealable + survival in
+		// the scorer-rival world. See the AI1 body for the derivation.
+		if (best != null && !IN_SCORER_SIM) {
+			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
+			int fastT = poTByDir[best.ordinal()];
+			Direction fast = null;
+			for (final Direction d : Direction.values()) {
+				if (d == best || poTByDir[d.ordinal()] >= fastT)
+					continue;
+				if (uncByDir[d.ordinal()] <= 0.0 || scoreByDir[d.ordinal()] == Double.MAX_VALUE)
+					continue;
+				if (scoreByDir[d.ordinal()] - uncByDir[d.ordinal()] > bestNU + 1e-9)
+					continue;
+				if (trapByDir[d.ordinal()] != 0.0)
+					continue;
+				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+				if (sealable(nx, ny, nvx, nvy, playerNum, false))
+					continue;
+				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_SLOW_ROUNDS, true, true, true, true) < 0)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
@@ -1675,8 +1717,30 @@ final class RaceAi {
 			// oracle derivation. Landing velocity recomputed: the sealGuard may
 			// have swapped chosen.
 			final int djvx = vel[0] + chosen.dx, djvy = vel[1] + chosen.dy;
-			if (!IN_SCORER_SIM && (trapByDir[chosen.ordinal()] >= 0.5 || djvx * djvx + djvy * djvy >= AI1_DJS_SPD2))
-				chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true, false, AI1_DJS_ROUNDS); // round 58: wide trigger + smom rivals promoted (matches AI1)
+			// round 63 (PROMOTED rounds 59+60): slow-class fires use the
+			// real-scorer near-rival world at the 5-round horizon; trap-0 slow
+			// moves get the smom smoke test that escalates to the scorer
+			// rollout on a death verdict. Fast fires keep smom at 3 rounds.
+			// See the AI1 body for the oracle derivations.
+			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
+			if (!IN_SCORER_SIM) {
+				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow)
+					chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+							djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+				else {
+					final int scvx = vel[0] + chosen.dx, scvy = vel[1] + chosen.dy;
+					final int scx = pos[0] + scvx, scy = pos[1] + scvy;
+					if (!game.crossesFinish(pos[0], pos[1], scx, scy)
+							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
+									true, true, true, false) < 0) {
+						if (AI_DEBUG_DJS)
+							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
+									+ pos[1] + ") chosen=" + chosen + " smom-dies -> scorer rollout");
+						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+								true, AI1_DJS_SLOW_ROUNDS);
+					}
+				}
+			}
 			return chosen;
 		}
 		if (bestLegal != null)
