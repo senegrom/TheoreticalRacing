@@ -1,67 +1,89 @@
 # Theoretical Racing
 
-A Java Swing implementation of the classic pen-and-paper [Racetrack](https://en.wikipedia.org/wiki/Racetrack_(game)) game.
+A Java Swing implementation of the classic pen-and-paper [Racetrack](https://en.wikipedia.org/wiki/Racetrack_(game)) game, with deterministic computer players, exact empty-track reachability, benchmark tooling, and a library of real and synthetic tracks.
 
-Players draw a track on a grid, place their cars in the start zone, then take turns racing by adjusting their velocity vector. Each turn you can change your velocity by at most 1 in each axis (horizontal and vertical). Your new position is your current position plus your velocity. Go off the track and you crash.
+Players draw or select a track, place their cars in the start zone, then take turns racing by adjusting their velocity vector. Each turn changes velocity by at most 1 in each axis; the new position is the current position plus the updated velocity. Leaving the track or landing on another live car crashes the player.
 
-## How to Play
+## Requirements
 
-1. **Start dialog** -- Configure number of players (1-9), player names, colors, and grid/window size.
-2. **Draw the track** -- Click grid points to draw the left border, press OK, then draw the right border. The first points of each border define the start line; the last points define the finish line.
-3. **Place players** -- Click inside the start zone to place each player's car.
-4. **Race** -- Each turn, click a direction button (NW/N/NE/W/-/E/SW/S/SE) to adjust your velocity by 1 in that direction. Click the same direction again to confirm the move. A preview path shows where you'll coast to if you stop accelerating.
-5. **Win condition** -- Cross the finish line to place. Crash (leave the track or collide) and you're out. The game ends when all but one player has finished or crashed.
+- JDK 17 or later
+- Python 3.9+ for benchmark and track-generation tooling
+- `sh` for the convenience scripts
 
-## Building
+The Java game itself has no third-party dependencies.
 
-Requires JDK 8 or later.
+## Build and run
 
 ```bash
-# Compile
-mkdir -p bin
-javac -d bin -sourcepath src src/tr/main/Main.java
-
-# Run
-java -cp bin tr.main.Main
-
-# Or run the pre-built JAR
+sh ./build_main.sh
 java -jar theoreticRacing.jar
 ```
 
+The build script compiles every Java source under `src/` and creates `theoreticRacing.jar` using the JDK on `PATH`.
+
+Useful command-line modes include:
+
+```bash
+java -jar theoreticRacing.jar --list-tracks
+java -jar theoreticRacing.jar --auto --track silverstone --props some.properties --log race.log --seed 1
+```
+
+## Tests
+
+The repository keeps the core test layer dependency-free:
+
+```bash
+sh ./run_tests.sh
+```
+
+The tests currently cover direction/index invariants, player-kind parsing, track point parsing/serialization, segment-intersection geometry, and start-zone construction. GitHub Actions builds and tests on JDK 17 and JDK 21 and syntax-checks the Python tooling.
+
+## Benchmarks
+
+The AI benchmark suite remains separate from the fast CI tests because the full promotion battery is intentionally expensive.
+
+Build first, then run, for example:
+
+```bash
+sh ./build_main.sh
+sh ./run_bench_main.sh silverstone monza
+sh ./run_bench_main.sh --seeds 5 silverstone
+sh ./run_bench_main.sh --h2h --seeds 5
+sh ./run_bench_main.sh --4p --seeds 5
+sh ./run_bench_main.sh --1v1 --seeds 5
+sh ./run_bench_main.sh --slow --seeds 5
+```
+
+`tracks/run_bench.py` gives the historical `bench_ai.py` harness portable paths and a temporary copy of `tracks/bench.properties`, so benchmark runs no longer mutate a developer's `user.properties`.
+
+## How to play
+
+1. **Start dialog** — Configure 1–9 players, player names, colours, AI kinds, dimensions, and optionally choose a bundled track.
+2. **Draw/select the track** — For a new track, click grid points to draw the left border, press OK, then draw the right border. The first border points define the start and the last points define the finish.
+3. **Place players** — Click inside the start zone to place human cars; AI cars can be auto-placed.
+4. **Race** — Pick NW/N/NE/W/-/E/SW/S/SE to adjust velocity by one unit per axis. Human moves are previewed before confirmation.
+5. **Finish** — Cross the finish in the forward racing direction. Leaving the corridor or colliding eliminates the car.
+
 ## Configuration
 
-Settings are stored in `user.properties` (auto-saved on exit). Defaults are in `default.properties`.
+Personal settings are stored in `user.properties` next to the running JAR and are intentionally ignored by Git. Defaults live in `default.properties`. Benchmark defaults live separately in `tracks/bench.properties`.
 
-| Property | Default | Description |
-|---|---|---|
-| `windowX` / `windowY` | 1600 / 900 | Window dimensions in pixels |
-| `gameX` / `gameY` | 50 / 50 | Grid size (columns / rows) |
-| `nPlayers` | 2 | Number of players |
-| `maxPlayers` | 9 | Maximum players allowed |
-| `playerNName` | Player N | Name for player N |
-| `playerNColor` | (varies) | RGB color as `R G B` (e.g. `0 0 255`) |
+Important properties include `windowX`, `windowY`, `gameX`, `gameY`, `nPlayers`, `maxPlayers`, `playerNName`, `playerNColor`, and `playerNKind` (`HUMAN`, `AI1`, or `AI2`).
 
-## Project Structure
+## Project structure
 
+```text
+src/tr/main/          application entry point
+src/tr/logic/         game rules, track IO/geometry, reachability, AI
+src/tr/gui/           Swing UI and rendering
+tracks/               bundled circuits, generators, benchmark tooling
+tests/tr/logic/       dependency-free regression tests
+.github/workflows/    continuous integration
+racing-memory.md      AI research/promotion history
 ```
-src/
-  tr/
-    main/
-      Main.java          -- Entry point, loads properties and launches the game
-    logic/
-      RaceGame.java      -- Core game logic: track drawing, movement, collision detection
-      GameState.java     -- Enum of game states (SETUP, DRAWTRACK, PLAY, etc.)
-      Player.java        -- Player state: position, velocity, color, move history
-      Track.java         -- Left and right track border point lists
-    gui/
-      GameUI.java        -- Main game window (JFrame) with grid, buttons, status bar
-      RaceUI.java        -- Rendering: draws grid, track, players, velocity vectors
-      Grid.java          -- JPanel that delegates painting to RaceUI
-      StartDialog.java   -- Pre-game setup dialog for players and grid size
-      GridListener.java  -- Mouse listener for grid clicks
-      ExitListener.java  -- Window close / exit button handler
-```
+
+`RaceAi` intentionally contains both the frozen champion and the experimental frontier. AI changes should be benchmarked against the frozen body and promoted only after the repository's multi-stage regression battery passes.
 
 ## License
 
-See [LICENSE](LICENSE).
+GNU Affero General Public License v3.0. See [LICENSE](LICENSE).
