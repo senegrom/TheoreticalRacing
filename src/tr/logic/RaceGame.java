@@ -127,7 +127,7 @@ public class RaceGame {
 	}
 
 	private Path gameLogPath() {
-		return gameLogOverride != null ? gameLogOverride : gameLogPath();
+		return gameLogOverride != null ? gameLogOverride : TrackIO.gameLogPath();
 	}
 
 	/** When set, answer AI-move queries from a file (for DAgger data): each input

@@ -2371,7 +2371,7 @@ final class RaceAi {
 		for (int k = 0; k < 4; k++)
 			blocked.add(new java.util.HashSet<>());
 		for (int i = 0; i < game.players.length; i++) {
-			if (i == subjectNum || game.players[i].isFinished())
+			if (game.players[i].getNumber() == subjectNum || game.players[i].isFinished())
 				continue;
 			final int[] p = game.players[i].getPosition();
 			int[] cur = new int[]{p[0], p[1], game.players[i].getVelocity()[0], game.players[i].getVelocity()[1] };
