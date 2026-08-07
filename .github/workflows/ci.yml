@@ -7,6 +7,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   java:
     name: Java ${{ matrix.java }}
@@ -20,31 +24,68 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: ${{ matrix.java }}
 
-      - name: Build
-        run: sh ./build_main.sh
-
-      - name: Run core tests
+      - name: Run lint-clean core tests
         run: sh ./run_tests.sh
+
+      - name: Build runnable JAR
+        run: sh ./build_main.sh
 
       - name: Smoke-test track discovery
         run: java -Djava.awt.headless=true -jar theoreticRacing.jar --list-tracks | grep -q '^silverstone$'
 
-  python:
-    name: Python tooling
+  golden-ai2:
+    name: Frozen AI2 golden races
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Build
+        run: sh ./build_main.sh
+
+      - name: Verify genuine headless auto-play
+        run: python tests/headless_smoke.py
+
+      - name: Verify deterministic AI2 race corpus
+        run: python tests/golden_races.py
+
+      - name: Verify benchmark failures propagate
+        run: |
+          if python tracks/bench_ai.py definitely-not-a-track; then
+            echo 'invalid benchmark unexpectedly succeeded' >&2
+            exit 1
+          fi
+
+  tooling:
+    name: Tooling checks
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
 
-      - name: Syntax-check track tooling
-        run: python -m compileall -q tracks
+      - name: Syntax-check Python tooling
+        run: python -m compileall -q tracks tests
+
+      - name: Syntax-check shell entry points
+        run: sh -n build_main.sh run_tests.sh run_golden_tests.sh run_bench_main.sh
