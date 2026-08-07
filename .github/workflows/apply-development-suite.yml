@@ -75,4 +75,4 @@ jobs:
           git add -A
           git commit -m 'Add AI regression gates and round-67 frontier'
           git push origin HEAD:master
-# final trigger after verified blobs
+# trigger after verified transport is on master
