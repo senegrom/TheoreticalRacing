@@ -1,0 +1,365 @@
+name: Apply correctness fixes
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/apply-correctness-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Patch reviewed correctness defects
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one occurrence, found {count}\n{old}")
+              file.write_text(text.replace(old, new), encoding="utf-8")
+
+          replace_once(
+              "src/tr/logic/RaceAi.java",
+              "\t\tfinal Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);",
+              "\t\tfinal long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);",
+          )
+          replace_once(
+              "src/tr/logic/RaceAi.java",
+              "\t\tfinal Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);",
+              "\t\tfinal long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);",
+          )
+          replace_once(
+              "src/tr/logic/RaceAi.java",
+              '''\t/** Pack a joint endgame state into a memo key: 8b coords, 5b velocity
+\t *  offsets (+12), 5b depth, 1b turn = 58 bits. */
+\tprivate Long egKey(final int mx, final int my, final int mvx, final int mvy,
+\t\t\tfinal int rx, final int ry, final int rvx, final int rvy, final int depth, final boolean rivalTurn) {
+\t\tlong k = mx;
+\t\tk = k << 8 | my;
+\t\tk = k << 5 | mvx + 12;
+\t\tk = k << 5 | mvy + 12;
+\t\tk = k << 8 | rx;
+\t\tk = k << 8 | ry;
+\t\tk = k << 5 | rvx + 12;
+\t\tk = k << 5 | rvy + 12;
+\t\tk = k << 5 | depth;
+\t\tk = k << 1 | (rivalTurn ? 1 : 0);
+\t\treturn k;
+\t}
+''',
+              '''\t/** Pack a joint endgame state into a collision-free memo key for every
+\t *  supported grid coordinate: 9b coordinates, 5b velocity offsets (+12),
+\t *  5b depth and 1b turn = 62 bits. */
+\tstatic long endgameMemoKey(final int mx, final int my, final int mvx, final int mvy,
+\t\t\tfinal int rx, final int ry, final int rvx, final int rvy, final int depth, final boolean rivalTurn) {
+\t\tlong k = mx & 0x1FFL;
+\t\tk = k << 9 | my & 0x1FFL;
+\t\tk = k << 5 | mvx + 12 & 0x1FL;
+\t\tk = k << 5 | mvy + 12 & 0x1FL;
+\t\tk = k << 9 | rx & 0x1FFL;
+\t\tk = k << 9 | ry & 0x1FFL;
+\t\tk = k << 5 | rvx + 12 & 0x1FL;
+\t\tk = k << 5 | rvy + 12 & 0x1FL;
+\t\tk = k << 5 | depth & 0x1FL;
+\t\tk = k << 1 | (rivalTurn ? 1 : 0);
+\t\treturn k;
+\t}
+''',
+          )
+          replace_once(
+              "src/tr/logic/RaceAi.java",
+              '''\t\tif (esc.isEmpty())
+\t\t\treturn true; // already dead-ended
+\t\tfinal int ne = esc.size();
+\t\tif (ne > 7)
+\t\t\treturn false; // more escapes than opponents
+\t\t// cover[e] = bitmask of opponents that can legally land on escape e
+''',
+              '''\t\tif (esc.isEmpty())
+\t\t\treturn true; // already dead-ended
+\t\tfinal int ne = esc.size();
+\t\t// cover[e] = bitmask of opponents that can legally land on escape e
+''',
+          )
+          replace_once(
+              "src/tr/logic/RaceAi.java",
+              '''\t\t// Kuhn's matching: every escape needs a DISTINCT opponent
+\t\tfinal int[] matchOpp = new int[8];
+\t\tjava.util.Arrays.fill(matchOpp, -1);
+\t\tfor (int e = 0; e < ne; e++) {
+\t\t\tif (!sealAugment(e, cover, matchOpp, new boolean[8]))
+\t\t\t\treturn false; // this escape cannot get a distinct cover
+\t\t}
+\t\treturn true;
+\t}
+
+\tprivate boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
+\t\tfor (int o = 0; o < 8; o++) {
+\t\t\tif ((cover[e] & (1 << o)) == 0 || used[o])
+\t\t\t\tcontinue;
+\t\t\tused[o] = true;
+\t\t\tif (matchOpp[o] < 0 || sealAugment(matchOpp[o], cover, matchOpp, used)) {
+\t\t\t\tmatchOpp[o] = e;
+\t\t\t\treturn true;
+\t\t\t}
+\t\t}
+\t\treturn false;
+\t}
+''',
+              '''\t\treturn hasDistinctCover(cover, oi);
+\t}
+
+\t/** Whether every requested cell can be assigned a different opponent from
+\t *  its bitmask. Package-private for regression tests of the 9-player case. */
+\tstatic boolean hasDistinctCover(final int[] cover, final int opponentCount) {
+\t\tif (opponentCount < 0 || opponentCount > Integer.SIZE)
+\t\t\tthrow new IllegalArgumentException("opponentCount out of range: " + opponentCount);
+\t\tif (cover.length > opponentCount)
+\t\t\treturn false;
+\t\tfinal int[] matchOpp = new int[opponentCount];
+\t\tjava.util.Arrays.fill(matchOpp, -1);
+\t\tfor (int e = 0; e < cover.length; e++) {
+\t\t\tif (!sealAugment(e, cover, matchOpp, new boolean[opponentCount]))
+\t\t\t\treturn false;
+\t\t}
+\t\treturn true;
+\t}
+
+\tprivate static boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
+\t\tfor (int o = 0; o < matchOpp.length; o++) {
+\t\t\tif ((cover[e] & (1 << o)) == 0 || used[o])
+\t\t\t\tcontinue;
+\t\t\tused[o] = true;
+\t\t\tif (matchOpp[o] < 0 || sealAugment(matchOpp[o], cover, matchOpp, used)) {
+\t\t\t\tmatchOpp[o] = e;
+\t\t\t\treturn true;
+\t\t\t}
+\t\t}
+\t\treturn false;
+\t}
+''',
+          )
+
+          replace_once(
+              "src/tr/logic/RaceGame.java",
+              '''\tpublic void setQueryPaths(final String in, final String out) {
+\t\tthis.queryInPath = in;
+\t\tthis.queryOutPath = out;
+\t}
+
+\t/** Show the start dialog and, on confirmation, build the play window. */
+''',
+              '''\tpublic void setQueryPaths(final String in, final String out) {
+\t\tthis.queryInPath = in;
+\t\tthis.queryOutPath = out;
+\t}
+
+\tprivate boolean isAutoRace() {
+\t\treturn autoMode && dumpReachPath == null && queryInPath == null;
+\t}
+
+\tprivate void abortAutoRace(final String message) {
+\t\tSystem.err.println(message);
+\t\tSystem.exit(2);
+\t}
+
+\t/** Show the start dialog and, on confirmation, build the play window. */
+''',
+          )
+          replace_once(
+              "src/tr/logic/RaceGame.java",
+              '''\t\tplayers = getPlayers();
+\t\trui.setPlayers(players);
+\t\tif (!autoMode)
+''',
+              '''\t\tplayers = getPlayers();
+\t\trui.setPlayers(players);
+\t\tif (isAutoRace()) {
+\t\t\tfor (final Player player : players) {
+\t\t\t\tif (!player.isAi()) {
+\t\t\t\t\tabortAutoRace("--auto requires every configured player to be AI: " + player.getName());
+\t\t\t\t\treturn;
+\t\t\t\t}
+\t\t\t}
+\t\t}
+\t\tif (!autoMode)
+''',
+          )
+          replace_once(
+              "src/tr/logic/RaceGame.java",
+              '''\t\tif (autoMode) {
+\t\t\tSystem.err.println("--auto requires a saved track and all-AI players. Aborting.");
+\t\t\tSystem.exit(2);
+\t\t}
+''',
+              '''\t\tif (autoMode) {
+\t\t\tSystem.err.println("Headless mode requires a valid saved track. Aborting.");
+\t\t\tSystem.exit(2);
+\t\t}
+''',
+          )
+          replace_once(
+              "src/tr/logic/RaceGame.java",
+              '''\t\t\tif (pos == null) {
+\t\t\t\tdispMessage(players[subgamestate].getName() + " (AI) couldn't find a start position.");
+\t\t\t\treturn;
+\t\t\t}
+''',
+              '''\t\t\tif (pos == null) {
+\t\t\t\tfinal String message = players[subgamestate].getName() + " (AI) couldn't find a start position.";
+\t\t\t\tif (isAutoRace()) {
+\t\t\t\t\tabortAutoRace(message);
+\t\t\t\t\treturn;
+\t\t\t\t}
+\t\t\t\tdispMessage(message);
+\t\t\t\treturn;
+\t\t\t}
+''',
+          )
+
+          replace_once(
+              "tests/tr/logic/CoreTests.java",
+              '''        testPointParsing();
+        testBorderValidation();
+        testSegmentIntersection();
+''',
+              '''        testPointParsing();
+        testBorderValidation();
+        testEndgameMemoKey();
+        testDistinctCoverMatching();
+        testSegmentIntersection();
+''',
+          )
+          replace_once(
+              "tests/tr/logic/CoreTests.java",
+              '''    private static void testSegmentIntersection() {
+''',
+              '''    private static void testEndgameMemoKey() {
+        final long highY = RaceAi.endgameMemoKey(0, 256, 0, 0, 10, 20, 1, -1, 7, false);
+        final long nextX = RaceAi.endgameMemoKey(1, 0, 0, 0, 10, 20, 1, -1, 7, false);
+        check(highY != nextX, "endgame memo key collides above coordinate 255");
+
+        final long maxGrid = RaceAi.endgameMemoKey(500, 500, 12, -12, 499, 498, -12, 12, 20, true);
+        final long adjacent = RaceAi.endgameMemoKey(500, 499, 12, -12, 499, 498, -12, 12, 20, true);
+        check(maxGrid != adjacent, "endgame memo key loses supported 9-bit coordinates");
+    }
+
+    private static void testDistinctCoverMatching() {
+        final int[] uniqueEight = new int[8];
+        for (int i = 0; i < uniqueEight.length; i++)
+            uniqueEight[i] = 1 << i;
+        check(RaceAi.hasDistinctCover(uniqueEight, 8), "eight opponents should cover eight distinct escapes");
+        check(!RaceAi.hasDistinctCover(uniqueEight, 7), "seven opponents cannot cover eight escapes");
+        check(!RaceAi.hasDistinctCover(new int[]{1, 1}, 2), "one opponent cannot cover two escapes simultaneously");
+        check(RaceAi.hasDistinctCover(new int[]{3, 1}, 2), "matching should reroute a flexible first assignment");
+    }
+
+    private static void testSegmentIntersection() {
+''',
+          )
+
+          replace_once(
+              "tests/headless_smoke.py",
+              '''        log = (work / "race.log").read_text(encoding="utf-8")
+        if "# results" not in log or log.count(" FINISH ") != 7 or " CRASH " in log:
+            raise SystemExit("headless race did not produce the expected complete sprint result")
+    print("HeadlessSmoke: OK")
+''',
+              '''        log = (work / "race.log").read_text(encoding="utf-8")
+        if "# results" not in log or log.count(" FINISH ") != 7 or " CRASH " in log:
+            raise SystemExit("headless race did not produce the expected complete sprint result")
+
+        invalid_props = work / "human.properties"
+        invalid_props.write_text(
+            (work / "bench.properties").read_text(encoding="utf-8").replace(
+                "player1Kind=AI1", "player1Kind=HUMAN", 1
+            ),
+            encoding="utf-8",
+        )
+        invalid = subprocess.run(
+            [
+                "java", "-jar", str(JAR), "--auto", "--track", "sprint",
+                "--props", invalid_props.name, "--log", "invalid.log", "--seed", "1",
+            ],
+            cwd=work,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if invalid.returncode == 0:
+            raise SystemExit("invalid human auto-race configuration unexpectedly succeeded")
+        if "--auto requires every configured player to be AI" not in invalid.stderr:
+            raise SystemExit(
+                f"invalid auto-race failed unclearly:\\n{invalid.stdout}\\n{invalid.stderr}"
+            )
+
+        narrow_text = (work / "bench.properties").read_text(encoding="utf-8")
+        replacements = {
+            "gameX=86": "gameX=20",
+            "gameY=48": "gameY=25",
+            "useLastTrack=false": "useLastTrack=true",
+        }
+        for old, new in replacements.items():
+            narrow_text = narrow_text.replace(old, new, 1)
+        narrow_text += "lastTrackLeft=5,20;5,3\\nlastTrackRight=6,20;6,3\\n"
+        narrow_props = work / "narrow.properties"
+        narrow_props.write_text(narrow_text, encoding="utf-8")
+        narrow = subprocess.run(
+            [
+                "java", "-jar", str(JAR), "--auto", "--props", narrow_props.name,
+                "--log", "narrow.log", "--seed", "1",
+            ],
+            cwd=work,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if narrow.returncode == 0:
+            raise SystemExit("insufficient-start-grid auto race unexpectedly succeeded")
+        if "couldn't find a start position" not in narrow.stderr:
+            raise SystemExit(
+                f"insufficient-start-grid auto race failed unclearly:\\n{narrow.stdout}\\n{narrow.stderr}"
+            )
+    print("HeadlessSmoke: OK")
+''',
+          )
+          PY
+
+      - name: Run strict tests and deterministic regression corpus
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python -m compileall -q tracks tests
+
+      - name: Commit source-only fixes to master
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java tests/tr/logic/CoreTests.java tests/headless_smoke.py
+          git commit -m 'Fix large-grid endgames and invalid auto races'
+          git push origin HEAD:master
