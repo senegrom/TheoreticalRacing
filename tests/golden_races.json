@@ -1,0 +1,131 @@
+{
+  "format": 1,
+  "cases": [
+    {
+      "name": "sprint-s1-8p",
+      "track": "sprint",
+      "seed": 1,
+      "players": 8,
+      "sha256": "bea51814694c6c8c6ef7ba438aec2c581807a3d16dcc767742a5e2c841f3be04",
+      "summary": {
+        "turns": 118,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "F",
+          "A",
+          "G",
+          "B",
+          "C",
+          "D",
+          "E",
+          "H"
+        ]
+      }
+    },
+    {
+      "name": "hairpin-s10-8p",
+      "track": "hairpin",
+      "seed": 10,
+      "players": 8,
+      "sha256": "9dbd54b1bbe86fe39842c3092d65ab4fc280dbf6e670b41ba84edcc8d46e955c",
+      "summary": {
+        "turns": 138,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "A",
+          "C",
+          "D",
+          "E",
+          "B",
+          "F",
+          "H",
+          "G"
+        ]
+      }
+    },
+    {
+      "name": "zigzag-s4-8p",
+      "track": "zigzag",
+      "seed": 4,
+      "players": 8,
+      "sha256": "ad95aa9a5a3d762b80dbcb9a4b9e36dde7f79a7c99d3eb6a9482e116f0db6de1",
+      "summary": {
+        "turns": 533,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "A",
+          "B",
+          "D",
+          "C",
+          "E",
+          "H",
+          "G",
+          "F"
+        ]
+      }
+    },
+    {
+      "name": "hungaroring-s13-8p",
+      "track": "hungaroring",
+      "seed": 13,
+      "players": 8,
+      "sha256": "c1c16899648ed6f2507e451f8dbb5deef5ad3c238d0cd2c394ce56158eccd059",
+      "summary": {
+        "turns": 1016,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "C",
+          "F",
+          "G",
+          "H",
+          "E",
+          "D",
+          "A",
+          "B"
+        ]
+      }
+    },
+    {
+      "name": "lemans-s4-8p-known-crash",
+      "track": "lemans",
+      "seed": 4,
+      "players": 8,
+      "sha256": "f10272612acf894609c251ab3bda27b2a389ab91344ea5e45daddd54520d6280",
+      "summary": {
+        "turns": 522,
+        "finishes": 6,
+        "crashes": 1,
+        "results": [
+          "D",
+          "H",
+          "E",
+          "A",
+          "B",
+          "C",
+          "F",
+          "G"
+        ]
+      }
+    },
+    {
+      "name": "hairpin-s1-2p",
+      "track": "hairpin",
+      "seed": 1,
+      "players": 2,
+      "sha256": "2ca8a53f544178a000c047f899dde4023cc1cb97b2847f709746bd6e0a032272",
+      "summary": {
+        "turns": 33,
+        "finishes": 1,
+        "crashes": 0,
+        "results": [
+          "A",
+          "B"
+        ]
+      }
+    }
+  ]
+}

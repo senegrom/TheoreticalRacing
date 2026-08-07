@@ -9,11 +9,11 @@ import javax.swing.JPanel;
  *
  * @author CGH
  */
-public class Grid extends JPanel {
+public final class Grid extends JPanel {
 	private static final long	serialVersionUID	= 8231688287006820437L;
 
 	public final int			rows, cols;
-	private final RaceUI		rui;
+	private final transient RaceUI	rui;
 
 	public Grid(final RaceUI rui, final int rows, final int cols) {
 		this.rows = rows;

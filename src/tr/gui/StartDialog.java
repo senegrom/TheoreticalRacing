@@ -61,7 +61,7 @@ public class StartDialog extends JFrame {
 	private final Properties			prop;
 	private final JTextField[]			txtSize;
 
-	private Runnable					onConfirm, onCancel, onSave;
+	private transient Runnable			onConfirm, onCancel, onSave;
 
 	public StartDialog(final String title, final Properties prop) {
 		super(title);
@@ -75,7 +75,7 @@ public class StartDialog extends JFrame {
 		btnPlayer = new JButton[maxPlayers];
 		btnPlayerCol = new JButton[maxPlayers];
 		@SuppressWarnings("unchecked")
-		final JComboBox<String>[] cmbs = new JComboBox[maxPlayers];
+		final JComboBox<String>[] cmbs = (JComboBox<String>[]) new JComboBox<?>[maxPlayers];
 		cmbKind = cmbs;
 		lblPlayerCol = new JLabel[maxPlayers];
 		for (int i = 0; i < maxPlayers; i++) {

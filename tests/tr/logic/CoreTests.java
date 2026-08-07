@@ -11,8 +11,10 @@ public final class CoreTests {
         testDirections();
         testPlayerKinds();
         testPointParsing();
+        testBorderValidation();
         testSegmentIntersection();
         testStartZone();
+        TrackDataTests.run();
         System.out.println("CoreTests: OK");
     }
 
@@ -44,6 +46,23 @@ public final class CoreTests {
         checkPoint(pts.get(1), 3, 4);
         checkPoint(pts.get(2), -7, 8);
         check("1,2;3,4;-7,8".equals(TrackIO.pointListToString(pts)), "point serialization changed");
+    }
+
+
+    private static void testBorderValidation() {
+        final LinkedList<int[]> left = new LinkedList<>();
+        final LinkedList<int[]> right = new LinkedList<>();
+        left.add(p(0, 0));
+        left.add(p(10, 0));
+        right.add(p(0, 4));
+        right.add(p(10, 4));
+        check(TrackIO.validBorders(left, right), "valid border pair rejected");
+
+        right.set(0, p(0, 0));
+        check(!TrackIO.validBorders(left, right), "zero-width start line accepted");
+        right.set(0, p(0, 4));
+        left.add(p(10, 0));
+        check(!TrackIO.validBorders(left, right), "consecutive duplicate border point accepted");
     }
 
     private static void testSegmentIntersection() {

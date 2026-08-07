@@ -212,7 +212,7 @@ final class Reachability {
 				// predicates); alive-first keeps the HashMap lookups to alive
 				// landings only (all of which are cache hits, see above).
 				if (isAlive(nx, ny, nvx, nvy) && game.isMoveLegalGeometryCached(x, y, nx, ny))
-					m |= 1 << di;
+					m = (short) (m | 1 << di);
 			}
 			mask[idx] = m;
 		}

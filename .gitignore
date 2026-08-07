@@ -1,5 +1,6 @@
 /bin/
 /test-bin/
+/lint-bin/
 
 # Build artifacts
 *.jar
@@ -22,3 +23,6 @@ __pycache__/
 
 # Local backups
 *.bak
+
+# One-off maintenance exports
+/theoretical-racing-source.zip

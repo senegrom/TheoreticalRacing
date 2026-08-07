@@ -36,7 +36,15 @@ The repository keeps the core test layer dependency-free:
 sh ./run_tests.sh
 ```
 
-The tests currently cover direction/index invariants, player-kind parsing, track point parsing/serialization, segment-intersection geometry, and start-zone construction. GitHub Actions builds and tests on JDK 17 and JDK 21 and syntax-checks the Python tooling.
+The tests cover direction/index invariants, player-kind parsing, point serialization, track geometry, structural validation of every bundled circuit, and other pure core helpers. Compilation uses `-Xlint:all -Werror`.
+
+The frozen AI2 policy also has deterministic golden-race regression tests:
+
+```bash
+sh ./run_golden_tests.sh
+```
+
+The corpus spans short, long, congested, slow and endgame races, including the known Le Mans seed-4 counterexample. GitHub Actions builds and tests on JDK 17 and JDK 21, runs the golden corpus headlessly, and syntax-checks the Python and shell tooling.
 
 ## Benchmarks
 
@@ -54,7 +62,15 @@ sh ./run_bench_main.sh --1v1 --seeds 5
 sh ./run_bench_main.sh --slow --seeds 5
 ```
 
-`tracks/run_bench.py` gives the historical `bench_ai.py` harness portable paths and a temporary copy of `tracks/bench.properties`, so benchmark runs no longer mutate a developer's `user.properties`.
+`tracks/bench_ai.py` creates an isolated temporary properties/log directory, so benchmarks do not mutate a developer's `user.properties`. Use `--seed-start 6 --seeds 5` for seeds 6–10.
+
+Before a large run, locate AI1/AI2 behavior changes cheaply:
+
+```bash
+python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
+```
+
+For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) for the workflow and current research directions.
 
 ## How to play
 
@@ -78,8 +94,9 @@ src/tr/logic/         game rules, track IO/geometry, reachability, AI
 src/tr/gui/           Swing UI and rendering
 tracks/               bundled circuits, generators, benchmark tooling
 tests/tr/logic/       dependency-free regression tests
-.github/workflows/    continuous integration
-racing-memory.md      AI research/promotion history
+.github/workflows/    fast CI and the manual promotion battery
+AI_DEVELOPMENT.md     current AI workflow, frontier and next ideas
+racing-memory.md      long-form AI research/promotion history
 ```
 
 `RaceAi` intentionally contains both the frozen champion and the experimental frontier. AI changes should be benchmarked against the frozen body and promoted only after the repository's multi-stage regression battery passes.

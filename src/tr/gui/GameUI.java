@@ -1,6 +1,7 @@
 package tr.gui;
 
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
@@ -20,24 +21,29 @@ import tr.logic.Player;
 import tr.logic.RaceGame;
 
 /**
- * Main game window.
+ * Main game-window facade.
+ *
+ * <p>The Swing frame is created lazily in {@link #setupUI}. Headless auto-play
+ * still uses the lightweight button/label objects expected by {@link RaceGame},
+ * but never constructs a top-level AWT window.</p>
  *
  * @author CGH
  */
-public class GameUI extends JFrame {
-	private final static int	rightSize			= 170;
-	private static final long	serialVersionUID	= -8111395739974463615L;
+public final class GameUI {
+	private final static int	rightSize	= 170;
 
-	private final JButton[]		btnDirections;
-	private final JButton		btnExit;
-	private final JButton		btnOK;
-	private final JButton		btnRestart;
-	private final JButton		btnUndo;
-	private final JLabel[]		lblPlayerInfo;
-	private final JLabel		lblStatus;
+	private final JButton[]	btnDirections;
+	private final JButton	btnExit;
+	private final JButton	btnOK;
+	private final JButton	btnRestart;
+	private final JButton	btnUndo;
+	private JFrame			frame;
+	private final JLabel[]	lblPlayerInfo;
+	private final JLabel	lblStatus;
+	private final String	title;
 
 	public GameUI(final String title, final int maxPlayers) {
-		super(title);
+		this.title = title;
 		lblStatus = new JLabel(" ");
 		btnOK = new JButton("OK");
 		btnUndo = new JButton("Undo");
@@ -48,9 +54,18 @@ public class GameUI extends JFrame {
 		for (int i = 0; i < btnDirections.length; i++)
 			btnDirections[i] = new JButton(Direction.fromIndex(i).label());
 		lblPlayerInfo = new JLabel[maxPlayers];
-		// pre-init so headless setPlayerInfo doesn't NPE before setupUI
 		for (int i = 0; i < maxPlayers; i++)
 			lblPlayerInfo[i] = new JLabel("-");
+	}
+
+	public void dispose() {
+		if (frame != null)
+			frame.dispose();
+	}
+
+	/** Parent component for dialogs, or {@code null} in headless mode. */
+	public Component getDialogParent() {
+		return frame;
 	}
 
 	public JButton[] getBtnDirections() {
@@ -65,6 +80,11 @@ public class GameUI extends JFrame {
 		return btnUndo;
 	}
 
+	public void repaint() {
+		if (frame != null)
+			frame.repaint();
+	}
+
 	public void setPlayerInfo(final String s, final int i) {
 		lblPlayerInfo[i].setText(s);
 	}
@@ -74,12 +94,15 @@ public class GameUI extends JFrame {
 	}
 
 	public void setupUI(final Grid g, final RaceGame game, final int windowX, final int windowY, final Player[] players) {
-		setSize(windowX, windowY);
-		setLocationRelativeTo(null);
-		setResizable(false);
-		setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+		if (frame != null)
+			throw new IllegalStateException("game window already initialized");
+		frame = new JFrame(title);
+		frame.setSize(windowX, windowY);
+		frame.setLocationRelativeTo(null);
+		frame.setResizable(false);
+		frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 
-		setLayout(new BorderLayout());
+		frame.setLayout(new BorderLayout());
 		final JPanel gridContainer = new JPanel();
 		final JPanel rightContainer = new JPanel();
 		final JPanel directionContainer = new JPanel();
@@ -92,14 +115,14 @@ public class GameUI extends JFrame {
 		playerInfoContainer.setLayout(new GridLayout(players.length, 3, 5, 5));
 		btnContainer.setLayout(new GridLayout(0, 1, 1, 1));
 
-		add(gridContainer, BorderLayout.CENTER);
-		add(rightContainer, BorderLayout.EAST);
-		add(lblStatus, BorderLayout.SOUTH);
+		frame.add(gridContainer, BorderLayout.CENTER);
+		frame.add(rightContainer, BorderLayout.EAST);
+		frame.add(lblStatus, BorderLayout.SOUTH);
 		lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
 		final ExitListener lstnExit = new ExitListener(game);
-		final ActionListener lstnButton = arg0 -> {
-			final Object source = arg0.getSource();
+		final ActionListener lstnButton = event -> {
+			final Object source = event.getSource();
 			if (source == btnOK)
 				game.clickedOK();
 			else if (source == btnUndo)
@@ -154,9 +177,9 @@ public class GameUI extends JFrame {
 		btnUndo.addActionListener(lstnButton);
 		btnRestart.addActionListener(lstnButton);
 		btnExit.addActionListener(lstnExit);
-		addWindowListener(lstnExit);
+		frame.addWindowListener(lstnExit);
 
-		setVisible(true);
+		frame.setVisible(true);
 
 		final Dimension minSize = new Dimension(g.cols * RaceUI.GRID_DIST + 1, g.rows * RaceUI.GRID_DIST + 1);
 		g.setSize(minSize);
@@ -176,7 +199,7 @@ public class GameUI extends JFrame {
 
 		g.addMouseListener(new GridListener(game));
 
-		repaint();
-		validate();
+		frame.repaint();
+		frame.validate();
 	}
 }

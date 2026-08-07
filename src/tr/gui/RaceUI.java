@@ -3,6 +3,7 @@ package tr.gui;
 import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Graphics2D;
+import java.awt.GraphicsEnvironment;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
@@ -19,7 +20,7 @@ import tr.logic.Track;
  *
  * @author CGH
  */
-public class RaceUI {
+public final class RaceUI {
 	public final static int		CAR_SIZE			= 5;
 	private final static Color	colBackgrd			= Color.WHITE;
 	private final static Color	colBackgrdForb		= new Color(255, 245, 245);
@@ -29,7 +30,7 @@ public class RaceUI {
 	private final static Color	colStartZOutline	= Color.BLACK;
 	private final static Color	colTrack			= Color.BLACK;
 	private final static Color	colTrackFill		= new Color(245, 255, 245);
-	public final static int		GRID_DIST			= Math.max(15, 15 * Toolkit.getDefaultToolkit().getScreenResolution() / 96);
+	public final static int		GRID_DIST			= computeGridDistance();
 	private final static Stroke	strkFinish			= new BasicStroke(3f, BasicStroke.CAP_BUTT, BasicStroke.JOIN_BEVEL, 1f,
 			new float[]{3f, 3f }, 0f);
 	private final static Stroke	strkPlayer			= new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, null, 0f);
@@ -38,6 +39,11 @@ public class RaceUI {
 	private final static Stroke	strkStartZ			= new BasicStroke(1f);
 	private final static Stroke	strkTrack			= new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f, null, 0f);
 	private final static int	VELVEC_SIZE			= 3;
+
+	private static int computeGridDistance() {
+		return GraphicsEnvironment.isHeadless() ? 15
+				: Math.max(15, 15 * Toolkit.getDefaultToolkit().getScreenResolution() / 96);
+	}
 
 	private int[]				finishLine;	// 4-element pixel coords [x1,y1,x2,y2]
 	private final Grid			grid;

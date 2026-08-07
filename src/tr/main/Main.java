@@ -1,6 +1,7 @@
 package tr.main;
 
 import java.awt.EventQueue;
+import java.awt.GraphicsEnvironment;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -16,14 +17,6 @@ import tr.logic.TrackIO;
  * @author CGH
  */
 public class Main {
-
-	static {
-		try {
-			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-		} catch (final Exception e) {
-			e.printStackTrace();
-		}
-	}
 
 	public static void main(final String[] args) {
 		System.out.println(RaceGame.NAME + " " + RaceGame.VERSION);
@@ -72,6 +65,16 @@ public class Main {
 		}
 
 		final boolean autoMode = auto || dumpReach != null || queryIn != null;
+		if (autoMode) {
+			System.setProperty("java.awt.headless", "true");
+			Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
+				System.err.println("Uncaught exception on " + thread.getName());
+				error.printStackTrace();
+				System.exit(1);
+			});
+		} else {
+			installLookAndFeel();
+		}
 		final String dumpReachPath = dumpReach;
 		final String qIn = queryIn, qOut = queryOut;
 		final Long startSeed = seed;
@@ -89,6 +92,16 @@ public class Main {
 				game.setGameLogPath(gameLogPath);
 			game.start();
 		});
+	}
+
+	private static void installLookAndFeel() {
+		if (GraphicsEnvironment.isHeadless())
+			return;
+		try {
+			UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
+		} catch (final Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	private static Properties loadProperties(final String override) {

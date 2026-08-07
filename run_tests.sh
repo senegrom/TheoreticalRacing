@@ -7,5 +7,5 @@ rm -rf test-bin
 mkdir -p test-bin
 find src tests -name '*.java' -print | sort > .test-java-sources
 trap 'rm -f .test-java-sources' EXIT
-javac -encoding UTF-8 -d test-bin @.test-java-sources
+javac -Xlint:all -Werror -encoding UTF-8 -d test-bin @.test-java-sources
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.CoreTests

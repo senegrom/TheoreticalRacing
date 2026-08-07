@@ -14,7 +14,7 @@ import javax.swing.JPanel;
  *
  * @author CGH
  */
-public class TrackPreviewPanel extends JPanel {
+public final class TrackPreviewPanel extends JPanel {
 	private static final long	serialVersionUID	= 1L;
 
 	private int					gameX, gameY;

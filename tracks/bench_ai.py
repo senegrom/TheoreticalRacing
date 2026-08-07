@@ -11,6 +11,7 @@ Usage:
   python bench_ai.py --h2h [...]            # mixed 4v4 head-to-head (8-car)
   python bench_ai.py --4p [...]             # 2v2 head-to-head (4-car)
   python bench_ai.py --1v1 [...]            # 1v1 head-to-head (2-car endgame)
+  python bench_ai.py --seeds 5 --seed-start 6 [...]  # seeds 6-10
 
 The h2h/4p/1v1 modes all measure mean finishing place (lower=better) per kind
 plus crashes; the smaller fields isolate the endgame where forcing the sole/
@@ -20,9 +21,12 @@ If no track args are given, runs DEFAULT_TRACKS (or SLOW_TRACKS with --slow).
 """
 
 import os
+from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 
 # lemans is back now that build_lemans.py uses angular ordering (clean loop,
 # honest ~72-84 move laps) instead of the old greedy stitch that tangled.
@@ -53,36 +57,54 @@ DEFAULT_TRACKS = [
 # promoting a new frozen standard -- confirm the new AI is >= the old one here.
 SLOW_TRACKS = ['serpentine', 'serpentine2', 'spiral', 'cog']
 
-JAR = r'E:\OneDrive\Coding\Java\theoreticRacing\theoreticRacing.jar'
-LOG = r'E:\OneDrive\Coding\Java\theoreticRacing\last_game.log'
-PROPS = r'E:\OneDrive\Coding\Java\theoreticRacing\user.properties'
-PROPS_BACKUP = PROPS + '.bench.bak'
+ROOT = Path(__file__).resolve().parents[1]
+JAR = str(ROOT / 'theoreticRacing.jar')
+LOG = ''
+PROPS = ''
+
+
+def configure_runtime(directory):
+    """Point mutable benchmark files at an isolated runtime directory."""
+    global LOG, PROPS
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    LOG = str(directory / 'last_game.log')
+    PROPS = str(directory / 'bench.properties')
+    shutil.copyfile(ROOT / 'tracks' / 'bench.properties', PROPS)
+
+
+def require_runtime():
+    if not PROPS or not LOG:
+        raise RuntimeError('benchmark runtime is not configured')
 
 
 def set_all_to(kind):
-    with open(PROPS) as f:
+    require_runtime()
+    with open(PROPS, encoding='utf-8') as f:
         text = f.read()
-    text = re.sub(r'(player[1-8]Kind=)AI[12]', r'\1' + kind, text)
-    with open(PROPS, 'w') as f:
+    text = re.sub(r'^(player[1-8]Kind=).*$', r'\1' + kind, text, flags=re.MULTILINE)
+    with open(PROPS, 'w', encoding='utf-8') as f:
         f.write(text)
 
 
 def set_kinds(kinds):
     """kinds: list of 8 'AI1'/'AI2' strings for slots 1..8."""
-    with open(PROPS) as f:
+    require_runtime()
+    with open(PROPS, encoding='utf-8') as f:
         text = f.read()
     for i, k in enumerate(kinds, start=1):
-        text = re.sub(r'(player%dKind=)AI[12]' % i, r'\g<1>' + k, text)
-    with open(PROPS, 'w') as f:
+        text = re.sub(r'^(player%dKind=).*$' % i, r'\g<1>' + k, text, flags=re.MULTILINE)
+    with open(PROPS, 'w', encoding='utf-8') as f:
         f.write(text)
 
 
 def set_nplayers(n):
     """Set the active field size (players 1..n race)."""
-    with open(PROPS) as f:
+    require_runtime()
+    with open(PROPS, encoding='utf-8') as f:
         text = f.read()
     text = re.sub(r'nPlayers=\d+', 'nPlayers=%d' % n, text)
-    with open(PROPS, 'w') as f:
+    with open(PROPS, 'w', encoding='utf-8') as f:
         f.write(text)
 
 
@@ -90,17 +112,23 @@ SEEDS = [None]   # --seeds N -> [1..N]: randomized start grids (statistical benc
 
 
 def run_track(track, timeout=240, seed=None):
-    cmd = ['java', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
+    require_runtime()
+    cmd = ['java', '-Djava.awt.headless=true', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
     if seed is not None:
         cmd += ['--seed', str(seed)]
     if os.path.exists(LOG):
         os.remove(LOG)
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    if 'Aborting' in r.stdout or not os.path.exists(LOG):
+    if r.returncode != 0 or 'Aborting' in r.stdout or not os.path.exists(LOG):
+        if r.stderr.strip():
+            print(r.stderr.rstrip(), file=sys.stderr)
         return None
     moves, crashes, finishes = {}, set(), []
+    saw_results = False
     with open(LOG, encoding='utf-8') as f:
         for line in f:
+            if line.startswith('# results'):
+                saw_results = True
             m = re.match(r'^(\d+) p(\d+) ', line)
             if not m:
                 continue
@@ -110,12 +138,15 @@ def run_track(track, timeout=240, seed=None):
                 crashes.add(pn)
             elif 'FINISH' in line:
                 finishes.append((pn, moves[pn]))
+    if not saw_results:
+        return None
     return len(finishes), len(crashes), [m for _, m in finishes]
 
 
 def bench(tracks):
     # Backup props once before doing anything
-    with open(PROPS) as f:
+    require_runtime()
+    with open(PROPS, encoding='utf-8') as f:
         backup = f.read()
     # Frozen-champion cache: AI2 is the promoted standard and is IDENTICAL on
     # every candidate run, so re-benching it doubles wall time for nothing. Set
@@ -129,6 +160,7 @@ def bench(tracks):
         with open(baseline_path) as f:
             baseline = {k: tuple(v) if v else None for k, v in json.load(f).items()}
     kinds = ('AI1',) if baseline is not None else ('AI1', 'AI2')
+    valid = True
     try:
         set_nplayers(8)   # canonical full field; robust to a prior killed bench
         results = {}
@@ -157,6 +189,7 @@ def bench(tracks):
                         sm.append(sum(mvs) / len(mvs))
                 if bad:
                     rows[t] = None
+                    valid = False
                     print(f'  [{kind}] {t:18}: TIMEOUT/INVALID')
                     continue
                 avg = sum(sm) / len(sm) if sm else 0.0
@@ -167,12 +200,14 @@ def bench(tracks):
                 nt += 1
             results[kind] = (tf, tc, tm / max(1, nt), rows)
     finally:
-        with open(PROPS, 'w') as f:
+        with open(PROPS, 'w', encoding='utf-8') as f:
             f.write(backup)
 
     if baseline is not None:
         # Reconstruct the AI2 column from the cache (per-track rows + totals).
         r2rows = {t: baseline.get(t) for t in tracks}
+        if any(value is None for value in r2rows.values()):
+            valid = False
         tf2 = sum(v[0] for v in r2rows.values() if v)
         tc2 = sum(v[1] for v in r2rows.values() if v)
         nt2 = sum(1 for v in r2rows.values() if v)
@@ -202,18 +237,22 @@ def bench(tracks):
     f1, c1, m1, _ = results['AI1']
     f2, c2, m2, _ = results['AI2']
     print(f'{"TOTAL":18} | f={f1} c={c1} mv={m1:.2f} | f={f2} c={c2} mv={m2:.2f} | {m1-m2:+.2f}')
+    return valid
 
 
 def run_track_h2h(track, timeout=240, seed=None):
     """Run one race with the current PROPS kinds. Returns
     {kind: (sum_places, count, crashes)} or None if invalid."""
-    cmd = ['java', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
+    require_runtime()
+    cmd = ['java', '-Djava.awt.headless=true', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
     if seed is not None:
         cmd += ['--seed', str(seed)]
     if os.path.exists(LOG):
         os.remove(LOG)
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    if 'Aborting' in r.stdout or not os.path.exists(LOG):
+    if r.returncode != 0 or 'Aborting' in r.stdout or not os.path.exists(LOG):
+        if r.stderr.strip():
+            print(r.stderr.rstrip(), file=sys.stderr)
         return None
     name_kind = {}
     place_name = {}
@@ -221,7 +260,7 @@ def run_track_h2h(track, timeout=240, seed=None):
     in_results = False
     with open(LOG, encoding='utf-8') as f:
         for line in f:
-            m = re.match(r'^player\d+ name=(\S+) kind=(AI[12])', line)
+            m = re.match(r'^player\d+ name=(.*?) kind=(AI[12]) ', line)
             if m:
                 name_kind[m.group(1)] = m.group(2)
                 continue
@@ -233,9 +272,11 @@ def run_track_h2h(track, timeout=240, seed=None):
                 in_results = True
                 continue
             if in_results:
-                m = re.match(r'^(\d+)\. (\S+)', line)
+                m = re.match(r'^(\d+)\. (.*)$', line)
                 if m:
                     place_name[int(m.group(1))] = m.group(2)
+    if not in_results:
+        return None
     out = {}
     for kind in ('AI1', 'AI2'):
         places = [p for p, n in place_name.items() if name_kind.get(n) == kind]
@@ -249,7 +290,9 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
     mean finishing place per kind (lower better; the two means sum to
     nplayers+1) + crashes. nplayers=2 is the 1v1 endgame (forcing the sole
     rival to crash = a win), 4 is 2v2, 8 is 4v4."""
-    with open(PROPS) as f:
+    require_runtime()
+    valid = True
+    with open(PROPS, encoding='utf-8') as f:
         backup = f.read()
     try:
         set_nplayers(nplayers)
@@ -278,6 +321,7 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
                     break
             if not ok:
                 rows[t] = None
+                valid = False
                 print(f'  [{label}] {t:18}: INVALID')
                 continue
             rows[t] = agg
@@ -285,7 +329,7 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
                 for i in range(3):
                     tot[kind][i] += agg[kind][i]
     finally:
-        with open(PROPS, 'w') as f:
+        with open(PROPS, 'w', encoding='utf-8') as f:
             f.write(backup)
 
     print()
@@ -304,44 +348,59 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
     p1 = tot['AI1'][0] / max(1, tot['AI1'][1])
     p2 = tot['AI2'][0] / max(1, tot['AI2'][1])
     print(f'{"TOTAL mean place":18} | {p1:6.3f} c={tot["AI1"][2]}   | {p2:6.3f} c={tot["AI2"][2]}')
+    return valid
 
 
 def bench_h2h(tracks):
-    bench_field(tracks, 8, 4, 'h2h')
+    return bench_field(tracks, 8, 4, 'h2h')
 
 
-if __name__ == '__main__':
-    args = sys.argv[1:]
-    # --tag NAME: run fully isolated (own props copy + own log) so a second
-    # bench can run simultaneously without colliding on user.properties/last_game.log
-    if '--tag' in args:
-        _i = args.index('--tag')
-        _tag = args[_i + 1]
-        args = args[:_i] + args[_i + 2:]
-        import shutil
-        import atexit
-        _orig = PROPS
-        PROPS = os.path.join(os.path.dirname(PROPS), 'user_%s.properties' % _tag)
-        LOG = os.path.join(os.path.dirname(LOG), 'last_game_%s.log' % _tag)
-        shutil.copy(_orig, PROPS)
-        atexit.register(lambda: [os.remove(p) for p in (PROPS, LOG) if os.path.exists(p)])
-        print('# isolated run: props=%s log=%s' % (os.path.basename(PROPS), os.path.basename(LOG)))
+def main(argv):
+    global SEEDS
+    args = list(argv)
     h2h = '--h2h' in args
     one_v_one = '--1v1' in args
     four_p = '--4p' in args
     slow = '--slow' in args
     args = [a for a in args if a not in ('--h2h', '--1v1', '--4p', '--slow')]
+
+    seed_start = 1
+    if '--seed-start' in args:
+        i = args.index('--seed-start')
+        try:
+            seed_start = int(args[i + 1])
+        except (IndexError, ValueError):
+            print('--seed-start requires an integer', file=sys.stderr)
+            return False
+        args = args[:i] + args[i + 2:]
     if '--seeds' in args:
         i = args.index('--seeds')
-        SEEDS = list(range(1, int(args[i + 1]) + 1))
+        try:
+            count = int(args[i + 1])
+        except (IndexError, ValueError):
+            print('--seeds requires an integer', file=sys.stderr)
+            return False
+        if seed_start < 1 or count < 1:
+            print('seed start and count must be positive', file=sys.stderr)
+            return False
+        SEEDS = list(range(seed_start, seed_start + count))
         args = args[:i] + args[i + 2:]
-        print(f'# statistical bench: {len(SEEDS)} randomized start grids per track')
+        print(f'# statistical bench: seeds {SEEDS[0]}-{SEEDS[-1]} ({len(SEEDS)} grids per track)')
+    elif seed_start != 1:
+        print('--seed-start requires --seeds', file=sys.stderr)
+        return False
+
     tracks = args if args else (SLOW_TRACKS if slow else DEFAULT_TRACKS)
     if one_v_one:
-        bench_field(tracks, 2, 1, '1v1')   # endgame: forcing the sole rival to crash = a win
-    elif four_p:
-        bench_field(tracks, 4, 2, '4p')     # 2v2
-    elif h2h:
-        bench_field(tracks, 8, 4, 'h2h')    # 4v4
-    else:
-        bench(tracks)
+        return bench_field(tracks, 2, 1, '1v1')
+    if four_p:
+        return bench_field(tracks, 4, 2, '4p')
+    if h2h:
+        return bench_field(tracks, 8, 4, 'h2h')
+    return bench(tracks)
+
+
+if __name__ == '__main__':
+    with tempfile.TemporaryDirectory(prefix='theoretical-racing-bench-') as directory:
+        configure_runtime(directory)
+        raise SystemExit(0 if main(sys.argv[1:]) else 1)

@@ -26,6 +26,29 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
+## 2026-08-07 repository and AI1 frontier update
+
+The repository now has portable JDK-17+ build/test scripts, genuine Linux
+headless auto-play, lint-clean dependency-free unit tests, structural checks for
+all bundled tracks, a deterministic AI2 golden-race corpus, a cheap AI1/AI2
+move-log probe, and a manual nine-stage GitHub Actions promotion battery. The
+benchmark now uses isolated temporary properties/logs and fails non-zero on
+invalid Java runs. `user.properties` and Eclipse metadata are no longer tracked.
+
+Two source defects were fixed in both bodies before new experimentation:
+`RaceGame.gameLogPath()` no longer recurses, and `futureMobility4` now excludes
+the correct one-based player number. AI1 and AI2 remain separate full scorer
+bodies by user choice.
+
+**Experimental AI1 round-67 candidate (not promoted): dense slow-pack escape
+proof.** In the sole canonical round-66 failure (Le Mans seed 4), the victim
+entered a moving eight-car funnel at move 55 while the cheap smom model missed
+the future box. AI1 now escalates trap-0 slow moves only when all seven live
+rivals are within Chebyshev 10, landing speed^2 >= 16, and a near-equal low-trap
+alternative exists. The real-scorer-rival rollout changes p7's move 55 SE->SW
+and converts 6 finishes / 1 crash into 7 / 0. AI2 is untouched; full-battery
+review is required before promotion.
+
 ## Current champion (round 66, promoted per user 2026-07-28)
 
 **The round-63 champion PLUS the round-65 pack-gated deep escalation,

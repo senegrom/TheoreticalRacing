@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayDeque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -27,7 +28,7 @@ import tr.gui.StartDialog;
  * @version 0.3.0
  * @author CGH
  */
-public class RaceGame {
+public final class RaceGame {
 	final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
 			Color.ORANGE, Color.GRAY, Color.MAGENTA, Color.BLACK };
@@ -49,7 +50,7 @@ public class RaceGame {
 	private volatile GameState	gamestate		= GameState.PRESTART;
 	private int					isShowingPrePath	= -1;
 	private final int			maxPlayers;
-	private int[]				oldVel;
+	private final ArrayDeque<MoveSnapshot>	moveHistory	= new ArrayDeque<>();
 	Player[]			players;
 	private final Properties	prop;
 	private RaceUI				rui;
@@ -62,6 +63,57 @@ public class RaceGame {
 	private final StringBuilder	gameLog		= new StringBuilder();
 	private int					turnCounter	= 0;
 	boolean				autoMode	= false;
+
+	/** Complete pre-move state used to undo a human move and every AI reply
+	 *  that followed it. Auto-play does not allocate snapshots. */
+	private static final class MoveSnapshot {
+		final int		finishedFirst;
+		final int		finishedLast;
+		final int[]	finishedPlaces;
+		final int		gameLogLength;
+		final int[]	historySizes;
+		final int		moverIndex;
+		final int[][]	positions;
+		final int		subgamestate;
+		final int		turnCounter;
+		final int[][]	velocities;
+
+		MoveSnapshot(final RaceGame game) {
+			moverIndex = game.subgamestate;
+			subgamestate = game.subgamestate;
+			finishedFirst = game.finishedFirst;
+			finishedLast = game.finishedLast;
+			turnCounter = game.turnCounter;
+			gameLogLength = game.gameLog.length();
+			positions = new int[game.players.length][];
+			velocities = new int[game.players.length][];
+			finishedPlaces = new int[game.players.length];
+			historySizes = new int[game.players.length];
+			for (int i = 0; i < game.players.length; i++) {
+				final Player player = game.players[i];
+				positions[i] = player.getPosition().clone();
+				velocities[i] = player.getVelocity().clone();
+				finishedPlaces[i] = player.getFinishedPlace();
+				historySizes[i] = player.getHistory().size();
+			}
+		}
+
+		void restore(final RaceGame game) {
+			game.subgamestate = subgamestate;
+			game.finishedFirst = finishedFirst;
+			game.finishedLast = finishedLast;
+			game.turnCounter = turnCounter;
+			game.gameLog.setLength(gameLogLength);
+			for (int i = 0; i < game.players.length; i++) {
+				final Player player = game.players[i];
+				player.setPosition(positions[i].clone());
+				player.setVelocity(velocities[i].clone());
+				player.setFinishedPlace(finishedPlaces[i]);
+				while (player.getHistory().size() > historySizes[i])
+					player.getHistory().removeLast();
+			}
+		}
+	}
 
 	/** Create new RaceGame. Call {@link #start()} afterwards. */
 	public RaceGame(final Properties prop) {
@@ -359,21 +411,26 @@ public class RaceGame {
 		final Player player = players[subgamestate];
 		final int[] velBefore = player.getVelocity().clone();
 		final Direction d = directionOf(velBefore, vel);
+		final boolean finishes = crossesFinish(pos[0], pos[1], newpos[0], newpos[1]);
+		final boolean legal = finishes || isMoveLegal(pos, newpos, player.getNumber());
 
-		if (crossesFinish(pos[0], pos[1], newpos[0], newpos[1])) {
+		if (!legal && !player.isAi()) {
+			final int answer = JOptionPane.showConfirmDialog(gameFrame.getDialogParent(),
+					"Going there will crash you. Do you really want to?", NAME, JOptionPane.YES_NO_OPTION);
+			if (answer != JOptionPane.YES_OPTION)
+				return;
+		}
+		if (!autoMode)
+			moveHistory.push(new MoveSnapshot(this));
+
+		if (finishes) {
 			finishedFirst++;
 			dispMessage(player.getName() + " finishes on place " + finishedFirst + ".");
 			logMove(player, d, velBefore, pos, vel, newpos, "FINISH place=" + finishedFirst);
 			finishPlayer(player, newpos, finishedFirst);
 			if (checkFinished())
 				return;
-		} else if (!isMoveLegal(pos, newpos, player.getNumber())) {
-			if (!player.isAi()) {
-				final int answ = JOptionPane.showConfirmDialog(gameFrame, "Going there will crash you. Do you really want to?", NAME,
-						JOptionPane.YES_NO_OPTION);
-				if (answ != JOptionPane.YES_OPTION)
-					return;
-			}
+		} else if (!legal) {
 			dispMessage(player.getName() + " crashes.");
 			logMove(player, d, velBefore, pos, vel, newpos, "CRASH place=" + (players.length - finishedLast));
 			finishPlayer(player, newpos, players.length - finishedLast);
@@ -381,7 +438,6 @@ public class RaceGame {
 			if (checkFinished())
 				return;
 		} else {
-			oldVel = player.getVelocity();
 			logMove(player, d, velBefore, pos, vel, newpos, "ok");
 			player.setVelocity(vel);
 			player.setPosition(newpos);
@@ -421,7 +477,14 @@ public class RaceGame {
 		rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
 		rui.setPrePath(null);
 		isShowingPrePath = -1;
-		gameFrame.getBtnUndo().setEnabled(!players[subgamestate].isAi());
+		gameFrame.getBtnUndo().setEnabled(!players[subgamestate].isAi() && hasUndoableHumanMove());
+	}
+
+	private boolean hasUndoableHumanMove() {
+		for (final MoveSnapshot snapshot : moveHistory)
+			if (!players[snapshot.moverIndex].isAi())
+				return true;
+		return false;
 	}
 
 	private void maybeAiTurn() {
@@ -534,9 +597,12 @@ public class RaceGame {
 	}
 
 	private void writeGameLog() {
+		final Path path = gameLogPath();
 		try {
-			Files.createDirectories(gameLogPath().getParent());
-			Files.writeString(gameLogPath(), gameLog.toString());
+			final Path parent = path.toAbsolutePath().getParent();
+			if (parent != null)
+				Files.createDirectories(parent);
+			Files.writeString(path, gameLog.toString());
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
@@ -652,14 +718,13 @@ public class RaceGame {
 	}
 
 	private boolean loadLastTrack() {
-		final LinkedList<int[]> left = TrackIO.parsePointList(prop.getProperty("lastTrackLeft"));
-		final LinkedList<int[]> right = TrackIO.parsePointList(prop.getProperty("lastTrackRight"));
-		if (left.size() < 2 || right.size() < 2)
+		final TrackIO.TrackData data = TrackIO.loadLastTrackData(prop);
+		if (data == null || data.gameX() != gameCols || data.gameY() != gameRows)
 			return false;
 		track = new Track();
-		for (final int[] p : left)
+		for (final int[] p : data.left())
 			track.addLeft(p[0], p[1]);
-		for (final int[] p : right)
+		for (final int[] p : data.right())
 			track.addRight(p[0], p[1]);
 		rui.setTrack(track);
 		if (isTrackSelfIntersecting()) {
@@ -734,6 +799,10 @@ public class RaceGame {
 				dispMessage("Track too short.");
 				return;
 			}
+			if (!TrackIO.validBorders(track.getLeft(), track.getRight())) {
+				dispMessage("Start and finish lines must have non-zero width, and border points must be distinct.");
+				return;
+			}
 			if (isTrackSelfIntersecting()) {
 				dispMessage("Track/start line/finish line intersect.");
 				return;
@@ -750,6 +819,7 @@ public class RaceGame {
 			for (final Player player : players)
 				player.logPosition(player.getPosition());
 			gamestate = GameState.PLAY;
+			moveHistory.clear();
 			subgamestate = 0;
 			gameFrame.setStatus(players[0].getName() + "'s turn...");
 			rui.setVelVector(players[0].getPosition(), 0);
@@ -775,21 +845,27 @@ public class RaceGame {
 			players[subgamestate].setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
 			updatePlaceStatus();
 		} else if (gamestate == GameState.PLAY) {
-			do {
-				subgamestate--;
-				if (subgamestate == -1)
-					subgamestate = players.length - 1;
-			} while (players[subgamestate].isFinished() || players[subgamestate].isAi());
-			final int[] vel = players[subgamestate].getVelocity();
-			players[subgamestate].setVelocity(oldVel);
+			MoveSnapshot target = null;
+			while (!moveHistory.isEmpty()) {
+				final MoveSnapshot snapshot = moveHistory.pop();
+				snapshot.restore(this);
+				if (!players[snapshot.moverIndex].isAi()) {
+					target = snapshot;
+					break;
+				}
+			}
+			if (target == null)
+				return;
+			gamestate = GameState.PLAY;
 			final int[] pos = players[subgamestate].getPosition();
-			players[subgamestate].setPosition(new int[]{pos[0] - vel[0], pos[1] - vel[1] });
+			final int[] vel = players[subgamestate].getVelocity();
 			gameFrame.setStatus(players[subgamestate].getName() + "'s turn...");
-			rui.setVelVector(new int[]{pos[0] - vel[0] + oldVel[0], pos[1] - vel[1] + oldVel[1] }, subgamestate);
+			rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
 			rui.setPrePath(null);
 			isShowingPrePath = -1;
-			players[subgamestate].getHistory().removeLast();
-			gameFrame.getBtnUndo().setEnabled(false);
+			gameFrame.getBtnUndo().setEnabled(hasUndoableHumanMove());
+			for (final JButton button : gameFrame.getBtnDirections())
+				button.setEnabled(true);
 			redoPlayerLabels();
 		}
 		gameFrame.repaint();
@@ -800,7 +876,7 @@ public class RaceGame {
 			System.out.println("[msg] " + s);
 			return;
 		}
-		JOptionPane.showMessageDialog(gameFrame, s, NAME, JOptionPane.OK_OPTION);
+		JOptionPane.showMessageDialog(gameFrame.getDialogParent(), s, NAME, JOptionPane.OK_OPTION);
 	}
 
 	/** Exit the game after a prompt. */
@@ -820,7 +896,7 @@ public class RaceGame {
 	private boolean confirmAndSave(final String question, final GameState transientState) {
 		final GameState old = gamestate;
 		gamestate = transientState;
-		final int answer = JOptionPane.showConfirmDialog(gameFrame, question, NAME, JOptionPane.YES_NO_OPTION);
+		final int answer = JOptionPane.showConfirmDialog(gameFrame.getDialogParent(), question, NAME, JOptionPane.YES_NO_OPTION);
 		if (answer == JOptionPane.YES_OPTION) {
 			saveProperties();
 			return true;

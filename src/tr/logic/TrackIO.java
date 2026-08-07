@@ -70,17 +70,17 @@ public final class TrackIO {
 		}
 		final LinkedList<int[]> left = parsePointList(tp.getProperty("trackLeft"));
 		final LinkedList<int[]> right = parsePointList(tp.getProperty("trackRight"));
-		if (left.size() < 2 || right.size() < 2)
-			return null;
 		int gx;
 		int gy;
 		try {
 			gx = Integer.parseInt(tp.getProperty("gameX", String.valueOf(RaceGame.defCols)));
 			gy = Integer.parseInt(tp.getProperty("gameY", String.valueOf(RaceGame.defRows)));
 		} catch (final NumberFormatException e) {
-			gx = RaceGame.defCols;
-			gy = RaceGame.defRows;
+			return null;
 		}
+		if (gx < 2 || gy < 2 || gx > 500 || gy > 500 || !validBorders(left, right)
+				|| !pointsWithinGrid(left, gx, gy) || !pointsWithinGrid(right, gx, gy))
+			return null;
 		return new TrackData(tp.getProperty("name", name), gx, gy, left, right);
 	}
 
@@ -92,17 +92,17 @@ public final class TrackIO {
 			return null;
 		final LinkedList<int[]> l = parsePointList(left);
 		final LinkedList<int[]> r = parsePointList(right);
-		if (l.size() < 2 || r.size() < 2)
-			return null;
 		int gx;
 		int gy;
 		try {
 			gx = Integer.parseInt(prop.getProperty("gameX", String.valueOf(RaceGame.defCols)));
 			gy = Integer.parseInt(prop.getProperty("gameY", String.valueOf(RaceGame.defRows)));
 		} catch (final NumberFormatException e) {
-			gx = RaceGame.defCols;
-			gy = RaceGame.defRows;
+			return null;
 		}
+		if (gx < 2 || gy < 2 || gx > 500 || gy > 500 || !validBorders(l, r)
+				|| !pointsWithinGrid(l, gx, gy) || !pointsWithinGrid(r, gx, gy))
+			return null;
 		return new TrackData("Last", gx, gy, l, r);
 	}
 
@@ -120,9 +120,37 @@ public final class TrackIO {
 	}
 
 	public static boolean hasLastTrack(final Properties prop) {
-		final String left = prop.getProperty("lastTrackLeft");
-		final String right = prop.getProperty("lastTrackRight");
-		return left != null && right != null && !left.isEmpty() && !right.isEmpty();
+		return loadLastTrackData(prop) != null;
+	}
+
+	/** Basic structural validity shared by file loading and drawn-track checks. */
+	static boolean validBorders(final LinkedList<int[]> left, final LinkedList<int[]> right) {
+		if (left == null || right == null || left.size() < 2 || right.size() < 2)
+			return false;
+		if (samePoint(left.getFirst(), right.getFirst()) || samePoint(left.getLast(), right.getLast()))
+			return false;
+		return noConsecutiveDuplicates(left) && noConsecutiveDuplicates(right);
+	}
+
+	private static boolean noConsecutiveDuplicates(final LinkedList<int[]> points) {
+		int[] previous = null;
+		for (final int[] point : points) {
+			if (previous != null && samePoint(previous, point))
+				return false;
+			previous = point;
+		}
+		return true;
+	}
+
+	private static boolean pointsWithinGrid(final LinkedList<int[]> points, final int gameX, final int gameY) {
+		for (final int[] point : points)
+			if (point[0] < 0 || point[0] > gameX || point[1] < 0 || point[1] > gameY)
+				return false;
+		return true;
+	}
+
+	private static boolean samePoint(final int[] a, final int[] b) {
+		return a[0] == b[0] && a[1] == b[1];
 	}
 
 	static String pointListToString(final LinkedList<int[]> list) {
