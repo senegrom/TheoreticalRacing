@@ -1,9 +1,13 @@
 /bin/
+/test-bin/
 
 # Build artifacts
 *.jar
+.java-sources
+.test-java-sources
 
-# Runtime logs
+# Runtime state and logs
+user.properties
 *.log
 
 # Python caches
