@@ -106,42 +106,17 @@ public class Main {
 
 	private static Properties loadProperties(final String override) {
 		final Properties prop = new Properties();
-		if (override != null) {
-			try (InputStream in = Files.newInputStream(Path.of(override))) {
-				prop.load(in);
-			} catch (final IOException e) {
-				e.printStackTrace();
-			}
+		final Path path = override == null ? TrackIO.userPropertiesPath() : Path.of(override);
+		if (!Files.isRegularFile(path)) {
+			if (override != null)
+				throw new IllegalArgumentException("Properties file not found: " + path);
 			return prop;
 		}
-		// 1. User properties from user-home dir (preferred)
-		final Path userProp = TrackIO.userPropertiesPath();
-		if (Files.isRegularFile(userProp)) {
-			try (InputStream in = Files.newInputStream(userProp)) {
-				prop.load(in);
-				return prop;
-			} catch (final IOException e) {
-				e.printStackTrace();
-			}
-		}
-		// 2. CWD-relative default.properties (backwards compat)
-		final Path defProp = Path.of(RaceGame.defProperties);
-		if (Files.isRegularFile(defProp)) {
-			try (InputStream in = Files.newInputStream(defProp)) {
-				prop.load(in);
-				return prop;
-			} catch (final IOException e) {
-				e.printStackTrace();
-			}
-		}
-		// 3. Bundled default.properties resource
-		try (InputStream in = Main.class.getResourceAsStream("/default.properties")) {
-			if (in != null)
-				prop.load(in);
+		try (InputStream in = Files.newInputStream(path)) {
+			prop.load(in);
 		} catch (final IOException e) {
-			e.printStackTrace();
+			throw new IllegalStateException("Could not read properties: " + path, e);
 		}
-		// 4. Any missing keys are filled in by RaceGame's constructor defaults
 		return prop;
 	}
 }

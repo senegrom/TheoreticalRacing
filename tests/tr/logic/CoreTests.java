@@ -10,6 +10,7 @@ public final class CoreTests {
     public static void main(final String[] args) {
         testDirections();
         testPlayerKinds();
+        testDefaultProperties();
         testPointParsing();
         testTrackNames();
         testBorderValidation();
@@ -41,6 +42,18 @@ public final class CoreTests {
         check(p.isFinished() && "2.".equals(p.statusLabel()), "finish status label changed");
     }
 
+    private static void testDefaultProperties() {
+        final java.util.Properties props = new java.util.Properties();
+        new RaceGame(props);
+        check("9".equals(props.getProperty("maxPlayers")), "maxPlayers default missing");
+        check("2".equals(props.getProperty("nPlayers")), "nPlayers default missing");
+        check("1500".equals(props.getProperty("windowX")), "windowX default missing");
+        check("800".equals(props.getProperty("windowY")), "windowY default missing");
+        check("86".equals(props.getProperty("gameX")), "gameX default missing");
+        check("48".equals(props.getProperty("gameY")), "gameY default missing");
+        check("HUMAN".equals(props.getProperty("player1Kind")), "player kind default missing");
+    }
+
     private static void testPointParsing() {
         final LinkedList<int[]> pts = TrackIO.parsePointList("1,2; 3,4; -7,8");
         check(pts.size() == 3, "valid point list rejected");
@@ -51,6 +64,7 @@ public final class CoreTests {
         check(TrackIO.parsePointList("1,2;bad;3,4").isEmpty(), "malformed point list should be rejected atomically");
         check(TrackIO.parsePointList("1,2;").isEmpty(), "trailing empty point should be rejected");
     }
+
 
     private static void testTrackNames() {
         check(TrackIO.validTrackName("sprint"), "simple track name rejected");

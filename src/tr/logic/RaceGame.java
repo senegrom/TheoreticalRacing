@@ -37,7 +37,6 @@ public final class RaceGame {
 	private final static int			defWindowY			= 800;
 	public final static String			NAME				= "Theoretical Racing";
 	public final static String			VERSION				= "0.3.0";
-	public final static String			defProperties		= "default.properties";
 
 	private int					finishedLast	= 0, finishedFirst = 0;
 	Line2D				finishLine;
@@ -72,14 +71,12 @@ public final class RaceGame {
 		final int[]	finishedPlaces;
 		final int		gameLogLength;
 		final int[]	historySizes;
-		final int		moverIndex;
 		final int[][]	positions;
 		final int		subgamestate;
 		final int		turnCounter;
 		final int[][]	velocities;
 
 		MoveSnapshot(final RaceGame game) {
-			moverIndex = game.subgamestate;
 			subgamestate = game.subgamestate;
 			finishedFirst = game.finishedFirst;
 			finishedLast = game.finishedLast;
@@ -120,6 +117,10 @@ public final class RaceGame {
 		this.prop = prop;
 		maxPlayers = sanitizeIntProp("maxPlayers", defPlayerColors.length, 1, defPlayerColors.length);
 		sanitizeIntProp("nPlayers", 2, 1, maxPlayers);
+		sanitizeIntProp("windowX", defWindowX, 200, 10000);
+		sanitizeIntProp("windowY", defWindowY, 200, 10000);
+		sanitizeIntProp("gameX", defCols, 2, 500);
+		sanitizeIntProp("gameY", defRows, 2, 500);
 
 		for (int i = 0; i < maxPlayers; i++) {
 			final String prefix = "player" + (i + 1);
@@ -127,11 +128,7 @@ public final class RaceGame {
 			prop.put(prefix + "Name", name == null ? "Player " + (i + 1) : name);
 			final Color c = parseColor(prefix + "Color", i);
 			prop.put(prefix + "Color", c.getRed() + " " + c.getGreen() + " " + c.getBlue());
-			// Migrate legacy "Ai" → "Kind"
-			if (prop.getProperty(prefix + "Kind") == null) {
-				final String legacyAi = prop.getProperty(prefix + "Ai");
-				prop.put(prefix + "Kind", "true".equalsIgnoreCase(legacyAi) ? "AI1" : "HUMAN");
-			}
+			prop.put(prefix + "Kind", Player.Kind.parse(prop.getProperty(prefix + "Kind")).name());
 		}
 
 		gameFrame = new GameUI(NAME + " " + VERSION, maxPlayers);
@@ -264,20 +261,20 @@ public final class RaceGame {
 			rui.setVelVector(null, -1);
 			rui.setPrePath(null);
 
-			final HashMap<Integer, String> place = new HashMap<>();
+			final String[] place = new String[players.length + 1];
 			for (final Player p : players) {
 				if (p.getFinishedPlace() == 0)
 					p.setFinishedPlace(finishedFirst + 1);
-				place.put(p.getFinishedPlace(), p.getName());
+				place[p.getFinishedPlace()] = p.getName();
 			}
 			final StringBuilder sb = new StringBuilder("The game has finished.\n");
 			for (int i = 1; i <= players.length; i++)
-				sb.append("\n").append(i).append(".   ").append(place.get(i));
+				sb.append("\n").append(i).append(".   ").append(place[i]);
 			gameFrame.setStatus("The game has finished");
 			gameFrame.repaint();
 			gameLog.append("# results\n");
 			for (int i = 1; i <= players.length; i++)
-				gameLog.append(i).append(". ").append(place.get(i)).append("\n");
+				gameLog.append(i).append(". ").append(place[i]).append("\n");
 			writeGameLog();
 			dispMessage(sb.toString() + "\n\nLog written to " + gameLogPath());
 			gameFrame.getBtnUndo().setEnabled(false);
@@ -308,8 +305,8 @@ public final class RaceGame {
 	boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
 		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
 			return false;
-		final int dxi = x2 - x1, dyi = y2 - y1;
-		final int n = Math.max(2, (int) Math.ceil(Math.sqrt(dxi * dxi + dyi * dyi) * 2));
+		final long dxi = (long) x2 - x1, dyi = (long) y2 - y1;
+		final int n = Math.max(2, (int) Math.min(Integer.MAX_VALUE, Math.ceil(Math.hypot(dxi, dyi) * 2)));
 		final double dx = (double) dxi / n;
 		final double dy = (double) dyi / n;
 		for (int j = 1; j < n; j++) {
@@ -499,7 +496,7 @@ public final class RaceGame {
 
 	private boolean hasUndoableHumanMove() {
 		for (final MoveSnapshot snapshot : moveHistory)
-			if (!players[snapshot.moverIndex].isAi())
+			if (!players[snapshot.subgamestate].isAi())
 				return true;
 		return false;
 	}
@@ -689,14 +686,44 @@ public final class RaceGame {
 					continue;
 				if ("quit".equals(line))
 					break;
-				final String[] parts = line.split(";");
+				if (line.length() > 8192)
+					throw new IllegalArgumentException("Query line is too long");
+				final String[] parts = line.split(";", -1);
+				if (parts.length != players.length + 1)
+					throw new IllegalArgumentException("Query must contain exactly " + players.length + " player groups");
 				final int mover = Integer.parseInt(parts[0].trim());
-				for (int i = 0; i < players.length && i + 1 < parts.length; i++) {
-					final String[] f = parts[i + 1].split(",");
-					players[i].setPosition(new int[]{Integer.parseInt(f[0].trim()), Integer.parseInt(f[1].trim()) });
-					players[i].setVelocity(new int[]{Integer.parseInt(f[2].trim()), Integer.parseInt(f[3].trim()) });
-					players[i].setFinishedPlace(Integer.parseInt(f[4].trim()));
+				if (mover < 0 || mover >= players.length)
+					throw new IllegalArgumentException("Mover index out of range: " + mover);
+				final long[] liveCells = new long[players.length];
+				int liveCount = 0;
+				for (int i = 0; i < players.length; i++) {
+					final String[] f = parts[i + 1].split(",", -1);
+					if (f.length != 5)
+						throw new IllegalArgumentException("Player " + i + " query group must contain x,y,vx,vy,finished");
+					final int x = Integer.parseInt(f[0].trim());
+					final int y = Integer.parseInt(f[1].trim());
+					final int vx = Integer.parseInt(f[2].trim());
+					final int vy = Integer.parseInt(f[3].trim());
+					final int finished = Integer.parseInt(f[4].trim());
+					if (finished < 0)
+						throw new IllegalArgumentException("Finished marker must be non-negative");
+					if (Math.abs((long) vx) > AI_MAX_SPEED || Math.abs((long) vy) > AI_MAX_SPEED)
+						throw new IllegalArgumentException("Query velocity outside AI planning domain");
+					if (finished == 0) {
+						if (x < 0 || y < 0 || x > gameCols || y > gameRows)
+							throw new IllegalArgumentException("Live player position outside grid");
+						final long cell = (long) x << 32 | y & 0xffffffffL;
+						for (int j = 0; j < liveCount; j++)
+							if (liveCells[j] == cell)
+								throw new IllegalArgumentException("Two live players occupy the same cell");
+						liveCells[liveCount++] = cell;
+					}
+					players[i].setPosition(new int[]{x, y });
+					players[i].setVelocity(new int[]{vx, vy });
+					players[i].setFinishedPlace(finished);
 				}
+				if (players[mover].isFinished())
+					throw new IllegalArgumentException("Mover is already finished");
 				subgamestate = mover;
 				final Direction d = ai.computeAiMove();
 				final Player me = players[mover];
@@ -850,8 +877,7 @@ public final class RaceGame {
 			redoPlayerLabels();
 			initGameLog();
 			maybeAiTurn();
-		} else if (gamestate == GameState.EXIT)
-			System.exit(0);
+		}
 		gameFrame.repaint();
 	}
 
@@ -871,7 +897,7 @@ public final class RaceGame {
 			while (!moveHistory.isEmpty()) {
 				final MoveSnapshot snapshot = moveHistory.pop();
 				snapshot.restore(this);
-				if (!players[snapshot.moverIndex].isAi()) {
+				if (!players[subgamestate].isAi()) {
 					target = snapshot;
 					break;
 				}
@@ -903,28 +929,23 @@ public final class RaceGame {
 
 	/** Exit the game after a prompt. */
 	public void exitMe() {
-		if (confirmAndSave("Do you really want to exit?", GameState.EXIT))
+		if (confirmAndSave("Do you really want to exit?"))
 			System.exit(0);
 	}
 
 	/** Restart the game after a prompt. */
 	public void restartMe() {
-		if (confirmAndSave("Do you really want to restart?", GameState.RESTART)) {
+		if (confirmAndSave("Do you really want to restart?")) {
 			gameFrame.dispose();
 			SwingUtilities.invokeLater(() -> new RaceGame(prop).start());
 		}
 	}
 
-	private boolean confirmAndSave(final String question, final GameState transientState) {
-		final GameState old = gamestate;
-		gamestate = transientState;
-		final int answer = JOptionPane.showConfirmDialog(gameFrame.getDialogParent(), question, NAME, JOptionPane.YES_NO_OPTION);
-		if (answer == JOptionPane.YES_OPTION) {
-			saveProperties();
-			return true;
-		}
-		gamestate = old;
-		return false;
+	private boolean confirmAndSave(final String question) {
+		if (JOptionPane.showConfirmDialog(gameFrame.getDialogParent(), question, NAME, JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)
+			return false;
+		saveProperties();
+		return true;
 	}
 
 	/** Atomic property save: write to .tmp then rename. */

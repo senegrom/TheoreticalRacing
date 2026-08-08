@@ -49,7 +49,6 @@ find src -name '*.java' -print | LC_ALL=C sort > build/main-sources.txt
     --file theoreticRacing.jar \
     --main-class tr.main.Main \
     --date=2026-01-01T00:00:00Z \
-    -C build/classes . \
-    -C . default.properties
+    -C build/classes .
 
 "$JAR_TOOL" --validate --file theoreticRacing.jar
