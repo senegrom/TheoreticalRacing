@@ -26,6 +26,28 @@ Standing user rules:
   (the old rolling-squash + force-push workflow is RETIRED).
 - Commit + push as one unit. Aggression toward opponents is a FEATURE.
 
+## Multi-agent coordination (2026-08-08)
+
+Two agents now work this repo (one local with full bench hardware, one
+GitHub-API-only that ships patches via one-off Actions workflows). Rules
+of the road, learned from a mid-merge collision:
+- racing-memory.md is the single shared ledger: every experiment, fix
+  and gate result lands here BEFORE or WITH its push. Both agents
+  already honor this -- it is what made the 37-commit merge reviewable.
+- Prefer branches + PRs for multi-commit work; if pushing to master,
+  keep each push self-contained and green (CI + golden corpus).
+- The golden corpus pins AI2: regenerating fixtures IS a promotion
+  action and must ship with the promotion commit.
+- Champion caches (BENCH_BASELINE) and canonical numbers live on the
+  LOCAL agent's side and are invalidated by ANY both-bodies behavioral
+  change (e.g. the futureMobility4 fix) -- re-baseline before judging
+  candidates against stale numbers.
+- LESSON: the session scratchpad is volatile (a purge deleted the whole
+  oracle toolchain, all 22 reach dumps and the archived champion logs
+  between sessions). Durable tooling and reference races belong in the
+  repo -- the toolchain now lives in tracks/, documented in
+  AI_DEVELOPMENT.md.
+
 ## 2026-08-07 repository and AI1 frontier update
 
 The repository now has portable JDK-17+ build/test scripts, genuine Linux

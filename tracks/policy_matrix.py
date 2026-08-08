@@ -1,0 +1,265 @@
+"""Rival-policy matrix vs the two oracle-proven queue boxes.
+
+For each candidate RIVAL policy, replicate the in-game simOutcome world
+EXACTLY (me = selfMove proxy, exactSelf semantics; round 0 = players after
+the mover; finish-vanish; null-move = death) using oracle mask queries for
+legality/occupancy and the reach dump for ttf -- and test, at both crash
+sites, whether the policy (a) flags the champion's real chosen landing as
+DEAD and (b) keeps the oracle-proven survivor ALIVE. A policy that does both
+reproduces the real boxes and is worth building in Java.
+
+Policies: greedy (min ttf) | gmom (min ttf, tie: faster) |
+          shape (ttf + trap ladder) | smom (shape, tie: faster) |
+          orivals (real scorer for rivals, selfMove me -- buildable ceiling)
+"""
+import os
+import re
+import struct
+import subprocess
+import sys
+
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Reach dumps, logs and the all-AI props resolve against RACING_WORK_DIR
+# (default: this script's directory); the SITES table below references
+# campaign-era artifacts as worked examples -- point WORK at a directory
+# holding your own logs/dumps to analyze new sites.
+S = os.environ.get('RACING_WORK_DIR', HERE)
+JAR = os.path.join(os.path.dirname(HERE), 'theoreticRacing.jar')
+PROPS = os.path.join(S, 'inert_AI1.properties')
+DIRS = [(-1, -1), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
+DIRNAMES = ['NW', 'N', 'NE', 'W', 'NONE', 'E', 'SW', 'S', 'SE']
+LINE = re.compile(
+    r'^(\d+) p(\d+) \S+ (\S+) v\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) '
+    r'\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) (ok|CRASH|FINISH)')
+START = re.compile(r'^player(\d+) name=\S+ kind=\S+ start=(\d+),(\d+)')
+ANSWER = re.compile(r'^(-?\d+),(-?\d+);([FXBDA]{9})$')
+INF = 2147483647
+
+
+class Reach:
+    def __init__(self, path):
+        d = open(path, 'rb').read()
+        self.w, self.h, self.vmax = struct.unpack_from('<iii', d, 0)
+        self.span = 2 * self.vmax + 1
+        self.arr = memoryview(d)[12:].cast('i')
+
+    def t(self, x, y, vx, vy):
+        if not (0 <= x < self.w and 0 <= y < self.h) or abs(vx) > self.vmax or abs(vy) > self.vmax:
+            return None
+        v = self.arr[((x * self.h + y) * self.span + (vx + self.vmax)) * self.span + (vy + self.vmax)]
+        return None if v == INF else v
+
+
+class Oracle:
+    def __init__(self, track):
+        self.proc = subprocess.Popen(
+            ['java', '-jar', JAR, '--auto', '--track', track, '--props', PROPS,
+             '--seed', '1', '--query-moves', '-', '-'],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL, text=True, encoding='utf-8', bufsize=1)
+        self.asks = 0
+
+    def ask(self, mover, cars):
+        q = str(mover) + ';' + ';'.join('%d,%d,%d,%d,%d' % tuple(c) for c in cars)
+        self.proc.stdin.write(q + '\n')
+        self.proc.stdin.flush()
+        self.asks += 1
+        while True:
+            line = self.proc.stdout.readline()
+            if not line:
+                raise RuntimeError('oracle died')
+            m = ANSWER.match(line.strip())
+            if m:
+                return int(m.group(1)), int(m.group(2)), m.group(3)
+
+    def close(self):
+        try:
+            self.proc.stdin.write('quit\n')
+            self.proc.stdin.flush()
+        except OSError:
+            pass
+        self.proc.terminate()
+
+
+def board_at(log, target):
+    cars = [None] * 8
+    mover = None
+    for line in open(log, encoding='utf-8', errors='replace'):
+        sm = START.match(line)
+        if sm:
+            cars[int(sm.group(1)) - 1] = [int(sm.group(2)), int(sm.group(3)), 0, 0, 0]
+            continue
+        m = LINE.match(line)
+        if not m:
+            continue
+        t, p = int(m.group(1)), int(m.group(2))
+        if t >= target:
+            mover = p - 1
+            break
+        st = m.group(12)
+        i = p - 1
+        if st == 'CRASH':
+            cars[i][4] = 99
+        elif st == 'FINISH':
+            cars[i][4] = 90
+        else:
+            cars[i] = [int(m.group(10)), int(m.group(11)), int(m.group(6)), int(m.group(7)), 0]
+    return [list(c) for c in cars], mover
+
+
+class Sim:
+    def __init__(self, oracle, reach, policy):
+        self.o = oracle
+        self.reach = reach
+        self.policy = policy          # rival policy name
+
+    def viable(self, i, cars):
+        """Rival/self candidates: list of (diridx, tt, spd2, land). 'F' returns
+        the instant-win marker."""
+        x, y, vx, vy, fin = cars[i]
+        _, _, mask = self.o.ask(i, cars)
+        out = []
+        for ci, (dx, dy) in enumerate(DIRS):
+            c = mask[ci]
+            if c == 'F':
+                return 'F', ci
+            if c != 'A':
+                continue
+            nvx, nvy = vx + dx, vy + dy
+            tt = self.reach.t(x + nvx, y + nvy, nvx, nvy)
+            if tt is None:
+                continue
+            out.append((ci, tt, nvx * nvx + nvy * nvy, (x + nvx, y + nvy, nvx, nvy)))
+        return 'M', out
+
+    def tier(self, i, cars, land):
+        """Safe-successor count (cap 3) of `land` for car i: query from the
+        post-move board."""
+        saved = cars[i][:]
+        cars[i] = [land[0], land[1], land[2], land[3], 0]
+        _, _, mask = self.o.ask(i, cars)
+        cars[i] = saved
+        n = sum(1 for c in mask if c in 'AF')
+        return min(n, 3)
+
+    def rival_move(self, i, cars):
+        if self.policy == 'orivals':
+            dx, dy, mask = self.o.ask(i, cars)
+            ci = DIRS.index((dx, dy))
+            c = mask[ci]
+            if c == 'F':
+                return 'F', None
+            if c != 'A':
+                return None, None            # scorer itself is boxed -> dies
+            x, y, vx, vy, fin = cars[i]
+            return 'M', (x + vx + dx, y + vy + dy, vx + dx, vy + dy)
+        kind, v = self.viable(i, cars)
+        if kind == 'F':
+            return 'F', None
+        if not v:
+            return None, None
+        need_tier = self.policy in ('shape', 'smom')
+        best = None
+        for ci, tt, spd2, land in v:
+            trap = 0.0
+            if need_tier:
+                tr = self.tier(i, cars, land)
+                trap = 50.0 if tr == 0 else 2.0 if tr == 1 else 0.5 if tr == 2 else 0.0
+            score = tt + trap
+            if best is None:
+                best = (score, spd2, ci, land)
+                continue
+            better = score < best[0] - 1e-9
+            if not better and abs(score - best[0]) <= 1e-9 and self.policy in ('gmom', 'smom'):
+                better = spd2 > best[1]
+            if better:
+                best = (score, spd2, ci, land)
+        return 'M', best[3]
+
+    def self_move(self, i, cars):
+        """selfMove replica: max tier (cap 3), tie -> min tt, first-wins."""
+        kind, v = self.viable(i, cars)
+        if kind == 'F':
+            return 'F', None
+        if not v:
+            return None, None
+        best = None                    # (tier, tt, ci, land)
+        for ci, tt, spd2, land in v:
+            tr = self.tier(i, cars, land)
+            if best is None or tr > best[0] or (tr == best[0] and tt < best[1]):
+                best = (tr, tt, ci, land)
+        return 'M', best[3]
+
+    def roll(self, cars, me, rounds):
+        cars = [c[:] for c in cars]
+        for r in range(rounds):
+            start = me + 1 if r == 0 else 0
+            for i in range(start, 8):
+                if cars[i][4] != 0 or (i == me and r == 0):
+                    continue
+                kind, land = self.rival_move(i, cars) if i != me else self.self_move(i, cars)
+                if kind == 'F':
+                    cars[i][4] = 90
+                    continue
+                if kind is None:
+                    if i == me:
+                        return 'DEAD@r%d' % r
+                    cars[i][4] = 99
+                    continue
+                cars[i] = [land[0], land[1], land[2], land[3], 0]
+        f = cars[me]
+        tt = self.reach.t(f[0], f[1], f[2], f[3])
+        tier = self.tier(me, cars, (f[0], f[1], f[2], f[3]))
+        return 'alive t=%s tier=%d' % ('DOOM' if tt is None else tt, tier)
+
+
+SITES = [
+    ('silverstone', 'champ_logs/inert_AI1_silverstone_s6.log', 145,
+     [('chosen W', 3), ('survivor N', 1)]),
+    ('hungaroring', 'champ_logs/inert_AI1_hungaroring_s6.log', 181,
+     [('chosen W', 3), ('survivor NONE', 4)]),
+]
+POCKET = [
+    ('hungaroring', 'r57_hung_s13.log', 389,
+     [('chosen NONE', 4), ('survivor NW', 0), ('survivor E', 5)]),
+    ('lemans', 'r59_lemans_s4.log', 63,
+     [('chosen NONE', 4), ('survivor E', 5), ('survivor SW', 6)]),
+    ('zigzag', 'r59_zigzag_s4.log', 102,
+     [('chosen W', 3), ('survivor SW', 6)]),
+    ('hairpin', 'r59_hairpin_s10.log', 90,
+     [('chosen SE', 8), ('survivor W', 3), ('survivor NONE', 4)]),
+]
+POLICIES = ['greedy', 'gmom', 'shape', 'smom', 'orivals']
+
+
+def main():
+    rounds = int(sys.argv[1]) if len(sys.argv) > 1 else 3
+    sites = POCKET if len(sys.argv) > 2 and sys.argv[2] == 'pocket' else SITES
+    global POLICIES
+    if len(sys.argv) > 3:
+        POLICIES = sys.argv[3].split(',')
+    for track, log, target, cands in sites:
+        reach = Reach(os.path.join(S, 'reach_%s.bin' % track))
+        cars0, mover = board_at(os.path.join(S, log), target)
+        oracle = Oracle(track)
+        try:
+            print('%s m%d (p%d):' % (track, target, mover + 1))
+            for label, ci in cands:
+                dx, dy = DIRS[ci]
+                x, y, vx, vy, fin = cars0[mover]
+                nvx, nvy = vx + dx, vy + dy
+                row = ['  %-14s' % label]
+                for pol in POLICIES:
+                    cc = [c[:] for c in cars0]
+                    cc[mover] = [x + nvx, y + nvy, nvx, nvy, 0]
+                    sim = Sim(oracle, reach, pol)
+                    row.append('%s=%s' % (pol, sim.roll(cc, mover, rounds)))
+                print(' '.join(row))
+            print('  (%d oracle asks)' % oracle.asks)
+        finally:
+            oracle.close()
+
+
+if __name__ == '__main__':
+    main()

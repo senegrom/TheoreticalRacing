@@ -21,6 +21,42 @@ The golden corpus always drives **AI2**. It is deliberately small and determinis
 
 `ai_probe.py` compares normalized AI1 and AI2 move logs and prints the first changed decision. It is the cheapest way to reject an inert experiment or localize an unexpected divergence before launching the expensive battery.
 
+## Forensic toolchain
+
+The campaign's oracle-first workflow lives in `tracks/` (recovered from
+session scratch space, which proved too volatile a home). All tools resolve
+their artifacts — reach dumps, race logs, generated properties — against
+`RACING_WORK_DIR` (default: `tracks/` itself); produce a reach dump per
+track once via `java -jar theoreticRacing.jar --auto --track T --props P
+--dump-reach reach_T.bin`.
+
+- **`oracle_roll.py`** — the fidelity ceiling. Drives one interactive
+  `--query-moves - -` JVM to roll any logged board forward with the real
+  scorer as every car's policy. `verify` mode must reproduce the race
+  move-for-move; `cand` mode reports the fate of each of a mover's nine
+  candidates. This is how every doom-entry move and rescue candidate of
+  rounds 55–65 was located before any Java was written.
+- **`board_at.py`** — offline board reconstruction plus candidate
+  classification (BODY / DEAD-STATE / open) at any log move. Fast triage;
+  the oracle mask is the exact arbiter (offline cannot see segment-illegal
+  wall cuts).
+- **`policy_matrix.py`** — replicates candidate cheap sim policies via
+  oracle mask queries and scores them against known crash sites; policies
+  are derived offline and only the winner gets built in Java.
+- **`crash_scan.py`** — finds crashed players in move logs with their final
+  speeds (doom-class classification).
+- **`inert_probe.py`** — the go/no-go: all-AI1 vs all-AI2 fields on the
+  same seeds, move-log diff. Byte-inert experiments are reverted, never
+  benched; after a promotion the same probe is the move-level self-tie.
+  (`tracks/ai_probe.py` is an independent equivalent with per-move output.)
+- **`extract_baseline.py`** — turns a two-column bench log into a
+  `BENCH_BASELINE` cache so candidate benches skip the frozen column
+  (~2× faster). Re-seed caches from the winning column on every promotion;
+  note the one-decimal per-track rounding caveat in its docstring.
+- **`bench_iso.py`** — battery stage runner with modes `8car | h2h | 4car |
+  2car | slow` (the all-AI 4-car/2-car modes have no `bench_ai.py` CLI
+  equivalent). Keeps its churn off cloud-synced directories.
+
 ## Full promotion battery
 
 Run the **AI promotion battery** workflow from GitHub Actions. It executes these jobs independently and retains each textual report as an artifact:
