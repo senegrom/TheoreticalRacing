@@ -7,7 +7,7 @@ import java.util.LinkedList;
  *
  * @author CGH
  */
-public class Track {
+public final class Track {
 	private final LinkedList<int[]>	lhs	= new LinkedList<>();
 	private final LinkedList<int[]>	rhs	= new LinkedList<>();
 

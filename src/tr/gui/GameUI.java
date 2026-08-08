@@ -5,6 +5,10 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -120,7 +124,6 @@ public final class GameUI {
 		frame.add(lblStatus, BorderLayout.SOUTH);
 		lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
-		final ExitListener lstnExit = new ExitListener(game);
 		final ActionListener lstnButton = event -> {
 			final Object source = event.getSource();
 			if (source == btnOK)
@@ -176,8 +179,13 @@ public final class GameUI {
 		btnOK.addActionListener(lstnButton);
 		btnUndo.addActionListener(lstnButton);
 		btnRestart.addActionListener(lstnButton);
-		btnExit.addActionListener(lstnExit);
-		frame.addWindowListener(lstnExit);
+		btnExit.addActionListener(event -> game.exitMe());
+		frame.addWindowListener(new WindowAdapter() {
+			@Override
+			public void windowClosing(final WindowEvent event) {
+				game.exitMe();
+			}
+		});
 
 		frame.setVisible(true);
 
@@ -197,7 +205,14 @@ public final class GameUI {
 						minSize.height + (contSize.width < minSize.width ? scroller.getHorizontalScrollBar().getMinimumSize().height : 0)));
 		scroller.setLocation(Math.max((contSize.width - minSize.width) / 2, 0), Math.max((contSize.height - minSize.height) / 2, 0));
 
-		g.addMouseListener(new GridListener(game));
+		g.addMouseListener(new MouseAdapter() {
+			@Override
+			public void mousePressed(final MouseEvent event) {
+				final int x = (int) Math.round(event.getX() / (double) RaceUI.GRID_DIST);
+				final int y = (int) Math.round(event.getY() / (double) RaceUI.GRID_DIST);
+				game.clickedGrid(x, y);
+			}
+		});
 
 		frame.repaint();
 		frame.validate();
