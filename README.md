@@ -6,7 +6,7 @@ Players draw or select a track, place their cars in the start zone, then take tu
 
 ## Requirements
 
-- JDK 17 or later
+- JDK 25 or later
 - Python 3.9+ for benchmark and track-generation tooling
 - `sh` for the convenience scripts
 
@@ -44,7 +44,7 @@ The frozen AI2 policy also has deterministic golden-race regression tests:
 sh ./run_golden_tests.sh
 ```
 
-The corpus spans short, long, congested, slow and endgame races, including the known Le Mans seed-4 counterexample. GitHub Actions builds and tests on JDK 17 and JDK 21, runs the golden corpus headlessly, and syntax-checks the Python and shell tooling.
+The corpus spans short, long, congested, slow and endgame races, including the known Le Mans seed-4 counterexample. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus on JDK 25, and syntax-checks the Python and shell tooling.
 
 ## Benchmarks
 
@@ -54,12 +54,12 @@ Build first, then run, for example:
 
 ```bash
 sh ./build_main.sh
-sh ./run_bench_main.sh silverstone monza
-sh ./run_bench_main.sh --seeds 5 silverstone
-sh ./run_bench_main.sh --h2h --seeds 5
-sh ./run_bench_main.sh --4p --seeds 5
-sh ./run_bench_main.sh --1v1 --seeds 5
-sh ./run_bench_main.sh --slow --seeds 5
+python3 tracks/bench_ai.py silverstone monza
+python3 tracks/bench_ai.py --seeds 5 silverstone
+python3 tracks/bench_ai.py --h2h --seeds 5
+python3 tracks/bench_ai.py --4p --seeds 5
+python3 tracks/bench_ai.py --1v1 --seeds 5
+python3 tracks/bench_ai.py --slow --seeds 5
 ```
 
 `tracks/bench_ai.py` creates an isolated temporary properties/log directory, so benchmarks do not mutate a developer's `user.properties`. Use `--seed-start 6 --seeds 5` for seeds 6–10.
@@ -82,7 +82,7 @@ For a promotion candidate, run the manual **AI promotion battery** workflow in G
 
 ## Configuration
 
-Personal settings are stored in `user.properties` next to the running JAR and are intentionally ignored by Git. Defaults live in `default.properties`. Benchmark defaults live separately in `tracks/bench.properties`.
+Personal settings are stored in `user.properties` next to the running JAR and are intentionally ignored by Git. Missing personal settings are filled from code defaults. Benchmark defaults live separately in `tracks/bench.properties`.
 
 Important properties include `windowX`, `windowY`, `gameX`, `gameY`, `nPlayers`, `maxPlayers`, `playerNName`, `playerNColor`, and `playerNKind` (`HUMAN`, `AI1`, or `AI2`).
 

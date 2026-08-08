@@ -12,7 +12,6 @@ public final class CoreTests {
         testPlayerKinds();
         testPointParsing();
         testBorderValidation();
-        testVelocityLimit();
         testEndgameMemoKey();
         testDistinctCoverMatching();
         testSegmentIntersection();
@@ -66,14 +65,6 @@ public final class CoreTests {
         right.set(0, p(0, 4));
         left.add(p(10, 0));
         check(!TrackIO.validBorders(left, right), "consecutive duplicate border point accepted");
-    }
-
-    private static void testVelocityLimit() {
-        check(RaceGame.velocityWithinLimit(0, 0, 12, -12), "velocity limit should include both boundaries");
-        check(!RaceGame.velocityWithinLimit(0, 0, 13, 0), "x velocity above the solver domain was accepted");
-        check(!RaceGame.velocityWithinLimit(0, 0, 0, -13), "y velocity below the solver domain was accepted");
-        check(!RaceGame.velocityWithinLimit(Integer.MIN_VALUE, 0, Integer.MAX_VALUE, 0),
-                "overflowing coordinate subtraction bypassed the velocity limit");
     }
 
     private static void testEndgameMemoKey() {

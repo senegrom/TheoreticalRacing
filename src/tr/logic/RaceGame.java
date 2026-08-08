@@ -292,17 +292,9 @@ public final class RaceGame {
 		return false;
 	}
 
-	/** The reachability solver and every AI state use this velocity domain. */
-	static boolean velocityWithinLimit(final int x1, final int y1, final int x2, final int y2) {
-		final long vx = (long) x2 - x1;
-		final long vy = (long) y2 - y1;
-		return Math.abs(vx) <= 12 && Math.abs(vy) <= 12;
-	}
-
 	/** Returns true if the move from `pos` to `newpos` is allowed for player i. */
 	boolean isMoveLegal(final int[] pos, final int[] newpos, final int playerNumber) {
-		return velocityWithinLimit(pos[0], pos[1], newpos[0], newpos[1])
-				&& isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1])
+		return isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1])
 				&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
 	}
 

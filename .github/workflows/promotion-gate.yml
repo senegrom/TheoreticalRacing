@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '26'
+          java-version: '25'
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
@@ -57,7 +57,7 @@ jobs:
             args: --h2h --seed-start 11 --seeds 5
             artifact: promotion-h2h-s11-15
           - label: 2v2 mixed seeds 1-5
-            args: --2v2 --seed-start 1 --seeds 5
+            args: --4p --seed-start 1 --seeds 5
             artifact: promotion-2v2-s1-5
           - label: 1v1 seeds 1-5
             args: --1v1 --seed-start 1 --seeds 5
@@ -70,7 +70,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '26'
+          java-version: '25'
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'

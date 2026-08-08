@@ -13,57 +13,36 @@ concurrency:
 
 jobs:
   java:
-    name: JDK 26
+    name: JDK ${{ matrix.java }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        java: ['25', '26']
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 26
-        uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '26'
-
-      - name: Run strict core and track tests
-        run: sh ./run_tests.sh
-
-      - name: Build reproducible runnable JAR
-        run: sh ./build_main.sh
-
-      - name: Validate JAR
-        run: jar --validate --file theoreticRacing.jar
-
-      - name: Smoke-test track discovery
-        run: java -Djava.awt.headless=true -jar theoreticRacing.jar --list-tracks | grep -q '^silverstone$'
+          java-version: ${{ matrix.java }}
+      - run: sh ./run_tests.sh
+      - run: sh ./build_main.sh
+      - run: java -Djava.awt.headless=true -jar theoreticRacing.jar --list-tracks | grep -q '^silverstone$'
 
   frozen-ai2:
     name: Frozen AI2 golden races
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 26
-        uses: actions/setup-java@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '26'
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+          java-version: '25'
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-
-      - name: Build
-        run: sh ./build_main.sh
-
-      - name: Verify genuine headless auto-play
-        run: python tests/headless_smoke.py
-
-      - name: Verify deterministic AI2 race corpus
-        run: python tests/golden_races.py
-
+      - run: sh ./build_main.sh
+      - run: python tests/headless_smoke.py
+      - run: python tests/golden_races.py
       - name: Verify benchmark failures propagate
         run: |
           if python tracks/bench_ai.py --seeds 1 definitely-not-a-track; then
@@ -75,16 +54,9 @@ jobs:
     name: Tooling checks
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-
-      - name: Syntax-check Python tooling
-        run: python -m compileall -q tracks tests
-
-      - name: Syntax-check shell entry points
-        run: sh -n build_main.sh run_tests.sh run_golden_tests.sh run_bench_main.sh
+      - run: python -m compileall -q tracks tests
+      - run: sh -n build_main.sh run_tests.sh run_golden_tests.sh

@@ -3,9 +3,6 @@ set -eu
 
 cd "$(dirname "$0")"
 
-# Resolve a JDK tool: PATH first, then JAVA_HOME, then the JDK home the JVM
-# itself reports. Some Windows shells expose java/javac only through a shim
-# directory that lacks jar, so bare names cannot be assumed.
 resolve_jdk_tool() {
     tool=$1
     if command -v "$tool" >/dev/null 2>&1; then
@@ -20,37 +17,33 @@ resolve_jdk_tool() {
     printf '%s\n' "$java_home_dir/bin/$tool"
 }
 
-require_jdk26_tool() {
+require_jdk25_or_newer() {
     tool_path=$1
     first_line=$("$tool_path" --version 2>&1 | sed -n '1p')
     major=$(printf '%s\n' "$first_line" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
-    if [ "$major" != "26" ]; then
-        printf '%s\n' "This project requires JDK 26; $tool_path reports: $first_line" >&2
+    if [ "$major" -lt 25 ]; then
+        printf '%s\n' "JDK 25 or newer is required; $tool_path reports: $first_line" >&2
         exit 2
     fi
 }
 
-JAVA_TOOL=$(resolve_jdk_tool java)
 JAVAC_TOOL=$(resolve_jdk_tool javac)
 JAR_TOOL=$(resolve_jdk_tool jar)
-require_jdk26_tool "$JAVA_TOOL"
-require_jdk26_tool "$JAVAC_TOOL"
-require_jdk26_tool "$JAR_TOOL"
+require_jdk25_or_newer "$JAVAC_TOOL"
+require_jdk25_or_newer "$JAR_TOOL"
 
 rm -rf build/classes theoreticRacing.jar
 mkdir -p build/classes
 find src -name '*.java' -print | LC_ALL=C sort > build/main-sources.txt
 
 "$JAVAC_TOOL" \
-    --release 26 \
+    --release 25 \
     -encoding UTF-8 \
     -Xlint:all \
     -Werror \
     -d build/classes \
     @build/main-sources.txt
 
-# default.properties ships inside the jar as it always has (fresh installs
-# carry no user.properties); --date keeps the archive reproducible.
 "$JAR_TOOL" \
     --create \
     --file theoreticRacing.jar \
