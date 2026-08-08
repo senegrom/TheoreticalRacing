@@ -1,4 +1,5 @@
 /bin/
+/build/
 /test-bin/
 /lint-bin/
 
