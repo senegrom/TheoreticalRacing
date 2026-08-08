@@ -11,6 +11,7 @@
 # Runtime state and logs
 user.properties
 *.log
+/tracks/reach_*.bin
 
 # Python caches
 __pycache__/

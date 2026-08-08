@@ -59,4 +59,5 @@ jobs:
         with:
           python-version: '3.13'
       - run: python -m compileall -q tracks tests
+      - run: python -m unittest discover -s tests -p 'test_*.py'
       - run: sh -n build_main.sh run_tests.sh run_golden_tests.sh

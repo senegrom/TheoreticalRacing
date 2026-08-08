@@ -10,6 +10,7 @@ Usage:
   python bench_ai.py --slow                 # second bench: the slow synthetic tracks
   python bench_ai.py --h2h [...]            # mixed 4v4 head-to-head (8-car)
   python bench_ai.py --4p [...]             # 2v2 head-to-head (4-car)
+  python bench_ai.py --2v2 [...]            # alias for --4p
   python bench_ai.py --1v1 [...]            # 1v1 head-to-head (2-car endgame)
   python bench_ai.py --seeds 5 --seed-start 6 [...]  # seeds 6-10
 
@@ -20,6 +21,7 @@ few remaining rivals to crash wins the race.
 If no track args are given, runs DEFAULT_TRACKS (or SLOW_TRACKS with --slow).
 """
 
+import argparse
 import os
 from pathlib import Path
 import re
@@ -351,53 +353,68 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
     return valid
 
 
-def bench_h2h(tracks):
-    return bench_field(tracks, 8, 4, 'h2h')
+def positive_integer(value):
+    try:
+        number = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError('must be an integer') from error
+    if number < 1:
+        raise argparse.ArgumentTypeError('must be positive')
+    return number
+
+
+def build_parser():
+    parser = argparse.ArgumentParser(
+        description='Benchmark the candidate AI1 controller against frozen AI2.'
+    )
+    modes = parser.add_mutually_exclusive_group()
+    modes.add_argument('--h2h', dest='mode', action='store_const', const='h2h',
+                       help='run a mixed 4v4 eight-car field')
+    modes.add_argument('--4p', '--2v2', dest='mode', action='store_const', const='4p',
+                       help='run a mixed 2v2 four-car field')
+    modes.add_argument('--1v1', dest='mode', action='store_const', const='1v1',
+                       help='run a two-car endgame')
+    parser.set_defaults(mode='self-play')
+    parser.add_argument('--slow', action='store_true',
+                        help='use the slow-track suite when no tracks are listed')
+    parser.add_argument('--seeds', type=positive_integer, metavar='COUNT',
+                        help='run COUNT consecutive randomized grids')
+    parser.add_argument('--seed-start', type=positive_integer, metavar='SEED',
+                        help='first seed (requires --seeds)')
+    parser.add_argument('tracks', nargs='*', help='track names (default: regular suite)')
+    return parser
+
+
+def parse_cli(argv):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.seed_start is not None and args.seeds is None:
+        parser.error('--seed-start requires --seeds')
+
+    seed_start = args.seed_start if args.seed_start is not None else 1
+    args.seed_values = (
+        list(range(seed_start, seed_start + args.seeds))
+        if args.seeds is not None else [None]
+    )
+    if not args.tracks:
+        args.tracks = list(SLOW_TRACKS if args.slow else DEFAULT_TRACKS)
+    return args
 
 
 def main(argv):
     global SEEDS
-    args = list(argv)
-    h2h = '--h2h' in args
-    one_v_one = '--1v1' in args
-    four_p = '--4p' in args
-    slow = '--slow' in args
-    args = [a for a in args if a not in ('--h2h', '--1v1', '--4p', '--slow')]
-
-    seed_start = 1
-    if '--seed-start' in args:
-        i = args.index('--seed-start')
-        try:
-            seed_start = int(args[i + 1])
-        except (IndexError, ValueError):
-            print('--seed-start requires an integer', file=sys.stderr)
-            return False
-        args = args[:i] + args[i + 2:]
-    if '--seeds' in args:
-        i = args.index('--seeds')
-        try:
-            count = int(args[i + 1])
-        except (IndexError, ValueError):
-            print('--seeds requires an integer', file=sys.stderr)
-            return False
-        if seed_start < 1 or count < 1:
-            print('seed start and count must be positive', file=sys.stderr)
-            return False
-        SEEDS = list(range(seed_start, seed_start + count))
-        args = args[:i] + args[i + 2:]
+    args = parse_cli(argv)
+    SEEDS = args.seed_values
+    if args.seeds is not None:
         print(f'# statistical bench: seeds {SEEDS[0]}-{SEEDS[-1]} ({len(SEEDS)} grids per track)')
-    elif seed_start != 1:
-        print('--seed-start requires --seeds', file=sys.stderr)
-        return False
 
-    tracks = args if args else (SLOW_TRACKS if slow else DEFAULT_TRACKS)
-    if one_v_one:
-        return bench_field(tracks, 2, 1, '1v1')
-    if four_p:
-        return bench_field(tracks, 4, 2, '4p')
-    if h2h:
-        return bench_field(tracks, 8, 4, 'h2h')
-    return bench(tracks)
+    if args.mode == '1v1':
+        return bench_field(args.tracks, 2, 1, '1v1')
+    if args.mode == '4p':
+        return bench_field(args.tracks, 4, 2, '4p')
+    if args.mode == 'h2h':
+        return bench_field(args.tracks, 8, 4, 'h2h')
+    return bench(args.tracks)
 
 
 if __name__ == '__main__':

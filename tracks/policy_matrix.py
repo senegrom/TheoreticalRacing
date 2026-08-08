@@ -13,99 +13,27 @@ Policies: greedy (min ttf) | gmom (min ttf, tie: faster) |
           orivals (real scorer for rivals, selfMove me -- buildable ceiling)
 """
 import os
-import re
-import struct
-import subprocess
 import sys
 
-sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+if __package__:
+    from .forensics_common import DIRS, Oracle, Reach, reconstruct_board
+else:
+    from forensics_common import DIRS, Oracle, Reach, reconstruct_board
+
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Reach dumps, logs and the all-AI props resolve against RACING_WORK_DIR
-# (default: this script's directory); the SITES table below references
-# campaign-era artifacts as worked examples -- point WORK at a directory
+# Reach dumps and logs resolve against RACING_WORK_DIR (default: this script's
+# directory); the canonical all-AI properties stay beside this script. The
+# SITES table below references campaign-era artifacts as worked examples --
+# point WORK at a directory
 # holding your own logs/dumps to analyze new sites.
 S = os.environ.get('RACING_WORK_DIR', HERE)
 JAR = os.path.join(os.path.dirname(HERE), 'theoreticRacing.jar')
-PROPS = os.path.join(S, 'inert_AI1.properties')
-DIRS = [(-1, -1), (0, -1), (1, -1), (-1, 0), (0, 0), (1, 0), (-1, 1), (0, 1), (1, 1)]
-DIRNAMES = ['NW', 'N', 'NE', 'W', 'NONE', 'E', 'SW', 'S', 'SE']
-LINE = re.compile(
-    r'^(\d+) p(\d+) \S+ (\S+) v\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) '
-    r'\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) (ok|CRASH|FINISH)')
-START = re.compile(r'^player(\d+) name=\S+ kind=\S+ start=(\d+),(\d+)')
-ANSWER = re.compile(r'^(-?\d+),(-?\d+);([FXBDA]{9})$')
-INF = 2147483647
-
-
-class Reach:
-    def __init__(self, path):
-        d = open(path, 'rb').read()
-        self.w, self.h, self.vmax = struct.unpack_from('<iii', d, 0)
-        self.span = 2 * self.vmax + 1
-        self.arr = memoryview(d)[12:].cast('i')
-
-    def t(self, x, y, vx, vy):
-        if not (0 <= x < self.w and 0 <= y < self.h) or abs(vx) > self.vmax or abs(vy) > self.vmax:
-            return None
-        v = self.arr[((x * self.h + y) * self.span + (vx + self.vmax)) * self.span + (vy + self.vmax)]
-        return None if v == INF else v
-
-
-class Oracle:
-    def __init__(self, track):
-        self.proc = subprocess.Popen(
-            ['java', '-jar', JAR, '--auto', '--track', track, '--props', PROPS,
-             '--seed', '1', '--query-moves', '-', '-'],
-            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, text=True, encoding='utf-8', bufsize=1)
-        self.asks = 0
-
-    def ask(self, mover, cars):
-        q = str(mover) + ';' + ';'.join('%d,%d,%d,%d,%d' % tuple(c) for c in cars)
-        self.proc.stdin.write(q + '\n')
-        self.proc.stdin.flush()
-        self.asks += 1
-        while True:
-            line = self.proc.stdout.readline()
-            if not line:
-                raise RuntimeError('oracle died')
-            m = ANSWER.match(line.strip())
-            if m:
-                return int(m.group(1)), int(m.group(2)), m.group(3)
-
-    def close(self):
-        try:
-            self.proc.stdin.write('quit\n')
-            self.proc.stdin.flush()
-        except OSError:
-            pass
-        self.proc.terminate()
+PROPS = os.path.join(HERE, 'bench.properties')
 
 
 def board_at(log, target):
-    cars = [None] * 8
-    mover = None
-    for line in open(log, encoding='utf-8', errors='replace'):
-        sm = START.match(line)
-        if sm:
-            cars[int(sm.group(1)) - 1] = [int(sm.group(2)), int(sm.group(3)), 0, 0, 0]
-            continue
-        m = LINE.match(line)
-        if not m:
-            continue
-        t, p = int(m.group(1)), int(m.group(2))
-        if t >= target:
-            mover = p - 1
-            break
-        st = m.group(12)
-        i = p - 1
-        if st == 'CRASH':
-            cars[i][4] = 99
-        elif st == 'FINISH':
-            cars[i][4] = 90
-        else:
-            cars[i] = [int(m.group(10)), int(m.group(11)), int(m.group(6)), int(m.group(7)), 0]
-    return [list(c) for c in cars], mover
+    cars, mover, _ = reconstruct_board(log, target)
+    return [list(car) for car in cars], mover
 
 
 class Sim:
@@ -127,7 +55,7 @@ class Sim:
             if c != 'A':
                 continue
             nvx, nvy = vx + dx, vy + dy
-            tt = self.reach.t(x + nvx, y + nvy, nvx, nvy)
+            tt = self.reach.turns(x + nvx, y + nvy, nvx, nvy)
             if tt is None:
                 continue
             out.append((ci, tt, nvx * nvx + nvy * nvy, (x + nvx, y + nvy, nvx, nvy)))
@@ -209,7 +137,7 @@ class Sim:
                     continue
                 cars[i] = [land[0], land[1], land[2], land[3], 0]
         f = cars[me]
-        tt = self.reach.t(f[0], f[1], f[2], f[3])
+        tt = self.reach.turns(f[0], f[1], f[2], f[3])
         tier = self.tier(me, cars, (f[0], f[1], f[2], f[3]))
         return 'alive t=%s tier=%d' % ('DOOM' if tt is None else tt, tier)
 
@@ -234,6 +162,9 @@ POLICIES = ['greedy', 'gmom', 'shape', 'smom', 'orivals']
 
 
 def main():
+    reconfigure = getattr(sys.stdout, 'reconfigure', None)
+    if reconfigure is not None:
+        reconfigure(encoding='utf-8', errors='replace')
     rounds = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     sites = POCKET if len(sys.argv) > 2 and sys.argv[2] == 'pocket' else SITES
     global POLICIES
@@ -242,7 +173,7 @@ def main():
     for track, log, target, cands in sites:
         reach = Reach(os.path.join(S, 'reach_%s.bin' % track))
         cars0, mover = board_at(os.path.join(S, log), target)
-        oracle = Oracle(track)
+        oracle = Oracle(track, JAR, PROPS)
         try:
             print('%s m%d (p%d):' % (track, target, mover + 1))
             for label, ci in cands:

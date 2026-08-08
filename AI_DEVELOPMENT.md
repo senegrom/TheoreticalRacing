@@ -15,6 +15,7 @@ sh ./run_golden_tests.sh
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
+python3 tracks/bench_ai.py --4p --seeds 5
 ```
 
 The golden corpus always drives **AI2**. Changing a fixture is a champion-promotion action, not routine maintenance. `ai_probe.py` is the go/no-go test: it compares normalized AI1/AI2 move logs and reports the first changed decision, so inert experiments are rejected before expensive benchmarking.
@@ -26,6 +27,8 @@ Tools live in `tracks/`. Temporary reach dumps and race logs may be placed in `R
 ```bash
 java -jar theoreticRacing.jar --auto --track TRACK --props tracks/bench.properties --dump-reach reach_TRACK.bin
 ```
+
+Reach dumps named `tracks/reach_*.bin` are ignored by Git. The shared `forensics_common.py` module owns the log grammar, validated reach reader, board reconstruction and persistent oracle process used by the forensic scripts.
 
 - **`oracle_roll.py`** — fidelity ceiling. Drives one interactive `--query-moves - -` JVM with `tracks/bench.properties`. `verify` must reproduce a logged race move-for-move; `cand` rolls each candidate forward with the real scorer as every car's policy.
 - **`board_at.py`** — reconstructs a board at a log move and classifies candidates quickly. The oracle mask remains authoritative for geometry.

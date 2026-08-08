@@ -22,6 +22,13 @@ import bench_ai  # noqa: E402
 DEFAULT_TRACKS = ["sprint", "hairpin", "lemans", "hungaroring"]
 
 
+def configure_console() -> None:
+    """Make behavior-bearing Unicode log lines printable on Windows."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(encoding="utf-8", errors="replace")
+
+
 def normalized_lines(text: str) -> list[str]:
     lines = []
     for line in text.splitlines():
@@ -42,6 +49,7 @@ def run_log(track: str, seed: int, kind: str) -> tuple[list[str], tuple[int, int
 
 
 def main() -> int:
+    configure_console()
     parser = argparse.ArgumentParser()
     parser.add_argument("tracks", nargs="*", default=DEFAULT_TRACKS)
     parser.add_argument("--seeds", type=int, default=1, help="number of consecutive seeds")
