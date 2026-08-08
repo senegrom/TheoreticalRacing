@@ -2185,7 +2185,7 @@ final class RaceAi {
 		egNodes++;
 		if (depth <= 0)
 			return false;		// horizon: no guarantee
-		final Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
+		final long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
 		final Boolean memo = egMemo.get(key);
 		if (memo != null)
 			return memo;
@@ -2228,7 +2228,7 @@ final class RaceAi {
 		egNodes++;
 		if (depth <= 0)
 			return false;
-		final Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
+		final long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
 		final Boolean memo = egMemo.get(key);
 		if (memo != null)
 			return memo;
@@ -2259,19 +2259,20 @@ final class RaceAi {
 		return win;
 	}
 
-	/** Pack a joint endgame state into a memo key: 8b coords, 5b velocity
-	 *  offsets (+12), 5b depth, 1b turn = 58 bits. */
-	private Long egKey(final int mx, final int my, final int mvx, final int mvy,
+	/** Pack a joint endgame state into a collision-free memo key for every
+	 *  supported grid coordinate: 9b coordinates, 5b velocity offsets (+12),
+	 *  5b depth and 1b turn = 62 bits. */
+	static long endgameMemoKey(final int mx, final int my, final int mvx, final int mvy,
 			final int rx, final int ry, final int rvx, final int rvy, final int depth, final boolean rivalTurn) {
-		long k = mx;
-		k = k << 8 | my;
-		k = k << 5 | mvx + 12;
-		k = k << 5 | mvy + 12;
-		k = k << 8 | rx;
-		k = k << 8 | ry;
-		k = k << 5 | rvx + 12;
-		k = k << 5 | rvy + 12;
-		k = k << 5 | depth;
+		long k = mx & 0x1FFL;
+		k = k << 9 | my & 0x1FFL;
+		k = k << 5 | mvx + 12 & 0x1FL;
+		k = k << 5 | mvy + 12 & 0x1FL;
+		k = k << 9 | rx & 0x1FFL;
+		k = k << 9 | ry & 0x1FFL;
+		k = k << 5 | rvx + 12 & 0x1FL;
+		k = k << 5 | rvy + 12 & 0x1FL;
+		k = k << 5 | depth & 0x1FL;
 		k = k << 1 | (rivalTurn ? 1 : 0);
 		return k;
 	}
@@ -2298,8 +2299,6 @@ final class RaceAi {
 		if (esc.isEmpty())
 			return true; // already dead-ended
 		final int ne = esc.size();
-		if (ne > 7)
-			return false; // more escapes than opponents
 		// cover[e] = bitmask of opponents that can legally land on escape e
 		final int[] cover = new int[ne];
 		int oi = 0;
@@ -2317,18 +2316,27 @@ final class RaceAi {
 					cover[e] |= bit;
 			}
 		}
-		// Kuhn's matching: every escape needs a DISTINCT opponent
-		final int[] matchOpp = new int[8];
+		return hasDistinctCover(cover, oi);
+	}
+
+	/** Whether every requested cell can be assigned a different opponent from
+	 *  its bitmask. Package-private for regression tests of the 9-player case. */
+	static boolean hasDistinctCover(final int[] cover, final int opponentCount) {
+		if (opponentCount < 0 || opponentCount > Integer.SIZE)
+			throw new IllegalArgumentException("opponentCount out of range: " + opponentCount);
+		if (cover.length > opponentCount)
+			return false;
+		final int[] matchOpp = new int[opponentCount];
 		java.util.Arrays.fill(matchOpp, -1);
-		for (int e = 0; e < ne; e++) {
-			if (!sealAugment(e, cover, matchOpp, new boolean[8]))
-				return false; // this escape cannot get a distinct cover
+		for (int e = 0; e < cover.length; e++) {
+			if (!sealAugment(e, cover, matchOpp, new boolean[opponentCount]))
+				return false;
 		}
 		return true;
 	}
 
-	private boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
-		for (int o = 0; o < 8; o++) {
+	private static boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
+		for (int o = 0; o < matchOpp.length; o++) {
 			if ((cover[e] & (1 << o)) == 0 || used[o])
 				continue;
 			used[o] = true;

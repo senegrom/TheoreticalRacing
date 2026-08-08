@@ -192,6 +192,15 @@ public final class RaceGame {
 		this.queryOutPath = out;
 	}
 
+	private boolean isAutoRace() {
+		return autoMode && dumpReachPath == null && queryInPath == null;
+	}
+
+	private void abortAutoRace(final String message) {
+		System.err.println(message);
+		System.exit(2);
+	}
+
 	/** Show the start dialog and, on confirmation, build the play window. */
 	public void start() {
 		if (autoMode) {
@@ -218,6 +227,14 @@ public final class RaceGame {
 		gameFrame.setStatus("Game setup...");
 		players = getPlayers();
 		rui.setPlayers(players);
+		if (isAutoRace()) {
+			for (final Player player : players) {
+				if (!player.isAi()) {
+					abortAutoRace("--auto requires every configured player to be AI: " + player.getName());
+					return;
+				}
+			}
+		}
 		if (!autoMode)
 			gameFrame.setupUI(rui.getGrid(), this, wx, wy, players);
 
@@ -234,7 +251,7 @@ public final class RaceGame {
 			return;
 		}
 		if (autoMode) {
-			System.err.println("--auto requires a saved track and all-AI players. Aborting.");
+			System.err.println("Headless mode requires a valid saved track. Aborting.");
 			System.exit(2);
 		}
 		gameFrame.setStatus("Click OK to start.");
@@ -508,7 +525,12 @@ public final class RaceGame {
 		while (subgamestate < players.length && players[subgamestate].isAi()) {
 			final int[] pos = findStartPosition();
 			if (pos == null) {
-				dispMessage(players[subgamestate].getName() + " (AI) couldn't find a start position.");
+				final String message = players[subgamestate].getName() + " (AI) couldn't find a start position.";
+				if (isAutoRace()) {
+					abortAutoRace(message);
+					return;
+				}
+				dispMessage(message);
 				return;
 			}
 			players[subgamestate].setPosition(pos);

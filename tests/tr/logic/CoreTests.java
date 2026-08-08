@@ -12,6 +12,8 @@ public final class CoreTests {
         testPlayerKinds();
         testPointParsing();
         testBorderValidation();
+        testEndgameMemoKey();
+        testDistinctCoverMatching();
         testSegmentIntersection();
         testStartZone();
         TrackDataTests.run();
@@ -63,6 +65,26 @@ public final class CoreTests {
         right.set(0, p(0, 4));
         left.add(p(10, 0));
         check(!TrackIO.validBorders(left, right), "consecutive duplicate border point accepted");
+    }
+
+    private static void testEndgameMemoKey() {
+        final long highY = RaceAi.endgameMemoKey(0, 256, 0, 0, 10, 20, 1, -1, 7, false);
+        final long nextX = RaceAi.endgameMemoKey(1, 0, 0, 0, 10, 20, 1, -1, 7, false);
+        check(highY != nextX, "endgame memo key collides above coordinate 255");
+
+        final long maxGrid = RaceAi.endgameMemoKey(500, 500, 12, -12, 499, 498, -12, 12, 20, true);
+        final long adjacent = RaceAi.endgameMemoKey(500, 499, 12, -12, 499, 498, -12, 12, 20, true);
+        check(maxGrid != adjacent, "endgame memo key loses supported 9-bit coordinates");
+    }
+
+    private static void testDistinctCoverMatching() {
+        final int[] uniqueEight = new int[8];
+        for (int i = 0; i < uniqueEight.length; i++)
+            uniqueEight[i] = 1 << i;
+        check(RaceAi.hasDistinctCover(uniqueEight, 8), "eight opponents should cover eight distinct escapes");
+        check(!RaceAi.hasDistinctCover(uniqueEight, 7), "seven opponents cannot cover eight escapes");
+        check(!RaceAi.hasDistinctCover(new int[]{1, 1}, 2), "one opponent cannot cover two escapes simultaneously");
+        check(RaceAi.hasDistinctCover(new int[]{3, 1}, 2), "matching should reroute a flexible first assignment");
     }
 
     private static void testSegmentIntersection() {
