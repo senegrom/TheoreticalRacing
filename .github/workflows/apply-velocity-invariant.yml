@@ -1,0 +1,96 @@
+name: Apply velocity invariant
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/apply-velocity-invariant.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-test-commit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Enforce the solver velocity domain at the game boundary
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          race_game = Path('src/tr/logic/RaceGame.java')
+          text = race_game.read_text(encoding='utf-8')
+          old = '''\t/** Returns true if the move from `pos` to `newpos` is allowed for player i. */
+\tboolean isMoveLegal(final int[] pos, final int[] newpos, final int playerNumber) {
+\t\treturn isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1])
+\t\t\t\t&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
+\t}
+'''
+          new = '''\t/** The reachability solver and every AI state use this velocity domain. */
+\tstatic boolean velocityWithinLimit(final int x1, final int y1, final int x2, final int y2) {
+\t\tfinal long vx = (long) x2 - x1;
+\t\tfinal long vy = (long) y2 - y1;
+\t\treturn Math.abs(vx) <= 12 && Math.abs(vy) <= 12;
+\t}
+
+\t/** Returns true if the move from `pos` to `newpos` is allowed for player i. */
+\tboolean isMoveLegal(final int[] pos, final int[] newpos, final int playerNumber) {
+\t\treturn velocityWithinLimit(pos[0], pos[1], newpos[0], newpos[1])
+\t\t\t\t&& isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1])
+\t\t\t\t&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
+\t}
+'''
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'RaceGame move legality anchor count: {count}')
+          race_game.write_text(text.replace(old, new), encoding='utf-8')
+
+          tests = Path('tests/tr/logic/CoreTests.java')
+          text = tests.read_text(encoding='utf-8')
+          call_anchor = '        testBorderValidation();\n'
+          if text.count(call_anchor) != 1:
+              raise SystemExit('CoreTests call anchor changed')
+          text = text.replace(call_anchor, call_anchor + '        testVelocityLimit();\n')
+          method_anchor = '    private static void testEndgameMemoKey() {\n'
+          method = '''    private static void testVelocityLimit() {
+        check(RaceGame.velocityWithinLimit(0, 0, 12, -12), "velocity limit should include both boundaries");
+        check(!RaceGame.velocityWithinLimit(0, 0, 13, 0), "x velocity above the solver domain was accepted");
+        check(!RaceGame.velocityWithinLimit(0, 0, 0, -13), "y velocity below the solver domain was accepted");
+        check(!RaceGame.velocityWithinLimit(Integer.MIN_VALUE, 0, Integer.MAX_VALUE, 0),
+                "overflowing coordinate subtraction bypassed the velocity limit");
+    }
+
+'''
+          if text.count(method_anchor) != 1:
+              raise SystemExit('CoreTests method anchor changed')
+          tests.write_text(text.replace(method_anchor, method + method_anchor), encoding='utf-8')
+          PY
+
+      - name: Run deterministic regression suite
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tracks/ai_probe.py --allow-divergence --seed-start 4 --seeds 1 lemans
+
+      - name: Commit directly to master
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tr/logic/RaceGame.java tests/tr/logic/CoreTests.java
+          git commit -m 'Enforce the velocity domain for every move'
+          git push origin HEAD:master
