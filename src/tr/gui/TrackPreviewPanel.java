@@ -5,8 +5,7 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.geom.Path2D;
-import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.List;
 import javax.swing.JPanel;
 
 /**
@@ -18,14 +17,14 @@ public final class TrackPreviewPanel extends JPanel {
 	private static final long	serialVersionUID	= 1L;
 
 	private int					gameX, gameY;
-	private LinkedList<int[]>	trackLeft, trackRight;
+	private transient List<int[]>	trackLeft, trackRight;
 	private String				caption;
 
 	public TrackPreviewPanel() {
 		setBackground(Color.WHITE);
 	}
 
-	public void setTrack(final int gx, final int gy, final LinkedList<int[]> left, final LinkedList<int[]> right, final String caption) {
+	public void setTrack(final int gx, final int gy, final List<int[]> left, final List<int[]> right, final String caption) {
 		this.gameX = gx;
 		this.gameY = gy;
 		this.trackLeft = left;
@@ -68,11 +67,8 @@ public final class TrackPreviewPanel extends JPanel {
 			corridor.moveTo(ox + first[0] * scale, oy + first[1] * scale);
 			for (final int[] p : trackLeft)
 				corridor.lineTo(ox + p[0] * scale, oy + p[1] * scale);
-			final Iterator<int[]> it = trackRight.descendingIterator();
-			while (it.hasNext()) {
-				final int[] p = it.next();
+			for (final int[] p : trackRight.reversed())
 				corridor.lineTo(ox + p[0] * scale, oy + p[1] * scale);
-			}
 			corridor.closePath();
 			g2.setColor(new Color(232, 232, 232));
 			g2.fill(corridor);
@@ -98,7 +94,7 @@ public final class TrackPreviewPanel extends JPanel {
 		}
 	}
 
-	private static void drawPolyline(final Graphics2D g, final LinkedList<int[]> path, final double scale, final double ox, final double oy) {
+	private static void drawPolyline(final Graphics2D g, final List<int[]> path, final double scale, final double ox, final double oy) {
 		int[] prev = null;
 		for (final int[] p : path) {
 			if (prev != null)

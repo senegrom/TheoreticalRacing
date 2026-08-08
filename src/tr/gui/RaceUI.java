@@ -11,7 +11,7 @@ import java.awt.Stroke;
 import java.awt.Toolkit;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.List;
 import javax.swing.JPanel;
 import tr.logic.Player;
 import tr.logic.Track;
@@ -51,7 +51,7 @@ public final class RaceUI {
 	private final JPanel		grid;
 	private final int			rows, cols;
 	private Player[]			players;
-	private LinkedList<int[]>	prePath;
+	private List<int[]>		prePath;
 	private Polygon				startZone;
 	private Track				track;
 	private Polygon				trackPol;
@@ -120,15 +120,15 @@ public final class RaceUI {
 		drawPlayers(g);
 	}
 
-	private void drawTrackSide(final Graphics2D g, final LinkedList<int[]> side) {
+	private void drawTrackSide(final Graphics2D g, final List<int[]> side) {
 		if (side.size() > 1) {
 			g.setStroke(strkTrack);
-			final Iterator<int[]> it = side.iterator();
-			int[] oldC = it.next();
-			while (it.hasNext()) {
-				final int[] newC = it.next();
-				g.drawLine(oldC[0] * GRID_DIST, oldC[1] * GRID_DIST, newC[0] * GRID_DIST, newC[1] * GRID_DIST);
-				oldC = newC;
+			final Iterator<int[]> iterator = side.iterator();
+			int[] previous = iterator.next();
+			while (iterator.hasNext()) {
+				final int[] point = iterator.next();
+				g.drawLine(previous[0] * GRID_DIST, previous[1] * GRID_DIST, point[0] * GRID_DIST, point[1] * GRID_DIST);
+				previous = point;
 			}
 		} else if (side.size() == 1) {
 			g.setStroke(strkSglTrack);
@@ -144,14 +144,10 @@ public final class RaceUI {
 		for (int i = 0; i < players.length; i++) {
 			final Player pl = players[i];
 			g.setColor(pl.getColor());
-			if (pl.getHistory().size() > 1) {
-				final Iterator<int[]> it = pl.getHistory().iterator();
-				int[] oldP = it.next();
-				while (it.hasNext()) {
-					final int[] pos = it.next();
-					g.drawLine(oldP[0] * GRID_DIST, oldP[1] * GRID_DIST, pos[0] * GRID_DIST, pos[1] * GRID_DIST);
-					oldP = pos;
-				}
+			for (int j = 1; j < pl.getHistory().size(); j++) {
+				final int[] oldP = pl.getHistory().get(j - 1);
+				final int[] pos = pl.getHistory().get(j);
+				g.drawLine(oldP[0] * GRID_DIST, oldP[1] * GRID_DIST, pos[0] * GRID_DIST, pos[1] * GRID_DIST);
 			}
 			final int[] pos = pl.getPosition();
 			if (velVector != null && velVectorPlayer == i) {
@@ -175,7 +171,7 @@ public final class RaceUI {
 	}
 
 	public void finishTrack() {
-		if (track == null || track.getLeft() == null || track.getRight() == null)
+		if (track == null)
 			return;
 		final int[][] tTrack = new int[2][track.getLeft().size() + track.getRight().size()];
 		int i = 0;
@@ -184,9 +180,7 @@ public final class RaceUI {
 			tTrack[1][i] = pos[1] * GRID_DIST;
 			i++;
 		}
-		final Iterator<int[]> it = track.getRight().descendingIterator();
-		while (it.hasNext()) {
-			final int[] pos = it.next();
+		for (final int[] pos : track.getRight().reversed()) {
 			tTrack[0][i] = pos[0] * GRID_DIST;
 			tTrack[1][i] = pos[1] * GRID_DIST;
 			i++;
@@ -212,7 +206,7 @@ public final class RaceUI {
 		this.players = players;
 	}
 
-	public void setPrePath(final LinkedList<int[]> prePath) {
+	public void setPrePath(final List<int[]> prePath) {
 		this.prePath = prePath;
 	}
 
@@ -228,7 +222,7 @@ public final class RaceUI {
 	}
 
 	public void setTrack(final Track track) {
-		if (track == null || track.getLeft() == null || track.getRight() == null)
+		if (track == null)
 			return;
 		this.track = track;
 	}

@@ -46,7 +46,10 @@ public final class TrackIO {
 			return java.util.List.of();
 		try (java.util.stream.Stream<Path> s = Files.list(dir)) {
 			return s.filter(p -> p.toString().endsWith(".track"))
-					.map(p -> p.getFileName().toString().replaceFirst("\\.track$", ""))
+					.map(p -> {
+					final String fileName = p.getFileName().toString();
+					return fileName.substring(0, fileName.length() - ".track".length());
+				})
 					.sorted()
 					.toList();
 		} catch (final IOException e) {
