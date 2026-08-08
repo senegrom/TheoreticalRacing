@@ -1,7 +1,8 @@
 package tr.logic;
 
 import java.awt.Color;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -39,7 +40,7 @@ public class Player {
 	private final Color				brightColor;
 	private final Color				color;
 	private int						finishedPlace;
-	private final LinkedList<int[]>	history		= new LinkedList<>();
+	private final List<int[]>			history		= new ArrayList<>();
 	private final String			name;
 	private final int				number;
 	private int[]					position	= {INIT_POS, INIT_POS };
@@ -73,7 +74,7 @@ public class Player {
 		return finishedPlace;
 	}
 
-	public LinkedList<int[]> getHistory() {
+	public List<int[]> getHistory() {
 		return history;
 	}
 
