@@ -6,7 +6,7 @@ import java.awt.geom.Area;
 import java.awt.geom.Path2D;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Pure track-geometry helpers extracted from {@link RaceGame}: segment
@@ -68,7 +68,7 @@ final class TrackGeometry {
 	/**
 	 * @return true iff the line paths p1, p2 intersect anywhere.
 	 */
-	final static boolean checkIntersect(final LinkedList<int[]> p1, final LinkedList<int[]> p2, final boolean allowEqual) {
+	final static boolean checkIntersect(final List<int[]> p1, final List<int[]> p2, final boolean allowEqual) {
 		if (p1 == null || p2 == null || p1.size() < 2 || p2.size() < 2)
 			return false;
 		if (p1.size() == 2 && Arrays.equals(p1.getFirst(), p1.getLast()))
@@ -110,7 +110,7 @@ final class TrackGeometry {
 	 * of `active` against all earlier segments of `active` and all segments of
 	 * `other`. O(n) per call instead of O(n²).
 	 */
-	final static boolean lastSegmentIntersects(final LinkedList<int[]> active, final LinkedList<int[]> other) {
+	final static boolean lastSegmentIntersects(final List<int[]> active, final List<int[]> other) {
 		if (active.size() < 2)
 			return false;
 		final int[] a2 = active.getLast();
@@ -162,29 +162,26 @@ final class TrackGeometry {
 		return new float[][]{{pL[0], pR[0], pR[0] + dirX, pL[0] + dirX }, {pL[1], pR[1], pR[1] + dirY, pL[1] + dirY } };
 	}
 
-	final static Path2D.Float newPrefilledPath(final LinkedList<int[]> left, final LinkedList<int[]> right) {
+	final static Path2D.Float newPrefilledPath(final List<int[]> left, final List<int[]> right) {
 		if (left == null || left.isEmpty())
 			return null;
 		final Path2D.Float p = new Path2D.Float();
-		int[] pos = left.getFirst();
+		final Iterator<int[]> leftIterator = left.iterator();
+		int[] pos = leftIterator.next();
 		p.moveTo(pos[0], pos[1]);
-		Iterator<int[]> it = left.iterator();
-		while (it.hasNext()) {
-			pos = it.next();
+		while (leftIterator.hasNext()) {
+			pos = leftIterator.next();
 			p.lineTo(pos[0], pos[1]);
 		}
 		if (right == null || right.isEmpty())
 			return p;
-		it = right.descendingIterator();
-		while (it.hasNext()) {
-			pos = it.next();
-			p.lineTo(pos[0], pos[1]);
-		}
+		for (final int[] point : right.reversed())
+			p.lineTo(point[0], point[1]);
 		p.closePath();
 		return p;
 	}
 
-	static boolean segmentCrossesPath(final int[] from, final int[] to, final LinkedList<int[]> path) {
+	static boolean segmentCrossesPath(final int[] from, final int[] to, final List<int[]> path) {
 		int[] prev = null;
 		for (final int[] cur : path) {
 			if (prev != null && checkIntersect(prev, cur, from, to, (byte) 3))
