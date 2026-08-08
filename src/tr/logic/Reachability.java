@@ -1,6 +1,5 @@
 package tr.logic;
 
-import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.BitSet;
 
@@ -18,13 +17,52 @@ final class Reachability {
 		this.game = game;
 	}
 
+	/** Allocation-free FIFO for the large solver traversals. */
+	private static final class IntQueue {
+		private int[] data = new int[1024];
+		private int head;
+		private int size;
+
+		boolean isEmpty() {
+			return size == 0;
+		}
+
+		void add(final int value) {
+			if (size == data.length)
+				grow();
+			int tail = head + size;
+			if (tail >= data.length)
+				tail -= data.length;
+			data[tail] = value;
+			size++;
+		}
+
+		int remove() {
+			final int value = data[head];
+			head++;
+			if (head == data.length)
+				head = 0;
+			size--;
+			return value;
+		}
+
+		private void grow() {
+			final int[] larger = new int[data.length << 1];
+			final int first = Math.min(size, data.length - head);
+			System.arraycopy(data, head, larger, 0, first);
+			System.arraycopy(data, 0, larger, first, size - first);
+			data = larger;
+			head = 0;
+		}
+	}
+
 	private volatile boolean reachabilityReady;
 	private Thread reachabilityThread;
 	int[][] distToFinish;
 
 	BitSet	aliveStates;
 	int[]	turnsArr;
-	int		aliveW, aliveH, aliveVMAX;
+	int		aliveW, aliveH, aliveVMAX, aliveSpan;
 	/** Precomputed {@link #isRoomy} (depth 0 / depth 1) over all alive states;
 	 *  non-alive states stay unset (isRoomy is false there — they can have
 	 *  neither legal alive successors nor finish crossings). */
@@ -44,8 +82,7 @@ final class Reachability {
 	byte[]	certSq;
 
 	int aliveIdx(final int x, final int y, final int vx, final int vy) {
-		final int span = 2 * aliveVMAX + 1;
-		return ((x * aliveH + y) * span + (vx + aliveVMAX)) * span + (vy + aliveVMAX);
+		return ((x * aliveH + y) * aliveSpan + (vx + aliveVMAX)) * aliveSpan + (vy + aliveVMAX);
 	}
 
 	/** True iff (x,y,vx,vy) can reach the finish via some legal sequence of moves. */
@@ -80,22 +117,33 @@ final class Reachability {
 		aliveW = game.gameCols + 1;
 		aliveH = game.gameRows + 1;
 		aliveVMAX = RaceGame.AI_MAX_SPEED;
-		final int span = 2 * aliveVMAX + 1;
-		final int total = aliveW * aliveH * span * span;
+		aliveSpan = 2 * aliveVMAX + 1;
+		final long stateCount = (long) aliveW * aliveH * aliveSpan * aliveSpan;
+		if (stateCount > Integer.MAX_VALUE)
+			throw new IllegalStateException("Reachability state space is too large: " + stateCount);
+		final long estimatedBytes = stateCount * 12L;
+		final Runtime runtime = Runtime.getRuntime();
+		final long availableBytes = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+		if (estimatedBytes > availableBytes * 3 / 4)
+			throw new IllegalStateException("Reachability needs roughly " + (estimatedBytes >> 20)
+					+ " MiB but the JVM has only " + (availableBytes >> 20) + " MiB available");
+		final int total = (int) stateCount;
 		aliveStates = new BitSet(total);
 		turnsArr = new int[total];
 		Arrays.fill(turnsArr, Integer.MAX_VALUE);
-		final ArrayDeque<int[]> queue = new ArrayDeque<>();
+		final IntQueue queue = new IntQueue();
+		final Direction[] dirs = Direction.values();
 
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
-				if (distAt(x, y) == Integer.MAX_VALUE)
+				final int dist = distAt(x, y);
+				if (dist == Integer.MAX_VALUE)
 					continue;
-				if (distAt(x, y) > 2 * aliveVMAX + 5)
+				if (dist > 2 * aliveVMAX + 5)
 					continue; // optimization: too far for direct finish-cross
 				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
 					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
-						for (final Direction d : Direction.values()) {
+						for (final Direction d : dirs) {
 							final int nvx = vx + d.dx;
 							final int nvy = vy + d.dy;
 							if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
@@ -105,7 +153,7 @@ final class Reachability {
 								if (!aliveStates.get(idx)) {
 									aliveStates.set(idx);
 									turnsArr[idx] = 1;
-									queue.offer(new int[]{x, y, vx, vy });
+									queue.add(idx);
 								}
 								break;
 							}
@@ -118,9 +166,15 @@ final class Reachability {
 		final long tInit = System.nanoTime();
 
 		while (!queue.isEmpty()) {
-			final int[] cur = queue.poll();
-			final int xp = cur[0], yp = cur[1], vxp = cur[2], vyp = cur[3];
-			final int turns = turnsArr[aliveIdx(xp, yp, vxp, vyp)];
+			int rest = queue.remove();
+			final int curIdx = rest;
+			final int vyp = rest % aliveSpan - aliveVMAX;
+			rest /= aliveSpan;
+			final int vxp = rest % aliveSpan - aliveVMAX;
+			rest /= aliveSpan;
+			final int yp = rest % aliveH;
+			final int xp = rest / aliveH;
+			final int turns = turnsArr[curIdx];
 			final int x = xp - vxp;
 			final int y = yp - vyp;
 			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
@@ -129,7 +183,7 @@ final class Reachability {
 				continue;
 			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
 				continue;
-			for (final Direction d : Direction.values()) {
+			for (final Direction d : dirs) {
 				final int vx = vxp - d.dx;
 				final int vy = vyp - d.dy;
 				if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
@@ -138,7 +192,7 @@ final class Reachability {
 				if (!aliveStates.get(idx)) {
 					aliveStates.set(idx);
 					turnsArr[idx] = turns + 1;
-					queue.offer(new int[]{x, y, vx, vy });
+					queue.add(idx);
 				}
 			}
 		}
@@ -190,7 +244,7 @@ final class Reachability {
 	 *  which is exactly the source cell used here. */
 	short[] buildLegalAliveMask(final int total) {
 		final Direction[] dirs = Direction.values();
-		final int span = 2 * aliveVMAX + 1;
+		final int span = aliveSpan;
 		final short[] mask = new short[total];
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
 			int rest = idx;
@@ -227,7 +281,7 @@ final class Reachability {
 	 *  {@code req == roomy0} computes depth 1. */
 	void sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {
 		final Direction[] dirs = Direction.values();
-		final int span = 2 * aliveVMAX + 1;
+		final int span = aliveSpan;
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
 			int rest = idx;
 			final int vy = rest % span - aliveVMAX;
@@ -266,7 +320,7 @@ final class Reachability {
 	 *  for every alive state, 255 for non-alive states (never read — the
 	 *  runtime consults the shed maps only behind an isAlive check). */
 	byte[] initMinShed(final int total) {
-		final int span = 2 * aliveVMAX + 1;
+		final int span = aliveSpan;
 		final byte[] arr = new byte[total];
 		Arrays.fill(arr, (byte) 0xFF);
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
@@ -286,7 +340,7 @@ final class Reachability {
 	 *  exactly the per-step conditions of {@link #canShedSpeed}. */
 	byte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {
 		final Direction[] dirs = Direction.values();
-		final int span = 2 * aliveVMAX + 1;
+		final int span = aliveSpan;
 		final byte[] out = new byte[in.length];
 		Arrays.fill(out, (byte) 0xFF);
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
@@ -333,7 +387,7 @@ final class Reachability {
 	 *  keep 255 (only ever consulted behind an alive candidate). */
 	byte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {
 		final Direction[] dirs = Direction.values();
-		final int span = 2 * aliveVMAX + 1;
+		final int span = aliveSpan;
 		final byte[] arr = new byte[shed.length];
 		Arrays.fill(arr, (byte) 0xFF);
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
@@ -416,7 +470,7 @@ final class Reachability {
 		for (final int[] col : distToFinish)
 			Arrays.fill(col, Integer.MAX_VALUE);
 
-		final ArrayDeque<int[]> queue = new ArrayDeque<>();
+		final IntQueue queue = new IntQueue();
 		final double fx1 = game.finishLine.getX1(), fy1 = game.finishLine.getY1();
 		final double fx2 = game.finishLine.getX2(), fy2 = game.finishLine.getY2();
 		final int samples = (int) Math.ceil(Math.hypot(fx2 - fx1, fy2 - fy1) * 2) + 1;
@@ -429,17 +483,19 @@ final class Reachability {
 			if (distToFinish[x][y] != Integer.MAX_VALUE)
 				continue;
 			distToFinish[x][y] = 0;
-			queue.add(new int[]{x, y });
+			queue.add(x * h + y);
 		}
 
 		while (!queue.isEmpty()) {
-			final int[] cell = queue.poll();
-			final int d = distToFinish[cell[0]][cell[1]];
+			final int cell = queue.remove();
+			final int cx = cell / h;
+			final int cy = cell % h;
+			final int d = distToFinish[cx][cy];
 			for (int dx = -1; dx <= 1; dx++)
 				for (int dy = -1; dy <= 1; dy++) {
 					if (dx == 0 && dy == 0)
 						continue;
-					final int nx = cell[0] + dx, ny = cell[1] + dy;
+					final int nx = cx + dx, ny = cy + dy;
 					if (nx < 0 || nx >= w || ny < 0 || ny >= h)
 						continue;
 					if (distToFinish[nx][ny] != Integer.MAX_VALUE)
@@ -447,7 +503,7 @@ final class Reachability {
 					if (!game.trackA.contains(nx, ny) && !game.startZoneA.contains(nx, ny))
 						continue;
 					distToFinish[nx][ny] = d + 1;
-					queue.add(new int[]{nx, ny });
+					queue.add(nx * h + ny);
 				}
 		}
 	}
@@ -458,12 +514,16 @@ final class Reachability {
 	 *  formula: ((x*aliveH+y)*span + (vx+VMAX))*span + (vy+VMAX), span=2*VMAX+1. */
 	void writeReachability(final String path) {
 		try (java.io.OutputStream out = new java.io.BufferedOutputStream(new java.io.FileOutputStream(path))) {
-			final java.nio.ByteBuffer buf = java.nio.ByteBuffer
-					.allocate((3 + turnsArr.length) * 4).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024).order(java.nio.ByteOrder.LITTLE_ENDIAN);
 			buf.putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
-			for (final int v : turnsArr)
+			for (final int v : turnsArr) {
+				if (buf.remaining() < Integer.BYTES) {
+					out.write(buf.array(), 0, buf.position());
+					buf.clear();
+				}
 				buf.putInt(v);
-			out.write(buf.array());
+			}
+			out.write(buf.array(), 0, buf.position());
 		} catch (final java.io.IOException e) {
 			e.printStackTrace();
 			System.exit(3);
