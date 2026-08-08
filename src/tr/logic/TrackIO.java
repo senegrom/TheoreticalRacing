@@ -167,15 +167,19 @@ public final class TrackIO {
 
 	static LinkedList<int[]> parsePointList(final String s) {
 		final LinkedList<int[]> result = new LinkedList<>();
-		if (s == null || s.isEmpty())
+		if (s == null || s.isBlank())
 			return result;
-		for (final String pair : s.split(";")) {
-			final String[] xy = pair.split(",");
-			if (xy.length != 2)
-				continue;
+		for (final String pair : s.split(";", -1)) {
+			final String[] xy = pair.split(",", -1);
+			if (xy.length != 2) {
+				result.clear();
+				return result;
+			}
 			try {
 				result.add(new int[]{Integer.parseInt(xy[0].trim()), Integer.parseInt(xy[1].trim()) });
-			} catch (final NumberFormatException ignored) {
+			} catch (final NumberFormatException e) {
+				result.clear();
+				return result;
 			}
 		}
 		return result;

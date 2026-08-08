@@ -2,6 +2,7 @@ package tr.logic;
 
 import java.awt.Color;
 import java.util.LinkedList;
+import java.util.Locale;
 
 /**
  * Position, velocity, identity and history of a single player.
@@ -14,15 +15,14 @@ public class Player {
 	public enum Kind {
 		HUMAN, AI1, AI2;
 
-		public static Kind parse(final String s) {
-			if (s == null)
+		public static Kind parse(final String value) {
+			if (value == null)
 				return HUMAN;
-			final String t = s.trim().toLowerCase();
-			return switch (t) {
-				case "ai1", "true" -> AI1;
-				case "ai2" -> AI2;
-				default -> HUMAN;
-			};
+			try {
+				return valueOf(value.trim().toUpperCase(Locale.ROOT));
+			} catch (final IllegalArgumentException e) {
+				return HUMAN;
+			}
 		}
 
 		public String label() {

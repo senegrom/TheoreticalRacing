@@ -30,7 +30,6 @@ public final class CoreTests {
 
     private static void testPlayerKinds() {
         check(Player.Kind.parse(null) == Player.Kind.HUMAN, "null kind should be HUMAN");
-        check(Player.Kind.parse("true") == Player.Kind.AI1, "legacy true should migrate to AI1");
         check(Player.Kind.parse("AI2") == Player.Kind.AI2, "AI2 parsing failed");
         check(Player.Kind.parse("nonsense") == Player.Kind.HUMAN, "unknown kind should be HUMAN");
 
@@ -42,12 +41,14 @@ public final class CoreTests {
     }
 
     private static void testPointParsing() {
-        final LinkedList<int[]> pts = TrackIO.parsePointList("1,2; 3, 4;bad;5,x; -7,8");
-        check(pts.size() == 3, "point parser should ignore malformed entries");
+        final LinkedList<int[]> pts = TrackIO.parsePointList("1,2; 3,4; -7,8");
+        check(pts.size() == 3, "valid point list rejected");
         checkPoint(pts.get(0), 1, 2);
         checkPoint(pts.get(1), 3, 4);
         checkPoint(pts.get(2), -7, 8);
         check("1,2;3,4;-7,8".equals(TrackIO.pointListToString(pts)), "point serialization changed");
+        check(TrackIO.parsePointList("1,2;bad;3,4").isEmpty(), "malformed point list should be rejected atomically");
+        check(TrackIO.parsePointList("1,2;").isEmpty(), "trailing empty point should be rejected");
     }
 
 
