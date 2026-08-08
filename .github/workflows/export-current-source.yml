@@ -12,6 +12,7 @@ permissions:
 jobs:
   export:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,6 +22,7 @@ jobs:
         run: git archive --format=zip --output=current-source.zip HEAD
       - uses: actions/upload-artifact@v4
         with:
-          name: current-source
+          name: current-source-final-audit
           path: current-source.zip
+          if-no-files-found: error
           retention-days: 1
