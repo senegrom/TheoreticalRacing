@@ -171,7 +171,7 @@ public final class RaceUI {
 	}
 
 	public void finishTrack() {
-		if (track == null)
+		if (grid == null || track == null)
 			return;
 		final int[][] tTrack = new int[2][track.getLeft().size() + track.getRight().size()];
 		int i = 0;
@@ -197,21 +197,23 @@ public final class RaceUI {
 	}
 
 	public void setFinishLine(final int[] pL, final int[] pR) {
-		if (pL == null || pR == null)
+		if (grid == null || pL == null || pR == null)
 			return;
 		finishLine = new int[]{pL[0] * GRID_DIST, pL[1] * GRID_DIST, pR[0] * GRID_DIST, pR[1] * GRID_DIST };
 	}
 
 	public void setPlayers(final Player[] players) {
-		this.players = players;
+		if (grid != null)
+			this.players = players;
 	}
 
 	public void setPrePath(final List<int[]> prePath) {
-		this.prePath = prePath;
+		if (grid != null)
+			this.prePath = prePath;
 	}
 
 	public void setStartZone(final float[][] startZone) {
-		if (startZone == null || startZone.length != 2 || startZone[0] == null)
+		if (grid == null || startZone == null || startZone.length != 2 || startZone[0] == null)
 			return;
 		final int[][] tStartZone = new int[2][startZone[0].length];
 		for (int j = 0; j < startZone[0].length; j++) {
@@ -222,12 +224,13 @@ public final class RaceUI {
 	}
 
 	public void setTrack(final Track track) {
-		if (track == null)
-			return;
-		this.track = track;
+		if (grid != null)
+			this.track = track;
 	}
 
 	public void setVelVector(final int[] velVector, final int player) {
+		if (grid == null)
+			return;
 		this.velVector = velVector;
 		this.velVectorPlayer = player;
 	}
