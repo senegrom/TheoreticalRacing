@@ -11,61 +11,54 @@ import javax.swing.UIManager;
 import tr.logic.RaceGame;
 import tr.logic.TrackIO;
 
-/**
- * Starts the game.
- *
- * @author CGH
- */
-public class Main {
+/** Starts the game. */
+public final class Main {
+	private Main() {}
+
+	static record Options(boolean auto, String trackName, boolean listTracks,
+			String dumpReach, String queryIn, String queryOut, Long seed,
+			String logPath, String propsPath) {
+		boolean headless() {
+			return auto || dumpReach != null || queryIn != null;
+		}
+	}
 
 	public static void main(final String[] args) {
 		System.out.println(RaceGame.NAME + " " + RaceGame.VERSION);
 		System.out.println("=================================\n");
 
-		boolean auto = false;
-		String trackName = null;
-		boolean listTracks = false;
-		String dumpReach = null;
-		String queryIn = null, queryOut = null;
-		Long seed = null;
-		String logPath = null, propsPath = null;
-		for (int i = 0; i < args.length; i++) {
-			final String a = args[i];
-			if ("--auto".equals(a))
-				auto = true;
-			else if ("--track".equals(a) && i + 1 < args.length)
-				trackName = args[++i];
-			else if ("--list-tracks".equals(a))
-				listTracks = true;
-			else if ("--dump-reach".equals(a) && i + 1 < args.length)
-				dumpReach = args[++i];
-			else if ("--log".equals(a) && i + 1 < args.length)
-				logPath = args[++i];
-			else if ("--props".equals(a) && i + 1 < args.length)
-				propsPath = args[++i];
-			else if ("--seed".equals(a) && i + 1 < args.length)
-				seed = Long.parseLong(args[++i]);
-			else if ("--query-moves".equals(a) && i + 2 < args.length) {
-				queryIn = args[++i];
-				queryOut = args[++i];
-			}
+		final Options options;
+		try {
+			options = parseArgs(args);
+		} catch (final IllegalArgumentException error) {
+			System.err.println(error.getMessage());
+			System.err.println(usage());
+			System.exit(2);
+			return;
 		}
 
-		if (listTracks) {
+		if (options.listTracks()) {
 			for (final String name : TrackIO.listTracks())
 				System.out.println(name);
 			return;
 		}
 
-		final Properties prop = loadProperties(propsPath);
-		if (trackName != null && !TrackIO.loadTrack(prop, trackName)) {
-			System.err.println("Track not found: " + trackName);
+		final Properties prop;
+		try {
+			prop = loadProperties(options.propsPath());
+		} catch (final RuntimeException error) {
+			System.err.println(error.getMessage());
+			System.exit(2);
+			return;
+		}
+		if (options.trackName() != null && !TrackIO.loadTrack(prop, options.trackName())) {
+			System.err.println("Track not found: " + options.trackName());
 			System.err.println("Available: " + TrackIO.listTracks());
 			System.exit(2);
+			return;
 		}
 
-		final boolean autoMode = auto || dumpReach != null || queryIn != null;
-		if (autoMode) {
+		if (options.headless()) {
 			System.setProperty("java.awt.headless", "true");
 			Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
 				System.err.println("Uncaught exception on " + thread.getName());
@@ -75,23 +68,71 @@ public class Main {
 		} else {
 			installLookAndFeel();
 		}
-		final String dumpReachPath = dumpReach;
-		final String qIn = queryIn, qOut = queryOut;
-		final Long startSeed = seed;
-		final String gameLogPath = logPath;
 		EventQueue.invokeLater(() -> {
 			final RaceGame game = new RaceGame(prop);
-			game.setAutoMode(autoMode);
-			if (dumpReachPath != null)
-				game.setDumpReachPath(dumpReachPath);
-			if (qIn != null)
-				game.setQueryPaths(qIn, qOut);
-			if (startSeed != null)
-				game.setStartSeed(startSeed);
-			if (gameLogPath != null)
-				game.setGameLogPath(gameLogPath);
+			game.setAutoMode(options.headless());
+			if (options.dumpReach() != null)
+				game.setDumpReachPath(options.dumpReach());
+			if (options.queryIn() != null)
+				game.setQueryPaths(options.queryIn(), options.queryOut());
+			if (options.seed() != null)
+				game.setStartSeed(options.seed());
+			if (options.logPath() != null)
+				game.setGameLogPath(options.logPath());
 			game.start();
 		});
+	}
+
+	static Options parseArgs(final String[] args) {
+		boolean auto = false;
+		String trackName = null;
+		boolean listTracks = false;
+		String dumpReach = null;
+		String queryIn = null;
+		String queryOut = null;
+		Long seed = null;
+		String logPath = null;
+		String propsPath = null;
+
+		for (int i = 0; i < args.length; i++) {
+			final String option = args[i];
+			switch (option) {
+				case "--auto" -> auto = true;
+				case "--list-tracks" -> listTracks = true;
+				case "--track" -> trackName = value(args, ++i, option);
+				case "--dump-reach" -> dumpReach = value(args, ++i, option);
+				case "--log" -> logPath = value(args, ++i, option);
+				case "--props" -> propsPath = value(args, ++i, option);
+				case "--seed" -> {
+					final String raw = value(args, ++i, option);
+					try {
+						seed = Long.valueOf(raw);
+					} catch (final NumberFormatException error) {
+						throw new IllegalArgumentException("--seed requires an integer: " + raw, error);
+					}
+				}
+				case "--query-moves" -> {
+					queryIn = value(args, ++i, option);
+					queryOut = value(args, ++i, option);
+				}
+				case "--help", "-h" -> throw new IllegalArgumentException(usage());
+				default -> throw new IllegalArgumentException("Unknown option: " + option);
+			}
+		}
+		return new Options(auto, trackName, listTracks, dumpReach, queryIn, queryOut,
+				seed, logPath, propsPath);
+	}
+
+	private static String value(final String[] args, final int index, final String option) {
+		if (index >= args.length || args[index].startsWith("--"))
+			throw new IllegalArgumentException(option + " requires a value");
+		return args[index];
+	}
+
+	private static String usage() {
+		return "Usage: java -jar theoreticRacing.jar [--auto] [--track NAME] "
+				+ "[--props FILE] [--log FILE] [--seed N] [--dump-reach FILE] "
+				+ "[--query-moves INPUT OUTPUT] [--list-tracks]";
 	}
 
 	private static void installLookAndFeel() {
