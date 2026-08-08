@@ -1,0 +1,26 @@
+name: Export current source
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - .github/workflows/export-current-source.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+      - name: Archive tracked source
+        run: git archive --format=zip --output=current-source.zip HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: current-source
+          path: current-source.zip
+          retention-days: 1
