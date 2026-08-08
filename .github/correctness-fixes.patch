@@ -1,0 +1,278 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index 3e356a4..b0bbe5d 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -2185,7 +2185,7 @@ final class RaceAi {
+ 		egNodes++;
+ 		if (depth <= 0)
+ 			return false;		// horizon: no guarantee
+-		final Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
++		final long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
+ 		final Boolean memo = egMemo.get(key);
+ 		if (memo != null)
+ 			return memo;
+@@ -2228,7 +2228,7 @@ final class RaceAi {
+ 		egNodes++;
+ 		if (depth <= 0)
+ 			return false;
+-		final Long key = egKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
++		final long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
+ 		final Boolean memo = egMemo.get(key);
+ 		if (memo != null)
+ 			return memo;
+@@ -2259,19 +2259,20 @@ final class RaceAi {
+ 		return win;
+ 	}
+ 
+-	/** Pack a joint endgame state into a memo key: 8b coords, 5b velocity
+-	 *  offsets (+12), 5b depth, 1b turn = 58 bits. */
+-	private Long egKey(final int mx, final int my, final int mvx, final int mvy,
++	/** Pack a joint endgame state into a collision-free memo key for every
++	 *  supported grid coordinate: 9b coordinates, 5b velocity offsets (+12),
++	 *  5b depth and 1b turn = 62 bits. */
++	static long endgameMemoKey(final int mx, final int my, final int mvx, final int mvy,
+ 			final int rx, final int ry, final int rvx, final int rvy, final int depth, final boolean rivalTurn) {
+-		long k = mx;
+-		k = k << 8 | my;
+-		k = k << 5 | mvx + 12;
+-		k = k << 5 | mvy + 12;
+-		k = k << 8 | rx;
+-		k = k << 8 | ry;
+-		k = k << 5 | rvx + 12;
+-		k = k << 5 | rvy + 12;
+-		k = k << 5 | depth;
++		long k = mx & 0x1FFL;
++		k = k << 9 | my & 0x1FFL;
++		k = k << 5 | mvx + 12 & 0x1FL;
++		k = k << 5 | mvy + 12 & 0x1FL;
++		k = k << 9 | rx & 0x1FFL;
++		k = k << 9 | ry & 0x1FFL;
++		k = k << 5 | rvx + 12 & 0x1FL;
++		k = k << 5 | rvy + 12 & 0x1FL;
++		k = k << 5 | depth & 0x1FL;
+ 		k = k << 1 | (rivalTurn ? 1 : 0);
+ 		return k;
+ 	}
+@@ -2298,8 +2299,6 @@ final class RaceAi {
+ 		if (esc.isEmpty())
+ 			return true; // already dead-ended
+ 		final int ne = esc.size();
+-		if (ne > 7)
+-			return false; // more escapes than opponents
+ 		// cover[e] = bitmask of opponents that can legally land on escape e
+ 		final int[] cover = new int[ne];
+ 		int oi = 0;
+@@ -2317,18 +2316,27 @@ final class RaceAi {
+ 					cover[e] |= bit;
+ 			}
+ 		}
+-		// Kuhn's matching: every escape needs a DISTINCT opponent
+-		final int[] matchOpp = new int[8];
++		return hasDistinctCover(cover, oi);
++	}
++
++	/** Whether every requested cell can be assigned a different opponent from
++	 *  its bitmask. Package-private for regression tests of the 9-player case. */
++	static boolean hasDistinctCover(final int[] cover, final int opponentCount) {
++		if (opponentCount < 0 || opponentCount > Integer.SIZE)
++			throw new IllegalArgumentException("opponentCount out of range: " + opponentCount);
++		if (cover.length > opponentCount)
++			return false;
++		final int[] matchOpp = new int[opponentCount];
+ 		java.util.Arrays.fill(matchOpp, -1);
+-		for (int e = 0; e < ne; e++) {
+-			if (!sealAugment(e, cover, matchOpp, new boolean[8]))
+-				return false; // this escape cannot get a distinct cover
++		for (int e = 0; e < cover.length; e++) {
++			if (!sealAugment(e, cover, matchOpp, new boolean[opponentCount]))
++				return false;
+ 		}
+ 		return true;
+ 	}
+ 
+-	private boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
+-		for (int o = 0; o < 8; o++) {
++	private static boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
++		for (int o = 0; o < matchOpp.length; o++) {
+ 			if ((cover[e] & (1 << o)) == 0 || used[o])
+ 				continue;
+ 			used[o] = true;
+diff --git a/src/tr/logic/RaceGame.java b/src/tr/logic/RaceGame.java
+index b226080..b59b58a 100644
+--- a/src/tr/logic/RaceGame.java
++++ b/src/tr/logic/RaceGame.java
+@@ -192,6 +192,15 @@ public final class RaceGame {
+ 		this.queryOutPath = out;
+ 	}
+ 
++	private boolean isAutoRace() {
++		return autoMode && dumpReachPath == null && queryInPath == null;
++	}
++
++	private void abortAutoRace(final String message) {
++		System.err.println(message);
++		System.exit(2);
++	}
++
+ 	/** Show the start dialog and, on confirmation, build the play window. */
+ 	public void start() {
+ 		if (autoMode) {
+@@ -218,6 +227,14 @@ public final class RaceGame {
+ 		gameFrame.setStatus("Game setup...");
+ 		players = getPlayers();
+ 		rui.setPlayers(players);
++		if (isAutoRace()) {
++			for (final Player player : players) {
++				if (!player.isAi()) {
++					abortAutoRace("--auto requires every configured player to be AI: " + player.getName());
++					return;
++				}
++			}
++		}
+ 		if (!autoMode)
+ 			gameFrame.setupUI(rui.getGrid(), this, wx, wy, players);
+ 
+@@ -234,7 +251,7 @@ public final class RaceGame {
+ 			return;
+ 		}
+ 		if (autoMode) {
+-			System.err.println("--auto requires a saved track and all-AI players. Aborting.");
++			System.err.println("Headless mode requires a valid saved track. Aborting.");
+ 			System.exit(2);
+ 		}
+ 		gameFrame.setStatus("Click OK to start.");
+@@ -508,7 +525,12 @@ public final class RaceGame {
+ 		while (subgamestate < players.length && players[subgamestate].isAi()) {
+ 			final int[] pos = findStartPosition();
+ 			if (pos == null) {
+-				dispMessage(players[subgamestate].getName() + " (AI) couldn't find a start position.");
++				final String message = players[subgamestate].getName() + " (AI) couldn't find a start position.";
++				if (isAutoRace()) {
++					abortAutoRace(message);
++					return;
++				}
++				dispMessage(message);
+ 				return;
+ 			}
+ 			players[subgamestate].setPosition(pos);
+diff --git a/tests/headless_smoke.py b/tests/headless_smoke.py
+index 9d4bddd..b9444a5 100644
+--- a/tests/headless_smoke.py
++++ b/tests/headless_smoke.py
+@@ -41,6 +41,76 @@ def main() -> int:
+         log = (work / "race.log").read_text(encoding="utf-8")
+         if "# results" not in log or log.count(" FINISH ") != 7 or " CRASH " in log:
+             raise SystemExit("headless race did not produce the expected complete sprint result")
++
++        invalid_props = work / "human.properties"
++        invalid_props.write_text(
++            (work / "bench.properties").read_text(encoding="utf-8").replace(
++                "player1Kind=AI1", "player1Kind=HUMAN", 1
++            ),
++            encoding="utf-8",
++        )
++        invalid = subprocess.run(
++            [
++                "java",
++                "-jar",
++                str(JAR),
++                "--auto",
++                "--track",
++                "sprint",
++                "--props",
++                invalid_props.name,
++                "--log",
++                "invalid.log",
++                "--seed",
++                "1",
++            ],
++            cwd=work,
++            capture_output=True,
++            text=True,
++            timeout=30,
++        )
++        if invalid.returncode == 0:
++            raise SystemExit("invalid human auto-race configuration unexpectedly succeeded")
++        if "--auto requires every configured player to be AI" not in invalid.stderr:
++            raise SystemExit(
++                f"invalid auto-race failed unclearly:\n{invalid.stdout}\n{invalid.stderr}"
++            )
++
++        narrow_text = (work / "bench.properties").read_text(encoding="utf-8")
++        replacements = {
++            "gameX=86": "gameX=20",
++            "gameY=48": "gameY=25",
++            "useLastTrack=false": "useLastTrack=true",
++        }
++        for old, new in replacements.items():
++            narrow_text = narrow_text.replace(old, new, 1)
++        narrow_text += "lastTrackLeft=5,20;5,3\nlastTrackRight=6,20;6,3\n"
++        narrow_props = work / "narrow.properties"
++        narrow_props.write_text(narrow_text, encoding="utf-8")
++        narrow = subprocess.run(
++            [
++                "java",
++                "-jar",
++                str(JAR),
++                "--auto",
++                "--props",
++                narrow_props.name,
++                "--log",
++                "narrow.log",
++                "--seed",
++                "1",
++            ],
++            cwd=work,
++            capture_output=True,
++            text=True,
++            timeout=30,
++        )
++        if narrow.returncode == 0:
++            raise SystemExit("insufficient-start-grid auto race unexpectedly succeeded")
++        if "couldn't find a start position" not in narrow.stderr:
++            raise SystemExit(
++                f"insufficient-start-grid auto race failed unclearly:\n{narrow.stdout}\n{narrow.stderr}"
++            )
+     print("HeadlessSmoke: OK")
+     return 0
+ 
+diff --git a/tests/tr/logic/CoreTests.java b/tests/tr/logic/CoreTests.java
+index 346c2dc..bb6ad36 100644
+--- a/tests/tr/logic/CoreTests.java
++++ b/tests/tr/logic/CoreTests.java
+@@ -12,6 +12,8 @@ public final class CoreTests {
+         testPlayerKinds();
+         testPointParsing();
+         testBorderValidation();
++        testEndgameMemoKey();
++        testDistinctCoverMatching();
+         testSegmentIntersection();
+         testStartZone();
+         TrackDataTests.run();
+@@ -65,6 +67,26 @@ public final class CoreTests {
+         check(!TrackIO.validBorders(left, right), "consecutive duplicate border point accepted");
+     }
+ 
++    private static void testEndgameMemoKey() {
++        final long highY = RaceAi.endgameMemoKey(0, 256, 0, 0, 10, 20, 1, -1, 7, false);
++        final long nextX = RaceAi.endgameMemoKey(1, 0, 0, 0, 10, 20, 1, -1, 7, false);
++        check(highY != nextX, "endgame memo key collides above coordinate 255");
++
++        final long maxGrid = RaceAi.endgameMemoKey(500, 500, 12, -12, 499, 498, -12, 12, 20, true);
++        final long adjacent = RaceAi.endgameMemoKey(500, 499, 12, -12, 499, 498, -12, 12, 20, true);
++        check(maxGrid != adjacent, "endgame memo key loses supported 9-bit coordinates");
++    }
++
++    private static void testDistinctCoverMatching() {
++        final int[] uniqueEight = new int[8];
++        for (int i = 0; i < uniqueEight.length; i++)
++            uniqueEight[i] = 1 << i;
++        check(RaceAi.hasDistinctCover(uniqueEight, 8), "eight opponents should cover eight distinct escapes");
++        check(!RaceAi.hasDistinctCover(uniqueEight, 7), "seven opponents cannot cover eight escapes");
++        check(!RaceAi.hasDistinctCover(new int[]{1, 1}, 2), "one opponent cannot cover two escapes simultaneously");
++        check(RaceAi.hasDistinctCover(new int[]{3, 1}, 2), "matching should reroute a flexible first assignment");
++    }
++
+     private static void testSegmentIntersection() {
+         check(TrackGeometry.checkIntersect(p(0, 0), p(10, 10), p(0, 10), p(10, 0), (byte) 0),
+                 "crossing diagonals should intersect");
