@@ -12,6 +12,8 @@ import java.util.BitSet;
 final class RaceAi {
 	private final RaceGame game;
 	private final Reachability reach;
+	/** Cached because the compiler-generated values() method clones on every call. */
+	private static final Direction[] DIRECTIONS = Direction.values();
 
 	RaceAi(final RaceGame game) {
 		this.game = game;
@@ -44,7 +46,7 @@ final class RaceAi {
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
 			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
@@ -112,9 +114,11 @@ final class RaceAi {
 	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7)
 	private final static int		AI1_DEEP_PACK	= 3;	// round 65: escalate only with >= this many rivals within AI1_DEEP_PACK_R of the landing (the doom class lives in packs; solo tunnels excluded)
 	private final static int		AI1_DEEP_PACK_R	= 10;	// round 65: Chebyshev pack radius for the deep escalation gate
-	private final static int		AI1_SLOW_PACK		= 7;	// experimental: rare dense slow-pack scorer trigger
+	private final static int		AI1_SLOW_PACK		= 7;	// round 67: rare dense slow-pack scorer trigger
 	private final static int		AI1_SLOW_PACK_R	= 10;
 	private final static int		AI1_SLOW_PACK_SPD2	= 16;
+	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
+	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
@@ -205,18 +209,19 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
-		final double[] trapByDir = new double[Direction.values().length];
+		final double[] trapByDir = new double[DIRECTIONS.length];
 		// round 49 arm C: non-spread score and raw map ttf per candidate, for the
 		// certified pace tie-break after the loop.
-		final double[] scoreNSByDir = new double[Direction.values().length];
-		final int[] poTByDir = new int[Direction.values().length];
+		final double[] scoreNSByDir = new double[DIRECTIONS.length];
+		final int[] poTByDir = new int[DIRECTIONS.length];
 		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
 		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
 		// round 62: full score and unc per candidate, for the certified UNC
 		// override after the loop.
-		final double[] scoreByDir = new double[Direction.values().length];
-		final double[] uncByDir = new double[Direction.values().length];
+		final double[] scoreByDir = new double[DIRECTIONS.length];
+		final double[] uncByDir = new double[DIRECTIONS.length];
 		java.util.Arrays.fill(scoreByDir, Double.MAX_VALUE);
+		MobilitySearch paceMobility = null;
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -224,7 +229,7 @@ final class RaceAi {
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
 
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
 			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
@@ -385,7 +390,9 @@ final class RaceAi {
 			scoreByDir[d.ordinal()] = score;
 			uncByDir[d.ordinal()] = uncertified;
 			if (poT < poBestT) {
-				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
+				if (paceMobility == null)
+					paceMobility = mobilitySearch(playerNum, true, AI1_MOBILITY_DEPTH);
+				final double poRoom = futureMobility(newX, newY, newVx, newVy, paceMobility);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
 				if (poRoom >= AI1_PO_ROOM_HI || (poRoom >= AI1_PO_ROOM_MID && poSpd <= AI1_PO_SPD_MAX)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
@@ -417,7 +424,7 @@ final class RaceAi {
 			final double bestNS = scoreNSByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
-			for (final Direction d : Direction.values()) {
+			for (final Direction d : DIRECTIONS) {
 				if (d == best || poTByDir[d.ordinal()] >= fastT)
 					continue;
 				if (scoreNSByDir[d.ordinal()] > bestNS + 1e-9)
@@ -449,7 +456,7 @@ final class RaceAi {
 			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
-			for (final Direction d : Direction.values()) {
+			for (final Direction d : DIRECTIONS) {
 				if (d == best || poTByDir[d.ordinal()] >= fastT)
 					continue;
 				if (uncByDir[d.ordinal()] <= 0.0 || scoreByDir[d.ordinal()] == Double.MAX_VALUE)
@@ -480,7 +487,7 @@ final class RaceAi {
 			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
-				for (final Direction d : Direction.values()) {
+				for (final Direction d : DIRECTIONS) {
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 						continue;
@@ -569,8 +576,31 @@ final class RaceAi {
 									System.err.println("AIDBG DEEP p=" + playerNum + " pos=(" + pos[0] + ","
 											+ pos[1] + ") chosen=" + chosen + " smom8 "
 											+ (dv < 0 ? "dies" : "fragile") + " -> scorer rollout");
-								chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-										true, AI1_DEEP_HORIZON);
+								Direction deepChoice = chosen;
+								if (dv < 0 && trapByDir[chosen.ordinal()] >= AI1_TRAP_L2) {
+									// Cross-model certificate: the topology-shaped smom world proves
+									// a locally narrow pick dies and proposes a survivor; accept that
+									// survivor only if the scorer-rival world independently keeps it
+									// alive. The local trap gate excludes open-line false deaths.
+									final Direction smomAlt = dangerJointSearch(pos, vel, playerNum, chosen,
+											true, true, true, false, AI1_DEEP_HORIZON);
+									if (smomAlt != chosen) {
+										final int avx = vel[0] + smomAlt.dx, avy = vel[1] + smomAlt.dy;
+										final int ax = pos[0] + avx, ay = pos[1] + avy;
+										if (game.crossesFinish(pos[0], pos[1], ax, ay)
+												|| simOutcome(ax, ay, avx, avy, playerNum, AI1_DEEP_HORIZON,
+														true, true, true, true) >= 0) {
+											deepChoice = smomAlt;
+											if (AI_DEBUG_DJS)
+												System.err.println("AIDBG DEEP p=" + playerNum
+														+ " cross-model SWITCH " + chosen + " -> " + smomAlt);
+										}
+									}
+								}
+								if (deepChoice == chosen)
+									deepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
+											true, true, AI1_DEEP_HORIZON);
+								chosen = deepChoice;
 								deepHandled = true;
 							}
 						}
@@ -591,7 +621,7 @@ final class RaceAi {
 					final int slowSpd2 = scvx * scvx + scvy * scvy;
 					boolean closeEscape = false;
 					final int chosenT = poTByDir[chosen.ordinal()];
-					for (final Direction d : Direction.values()) {
+					for (final Direction d : DIRECTIONS) {
 						if (d != chosen && poTByDir[d.ordinal()] <= chosenT + 1
 								&& trapByDir[d.ordinal()] <= AI1_TRAP_L2) {
 							closeEscape = true;
@@ -703,7 +733,7 @@ final class RaceAi {
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
 			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
@@ -893,7 +923,7 @@ final class RaceAi {
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
 		}
 		double best = Double.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -935,7 +965,7 @@ final class RaceAi {
 			final int[][] occupancy2, final int myDist) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -982,7 +1012,7 @@ final class RaceAi {
 	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy, final int playerNum,
 			final int[][] occupancy) {
 		int count = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
@@ -1042,7 +1072,7 @@ final class RaceAi {
 			final int[] px, final int[] py, final boolean[] alive) {
 		int bestT = Integer.MAX_VALUE;
 		int[] best = null;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -1079,7 +1109,7 @@ final class RaceAi {
 	private int safeSuccessorsOverState(final int x, final int y, final int cvx, final int cvy, final int self,
 			final int[] px, final int[] py, final boolean[] alive) {
 		int count = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -1119,7 +1149,7 @@ final class RaceAi {
 			final int[] px, final int[] py, final boolean[] alive) {
 		int bestTier = -1, bestT = Integer.MAX_VALUE;
 		int[] best = null;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -1165,7 +1195,7 @@ final class RaceAi {
 		double bestScore = Double.MAX_VALUE;
 		int bestSpd2 = -1;
 		int[] best = null;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -1396,7 +1426,7 @@ final class RaceAi {
 					+ "," + vel[1] + ") chosen=" + chosen + " DIES in-sim");
 		Direction best = null;
 		int bestT = Integer.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			if (d == chosen)
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
@@ -1501,18 +1531,19 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
-		final double[] trapByDir = new double[Direction.values().length];
+		final double[] trapByDir = new double[DIRECTIONS.length];
 		// round 49 arm C: non-spread score and raw map ttf per candidate, for the
 		// certified pace tie-break after the loop.
-		final double[] scoreNSByDir = new double[Direction.values().length];
-		final int[] poTByDir = new int[Direction.values().length];
+		final double[] scoreNSByDir = new double[DIRECTIONS.length];
+		final int[] poTByDir = new int[DIRECTIONS.length];
 		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
 		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
 		// round 63 (PROMOTED round 62): score and unc per candidate for the
 		// certified UNC override -- see the AI1 body.
-		final double[] scoreByDir = new double[Direction.values().length];
-		final double[] uncByDir = new double[Direction.values().length];
+		final double[] scoreByDir = new double[DIRECTIONS.length];
+		final double[] uncByDir = new double[DIRECTIONS.length];
 		java.util.Arrays.fill(scoreByDir, Double.MAX_VALUE);
+		MobilitySearch paceMobility = null;
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
@@ -1520,7 +1551,7 @@ final class RaceAi {
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
 
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
 			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
@@ -1670,7 +1701,9 @@ final class RaceAi {
 			scoreByDir[d.ordinal()] = score;
 			uncByDir[d.ordinal()] = uncertified;
 			if (poT < poBestT) {
-				final double poRoom = futureMobility4(newX, newY, newVx, newVy, playerNum, true);
+				if (paceMobility == null)
+					paceMobility = mobilitySearch(playerNum, true, AI2_MOBILITY_DEPTH);
+				final double poRoom = futureMobility(newX, newY, newVx, newVy, paceMobility);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
 				if (poRoom >= 0.88 || (poRoom >= 0.78 && poSpd <= 4)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
@@ -1695,7 +1728,7 @@ final class RaceAi {
 			final double bestNS = scoreNSByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
-			for (final Direction d : Direction.values()) {
+			for (final Direction d : DIRECTIONS) {
 				if (d == best || poTByDir[d.ordinal()] >= fastT)
 					continue;
 				if (scoreNSByDir[d.ordinal()] > bestNS + 1e-9)
@@ -1722,7 +1755,7 @@ final class RaceAi {
 			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
-			for (final Direction d : Direction.values()) {
+			for (final Direction d : DIRECTIONS) {
 				if (d == best || poTByDir[d.ordinal()] >= fastT)
 					continue;
 				if (uncByDir[d.ordinal()] <= 0.0 || scoreByDir[d.ordinal()] == Double.MAX_VALUE)
@@ -1753,7 +1786,7 @@ final class RaceAi {
 			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
-				for (final Direction d : Direction.values()) {
+				for (final Direction d : DIRECTIONS) {
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 						continue;
@@ -1798,6 +1831,10 @@ final class RaceAi {
 			// within Chebyshev 10 of the landing) run the deep smom pre-screen
 			// and escalate to the scorer-rival world at horizon 8 on a
 			// dead-or-fragile verdict -- the 5-7-round doom class.
+			// round 68: trap-0 slow moves also escalate for the rare all-field
+			// dense-pack shape. Round 69 (PROMOTED): a locally narrow fast pick
+			// that smom proves dead may take a smom survivor only when the
+			// independent scorer-rival world also certifies it alive.
 			// See the AI1 body for the oracle derivations.
 			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
 			if (!IN_SCORER_SIM) {
@@ -1823,8 +1860,27 @@ final class RaceAi {
 									System.err.println("AIDBG DEEP p=" + playerNum + " pos=(" + pos[0] + ","
 											+ pos[1] + ") chosen=" + chosen + " smom8 "
 											+ (dv < 0 ? "dies" : "fragile") + " -> scorer rollout");
-								chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-										true, AI1_DEEP_HORIZON);
+								Direction deepChoice = chosen;
+								if (dv < 0 && trapByDir[chosen.ordinal()] >= AI1_TRAP_L2) {
+									final Direction smomAlt = dangerJointSearch(pos, vel, playerNum, chosen,
+											true, true, true, false, AI1_DEEP_HORIZON);
+									if (smomAlt != chosen) {
+										final int avx = vel[0] + smomAlt.dx, avy = vel[1] + smomAlt.dy;
+										final int ax = pos[0] + avx, ay = pos[1] + avy;
+										if (game.crossesFinish(pos[0], pos[1], ax, ay)
+												|| simOutcome(ax, ay, avx, avy, playerNum, AI1_DEEP_HORIZON,
+														true, true, true, true) >= 0) {
+											deepChoice = smomAlt;
+											if (AI_DEBUG_DJS)
+												System.err.println("AIDBG DEEP p=" + playerNum
+														+ " cross-model SWITCH " + chosen + " -> " + smomAlt);
+										}
+									}
+								}
+								if (deepChoice == chosen)
+									deepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
+											true, true, AI1_DEEP_HORIZON);
+								chosen = deepChoice;
 								deepHandled = true;
 							}
 						}
@@ -1843,7 +1899,7 @@ final class RaceAi {
 					final int slowSpd2 = scvx * scvx + scvy * scvy;
 					boolean closeEscape = false;
 					final int chosenT = poTByDir[chosen.ordinal()];
-					for (final Direction d : Direction.values()) {
+					for (final Direction d : DIRECTIONS) {
 						if (d != chosen && poTByDir[d.ordinal()] <= chosenT + 1
 								&& trapByDir[d.ordinal()] <= AI1_TRAP_L2) {
 							closeEscape = true;
@@ -1993,7 +2049,7 @@ final class RaceAi {
 	private int countFutureSafeSuccessors(final int x, final int y, final int vx, final int vy, final int playerNum,
 			final int[][] predicted) {
 		int count = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
@@ -2029,7 +2085,7 @@ final class RaceAi {
 	 */
 	private int countRoomySuccessors(final int x, final int y, final int vx, final int vy, final int playerNum) {
 		int count = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
@@ -2095,7 +2151,7 @@ final class RaceAi {
 		final int[] rv = game.players[ri].getVelocity();
 		final int riNum = game.players[ri].getNumber();
 		int n = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = rv[0] + d.dx, nvy = rv[1] + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -2126,7 +2182,7 @@ final class RaceAi {
 	 *  rival {@code ri} with zero legal moves -- forcing its crash this turn --
 	 *  or null if none exists. */
 	private Direction findForcedCrashMove(final int[] pos, final int[] vel, final int ri, final int playerNum) {
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -2171,7 +2227,7 @@ final class RaceAi {
 		egNodes = 0;
 		Direction best = null;
 		int bestT = Integer.MAX_VALUE;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -2211,7 +2267,7 @@ final class RaceAi {
 			return memo;
 		boolean anyMove = false;
 		boolean win = true;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			if (egNodes > AI1_EG_NODES) {
 				win = false;	// budget: conservative, claim nothing
 				break;
@@ -2253,7 +2309,7 @@ final class RaceAi {
 		if (memo != null)
 			return memo;
 		boolean win = false;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			if (egNodes > AI1_EG_NODES)
 				break;
 			final int nvx = mvx + d.dx, nvy = mvy + d.dy;
@@ -2303,7 +2359,7 @@ final class RaceAi {
 	 *  Kuhn). A finishing escape is never sealable. */
 	private boolean sealable(final int x, final int y, final int vx, final int vy, final int playerNum) {
 		final java.util.List<int[]> esc = new java.util.ArrayList<>();
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
@@ -2371,11 +2427,15 @@ final class RaceAi {
 	/** Generic N-ply escape headroom: max over alive moves (dodging predicted
 	 *  traffic per ply) with the leaf ply scored as the alive-fraction. */
 	private double fmRec(final int x, final int y, final int vx, final int vy,
-			final java.util.List<java.util.HashSet<Long>> blocked, final int ply, final int depth) {
-		final java.util.HashSet<Long> b = blocked.get(ply - 1);
-		if (ply == depth) {
+			final MobilitySearch search, final int ply) {
+		final long memoKey = mobilityMemoKey(x, y, vx, vy, ply);
+		final Double cached = search.memo.get(memoKey);
+		if (cached != null)
+			return cached;
+		final java.util.HashSet<Long> b = search.blocked.get(ply - 1);
+		if (ply == search.depth) {
 			int cnt = 0;
-			for (final Direction d : Direction.values()) {
+			for (final Direction d : DIRECTIONS) {
 				final int nvx = vx + d.dx, nvy = vy + d.dy;
 				if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 					continue;
@@ -2389,51 +2449,85 @@ final class RaceAi {
 				if (reach.isAlive(nx, ny, nvx, nvy))
 					cnt++;
 			}
-			return cnt / 9.0;
+			final double result = cnt / 9.0;
+			search.memo.put(memoKey, result);
+			return result;
 		}
 		double best = 0.0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny)) {
+				search.memo.put(memoKey, 1.0);
 				return 1.0;
+			}
 			if (b.contains(((long) nx << 32) | (ny & 0xffffffffL)))
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final double v = fmRec(nx, ny, nvx, nvy, blocked, ply + 1, depth);
+			final double v = fmRec(nx, ny, nvx, nvy, search, ply + 1);
 			if (v > best) {
 				best = v;
-				if (best >= 1.0)
+				if (best >= 1.0) {
+					search.memo.put(memoKey, 1.0);
 					return 1.0;
+				}
 			}
 		}
+		search.memo.put(memoKey, best);
 		return best;
 	}
 
-	/** 4-ply escape headroom (see fmRec); opponents advance 4 greedy steps,
-	 *  blocking their top-3 min-turns cells each ply (robust to prediction error). */
-	private double futureMobility4(final int x, final int y, final int vx, final int vy,
-			final int subjectNum, final boolean avoidOcc) {
-		if (reach.turnsArr == null)
-			return 1.0;
+	/** One immutable opponent projection plus a transposition table shared by
+	 *  every candidate root in one real turn. Candidate roots overlap heavily;
+	 *  rebuilding both structures for each root repeated the same search. */
+	private static final class MobilitySearch {
+		final int depth;
+		final java.util.List<java.util.HashSet<Long>> blocked;
+		final java.util.HashMap<Long, Double> memo = new java.util.HashMap<>();
+
+		MobilitySearch(final int depth, final java.util.List<java.util.HashSet<Long>> blocked) {
+			this.depth = depth;
+			this.blocked = blocked;
+		}
+	}
+
+	/** Build an N-ply opponent world once per AI turn. Opponents advance N
+	 *  greedy steps, blocking their top-3 min-turns cells at each ply. */
+	private MobilitySearch mobilitySearch(final int subjectNum, final boolean avoidOcc, final int depth) {
 		final java.util.List<java.util.HashSet<Long>> blocked = new java.util.ArrayList<>();
-		for (int k = 0; k < 4; k++)
+		for (int k = 0; k < depth; k++)
 			blocked.add(new java.util.HashSet<>());
 		for (int i = 0; i < game.players.length; i++) {
 			if (game.players[i].getNumber() == subjectNum || game.players[i].isFinished())
 				continue;
 			final int[] p = game.players[i].getPosition();
 			int[] cur = new int[]{p[0], p[1], game.players[i].getVelocity()[0], game.players[i].getVelocity()[1] };
-			for (int k = 0; k < 4; k++) {
+			for (int k = 0; k < depth; k++) {
 				cur = greedyStepBlockTop3(cur[0], cur[1], cur[2], cur[3], avoidOcc, blocked.get(k));
 				if (cur == null)
 					break;
 			}
 		}
-		return fmRec(x, y, vx, vy, blocked, 1, 4);
+		return new MobilitySearch(depth, blocked);
+	}
+
+	/** N-ply escape headroom in a per-turn opponent world (see {@link #fmRec}). */
+	private double futureMobility(final int x, final int y, final int vx, final int vy,
+			final MobilitySearch search) {
+		if (reach.turnsArr == null)
+			return 1.0;
+		return fmRec(x, y, vx, vy, search, 1);
+	}
+
+	/** Collision-free key for one mobility-search state. Reachability already
+	 *  assigns every in-domain (position, velocity) a unique non-negative int;
+	 *  the high word adds the ply. The blocked world is implicit in the memo's
+	 *  per-turn lifetime. */
+	private long mobilityMemoKey(final int x, final int y, final int vx, final int vy, final int ply) {
+		return ((long) ply << 32) | (reach.aliveIdx(x, y, vx, vy) & 0xffffffffL);
 	}
 
 	/** Best greedy step; blocks the rival's up-to-3 lowest-turns cells. */
@@ -2441,7 +2535,7 @@ final class RaceAi {
 			final boolean avoidOcc, final java.util.HashSet<Long> block) {
 		int t1 = Integer.MAX_VALUE, t2 = Integer.MAX_VALUE, t3 = Integer.MAX_VALUE;
 		int[] c1 = null, c2 = null, c3 = null;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (Math.abs(nvx) > reach.aliveVMAX || Math.abs(nvy) > reach.aliveVMAX)
 				continue;
@@ -2487,7 +2581,7 @@ final class RaceAi {
 		int proofs = 0;
 		double bestSpeed = Double.MAX_VALUE;
 		final double speed = Math.hypot(vx, vy);
-		for (final Direction bd : Direction.values()) {
+		for (final Direction bd : DIRECTIONS) {
 			final int bvx = vx + bd.dx;
 			final int bvy = vy + bd.dy;
 			if (Math.abs(bvx) > RaceGame.AI_MAX_SPEED || Math.abs(bvy) > RaceGame.AI_MAX_SPEED)
@@ -2545,7 +2639,7 @@ final class RaceAi {
 		if (depth == 0)
 			return false;
 		final double speed = Math.hypot(vx, vy);
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
@@ -2581,7 +2675,7 @@ final class RaceAi {
 				&& y < reach.aliveH)
 			return roomyMap.get(reach.aliveIdx(x, y, vx, vy));
 		int count = 0;
-		for (final Direction d : Direction.values()) {
+		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)

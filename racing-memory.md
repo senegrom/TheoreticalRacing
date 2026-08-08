@@ -48,9 +48,44 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## 2026-08-09 round-69 promotion and runtime cleanup
+
+**Round 69 is the current champion; AI1 and AI2 are identical at rest again.**
+It builds on the round-68 dense slow-pack champion and promotes a new
+cross-model survivor certificate:
+
+- Hungaroring seed 20: the old line chooses `NONE` at p5 move 181, enters an
+  oracle-proven doom and crashes at move 221. The topology-shaped eight-round
+  model proves that locally narrow pick dies and proposes `NE`; the independent
+  scorer-rival model must also certify `NE` alive before the switch is allowed.
+- The broad cross-model rule was REJECTED after it created a Hungaroring seed-6
+  crash. Requiring the current pick's trap penalty to be at least 0.5 removes
+  that false switch while retaining the seed-20 rescue.
+
+Promotion evidence: the round-69 candidate column in the full default 22-track
+seeds-1-to-5 self-play gate was **770/0/63.81**; the round-68 champion baseline
+was **770/0/63.82**. Difficult-track fresh seeds and synthetic gates added no
+candidate crashes; affected-track mixed fields over seeds 1-15 slightly favored
+AI1, and Hungaroring seeds 16-25 mixed
+fields favored AI1 in both place and crashes. After mirroring into AI2, the
+nine-track x three-seed probe was **27/27 move-identical**. JDK-25 warnings-as-
+errors compilation, 26 track-data tests, core tests, headless smoke and all six
+golden races passed. Round 69 does not require a new golden fixture; the
+round-68 corpus already records the Le Mans rescue and one-move Zigzag seed-4
+pace/order change.
+
+Shared behavior-preserving cleanup shipped with the champion: a cached
+`Direction.values()` array; one opponent mobility projection and transposition
+memo per real turn instead of rebuilding them per candidate; and a bijective
+SplitMix64 finalizer on packed edge-cache keys to avoid `Long` hash bucket
+clustering. Focused A/B measurements were 29.5s without the mobility memo versus
+20.6-20.7s with it under the exercised load; repeated reachability median was
+1.915s versus 2.160s on untouched HEAD (about 11%). Do not reinterpret those
+focused measurements as a whole-benchmark speedup.
+
 ## 2026-08-07 repository and AI1 frontier update
 
-The repository now has portable JDK-17+ build/test scripts, genuine Linux
+The repository now has portable JDK-25+ build/test scripts, genuine Linux
 headless auto-play, lint-clean dependency-free unit tests, structural checks for
 all bundled tracks, a deterministic AI2 golden-race corpus, a cheap AI1/AI2
 move-log probe, and a manual nine-stage GitHub Actions promotion battery. The
@@ -62,16 +97,15 @@ Two source defects were fixed in both bodies before new experimentation:
 the correct one-based player number. AI1 and AI2 remain separate full scorer
 bodies by user choice.
 
-**Experimental AI1 round-67 candidate (not promoted): dense slow-pack escape
-proof.** In the sole canonical round-66 failure (Le Mans seed 4), the victim
+**Round-67 candidate record (promoted as part of round 68): dense slow-pack
+escape proof.** In the sole canonical round-66 failure (Le Mans seed 4), the victim
 entered a moving eight-car funnel at move 55 while the cheap smom model missed
 the future box. AI1 now escalates trap-0 slow moves only when all seven live
 rivals are within Chebyshev 10, landing speed^2 >= 16, and a near-equal low-trap
 alternative exists. The real-scorer-rival rollout changes p7's move 55 SE->SW
-and converts 6 finishes / 1 crash into 7 / 0. AI2 is untouched; full-battery
-review is required before promotion.
+and converts 6 finishes / 1 crash into 7 / 0.
 
-## Current champion (round 68, promoted per user 2026-08-08)
+## Superseded champion (round 68, promoted per user 2026-08-08)
 
 **The round-66 base + the other agent's futureMobility4/gameLogPath
 fixes (both bodies) + the round-67 dense slow-pack escape proof,

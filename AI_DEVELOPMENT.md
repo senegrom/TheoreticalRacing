@@ -51,14 +51,21 @@ The manual **AI promotion battery** runs independent stages for:
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
 
-## Current AI1 frontier
+## Current champion and frontier baseline
 
-AI1 contains the dense slow-pack escape proof developed for the last canonical round-66 Le Mans seed-4 failure. It invokes expensive real-scorer-rival rollout only when a fast-enough car is trapped in a tightly packed eight-car funnel and a near-equal low-trap alternative exists. On the known counterexample AI1 changes move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 finishes / 0 crashes. AI2 remains unchanged until the full battery justifies promotion.
+Round 69 was promoted on 2026-08-09, so AI1 and AI2 are identical again. The current stack contains two bounded safety proofs:
+
+- Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.
+- Round 69's cross-model certificate handles locally narrow fast-pack moves. The topology-shaped model must prove the chosen move dies and propose a survivor; the independent scorer-rival model must also keep that alternative alive. On Hungaroring seed 20 it changes player 5's last avoidable choice at move 181 and prevents its move-221 crash.
+
+The ungated cross-model version was rejected because it introduced a Hungaroring seed-6 crash. Requiring trap penalty >= 0.5 retained the seed-20 rescue and removed that false switch. The round-69 candidate's canonical 22-track seeds-1-to-5 column finished 770 / 0 at 63.81 average moves; the round-68 champion baseline was 770 / 0 at 63.82. After promotion, a nine-track, three-seed probe found all 27 races move-for-move identical between AI1 and AI2.
+
+Shared runtime cleanup now caches `Direction.values()`, constructs one opponent mobility projection per turn, memoizes overlapping mobility states, and mixes packed edge-cache keys before `HashMap` lookup. These changes are behavior-preserving; focused A/B checks showed the mobility memo substantially reducing its exercised workload and repeat reachability improving by roughly 11%.
 
 ## Highest-value next directions
 
 1. **Bottleneck-aware triggers** — detect narrow future cut sets or collapsing route width, then invoke expensive rollout based on topology instead of track-shaped heuristics.
-2. **Per-turn transposition caches** — memoize detached rollout states by board, mover, horizon and policy flags; discard the cache after each real move.
+2. **Joint-rollout transposition caches** — extend the new per-turn mobility memo to detached multi-car rollout states keyed by board, mover, horizon and policy flags; discard it after each real move.
 3. **Small opponent-policy beams** — retain two plausible moves for the nearest rivals and evaluate a bounded pessimistic beam instead of trusting one prediction.
 4. **Event-driven horizons** — roll until the car escapes the bottleneck, the pack disperses, it finishes/dies, or a node budget is exhausted.
 5. **Learned risk trigger** — train only the decision to invoke expensive verification; keep final move selection deterministic and inspectable.

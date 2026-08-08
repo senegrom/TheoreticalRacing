@@ -323,13 +323,26 @@ public final class RaceGame {
 	private final HashMap<Long, Boolean>	edgeLegalCache		= new HashMap<>();
 
 	boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
-		final long key = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32 | ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
+		final long packed = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32
+				| ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
+		final long key = mixEdgeKey(packed);
 		Boolean cached = edgeLegalCache.get(key);
 		if (cached != null)
 			return cached;
 		final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
 		edgeLegalCache.put(key, legal);
 		return legal;
+	}
+
+	/** Bijective SplitMix64 finalizer. Packed nearby endpoints otherwise hash in
+	 *  {@link Long} mostly as {@code from XOR to}, creating extreme bucket
+	 *  clustering and treeification for short racing moves. Because this mix is
+	 *  one-to-one over 64 bits, it improves distribution without changing cache
+	 *  identity or introducing collisions. */
+	private static long mixEdgeKey(long key) {
+		key = (key ^ (key >>> 30)) * 0xbf58476d1ce4e5b9L;
+		key = (key ^ (key >>> 27)) * 0x94d049bb133111ebL;
+		return key ^ (key >>> 31);
 	}
 
 
