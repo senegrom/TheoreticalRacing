@@ -10,7 +10,7 @@ import java.util.Locale;
  *
  * @author CGH
  */
-public class Player {
+public final class Player {
 	public final static int INIT_POS = -100000;
 
 	public enum Kind {

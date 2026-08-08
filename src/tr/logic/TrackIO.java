@@ -57,8 +57,21 @@ public final class TrackIO {
 	/** Parsed track data — used by the chooser for previews and by loadTrack to update props. */
 	public static record TrackData(String name, int gameX, int gameY, LinkedList<int[]> left, LinkedList<int[]> right) {}
 
+	static boolean validTrackName(final String name) {
+		if (name == null || name.isEmpty())
+			return false;
+		for (int i = 0; i < name.length(); i++) {
+			final char c = name.charAt(i);
+			if (!Character.isLetterOrDigit(c) && c != '_' && c != '-')
+				return false;
+		}
+		return true;
+	}
+
 	/** Parse a named .track file. Returns null on miss / parse failure. */
 	public static TrackData loadTrackData(final String name) {
+		if (!validTrackName(name))
+			return null;
 		final Path file = tracksDir().resolve(name + ".track");
 		if (!Files.isRegularFile(file))
 			return null;
