@@ -13,10 +13,15 @@ import java.util.Properties;
  * point lists. Pure IO/parse helpers — no game state.
  */
 public final class TrackIO {
+	private static final Path INSTALL_DIR = locateInstallDir();
+	private static final Path USER_PROPERTIES = INSTALL_DIR.resolve("user.properties");
+	private static final Path GAME_LOG = INSTALL_DIR.resolve("last_game.log");
+	private static final Path TRACKS_DIR = INSTALL_DIR.resolve("tracks");
+
 	private TrackIO() {}
 
 	/** Directory containing the JAR (or the classes dir in dev runs). */
-	private static Path installDir() {
+	private static Path locateInstallDir() {
 		try {
 			final Path codeSource = Path.of(RaceGame.class.getProtectionDomain().getCodeSource().getLocation().toURI());
 			return Files.isDirectory(codeSource) ? codeSource : codeSource.getParent();
@@ -27,17 +32,17 @@ public final class TrackIO {
 
 	/** Path to the user's saved properties (next to the JAR). */
 	public static Path userPropertiesPath() {
-		return installDir().resolve("user.properties");
+		return USER_PROPERTIES;
 	}
 
 	/** Path to the per-session game log (next to the JAR). */
 	public static Path gameLogPath() {
-		return installDir().resolve("last_game.log");
+		return GAME_LOG;
 	}
 
 	/** Directory containing .track files. */
 	public static Path tracksDir() {
-		return installDir().resolve("tracks");
+		return TRACKS_DIR;
 	}
 
 	/** List names of available tracks (file stem, without .track suffix). */
@@ -48,9 +53,9 @@ public final class TrackIO {
 		try (java.util.stream.Stream<Path> s = Files.list(dir)) {
 			return s.filter(p -> p.toString().endsWith(".track"))
 					.map(p -> {
-						final String fileName = p.getFileName().toString();
-						return fileName.substring(0, fileName.length() - ".track".length());
-					})
+					final String fileName = p.getFileName().toString();
+					return fileName.substring(0, fileName.length() - ".track".length());
+				})
 					.sorted()
 					.toList();
 		} catch (final IOException e) {

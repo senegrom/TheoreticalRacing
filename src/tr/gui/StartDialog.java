@@ -36,7 +36,7 @@ import tr.logic.TrackIO.TrackData;
  *
  * @author CGH
  */
-public class StartDialog extends JFrame {
+public final class StartDialog extends JFrame {
 	private final static String	defTextFiller		= "00000";
 	private static final long	serialVersionUID	= -5996002806608660877L;
 
@@ -83,8 +83,8 @@ public class StartDialog extends JFrame {
 			btnPlayer[i].setHorizontalAlignment(SwingConstants.LEFT);
 			btnPlayerCol[i] = new JButton();
 			cmbKind[i] = new JComboBox<>(new String[]{"Human", "AI1", "AI2" });
-			cmbKind[i].setSelectedItem(Player.Kind.parse(prop.getProperty("player" + (i + 1) + "Kind")).name().equals("HUMAN") ? "Human"
-					: Player.Kind.parse(prop.getProperty("player" + (i + 1) + "Kind")).name());
+			final Player.Kind kind = Player.Kind.parse(prop.getProperty("player" + (i + 1) + "Kind"));
+			cmbKind[i].setSelectedItem(kind == Player.Kind.HUMAN ? "Human" : kind.name());
 			lblPlayerCol[i] = new JLabel(" ");
 		}
 		gridContainer = new JPanel();
@@ -99,13 +99,14 @@ public class StartDialog extends JFrame {
 	private void populateTrackCombo() {
 		cmbTrack.removeAllItems();
 		cmbTrack.addItem(TRACK_DRAW_NEW);
-		if (TrackIO.hasLastTrack(prop))
+		final boolean hasLastTrack = TrackIO.hasLastTrack(prop);
+		if (hasLastTrack)
 			cmbTrack.addItem(TRACK_LAST);
 		final List<String> names = TrackIO.listTracks();
 		for (final String n : names)
 			cmbTrack.addItem(n);
 
-		final boolean useLast = Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")) && TrackIO.hasLastTrack(prop);
+		final boolean useLast = Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")) && hasLastTrack;
 		if (useLast)
 			cmbTrack.setSelectedItem(TRACK_LAST);
 		else
