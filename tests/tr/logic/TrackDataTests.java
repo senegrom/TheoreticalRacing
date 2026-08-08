@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
@@ -40,8 +39,8 @@ final class TrackDataTests {
 		final int width = intProperty(file, prop, "gameX");
 		final int height = intProperty(file, prop, "gameY");
 		check(width >= 2 && height >= 2, file + ": invalid grid size");
-		final LinkedList<int[]> left = TrackIO.parsePointList(prop.getProperty("trackLeft"));
-		final LinkedList<int[]> right = TrackIO.parsePointList(prop.getProperty("trackRight"));
+		final List<int[]> left = TrackIO.parsePointList(prop.getProperty("trackLeft"));
+		final List<int[]> right = TrackIO.parsePointList(prop.getProperty("trackRight"));
 		check(left.size() >= 2, file + ": left border too short");
 		check(right.size() >= 2, file + ": right border too short");
 		check(!same(left.getFirst(), right.getFirst()), file + ": degenerate start line");
@@ -56,14 +55,12 @@ final class TrackDataTests {
 
 		final LinkedList<int[]> closed = new LinkedList<>();
 		closed.addAll(left);
-		final Iterator<int[]> reverse = right.descendingIterator();
-		while (reverse.hasNext())
-			closed.add(reverse.next());
+		closed.addAll(right.reversed());
 		closed.add(left.getFirst());
 		check(!TrackGeometry.checkIntersect(closed, closed, false), file + ": self-intersecting corridor");
 	}
 
-	private static void validateSide(final Path file, final String sideName, final LinkedList<int[]> side,
+	private static void validateSide(final Path file, final String sideName, final List<int[]> side,
 			final int width, final int height) {
 		int[] previous = null;
 		for (final int[] point : side) {

@@ -3,7 +3,8 @@ package tr.logic;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 /**
@@ -40,25 +41,25 @@ public final class TrackIO {
 	}
 
 	/** List names of available tracks (file stem, without .track suffix). */
-	public static java.util.List<String> listTracks() {
+	public static List<String> listTracks() {
 		final Path dir = tracksDir();
 		if (!Files.isDirectory(dir))
-			return java.util.List.of();
+			return List.of();
 		try (java.util.stream.Stream<Path> s = Files.list(dir)) {
 			return s.filter(p -> p.toString().endsWith(".track"))
 					.map(p -> {
-					final String fileName = p.getFileName().toString();
-					return fileName.substring(0, fileName.length() - ".track".length());
-				})
+						final String fileName = p.getFileName().toString();
+						return fileName.substring(0, fileName.length() - ".track".length());
+					})
 					.sorted()
 					.toList();
 		} catch (final IOException e) {
-			return java.util.List.of();
+			return List.of();
 		}
 	}
 
 	/** Parsed track data — used by the chooser for previews and by loadTrack to update props. */
-	public static record TrackData(String name, int gameX, int gameY, LinkedList<int[]> left, LinkedList<int[]> right) {}
+	public static record TrackData(String name, int gameX, int gameY, List<int[]> left, List<int[]> right) {}
 
 	static boolean validTrackName(final String name) {
 		if (name == null || name.isEmpty())
@@ -84,8 +85,8 @@ public final class TrackIO {
 		} catch (final IOException e) {
 			return null;
 		}
-		final LinkedList<int[]> left = parsePointList(tp.getProperty("trackLeft"));
-		final LinkedList<int[]> right = parsePointList(tp.getProperty("trackRight"));
+		final List<int[]> left = parsePointList(tp.getProperty("trackLeft"));
+		final List<int[]> right = parsePointList(tp.getProperty("trackRight"));
 		int gx;
 		int gy;
 		try {
@@ -106,8 +107,8 @@ public final class TrackIO {
 		final String right = prop.getProperty("lastTrackRight");
 		if (left == null || right == null || left.isEmpty() || right.isEmpty())
 			return null;
-		final LinkedList<int[]> l = parsePointList(left);
-		final LinkedList<int[]> r = parsePointList(right);
+		final List<int[]> l = parsePointList(left);
+		final List<int[]> r = parsePointList(right);
 		int gx;
 		int gy;
 		try {
@@ -140,7 +141,7 @@ public final class TrackIO {
 	}
 
 	/** Basic structural validity shared by file loading and drawn-track checks. */
-	static boolean validBorders(final LinkedList<int[]> left, final LinkedList<int[]> right) {
+	static boolean validBorders(final List<int[]> left, final List<int[]> right) {
 		if (left == null || right == null || left.size() < 2 || right.size() < 2)
 			return false;
 		if (samePoint(left.getFirst(), right.getFirst()) || samePoint(left.getLast(), right.getLast()))
@@ -148,7 +149,7 @@ public final class TrackIO {
 		return noConsecutiveDuplicates(left) && noConsecutiveDuplicates(right);
 	}
 
-	private static boolean noConsecutiveDuplicates(final LinkedList<int[]> points) {
+	private static boolean noConsecutiveDuplicates(final List<int[]> points) {
 		int[] previous = null;
 		for (final int[] point : points) {
 			if (previous != null && samePoint(previous, point))
@@ -158,7 +159,7 @@ public final class TrackIO {
 		return true;
 	}
 
-	private static boolean pointsWithinGrid(final LinkedList<int[]> points, final int gameX, final int gameY) {
+	private static boolean pointsWithinGrid(final List<int[]> points, final int gameX, final int gameY) {
 		for (final int[] point : points)
 			if (point[0] < 0 || point[0] > gameX || point[1] < 0 || point[1] > gameY)
 				return false;
@@ -169,7 +170,7 @@ public final class TrackIO {
 		return a[0] == b[0] && a[1] == b[1];
 	}
 
-	static String pointListToString(final LinkedList<int[]> list) {
+	static String pointListToString(final List<int[]> list) {
 		final StringBuilder sb = new StringBuilder();
 		boolean first = true;
 		for (final int[] p : list) {
@@ -181,8 +182,8 @@ public final class TrackIO {
 		return sb.toString();
 	}
 
-	static LinkedList<int[]> parsePointList(final String s) {
-		final LinkedList<int[]> result = new LinkedList<>();
+	static List<int[]> parsePointList(final String s) {
+		final List<int[]> result = new ArrayList<>();
 		if (s == null || s.isBlank())
 			return result;
 		for (final String pair : s.split(";", -1)) {

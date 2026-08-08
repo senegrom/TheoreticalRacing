@@ -1,7 +1,8 @@
 package tr.logic;
 
 import java.awt.Color;
-import java.util.LinkedList;
+import java.util.ArrayList;
+import java.util.List;
 
 /** Lightweight dependency-free regression tests for pure core helpers. */
 public final class CoreTests {
@@ -55,7 +56,7 @@ public final class CoreTests {
     }
 
     private static void testPointParsing() {
-        final LinkedList<int[]> pts = TrackIO.parsePointList("1,2; 3,4; -7,8");
+        final List<int[]> pts = TrackIO.parsePointList("1,2; 3,4; -7,8");
         check(pts.size() == 3, "valid point list rejected");
         checkPoint(pts.get(0), 1, 2);
         checkPoint(pts.get(1), 3, 4);
@@ -74,9 +75,10 @@ public final class CoreTests {
         check(!TrackIO.validTrackName("C:sprint"), "drive-qualified track name accepted");
     }
 
+
     private static void testBorderValidation() {
-        final LinkedList<int[]> left = new LinkedList<>();
-        final LinkedList<int[]> right = new LinkedList<>();
+        final List<int[]> left = new ArrayList<>();
+        final List<int[]> right = new ArrayList<>();
         left.add(p(0, 0));
         left.add(p(10, 0));
         right.add(p(0, 4));
