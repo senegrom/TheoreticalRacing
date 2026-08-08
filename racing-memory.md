@@ -71,7 +71,33 @@ alternative exists. The real-scorer-rival rollout changes p7's move 55 SE->SW
 and converts 6 finishes / 1 crash into 7 / 0. AI2 is untouched; full-battery
 review is required before promotion.
 
-## Current champion (round 66, promoted per user 2026-07-28)
+## Current champion (round 68, promoted per user 2026-08-08)
+
+**The round-66 base + the other agent's futureMobility4/gameLogPath
+fixes (both bodies) + the round-67 dense slow-pack escape proof,
+mirrored into AI2: on trap-0 slow moves, when the WHOLE live field is
+packed within Chebyshev AI1_SLOW_PACK_R=10 of the landing (sealRivals
+>= AI1_SLOW_PACK=7, spd^2 >= AI1_SLOW_PACK_SPD2=16) and a near-equal
+low-trap alternative exists, the scorer-rival rollout arbitrates even
+when the smom smoke test reads alive -- the lemans-s4 funnel.**
+Canonical numbers (both columns live, post-fix): **8-car s1-5
+770/0/63.82; s6-10 770/0/63.78; s11-15 770/0/63.76 -- 2310/2310, the
+first ZERO-CRASH 15-seed battery in campaign history; h2h 4.497/4.497
+(places won both sets) c=0; 4-car 328/2/61.79 (see interlagos note);
+1v1 110/0/60.64; slow 28/0/104.25.** Round-67 vs the fixed champion
+was never worse on any stage. Self-tie: inert_probe 27/27
+move-identical; caches re-seeded from the r67 AI1 columns; golden
+corpus regenerated (lemans-s4-8p now pins 7/0, case renamed from
+-known-crash).
+
+KNOWN RESIDUAL (the next frontier): the futureMobility4 fix relocated
+two crashes into the 4-car mode at INTERLAGOS (13/2 s1-5, identical in
+both bodies -- the round-67 trigger needs 7 rivals and cannot fire
+there). Old 4-car canonical was 330/0/61.84. Needs the standard
+walk-back forensic (fresh interlagos reach dump required -- ALL dumps
+were lost to the scratchpad purge; regenerate via --dump-reach).
+
+## Superseded champion (round 66, promoted per user 2026-07-28)
 
 **The round-63 champion PLUS the round-65 pack-gated deep escalation,
 mirrored into AI2 (one call-site branch; the simOutcome outFinalTier

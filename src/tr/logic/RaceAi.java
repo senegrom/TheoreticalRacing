@@ -1833,14 +1833,34 @@ final class RaceAi {
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
 				} else {
+					// round 68 (PROMOTED round 67): the dense slow-pack escape
+					// proof -- with the whole live field packed within Chebyshev
+					// AI1_SLOW_PACK_R and a near-equal low-trap alternative on
+					// the table, the scorer-rival rollout arbitrates even when
+					// the smom smoke test reads alive (the lemans-s4 funnel).
 					final int scvx = vel[0] + chosen.dx, scvy = vel[1] + chosen.dy;
 					final int scx = pos[0] + scvx, scy = pos[1] + scvy;
-					if (!game.crossesFinish(pos[0], pos[1], scx, scy)
+					final int slowSpd2 = scvx * scvx + scvy * scvy;
+					boolean closeEscape = false;
+					final int chosenT = poTByDir[chosen.ordinal()];
+					for (final Direction d : Direction.values()) {
+						if (d != chosen && poTByDir[d.ordinal()] <= chosenT + 1
+								&& trapByDir[d.ordinal()] <= AI1_TRAP_L2) {
+							closeEscape = true;
+							break;
+						}
+					}
+					final int slowPack = countRivalsWithinCheb(scx, scy, playerNum, AI1_SLOW_PACK_R);
+					final boolean denseSlowPack = slowSpd2 >= AI1_SLOW_PACK_SPD2 && sealRivals >= AI1_SLOW_PACK
+							&& slowPack == sealRivals && closeEscape;
+					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									true, true, true, false) < 0) {
+									true, true, true, false) < 0;
+					if (denseSlowPack || smokeDies) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
-									+ pos[1] + ") chosen=" + chosen + " smom-dies -> scorer rollout");
+									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " smom-dies")
+									+ " -> scorer rollout");
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								true, AI1_DJS_SLOW_ROUNDS);
 					}

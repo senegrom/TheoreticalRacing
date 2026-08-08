@@ -50,9 +50,9 @@
       "track": "zigzag",
       "seed": 4,
       "players": 8,
-      "sha256": "ad95aa9a5a3d762b80dbcb9a4b9e36dde7f79a7c99d3eb6a9482e116f0db6de1",
+      "sha256": "41b381d4f99b467b6b9bd33f97d2278f75bbd5784411a3d163eeef678a2b6299",
       "summary": {
-        "turns": 533,
+        "turns": 532,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -62,8 +62,8 @@
           "C",
           "E",
           "H",
-          "G",
-          "F"
+          "F",
+          "G"
         ]
       }
     },
@@ -90,23 +90,23 @@
       }
     },
     {
-      "name": "lemans-s4-8p-known-crash",
+      "name": "lemans-s4-8p",
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "f10272612acf894609c251ab3bda27b2a389ab91344ea5e45daddd54520d6280",
+      "sha256": "c14041266e2396950cdd8d10b116f64d9fb9731390fafec3633a232d32003ee9",
       "summary": {
-        "turns": 522,
-        "finishes": 6,
-        "crashes": 1,
+        "turns": 585,
+        "finishes": 7,
+        "crashes": 0,
         "results": [
           "D",
-          "H",
           "E",
+          "F",
+          "H",
           "A",
           "B",
           "C",
-          "F",
           "G"
         ]
       }

@@ -27,7 +27,7 @@ SPECS = [
     {"name": "hairpin-s10-8p", "track": "hairpin", "seed": 10, "players": 8},
     {"name": "zigzag-s4-8p", "track": "zigzag", "seed": 4, "players": 8},
     {"name": "hungaroring-s13-8p", "track": "hungaroring", "seed": 13, "players": 8},
-    {"name": "lemans-s4-8p-known-crash", "track": "lemans", "seed": 4, "players": 8},
+    {"name": "lemans-s4-8p", "track": "lemans", "seed": 4, "players": 8},
     {"name": "hairpin-s1-2p", "track": "hairpin", "seed": 1, "players": 2},
 ]
 
