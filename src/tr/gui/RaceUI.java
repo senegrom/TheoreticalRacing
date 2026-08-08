@@ -2,6 +2,7 @@ package tr.gui;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.GraphicsEnvironment;
 import java.awt.Polygon;
@@ -11,6 +12,7 @@ import java.awt.Toolkit;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
+import javax.swing.JPanel;
 import tr.logic.Player;
 import tr.logic.Track;
 
@@ -46,7 +48,8 @@ public final class RaceUI {
 	}
 
 	private int[]				finishLine;	// 4-element pixel coords [x1,y1,x2,y2]
-	private final Grid			grid;
+	private final JPanel		grid;
+	private final int			rows, cols;
 	private Player[]			players;
 	private LinkedList<int[]>	prePath;
 	private Polygon				startZone;
@@ -56,8 +59,23 @@ public final class RaceUI {
 	private int					velVectorPlayer	= -1;
 
 	public RaceUI(final int rows, final int cols) {
-		grid = new Grid(this, rows, cols);
-		grid.setBackground(colBackgrd);
+		this.rows = rows;
+		this.cols = cols;
+		if (GraphicsEnvironment.isHeadless()) {
+			grid = null;
+		} else {
+			grid = new JPanel() {
+				private static final long serialVersionUID = 1L;
+
+				@Override
+				protected void paintComponent(final Graphics graphics) {
+					super.paintComponent(graphics);
+					drawMe((Graphics2D) graphics);
+				}
+			};
+			grid.setBackground(colBackgrd);
+			grid.setPreferredSize(new java.awt.Dimension(cols * GRID_DIST + 1, rows * GRID_DIST + 1));
+		}
 	}
 
 	protected void drawMe(final Graphics2D g) {
@@ -77,10 +95,10 @@ public final class RaceUI {
 		// grid
 		g.setColor(colGrid);
 		g.setStroke(strkSimple);
-		for (int i = 0; i <= grid.cols * GRID_DIST; i += GRID_DIST)
-			g.drawLine(i, 0, i, grid.rows * GRID_DIST);
-		for (int i = 0; i <= grid.rows * GRID_DIST; i += GRID_DIST)
-			g.drawLine(0, i, grid.cols * GRID_DIST, i);
+		for (int i = 0; i <= cols * GRID_DIST; i += GRID_DIST)
+			g.drawLine(i, 0, i, rows * GRID_DIST);
+		for (int i = 0; i <= rows * GRID_DIST; i += GRID_DIST)
+			g.drawLine(0, i, cols * GRID_DIST, i);
 
 		if (startZone != null) {
 			g.setColor(colStartZOutline);
@@ -174,10 +192,13 @@ public final class RaceUI {
 			i++;
 		}
 		trackPol = new Polygon(tTrack[0], tTrack[1], tTrack[0].length);
-		grid.setBackground(colBackgrdForb);
+		if (grid != null)
+			grid.setBackground(colBackgrdForb);
 	}
 
-	public Grid getGrid() {
+	public JPanel getGrid() {
+		if (grid == null)
+			throw new IllegalStateException("grid is unavailable in headless mode");
 		return grid;
 	}
 

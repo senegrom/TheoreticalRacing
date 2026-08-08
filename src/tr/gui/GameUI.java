@@ -24,42 +24,26 @@ import tr.logic.Direction;
 import tr.logic.Player;
 import tr.logic.RaceGame;
 
-/**
- * Main game-window facade.
- *
- * <p>The Swing frame is created lazily in {@link #setupUI}. Headless auto-play
- * still uses the lightweight button/label objects expected by {@link RaceGame},
- * but never constructs a top-level AWT window.</p>
- *
- * @author CGH
- */
+/** Main game-window facade. Swing controls are allocated only for GUI games. */
 public final class GameUI {
-	private final static int	rightSize	= 170;
+	private static final int RIGHT_SIZE = 170;
 
-	private final JButton[]	btnDirections;
-	private final JButton	btnExit;
-	private final JButton	btnOK;
-	private final JButton	btnRestart;
-	private final JButton	btnUndo;
-	private JFrame			frame;
-	private final JLabel[]	lblPlayerInfo;
-	private final JLabel	lblStatus;
-	private final String	title;
+	private JButton[] btnDirections;
+	private JButton btnExit;
+	private JButton btnOK;
+	private JButton btnRestart;
+	private JButton btnUndo;
+	private JFrame frame;
+	private JLabel[] lblPlayerInfo;
+	private JLabel lblStatus;
+	private final int maxPlayers;
+	private String status = " ";
+	private final String title;
 
 	public GameUI(final String title, final int maxPlayers) {
 		this.title = title;
-		lblStatus = new JLabel(" ");
-		btnOK = new JButton("OK");
-		btnUndo = new JButton("Undo");
-		btnUndo.setEnabled(false);
-		btnExit = new JButton("Exit");
-		btnRestart = new JButton("Restart");
-		btnDirections = new JButton[Direction.values().length];
-		for (int i = 0; i < btnDirections.length; i++)
-			btnDirections[i] = new JButton(Direction.fromIndex(i).label());
-		lblPlayerInfo = new JLabel[maxPlayers];
-		for (int i = 0; i < maxPlayers; i++)
-			lblPlayerInfo[i] = new JLabel("-");
+		this.maxPlayers = maxPlayers;
+		createControls();
 	}
 
 	public void dispose() {
@@ -70,6 +54,11 @@ public final class GameUI {
 	/** Parent component for dialogs, or {@code null} in headless mode. */
 	public Component getDialogParent() {
 		return frame;
+	}
+
+	public void repaint() {
+		if (frame != null)
+			frame.repaint();
 	}
 
 	public JButton[] getBtnDirections() {
@@ -84,20 +73,32 @@ public final class GameUI {
 		return btnUndo;
 	}
 
-	public void repaint() {
-		if (frame != null)
-			frame.repaint();
+	public void setDirectionsEnabled(final boolean enabled) {
+		for (final JButton button : btnDirections)
+			button.setEnabled(enabled);
 	}
 
-	public void setPlayerInfo(final String s, final int i) {
-		lblPlayerInfo[i].setText(s);
+	public void setOkEnabled(final boolean enabled) {
+		btnOK.setEnabled(enabled);
 	}
 
-	public void setStatus(final String s) {
-		lblStatus.setText(s);
+	public void setUndoEnabled(final boolean enabled) {
+		btnUndo.setEnabled(enabled);
 	}
 
-	public void setupUI(final Grid g, final RaceGame game, final int windowX, final int windowY, final Player[] players) {
+	public void setPlayerInfo(final String text, final int i) {
+		if (lblPlayerInfo != null)
+			lblPlayerInfo[i].setText(text);
+	}
+
+	public void setStatus(final String text) {
+		status = text;
+		if (lblStatus != null)
+			lblStatus.setText(text);
+	}
+
+
+	public void setupUI(final JPanel g, final RaceGame game, final int windowX, final int windowY, final Player[] players) {
 		if (frame != null)
 			throw new IllegalStateException("game window already initialized");
 		frame = new JFrame(title);
@@ -105,14 +106,13 @@ public final class GameUI {
 		frame.setLocationRelativeTo(null);
 		frame.setResizable(false);
 		frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-
 		frame.setLayout(new BorderLayout());
+
 		final JPanel gridContainer = new JPanel();
 		final JPanel rightContainer = new JPanel();
 		final JPanel directionContainer = new JPanel();
 		final JPanel playerInfoContainer = new JPanel();
 		final JPanel btnContainer = new JPanel();
-
 		gridContainer.setLayout(null);
 		rightContainer.setLayout(new BoxLayout(rightContainer, BoxLayout.Y_AXIS));
 		directionContainer.setLayout(new GridLayout(3, 3, 1, 1));
@@ -124,7 +124,7 @@ public final class GameUI {
 		frame.add(lblStatus, BorderLayout.SOUTH);
 		lblStatus.setHorizontalAlignment(SwingConstants.CENTER);
 
-		final ActionListener lstnButton = event -> {
+		final ActionListener buttonListener = event -> {
 			final Object source = event.getSource();
 			if (source == btnOK)
 				game.clickedOK();
@@ -140,13 +140,13 @@ public final class GameUI {
 					}
 		};
 
-		for (final JButton b : btnDirections) {
-			directionContainer.add(b);
-			b.addActionListener(lstnButton);
+		for (final JButton button : btnDirections) {
+			directionContainer.add(button);
+			button.addActionListener(buttonListener);
 		}
-		directionContainer.setMaximumSize(new Dimension(rightSize, rightSize));
-		btnContainer.setMaximumSize(new Dimension(rightSize, rightSize));
-		playerInfoContainer.setMaximumSize(new Dimension(rightSize, players.length * 15));
+		directionContainer.setMaximumSize(new Dimension(RIGHT_SIZE, RIGHT_SIZE));
+		btnContainer.setMaximumSize(new Dimension(RIGHT_SIZE, RIGHT_SIZE));
+		playerInfoContainer.setMaximumSize(new Dimension(RIGHT_SIZE, players.length * 15));
 		directionContainer.setAlignmentX(0f);
 		btnContainer.setAlignmentX(0f);
 		playerInfoContainer.setAlignmentX(0f);
@@ -155,17 +155,15 @@ public final class GameUI {
 		btnContainer.add(btnUndo);
 		btnContainer.add(btnRestart);
 		btnContainer.add(btnExit);
-
 		for (int i = 0; i < players.length; i++) {
-			final JLabel colorLbl = new JLabel();
-			colorLbl.setOpaque(true);
-			colorLbl.setMaximumSize(new Dimension(10, 10));
-			colorLbl.setBackground(players[i].getColor());
+			final JLabel colorLabel = new JLabel();
+			colorLabel.setOpaque(true);
+			colorLabel.setMaximumSize(new Dimension(10, 10));
+			colorLabel.setBackground(players[i].getColor());
 			final JPanel colorPanel = new JPanel(new BorderLayout());
-			colorPanel.add(colorLbl, BorderLayout.CENTER);
+			colorPanel.add(colorLabel, BorderLayout.CENTER);
 			playerInfoContainer.add(colorPanel);
 			playerInfoContainer.add(new JLabel(players[i].getName() + players[i].getKind().label()));
-			lblPlayerInfo[i] = new JLabel("-");
 			playerInfoContainer.add(lblPlayerInfo[i]);
 		}
 
@@ -176,9 +174,9 @@ public final class GameUI {
 		rightContainer.add(Box.createRigidArea(new Dimension(0, 10)));
 		rightContainer.add(playerInfoContainer);
 
-		btnOK.addActionListener(lstnButton);
-		btnUndo.addActionListener(lstnButton);
-		btnRestart.addActionListener(lstnButton);
+		btnOK.addActionListener(buttonListener);
+		btnUndo.addActionListener(buttonListener);
+		btnRestart.addActionListener(buttonListener);
 		btnExit.addActionListener(event -> game.exitMe());
 		frame.addWindowListener(new WindowAdapter() {
 			@Override
@@ -187,13 +185,9 @@ public final class GameUI {
 			}
 		});
 
-		frame.setVisible(true);
-
-		final Dimension minSize = new Dimension(g.cols * RaceUI.GRID_DIST + 1, g.rows * RaceUI.GRID_DIST + 1);
+		final Dimension minSize = g.getPreferredSize();
 		g.setSize(minSize);
 		g.setMinimumSize(minSize);
-		g.setPreferredSize(minSize);
-
 		final Dimension contSize = gridContainer.getSize();
 		final JScrollPane scroller = new JScrollPane(g);
 		gridContainer.add(scroller);
@@ -204,7 +198,6 @@ public final class GameUI {
 				Math.min(contSize.height,
 						minSize.height + (contSize.width < minSize.width ? scroller.getHorizontalScrollBar().getMinimumSize().height : 0)));
 		scroller.setLocation(Math.max((contSize.width - minSize.width) / 2, 0), Math.max((contSize.height - minSize.height) / 2, 0));
-
 		g.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(final MouseEvent event) {
@@ -214,7 +207,23 @@ public final class GameUI {
 			}
 		});
 
+		frame.setVisible(true);
 		frame.repaint();
 		frame.validate();
+	}
+
+	private void createControls() {
+		lblStatus = new JLabel(status);
+		btnOK = new JButton("OK");
+		btnUndo = new JButton("Undo");
+		btnUndo.setEnabled(false);
+		btnExit = new JButton("Exit");
+		btnRestart = new JButton("Restart");
+		btnDirections = new JButton[9];
+		for (int i = 0; i < btnDirections.length; i++)
+			btnDirections[i] = new JButton(Direction.fromIndex(i).label());
+		lblPlayerInfo = new JLabel[maxPlayers];
+		for (int i = 0; i < maxPlayers; i++)
+			lblPlayerInfo[i] = new JLabel("-");
 	}
 }
