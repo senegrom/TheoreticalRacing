@@ -16,23 +16,23 @@ import os
 import sys
 
 if __package__:
-    from .forensics_common import DIRS, Oracle, Reach, reconstruct_board
+    from .forensics_common import DIRS, Oracle, Reach, log_player_count, reconstruct_board
 else:
-    from forensics_common import DIRS, Oracle, Reach, reconstruct_board
+    from forensics_common import DIRS, Oracle, Reach, log_player_count, reconstruct_board
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Reach dumps and logs resolve against RACING_WORK_DIR (default: this script's
-# directory); the canonical all-AI properties stay beside this script. The
+# directory); RACING_PROPS can select matching non-eight-car properties. The
 # SITES table below references campaign-era artifacts as worked examples --
 # point WORK at a directory
 # holding your own logs/dumps to analyze new sites.
 S = os.environ.get('RACING_WORK_DIR', HERE)
 JAR = os.path.join(os.path.dirname(HERE), 'theoreticRacing.jar')
-PROPS = os.path.join(HERE, 'bench.properties')
+PROPS = os.environ.get('RACING_PROPS', os.path.join(HERE, 'bench.properties'))
 
 
 def board_at(log, target):
-    cars, mover, _ = reconstruct_board(log, target)
+    cars, mover, _ = reconstruct_board(log, target, log_player_count(log))
     return [list(car) for car in cars], mover
 
 

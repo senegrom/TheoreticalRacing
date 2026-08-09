@@ -14,9 +14,9 @@ import argparse
 import sys
 
 if __package__:
-    from .forensics_common import Reach, reconstruct_board
+    from .forensics_common import Reach, log_player_count, reconstruct_board
 else:
-    from forensics_common import Reach, reconstruct_board
+    from forensics_common import Reach, log_player_count, reconstruct_board
 
 
 def configure_console():
@@ -34,7 +34,9 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     reach = Reach(args.reach_bin)
-    cars, mover, real_moves = reconstruct_board(args.log, args.move_index)
+    cars, mover, real_moves = reconstruct_board(
+        args.log, args.move_index, log_player_count(args.log)
+    )
     move = real_moves[0]
     print(
         "move %d: p%d at (%d,%d) v(%d,%d) -> chose %s land (%d,%d) "

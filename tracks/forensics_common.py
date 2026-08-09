@@ -94,6 +94,19 @@ class Reach:
         return None if value == INF else value
 
 
+def log_player_count(log):
+    """Infer the active field size from a game log's player declarations."""
+    count = 0
+    with open(log, encoding="utf-8", errors="replace") as lines:
+        for line in lines:
+            start = START_LINE.match(line)
+            if start is not None:
+                count = max(count, int(start.group(1)))
+    if count == 0:
+        raise ValueError("log has no player declarations: %s" % log)
+    return count
+
+
 def reconstruct_board(log, target, player_count=8):
     """Return the board immediately before global move ``target``.
 

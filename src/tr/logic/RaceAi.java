@@ -108,6 +108,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_ROUNDS	= 3;	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
+	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
@@ -547,6 +548,9 @@ final class RaceAi {
 			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
 			if (!IN_SCORER_SIM) {
 				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
+					final int dangerRounds = djSlow && trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
+							? AI1_DJS_SLOW_L1_ROUNDS
+							: djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS;
 					// round 65 (AI1): pack-gated DEEP escalation for fast fires.
 					// The 5-7-round doom class (hairpin s10: three candidates
 					// FINISH @r6 while the chosen dies @r7) is invisible to the
@@ -607,7 +611,7 @@ final class RaceAi {
 					}
 					if (!deepHandled)
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+								djSlow, dangerRounds);
 				} else {
 					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
 					// test -- the vacate-optimistic ladder reads roomy at the
@@ -1835,10 +1839,15 @@ final class RaceAi {
 			// dense-pack shape. Round 69 (PROMOTED): a locally narrow fast pick
 			// that smom proves dead may take a smom survivor only when the
 			// independent scorer-rival world also certifies it alive.
+			// Round 70 (PROMOTED): slow L1 traps extend the scorer-rival verdict
+			// from five to six rounds, covering the interlagos four-car queue doom.
 			// See the AI1 body for the oracle derivations.
 			final boolean djSlow = djvx * djvx + djvy * djvy < AI1_DJS_SPD2;
 			if (!IN_SCORER_SIM) {
 				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
+					final int dangerRounds = djSlow && trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
+							? AI1_DJS_SLOW_L1_ROUNDS
+							: djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS;
 					boolean deepHandled = false;
 					if (!djSlow) {
 						final int dcx = pos[0] + djvx, dcy = pos[1] + djvy;
@@ -1887,7 +1896,7 @@ final class RaceAi {
 					}
 					if (!deepHandled)
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								djSlow, djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS);
+								djSlow, dangerRounds);
 				} else {
 					// round 68 (PROMOTED round 67): the dense slow-pack escape
 					// proof -- with the whole live field packed within Chebyshev

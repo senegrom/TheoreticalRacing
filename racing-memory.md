@@ -48,9 +48,37 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
-## 2026-08-09 round-69 promotion and runtime cleanup
+## 2026-08-09 round-70 promotion: close the four-car Interlagos gap
 
-**Round 69 is the current champion; AI1 and AI2 are identical at rest again.**
+**Round 70 is the current champion; AI1 and AI2 are identical at rest again.**
+The only known round-69 promotion-battery failures were four-car Interlagos
+seeds 3 and 4. Both converge to the same p4 trajectory and crash at move 480.
+The generalized four-car oracle reproduced 20 logged moves exactly and found
+move 456 as the last save: from `(53,155) v(-5,-1)`, champion `W` dies at the
+six-round frontier, while `NONE`, `E`, `S` and `SE` all finish. The existing
+slow danger rollout stopped at five rounds and therefore called `W` alive.
+
+Round 70 extends the scorer-rival verdict to six rounds **only** for slow
+chosen moves already at trap tier L1 (penalty 2.0). It switches `W -> NONE` in
+the shared failure board. Promotion evidence:
+
+- full 22-track four-car s1-5: **330/0/61.81 vs round-69 328/2/61.79**;
+  every track except Interlagos is exact, and the move-average increase is the
+  two rescued third finishers;
+- mixed 2v2 s1-5: exact **2.500/2.500** place parity, crashes **0 vs 2**;
+  Interlagos s1-15 also keeps 2.500 parity while improving crashes **0 vs 7**;
+- canonical eight-car s1-5: exact **770/0/63.81** in both bodies;
+- 1v1 s1-5: exact **1.500/1.500**, zero crashes; slow suite: exact
+  **28/0/104.25**; the pre-promotion 27-race eight-car screen was inert.
+
+The forensic tools now infer active player count from each log; `oracle_roll`
+also accepts `RACING_PROPS`, and its rollout/verification loops use the actual
+field length rather than a hard-coded eight. This makes the same exact-oracle
+workflow reusable for 2-, 4- and 8-car failures.
+
+## Superseded champion: round-69 promotion and runtime cleanup
+
+**Round 69 was the prior champion; AI1 and AI2 were identical at rest.**
 It builds on the round-68 dense slow-pack champion and promotes a new
 cross-model survivor certificate:
 
@@ -124,7 +152,7 @@ move-identical; caches re-seeded from the r67 AI1 columns; golden
 corpus regenerated (lemans-s4-8p now pins 7/0, case renamed from
 -known-crash).
 
-KNOWN RESIDUAL (the next frontier): the futureMobility4 fix relocated
+RESOLVED BY ROUND 70: the futureMobility4 fix had relocated
 two crashes into the 4-car mode at INTERLAGOS (13/2 s1-5, identical in
 both bodies -- the round-67 trigger needs 7 rivals and cannot fire
 there). Old 4-car canonical was 330/0/61.84. Needs the standard

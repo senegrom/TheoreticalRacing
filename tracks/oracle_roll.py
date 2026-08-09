@@ -6,23 +6,24 @@ Usage:
   oracle_roll.py cand   <log> <track> <moveIdx> [rounds]
 
 Requires theoreticRacing.jar in the repo root, tracks/bench.properties, and
-reach_<track>.bin in RACING_WORK_DIR (default: tracks/).
+reach_<track>.bin in RACING_WORK_DIR (default: tracks/). Set RACING_PROPS to a
+matching properties file when analyzing a non-eight-car log.
 """
 from pathlib import Path
 import os
 import sys
 
 if __package__:
-    from .forensics_common import DIRNAMES, DIRS, Oracle, Reach, reconstruct_board
+    from .forensics_common import DIRNAMES, DIRS, Oracle, Reach, log_player_count, reconstruct_board
 else:
-    from forensics_common import DIRNAMES, DIRS, Oracle, Reach, reconstruct_board
+    from forensics_common import DIRNAMES, DIRS, Oracle, Reach, log_player_count, reconstruct_board
 
 
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 WORK = Path(os.environ.get('RACING_WORK_DIR', HERE))
 JAR = ROOT / 'theoreticRacing.jar'
-PROPS = HERE / 'bench.properties'
+PROPS = Path(os.environ.get('RACING_PROPS', HERE / 'bench.properties'))
 
 
 def apply_move(cars, index, dx, dy, mask):
@@ -42,7 +43,8 @@ def apply_move(cars, index, dx, dy, mask):
 
 def roll(oracle, cars, first_mover, rounds, watch):
     cars = list(cars)
-    index = first_mover % 8
+    player_count = len(cars)
+    index = first_mover % player_count
     completed = 0
     while completed < rounds:
         if cars[index][4] == 0:
@@ -50,7 +52,7 @@ def roll(oracle, cars, first_mover, rounds, watch):
             cars, fate = apply_move(cars, index, dx, dy, mask)
             if index == watch and fate != 'ok':
                 return fate, completed, cars
-        index = (index + 1) % 8
+        index = (index + 1) % player_count
         if index == 0:
             completed += 1
         if all(car[4] != 0 for car in cars):
@@ -61,8 +63,9 @@ def roll(oracle, cars, first_mover, rounds, watch):
 def verify(oracle, cars, mover, real, rounds):
     simulated = []
     current = list(cars)
+    player_count = len(current)
     index = mover
-    while len(simulated) < rounds * 8 and not all(car[4] != 0 for car in current):
+    while len(simulated) < rounds * player_count and not all(car[4] != 0 for car in current):
         if current[index][4] == 0:
             dx, dy, mask = oracle.ask(index, current)
             current, fate = apply_move(current, index, dx, dy, mask)
@@ -73,7 +76,7 @@ def verify(oracle, cars, mover, real, rounds):
                 current[index][1],
                 fate,
             ))
-        index = (index + 1) % 8
+        index = (index + 1) % player_count
 
     ok = len(real) >= len(simulated)
     for sim, observed in zip(simulated, real):
@@ -145,7 +148,7 @@ def main(argv):
     mode, log, track = argv[:3]
     target = int(argv[3])
     rounds = int(argv[4]) if len(argv) == 5 else 3
-    cars, mover, real = reconstruct_board(log, target)
+    cars, mover, real = reconstruct_board(log, target, log_player_count(log))
     print('board before move %d (mover p%d):' % (target, mover + 1))
     for index, car in enumerate(cars):
         print('  p%d (%d,%d) v(%d,%d) fin=%d' % (index + 1, *car))

@@ -30,7 +30,7 @@ java -jar theoreticRacing.jar --auto --track TRACK --props tracks/bench.properti
 
 Reach dumps named `tracks/reach_*.bin` are ignored by Git. The shared `forensics_common.py` module owns the log grammar, validated reach reader, board reconstruction and persistent oracle process used by the forensic scripts.
 
-- **`oracle_roll.py`** — fidelity ceiling. Drives one interactive `--query-moves - -` JVM with `tracks/bench.properties`. `verify` must reproduce a logged race move-for-move; `cand` rolls each candidate forward with the real scorer as every car's policy.
+- **`oracle_roll.py`** — fidelity ceiling. Drives one interactive `--query-moves - -` JVM. It infers field size from the log; set `RACING_PROPS` to matching properties for non-eight-car analysis. `verify` must reproduce a logged race move-for-move; `cand` rolls each candidate forward with the real scorer as every car's policy.
 - **`board_at.py`** — reconstructs a board at a log move and classifies candidates quickly. The oracle mask remains authoritative for geometry.
 - **`policy_matrix.py`** — evaluates cheap simulated policies against known crash sites before Java implementation.
 - **`crash_scan.py`** — summarizes crashed players and final speeds.
@@ -53,12 +53,13 @@ Every race must execute and produce a valid log. Promotion still requires readin
 
 ## Current champion and frontier baseline
 
-Round 69 was promoted on 2026-08-09, so AI1 and AI2 are identical again. The current stack contains two bounded safety proofs:
+Round 70 was promoted on 2026-08-09, so AI1 and AI2 are identical again. The current stack contains three bounded safety proofs:
 
 - Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.
 - Round 69's cross-model certificate handles locally narrow fast-pack moves. The topology-shaped model must prove the chosen move dies and propose a survivor; the independent scorer-rival model must also keep that alternative alive. On Hungaroring seed 20 it changes player 5's last avoidable choice at move 181 and prevents its move-221 crash.
+- Round 70 extends the real-scorer-rival rollout from five to six rounds only for slow moves already at trap tier L1. On four-car Interlagos seeds 3 and 4, it sees the chosen `W` die one round beyond the old horizon and selects oracle-proven survivor `NONE` at move 456.
 
-The ungated cross-model version was rejected because it introduced a Hungaroring seed-6 crash. Requiring trap penalty >= 0.5 retained the seed-20 rescue and removed that false switch. The round-69 candidate's canonical 22-track seeds-1-to-5 column finished 770 / 0 at 63.81 average moves; the round-68 champion baseline was 770 / 0 at 63.82. After promotion, a nine-track, three-seed probe found all 27 races move-for-move identical between AI1 and AI2.
+The ungated cross-model version was rejected because it introduced a Hungaroring seed-6 crash. Requiring trap penalty >= 0.5 retained the seed-20 rescue and removed that false switch. Round 70 is canonical-eight-car inert at 770 / 0 and 63.81 average moves. Its full four-car gate improves 328 / 2 to 330 / 0, with all other tracks exact; mixed 2v2 keeps exact 2.500 place parity while improving crashes 2 to 0. The 1v1 and slow suites are exact ties. After promotion, a nine-track, three-seed probe found all 27 races move-for-move identical between AI1 and AI2.
 
 Shared runtime cleanup now caches `Direction.values()`, constructs one opponent mobility projection per turn, memoizes overlapping mobility states, and mixes packed edge-cache keys before `HashMap` lookup. These changes are behavior-preserving; focused A/B checks showed the mobility memo substantially reducing its exercised workload and repeat reachability improving by roughly 11%.
 
