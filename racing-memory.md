@@ -152,12 +152,32 @@ move-identical; caches re-seeded from the r67 AI1 columns; golden
 corpus regenerated (lemans-s4-8p now pins 7/0, case renamed from
 -known-crash).
 
-RESOLVED BY ROUND 70: the futureMobility4 fix had relocated
-two crashes into the 4-car mode at INTERLAGOS (13/2 s1-5, identical in
-both bodies -- the round-67 trigger needs 7 rivals and cannot fire
-there). Old 4-car canonical was 330/0/61.84. Needs the standard
-walk-back forensic (fresh interlagos reach dump required -- ALL dumps
-were lost to the scratchpad purge; regenerate via --dump-reach).
+RESOLVED BY ROUND 70 -- forensic anatomy (local agent's oracle
+walk-back, which both agents' fixes address): the interlagos 4-car
+crashes were ONE deterministic doom reached from two seeds
+(byte-identical deaths at m480), an ENDGAME finish-corridor class. The
+scorer takes the fastest line (m456 W, speed 6, t=14) into a corridor
+whose exit two crawling rivals consume; options narrow 5 -> 2 -> 1 -> 0
+over four rounds; at m476 the only open cell is segment-illegal so the
+scorer regresses to the foresight-free bestLegal path (reach-dead
+candidates are skipped before scoring at `ownTurns == MAX_VALUE`). The
+trap trigger FIRED at the m456 entry and the scorer-rival rollout RAN
+-- but the death sits at ROUND 5, one beyond AI1_DJS_SLOW_ROUNDS=5,
+while four healthy survivors existed (oracle m456: NONE/E/S/SE all
+finish, t=9). The DJS then diagnosed "DIES, no survivor" correctly at
+m460-472 -- true but too late.
+
+CONVERGENT FIXES, one shipped: both agents independently built the
+horizon extension the same day. The other agent's promoted round 70
+(slow L1 traps -> 6 rounds) is the cheaper variant and empirically
+saves both interlagos races (verified locally on the promoted build);
+the local agent's variant (endgame-gated: sealRivals <= 3 && landing
+ttf <= 20 -> 8 rounds) gated fully clean against BOTH champion bases
+(probe 0/27; 8car exact ties x3; h2h parity c=0; 4car 330/0/61.81 vs
+328/2; 1v1/slow ties) but was DROPPED as redundant per the
+one-proof-one-mechanism law. If a future endgame doom enters through an
+L2-severity trap (their L1 gate would miss it; the endgame gate would
+not), the dropped variant is the ready answer.
 
 ## Superseded champion (round 66, promoted per user 2026-07-28)
 
