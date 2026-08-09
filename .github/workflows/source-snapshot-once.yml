@@ -1,4 +1,4 @@
-name: One-shot source snapshot
+name: Finalize primitive AI workspace optimization
 
 on:
   push:
@@ -7,22 +7,66 @@ on:
       - .github/workflows/source-snapshot-once.yml
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: finalize-int-array-optimization
+  cancel-in-progress: false
 
 jobs:
-  snapshot:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: Archive exact tracked source
-        run: git archive --format=zip --output=source-snapshot.zip "$GITHUB_SHA"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/setup-java@v5
         with:
-          name: source-snapshot-once
-          path: source-snapshot.zip
-          if-no-files-found: error
-          retention-days: 1
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply the verified allocation-only patch
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' \
+            'e30b686737f2db0eaa4780ddb66d934a99a9a3b97cb936b971f4056642f9cc7b' \
+            'src/tr/logic/RaceAi.java' | sha256sum --check -
+          printf '%s  %s\n' \
+            'c50980fc74cc9b17866b217c9fc1da4fe4f193a5ca9740dc212d18ed279c5b8b' \
+            '.github/int-array-optimization/RaceAi.patch.xz.b64' | sha256sum --check -
+          base64 --decode .github/int-array-optimization/RaceAi.patch.xz.b64 \
+            | xz --decompress > /tmp/RaceAi.patch
+          printf '%s  %s\n' \
+            '78a375ccd336991ba3e19c3d47be63f977a5fa78cc1d8549771847cbe7ef2598' \
+            '/tmp/RaceAi.patch' | sha256sum --check -
+          git apply --check /tmp/RaceAi.patch
+          git apply /tmp/RaceAi.patch
+          git diff --check
+          printf '%s  %s\n' \
+            'ea08539bb494149c4ed37702e65a27ad1d44edc844356058279dd03d13c21549' \
+            'src/tr/logic/RaceAi.java' | sha256sum --check -
+      - name: Run the full JDK 25 regression suite
+        run: |
+          set -euo pipefail
+          sh ./run_tests.sh
+          sh ./run_golden_tests.sh
+          python -m compileall -q tracks tests
+          python -m unittest discover -s tests -p 'test_*.py'
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh
+      - name: Publish the verified source tree to an isolated branch
+        run: |
+          set -euo pipefail
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java
+          git commit \
+            -m 'Reuse primitive AI simulation workspaces' \
+            -m 'Reuse candidate, prediction, two-round, rollout, scorer and matching buffers while preserving exact scoring, move ordering, tie-breaks and state restoration.'
+          branch="automation/int-array-finalized-${GITHUB_SHA::12}"
+          git push origin "HEAD:refs/heads/$branch"
