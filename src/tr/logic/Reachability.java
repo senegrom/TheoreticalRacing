@@ -544,6 +544,11 @@ final class Reachability {
 		t.start();
 	}
 
+	/** Non-blocking readiness probe (ensureReachabilityReady joins instead). */
+	boolean isReady() {
+		return reachabilityReady;
+	}
+
 	/** Wait for reachability if the background BFS hasn't finished yet. */
 	void ensureReachabilityReady() {
 		if (reachabilityReady)

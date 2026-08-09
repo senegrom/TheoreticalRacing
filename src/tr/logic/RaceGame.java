@@ -18,6 +18,7 @@ import java.util.Scanner;
 import javax.swing.JButton;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import javax.swing.Timer;
 import tr.gui.GameUI;
 import tr.gui.RaceUI;
 import tr.gui.StartDialog;
@@ -523,8 +524,18 @@ public final class RaceGame {
 	}
 
 	private void doAiTurn() {
-		if (gamestate == GameState.PLAY && players[subgamestate].isAi())
-			executeMove(ai.computeAiMove());
+		if (gamestate != GameState.PLAY || !players[subgamestate].isAi())
+			return;
+		if (!autoMode && !reach.isReady()) {
+			// computeAiMove joins the background reachability BFS; polling keeps
+			// the EDT painting instead of freezing the window until it finishes.
+			gameFrame.setStatus("Computing track reachability...");
+			final Timer poll = new Timer(150, e -> doAiTurn());
+			poll.setRepeats(false);
+			poll.start();
+			return;
+		}
+		executeMove(ai.computeAiMove());
 	}
 
 	final static int		AI_MAX_SPEED	= 12;
