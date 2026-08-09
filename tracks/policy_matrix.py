@@ -123,7 +123,7 @@ class Sim:
         cars = [c[:] for c in cars]
         for r in range(rounds):
             start = me + 1 if r == 0 else 0
-            for i in range(start, 8):
+            for i in range(start, len(cars)):
                 if cars[i][4] != 0 or (i == me and r == 0):
                     continue
                 kind, land = self.rival_move(i, cars) if i != me else self.self_move(i, cars)
@@ -148,15 +148,15 @@ SITES = [
     ('hungaroring', 'champ_logs/inert_AI1_hungaroring_s6.log', 181,
      [('chosen W', 3), ('survivor NONE', 4)]),
 ]
+# The rounds 59-65 pocket sites (hungaroring m389, lemans m63, zigzag m102,
+# hairpin m90) were resolved by promoted mechanisms and their session logs
+# purged; regenerate the race + reach dump before re-adding an entry. Current
+# entries are live investigation sites.
 POCKET = [
-    ('hungaroring', 'r57_hung_s13.log', 389,
-     [('chosen NONE', 4), ('survivor NW', 0), ('survivor E', 5)]),
-    ('lemans', 'r59_lemans_s4.log', 63,
-     [('chosen NONE', 4), ('survivor E', 5), ('survivor SW', 6)]),
-    ('zigzag', 'r59_zigzag_s4.log', 102,
-     [('chosen W', 3), ('survivor SW', 6)]),
-    ('hairpin', 'r59_hairpin_s10.log', 90,
-     [('chosen SE', 8), ('survivor W', 3), ('survivor NONE', 4)]),
+    ('nurburgring', 'harvest/h8_nurburgring_s19.log', 260,
+     [('chosen E', 5), ('survivor N', 1)]),
+    ('monaco', 'harvest/h4_monaco_s9.log', 27,
+     [('chosen NONE', 4), ('survivor N', 1), ('survivor SE', 8)]),
 ]
 POLICIES = ['greedy', 'gmom', 'shape', 'smom', 'orivals']
 

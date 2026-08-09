@@ -48,6 +48,38 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 71 (local agent, in gates): fresh-seed harvest + small-field pack gate
+
+COUNTEREXAMPLE HARVEST on the round-70 champion: 770 fresh races (8-car
+s16-30, 4-car s6-15, 2-car s6-15, all 22 tracks) found exactly TWO
+crashes -- strong generalization evidence for the mechanism stack.
+
+1. **monaco 4-car s9 (FIXED, in gates): the small-field funnel class.**
+   Entry m27 (spd^2=13, all 3 rivals within Chebyshev 10): chosen NONE
+   dies @r3 with survivors N/SE (oracle). smom is BLIND and NON-FRAGILE
+   (alive t=100 tier=3) but orivals sees DEAD@r2 -- only the trigger was
+   missing: the round-67 dense-pack gate requires sealRivals >= 7 and
+   spd^2 >= 16. R71 FIX (AI1): generalize to small fields --
+   whole-live-field-packed + closeEscape with sealRivals >=
+   AI1_SLOW_PACK_MIN=3 and spd^2 >= AI1_SLOW_PACK_SPD2_SMALL=12 (start
+   grids stay below). Race saved (26 escalations, 3 verdicts, 2
+   switches); 8-car keeps the original 7/16 gate.
+2. **nurburgring 8-car s19 (OPEN CLASS, recorded): compound sealGuard +
+   fidelity failure.** Entry m260: the scorer's own argmin picked the
+   oracle-alive N (score 64.28) but the SEALGUARD swapped to the doomed
+   E (73.16 -- trap 2.0 + unc 3.46 + ce 4.16 ignored by the "fastest
+   unsealable" rule): a paranoid 1-ply sealability distinction discarded
+   a 9-point score advantage, the round-35 disease resurfacing in an
+   auxiliary selector. The trap trigger then fired and the 6-round
+   scorer-rival rollout said ALIVE though the death is @r4 real /
+   DEAD@r2 under orivals -- the in-game rollout behaves like smom at
+   crawl-queue sites (both matrix rows measured; smom blind t=58
+   tier=3). Candidate future fixes: certify the sealGuard swap (keep
+   best when the swap target dies in-sim and best survives -- blocked
+   today by the same fidelity gap) and close the in-game-vs-orivals
+   rollout gap (suspects: the IN_SCORER_SIM suppression making sim
+   rivals dumber, or the selfMove me-proxy). 1 crash / 770 races.
+
 ## 2026-08-09 round-70 promotion: close the four-car Interlagos gap
 
 **Round 70 is the current champion; AI1 and AI2 are identical at rest again.**

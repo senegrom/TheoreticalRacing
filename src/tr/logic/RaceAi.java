@@ -224,6 +224,8 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK		= 7;	// round 67: rare dense slow-pack scorer trigger
 	private final static int		AI1_SLOW_PACK_R	= 10;
 	private final static int		AI1_SLOW_PACK_SPD2	= 16;
+	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (AI1): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
+	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71: speed floor for the small-field gate (start-grid moves stay below it)
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
@@ -738,8 +740,18 @@ final class RaceAi {
 						}
 					}
 					final int slowPack = countRivalsWithinCheb(scx, scy, playerNum, AI1_SLOW_PACK_R);
-					final boolean denseSlowPack = slowSpd2 >= AI1_SLOW_PACK_SPD2 && sealRivals >= AI1_SLOW_PACK
-							&& slowPack == sealRivals && closeEscape;
+					// round 71 (AI1): the dense-pack gate generalized to SMALL
+					// fields -- the monaco-4car s9 funnel doom (entry m27,
+					// spd^2=13, all 3 rivals within Chebyshev 10, survivors N/SE)
+					// is smom-blind AND non-fragile (tier 3) yet scorer-rival
+					// visible @r2; only the trigger was missing. Whole live
+					// field packed + close escape, with a lower speed floor for
+					// fields below the 8-car pack size (start grids stay below
+					// spd^2=12).
+					final boolean packAll = slowPack == sealRivals && closeEscape;
+					final boolean denseSlowPack = packAll && (sealRivals >= AI1_SLOW_PACK
+							? slowSpd2 >= AI1_SLOW_PACK_SPD2
+							: sealRivals >= AI1_SLOW_PACK_MIN && slowSpd2 >= AI1_SLOW_PACK_SPD2_SMALL);
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, false) < 0;
