@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -30,16 +30,58 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-      - name: Apply the verified allocation-only patch
+      - name: Reconstruct and apply the verified allocation-only patch
         run: |
           set -euo pipefail
           printf '%s  %s\n' \
             'e30b686737f2db0eaa4780ddb66d934a99a9a3b97cb936b971f4056642f9cc7b' \
             'src/tr/logic/RaceAi.java' | sha256sum --check -
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+
+          source = Path('.github/int-array-optimization/RaceAi.patch.xz.b64').read_bytes()
+          target = bytes.fromhex(
+              'c50980fc74cc9b17866b217c9fc1da4fe4f193a5ca9740dc212d18ed279c5b8b'
+          )
+          output = Path('/tmp/RaceAi.patch.xz.b64')
+
+          if hashlib.sha256(source).digest() == target:
+              output.write_bytes(source)
+              print('Transport payload already matched its SHA-256.')
+          else:
+              if len(source) != 14_391:
+                  raise SystemExit(
+                      f'Unexpected transport length {len(source)}; expected 14,391.'
+                  )
+              alphabet = b'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/='
+              repaired = None
+              repaired_at = None
+              repaired_char = None
+              for index in range(len(source) + 1):
+                  prefix = source[:index]
+                  suffix = source[index:]
+                  for char in alphabet:
+                      candidate = prefix + bytes((char,)) + suffix
+                      if hashlib.sha256(candidate).digest() == target:
+                          repaired = candidate
+                          repaired_at = index
+                          repaired_char = chr(char)
+                          break
+                  if repaired is not None:
+                      break
+              if repaired is None:
+                  raise SystemExit('No one-character repair matched the expected SHA-256.')
+              output.write_bytes(repaired)
+              print(
+                  'Reconstructed the unique checksum-valid payload '
+                  f'by inserting {repaired_char!r} at byte {repaired_at}.'
+              )
+          PY
           printf '%s  %s\n' \
             'c50980fc74cc9b17866b217c9fc1da4fe4f193a5ca9740dc212d18ed279c5b8b' \
-            '.github/int-array-optimization/RaceAi.patch.xz.b64' | sha256sum --check -
-          base64 --decode .github/int-array-optimization/RaceAi.patch.xz.b64 \
+            '/tmp/RaceAi.patch.xz.b64' | sha256sum --check -
+          base64 --decode /tmp/RaceAi.patch.xz.b64 \
             | xz --decompress > /tmp/RaceAi.patch
           printf '%s  %s\n' \
             '78a375ccd336991ba3e19c3d47be63f977a5fa78cc1d8549771847cbe7ef2598' \
