@@ -14,10 +14,115 @@ final class RaceAi {
 	private final Reachability reach;
 	/** Cached because the compiler-generated values() method clones on every call. */
 	private static final Direction[] DIRECTIONS = Direction.values();
+	/** Scratch storage is instance-owned: one RaceAi drives one single-threaded game. */
+	private TwoRoundWorkspace twoRoundWorkspace;
+	private PredictionWorkspace predictionWorkspace;
+	private RolloutWorkspace rolloutWorkspace;
+	private final int[] sealEscapes = new int[DIRECTIONS.length * 2];
+	private final int[] sealCover = new int[DIRECTIONS.length];
+	private final int[] sealMatch = new int[Integer.SIZE];
+	private final int[] mobilityMove = new int[4];
+	/** Outer candidate scores stay live while scorer-rival rollouts invoke a
+	 *  recursion-guarded nested scorer, so those two levels need disjoint rows. */
+	private final CandidateWorkspace outerCandidates = new CandidateWorkspace();
+	private final CandidateWorkspace nestedCandidates = new CandidateWorkspace();
+
+	private static final class CandidateWorkspace {
+		final double[] trapByDirection = new double[DIRECTIONS.length];
+		final double[] scoreWithoutSpread = new double[DIRECTIONS.length];
+		final int[] turnsByDirection = new int[DIRECTIONS.length];
+		final double[] scoreByDirection = new double[DIRECTIONS.length];
+		final double[] uncertaintyByDirection = new double[DIRECTIONS.length];
+
+		void reset() {
+			java.util.Arrays.fill(trapByDirection, 0.0);
+			java.util.Arrays.fill(scoreWithoutSpread, Double.MAX_VALUE);
+			java.util.Arrays.fill(turnsByDirection, Integer.MAX_VALUE);
+			java.util.Arrays.fill(scoreByDirection, Double.MAX_VALUE);
+			java.util.Arrays.fill(uncertaintyByDirection, 0.0);
+		}
+	}
+
+	private static final class TwoRoundWorkspace {
+		final int[][] current;
+		final int[][] world1;
+		final int[][] blocked;
+		final int[][] simulatedVelocity;
+		final int[][] round1Position;
+		final int[][] round2Position;
+		final int[][] round1Velocity;
+		final int[][] round2Velocity;
+		final int[] candidatePosition = new int[2];
+
+		TwoRoundWorkspace(final int players) {
+			current = new int[players][];
+			world1 = new int[players][];
+			blocked = new int[players][];
+			simulatedVelocity = new int[players][];
+			round1Position = new int[players][2];
+			round2Position = new int[players][2];
+			round1Velocity = new int[players][2];
+			round2Velocity = new int[players][2];
+		}
+	}
+
+	private static final class PredictionWorkspace {
+		final int[][][] result;
+		final int[][][] cells;
+
+		PredictionWorkspace(final int steps, final int players) {
+			result = new int[steps][players][];
+			cells = new int[steps][players][2];
+		}
+	}
+
+	private static final class ScorerWorkspace {
+		final int[][] originalPosition;
+		final int[][] originalVelocity;
+		final int[][] simulatedPosition;
+		final int[][] simulatedVelocity;
+		final int[] finishedPlace;
+
+		ScorerWorkspace(final int players) {
+			originalPosition = new int[players][];
+			originalVelocity = new int[players][];
+			simulatedPosition = new int[players][2];
+			simulatedVelocity = new int[players][2];
+			finishedPlace = new int[players];
+		}
+	}
+
+	private static final class RolloutWorkspace {
+		final int[] px;
+		final int[] py;
+		final int[] vx;
+		final int[] vy;
+		final boolean[] alive;
+		final boolean[] scorerSet;
+		final int[] move = new int[4];
+		final int[] finalTier = new int[1];
+		final ScorerWorkspace scorer;
+
+		RolloutWorkspace(final int players) {
+			px = new int[players];
+			py = new int[players];
+			vx = new int[players];
+			vy = new int[players];
+			alive = new boolean[players];
+			scorerSet = new boolean[players];
+			scorer = new ScorerWorkspace(players);
+		}
+	}
 
 	RaceAi(final RaceGame game) {
 		this.game = game;
 		this.reach = game.reach;
+	}
+
+	private CandidateWorkspace candidateWorkspace() {
+		final CandidateWorkspace workspace = IN_SCORER_SIM ? nestedCandidates : outerCandidates;
+		workspace.reset();
+		return workspace;
 	}
 
 	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.9
@@ -39,7 +144,8 @@ final class RaceAi {
 	 * Pure min-turns lookup, no opponent reasoning. Used internally to predict
 	 * opponent moves; we DON'T want recursion through the smart AI variants.
 	 */
-	private Direction pureMinTurnsMove(final int[] pos, final int[] vel, final int playerNum) {
+	private Direction pureMinTurnsMove(final int x, final int y, final int vx, final int vy,
+			final int playerNum) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
 		Direction bestLegal = null;
@@ -47,16 +153,16 @@ final class RaceAi {
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
-			final int newVx = vel[0] + d.dx;
-			final int newVy = vel[1] + d.dy;
+			final int newVx = vx + d.dx;
+			final int newVy = vy + d.dy;
 			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
 				continue;
-			final int newX = pos[0] + newVx;
-			final int newY = pos[1] + newVy;
-			if (game.crossesFinish(pos[0], pos[1], newX, newY))
+			final int newX = x + newVx;
+			final int newY = y + newVy;
+			if (game.crossesFinish(x, y, newX, newY))
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+			if (!game.isMoveLegalGeometryCached(x, y, newX, newY)) {
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
@@ -210,18 +316,16 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
-		final double[] trapByDir = new double[DIRECTIONS.length];
+		final CandidateWorkspace candidateWorkspace = candidateWorkspace();
+		final double[] trapByDir = candidateWorkspace.trapByDirection;
 		// round 49 arm C: non-spread score and raw map ttf per candidate, for the
 		// certified pace tie-break after the loop.
-		final double[] scoreNSByDir = new double[DIRECTIONS.length];
-		final int[] poTByDir = new int[DIRECTIONS.length];
-		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
-		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
+		final double[] scoreNSByDir = candidateWorkspace.scoreWithoutSpread;
+		final int[] poTByDir = candidateWorkspace.turnsByDirection;
 		// round 62: full score and unc per candidate, for the certified UNC
 		// override after the loop.
-		final double[] scoreByDir = new double[DIRECTIONS.length];
-		final double[] uncByDir = new double[DIRECTIONS.length];
-		java.util.Arrays.fill(scoreByDir, Double.MAX_VALUE);
+		final double[] scoreByDir = candidateWorkspace.scoreByDirection;
+		final double[] uncByDir = candidateWorkspace.uncertaintyByDirection;
 		MobilitySearch paceMobility = null;
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -268,10 +372,10 @@ final class RaceAi {
 			// AHEAD of me on track (myDist = distAt of my CURRENT cell); a
 			// chaser's body is left unpriced (ceding a line two rounds out to
 			// a car behind me trades race position for nothing).
-			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
-			final int[][] world = worlds[0];
+			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY);
+			final int[][] world = worlds.world1;
 			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictedSteps, playerNum, worlds[0], worlds[1], reach.distAt(pos[0], pos[1]));
+					predictedSteps, playerNum, worlds.world1, worlds.current, reach.distAt(pos[0], pos[1]));
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -334,7 +438,7 @@ final class RaceAi {
 			double cornerEntry = 0.0;
 			if (speed > AI1_BRAKE_SPEED) {
 				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
-				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, AI1_PACK_R2) >= 2)
+				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, AI1_PACK_R2) >= 2)
 					cornerEntry = (speed - AI1_BRAKE_SPEED) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
 			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
@@ -572,7 +676,8 @@ final class RaceAi {
 								packNear++;
 						}
 						if (packNear >= AI1_DEEP_PACK && !game.crossesFinish(pos[0], pos[1], dcx, dcy)) {
-							final int[] ft = new int[]{3 };
+							final int[] ft = rolloutWorkspace().finalTier;
+							ft[0] = 3;
 							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
 									true, true, true, false, ft);
 							if (dv < 0 || ft[0] <= 1) {
@@ -773,124 +878,86 @@ final class RaceAi {
 		return fallback;
 	}
 
-	/** Step every live opponent one move in ACTUAL turn order, conditioned on
-	 *  my candidate landing: game.players numbered after me take their round-r move
-	 *  (they see my landing and all earlier sim moves), then game.players numbered
-	 *  before me take their round-r+1 move. Movers use the greedy policy
-	 *  against the updating occupancy; a mover with no legal unoccupied move
-	 *  stays put. Returns occupancy[i] = player (i+1)'s simulated cell when I
-	 *  make my next move (null for me and finished game.players).
-	 *  <p>
-	 *  Velocity note: every mover steps once from its CURRENT velocity, and
-	 *  that is timing-exact for BOTH classes -- later movers' current state is
-	 *  pre-round-r (their round-r move is the one simulated), while earlier
-	 *  movers already moved this round, so their current velocity is
-	 *  post-round-r and one step from it IS their round-r+1 move. Only the
-	 *  policy (greedy min-turns instead of each opponent's real scorer) is
-	 *  approximate; the sequencing and mutual exclusion are exact. */
-	private int[][] simulateRound(final int playerNum, final int candX, final int candY) {
-		final int[][] occ = new int[game.players.length][];
+	/** Reusable two-round opponent projection. The reference arrays and every
+	 *  generated coordinate/velocity pair are retained across candidate moves;
+	 *  each pass only rewrites primitive values and swaps row references. */
+	private TwoRoundWorkspace twoRoundWorkspace() {
+		final int players = game.players.length;
+		if (twoRoundWorkspace == null || twoRoundWorkspace.current.length != players)
+			twoRoundWorkspace = new TwoRoundWorkspace(players);
+		return twoRoundWorkspace;
+	}
+
+	/** Simulate two complete opponent rounds in actual turn order, conditioned
+	 *  on my candidate landing. {@code world1} contains the cells for my next
+	 *  move and {@code current} the cells for the move after that. */
+	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY) {
+		final TwoRoundWorkspace workspace = twoRoundWorkspace();
+		final int[][] current = workspace.current;
+		final int[][] simulatedVelocity = workspace.simulatedVelocity;
+		java.util.Arrays.fill(current, null);
+		java.util.Arrays.fill(workspace.world1, null);
+		java.util.Arrays.fill(simulatedVelocity, null);
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
-			occ[p.getNumber() - 1] = p.getPosition();
+			final int idx = p.getNumber() - 1;
+			current[idx] = p.getPosition();
+			simulatedVelocity[idx] = p.getVelocity();
 		}
-		final int[][] blocked = occ.clone();           // shallow: shares position refs
-		blocked[playerNum - 1] = new int[]{candX, candY }; // my landing blocks
-		// later movers (round r), then earlier movers (round r+1), each once
+		System.arraycopy(current, 0, workspace.blocked, 0, current.length);
+		workspace.candidatePosition[0] = candX;
+		workspace.candidatePosition[1] = candY;
+		workspace.blocked[playerNum - 1] = workspace.candidatePosition;
+		simulateRoundPass(playerNum, current, simulatedVelocity, workspace.blocked,
+				workspace.round1Position, workspace.round1Velocity);
+		current[playerNum - 1] = null;
+		System.arraycopy(current, 0, workspace.world1, 0, current.length);
+		workspace.blocked[playerNum - 1] = null;
+		simulateRoundPass(playerNum, current, simulatedVelocity, workspace.blocked,
+				workspace.round2Position, workspace.round2Velocity);
+		current[playerNum - 1] = null;
+		return workspace;
+	}
+
+	/** One two-pass opponent round. A mover always receives a fresh logical
+	 *  position row, but that row is caller-owned and reused on the next root;
+	 *  a velocity row is replaced only when the move is legal, matching the
+	 *  original stay-put semantics exactly. */
+	private void simulateRoundPass(final int playerNum, final int[][] occupancy,
+			final int[][] simulatedVelocity, final int[][] blocked,
+			final int[][] nextPosition, final int[][] nextVelocity) {
 		for (int pass = 0; pass < 2; pass++) {
 			for (final Player p : game.players) {
 				final boolean later = p.getNumber() > playerNum;
 				if (p.getNumber() == playerNum || p.isFinished() || (pass == 0 ? !later : later))
 					continue;
 				final int idx = p.getNumber() - 1;
-				final int[] cur = occ[idx];
-				blocked[idx] = null;                   // the mover vacates its own cell
-				final Direction d = pureMinTurnsMoveSim(cur, p.getVelocity(), blocked);
-				int nx = cur[0], ny = cur[1];
-				if (d != null) {
-					final int nvx = p.getVelocity()[0] + d.dx;
-					final int nvy = p.getVelocity()[1] + d.dy;
+				final int[] current = occupancy[idx];
+				blocked[idx] = null;
+				final int[] velocity = simulatedVelocity[idx];
+				final Direction direction = pureMinTurnsMoveSim(current, velocity, blocked);
+				int nx = current[0];
+				int ny = current[1];
+				if (direction != null) {
+					final int nvx = velocity[0] + direction.dx;
+					final int nvy = velocity[1] + direction.dy;
 					if (Math.abs(nvx) <= RaceGame.AI_MAX_SPEED && Math.abs(nvy) <= RaceGame.AI_MAX_SPEED
-							&& game.isMoveLegalGeometryCached(cur[0], cur[1], cur[0] + nvx, cur[1] + nvy)
-							&& !cellOccupiedByPrediction(cur[0] + nvx, cur[1] + nvy, blocked)) {
-						nx = cur[0] + nvx;
-						ny = cur[1] + nvy;
+							&& game.isMoveLegalGeometryCached(current[0], current[1], current[0] + nvx, current[1] + nvy)
+							&& !cellOccupiedByPrediction(current[0] + nvx, current[1] + nvy, blocked)) {
+						nx = current[0] + nvx;
+						ny = current[1] + nvy;
+						final int[] velocityOut = nextVelocity[idx];
+						velocityOut[0] = nvx;
+						velocityOut[1] = nvy;
+						simulatedVelocity[idx] = velocityOut;
 					}
 				}
-				occ[idx] = new int[]{nx, ny };
-				blocked[idx] = occ[idx];
-			}
-		}
-		occ[playerNum - 1] = null;
-		return occ;
-	}
-
-	/** AI1 frontier only: {@link #simulateRound} extended one more round.
-	 *  Round 1 replays simulateRound's algorithm EXACTLY (same two-pass turn
-	 *  order, same mutual exclusion via {@code blocked}, a blocked mover stays
-	 *  put) while additionally tracking each opponent's simulated velocity --
-	 *  bookkeeping only, it cannot alter any round-1 decision, so
-	 *  {@code result[0]} is cell-identical to {@code simulateRound(...)}. Round
-	 *  2 then runs the same two-pass loop again from the round-1 cells and
-	 *  velocities, yielding {@code result[1]} = the opponents' cells when I
-	 *  make my round-r+2 move. For round 2 my candidate cell no longer blocks
-	 *  ({@code blocked[playerNum-1] = null}): by then I have moved off it to a
-	 *  cell this sim cannot know, and leaving the stale cell blocked would wall
-	 *  off a lane I have actually vacated -- an honest approximation.
-	 *  Returns {@code {world1, world2}}. */
-	private int[][][] simulateTwoRounds(final int playerNum, final int candX, final int candY) {
-		final int[][] occ = new int[game.players.length][];
-		final int[][] simVel = new int[game.players.length][];
-		for (final Player p : game.players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			occ[p.getNumber() - 1] = p.getPosition();
-			simVel[p.getNumber() - 1] = p.getVelocity();
-		}
-		final int[][] blocked = occ.clone();           // shallow: shares position refs
-		blocked[playerNum - 1] = new int[]{candX, candY }; // my landing blocks round 1
-		simulateRoundPass(playerNum, occ, simVel, blocked);
-		occ[playerNum - 1] = null;
-		final int[][] world1 = occ.clone();            // round 2 reassigns cells, never mutates them
-		blocked[playerNum - 1] = null;                 // round 2: I have vacated my candidate cell
-		simulateRoundPass(playerNum, occ, simVel, blocked);
-		occ[playerNum - 1] = null;
-		return new int[][][]{world1, occ };
-	}
-
-	/** One full two-pass opponent round for {@link #simulateTwoRounds}: every
-	 *  live opponent steps once from its simulated cell/velocity in actual
-	 *  turn order (game.players numbered after me first, then game.players numbered
-	 *  before me), updating {@code occ}/{@code simVel}/{@code blocked} in
-	 *  place. Mirrors {@link #simulateRound}'s loop exactly; the only addition
-	 *  is recording the step a legal mover already took into {@code simVel}
-	 *  (a stay-put mover keeps its old velocity). */
-	private void simulateRoundPass(final int playerNum, final int[][] occ, final int[][] simVel, final int[][] blocked) {
-		for (int pass = 0; pass < 2; pass++) {
-			for (final Player p : game.players) {
-				final boolean later = p.getNumber() > playerNum;
-				if (p.getNumber() == playerNum || p.isFinished() || (pass == 0 ? !later : later))
-					continue;
-				final int idx = p.getNumber() - 1;
-				final int[] cur = occ[idx];
-				blocked[idx] = null;                   // the mover vacates its own cell
-				final int[] vel = simVel[idx];
-				final Direction d = pureMinTurnsMoveSim(cur, vel, blocked);
-				int nx = cur[0], ny = cur[1];
-				if (d != null) {
-					final int nvx = vel[0] + d.dx;
-					final int nvy = vel[1] + d.dy;
-					if (Math.abs(nvx) <= RaceGame.AI_MAX_SPEED && Math.abs(nvy) <= RaceGame.AI_MAX_SPEED
-							&& game.isMoveLegalGeometryCached(cur[0], cur[1], cur[0] + nvx, cur[1] + nvy)
-							&& !cellOccupiedByPrediction(cur[0] + nvx, cur[1] + nvy, blocked)) {
-						nx = cur[0] + nvx;
-						ny = cur[1] + nvy;
-						simVel[idx] = new int[]{nvx, nvy };
-					}
-				}
-				occ[idx] = new int[]{nx, ny };
-				blocked[idx] = occ[idx];
+				final int[] positionOut = nextPosition[idx];
+				positionOut[0] = nx;
+				positionOut[1] = ny;
+				occupancy[idx] = positionOut;
+				blocked[idx] = positionOut;
 			}
 		}
 	}
@@ -1042,69 +1109,88 @@ final class RaceAi {
 	 * projected that far).
 	 */
 	private int[][][] predictedOpponentSteps(final int myPlayerNum, final int steps) {
-		final int[][][] result = new int[Math.max(1, steps)][][];
-		for (int k = 0; k < result.length; k++)
-			result[k] = new int[game.players.length][];
-		for (final Player p : game.players) {
-			if (p.getNumber() == myPlayerNum || p.isFinished())
+		final int projectionSteps = Math.max(1, steps);
+		if (predictionWorkspace == null || predictionWorkspace.result.length != projectionSteps
+				|| predictionWorkspace.result[0].length != game.players.length)
+			predictionWorkspace = new PredictionWorkspace(projectionSteps, game.players.length);
+		for (final int[][] step : predictionWorkspace.result)
+			java.util.Arrays.fill(step, null);
+		for (final Player player : game.players) {
+			if (player.getNumber() == myPlayerNum || player.isFinished())
 				continue;
-			int px = p.getPosition()[0], py = p.getPosition()[1];
-			int pvx = p.getVelocity()[0], pvy = p.getVelocity()[1];
-			for (int k = 0; k < steps; k++) {
-				final Direction d = pureMinTurnsMove(new int[]{px, py }, new int[]{pvx, pvy }, p.getNumber());
-				if (d == null)
+			int px = player.getPosition()[0], py = player.getPosition()[1];
+			int pvx = player.getVelocity()[0], pvy = player.getVelocity()[1];
+			final int playerIndex = player.getNumber() - 1;
+			for (int step = 0; step < steps; step++) {
+				final Direction direction = pureMinTurnsMove(px, py, pvx, pvy, player.getNumber());
+				if (direction == null)
 					break;
-				final int nvx = pvx + d.dx;
-				final int nvy = pvy + d.dy;
+				final int nvx = pvx + direction.dx;
+				final int nvy = pvy + direction.dy;
 				if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 					break;
 				px += nvx;
 				py += nvy;
 				pvx = nvx;
 				pvy = nvy;
-				result[k][p.getNumber() - 1] = new int[]{px, py };
+				final int[] cell = predictionWorkspace.cells[step][playerIndex];
+				cell[0] = px;
+				cell[1] = py;
+				predictionWorkspace.result[step][playerIndex] = cell;
 			}
 		}
-		return result;
+		return predictionWorkspace.result;
 	}
 
 
+	private static boolean writeMove(final int[] out, final int x, final int y,
+			final int vx, final int vy) {
+		out[0] = x;
+		out[1] = y;
+		out[2] = vx;
+		out[3] = vy;
+		return true;
+	}
+
 	/** Greedy min-turnsToFinish move for a car at (x,y) vel (cvx,cvy) over a
-	 *  DETACHED array board (alive cars at px/py). Returns {nx,ny,nvx,nvy} for the
-	 *  best legal, non-crashing, alive move, or null if boxed. Used by simOutcome. */
-	private int[] greedyMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
-			final int[] px, final int[] py, final boolean[] alive) {
+	 *  DETACHED array board (alive cars at px/py). Writes {nx,ny,nvx,nvy} to
+	 *  {@code out} and returns true, or returns false if boxed. */
+	private boolean greedyMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
+			final int[] px, final int[] py, final boolean[] alive, final int[] out) {
 		int bestT = Integer.MAX_VALUE;
-		int[] best = null;
+		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
+		boolean found = false;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
-				return new int[]{nx, ny, nvx, nvy };
+				return writeMove(out, nx, ny, nvx, nvy);
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
-			boolean occ = false;
+			boolean occupied = false;
 			for (int j = 0; j < px.length; j++) {
 				if (j == self || !alive[j])
 					continue;
 				if (px[j] == nx && py[j] == ny) {
-					occ = true;
+					occupied = true;
 					break;
 				}
 			}
-			if (occ)
+			if (occupied || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			if (!reach.isAlive(nx, ny, nvx, nvy))
-				continue;
-			final int tt = reach.turnsToFinish(nx, ny, nvx, nvy);
-			if (tt < bestT) {
-				bestT = tt;
-				best = new int[]{nx, ny, nvx, nvy };
+			final int turns = reach.turnsToFinish(nx, ny, nvx, nvy);
+			if (turns < bestT) {
+				bestT = turns;
+				bestX = nx;
+				bestY = ny;
+				bestVx = nvx;
+				bestVy = nvy;
+				found = true;
 			}
 		}
-		return best;
+		return found && writeMove(out, bestX, bestY, bestVx, bestVy);
 	}
 
 	/** Count the legal, alive, unoccupied 1-step successors of (x,y,vx,vy) over
@@ -1149,39 +1235,44 @@ final class RaceAi {
 	 *  and it only diverges where the real me would have refused. Round 56:
 	 *  also the RIVAL policy inside the DJS rollout (exactRivals) -- the r55
 	 *  forensic proved greedy rivals dissolve every real box in-sim. */
-	private int[] selfMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
-			final int[] px, final int[] py, final boolean[] alive) {
+	private boolean selfMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
+			final int[] px, final int[] py, final boolean[] alive, final int[] out) {
 		int bestTier = -1, bestT = Integer.MAX_VALUE;
-		int[] best = null;
+		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
+		boolean found = false;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
-				return new int[]{nx, ny, nvx, nvy };
+				return writeMove(out, nx, ny, nvx, nvy);
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
-			boolean occ = false;
+			boolean occupied = false;
 			for (int j = 0; j < px.length; j++) {
 				if (j == self || !alive[j])
 					continue;
 				if (px[j] == nx && py[j] == ny) {
-					occ = true;
+					occupied = true;
 					break;
 				}
 			}
-			if (occ || !reach.isAlive(nx, ny, nvx, nvy))
+			if (occupied || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
-			final int tt = reach.turnsToFinish(nx, ny, nvx, nvy);
-			if (tier > bestTier || tier == bestTier && tt < bestT) {
+			final int turns = reach.turnsToFinish(nx, ny, nvx, nvy);
+			if (tier > bestTier || tier == bestTier && turns < bestT) {
 				bestTier = tier;
-				bestT = tt;
-				best = new int[]{nx, ny, nvx, nvy };
+				bestT = turns;
+				bestX = nx;
+				bestY = ny;
+				bestVx = nvx;
+				bestVy = nvy;
+				found = true;
 			}
 		}
-		return best;
+		return found && writeMove(out, bestX, bestY, bestVx, bestVy);
 	}
 
 	/** Round 57 (AI1): RIVAL move inside the joint rollout -- the two loudest
@@ -1194,30 +1285,31 @@ final class RaceAi {
 	 *  reconstructs the queue boxes that actually kill (silverstone s6 m145,
 	 *  hungaroring s6 m181: chosen dies in 2 rounds under real-scorer rivals,
 	 *  survivors exist -- both invisible under greedy AND selfMove rivals). */
-	private int[] rivalMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
-			final int[] px, final int[] py, final boolean[] alive) {
+	private boolean rivalMoveOverState(final int x, final int y, final int cvx, final int cvy, final int self,
+			final int[] px, final int[] py, final boolean[] alive, final int[] out) {
 		double bestScore = Double.MAX_VALUE;
 		int bestSpd2 = -1;
-		int[] best = null;
+		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
+		boolean found = false;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
-				return new int[]{nx, ny, nvx, nvy };
+				return writeMove(out, nx, ny, nvx, nvy);
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
-			boolean occ = false;
+			boolean occupied = false;
 			for (int j = 0; j < px.length; j++) {
 				if (j == self || !alive[j])
 					continue;
 				if (px[j] == nx && py[j] == ny) {
-					occ = true;
+					occupied = true;
 					break;
 				}
 			}
-			if (occ || !reach.isAlive(nx, ny, nvx, nvy))
+			if (occupied || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
 			final double trap = tier == 0 ? 50.0 : tier == 1 ? AI1_TRAP_L1 : tier == 2 ? AI1_TRAP_L2 : 0.0;
@@ -1232,10 +1324,14 @@ final class RaceAi {
 			if (score < bestScore || score == bestScore && spd2 > bestSpd2) {
 				bestScore = score;
 				bestSpd2 = spd2;
-				best = new int[]{nx, ny, nvx, nvy };
+				bestX = nx;
+				bestY = ny;
+				bestVx = nvx;
+				bestVy = nvy;
+				found = true;
 			}
 		}
-		return best;
+		return found && writeMove(out, bestX, bestY, bestVx, bestVy);
 	}
 
 	/** Round 59: a rival's rollout move computed by its REAL scorer -- the
@@ -1246,58 +1342,70 @@ final class RaceAi {
 	 *  Installs the sim board into the live Player objects (the
 	 *  processQueries pattern), runs the mover's own scorer with the
 	 *  recursive machinery suppressed (IN_SCORER_SIM), restores everything
-	 *  in a finally. Returns the landing, or null when the scorer is boxed
-	 *  or would enter a body/dead state (= that car dies in-sim). */
-	private int[] scorerMoveOverState(final int i, final int[] px, final int[] py,
-			final int[] vx, final int[] vy, final boolean[] alive) {
+	 *  in a finally. Writes the landing to {@code out} and returns true, or
+	 *  returns false when the scorer is boxed or would enter a body/dead state. */
+	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
+			final ScorerWorkspace workspace) {
 		final int n = game.players.length;
-		final int[][] sp = new int[n][];
-		final int[][] sv = new int[n][];
-		final int[] sf = new int[n];
 		final int ss = game.subgamestate;
+		final boolean previousScorerSim = IN_SCORER_SIM;
 		for (int j = 0; j < n; j++) {
-			final Player p = game.players[j];
-			sp[j] = p.getPosition().clone();
-			sv[j] = p.getVelocity().clone();
-			sf[j] = p.getFinishedPlace();
+			final Player player = game.players[j];
+			workspace.originalPosition[j] = player.getPosition();
+			workspace.originalVelocity[j] = player.getVelocity();
+			workspace.finishedPlace[j] = player.getFinishedPlace();
 		}
-		final Direction d;
+		final Direction direction;
 		try {
 			for (int j = 0; j < n; j++) {
-				final Player p = game.players[j];
-				p.setPosition(new int[]{px[j], py[j] });
-				p.setVelocity(new int[]{vx[j], vy[j] });
-				p.setFinishedPlace(alive[j] ? 0 : 77);
+				final Player player = game.players[j];
+				final int[] position = workspace.simulatedPosition[j];
+				position[0] = px[j];
+				position[1] = py[j];
+				final int[] velocity = workspace.simulatedVelocity[j];
+				velocity[0] = vx[j];
+				velocity[1] = vy[j];
+				player.setPosition(position);
+				player.setVelocity(velocity);
+				player.setFinishedPlace(alive[j] ? 0 : 77);
 			}
 			game.subgamestate = i;
 			IN_SCORER_SIM = true;
-			d = computeAiMove();
+			direction = computeAiMove();
 		} finally {
-			IN_SCORER_SIM = false;
+			IN_SCORER_SIM = previousScorerSim;
 			for (int j = 0; j < n; j++) {
-				final Player p = game.players[j];
-				p.setPosition(sp[j]);
-				p.setVelocity(sv[j]);
-				p.setFinishedPlace(sf[j]);
+				final Player player = game.players[j];
+				player.setPosition(workspace.originalPosition[j]);
+				player.setVelocity(workspace.originalVelocity[j]);
+				player.setFinishedPlace(workspace.finishedPlace[j]);
 			}
 			game.subgamestate = ss;
 		}
-		if (d == null)
-			return null;
-		final int nvx = vx[i] + d.dx, nvy = vy[i] + d.dy;
+		if (direction == null)
+			return false;
+		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
 		if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
-			return null;
+			return false;
 		final int nx = px[i] + nvx, ny = py[i] + nvy;
 		if (game.crossesFinish(px[i], py[i], nx, ny))
-			return new int[]{nx, ny, nvx, nvy };
+			return writeMove(out, nx, ny, nvx, nvy);
 		if (!game.isMoveLegalGeometryCached(px[i], py[i], nx, ny))
-			return null;
+			return false;
 		for (int j = 0; j < n; j++)
 			if (j != i && alive[j] && px[j] == nx && py[j] == ny)
-				return null;
+				return false;
 		if (!reach.isAlive(nx, ny, nvx, nvy))
-			return null;
-		return new int[]{nx, ny, nvx, nvy };
+			return false;
+		return writeMove(out, nx, ny, nvx, nvy);
+	}
+
+	private RolloutWorkspace rolloutWorkspace() {
+		final int players = game.players.length;
+		if (rolloutWorkspace == null || rolloutWorkspace.px.length != players)
+			rolloutWorkspace = new RolloutWorkspace(players);
+		return rolloutWorkspace;
 	}
 
 	/** Roll the joint game forward from MY candidate landing over a DETACHED
@@ -1317,39 +1425,45 @@ final class RaceAi {
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int[] outFinalTier) {
-		final int n = game.players.length;
-		final int[] px = new int[n], py = new int[n], vx = new int[n], vy = new int[n];
-		final boolean[] alive = new boolean[n];
+		final RolloutWorkspace workspace = rolloutWorkspace();
+		final int[] px = workspace.px;
+		final int[] py = workspace.py;
+		final int[] vx = workspace.vx;
+		final int[] vy = workspace.vy;
+		final boolean[] alive = workspace.alive;
+		final boolean[] scorerSet = workspace.scorerSet;
+		final int[] move = workspace.move;
+		java.util.Arrays.fill(scorerSet, false);
 		int myIdx = 0;
-		for (int i = 0; i < n; i++) {
-			final Player p = game.players[i];
-			final int[] pp = p.getPosition(), pv = p.getVelocity();
-			px[i] = pp[0];
-			py[i] = pp[1];
-			vx[i] = pv[0];
-			vy[i] = pv[1];
-			alive[i] = !p.isFinished();
-			if (p.getNumber() == playerNum)
+		for (int i = 0; i < game.players.length; i++) {
+			final Player player = game.players[i];
+			final int[] position = player.getPosition();
+			final int[] velocity = player.getVelocity();
+			px[i] = position[0];
+			py[i] = position[1];
+			vx[i] = velocity[0];
+			vy[i] = velocity[1];
+			alive[i] = !player.isFinished();
+			if (player.getNumber() == playerNum)
 				myIdx = i;
 		}
 		px[myIdx] = myX;
 		py[myIdx] = myY;
 		vx[myIdx] = myVx;
 		vy[myIdx] = myVy;
-		// round 59: slow-class fires roll the nearest rivals with their REAL
+		// Round 59: slow-class fires roll the nearest rivals with their REAL
 		// scorer (recursion-guarded); the rest keep the smom proxy.
-		// Membership fixed at rollout start: the nearest AI1_SCORER_MAXRIVALS
-		// within Chebyshev AI1_SCORER_NEAR -- the box formers are adjacent.
-		final boolean[] scorerSet = new boolean[n];
+		// Membership is fixed at rollout start: the nearest
+		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR.
 		if (scorerRivals) {
 			for (int k = 0; k < AI1_SCORER_MAXRIVALS; k++) {
 				int nearest = -1, nearestD = AI1_SCORER_NEAR + 1;
-				for (int j = 0; j < n; j++) {
+				for (int j = 0; j < game.players.length; j++) {
 					if (j == myIdx || !alive[j] || scorerSet[j])
 						continue;
-					final int dd = Math.max(Math.abs(px[j] - myX), Math.abs(py[j] - myY));
-					if (dd < nearestD) {
-						nearestD = dd;
+					final int distance = Math.max(Math.abs(px[j] - myX), Math.abs(py[j] - myY));
+					if (distance < nearestD) {
+						nearestD = distance;
 						nearest = j;
 					}
 				}
@@ -1358,57 +1472,53 @@ final class RaceAi {
 				scorerSet[nearest] = true;
 			}
 		}
-		for (int r = 0; r < rounds; r++) {
+		for (int round = 0; round < rounds; round++) {
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
-			final int from = r == 0 ? game.subgamestate + 1 : 0;
-			for (int i = from; i < n; i++) {
-				if (!alive[i] || i == myIdx && r == 0)
+			final int from = round == 0 ? game.subgamestate + 1 : 0;
+			for (int i = from; i < game.players.length; i++) {
+				if (!alive[i] || i == myIdx && round == 0)
 					continue;
-				// round 51 (AI1): my own car follows the trap-aware policy -- a greedy
-				// sim-self dies in boxes the real scorer would never enter.
-				// round 57 (AI1): rivals follow the score-shaped policy (ttf + trap
-				// ladder, weighted) -- greedy rivals dissolve every real box in-sim
-				// (zero death verdicts across whole crash races), and the r56
-				// lexicographic selfMove proxy refuses the corridor cells the real
-				// scorer claims. See rivalMoveOverState for the oracle derivation.
-				final int[] mv;
+				// Round 51: my car follows the trap-aware policy. Round 57:
+				// rivals use the score-shaped ttf + trap proxy; selected close
+				// rivals instead use their recursion-guarded real scorer.
+				final boolean moved;
 				if (i == myIdx)
-					mv = exactSelf ? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive)
-							: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
+					moved = exactSelf
+							? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move)
+							: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else if (scorerSet[i])
-					mv = scorerMoveOverState(i, px, py, vx, vy, alive);
+					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer);
 				else if (exactRivals)
-					mv = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
+					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
-					mv = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive);
-				if (simFinishVanish && mv != null && game.crossesFinish(px[i], py[i], mv[0], mv[1])) {
+					moved = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
+				if (simFinishVanish && moved && game.crossesFinish(px[i], py[i], move[0], move[1])) {
 					if (i == myIdx) {
 						if (outFinalTier != null)
-							outFinalTier[0] = 3;	// finishing is never fragile
-						return 0;	// I finish in-sim: unambiguous survival
+							outFinalTier[0] = 3;
+						return 0;
 					}
-					alive[i] = false;	// finished cars vanish from the board
+					alive[i] = false;
 					continue;
 				}
-				if (mv == null) {
+				if (!moved) {
 					if (i == myIdx)
 						return -1;
 					alive[i] = false;
 					continue;
 				}
-				px[i] = mv[0];
-				py[i] = mv[1];
-				vx[i] = mv[2];
-				vy[i] = mv[3];
+				px[i] = move[0];
+				py[i] = move[1];
+				vx[i] = move[2];
+				vy[i] = move[3];
 			}
 		}
-		// round 65: report the final state's safe-successor tier when asked --
-		// a surviving-but-FRAGILE final (tier <= 1) is the escalation signal
-		// for the 5-7-round doom class (hairpin s10: smom-8 ends alive at
-		// tier 1 while the real line dies at round 7).
+		// Round 65: a surviving-but-fragile final (tier <= 1) is the
+		// escalation signal for the 5-7-round doom class.
 		if (outFinalTier != null)
-			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx], myIdx, px, py, alive);
+			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
+					myIdx, px, py, alive);
 		return reach.turnsToFinish(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
 	}
 
@@ -1535,18 +1645,16 @@ final class RaceAi {
 		// position for nothing. The queue brakes (queueBox, cornerEntry) now
 		// guard the corridors the old gate was protecting.
 
-		final double[] trapByDir = new double[DIRECTIONS.length];
+		final CandidateWorkspace candidateWorkspace = candidateWorkspace();
+		final double[] trapByDir = candidateWorkspace.trapByDirection;
 		// round 49 arm C: non-spread score and raw map ttf per candidate, for the
 		// certified pace tie-break after the loop.
-		final double[] scoreNSByDir = new double[DIRECTIONS.length];
-		final int[] poTByDir = new int[DIRECTIONS.length];
-		java.util.Arrays.fill(scoreNSByDir, Double.MAX_VALUE);
-		java.util.Arrays.fill(poTByDir, Integer.MAX_VALUE);
+		final double[] scoreNSByDir = candidateWorkspace.scoreWithoutSpread;
+		final int[] poTByDir = candidateWorkspace.turnsByDirection;
 		// round 63 (PROMOTED round 62): score and unc per candidate for the
 		// certified UNC override -- see the AI1 body.
-		final double[] scoreByDir = new double[DIRECTIONS.length];
-		final double[] uncByDir = new double[DIRECTIONS.length];
-		java.util.Arrays.fill(scoreByDir, Double.MAX_VALUE);
+		final double[] scoreByDir = candidateWorkspace.scoreByDirection;
+		final double[] uncByDir = candidateWorkspace.uncertaintyByDirection;
 		MobilitySearch paceMobility = null;
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -1593,10 +1701,10 @@ final class RaceAi {
 			// AHEAD of me on track (myDist = distAt of my CURRENT cell); a
 			// chaser's body is left unpriced (ceding a line two rounds out to
 			// a car behind me trades race position for nothing).
-			final int[][][] worlds = simulateTwoRounds(playerNum, newX, newY);
-			final int[][] world = worlds[0];
+			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY);
+			final int[][] world = worlds.world1;
 			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictedSteps, playerNum, worlds[0], worlds[1], reach.distAt(pos[0], pos[1]));
+					predictedSteps, playerNum, worlds.world1, worlds.current, reach.distAt(pos[0], pos[1]));
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -1655,7 +1763,7 @@ final class RaceAi {
 			double cornerEntry = 0.0;
 			if (speed > 4.0) {
 				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
-				if (roomySucc <= 1 && countNearbyOpponents(new int[]{newX, newY }, playerNum, 36) >= 2)
+				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, 36) >= 2)
 					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
 			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
@@ -1861,7 +1969,8 @@ final class RaceAi {
 								packNear++;
 						}
 						if (packNear >= AI1_DEEP_PACK && !game.crossesFinish(pos[0], pos[1], dcx, dcy)) {
-							final int[] ft = new int[]{3 };
+							final int[] ft = rolloutWorkspace().finalTier;
+							ft[0] = 3;
 							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
 									true, true, true, false, ft);
 							if (dv < 0 || ft[0] <= 1) {
@@ -1975,15 +2084,15 @@ final class RaceAi {
 		return false;
 	}
 
-	/** Count live opponents within squared distance r2 of (pos). */
-	private int countNearbyOpponents(final int[] pos, final int playerNum, final int r2) {
+	/** Count live opponents within squared distance r2 of (x,y). */
+	private int countNearbyOpponents(final int x, final int y, final int playerNum, final int r2) {
 		int count = 0;
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
 			final int[] pp = p.getPosition();
-			final int dx = pos[0] - pp[0];
-			final int dy = pos[1] - pp[1];
+			final int dx = x - pp[0];
+			final int dy = y - pp[1];
 			if (dx * dx + dy * dy <= r2)
 				count++;
 		}
@@ -2367,9 +2476,9 @@ final class RaceAi {
 	 *  landings are geometry-legal for them (worst-case physics, matching via
 	 *  Kuhn). A finishing escape is never sealable. */
 	private boolean sealable(final int x, final int y, final int vx, final int vy, final int playerNum) {
-		final java.util.List<int[]> esc = new java.util.ArrayList<>();
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
+		int escapeCount = 0;
+		for (final Direction direction : DIRECTIONS) {
+			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
 			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
@@ -2379,29 +2488,31 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			esc.add(new int[]{nx, ny });
+			sealEscapes[escapeCount * 2] = nx;
+			sealEscapes[escapeCount * 2 + 1] = ny;
+			escapeCount++;
 		}
-		if (esc.isEmpty())
-			return true; // already dead-ended
-		final int ne = esc.size();
-		// cover[e] = bitmask of opponents that can legally land on escape e
-		final int[] cover = new int[ne];
-		int oi = 0;
-		for (int i = 0; i < game.players.length; i++) {
-			if (game.players[i].getNumber() == playerNum || game.players[i].isFinished())
+		if (escapeCount == 0)
+			return true;
+		java.util.Arrays.fill(sealCover, 0, escapeCount, 0);
+		int opponentCount = 0;
+		for (final Player opponent : game.players) {
+			if (opponent.getNumber() == playerNum || opponent.isFinished())
 				continue;
-			final int bit = 1 << oi;
-			oi++;
-			final int[] op = game.players[i].getPosition();
-			final int[] ov = game.players[i].getVelocity();
-			final int cx = op[0] + ov[0], cy = op[1] + ov[1];
-			for (int e = 0; e < ne; e++) {
-				if (Math.abs(esc.get(e)[0] - cx) <= 1 && Math.abs(esc.get(e)[1] - cy) <= 1
-						&& game.isMoveLegalGeometryCached(op[0], op[1], esc.get(e)[0], esc.get(e)[1]))
-					cover[e] |= bit;
+			final int bit = 1 << opponentCount;
+			opponentCount++;
+			final int[] position = opponent.getPosition();
+			final int[] velocity = opponent.getVelocity();
+			final int cx = position[0] + velocity[0], cy = position[1] + velocity[1];
+			for (int escape = 0; escape < escapeCount; escape++) {
+				final int ex = sealEscapes[escape * 2];
+				final int ey = sealEscapes[escape * 2 + 1];
+				if (Math.abs(ex - cx) <= 1 && Math.abs(ey - cy) <= 1
+						&& game.isMoveLegalGeometryCached(position[0], position[1], ex, ey))
+					sealCover[escape] |= bit;
 			}
 		}
-		return hasDistinctCover(cover, oi);
+		return hasDistinctCover(sealCover, escapeCount, opponentCount, sealMatch);
 	}
 
 	/** Whether every requested cell can be assigned a different opponent from
@@ -2409,24 +2520,30 @@ final class RaceAi {
 	static boolean hasDistinctCover(final int[] cover, final int opponentCount) {
 		if (opponentCount < 0 || opponentCount > Integer.SIZE)
 			throw new IllegalArgumentException("opponentCount out of range: " + opponentCount);
-		if (cover.length > opponentCount)
+		return hasDistinctCover(cover, cover.length, opponentCount, new int[opponentCount]);
+	}
+
+	private static boolean hasDistinctCover(final int[] cover, final int escapeCount,
+			final int opponentCount, final int[] matchOpponent) {
+		if (escapeCount > opponentCount)
 			return false;
-		final int[] matchOpp = new int[opponentCount];
-		java.util.Arrays.fill(matchOpp, -1);
-		for (int e = 0; e < cover.length; e++) {
-			if (!sealAugment(e, cover, matchOpp, new boolean[opponentCount]))
+		java.util.Arrays.fill(matchOpponent, 0, opponentCount, -1);
+		for (int escape = 0; escape < escapeCount; escape++) {
+			if (!sealAugment(escape, cover, matchOpponent, opponentCount, 0))
 				return false;
 		}
 		return true;
 	}
 
-	private static boolean sealAugment(final int e, final int[] cover, final int[] matchOpp, final boolean[] used) {
-		for (int o = 0; o < matchOpp.length; o++) {
-			if ((cover[e] & (1 << o)) == 0 || used[o])
+	private static boolean sealAugment(final int escape, final int[] cover, final int[] matchOpponent,
+			final int opponentCount, final int usedMask) {
+		for (int opponent = 0; opponent < opponentCount; opponent++) {
+			final int bit = 1 << opponent;
+			if ((cover[escape] & bit) == 0 || (usedMask & bit) != 0)
 				continue;
-			used[o] = true;
-			if (matchOpp[o] < 0 || sealAugment(matchOpp[o], cover, matchOpp, used)) {
-				matchOpp[o] = e;
+			if (matchOpponent[opponent] < 0
+					|| sealAugment(matchOpponent[opponent], cover, matchOpponent, opponentCount, usedMask | bit)) {
+				matchOpponent[opponent] = escape;
 				return true;
 			}
 		}
@@ -2509,15 +2626,19 @@ final class RaceAi {
 		final java.util.List<java.util.HashSet<Long>> blocked = new java.util.ArrayList<>();
 		for (int k = 0; k < depth; k++)
 			blocked.add(new java.util.HashSet<>());
-		for (int i = 0; i < game.players.length; i++) {
-			if (game.players[i].getNumber() == subjectNum || game.players[i].isFinished())
+		for (final Player opponent : game.players) {
+			if (opponent.getNumber() == subjectNum || opponent.isFinished())
 				continue;
-			final int[] p = game.players[i].getPosition();
-			int[] cur = new int[]{p[0], p[1], game.players[i].getVelocity()[0], game.players[i].getVelocity()[1] };
+			final int[] position = opponent.getPosition();
+			final int[] velocity = opponent.getVelocity();
+			int x = position[0], y = position[1], vx = velocity[0], vy = velocity[1];
 			for (int k = 0; k < depth; k++) {
-				cur = greedyStepBlockTop3(cur[0], cur[1], cur[2], cur[3], avoidOcc, blocked.get(k));
-				if (cur == null)
+				if (!greedyStepBlockTop3(x, y, vx, vy, avoidOcc, blocked.get(k), mobilityMove))
 					break;
+				x = mobilityMove[0];
+				y = mobilityMove[1];
+				vx = mobilityMove[2];
+				vy = mobilityMove[3];
 			}
 		}
 		return new MobilitySearch(depth, blocked);
@@ -2540,12 +2661,13 @@ final class RaceAi {
 	}
 
 	/** Best greedy step; blocks the rival's up-to-3 lowest-turns cells. */
-	private int[] greedyStepBlockTop3(final int x, final int y, final int vx, final int vy,
-			final boolean avoidOcc, final java.util.HashSet<Long> block) {
+	private boolean greedyStepBlockTop3(final int x, final int y, final int vx, final int vy,
+			final boolean avoidOcc, final java.util.HashSet<Long> block, final int[] out) {
 		int t1 = Integer.MAX_VALUE, t2 = Integer.MAX_VALUE, t3 = Integer.MAX_VALUE;
-		int[] c1 = null, c2 = null, c3 = null;
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
+		int x1 = 0, y1 = 0, vx1 = 0, vy1 = 0;
+		int x2 = 0, y2 = 0, x3 = 0, y3 = 0;
+		for (final Direction direction : DIRECTIONS) {
+			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
 			if (Math.abs(nvx) > reach.aliveVMAX || Math.abs(nvy) > reach.aliveVMAX)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
@@ -2553,28 +2675,42 @@ final class RaceAi {
 				continue;
 			if (avoidOcc && cellOccupiedByLive(nx, ny, x, y))
 				continue;
-			final int t = reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)];
-			if (t >= Integer.MAX_VALUE)
+			final int turns = reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)];
+			if (turns == Integer.MAX_VALUE)
 				continue;
-			if (t < t1) {
-				t3 = t2; c3 = c2;
-				t2 = t1; c2 = c1;
-				t1 = t; c1 = new int[]{nx, ny, nvx, nvy };
-			} else if (t < t2) {
-				t3 = t2; c3 = c2;
-				t2 = t; c2 = new int[]{nx, ny, nvx, nvy };
-			} else if (t < t3) {
-				t3 = t; c3 = new int[]{nx, ny, nvx, nvy };
+			if (turns < t1) {
+				t3 = t2;
+				x3 = x2;
+				y3 = y2;
+				t2 = t1;
+				x2 = x1;
+				y2 = y1;
+				t1 = turns;
+				x1 = nx;
+				y1 = ny;
+				vx1 = nvx;
+				vy1 = nvy;
+			} else if (turns < t2) {
+				t3 = t2;
+				x3 = x2;
+				y3 = y2;
+				t2 = turns;
+				x2 = nx;
+				y2 = ny;
+			} else if (turns < t3) {
+				t3 = turns;
+				x3 = nx;
+				y3 = ny;
 			}
 		}
-		if (c1 == null)
-			return null;
-		block.add(((long) c1[0] << 32) | (c1[1] & 0xffffffffL));
-		if (c2 != null)
-			block.add(((long) c2[0] << 32) | (c2[1] & 0xffffffffL));
-		if (c3 != null)
-			block.add(((long) c3[0] << 32) | (c3[1] & 0xffffffffL));
-		return c1;
+		if (t1 == Integer.MAX_VALUE)
+			return false;
+		block.add(((long) x1 << 32) | (y1 & 0xffffffffL));
+		if (t2 != Integer.MAX_VALUE)
+			block.add(((long) x2 << 32) | (y2 & 0xffffffffL));
+		if (t3 != Integer.MAX_VALUE)
+			block.add(((long) x3 << 32) | (y3 & 0xffffffffL));
+		return writeMove(out, x1, y1, vx1, vy1);
 	}
 
 	/** Count certified braking descents from (x,y,vx,vy) down to targetSpeed
