@@ -64,6 +64,8 @@ python3 tracks/bench_ai.py --slow --seeds 5
 
 `tracks/bench_ai.py` creates an isolated temporary properties/log directory, so benchmarks do not mutate a developer's `user.properties`. Use `--seed-start 6 --seeds 5` for seeds 6–10.
 
+Reachability maps are cached on disk per track geometry (the reverse-BFS dominates race startup; seeds only move start placements). The cache lives in `%LOCALAPPDATA%/theoreticRacing/reach_cache` (or `~/.theoreticRacing/reach_cache`), can be overridden with `RACING_REACH_CACHE`, and is always safe to delete — a corrupt or missing file just recomputes. `tracks/verify_reach_cache.sh [track] [seed]` proves the cache is behavior-invisible (byte-identical race logs and reachability dumps, cold vs warm).
+
 Before a large run, locate AI1/AI2 behavior changes cheaply:
 
 ```bash

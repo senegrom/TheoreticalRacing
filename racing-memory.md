@@ -48,6 +48,38 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## 2026-08-11 speedup: reachability disk cache (behavior-invisible)
+
+JFR profiling of a nurburgring race showed the CPU is dominated by
+REACHABILITY CONSTRUCTION, not AI search (post int-array):
+isMoveLegalGeometryCached+isMoveLegalGeometry ~2300 samples and
+computeReachability ~1950 vs ~180 for the AI search stack. The BFS is a
+pure function of track geometry (seeds only move start placements) yet
+every race recomputed it — 12-17s per nurburgring-class race, and the
+whole EDT wait the user hit interactively.
+
+FIX: cache turnsArr + the legal-alive mask per geometry hash
+(SHA-256 over cols/rows/vmax/border points) in
+%LOCALAPPDATA%/theoreticRacing/reach_cache (RACING_REACH_CACHE
+overrides; NOT the install dir — OneDrive must not sync multi-MB
+caches). Load re-derives the cheap roomy/shed/cert sweeps (~0.3s pure
+array passes). The legal-alive mask MUST be stored: rebuilding it cold
+pays nearly the full geometry bill again (the mask pass relies on the
+edge cache the BFS warms). Atomic tmp+move writes (pid-suffixed);
+any validation/IO failure falls back to a fresh compute.
+
+MEASURED (nurburgring s19): cold bfs=12406ms -> warm total=358ms (~35x).
+PROOF (tracks/verify_reach_cache.sh): byte-identical race logs AND
+byte-identical --dump-reach maps cold vs warm, on nurburgring and
+sprint. Benches inherit the speedup automatically (same jar, shared
+cache dir); the forensic dump format and oracle tooling are untouched.
+
+NEXT SPEEDUP TARGET (recorded, unclaimed): a segment-legality bitset
+inside the BFS/mask — geometry queries repeat massively across velocity
+states; a flat (x,y,dx,dy) bitset (~2MB) could halve the remaining cold
+compute. Overlaps the runtime-cleanup territory of the other agent's
+int-array line — coordinate via this ledger before building.
+
 ## Round 72 — trap-monotone seal guard (PROMOTED 2026-08-10)
 
 ### Failure class

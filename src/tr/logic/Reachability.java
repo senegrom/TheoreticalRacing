@@ -208,30 +208,34 @@ final class Reachability {
 		// the shed maps are only ever consulted behind an isAlive check.
 		final short[] legalAlive = buildLegalAliveMask(total);
 		final long tMask = System.nanoTime();
+		derivePrecomputes(legalAlive);
+		final long tDerive = System.nanoTime();
+		writeReachabilityCache(legalAlive);
+		final long tCache = System.nanoTime();
+		if (game.autoMode)
+			System.out.printf(
+					"[reachability] init=%.0fms bfs=%.0fms mask=%.0fms derive=%.0fms cacheWrite=%.0fms total=%.0fms alive=%d%n",
+					(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tMask - tBfs) / 1e6, (tDerive - tMask) / 1e6,
+					(tCache - tDerive) / 1e6, (tCache - t0) / 1e6, aliveStates.cardinality());
+	}
+
+	/** Roomy / shed / certified-speed sweeps over the alive set: pure array
+	 *  passes shared by the compute and cache-load paths. */
+	private void derivePrecomputes(final short[] legalAlive) {
+		final int total = turnsArr.length;
 		final BitSet r0 = new BitSet(total);
 		sweepRoomy(legalAlive, null, r0);
-		final long tRoomy0 = System.nanoTime();
 		final BitSet r1 = new BitSet(total);
 		sweepRoomy(legalAlive, r0, r1);
-		final long tRoomy1 = System.nanoTime();
 		final byte[] shed0 = initMinShed(total);
 		final byte[] shed = relaxMinShed(relaxMinShed(shed0, legalAlive, null), legalAlive, null);
-		final long tShed = System.nanoTime();
 		final byte[] shedRoomy = relaxMinShed(relaxMinShed(shed0, legalAlive, r1), legalAlive, r1);
-		final long tShedRoomy = System.nanoTime();
 		final byte[] cert = sweepCertSq(legalAlive, shed);
-		final long tCert = System.nanoTime();
 		roomy0 = r0;
 		roomy1 = r1;
 		minShed2 = shed;
 		minShed2Roomy = shedRoomy;
 		certSq = cert;
-		if (game.autoMode)
-			System.out.printf(
-					"[reachability] init=%.0fms bfs=%.0fms mask=%.0fms roomy0=%.0fms roomy1=%.0fms shed=%.0fms shedRoomy=%.0fms cert=%.0fms total=%.0fms alive=%d%n",
-					(tInit - t0) / 1e6, (tBfs - tInit) / 1e6, (tMask - tBfs) / 1e6, (tRoomy0 - tMask) / 1e6,
-					(tRoomy1 - tRoomy0) / 1e6, (tShed - tRoomy1) / 1e6, (tShedRoomy - tShed) / 1e6, (tCert - tShedRoomy) / 1e6,
-					(tCert - t0) / 1e6, aliveStates.cardinality());
 	}
 
 	/** Sweep helper for {@link #computeReachability}: per-alive-state bitmask
@@ -536,7 +540,8 @@ final class Reachability {
 	void startReachabilityCompute() {
 		reachabilityReady = false;
 		final Thread t = new Thread(() -> {
-			computeReachability();
+			if (!tryLoadReachabilityCache())
+				computeReachability();
 			reachabilityReady = true;
 		}, "reachability-compute");
 		t.setDaemon(true);
@@ -560,6 +565,146 @@ final class Reachability {
 			t.join();
 		} catch (final InterruptedException e) {
 			Thread.currentThread().interrupt();
+		}
+	}
+
+	// --- Reachability disk cache -----------------------------------------
+	// The turns map and the legal-alive mask are pure functions of the track
+	// geometry (seeds only move start placements), yet the BFS that builds
+	// them dominates race startup. Both arrays are cached keyed by a geometry
+	// hash; the cheap roomy/shed/cert sweeps are re-derived on load. Files
+	// live outside the install dir (TrackIO.reachCacheDir) so multi-MB caches
+	// never land in cloud-synced folders.
+
+	private static final int CACHE_MAGIC = 0x54524331; // "TRC1"
+
+	private java.nio.file.Path reachCachePath() {
+		final Track track = game.track;
+		if (track == null)
+			return null;
+		try {
+			final java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+			final java.nio.ByteBuffer header = java.nio.ByteBuffer.allocate(4 * Integer.BYTES)
+					.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			header.putInt(CACHE_MAGIC).putInt(game.gameCols).putInt(game.gameRows).putInt(RaceGame.AI_MAX_SPEED);
+			md.update(header.array());
+			final java.nio.ByteBuffer point = java.nio.ByteBuffer.allocate(2 * Integer.BYTES)
+					.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			for (final java.util.List<int[]> side : java.util.List.of(track.getLeft(), track.getRight())) {
+				for (final int[] p : side) {
+					point.clear();
+					point.putInt(p[0]).putInt(p[1]);
+					md.update(point.array());
+				}
+				md.update((byte) ';');
+			}
+			final StringBuilder hex = new StringBuilder(64);
+			for (final byte b : md.digest())
+				hex.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+			return TrackIO.reachCacheDir().resolve("reach-" + hex + ".bin");
+		} catch (final java.security.NoSuchAlgorithmException e) {
+			return null;
+		}
+	}
+
+	/** Load turns + legal-alive from the geometry-keyed cache and re-derive
+	 *  the sweeps. Any validation or IO failure returns false and leaves the
+	 *  compute path to run from scratch. */
+	boolean tryLoadReachabilityCache() {
+		final java.nio.file.Path path = reachCachePath();
+		if (path == null || !java.nio.file.Files.isRegularFile(path))
+			return false;
+		final long t0 = System.nanoTime();
+		final int w = game.gameCols + 1;
+		final int h = game.gameRows + 1;
+		final int vmax = RaceGame.AI_MAX_SPEED;
+		final int span = 2 * vmax + 1;
+		final long stateCount = (long) w * h * span * span;
+		if (stateCount > Integer.MAX_VALUE)
+			return false;
+		final Runtime runtime = Runtime.getRuntime();
+		final long availableBytes = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+		if (stateCount * 12L > availableBytes * 3 / 4)
+			return false; // let computeReachability raise its descriptive error
+		final int total = (int) stateCount;
+		final int[] turns = new int[total];
+		final short[] legalAlive = new short[total];
+		try (java.io.InputStream in = new java.io.BufferedInputStream(
+				java.nio.file.Files.newInputStream(path), 1 << 16)) {
+			final byte[] head = in.readNBytes(4 * Integer.BYTES);
+			if (head.length < 4 * Integer.BYTES)
+				return false;
+			final java.nio.ByteBuffer hb = java.nio.ByteBuffer.wrap(head).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			if (hb.getInt() != CACHE_MAGIC || hb.getInt() != w || hb.getInt() != h || hb.getInt() != vmax)
+				return false;
+			final byte[] turnBytes = in.readNBytes(total * Integer.BYTES);
+			if (turnBytes.length < total * Integer.BYTES)
+				return false;
+			java.nio.ByteBuffer.wrap(turnBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(turns);
+			final byte[] maskBytes = in.readNBytes(total * Short.BYTES);
+			if (maskBytes.length < total * Short.BYTES)
+				return false;
+			java.nio.ByteBuffer.wrap(maskBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(legalAlive);
+		} catch (final java.io.IOException e) {
+			return false;
+		}
+		final BitSet alive = new BitSet(total);
+		for (int i = 0; i < total; i++)
+			if (turns[i] != Integer.MAX_VALUE)
+				alive.set(i);
+		aliveW = w;
+		aliveH = h;
+		aliveVMAX = vmax;
+		aliveSpan = span;
+		turnsArr = turns;
+		aliveStates = alive;
+		final long tLoad = System.nanoTime();
+		derivePrecomputes(legalAlive);
+		final long tDerive = System.nanoTime();
+		if (game.autoMode)
+			System.out.printf("[reachability] cache-hit load=%.0fms derive=%.0fms total=%.0fms alive=%d%n",
+					(tLoad - t0) / 1e6, (tDerive - tLoad) / 1e6, (tDerive - t0) / 1e6, aliveStates.cardinality());
+		return true;
+	}
+
+	/** Best-effort atomic cache write; failures only cost the speedup. */
+	private void writeReachabilityCache(final short[] legalAlive) {
+		final java.nio.file.Path path = reachCachePath();
+		if (path == null)
+			return;
+		try {
+			java.nio.file.Files.createDirectories(path.getParent());
+			final java.nio.file.Path tmp = path.resolveSibling(
+					path.getFileName() + ".tmp" + ProcessHandle.current().pid());
+			try (java.io.OutputStream out = new java.io.BufferedOutputStream(
+					java.nio.file.Files.newOutputStream(tmp), 1 << 16)) {
+				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024)
+						.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+				buf.putInt(CACHE_MAGIC).putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
+				for (final int v : turnsArr) {
+					if (buf.remaining() < Integer.BYTES) {
+						out.write(buf.array(), 0, buf.position());
+						buf.clear();
+					}
+					buf.putInt(v);
+				}
+				for (final short v : legalAlive) {
+					if (buf.remaining() < Short.BYTES) {
+						out.write(buf.array(), 0, buf.position());
+						buf.clear();
+					}
+					buf.putShort(v);
+				}
+				out.write(buf.array(), 0, buf.position());
+			}
+			try {
+				java.nio.file.Files.move(tmp, path, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			} catch (final java.io.IOException e) {
+				java.nio.file.Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+			}
+		} catch (final java.io.IOException e) {
+			System.err.println("[reachability] cache write failed: " + e);
 		}
 	}
 

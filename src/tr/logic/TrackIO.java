@@ -17,6 +17,7 @@ public final class TrackIO {
 	private static final Path USER_PROPERTIES = INSTALL_DIR.resolve("user.properties");
 	private static final Path GAME_LOG = INSTALL_DIR.resolve("last_game.log");
 	private static final Path TRACKS_DIR = INSTALL_DIR.resolve("tracks");
+	private static final Path REACH_CACHE_DIR = locateReachCacheDir();
 
 	private TrackIO() {}
 
@@ -43,6 +44,23 @@ public final class TrackIO {
 	/** Directory containing .track files. */
 	public static Path tracksDir() {
 		return TRACKS_DIR;
+	}
+
+	/** Directory for reachability cache files. RACING_REACH_CACHE overrides;
+	 *  otherwise a per-user local app-data directory. Cache files are tens of
+	 *  MB, so they must stay out of cloud-synced folders like the install dir. */
+	public static Path reachCacheDir() {
+		return REACH_CACHE_DIR;
+	}
+
+	private static Path locateReachCacheDir() {
+		final String override = System.getenv("RACING_REACH_CACHE");
+		if (override != null && !override.isBlank())
+			return Path.of(override);
+		final String localAppData = System.getenv("LOCALAPPDATA");
+		if (localAppData != null && !localAppData.isBlank())
+			return Path.of(localAppData, "theoreticRacing", "reach_cache");
+		return Path.of(System.getProperty("user.home"), ".theoreticRacing", "reach_cache");
 	}
 
 	/** List names of available tracks (file stem, without .track suffix). */

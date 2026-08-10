@@ -57,7 +57,7 @@ public final class RaceGame {
 	private float[][]			startZone;
 	Area				startZoneA;
 	int					subgamestate	= 0;
-	private Track				track;
+	Track				track;
 	Area				trackA;
 	int					gameCols, gameRows;
 	private final StringBuilder	gameLog		= new StringBuilder();
