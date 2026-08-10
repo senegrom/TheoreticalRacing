@@ -224,8 +224,8 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK		= 7;	// round 67: rare dense slow-pack scorer trigger
 	private final static int		AI1_SLOW_PACK_R	= 10;
 	private final static int		AI1_SLOW_PACK_SPD2	= 16;
-	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (AI1): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
-	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71: speed floor for the small-field gate (start-grid moves stay below it)
+	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (promoted): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
+	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71 (promoted): speed floor for the small-field gate (start-grid moves stay below it)
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
@@ -592,6 +592,13 @@ final class RaceAi {
 			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
+				// Round 72 (AI1): a worst-case seal warning must not force the
+				// scorer into a strictly narrower local trap. Nurburgring 8-car
+				// seed 19 exposed the incoherence: the scorer's tier-L2 N was
+				// oracle-alive, while the old fastest-unsealable guard replaced it
+				// with tier-L1 E, which died. Keep the guard's anti-seal purpose,
+				// but require a trap-monotone escape.
+				final double chosenTrap = trapByDir[chosen.ordinal()];
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
 				for (final Direction d : DIRECTIONS) {
@@ -609,6 +616,8 @@ final class RaceAi {
 					if (game.isCrashingPlayer(nx, ny, playerNum))
 						continue;
 					if (!reach.isAlive(nx, ny, nvx, nvy))
+						continue;
+					if (trapByDir[d.ordinal()] > chosenTrap)
 						continue;
 					if (sealable(nx, ny, nvx, nvy, playerNum))
 						continue;
@@ -1908,6 +1917,10 @@ final class RaceAi {
 			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
+				// Round 72 (PROMOTED): a worst-case seal warning must not force
+				// the scorer into a strictly narrower local trap. See the AI1
+				// body for the Nurburgring seed-19 derivation.
+				final double chosenTrap = trapByDir[chosen.ordinal()];
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
 				for (final Direction d : DIRECTIONS) {
@@ -1925,6 +1938,8 @@ final class RaceAi {
 					if (game.isCrashingPlayer(nx, ny, playerNum))
 						continue;
 					if (!reach.isAlive(nx, ny, nvx, nvy))
+						continue;
+					if (trapByDir[d.ordinal()] > chosenTrap)
 						continue;
 					if (sealable(nx, ny, nvx, nvy, playerNum))
 						continue;
@@ -2037,8 +2052,14 @@ final class RaceAi {
 						}
 					}
 					final int slowPack = countRivalsWithinCheb(scx, scy, playerNum, AI1_SLOW_PACK_R);
-					final boolean denseSlowPack = slowSpd2 >= AI1_SLOW_PACK_SPD2 && sealRivals >= AI1_SLOW_PACK
-							&& slowPack == sealRivals && closeEscape;
+					// Round 71 (PROMOTED): generalise the dense-pack trigger to
+					// four-car fields with a lower speed floor. Whole-field packing
+					// and a near-equal low-trap escape keep the extra scorer rollout
+					// narrowly tied to the Monaco seed-9 funnel class.
+					final boolean packAll = slowPack == sealRivals && closeEscape;
+					final boolean denseSlowPack = packAll && (sealRivals >= AI1_SLOW_PACK
+							? slowSpd2 >= AI1_SLOW_PACK_SPD2
+							: sealRivals >= AI1_SLOW_PACK_MIN && slowSpd2 >= AI1_SLOW_PACK_SPD2_SMALL);
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, false) < 0;

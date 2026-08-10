@@ -50,19 +50,19 @@
       "track": "zigzag",
       "seed": 4,
       "players": 8,
-      "sha256": "41b381d4f99b467b6b9bd33f97d2278f75bbd5784411a3d163eeef678a2b6299",
+      "sha256": "91524509cfcd90def57fc19c17421a443d647eeb67d4dac7214509c82b1664cb",
       "summary": {
-        "turns": 532,
+        "turns": 530,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
           "B",
-          "D",
           "C",
+          "D",
           "E",
-          "H",
           "F",
+          "H",
           "G"
         ]
       }
@@ -124,6 +124,46 @@
         "results": [
           "A",
           "B"
+        ]
+      }
+    },
+    {
+      "name": "monaco-s9-4p",
+      "track": "monaco",
+      "seed": 9,
+      "players": 4,
+      "sha256": "412d1d7edb41980d3f5de6b7d6d4f1e4f1dd6be75ddb125ee33ebf28737cc7ad",
+      "summary": {
+        "turns": 458,
+        "finishes": 3,
+        "crashes": 0,
+        "results": [
+          "B",
+          "D",
+          "A",
+          "C"
+        ]
+      }
+    },
+    {
+      "name": "nurburgring-s19-8p",
+      "track": "nurburgring",
+      "seed": 19,
+      "players": 8,
+      "sha256": "345d994274959002bed1b30a3da0c604c9eb96b46398ebab59dc517e5a803b8c",
+      "summary": {
+        "turns": 760,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "A",
+          "H",
+          "B",
+          "E",
+          "C",
+          "F",
+          "G",
+          "D"
         ]
       }
     }
