@@ -3,7 +3,7 @@
 
 The suite is intentionally much smaller than the promotion battery. It catches
 changes to physics, turn ordering, reachability, collision handling and the
-frozen AI2 policy in roughly a minute on CI.
+frozen AI2 policy in a few minutes on CI.
 """
 
 from __future__ import annotations
@@ -29,6 +29,8 @@ SPECS = [
     {"name": "hungaroring-s13-8p", "track": "hungaroring", "seed": 13, "players": 8},
     {"name": "lemans-s4-8p", "track": "lemans", "seed": 4, "players": 8},
     {"name": "hairpin-s1-2p", "track": "hairpin", "seed": 1, "players": 2},
+    {"name": "monaco-s9-4p", "track": "monaco", "seed": 9, "players": 4},
+    {"name": "nurburgring-s19-8p", "track": "nurburgring", "seed": 19, "players": 8},
 ]
 
 

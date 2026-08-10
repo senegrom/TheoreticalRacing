@@ -48,13 +48,39 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
-## Round 71 (local agent, in gates): fresh-seed harvest + small-field pack gate
+## Round 72 — trap-monotone seal guard (PROMOTED 2026-08-10)
+
+### Failure class
+
+The 770-race fresh-seed harvest left one eight-car crash after Round 71: Nurburgring seed 19. At player 4 move 260, the main scorer selected `N` with score 64.275 and trap penalty 0.5. The legacy `sealGuard` then discarded it as worst-case sealable and selected the fastest unsealable alternative, `E`, despite `E` scoring 73.161 with trap penalty 2.0. `E` entered the doomed thread and player 4 crashed at move 292; the scorer's original `N` was oracle-alive.
+
+This is the same structural disease seen in earlier pace regressions: an auxiliary selector ignored the scorer's load-bearing trap ladder. The seal proof is useful, but it is not coherent to avoid a theoretical future box by choosing a state with strictly fewer safe local continuations.
+
+### Change
+
+The seal guard now accepts an unsealable replacement only when its trap penalty is no worse than the scorer choice. The existing geometry, occupancy, alive-state and fastest-time requirements remain unchanged. No score threshold or track-specific constant was added.
+
+### Evidence
+
+- Nurburgring eight-car seed 19: 6 finishes / 1 crash / 698 turns becomes 7 / 0 / 760. The rescued car completes the race rather than disappearing early, so total turns rise as expected.
+- Mixed Nurburgring seed 19: AI1 0 crashes versus pre-promotion AI2 1 crash. Mean place moves 4.625 versus 4.375 because the rescued back-marker now occupies a finishing place; crash count is the governing metric for this safety proof.
+- Le Mans seed 4, Hungaroring seeds 6 and 20, Monaco four-car seed 9, and Interlagos four-car seeds 3 and 4 remain move-for-move identical to Round 71.
+- Short-track eight-car A/B, seeds 1–5 on sprint, hairpin, triangle, chicane and curve: 23 of 25 logs exact. The two seal-guard divergences are both crash-free; sprint seed 5 costs one turn and chicane seed 4 saves one, for net zero.
+- Four-car seeds 1–5 on sprint, hairpin, triangle, chicane and bigoval are all exact.
+- New frozen golden fixtures pin Nurburgring eight-car seed 19 and Monaco four-car seed 9.
+- The pre-existing zigzag eight-car seed-4 fixture changes safely: 7 finishes / 0 crashes remain unchanged, total turns improve from 532 to 530, and the middle finishing order reflows. Its hash/summary are deliberately promoted with the policy.
+
+Round 72 was promoted into both AI bodies. AI1 and AI2 are identical again.
+
+---
+
+## Round 71 — fresh-seed harvest + small-field pack gate (PROMOTED WITH ROUND 72)
 
 COUNTEREXAMPLE HARVEST on the round-70 champion: 770 fresh races (8-car
 s16-30, 4-car s6-15, 2-car s6-15, all 22 tracks) found exactly TWO
 crashes -- strong generalization evidence for the mechanism stack.
 
-1. **monaco 4-car s9 (FIXED, in gates): the small-field funnel class.**
+1. **monaco 4-car s9 (FIXED AND PROMOTED): the small-field funnel class.**
    Entry m27 (spd^2=13, all 3 rivals within Chebyshev 10): chosen NONE
    dies @r3 with survivors N/SE (oracle). smom is BLIND and NON-FRAGILE
    (alive t=100 tier=3) but orivals sees DEAD@r2 -- only the trigger was
@@ -64,7 +90,7 @@ crashes -- strong generalization evidence for the mechanism stack.
    AI1_SLOW_PACK_MIN=3 and spd^2 >= AI1_SLOW_PACK_SPD2_SMALL=12 (start
    grids stay below). Race saved (26 escalations, 3 verdicts, 2
    switches); 8-car keeps the original 7/16 gate.
-2. **nurburgring 8-car s19 (OPEN CLASS, recorded): compound sealGuard +
+2. **nurburgring 8-car s19 (FIXED BY ROUND 72): compound sealGuard +
    fidelity failure.** Entry m260: the scorer's own argmin picked the
    oracle-alive N (score 64.28) but the SEALGUARD swapped to the doomed
    E (73.16 -- trap 2.0 + unc 3.46 + ce 4.16 ignored by the "fastest
@@ -74,15 +100,16 @@ crashes -- strong generalization evidence for the mechanism stack.
    scorer-rival rollout said ALIVE though the death is @r4 real /
    DEAD@r2 under orivals -- the in-game rollout behaves like smom at
    crawl-queue sites (both matrix rows measured; smom blind t=58
-   tier=3). Candidate future fixes: certify the sealGuard swap (keep
-   best when the swap target dies in-sim and best survives -- blocked
-   today by the same fidelity gap) and close the in-game-vs-orivals
-   rollout gap (suspects: the IN_SCORER_SIM suppression making sim
-   rivals dumber, or the selfMove me-proxy). 1 crash / 770 races.
+   tier=3). Round 72 fixes the earlier selector error directly: an
+   unsealable replacement may no longer worsen the scorer's trap tier.
+   The deeper rollout-fidelity mismatch remains a research topic, but it
+   is no longer on the decision path for this counterexample.
+
+**Promotion result:** the small-field gate was promoted with Round 72. On Monaco four-car seeds 6–10 it improves 14 finishes / 1 crash to 15 / 0; the target 2v2 seed keeps exact 2.500 place parity while removing the crash.
 
 ## 2026-08-09 round-70 promotion: close the four-car Interlagos gap
 
-**Round 70 is the current champion; AI1 and AI2 are identical at rest again.**
+**Round 70 was the champion at this point; AI1 and AI2 were identical at rest.**
 The only known round-69 promotion-battery failures were four-car Interlagos
 seeds 3 and 4. Both converge to the same p4 trajectory and crash at move 480.
 The generalized four-car oracle reproduced 20 logged moves exactly and found
