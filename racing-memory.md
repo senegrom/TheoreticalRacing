@@ -48,6 +48,47 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 72 (upstream branch, in flight): sealGuard trap-tier gate -- review + fidelity map
+
+The other agent's `agent-snapshot-r72` branch attacks the nurburgring
+m260 class with a TRAP-TIER GATE in the AI1 sealGuard swap loop: after
+the `sealable(alternative)` skip, also `continue` when
+`trapByDir[d] > trapByDir[chosen]` ("sealability is an auxiliary one-ply
+risk certificate, not permission to discard the scorer's stronger trap
+ladder"). At m260 this excludes E (trap 2.0 vs chosen 0.5, the ONLY
+unsealable -- the full m260 candidate table has exactly two scored rows,
+so any swap-selection rule alone cannot save the site) and the guard
+keeps the oracle-alive N. Their split gates show two open regressions in
+flight (spielberg s9 slow, interlagos s10) -- consistent with weakening
+the r50 guard where the swap was load-bearing.
+
+Local review findings (recorded so nobody re-derives them):
+
+1. **Anchor soundness verified on the int-array body**: every
+   guard-eligible direction is also scored -- the guard's chain (speed
+   cap, crossesFinish early return, legality, isCrashingPlayer,
+   reach-alive) matches the scoring loop's filters (ownTurns finite),
+   so no swap target carries a phantom zero-filled trapByDir.
+2. **The r71 fidelity-gap suspects are now discriminated.** Sim rivals
+   run the FULL scorer (scorerMoveOverState installs the board and calls
+   computeAiMove) minus what IN_SCORER_SIM suppresses: the 1v1 solver,
+   the certified-pace override, the certified-UNC override, and ALL
+   DJS/escalation machinery; the sealGuard itself RUNS in sim. The
+   me-proxy is ELIMINATED as the gap: orivals uses the same selfMove me
+   and still sees DEAD@r2. Prime suspect: **AI1_SCORER_MAXRIVALS=3** --
+   membership is the 3 nearest rivals of MY LANDING, fixed at rollout
+   start; the m260 crawl queue has ~7 near rivals, so the box formers
+   beyond rank 3 run the smom proxy, the sim queue advances too fast and
+   the box never forms (rollout alive t=58 vs orivals DEAD@r2). Second
+   suspect: the suppressions themselves.
+3. **Fallback arm if trap-tier cannot clear its regressions**:
+   parameterize the scorer cap (dense/certification fires get the whole
+   near field, ordinary slow fires keep 3 for cost), then the certified
+   sealGuard swap -- survival-only asymmetric: keep the argmin when the
+   swap target provably dies in the repaired sim AND the argmin
+   survives. Synthesis option if trap-alone is too coarse: require BOTH
+   the trap gate and the certification.
+
 ## Round 71 (local agent, in gates): fresh-seed harvest + small-field pack gate
 
 COUNTEREXAMPLE HARVEST on the round-70 champion: 770 fresh races (8-car
@@ -79,8 +120,22 @@ crashes -- strong generalization evidence for the mechanism stack.
    today by the same fidelity gap) and close the in-game-vs-orivals
    rollout gap (suspects: the IN_SCORER_SIM suppression making sim
    rivals dumber, or the selfMove me-proxy). 1 crash / 770 races.
+   [Suspects discriminated in the round-72 section above.]
 
-## 2026-08-09 round-70 promotion: close the four-car Interlagos gap
+R71 CERTIFICATION (old body): probe 0/27 inert; ALL 8 battery stages
+exact ties vs the r70 champion (770/0 x3 @63.81/63.78/63.77, h2h 4.500
+c=0 x2, 4car 330/0/61.81, 1v1 110/0/60.64, slow 28/0/104.25); monaco
+save validated. Mid-round the int-array rework (59b15a0, "preserving
+exact scoring, move ordering, tie-breaks") landed on master; the gate
+was re-applied verbatim onto the new AI1 body (AI2 mirror untouched) and
+the composition was committed by the user (d413cf9) with the goldens
+hash-identical and all unit tests green on the composed jar. R71B
+re-certification on the composed body: monaco s9 save revalidated
+EXACTLY (0 crashes, 26 dense-pack escalations), probe 0/27 inert again,
+and ALL 8 battery stages exact ties once more (770/0 x3
+@63.81/63.78/63.77, h2h 4.500 c=0 x2, 4car 330/0/61.81, 1v1
+110/0/60.64, slow 28/0/104.25). ROUND 71 IS FULLY CERTIFIED ON BOTH
+BODIES; promotion into AI2 awaits the user's word.
 
 **Round 70 is the current champion; AI1 and AI2 are identical at rest again.**
 The only known round-69 promotion-battery failures were four-car Interlagos
