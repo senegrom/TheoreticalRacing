@@ -10,7 +10,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Properties;
@@ -321,24 +320,101 @@ public final class RaceGame {
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
 	}
 
-	private final HashMap<Long, Boolean>	edgeLegalCache		= new HashMap<>();
+	/** Primitive cache for geometry edges. Reachability owns it while building;
+	 *  AI callers wait for that build, so the table has the same single-writer
+	 *  lifecycle as the former HashMap without Long/Boolean/node allocation. */
+	private final EdgeLegalCache	edgeLegalCache		= new EdgeLegalCache(1 << 16);
 
 	boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
 		final long packed = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32
 				| ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
 		final long key = mixEdgeKey(packed);
-		Boolean cached = edgeLegalCache.get(key);
-		if (cached != null)
-			return cached;
+		final byte cached = edgeLegalCache.get(key);
+		if (cached != 0)
+			return cached == EdgeLegalCache.TRUE;
 		final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
 		edgeLegalCache.put(key, legal);
 		return legal;
 	}
 
-	/** Bijective SplitMix64 finalizer. Packed nearby endpoints otherwise hash in
-	 *  {@link Long} mostly as {@code from XOR to}, creating extreme bucket
-	 *  clustering and treeification for short racing moves. Because this mix is
-	 *  one-to-one over 64 bits, it improves distribution without changing cache
+	/** Open-addressed long-to-boolean map. A separate state byte means every
+	 *  64-bit key, including zero, is representable. Keys arrive already mixed,
+	 *  so their low bits can select the initial slot directly. */
+	static final class EdgeLegalCache {
+		static final byte FALSE = 1;
+		static final byte TRUE = 2;
+
+		private long[] keys;
+		private int mask;
+		private int resizeAt;
+		private int size;
+		private byte[] states;
+
+		EdgeLegalCache(final int initialCapacity) {
+			if (initialCapacity < 1 || initialCapacity > 1 << 30)
+				throw new IllegalArgumentException("invalid cache capacity");
+			int capacity = 4;
+			while (capacity < initialCapacity)
+				capacity <<= 1;
+			allocate(capacity);
+		}
+
+		byte get(final long key) {
+			int slot = (int) key & mask;
+			while (states[slot] != 0) {
+				if (keys[slot] == key)
+					return states[slot];
+				slot = slot + 1 & mask;
+			}
+			return 0;
+		}
+
+		void put(final long key, final boolean value) {
+			if (size >= resizeAt)
+				grow();
+			int slot = (int) key & mask;
+			while (states[slot] != 0) {
+				if (keys[slot] == key) {
+					states[slot] = value ? TRUE : FALSE;
+					return;
+				}
+				slot = slot + 1 & mask;
+			}
+			keys[slot] = key;
+			states[slot] = value ? TRUE : FALSE;
+			size++;
+		}
+
+		private void allocate(final int capacity) {
+			keys = new long[capacity];
+			states = new byte[capacity];
+			mask = capacity - 1;
+			resizeAt = capacity - capacity / 3;
+		}
+
+		private void grow() {
+			if (keys.length == 1 << 30)
+				throw new IllegalStateException("geometry cache is too large");
+			final long[] oldKeys = keys;
+			final byte[] oldStates = states;
+			allocate(keys.length << 1);
+			size = 0;
+			for (int i = 0; i < oldStates.length; i++) {
+				if (oldStates[i] == 0)
+					continue;
+				int slot = (int) oldKeys[i] & mask;
+				while (states[slot] != 0)
+					slot = slot + 1 & mask;
+				keys[slot] = oldKeys[i];
+				states[slot] = oldStates[i];
+				size++;
+			}
+		}
+	}
+
+	/** Bijective SplitMix64 finalizer. Packed nearby endpoints have strongly
+	 *  structured low bits, which would create long probe clusters in the
+	 *  primitive table. One-to-one mixing spreads them without changing cache
 	 *  identity or introducing collisions. */
 	private static long mixEdgeKey(long key) {
 		key = (key ^ (key >>> 30)) * 0xbf58476d1ce4e5b9L;

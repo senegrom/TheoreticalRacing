@@ -267,7 +267,7 @@ final class Reachability {
 				final int nx = x + nvx;
 				final int ny = y + nvy;
 				// Alive-first equals legal-first in result (both pure
-				// predicates); alive-first keeps the HashMap lookups to alive
+				// predicates); alive-first keeps the edge-cache probes to alive
 				// landings only (all of which are cache hits, see above).
 				if (isAlive(nx, ny, nvx, nvy) && game.isMoveLegalGeometryCached(x, y, nx, ny))
 					m = (short) (m | 1 << di);

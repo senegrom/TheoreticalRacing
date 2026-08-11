@@ -114,6 +114,33 @@ ties (770/0/63.82, 770/0/63.78, h2h 4.500 c=0, 4car 330/0/61.81, 1v1
 110/0/60.64, slow 28/0/104.25). ROUND 73 IS PROMOTION-READY; the word
 is the user's.
 
+## 2026-08-11 speedup: primitive geometry-edge cache (behavior-invisible)
+
+Pulled the Round 73 champion at `76ff22f` and re-profiled both cold and
+warm Nurburgring seed 19. The remaining shared-runtime allocation hotspot
+was the geometry cache's `HashMap<Long,Boolean>`: every lookup boxed the
+mixed edge key, and every new edge also allocated a node and boxed value.
+
+FIX: `RaceGame.EdgeLegalCache` is a single-writer open-addressed primitive
+long-to-boolean table. A state byte distinguishes missing, false and true,
+so zero and every other 64-bit key remain valid. It grows at two-thirds
+load and retains the bijective SplitMix key finalizer. Direct tests cover
+misses, both values, zero/high-bit keys, updates and a 10,000-entry resize.
+
+MEASURED (three cold and five warm interleaved pairs, separate disk caches):
+Nurburgring seed 19 cold median 13.533s -> 12.628s (**6.7% faster**), warm
+median 2.584s -> 2.535s (**1.9% faster**). All 16 measured logs had one
+SHA-256 hash. Warm JFR `Long.valueOf` allocation pressure fell from 21.46%
+to 2.81%. Validation: Java unit suites, headless smoke, all nine golden
+races, strict 27-case AI1/AI2 probe, and cold/warm reach-cache log+dump
+comparison all pass.
+
+REJECTED FOLLOW-UP: primitive blocked-cell and long-to-double mobility
+tables were not kept. A separate nine-pair warm A/B against the edge-only
+build was slightly worse: median 2.564s vs 2.533s and trimmed mean 2.546s
+vs 2.525s (0.8% slower), despite exact logs. Do not repeat without a design
+that reuses storage across turns and proves a gain.
+
 ## 2026-08-11 speedup: reachability disk cache (behavior-invisible)
 
 JFR profiling of a nurburgring race showed the CPU is dominated by

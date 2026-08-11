@@ -15,6 +15,7 @@ public final class CoreTests {
         testPointParsing();
         testTrackNames();
         testBorderValidation();
+        testEdgeLegalCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
         testSegmentIntersection();
@@ -100,6 +101,28 @@ public final class CoreTests {
         final long maxGrid = RaceAi.endgameMemoKey(500, 500, 12, -12, 499, 498, -12, 12, 20, true);
         final long adjacent = RaceAi.endgameMemoKey(500, 499, 12, -12, 499, 498, -12, 12, 20, true);
         check(maxGrid != adjacent, "endgame memo key loses supported 9-bit coordinates");
+    }
+
+    private static void testEdgeLegalCache() {
+        final RaceGame.EdgeLegalCache cache = new RaceGame.EdgeLegalCache(1);
+        check(cache.get(0L) == 0, "fresh edge cache should miss");
+        cache.put(0L, false);
+        cache.put(Long.MIN_VALUE, true);
+        check(cache.get(0L) == RaceGame.EdgeLegalCache.FALSE, "zero-key false value was lost");
+        check(cache.get(Long.MIN_VALUE) == RaceGame.EdgeLegalCache.TRUE, "high-bit true value was lost");
+
+        for (int i = 1; i <= 10_000; i++) {
+            final long key = i * 0x9e3779b97f4a7c15L;
+            cache.put(key, (i & 1) == 0);
+        }
+        for (int i = 1; i <= 10_000; i++) {
+            final long key = i * 0x9e3779b97f4a7c15L;
+            final byte expected = (i & 1) == 0 ? RaceGame.EdgeLegalCache.TRUE : RaceGame.EdgeLegalCache.FALSE;
+            check(cache.get(key) == expected, "edge cache resize lost key " + i);
+        }
+        cache.put(0L, true);
+        check(cache.get(0L) == RaceGame.EdgeLegalCache.TRUE, "edge cache update failed");
+        check(cache.get(123456789L) == 0, "edge cache false hit");
     }
 
     private static void testDistinctCoverMatching() {
