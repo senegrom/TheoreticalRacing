@@ -229,6 +229,11 @@ public final class GameUI {
 		});
 
 		frame.setVisible(true);
+		// Windows denies foreground to windows opened by background-launched
+		// processes; without the nudge the game appears BEHIND the launching
+		// terminal and looks like "nothing displayed".
+		frame.toFront();
+		frame.requestFocus();
 		frame.repaint();
 		frame.validate();
 	}

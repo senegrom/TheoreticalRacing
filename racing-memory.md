@@ -55,9 +55,14 @@ scorerCap machinery; AI2 mirror comment convention), strict probe ALL
 IDENTICAL 0/27, golden corpus regenerated ADDITIONS-ONLY (every prior
 hash unchanged -- the check is inert on all existing fixtures) with the
 new `interlagos-s10-8p` case pinning the save (1049 turns, 7/0), docs
-updated (sixth bounded safety proof). Post-promotion self-tie battery
-in flight; certification appended on completion. AI1 and AI2 are
-identical again.
+updated (sixth bounded safety proof). POST-PROMOTION SELF-TIE BATTERY
+CERTIFIED: probe 0/27, ALL 8 stages exact self-ties with ZERO crashes
+anywhere -- 770/0 x3 @63.82/63.79/63.78 (the s6-10 slice back to
+crash-free), h2h 4.500 c=0 BOTH seed bands, 4car 330/0/61.81, 1v1
+110/0/60.64, slow 28/0/104.25. The canonical record is 2310/2310 again.
+Champion baselines re-seeded from the self-tie logs (extract_baseline
+col=1 -> scratchpad baseline_*.json; consumed via BENCH_BASELINE). AI1
+and AI2 are identical again.
 
 ## Round 73 (local agent, gates PASSED): certified corridor check for convergence dooms
 

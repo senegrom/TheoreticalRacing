@@ -305,6 +305,10 @@ public final class StartDialog extends JFrame {
 		add(southContainer, BorderLayout.SOUTH);
 
 		setVisible(true);
+		// Same foreground nudge as the game frame: launched from a terminal,
+		// the dialog otherwise opens behind it.
+		toFront();
+		requestFocus();
 
 		txtSize[0].setText(prop.getProperty("windowX"));
 		txtSize[1].setText(prop.getProperty("windowY"));
