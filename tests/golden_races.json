@@ -166,6 +166,28 @@
           "D"
         ]
       }
+    },
+    {
+      "name": "interlagos-s10-8p",
+      "track": "interlagos",
+      "seed": 10,
+      "players": 8,
+      "sha256": "b58a6ef550970b196b3054d4f0d999d0cf5ccb123809562cc67a63ca187fe294",
+      "summary": {
+        "turns": 1049,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "A",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H",
+          "C",
+          "B"
+        ]
+      }
     }
   ]
 }

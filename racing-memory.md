@@ -48,7 +48,18 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
-## Round 73 (local agent, in gates): certified corridor check for convergence dooms
+## Round 73 — certified corridor check (PROMOTED 2026-08-11, per user)
+
+Promotion executed: the corridor check mirrored into AI2 (shared
+scorerCap machinery; AI2 mirror comment convention), strict probe ALL
+IDENTICAL 0/27, golden corpus regenerated ADDITIONS-ONLY (every prior
+hash unchanged -- the check is inert on all existing fixtures) with the
+new `interlagos-s10-8p` case pinning the save (1049 turns, 7/0), docs
+updated (sixth bounded safety proof). Post-promotion self-tie battery
+in flight; certification appended on completion. AI1 and AI2 are
+identical again.
+
+## Round 73 (local agent, gates PASSED): certified corridor check for convergence dooms
 
 THE R72 PROMOTION REGRESSED INTERLAGOS: the post-promotion self-tie
 battery (both bodies = r72 champion) came back 769/1 on 8car s6-10 --

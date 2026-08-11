@@ -2069,6 +2069,31 @@ final class RaceAi {
 											true, true, AI1_DEEP_HORIZON);
 								chosen = deepChoice;
 								deepHandled = true;
+							} else {
+								// Round 73 (PROMOTED): certified corridor check for
+								// convergence dooms -- with >= AI1_DEEP_PACK rivals AHEAD
+								// of the landing, certify the smom-blind alive verdict in
+								// the scorer-rival world at the widened cap. See the AI1
+								// body for the interlagos-s10 m103 derivation.
+								int aheadNear = 0;
+								for (final Player pp : game.players) {
+									if (pp.getNumber() == playerNum || pp.isFinished())
+										continue;
+									final int[] ppos = pp.getPosition();
+									if (Math.abs(ppos[0] - dcx) <= AI1_DEEP_PACK_R
+											&& Math.abs(ppos[1] - dcy) <= AI1_DEEP_PACK_R
+											&& (ppos[0] - dcx) * djvx + (ppos[1] - dcy) * djvy > 0)
+										aheadNear++;
+								}
+								if (aheadNear >= AI1_DEEP_PACK) {
+									if (AI_DEBUG_DJS)
+										System.err.println("AIDBG CORR p=" + playerNum + " pos=(" + pos[0] + ","
+												+ pos[1] + ") chosen=" + chosen + " ahead=" + aheadNear
+												+ " -> certified corridor check");
+									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
+									deepHandled = true;
+								}
 							}
 						}
 					}
