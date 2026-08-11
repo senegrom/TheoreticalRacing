@@ -188,6 +188,28 @@
           "B"
         ]
       }
+    },
+    {
+      "name": "zigzag-s22-8p",
+      "track": "zigzag",
+      "seed": 22,
+      "players": 8,
+      "sha256": "ca4ab1d3f7ab66277f3cca60d1376544e115f1742ab91f08551195d3759de606",
+      "summary": {
+        "turns": 529,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "A",
+          "C",
+          "B",
+          "E",
+          "D",
+          "F",
+          "G",
+          "H"
+        ]
+      }
     }
   ]
 }

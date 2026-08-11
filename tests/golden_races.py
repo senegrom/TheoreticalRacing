@@ -32,6 +32,7 @@ SPECS = [
     {"name": "monaco-s9-4p", "track": "monaco", "seed": 9, "players": 4},
     {"name": "nurburgring-s19-8p", "track": "nurburgring", "seed": 19, "players": 8},
     {"name": "interlagos-s10-8p", "track": "interlagos", "seed": 10, "players": 8},
+    {"name": "zigzag-s22-8p", "track": "zigzag", "seed": 22, "players": 8},
 ]
 
 

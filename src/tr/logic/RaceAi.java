@@ -745,11 +745,35 @@ final class RaceAi {
 											&& (ppos[0] - dcx) * djvx + (ppos[1] - dcy) * djvy > 0)
 										aheadNear++;
 								}
-								if (aheadNear >= AI1_DEEP_PACK) {
+								// Round 74 (AI1): a fast whole-field queue can converge
+								// from the SIDE/REAR, so the ahead-only Round 73 gate misses
+								// it. Zigzag s22 m72 has all seven rivals within Cheb 10,
+								// only one ahead, and three rival bodies already occupying
+								// the mover's neutral 3x3 landing grid: smom-8 reads the chosen
+								// alive/tier-3 while scorer rivals prove it dead @r2 and keep
+								// two equal-ttf escapes alive. Certify only that rare shape,
+								// and only when a near-equal low-trap escape is on the table.
+								boolean closeEscape = false;
+								final int chosenT = poTByDir[chosen.ordinal()];
+								for (final Direction d : DIRECTIONS) {
+									if (d != chosen && poTByDir[d.ordinal()] <= chosenT + 1
+											&& trapByDir[d.ordinal()] <= AI1_TRAP_L2) {
+										closeEscape = true;
+										break;
+									}
+								}
+								final int landingBodies = countRivalsWithinCheb(pos[0] + vel[0],
+										pos[1] + vel[1], playerNum, 1);
+								final boolean compressedRearQueue = packNear == sealRivals
+										&& sealRivals >= AI1_SLOW_PACK && aheadNear <= 1
+										&& landingBodies >= 2 && closeEscape;
+								if (aheadNear >= AI1_DEEP_PACK || compressedRearQueue) {
 									if (AI_DEBUG_DJS)
-										System.err.println("AIDBG CORR p=" + playerNum + " pos=(" + pos[0] + ","
-												+ pos[1] + ") chosen=" + chosen + " ahead=" + aheadNear
-												+ " -> certified corridor check");
+										System.err.println("AIDBG " + (compressedRearQueue ? "QUEUE" : "CORR")
+												+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+												+ ") chosen=" + chosen + " ahead=" + aheadNear
+												+ " bodies=" + landingBodies
+												+ " -> certified scorer check");
 									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
 									deepHandled = true;
@@ -2070,11 +2094,9 @@ final class RaceAi {
 								chosen = deepChoice;
 								deepHandled = true;
 							} else {
-								// Round 73 (PROMOTED): certified corridor check for
-								// convergence dooms -- with >= AI1_DEEP_PACK rivals AHEAD
-								// of the landing, certify the smom-blind alive verdict in
-								// the scorer-rival world at the widened cap. See the AI1
-								// body for the interlagos-s10 m103 derivation.
+								// Round 74 (PROMOTED): certified convergence check. The
+								// ahead-pack branch covers the Round 73 Interlagos case;
+								// the compressed-rear-queue branch covers Zigzag s22 m72.
 								int aheadNear = 0;
 								for (final Player pp : game.players) {
 									if (pp.getNumber() == playerNum || pp.isFinished())
@@ -2085,11 +2107,27 @@ final class RaceAi {
 											&& (ppos[0] - dcx) * djvx + (ppos[1] - dcy) * djvy > 0)
 										aheadNear++;
 								}
-								if (aheadNear >= AI1_DEEP_PACK) {
+								boolean closeEscape = false;
+								final int chosenT = poTByDir[chosen.ordinal()];
+								for (final Direction d : DIRECTIONS) {
+									if (d != chosen && poTByDir[d.ordinal()] <= chosenT + 1
+											&& trapByDir[d.ordinal()] <= AI1_TRAP_L2) {
+										closeEscape = true;
+										break;
+									}
+								}
+								final int landingBodies = countRivalsWithinCheb(pos[0] + vel[0],
+										pos[1] + vel[1], playerNum, 1);
+								final boolean compressedRearQueue = packNear == sealRivals
+										&& sealRivals >= AI1_SLOW_PACK && aheadNear <= 1
+										&& landingBodies >= 2 && closeEscape;
+								if (aheadNear >= AI1_DEEP_PACK || compressedRearQueue) {
 									if (AI_DEBUG_DJS)
-										System.err.println("AIDBG CORR p=" + playerNum + " pos=(" + pos[0] + ","
-												+ pos[1] + ") chosen=" + chosen + " ahead=" + aheadNear
-												+ " -> certified corridor check");
+										System.err.println("AIDBG " + (compressedRearQueue ? "QUEUE" : "CORR")
+												+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+												+ ") chosen=" + chosen + " ahead=" + aheadNear
+												+ " bodies=" + landingBodies
+												+ " -> certified scorer check");
 									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
 									deepHandled = true;

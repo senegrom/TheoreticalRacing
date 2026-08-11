@@ -48,6 +48,46 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 74 — compressed rear-queue certificate (PROMOTED 2026-08-11)
+
+REFRESH: `origin/master` was already at the local Round 73 plus primitive
+edge-cache champion (`998d48d`). The fresh `origin/agent/ai-round-74` and
+`origin/agent/ai-speedups-75` branches contained source-export workflows,
+not candidate racing code; `origin/agent/random-track-speedups-76` pointed
+at `998d48d` with no distinct commit. This round was therefore derived
+locally from new races.
+
+FAILURE HARVEST: the regular 22-track suite over seeds 16-20 completed all
+110 eight-car races with 770/770 finishers and zero crashes. Extending the
+historically hard tracks over seeds 21-50 found the first failure after 19
+more races: Zigzag seed 22, player 8 crashing at global move 104. Exact
+oracle replay found move 72 as the last avoidable decision: from `(51,55)`
+at velocity `(8,0)`, champion `S` is doomed while `NW` and `N` survive at
+least 14 rounds. The empty-track map gives all three the same ttf=56, and
+the smom model reads `S` alive/tier-3 at every tested horizon. The faithful
+scorer-rival model instead proves `S` dead at round 2 while retaining both
+escapes. This is the side/rear complement of Round 73's ahead-convergence
+failure, not a horizon shortage.
+
+FIX: inside the existing fast deep-pack blind-alive path, invoke the widened
+six-rival scorer certificate when the whole seven-rival field is within
+Chebyshev radius 10, at most one rival is ahead, at least two rival bodies
+already occupy the mover's neutral 3x3 landing grid, and a near-equal low-trap
+escape exists. The switch remains survival-only. At the target it changes
+`S` to `NW` and converts 6 finishes / 1 crash to 7 / 0. The structural gate
+occurred 13 times across the 129 harvested logs, in only six races; five
+remained move-identical and only Zigzag s22 changed.
+
+PROMOTION GATES: all three canonical eight-car bands remain exact champion
+ties with zero crashes: 770/0 at 63.82, 770/0 at 63.79, and 770/0 at 63.78.
+All three 4v4 bands are exact 4.500/4.500 ties with zero crashes; 2v2 is
+2.500/2.500, 1v1 is 1.500/1.500, and slow mode is 28/0 at 104.25 for both.
+After mirroring AI1 into AI2, the nine-track x three-seed strict probe is
+0/27 divergent, Java tests/build and headless smoke pass, and all ten golden
+races pass. The additions-only `zigzag-s22-8p` fixture pins 529 turns, 7/0,
+hash `ca4ab1d3f7ab66277f3cca60d1376544e115f1742ab91f08551195d3759de606`.
+AI1 and AI2 are identical again.
+
 ## Round 73 — certified corridor check (PROMOTED 2026-08-11, per user)
 
 Promotion executed: the corridor check mirrored into AI2 (shared
