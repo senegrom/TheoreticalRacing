@@ -30,6 +30,7 @@ SPECS = [
     {"name": "lemans-s4-8p", "track": "lemans", "seed": 4, "players": 8},
     {"name": "hairpin-s1-2p", "track": "hairpin", "seed": 1, "players": 2},
     {"name": "monaco-s9-4p", "track": "monaco", "seed": 9, "players": 4},
+    {"name": "monaco-s16-8p", "track": "monaco", "seed": 16, "players": 8},
     {"name": "nurburgring-s19-8p", "track": "nurburgring", "seed": 19, "players": 8},
     {"name": "interlagos-s10-8p", "track": "interlagos", "seed": 10, "players": 8},
     {"name": "zigzag-s22-8p", "track": "zigzag", "seed": 22, "players": 8},

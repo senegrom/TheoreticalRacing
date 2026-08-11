@@ -227,6 +227,7 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (promoted): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
 	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71 (promoted): speed floor for the small-field gate (start-grid moves stay below it)
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
+	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): bounded near-finish sprint; candidate must finish at its empty-map optimum in two independent joint models
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
@@ -630,6 +631,42 @@ final class RaceAi {
 				}
 				if (safest != null)
 					chosen = safest;
+			}
+			// Round 75 (PROMOTED): a bounded, proof-gated finish sprint. Local trap and
+			// uncertainty terms can spend a whole turn protecting a line even when
+			// a faster candidate is already close enough to certify all the way to
+			// the flag. Monaco s16 m789 is the minimal example: S has map ttf=15
+			// and finishes in 15 rounds, while narrow SW has ttf=14 and finishes in
+			// exactly 14; every other move dies. Accept a strictly-faster candidate
+			// only if BOTH the score-shaped-rival and scorer-rival joint worlds reach
+			// the finish at the empty-map lower bound (ttf+1 simulation rounds; the
+			// first partial round contains only players after me). The normal DJS
+			// still runs afterwards, retaining its independent survival veto.
+			if (!IN_SCORER_SIM) {
+				int sprintT = poTByDir[chosen.ordinal()];
+				Direction sprint = null;
+				for (final Direction d : DIRECTIONS) {
+					final int t = poTByDir[d.ordinal()];
+					if (d == chosen || t >= sprintT || t > AI1_FINISH_CERT_TTF
+							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
+						continue;
+					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+					final int rounds = t + 1;
+					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+						continue;
+					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+							AI1_DEEP_CERT_RIVALS, null) != 0)
+						continue;
+					sprint = d;
+					sprintT = t;
+				}
+				if (sprint != null) {
+					if (AI_DEBUG_DJS)
+						System.err.println("AIDBG SPRINT p=" + playerNum + " pos=(" + pos[0] + ","
+								+ pos[1] + ") " + chosen + " -> " + sprint + " ttf=" + sprintT);
+					chosen = sprint;
+				}
 			}
 			// Danger joint search (round 40): in flagged states (the landing's
 			// trap ladder >= 0.5, i.e. <= 2 safe successors) roll the joint game
@@ -2017,6 +2054,36 @@ final class RaceAi {
 				}
 				if (safest != null)
 					chosen = safest;
+			}
+			// Round 75 (PROMOTED): bounded near-finish pace recovery. A
+			// strictly-faster low-trap candidate may replace the scorer choice
+			// only when both independent joint models finish at the empty-map
+			// lower bound. See the AI1 body for the Monaco seed-16 derivation.
+			if (!IN_SCORER_SIM) {
+				int sprintT = poTByDir[chosen.ordinal()];
+				Direction sprint = null;
+				for (final Direction d : DIRECTIONS) {
+					final int t = poTByDir[d.ordinal()];
+					if (d == chosen || t >= sprintT || t > AI1_FINISH_CERT_TTF
+							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
+						continue;
+					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+					final int rounds = t + 1;
+					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+						continue;
+					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+							AI1_DEEP_CERT_RIVALS, null) != 0)
+						continue;
+					sprint = d;
+					sprintT = t;
+				}
+				if (sprint != null) {
+					if (AI_DEBUG_DJS)
+						System.err.println("AIDBG SPRINT p=" + playerNum + " pos=(" + pos[0] + ","
+								+ pos[1] + ") " + chosen + " -> " + sprint + " ttf=" + sprintT);
+					chosen = sprint;
+				}
 			}
 			// Danger joint search (round 40, PROMOTED): survival-only override
 			// in flagged states -- see dangerJointSearch.

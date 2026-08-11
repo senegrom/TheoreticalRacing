@@ -48,6 +48,50 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 75 - dual-model finish sprint (PROMOTED 2026-08-12)
+
+REFRESH: local and `origin/master` began at the Round 74 champion `b5348a9`.
+The fresh `origin/agent/random-track-speedups` branches contained only a
+temporary source-export workflow and no racing-code candidate, so the round
+was derived locally. The pre-existing primitive-geometry experiment remains
+preserved in `stash@{0}` and was not applied or dropped.
+
+FORENSICS: a component-level scan of Monaco eight-car seed 16 found a genuine
+late-race pace concession at global move 789. Player 5 at `(5,95)`, velocity
+`(1,-6)`, chose `S`, landing at map ttf 15. `SW` lands at ttf 14 but carries a
+higher local trap price. Faithful joint replay showed `SW` finishing in exactly
+14 rounds and `S` in 15; every other candidate died. The simulation must run
+`ttf+1` rounds because its first partial round contains only players after the
+mover. Earlier apparent one-turn concessions were rejected when longer oracle
+rollout showed equal actual finish rounds.
+
+FIX: when the scorer is within 15 empty-map turns of the flag, examine only
+strictly faster candidates at trap tier L1 or better. Accept one only if two
+independent joint worlds - exact self with score-shaped rivals, and exact self
+with up to six real-scorer rivals - both return finish at the candidate's
+empty-map lower bound. The normal danger-joint search still runs afterwards as
+an independent survival veto. A 110-race seeds-1-to-5 trigger audit observed
+100 successful certificates, all at ttf 14 or below; the cap remains 15 to
+avoid overfitting future races to that sample.
+
+GATES: across all 22 tracks, the three eight-car bands were 770/0 vs 770/0
+with mean finisher moves 63.69 vs 63.82, 63.66 vs 63.79, and 63.64 vs 63.78;
+no track was slower. Mixed 4v4 won all three bands at zero crashes:
+4.483/4.517, 4.483/4.517, and 4.475/4.525. The 2v2 gate slightly won
+2.498/2.502, 1v1 tied 1.500/1.500, and slow mode improved 140/0 at 104.16
+vs 140/0 at 104.27. Seven warm interleaved Monaco seed-16 pairs measured a
+small compute overhead (1.8% trimmed mean, 3.2% median), accepted for the
+verified on-track pace gain.
+
+PROMOTION: the rule was mirrored into AI2 and the nine-track x three-seed
+strict probe returned 0/27 divergences. JDK warning-as-error compilation, 26
+track-data tests, core/main tests, headless smoke and all eleven golden races
+pass. Five existing golden races become 1-6 turns faster with zero crashes;
+five old hashes remain byte-identical. The new `monaco-s16-8p` fixture pins
+950 turns, 7/0, hash
+`67c69dacd5844cc0a4aa8d31b4b43b2c9be87398221ef3b3fe5dedfb24a45f4b`.
+AI1 and AI2 are identical again.
+
 ## Round 74 — compressed rear-queue certificate (PROMOTED 2026-08-11)
 
 REFRESH: `origin/master` was already at the local Round 73 plus primitive
