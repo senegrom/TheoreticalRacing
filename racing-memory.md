@@ -48,6 +48,56 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 73 (local agent, in gates): certified corridor check for convergence dooms
+
+THE R72 PROMOTION REGRESSED INTERLAGOS: the post-promotion self-tie
+battery (both bodies = r72 champion) came back 769/1 on 8car s6-10 --
+interlagos s10, p7 crash at m143 (plus 1 crash in mixed h2h s6-10, same
+track/seed band). The old champion is 770/0 head-to-head on the same
+seed. Their round-72 split gates HAD flagged "interlagos s10", but the
+promotion evidence re-checked only interlagos FOUR-car; the 8-car slice
+regressed. Root shape: the trap-monotone guard changed a slow
+start-funnel choice at m19 (p3 SW->S), and the perturbed field reached a
+LATENT doom pocket 124 moves later -- the ancestral-perturbation class,
+so the fix targets the latent weakness, not the (principled) r72 gate.
+
+FORENSICS: p7 fully sealed by m127; **m103 is the last avoidable move**
+(chosen NE, accel to spd^2=68; survivors NONE/E/S all brake/hold, oracle
+t=105). The 3-round fast DJS world misses the @r5 death; the r65 smom-8
+deep pre-screen read it ALIVE **tier 3** (not even fragile -- silent
+keep). policy_matrix: chosen NE smom=alive t=104 tier=3 vs
+**orivals=DEAD@r2** -- the SECOND member of the nurburgring-m260
+fidelity class, and this one at speed. The kill is CONVERGENCE: the
+killers (p4/p6/p1, ranks 4-6 by landing distance) brake INTO the
+shedding corridor over r1-3.
+
+NEGATIVE RESULT (recorded): a frozen-rival triage (rivals held static)
+does NOT see convergence dooms -- the killers start OUTSIDE the corridor
+and move in; static pessimism points the wrong way. Only faithful
+forward rival models see it. Also decisive: the round-59 nearest-3
+scorer set at m103 is exactly the harmless REAR queue (p2/p5/p8); the
+killers are beyond the cap -- the MAXRIVALS fidelity gap biting in the
+wild, as predicted in the round-72 review.
+
+R73 FIX (AI1): in the deep block's blind-alive path (smom-8 alive and
+non-fragile), with >= AI1_DEEP_PACK rivals AHEAD of the landing
+(positive dot with the landing velocity, Cheb 10), run the certified
+scorer-rival DJS at the widened **AI1_DEEP_CERT_RIVALS=6** cap
+(simOutcome/dangerJointSearch got a scorerCap parameter; all existing
+call sites keep the round-59 cap of 3). Survival-only switch as
+everywhere. Trigger rates measured over the 330-race harvest BEFORE
+building (the law): fast&pack>=3 48/race (= existing pre-screen rate),
+fast&ahead>=3 19.8/race, at spd^2>=64 11.0/race; in-race CORR fires ~16
+on interlagos s10. Spot saves: interlagos s10 0 crashes (CORR at m103,
+chosen DIES in certified sim, switch), s6-9 clean, nurburgring s19 7/0
+and monaco s9 intact. GATES COMPLETE (2026-08-11): probe 0/27 inert; never-worse on all 8
+stages with BOTH regression stages strictly improved -- 8car s6-10
+770/0/63.79 vs the champion's 769/1/63.79 (interlagos row 35/0 vs 34/1)
+and mixed h2h s6-10 c=0 (4.498) vs c=1 (4.502); everything else exact
+ties (770/0/63.82, 770/0/63.78, h2h 4.500 c=0, 4car 330/0/61.81, 1v1
+110/0/60.64, slow 28/0/104.25). ROUND 73 IS PROMOTION-READY; the word
+is the user's.
+
 ## 2026-08-11 speedup: reachability disk cache (behavior-invisible)
 
 JFR profiling of a nurburgring race showed the CPU is dominated by

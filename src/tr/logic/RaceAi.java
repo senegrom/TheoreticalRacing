@@ -226,6 +226,7 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK_SPD2	= 16;
 	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (promoted): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
 	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71 (promoted): speed floor for the small-field gate (start-grid moves stay below it)
+	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
@@ -690,7 +691,7 @@ final class RaceAi {
 							final int[] ft = rolloutWorkspace().finalTier;
 							ft[0] = 3;
 							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
-									true, true, true, false, ft);
+									true, true, true, false, AI1_SCORER_MAXRIVALS, ft);
 							if (dv < 0 || ft[0] <= 1) {
 								if (AI_DEBUG_DJS)
 									System.err.println("AIDBG DEEP p=" + playerNum + " pos=(" + pos[0] + ","
@@ -722,6 +723,37 @@ final class RaceAi {
 											true, true, AI1_DEEP_HORIZON);
 								chosen = deepChoice;
 								deepHandled = true;
+							} else {
+								// round 73 (AI1): the smom-8 pre-screen is blind to
+								// CONVERGENCE dooms -- interlagos s10 m103 reads alive
+								// tier-3 while faithful rivals kill @r2: the killers
+								// (ranks 4-6 by landing distance) brake INTO my
+								// shedding corridor, so drifting AND static rival
+								// models both vacate the kill. With >= AI1_DEEP_PACK
+								// rivals AHEAD of the landing (positive dot with the
+								// landing velocity), certify the chosen in the
+								// scorer-rival world at the widened cap (the nearest-3
+								// set here is exactly the harmless rear queue).
+								// Survival-only switch as everywhere.
+								int aheadNear = 0;
+								for (final Player pp : game.players) {
+									if (pp.getNumber() == playerNum || pp.isFinished())
+										continue;
+									final int[] ppos = pp.getPosition();
+									if (Math.abs(ppos[0] - dcx) <= AI1_DEEP_PACK_R
+											&& Math.abs(ppos[1] - dcy) <= AI1_DEEP_PACK_R
+											&& (ppos[0] - dcx) * djvx + (ppos[1] - dcy) * djvy > 0)
+										aheadNear++;
+								}
+								if (aheadNear >= AI1_DEEP_PACK) {
+									if (AI_DEBUG_DJS)
+										System.err.println("AIDBG CORR p=" + playerNum + " pos=(" + pos[0] + ","
+												+ pos[1] + ") chosen=" + chosen + " ahead=" + aheadNear
+												+ " -> certified corridor check");
+									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
+									deepHandled = true;
+								}
 							}
 						}
 					}
@@ -1440,12 +1472,13 @@ final class RaceAi {
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals) {
 		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
-				exactRivals, scorerRivals, null);
+				exactRivals, scorerRivals, AI1_SCORER_MAXRIVALS, null);
 	}
 
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
-			final boolean exactRivals, final boolean scorerRivals, final int[] outFinalTier) {
+			final boolean exactRivals, final boolean scorerRivals, final int scorerCap,
+			final int[] outFinalTier) {
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -1477,7 +1510,7 @@ final class RaceAi {
 		// Membership is fixed at rollout start: the nearest
 		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR.
 		if (scorerRivals) {
-			for (int k = 0; k < AI1_SCORER_MAXRIVALS; k++) {
+			for (int k = 0; k < scorerCap; k++) {
 				int nearest = -1, nearestD = AI1_SCORER_NEAR + 1;
 				for (int j = 0; j < game.players.length; j++) {
 					if (j == myIdx || !alive[j] || scorerSet[j])
@@ -1549,11 +1582,19 @@ final class RaceAi {
 	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds) {
+		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, rounds, AI1_SCORER_MAXRIVALS);
+	}
+
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
-		if (simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals) >= 0)
+		if (simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals,
+				scorerCap, null) >= 0)
 			return chosen;
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 		if (dbg)
@@ -1576,7 +1617,8 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals);
+			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals,
+					scorerRivals, scorerCap, null);
 			if (dbg)
 				System.err.println("AIDBG DJS  alt " + d + " land=(" + nx + "," + ny + ") simT="
 						+ (t < 0 ? "DIES" : String.valueOf(t)));
@@ -1999,7 +2041,7 @@ final class RaceAi {
 							final int[] ft = rolloutWorkspace().finalTier;
 							ft[0] = 3;
 							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
-									true, true, true, false, ft);
+									true, true, true, false, AI1_SCORER_MAXRIVALS, ft);
 							if (dv < 0 || ft[0] <= 1) {
 								if (AI_DEBUG_DJS)
 									System.err.println("AIDBG DEEP p=" + playerNum + " pos=(" + pos[0] + ","

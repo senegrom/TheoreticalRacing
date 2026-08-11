@@ -153,6 +153,8 @@ SITES = [
 # purged; regenerate the race + reach dump before re-adding an entry. Current
 # entries are live investigation sites.
 POCKET = [
+    ('interlagos', 'r73_inter_s10.log', 103,
+     [('chosen NE', 2), ('survivor NONE', 4), ('survivor S', 7)]),
     ('nurburgring', 'harvest/h8_nurburgring_s19.log', 260,
      [('chosen E', 5), ('survivor N', 1)]),
     ('monaco', 'harvest/h4_monaco_s9.log', 27,
