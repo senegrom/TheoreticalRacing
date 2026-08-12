@@ -48,6 +48,34 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## OPEN CLASS: coil s32 -- the 9-round commitment horizon (measured, unfixed)
+
+Forensics on the second harvest-2 crash (p7, m319 death). The oracle
+walk-back is the DEEPEST commitment the campaign has measured: sealed
+by m263 (7 rounds out), and **m247 is the last avoidable move** --
+SEVEN survivors on the table (NW/N/W/NONE/SW/S/SE, oracle t=20-21) and
+the chosen NE dies @round 9. Every intermediate move (255-311) is
+already lost.
+
+WHY NO INSTRUMENT SEES IT: policy_matrix at m247 -- chosen NE
+smom=alive t=22 tier=3 AND **orivals=alive t=22 tier=3**. This is NOT a
+fidelity gap (unlike m260/m103/m920): the faithful scorer-rival world
+is equally blind, because the death is 9 rounds out while every
+promoted rollout horizon is 3-8. The class is a HORIZON limit, not a
+model limit -- the first such class since the campaign began.
+
+WHY NOT JUST DEEPEN: AI1_DEEP_HORIZON=8 already costs; a 9-10 round
+scorer-rival rollout at every fast-pack fire is far outside the
+measured budget (r73 measurements: ~20 ahead-pack fires/race), and the
+r65 evidence says horizon alone perturbs fields into new pockets.
+CANDIDATE DIRECTIONS (unclaimed, for a future round): (a) a cheap
+STATIC funnel/cut-set test on the reachability map -- coil's spiral
+narrows monotonically, so the doom is a track-topology property visible
+without rollout; this is also AI_DEVELOPMENT.md's standing
+"bottleneck-aware triggers" direction; (b) speed-vs-corridor-width
+certification: at m247 the survivors all shed speed while NE holds
+spd^2=36 into a narrowing spiral.
+
 ## Round 78 — scorer smoke test + scorer-me certification (PROMOTED 2026-08-12, per user)
 
 Promotion executed: smoke test + escalation mirrored into AI2 (shared
