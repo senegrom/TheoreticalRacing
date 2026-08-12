@@ -48,7 +48,7 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
-## Round 77 (local agent, IN GATES): strict-improvement certified-pace arm
+## Round 77 (local agent, REJECTED at stage 1): strict filter overreach
 
 The r76 refinement executed: certified trap<=L2 faster lines must now
 STRICTLY IMPROVE the widened scorer-rival final tt vs the incumbent
@@ -56,8 +56,23 @@ STRICTLY IMPROVE the widened scorer-rival final tt vs the incumbent
 empty-track-faster lines lose their gain to traffic. On the exact r76
 failure band (seeds 6-10, 5 tracks): the zigzag regression is GONE
 (within rounding), interlagos/spielberg/lemans each -0.1, spa tied,
-TOTAL -0.06, 0 crashes. Full battery vs the r75 champion in flight
-under the no-slower-track standard; verdict lands here.
+TOTAL -0.06, 0 crashes. BUT the probe showed the true footprint: 21/27
+races divergent -- the strict filter did not only gate the NEW L2
+admissions, it ALSO stripped the promoted trap-0/smom-3 r58 behavior
+(proven lines now rejected for not beating the incumbent in-sim).
+STAGE 1 VERDICT: 769/1 (A CRASH) with FOUR tracks +0.1 slower
+(silverstone/monaco/spielberg/lemans) and aggregate +0.01 -- rejected
+on the spot, battery aborted, arm reverted.
+
+LESSON (the certified-pace ladder): the r58 trap-0 + smom-3 admission
+is load-bearing champion behavior -- filters may only be ADDED to new
+admission classes, never substituted under existing ones. NEXT ARM
+(recorded): two-tier admission -- keep r58 byte-identical for trap==0
+lines; require the widened scorer-rival STRICT-IMPROVEMENT certificate
+only for the newly admitted 0<trap<=L2 lines. The r76/r77 evidence pair
+suggests the L2 class carries the zigzag risk (r76) while the trap-0
+class carries the broad pace (r77), so the two-tier split is exactly
+the shape both rejections point at.
 
 ## Round 76 (local agent, REJECTED under the no-slower-track standard)
 
