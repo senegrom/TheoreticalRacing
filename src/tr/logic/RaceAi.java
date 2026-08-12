@@ -533,18 +533,33 @@ final class RaceAi {
 			final double bestNS = scoreNSByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
+			// round 77 (AI1): admit trap<=L2 faster lines, but a certified line
+			// must STRICTLY IMPROVE the faithful (widened scorer-rival) final
+			// tt vs the incumbent -- survival alone let empty-track-faster
+			// lines lose their gain to traffic (the r76 zigzag +0.1
+			// rejection). Incumbent sim evaluated lazily, once.
+			int bestSimT = Integer.MIN_VALUE;
 			for (final Direction d : DIRECTIONS) {
 				if (d == best || poTByDir[d.ordinal()] >= fastT)
 					continue;
 				if (scoreNSByDir[d.ordinal()] > bestNS + 1e-9)
 					continue;
-				if (trapByDir[d.ordinal()] != 0.0)
+				if (trapByDir[d.ordinal()] > AI1_TRAP_L2)
 					continue;
 				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				if (sealable(nx, ny, nvx, nvy, playerNum))
 					continue;
-				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false, false) < 0)
+				final int fastSimT = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true,
+						true, true, AI1_DEEP_CERT_RIVALS, null);
+				if (fastSimT < 0)
+					continue;
+				if (bestSimT == Integer.MIN_VALUE) {
+					final int bvx = vel[0] + best.dx, bvy = vel[1] + best.dy;
+					bestSimT = simOutcome(pos[0] + bvx, pos[1] + bvy, bvx, bvy, playerNum,
+							AI1_DJS_ROUNDS, true, true, true, true, AI1_DEEP_CERT_RIVALS, null);
+				}
+				if (bestSimT >= 0 && fastSimT >= bestSimT)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];

@@ -48,6 +48,17 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 77 (local agent, IN GATES): strict-improvement certified-pace arm
+
+The r76 refinement executed: certified trap<=L2 faster lines must now
+STRICTLY IMPROVE the widened scorer-rival final tt vs the incumbent
+(incumbent sim evaluated lazily, cached per turn) -- survival alone let
+empty-track-faster lines lose their gain to traffic. On the exact r76
+failure band (seeds 6-10, 5 tracks): the zigzag regression is GONE
+(within rounding), interlagos/spielberg/lemans each -0.1, spa tied,
+TOTAL -0.06, 0 crashes. Full battery vs the r75 champion in flight
+under the no-slower-track standard; verdict lands here.
+
 ## Round 76 (local agent, REJECTED under the no-slower-track standard)
 
 The r58 certified-pace override composed with the r75 finish sprint:
