@@ -185,6 +185,131 @@ of r72); h2h c=0 both bands with places netting BETTER (4.494/4.499 vs
 monaco (worst case), ties on fast tracks. ROUND 78 IS PROMOTION-READY;
 the word is the user's.
 
+## OPEN CLASS (2 sites, ONE shape): the deep-horizon commitment class
+
+Both remaining harvest-2 crashes classify IDENTICALLY, and the shape is
+new: **zandvoort s42** (p6, death m614; sealed by m582, last avoidable
+**m566** with SIX survivors, chosen SW dies @r6) and **coil s32** (p7,
+death m319; sealed by m263, last avoidable **m247** with SEVEN
+survivors, chosen NE dies @r9).
+
+THE DEFINING PROPERTY: at both entries the faithful scorer-rival
+replica is EXACTLY AS BLIND as the cheap one --
+  zandvoort m566: chosen SW smom=alive t=67 tier=3, orivals=alive t=67 tier=3
+  coil    m247:   chosen NE smom=alive t=22 tier=3, orivals=alive t=22 tier=3
+(contrast the FIDELITY class -- m260/m103/m920 -- where orivals sees
+DEAD@r2 and only the in-game model was blind). No model upgrade can
+reach these: the deaths are 6 and 9 rounds out while every promoted
+rollout horizon is 3-8, and the entries are open, roomy, tier-3 states
+with no local danger signature at all. THE INSTRUMENT ITSELF IS
+EXHAUSTED for this class; the fidelity ladder is finished.
+
+Both survivors' signature is the same: at zandvoort m566 the chosen
+holds spd^2=58 into the coming narrowing while survivors shed to 34-53;
+at coil m247 the chosen holds spd^2=36 into a monotonically narrowing
+spiral while survivors shed to 16-26. CANDIDATE DIRECTIONS (unclaimed):
+(a) STATIC funnel/cut-set analysis on the reachability map -- the doom
+is a track-topology property, visible without any rollout, and matches
+AI_DEVELOPMENT.md's standing "bottleneck-aware triggers" direction;
+(b) speed-vs-corridor-width certification at entry. Rollout deepening
+is NOT the answer: 9-10 rounds at every fast fire is outside the
+measured budget and r65 showed horizon alone perturbs fields into new
+pockets.
+
+## OPEN CLASS: coil s32 -- the 9-round commitment horizon (measured, unfixed)
+
+Forensics on the second harvest-2 crash (p7, m319 death). The oracle
+walk-back is the DEEPEST commitment the campaign has measured: sealed
+by m263 (7 rounds out), and **m247 is the last avoidable move** --
+SEVEN survivors on the table (NW/N/W/NONE/SW/S/SE, oracle t=20-21) and
+the chosen NE dies @round 9. Every intermediate move (255-311) is
+already lost.
+
+WHY NO INSTRUMENT SEES IT: policy_matrix at m247 -- chosen NE
+smom=alive t=22 tier=3 AND **orivals=alive t=22 tier=3**. This is NOT a
+fidelity gap (unlike m260/m103/m920): the faithful scorer-rival world
+is equally blind, because the death is 9 rounds out while every
+promoted rollout horizon is 3-8. The class is a HORIZON limit, not a
+model limit -- the first such class since the campaign began.
+
+WHY NOT JUST DEEPEN: AI1_DEEP_HORIZON=8 already costs; a 9-10 round
+scorer-rival rollout at every fast-pack fire is far outside the
+measured budget (r73 measurements: ~20 ahead-pack fires/race), and the
+r65 evidence says horizon alone perturbs fields into new pockets.
+CANDIDATE DIRECTIONS (unclaimed, for a future round): (a) a cheap
+STATIC funnel/cut-set test on the reachability map -- coil's spiral
+narrows monotonically, so the doom is a track-topology property visible
+without rollout; this is also AI_DEVELOPMENT.md's standing
+"bottleneck-aware triggers" direction; (b) speed-vs-corridor-width
+certification: at m247 the survivors all shed speed while NE holds
+spd^2=36 into a narrowing spiral.
+
+## Round 78 — scorer smoke test + scorer-me certification (PROMOTED 2026-08-12, per user)
+
+Promotion executed: smoke test + escalation mirrored into AI2 (shared
+scorerSelf machinery), strict probe ALL IDENTICAL 0/27, golden corpus
+regenerated with the new `zandvoort-s45-8p` fixture pinning the rescue
+(1177 turns, 7/0) and two intentional slow-class reflows (lemans-s4
+crash-free, monaco-s9-4p crash-free and 3 turns FASTER); every other
+hash unchanged. Docs record the eighth bounded safety proof.
+POST-PROMOTION SELF-TIE BATTERY CERTIFIED: probe 0/27 and ALL 8 stages
+exact self-ties with zero crashes anywhere -- 770/0 x3
+@63.69/63.66/63.64, h2h 4.500 c=0 both bands, 4car 330/0/61.75, 1v1
+110/0/60.64, slow 28/0/104.11. The canonical record is 2310/2310 again,
+now with the r78 fidelity stack. Champion baselines re-seeded from the
+self-tie logs (extract_baseline col=1 -> scratchpad/baseline_*.json).
+AI1 and AI2 are identical again.
+
+CAMPAIGN STATE after r78: the FIDELITY ladder is complete (every known
+class where a faithful model sees a death the cheap model misses is
+closed: r59 scorer rivals, r67/r71 dense packs, r73 ahead-corridor +
+widened cap, r74 compressed queue, r78 smoke test + scorer-me). The
+only open crash class is the DEEP-HORIZON COMMITMENT class above, which
+that ladder provably cannot reach. Harvest-2 tally: 5 crashes found, 3
+fixed, 2 open and classified.
+
+## Round 78 (local agent, gates PASSED): scorer smoke test + scorer-me certification
+
+THE ZANDVOORT-S45 FORENSICS found a TWO-LAYER gap at m920 (p8, spd^2=40
+braking while p7 chases at spd^2=53 down the same straight):
+1. TRIGGER: the r60 smoke test's smom-5 read the doomed chosen ALIVE
+   tier-3 while orivals kills it @r2 -- the THIRD member of the
+   nurburgring-m260 / interlagos-m103 fidelity class, this time a
+   BEHIND-convergence (chaser), invisible to the ahead-gated corridor
+   check and the pack gates.
+2. CERTIFICATION (new gap class): the true survivor SE dies in BOTH
+   offline worlds because both model ME as the selfMove proxy -- the
+   survivor exists only under the champion's own continued play
+   (oracle t=26). Even a perfect trigger had nothing certifiable to
+   switch to: survival-only switching finds no survivor.
+
+Per-shape trigger gates were measured and REJECTED before building
+(chaser-converging slow moves: 121-235/race -- chasing is just racing).
+THE FIX reuses existing surfaces and machinery, no new gates:
+(a) the r60 smoke test (already on every trap-0 slow move) runs the
+    SCORER-RIVAL world instead of smom -- the chaser lands in the
+    round-59 nearest-3 set and the death is seen;
+(b) new scorerSelf flag through simOutcome/dangerJointSearch: the slow
+    escalation certifies ALTERNATIVES with a scorer-modeled me
+    (scorerMoveOverState applied to myself, recursion-guarded exactly
+    like scorer rivals). All other call sites byte-identical.
+
+SITE PROOF: zandvoort s45 saved (ESC scorer-dies at m920, DJS switch to
+SE simT=30, race 0-crash); BONUS: zandvoort s34 and hungaroring s40
+also saved -- 3 of the 5 harvest-2 crashes killed by one upgrade; the
+zandvoort doom band s31-45 improves 3 crashes -> 1. Coil s32 and
+zandvoort s42 remain open (different classes). All promoted saves
+intact; goldens pass; probe 2/27.
+
+GATES vs the r75 champion: never-worse everywhere -- 8car 770/0 x3 with
+exact-tie aggregates (63.69/63.66/63.64) and balanced +/-0.1 track
+reflows (hungaroring +0.1 on s1-5, slalom -0.1/gear +0.1 on s6-10,
+sprint -0.1/chicane +0.1 on s11-15 -- the safety-round reflow precedent
+of r72); h2h c=0 both bands with places netting BETTER (4.494/4.499 vs
+4.506/4.501); 4car/1v1/slow exact ties. COST: +29% wall on crawl-heavy
+monaco (worst case), ties on fast tracks. ROUND 78 IS PROMOTION-READY;
+the word is the user's.
+
 ## HARVEST 2 INTERIM (2026-08-12, local agent): fresh-seed crash rate up 5x
 
 Phase 1 of the second fresh-seed harvest (8-car seeds 31-45, all 22
