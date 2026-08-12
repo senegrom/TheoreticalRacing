@@ -48,7 +48,7 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
-## Round 76 (local agent, IN GATES): certified-pace L2 arm on the finish-sprint champion
+## Round 76 (local agent, REJECTED under the no-slower-track standard)
 
 The r58 certified-pace override composed with the r75 finish sprint:
 admit trap<=L2 (0.5) strictly-faster lines (was trap==0.0 only) and
@@ -64,9 +64,20 @@ promotion and renumbered. RE-COMPOSED on the new champion: 6-track
 seeds-1-5 bench -0.01 total, interlagos -0.1, lemans a hair faster, NO
 TRACK SLOWER (spa -- the rejected remote arm's failure track -- exactly
 tied), 0 crashes. Probe on the composition: 3/27 divergent (a pace arm
-should fire; divergences bench-verdicted). Full battery vs the
-finish-sprint champion in flight under the no-slower-track standard;
-verdict lands in this section.
+should fire; divergences bench-verdicted). FULL-BATTERY VERDICT
+(2026-08-12): zero crashes everywhere, aggregate -0.01 on 8car s6-10
+(63.65 vs 63.66) with s1-5/s11-15 exact ties, h2h/4car/1v1/slow ties --
+but the per-track sweep found **zigzag s6-10 +0.1 slower** per finisher
+(vs interlagos -0.1 and spielberg -0.1 faster). The same signature that
+rejected the remote comparative-certificate arm; the standard applies
+symmetrically, so the arm is REJECTED in this form and reverted from
+master (the ledger record stays). REFINEMENT PATH for a future round:
+the 3 probe-divergent races pinpoint the fire sites -- bisect which
+certified-L2 fire slows zigzag s6-10 and tighten the admission (e.g.
+require the certified line to also be strictly better on the
+scorer-rival final tt, not merely surviving). The instrument itself
+(widened scorer-rival certification) remains promoted and trusted via
+r73/r74.
 
 ## Round 75 - dual-model finish sprint (PROMOTED 2026-08-12)
 
