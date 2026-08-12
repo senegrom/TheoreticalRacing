@@ -22,8 +22,7 @@ final class RaceAi {
 	private final int[] sealCover = new int[DIRECTIONS.length];
 	private final int[] sealMatch = new int[Integer.SIZE];
 	private final int[] mobilityMove = new int[4];
-	private final long[] privateBestField = new long[1];
-	private final long[] privateChosenField = new long[1];
+	private final long[] rolloutFieldCost = new long[1];
 	/** Outer candidate scores stay live while scorer-rival rollouts invoke a
 	 *  recursion-guarded nested scorer, so those two levels need disjoint rows. */
 	private final CandidateWorkspace outerCandidates = new CandidateWorkspace();
@@ -229,6 +228,7 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (promoted): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
 	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71 (promoted): speed floor for the small-field gate (start-grid moves stay below it)
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
+	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): bounded near-finish sprint; candidate must finish at its empty-map optimum in two independent joint models
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
 	private final static int		AI1_PRIVATE_EXACT_HORIZON	= 4;	// round 77: geometry-clipped fallback horizon
@@ -411,7 +411,7 @@ final class RaceAi {
 			// discards the pessimism, never more cautious than the crash-free
 			// frozen standard.
 			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
-					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, world));
 			double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? AI1_TRAP_L1
 							: d2SafeCount == 2 ? AI1_TRAP_L2
@@ -458,7 +458,7 @@ final class RaceAi {
 			// circuits, so only genuine corner-entry traffic jams brake.
 			double cornerEntry = 0.0;
 			if (speed > AI1_BRAKE_SPEED) {
-				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
+				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy);
 				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, AI1_PACK_R2) >= 2)
 					cornerEntry = (speed - AI1_BRAKE_SPEED) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
@@ -468,7 +468,7 @@ final class RaceAi {
 			// rivals, and the round-sims behind d2SafeCount and the ply-2
 			// price assume a hairpin queue keeps flowing -- so a fast coast
 			// whose timed margin is already thin (d2SafeCount <= 2) while
-			// >= 2 SLOWER rivals sit within squared distance 36 at-or-ahead
+			// >= 2 STALLED rivals sit within squared distance 36 at-or-ahead
 			// of the landing (compression, not a chase) is one round from
 			// being boxed: on zandvoort both alive continuations of
 			// (43,66)v(-4,3) were bodily occupied by the compressed queue
@@ -477,7 +477,7 @@ final class RaceAi {
 			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
 			double queueBox = 0.0;
 			if (speed > AI1_BRAKE_SPEED && cornerEntry == 0.0) {
-				if (d2SafeCount <= 2 && countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
+				if (d2SafeCount <= 2 && countStalledRivalsAhead(newX, newY, playerNum) >= 2)
 					queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
 				else {
 					// v3 long-range trigger: the near trigger needs d2SafeCount
@@ -905,18 +905,6 @@ final class RaceAi {
 		return fallback;
 	}
 
-	/*
-	 * AI1 v5.1 queue-compression support (zandvoort forensic, round 21): count
-	 * live rivals within squared distance 36 of the candidate landing (x,y)
-	 * that are at-or-ahead of it in track progress and genuinely SLOWER than
-	 * the landing speed. Ahead-ness reuses {@link #hasConvergingOpponentAhead}
-	 * semantics exactly (same-progress slack +3, |diff| <= 15 wall exclusion);
-	 * slower reuses its 1.0 speed margin. Two or more such rivals directly in
-	 * front of a fast landing are a compressing corner queue -- traffic that
-	 * will NOT have flowed on by the time I arrive, whatever the greedy
-	 * round-sims claim.
-	 */
-
 	/** Occupancy oracle used by the private-lane pace proof. */
 	private interface RivalOccupancy {
 		boolean mayOccupy(int ply, int x, int y);
@@ -1110,11 +1098,7 @@ final class RaceAi {
 			height = reach.aliveH;
 			width = reach.aliveW;
 			cells = width * height;
-			int count = 0;
-			for (final Player p : game.players)
-				if (p.getNumber() != playerNum && !p.isFinished())
-					count++;
-			starts = new int[count];
+			starts = new int[rectangle.rivals];
 			int index = 0;
 			for (final Player p : game.players) {
 				if (p.getNumber() == playerNum || p.isFinished())
@@ -1205,7 +1189,8 @@ final class RaceAi {
 		}
 	}
 
-	private int privateSuccessors(final int x, final int y, final int vx, final int vy,
+	/** Count distinct private, alive one-move exits; crossing the finish is terminal success. */
+	private int countPrivateEscapes(final int x, final int y, final int vx, final int vy,
 			final RivalOccupancy rivals, final int rivalPly, final int requiredEscapes) {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
@@ -1228,7 +1213,7 @@ final class RaceAi {
 	private boolean privatePaceCertificate(final int x, final int y, final int vx, final int vy,
 			final int turns, final RivalOccupancy rivals, final int ply, final int horizon,
 			final int requiredEscapes) {
-		if (privateSuccessors(x, y, vx, vy, rivals, ply + 1, requiredEscapes) >= requiredEscapes)
+		if (countPrivateEscapes(x, y, vx, vy, rivals, ply + 1, requiredEscapes) >= requiredEscapes)
 			return true;
 		if (ply >= horizon)
 			return false;
@@ -1337,28 +1322,27 @@ final class RaceAi {
 		final boolean compareField = privateFieldComparisonRequired(bestX, bestY, bestVx, bestVy,
 				playerNum);
 		final int scorerCap = compareField ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS;
-		final int bestFinal = simOutcome(bestX, bestY, bestVx, bestVy, playerNum,
-				AI1_DJS_SLOW_ROUNDS, true, true, true, true, scorerCap, null,
-				compareField ? privateBestField : null);
+		final int bestFinal = scorerFieldOutcome(bestX, bestY, bestVx, bestVy, playerNum,
+				AI1_DJS_SLOW_ROUNDS, scorerCap, compareField ? rolloutFieldCost : null);
 		if (bestFinal < 0)
 			return chosen;
 		if (compareField) {
+			final long bestField = rolloutFieldCost[0];
 			final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 			final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
-			final int chosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
-					AI1_DJS_SLOW_ROUNDS, true, true, true, true, AI1_DEEP_CERT_RIVALS,
-					null, privateChosenField);
+			final int chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy,
+					playerNum, AI1_DJS_SLOW_ROUNDS, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+			final long chosenField = rolloutFieldCost[0];
 			// A private lane can be safe for its mover while perturbing the rest of
 			// the field into slower or failed lines. In a compressed fast pack, take
 			// it only when the same scorer-rival world proves strict self progress and
 			// a non-worsening aggregate rival state.
-			if (chosenFinal < 0 || bestFinal >= chosenFinal
-					|| privateBestField[0] > privateChosenField[0]) {
+			if (chosenFinal < 0 || bestFinal >= chosenFinal || bestField > chosenField) {
 				if (AI_DEBUG_DJS)
 					System.err.println("AIDBG PRIVATE-FIELD p=" + playerNum + " pos=(" + pos[0]
 							+ "," + pos[1] + ") keep " + chosen + " over " + best + " self "
 							+ chosenFinal + " -> " + bestFinal + " field "
-							+ privateChosenField[0] + " -> " + privateBestField[0]);
+							+ chosenField + " -> " + bestField);
 				return chosen;
 			}
 		}
@@ -1409,7 +1393,7 @@ final class RaceAi {
 				- uncByDir[chosen.ordinal()];
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 		final int chosenSpeed2 = chosenVx * chosenVx + chosenVy * chosenVy;
-		if (rivalsAhead < 4 && chosenSpeed2 < AI1_SLOW_PACK_SPD2)
+		if (rivalsAhead == 3 && chosenSpeed2 < AI1_SLOW_PACK_SPD2)
 			return chosen;
 		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
 		int chosenFinal = Integer.MIN_VALUE;
@@ -1438,20 +1422,18 @@ final class RaceAi {
 			if (sealable(nx, ny, nvx, nvy, playerNum))
 				continue;
 			if (chosenFinal == Integer.MIN_VALUE) {
-				chosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
-						AI1_STAGED_HORIZON, true, true, true, true,
-						AI1_DEEP_CERT_RIVALS, null, privateChosenField);
-				chosenField = privateChosenField[0];
-				if (rivalsAhead < 4 && chosenField >= 1_000_000L)
+				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
+						AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+				chosenField = rolloutFieldCost[0];
+				if (rivalsAhead == 3 && chosenField >= ROLLOUT_FAILURE_COST)
 					return chosen;
 			}
 			if (chosenFinal < 0)
 				return chosen;
-			final int candidateFinal = simOutcome(nx, ny, nvx, nvy, playerNum,
-					AI1_STAGED_HORIZON, true, true, true, true,
-					AI1_DEEP_CERT_RIVALS, null, privateBestField);
+			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal
-					|| privateBestField[0] > chosenField)
+					|| rolloutFieldCost[0] > chosenField)
 				continue;
 			if (best == null || restDelta < bestRestDelta) {
 				best = d;
@@ -1498,7 +1480,11 @@ final class RaceAi {
 						&& rivalsAhead <= AI1_PRIVATE_CONVOY_MAX_AHEAD);
 	}
 
-	private int countSlowerRivalsAhead(final int x, final int y, final double mySpeed, final int playerNum) {
+	/** Queue-compression support: count live STALLED rivals within squared
+	 *  distance 36 of the candidate landing that are at-or-ahead in track
+	 *  progress. Ahead-ness keeps the same-progress +3 slack and the 15-cell
+	 *  wall exclusion used by the original Zandvoort forensic. */
+	private int countStalledRivalsAhead(final int x, final int y, final int playerNum) {
 		final int myDist = reach.distAt(x, y);
 		if (myDist == Integer.MAX_VALUE)
 			return 0;
@@ -1528,7 +1514,7 @@ final class RaceAi {
 	}
 
 	/** AI1 frontier only (queueBox v3 long-range trigger): count STALLED
-	 *  rivals (|v| <= 2.5, the {@link #countSlowerRivalsAhead} threshold)
+	 *  rivals (|v| <= 2.5, the {@link #countStalledRivalsAhead} threshold)
 	 *  at-or-ahead of (x,y) in track progress within {@code reachCells}
 	 *  euclidean cells -- my stopping distance, so unlike the near trigger
 	 *  this must see the queue BEFORE the local successor count collapses.
@@ -1807,7 +1793,7 @@ final class RaceAi {
 	 * {@code occupancy}, the simulated round-step positions of all live
 	 * opponents (current cells as conservative fallback where unmoved).
 	 */
-	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy, final int playerNum,
+	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy,
 			final int[][] occupancy) {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
@@ -2157,12 +2143,13 @@ final class RaceAi {
 				exactRivals, scorerRivals, false, scorerCap, outFinalTier, null);
 	}
 
-	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
-			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
-			final boolean exactRivals, final boolean scorerRivals, final int scorerCap,
-			final int[] outFinalTier, final long[] outFieldCost) {
-		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
-				exactRivals, scorerRivals, false, scorerCap, outFinalTier, outFieldCost);
+	/** Field-neutral scorer rollout used by the private and staged pace proofs.
+	 *  Naming this fixed flag bundle keeps the safety-critical call sites out of
+	 *  the boolean-argument soup used by the general simulator. */
+	private int scorerFieldOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final int scorerCap, final long[] outFieldCost) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, true, true, true, true,
+				false, scorerCap, null, outFieldCost);
 	}
 
 	/** scorerSelf (round 78): model ME with the recursion-guarded real scorer
@@ -2271,7 +2258,7 @@ final class RaceAi {
 						return -1;
 					alive[i] = false;
 					if (outFieldCost != null)
-						failedRivalCost += 1_000_000L;
+						failedRivalCost += ROLLOUT_FAILURE_COST;
 					continue;
 				}
 				px[i] = move[0];
@@ -2286,7 +2273,7 @@ final class RaceAi {
 				if (i == myIdx || !alive[i])
 					continue;
 				final int turns = reach.turnsToFinish(px[i], py[i], vx[i], vy[i]);
-				fieldCost += turns == Integer.MAX_VALUE ? 1_000_000L : turns;
+				fieldCost += turns == Integer.MAX_VALUE ? ROLLOUT_FAILURE_COST : turns;
 			}
 			outFieldCost[0] = fieldCost;
 		}
@@ -2512,7 +2499,7 @@ final class RaceAi {
 			// discards the pessimism, never more cautious than the crash-free
 			// frozen standard.
 			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
-					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world));
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, world));
 			double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? 2.0
 							: d2SafeCount == 2 ? 0.5
@@ -2555,7 +2542,7 @@ final class RaceAi {
 			// circuits, so only genuine corner-entry traffic jams brake.
 			double cornerEntry = 0.0;
 			if (speed > 4.0) {
-				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy, playerNum);
+				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy);
 				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, 36) >= 2)
 					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
@@ -2565,7 +2552,7 @@ final class RaceAi {
 			// rivals, and the round-sims behind d2SafeCount and the ply-2
 			// price assume a hairpin queue keeps flowing -- so a fast coast
 			// whose timed margin is already thin (d2SafeCount <= 2) while
-			// >= 2 SLOWER rivals sit within squared distance 36 at-or-ahead
+			// >= 2 STALLED rivals sit within squared distance 36 at-or-ahead
 			// of the landing (compression, not a chase) is one round from
 			// being boxed: on zandvoort both alive continuations of
 			// (43,66)v(-4,3) were bodily occupied by the compressed queue
@@ -2574,7 +2561,7 @@ final class RaceAi {
 			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
 			double queueBox = 0.0;
 			if (speed > 4.0 && cornerEntry == 0.0) {
-				if (d2SafeCount <= 2 && countSlowerRivalsAhead(newX, newY, speed, playerNum) >= 2)
+				if (d2SafeCount <= 2 && countStalledRivalsAhead(newX, newY, playerNum) >= 2)
 					queueBox = (speed - 4.0) * 1.5;
 				else {
 					// v3 long-range trigger: the near trigger needs d2SafeCount
@@ -3066,7 +3053,7 @@ final class RaceAi {
 	}
 
 	/**
-	 * AI2-only twin of {@link #countFutureSafeSuccessors} keyed on ROOMINESS
+	 * Shared scorer twin of {@link #countFutureSafeSuccessors} keyed on ROOMINESS
 	 * rather than mere aliveness, and opponent-blind (geometry + reachability
 	 * only). Counts the geometry-legal one-step successors of (x,y,vx,vy) that
 	 * are alive AND {@link #isRoomy roomy} at depth 0 -- i.e. escape moves onto
@@ -3078,7 +3065,7 @@ final class RaceAi {
 	 * the funnel geometry is a fixed property of the state while the danger only
 	 * materialises when rivals are packed at the corner entry.
 	 */
-	private int countRoomySuccessors(final int x, final int y, final int vx, final int vy, final int playerNum) {
+	private int countRoomySuccessors(final int x, final int y, final int vx, final int vy) {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
