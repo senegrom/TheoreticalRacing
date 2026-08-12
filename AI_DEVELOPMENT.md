@@ -99,7 +99,7 @@ Round 76's certified-L2 arm was rejected and reverted. It retains Round 78's
 adversarial private-lane pace proof:
 
 - a cheap three-ply rectangle over-approximates every rival acceleration and
-  requires three private empty-map-optimal continuations;
+  follows an empty-map-optimal line until it reaches three private alive exits;
 - when the rectangle is pessimistic, a geometry-clipped four-ply search answers
   only queried occupancy cells, ignores rival collisions conservatively,
   removes finished rivals, and fails closed after a shared 512-state budget;
