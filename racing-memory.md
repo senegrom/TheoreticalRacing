@@ -50,18 +50,22 @@ of the road, learned from a mid-merge collision:
 
 ## HARVEST 2 INTERIM (2026-08-12, local agent): fresh-seed crash rate up 5x
 
-URGENT COORDINATION NOTE for the in-flight pace rounds: phase 1 of the
-second fresh-seed harvest (8-car seeds 31-45, all 22 tracks, the r75
-finish-sprint champion) found **5 crashes in 330 races** where harvest 1
-(same protocol, r70 champion, seeds 16-30) found 1. Poisson P(>=5 |
-lambda~1) < 0.5% -- a REAL tail-risk regression on unseen territory,
-invisible to the canonical seed-1-15 gates. Sites (all last-runner
-deaths at mid speed): coil s32 m319 (spd^2 25), **zandvoort s34/s42/s45
-(x3 -- a track class)**, hungaroring s40 m232. Suspect set: the pace
-stack (finish sprint foremost -- pace buys aggression); A/B replays of
-the 5 sites on the pre-finish-sprint (r74) champion are running to
-attribute. Full forensics after the harvest completes. Anyone gating a
-pace candidate right now should hold promotion until attribution lands.
+Phase 1 of the second fresh-seed harvest (8-car seeds 31-45, all 22
+tracks, the r75 champion) found **5 crashes in 330 races**: coil s32
+m319, zandvoort s34/s42/s45, hungaroring s40 (all last-runner deaths at
+mid speed). ATTRIBUTION COMPLETE (A/B replays on the r74 and r71
+champions) -- the initial "5x regression, hold promotions" reading was
+WRONG and is retracted: **four of the five are ANCIENT classes** (coil
+s32, zandvoort s34/s42, hungaroring s40 crash on the r71 champion too;
+seeds 31-45 are simply doom-denser than 16-30, so the harvest-1
+comparison conflated champion with seed band). The pace stack is NOT
+implicated; in-flight pace gates stand. ONE genuine regression:
+**zandvoort s45** -- clean on r71, crashes on r74/r75, introduced
+somewhere in the r72-r74 window (trap-monotone / corridor /
+compressed-queue). SYSTEMIC LESSON: the canonical seed-1-15 battery is
+mined out as crash evidence; doom-dense fresh bands (zandvoort 31-45
+foremost) should join future promotion gates. The five sites are the
+open counterexample queue; forensics follow harvest completion.
 
 ## Round 77 (local agent, REJECTED at stage 1): strict filter overreach
 
