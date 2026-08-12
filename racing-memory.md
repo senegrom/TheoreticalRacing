@@ -132,6 +132,51 @@ slower, for **2,310 finishers / 0 crashes** across 330 races. Seeds 1-5 were
 63.64**. The integrated current-master branch must re-run the official JDK-25
 battery before promotion; mixed and small-field stages remain mandatory.
 
+## HARVEST 2 INTERIM (2026-08-12, local agent): fresh-seed crash rate up 5x
+
+Phase 1 of the second fresh-seed harvest (8-car seeds 31-45, all 22
+tracks, the r75 champion) found **5 crashes in 330 races**: coil s32
+m319, zandvoort s34/s42/s45, hungaroring s40 (all last-runner deaths at
+mid speed). ATTRIBUTION COMPLETE (A/B replays on the r74 and r71
+champions) -- the initial "5x regression, hold promotions" reading was
+WRONG and is retracted: **four of the five are ANCIENT classes** (coil
+s32, zandvoort s34/s42, hungaroring s40 crash on the r71 champion too;
+seeds 31-45 are simply doom-denser than 16-30, so the harvest-1
+comparison conflated champion with seed band). The pace stack is NOT
+implicated; in-flight pace gates stand. ONE genuine regression:
+**zandvoort s45** -- clean on r71, crashes on r74/r75, introduced
+somewhere in the r72-r74 window (trap-monotone / corridor /
+compressed-queue). SYSTEMIC LESSON: the canonical seed-1-15 battery is
+mined out as crash evidence; doom-dense fresh bands (zandvoort 31-45
+foremost) should join future promotion gates. The five sites are the
+open counterexample queue; forensics follow harvest completion.
+
+## Round 77 (local agent, REJECTED at stage 1): strict filter overreach
+
+The r76 refinement executed: certified trap<=L2 faster lines must now
+STRICTLY IMPROVE the widened scorer-rival final tt vs the incumbent
+(incumbent sim evaluated lazily, cached per turn) -- survival alone let
+empty-track-faster lines lose their gain to traffic. On the exact r76
+failure band (seeds 6-10, 5 tracks): the zigzag regression is GONE
+(within rounding), interlagos/spielberg/lemans each -0.1, spa tied,
+TOTAL -0.06, 0 crashes. BUT the probe showed the true footprint: 21/27
+races divergent -- the strict filter did not only gate the NEW L2
+admissions, it ALSO stripped the promoted trap-0/smom-3 r58 behavior
+(proven lines now rejected for not beating the incumbent in-sim).
+STAGE 1 VERDICT: 769/1 (A CRASH) with FOUR tracks +0.1 slower
+(silverstone/monaco/spielberg/lemans) and aggregate +0.01 -- rejected
+on the spot, battery aborted, arm reverted.
+
+LESSON (the certified-pace ladder): the r58 trap-0 + smom-3 admission
+is load-bearing champion behavior -- filters may only be ADDED to new
+admission classes, never substituted under existing ones. NEXT ARM
+(recorded): two-tier admission -- keep r58 byte-identical for trap==0
+lines; require the widened scorer-rival STRICT-IMPROVEMENT certificate
+only for the newly admitted 0<trap<=L2 lines. The r76/r77 evidence pair
+suggests the L2 class carries the zigzag risk (r76) while the trap-0
+class carries the broad pace (r77), so the two-tier split is exactly
+the shape both rejections point at.
+
 ## Round 76 (local agent, REJECTED under the no-slower-track standard)
 
 The r58 certified-pace override composed with the r75 finish sprint:
