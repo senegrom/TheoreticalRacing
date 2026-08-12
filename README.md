@@ -44,15 +44,16 @@ The frozen AI2 policy also has deterministic golden-race regression tests:
 sh ./run_golden_tests.sh
 ```
 
-The AI1 frontier also has deterministic pace, mixed-field safety, and field-externality checkpoints:
+The AI1 frontier also has deterministic pace, mixed-field safety, field-externality, and staged self-play pace checkpoints:
 
 ```bash
 python3 tests/ai1_pace_regression.py
 python3 tests/ai1_mixed_safety_regression.py
 python3 tests/ai1_field_neutral_regression.py
+python3 tests/ai1_staged_pace_regression.py
 ```
 
-The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19 and Interlagos seed-10 safety counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
+The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10 and Silverstone seed-15 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
 
 ## Benchmarks
 
