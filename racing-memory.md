@@ -48,6 +48,47 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 78 (AI1 frontier): field-neutral adversarial private lanes
+
+INTEGRATION: refreshed from `origin/master` at `fd88906`, after the local
+Round 76 L2 arm was rejected and reverted under the no-slower-track rule.
+Round 75's promoted finish sprint is therefore the frozen AI2 comparison. The
+private-lane work was rebased around that source; AI2 and all golden fixtures
+remain untouched.
+
+PACE PROOF: a strictly faster candidate must preserve the scorer's non-spread
+quality, avoid worst-case sealing, remain on an empty-track-optimal route and
+keep a private continuation against an adversarial rival occupancy envelope.
+The first stage uses three-ply acceleration rectangles and three exits. A
+bounded geometry-aware fallback explores every legal rival acceleration only
+for queried cells through four plies, ignores collisions conservatively,
+removes finishers and fails closed after 512 expanded states. It may use two
+exits only at low speed or in a homogeneous AI1 field with uncertainty <=15.
+The selected candidate then needs an independent faithful scorer-rival
+survival certificate; the promoted seal and DJS guards still run afterwards.
+
+FIELD EXTERNALITY: the first composition was 770/0 and materially faster on
+the regular gate, but Zigzag seed 1 became four field moves slower. At global
+move 71, player 7 accelerated `NE` instead of champion `NW`; the faithful
+rollout improved its own final TTF from 54 to 52, but another rival failed and
+the field cost changed from 368 to 1,000,318. The mover's real finish time did
+not improve while two other finishers lost two moves each.
+
+FIX: only for high-speed candidates with every live rival in a field of at
+least six cars compressed within Chebyshev radius 10, compare candidate and
+incumbent in the same five-round, six-rival scorer world. Field cost is the sum
+of surviving rivals' final empty-map TTF, zero for finishers, and 1,000,000 per
+simulated failure. Require strict self improvement and non-worsening field
+cost. The target keeps `NW`; AI1 and AI2 are move-identical on Zigzag seeds
+1-5. Deterministic regressions pin Monaco seed-1 pace, heterogeneous Le Mans
+seed-2 safety and the Zigzag seed-1 field boundary.
+
+PREVIOUS REGULAR GATE: all three 22-track bands were 770/0 with no track
+slower, for **2,310 finishers / 0 crashes** across 330 races. Seeds 1-5 were
+**62.73 vs 63.69**, seeds 6-10 **62.69 vs 63.66**, and seeds 11-15 **62.70 vs
+63.64**. The integrated current-master branch must re-run the official JDK-25
+battery before promotion; mixed and small-field stages remain mandatory.
+
 ## Round 76 (local agent, REJECTED under the no-slower-track standard)
 
 The r58 certified-pace override composed with the r75 finish sprint:
