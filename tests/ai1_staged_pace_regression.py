@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the Round-80 energy-capped staged-pace boundaries."""
+"""Pin the Round-80 self-play-only staged-pace boundaries."""
 
 from pathlib import Path
 import sys
@@ -10,10 +10,6 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
-# Hungaroring seed 4 captures the retained open-line gain. The other cases are
-# exact false-gain or crash counterexamples that shaped the gate. Faster future
-# policies remain allowed, but no case may lose a finisher, crash, or exceed the
-# pinned Round-79/80 move ceiling.
 CASES = {
     ("hungaroring", 4): 868,
     ("spa", 4): 580,
@@ -50,9 +46,20 @@ def main() -> int:
                     f"finisher move sum {move_sum} exceeds {max_move_sum}"
                 )
 
+        # The unrestricted certificate changed player 3's opening line on
+        # Monaco seed 9 and caused a frozen AI2 car to crash 442 global moves
+        # later. Self-play-only gating must leave this mixed field crash-free.
+        bench_ai.set_kinds(["AI1"] * 4 + ["AI2"] * 4)
+        mixed = bench_ai.run_track_h2h("monaco", timeout=900, seed=9)
+        if mixed is None:
+            raise SystemExit("mixed Monaco seed-9 race failed or produced no complete log")
+        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
+            raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
+
     print(
         "AI1StagedPaceRegression: OK "
-        "(Hungaroring gain; Spa, Interlagos and Le Mans counterexamples no slower)"
+        "(Hungaroring gain; Spa, Interlagos and Le Mans no slower; "
+        "mixed Monaco seed 9 crash-free)"
     )
     return 0
 

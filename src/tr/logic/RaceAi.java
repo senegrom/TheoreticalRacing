@@ -1379,6 +1379,15 @@ final class RaceAi {
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT == Integer.MAX_VALUE || chosenT < AI1_STAGED_MIN_TURNS)
 			return chosen;
+		// Round 79's convoy counterexample established that a mover-safe pace
+		// change can destabilise a different policy hundreds of moves later.
+		// This new long-horizon certificate is therefore self-play-only until a
+		// mixed-policy externality proof exists.
+		for (final Player p : game.players) {
+			if (p.getNumber() != playerNum && !p.isFinished()
+					&& p.getKind() != Player.Kind.AI1)
+				return chosen;
+		}
 		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
 				- uncByDir[chosen.ordinal()];
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
