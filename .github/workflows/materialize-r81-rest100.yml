@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-      - name: Apply the checksum-bounded Round 81 change
+      - name: Apply the checksum-bounded Round 81 source change
         shell: bash
         run: |
           python - <<'PY'
@@ -58,13 +58,6 @@ jobs:
               '        "(Hungaroring gain; Spa, Interlagos and Le Mans no slower; "\n',
               '        "(Hungaroring and Silverstone gains; Spa, Interlagos and Le Mans no slower; "\n',
           )
-          for workflow in (".github/workflows/ci.yml", ".github/workflows/promotion-gate.yml"):
-              replace_once(
-                  workflow,
-                  "      - run: python tests/ai1_field_neutral_regression.py\n",
-                  "      - run: python tests/ai1_field_neutral_regression.py\n"
-                  "      - run: python tests/ai1_staged_pace_regression.py\n",
-              )
           PY
       - name: Verify exact candidate
         shell: bash
@@ -78,20 +71,13 @@ jobs:
           python tests/ai1_field_neutral_regression.py
           python tests/ai1_staged_pace_regression.py
           python -m compileall -q tracks tests
-      - name: Commit only the verified candidate
+      - name: Commit the verified source and regression
         shell: bash
         run: |
           git config user.name "OpenAI Agent"
           git config user.email "noreply@openai.com"
-          git rm .github/workflows/materialize-r81-rest100.yml
-          git add src/tr/logic/RaceAi.java tests/ai1_staged_pace_regression.py \
-            .github/workflows/ci.yml .github/workflows/promotion-gate.yml
-          expected=$(printf '%s\n' \
-            .github/workflows/ci.yml \
-            .github/workflows/materialize-r81-rest100.yml \
-            .github/workflows/promotion-gate.yml \
-            src/tr/logic/RaceAi.java \
-            tests/ai1_staged_pace_regression.py | sort)
+          git add src/tr/logic/RaceAi.java tests/ai1_staged_pace_regression.py
+          expected=$(printf '%s\n' src/tr/logic/RaceAi.java tests/ai1_staged_pace_regression.py | sort)
           actual=$(git diff --cached --name-only | sort)
           test "$actual" = "$expected"
           git commit -m "Round 81: widen certified near-neutral pace"
