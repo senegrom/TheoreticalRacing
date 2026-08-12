@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the Round-80 self-play-only staged-pace boundaries."""
+"""Pin the Round-81 self-play-only staged-pace boundaries."""
 
 from pathlib import Path
 import sys
@@ -16,6 +16,7 @@ CASES = {
     ("interlagos", 3): 875,
     ("lemans", 11): 486,
     ("spa", 11): 572,
+    ("silverstone", 15): 585,
     ("silverstone", 18): 589,
 }
 
@@ -59,7 +60,7 @@ def main() -> int:
 
     print(
         "AI1StagedPaceRegression: OK "
-        "(Hungaroring gain; Spa, Interlagos and Le Mans no slower; "
+        "(Hungaroring and Silverstone gains; Spa, Interlagos and Le Mans no slower; "
         "mixed Monaco seed 9 crash-free)"
     )
     return 0

@@ -240,7 +240,7 @@ final class RaceAi {
 	private final static int		AI1_PRIVATE_CONVOY_RADIUS_V	= 2;	// round 79: look two mover-velocity spans along a nearly collinear train
 	private final static int		AI1_PRIVATE_CONVOY_HALF_WIDTH	= 4;	// maximum perpendicular distance from the mover's velocity ray
 	private final static int		AI1_PRIVATE_CONVOY_MAX_AHEAD	= 1;	// the externality case is a compact rear train, not a two-sided pack
-	private final static double	AI1_STAGED_REST_SLACK	= 0.25;	// round 80: near-neutral candidates only
+	private final static double	AI1_STAGED_REST_SLACK	= 1.00;	// round 81: one scorer point still needs strict rollout and field proof
 	private final static double	AI1_STAGED_UNC_MAX	= 2.5;	// keep the staged rollout below the high-uncertainty class
 	private final static int		AI1_STAGED_HORIZON	= 8;	// strict gain + non-worsening field
 	private final static int		AI1_STAGED_MIN_TURNS	= 35;	// leave the existing finish sprint in charge near the line
