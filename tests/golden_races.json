@@ -94,20 +94,20 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "dc28caee7d266e79104946da261b5a13a11597d9a42b2e43ccd6306bb6bc48e7",
+      "sha256": "0059655c97b0f7b3e5e9d8409ad084c6a713397d58a67ea41243056a2f7f885c",
       "summary": {
-        "turns": 584,
+        "turns": 581,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "D",
           "E",
           "F",
-          "H",
+          "G",
           "A",
           "B",
-          "C",
-          "G"
+          "H",
+          "C"
         ]
       }
     },
@@ -132,7 +132,7 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "dd1ae0969805c402c6ac89acbab315e9faf6be45afa625b3649ee415ecb31931",
+      "sha256": "27220a9f85a6b2113a303056fdb58ce99f1f5b5261982d6f97ca65de467d9735",
       "summary": {
         "turns": 455,
         "finishes": 3,
@@ -230,6 +230,28 @@
           "D",
           "G",
           "H"
+        ]
+      }
+    },
+    {
+      "name": "zandvoort-s45-8p",
+      "track": "zandvoort",
+      "seed": 45,
+      "players": 8,
+      "sha256": "5b91c9ab6bb15dd127dfb280dfddb4dd0f4c10d252a68f09f597f2e7a88a6be6",
+      "summary": {
+        "turns": 1177,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "D",
+          "A",
+          "B",
+          "C",
+          "E",
+          "H",
+          "F",
+          "G"
         ]
       }
     }

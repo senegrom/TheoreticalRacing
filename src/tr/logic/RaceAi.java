@@ -2258,16 +2258,19 @@ final class RaceAi {
 					final boolean denseSlowPack = packAll && (sealRivals >= AI1_SLOW_PACK
 							? slowSpd2 >= AI1_SLOW_PACK_SPD2
 							: sealRivals >= AI1_SLOW_PACK_MIN && slowSpd2 >= AI1_SLOW_PACK_SPD2_SMALL);
+					// Round 78 (PROMOTED): the smoke test runs the scorer-rival
+					// world -- smom is blind to convergence dooms. See the AI1
+					// body for the zandvoort-s45 m920 derivation.
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									true, true, true, false) < 0;
+									true, true, true, true) < 0;
 					if (denseSlowPack || smokeDies) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
-									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " smom-dies")
+									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " scorer-dies")
 									+ " -> scorer rollout");
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								true, AI1_DJS_SLOW_ROUNDS);
+								true, AI1_DJS_SLOW_ROUNDS, AI1_SCORER_MAXRIVALS, true);
 					}
 				}
 			}

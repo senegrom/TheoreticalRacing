@@ -48,6 +48,17 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 78 — scorer smoke test + scorer-me certification (PROMOTED 2026-08-12, per user)
+
+Promotion executed: smoke test + escalation mirrored into AI2 (shared
+scorerSelf machinery), strict probe ALL IDENTICAL 0/27, golden corpus
+regenerated with the new `zandvoort-s45-8p` fixture pinning the rescue
+(1177 turns, 7/0) and two intentional slow-class reflows (lemans-s4
+crash-free, monaco-s9-4p crash-free and 3 turns FASTER); every other
+hash unchanged. Docs record the eighth bounded safety proof.
+Post-promotion self-tie battery in flight; certification appended on
+completion. AI1 and AI2 are identical again.
+
 ## Round 78 (local agent, gates PASSED): scorer smoke test + scorer-me certification
 
 THE ZANDVOORT-S45 FORENSICS found a TWO-LAYER gap at m920 (p8, spd^2=40
