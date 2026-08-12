@@ -115,8 +115,21 @@ regenerated with the new `zandvoort-s45-8p` fixture pinning the rescue
 (1177 turns, 7/0) and two intentional slow-class reflows (lemans-s4
 crash-free, monaco-s9-4p crash-free and 3 turns FASTER); every other
 hash unchanged. Docs record the eighth bounded safety proof.
-Post-promotion self-tie battery in flight; certification appended on
-completion. AI1 and AI2 are identical again.
+POST-PROMOTION SELF-TIE BATTERY CERTIFIED: probe 0/27 and ALL 8 stages
+exact self-ties with zero crashes anywhere -- 770/0 x3
+@63.69/63.66/63.64, h2h 4.500 c=0 both bands, 4car 330/0/61.75, 1v1
+110/0/60.64, slow 28/0/104.11. The canonical record is 2310/2310 again,
+now with the r78 fidelity stack. Champion baselines re-seeded from the
+self-tie logs (extract_baseline col=1 -> scratchpad/baseline_*.json).
+AI1 and AI2 are identical again.
+
+CAMPAIGN STATE after r78: the FIDELITY ladder is complete (every known
+class where a faithful model sees a death the cheap model misses is
+closed: r59 scorer rivals, r67/r71 dense packs, r73 ahead-corridor +
+widened cap, r74 compressed queue, r78 smoke test + scorer-me). The
+only open crash class is the DEEP-HORIZON COMMITMENT class above, which
+that ladder provably cannot reach. Harvest-2 tally: 5 crashes found, 3
+fixed, 2 open and classified.
 
 ## Round 78 (local agent, gates PASSED): scorer smoke test + scorer-me certification
 
