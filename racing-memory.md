@@ -48,6 +48,21 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## HARVEST 2 INTERIM (2026-08-12, local agent): fresh-seed crash rate up 5x
+
+URGENT COORDINATION NOTE for the in-flight pace rounds: phase 1 of the
+second fresh-seed harvest (8-car seeds 31-45, all 22 tracks, the r75
+finish-sprint champion) found **5 crashes in 330 races** where harvest 1
+(same protocol, r70 champion, seeds 16-30) found 1. Poisson P(>=5 |
+lambda~1) < 0.5% -- a REAL tail-risk regression on unseen territory,
+invisible to the canonical seed-1-15 gates. Sites (all last-runner
+deaths at mid speed): coil s32 m319 (spd^2 25), **zandvoort s34/s42/s45
+(x3 -- a track class)**, hungaroring s40 m232. Suspect set: the pace
+stack (finish sprint foremost -- pace buys aggression); A/B replays of
+the 5 sites on the pre-finish-sprint (r74) champion are running to
+attribute. Full forensics after the harvest completes. Anyone gating a
+pace candidate right now should hold promotion until attribution lands.
+
 ## Round 77 (local agent, REJECTED at stage 1): strict filter overreach
 
 The r76 refinement executed: certified trap<=L2 faster lines must now
