@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the Round-81 self-play-only staged-pace boundaries."""
+"""Pin the Round-82 self-play-only staged-pace boundaries."""
 
 from pathlib import Path
 import sys
@@ -14,10 +14,21 @@ CASES = {
     ("hungaroring", 4): 868,
     ("spa", 4): 580,
     ("interlagos", 3): 875,
+    ("lemans", 3): 488,
     ("lemans", 11): 486,
     ("spa", 11): 572,
     ("silverstone", 15): 585,
     ("silverstone", 18): 589,
+    ("coil", 18): 425,
+    ("hungaroring", 8): 865,
+    ("hungaroring", 10): 869,
+    ("hungaroring", 25): 873,
+}
+
+# A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
+# the three-ahead class must retain the exact integrated-frontier finish list.
+EXACT_MOVES = {
+    ("lemans", 3): [65, 67, 69, 70, 71, 72, 74],
 }
 
 
@@ -47,6 +58,12 @@ def main() -> int:
                     f"AI1 {track} seed-{seed} pace regression: "
                     f"finisher move sum {move_sum} exceeds {max_move_sum}"
                 )
+            expected_moves = EXACT_MOVES.get((track, seed))
+            if expected_moves is not None and finish_moves != expected_moves:
+                raise SystemExit(
+                    f"AI1 {track} seed-{seed} field redistribution: "
+                    f"{finish_moves} != {expected_moves}"
+                )
 
         # The unrestricted certificate changed player 3's opening line on
         # Monaco seed 9 and caused a frozen AI2 car to crash 442 global moves
@@ -60,8 +77,8 @@ def main() -> int:
 
     print(
         "AI1StagedPaceRegression: OK "
-        "(Hungaroring and Silverstone gains; Spa, Interlagos and Le Mans no slower; "
-        "mixed Monaco seed 9 crash-free)"
+        "(three-ahead Coil/Hungaroring gains; low-speed Hungaroring and "
+        "ambiguous Le Mans vetoes; Silverstone gain; mixed Monaco seed 9 crash-free)"
     )
     return 0
 

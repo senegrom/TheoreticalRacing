@@ -15,6 +15,7 @@ sh ./run_golden_tests.sh
 python3 tests/ai1_pace_regression.py
 python3 tests/ai1_mixed_safety_regression.py
 python3 tests/ai1_field_neutral_regression.py
+python3 tests/ai1_staged_pace_regression.py
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
@@ -53,6 +54,43 @@ The manual **AI promotion battery** runs independent stages for:
 - slow synthetic tracks on seeds 1–5
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
+
+## Round 82 frontier candidate: stable three-ahead slow packs
+
+Round 82 composes the Round 81 staged-pace proof with the promoted Round 78
+scorer-fidelity champion. The four-ahead admission is byte-for-byte unchanged.
+The adjacent **exactly three rivals ahead** class may now enter the same
+eight-round, six-rival scorer certificate only when the incumbent landing has
+reached the existing slow-pack speed floor (`speed² >= 16`) and the incumbent
+field rollout is finite. Candidate selection, trap and uncertainty bounds,
+energy cap, strict self improvement, non-worsening aggregate rival cost, seal
+guard and final danger veto all remain unchanged.
+
+The unrestricted three-ahead arm exposed the structural boundaries. A
+Hungaroring seed-8 decision at speed² 4 cost three field moves, while every
+recovered gain fired at speed² 17–25. Le Mans seed 3 produced an equal-sum
+field redistribution only when the incumbent scorer world contained a failed
+rival; the finite-field guard retains the integrated-frontier finish list
+`[65, 67, 69, 70, 71, 72, 74]`. No track or seed name appears in the policy.
+
+A 126-race hot screen, including the fresh Coil, Hungaroring and Zandvoort
+counterexamples, returned **123 identical races and three pace improvements**:
+Coil seed 18 saved one move, Hungaroring seed 10 saved four, and Hungaroring
+seed 25 saved three. Net delta was **-8 moves**, with no crash, pace or
+redistribution regression.
+
+The JDK-25 promotion battery passed exact verification and every matrix. The
+five eight-car bands remained 770/0 in both columns, with AI1/AI2 mean finisher
+moves of 62.72/63.69, 62.67/63.66, 62.68/63.64, 62.72/63.64 and
+62.66/63.62 for seeds 1–5 through 21–25. Canonical seeds 1–15 have no slower
+reported track. Mixed, small-field and slow stages remain crash-free; the
+self-play-only gate is inert in heterogeneous fields.
+
+Doom-dense Zandvoort seeds 31–45 and Spielberg seeds 16–20 were compared
+candidate-versus-integrated-frontier, not merely against frozen AI2. Their
+outputs are byte-identical, proving that the inherited Zandvoort crash profile
+and Spielberg `+0.11` line are not Round 82 regressions. The candidate also
+preserves AI1's seed-42 Zandvoort rescue over AI2.
 
 ## Round 79 frontier candidate: field-neutral private lanes and convoys
 
@@ -106,7 +144,7 @@ golden-fixture review and post-promotion self-tie battery.
 
 ## Current champion and frontier baseline
 
-Round 78 was promoted on 2026-08-12 and is the frozen AI2 champion; AI1 now carries the cumulative Round 81 frontier candidate above. The champion contains eight bounded safety proofs plus one bounded pace proof:
+Round 78 was promoted on 2026-08-12 and is the frozen AI2 champion; AI1 now carries the cumulative Round 82 frontier candidate above. The champion contains eight bounded safety proofs plus one bounded pace proof:
 
 - Round 75 recovers provably safe finish pace. Within 15 empty-map turns of the flag, a strictly faster low-trap candidate may replace the scorer choice only when both the score-shaped-rival and scorer-rival joint models finish at that candidate's empty-map lower bound. The first partial simulated round is accounted for explicitly, and the normal danger-joint search remains an independent downstream veto. On Monaco eight-car seed 16, this changes two late `S` choices at map ttf 15 to `SW` at ttf 14 and saves two racer-turns without changing the seven-finisher, zero-crash result.
 - Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.

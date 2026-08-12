@@ -1370,9 +1370,11 @@ final class RaceAi {
 
 
 	/**
-	 * Round 80 frontier experiment: recover a one-turn map gain in the slow
+	 * Round 82 frontier experiment: recover a one-turn map gain in the slow
 	 * class when the candidate is almost tied on every non-trap/non-uncertainty
-	 * score term. An eight-round six-rival scorer rollout must prove strict self
+	 * score term. The broad class still requires four rivals ahead. Exactly
+	 * three may qualify only at slow-pack speed with a finite incumbent field
+	 * rollout. An eight-round six-rival scorer rollout must prove strict self
 	 * progress without increasing aggregate rival cost. High-speed candidates,
 	 * deaths, field regressions, ties, and model ambiguity fail closed. Existing
 	 * seal and danger guards still run afterwards.
@@ -1398,12 +1400,17 @@ final class RaceAi {
 					+ (long) (rivalPos[1] - pos[1]) * vel[1] > 0L)
 				rivalsAhead++;
 		}
-		if (rivalsAhead < 4)
+		// Round 82 opens the adjacent three-ahead class, but only after the
+		// incumbent reaches the established slow-pack speed floor and its own
+		// scorer-world field outcome is finite. The four-ahead class is unchanged.
+		if (rivalsAhead < 3)
 			return chosen;
 		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
 				- uncByDir[chosen.ordinal()];
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 		final int chosenSpeed2 = chosenVx * chosenVx + chosenVy * chosenVy;
+		if (rivalsAhead < 4 && chosenSpeed2 < AI1_SLOW_PACK_SPD2)
+			return chosen;
 		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
 		int chosenFinal = Integer.MIN_VALUE;
 		long chosenField = Long.MAX_VALUE;
@@ -1435,6 +1442,8 @@ final class RaceAi {
 						AI1_STAGED_HORIZON, true, true, true, true,
 						AI1_DEEP_CERT_RIVALS, null, privateChosenField);
 				chosenField = privateChosenField[0];
+				if (rivalsAhead < 4 && chosenField >= 1_000_000L)
+					return chosen;
 			}
 			if (chosenFinal < 0)
 				return chosen;

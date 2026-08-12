@@ -48,6 +48,43 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 82 (AI1 frontier): stable three-ahead slow packs
+
+INTEGRATION: Round 81 was rebased on the promoted Round 78 scorer-fidelity
+champion before this experiment. The resolved source carries both the staged
+field-cost proof and the champion's scorer-modeled-self safety repair; core
+tests, golden AI2 corpus and every existing AI1 regression passed before pace
+search resumed.
+
+FORENSICS: lowering the staged forward quorum from four to three recovered
+eight moves on the 126-race hot screen but initially exposed two ambiguity
+classes. Hungaroring seed 8 fired at incumbent landing speed² 4 and cost three
+field moves. Every useful exact-three fire occurred at speed² 17–25. Le Mans
+seed 3 kept the same total move sum but redistributed finishers when the
+incumbent scorer-world field cost already contained a simulated failure.
+
+FIX: retain the Round 80/81 four-ahead admission unchanged. Exactly three
+rivals ahead may enter only at the existing slow-pack floor (`speed² >= 16`)
+and only when the incumbent field cost is finite (`< 1,000,000`). The candidate
+still needs a one-turn empty-map gain, trap zero, bounded uncertainty and
+energy, an eight-round six-rival strict self improvement, non-worsening field
+cost, and the existing seal and danger vetoes. This is a speed/field-structure
+gate; it contains no track, seed or progress-coordinate special case.
+
+TARGET VERDICT: the 126-race hot screen is 123 identical / 3 faster / 0
+regressions, net -8 moves. Coil seed 18 changes 426 -> 425, Hungaroring seed 10
+873 -> 869, and Hungaroring seed 25 876 -> 873, all at 7 finishers / 0 crashes.
+Hungaroring seed 8 remains 865 and Le Mans seed 3 retains exact finish list
+`[65, 67, 69, 70, 71, 72, 74]`.
+
+FULL GATE: exact verification and all promotion jobs pass. The five eight-car
+bands (seeds 1-5, 6-10, 11-15, 16-20 and 21-25) are each 770/0, with AI1/AI2
+means 62.72/63.69, 62.67/63.66, 62.68/63.64, 62.72/63.64 and 62.66/63.62.
+Mixed, small-field and slow stages are crash-free. Candidate and integrated
+Round 81 are byte-identical on every Zandvoort seed 31-45 and on Spielberg
+seeds 16-20: the inherited Zandvoort crash profile and Spielberg +0.11 line
+are not introduced by this arm, while the AI1 Zandvoort seed-42 rescue remains.
+
 ## Round 79 (AI1 frontier): aligned-convoy field neutrality
 
 FORENSICS: the fully integrated Round 78 battery was crash-free and about one
