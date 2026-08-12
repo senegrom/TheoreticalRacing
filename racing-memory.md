@@ -92,6 +92,22 @@ five old hashes remain byte-identical. The new `monaco-s16-8p` fixture pins
 `67c69dacd5844cc0a4aa8d31b4b43b2c9be87398221ef3b3fe5dedfb24a45f4b`.
 AI1 and AI2 are identical again.
 
+REMOTE FOLLOW-UP (REJECTED): the final pre-push fetch revealed the newly
+published `origin/agent/ai-pace-round-75` at `d49e9eb`. Its AI1-only
+comparative eight-round certificate was composed on top of the promoted
+finish sprint and evaluated against Round 75 AI2, rather than trusted against
+the older base used by the branch. The nine-track x three-seed probe changed
+seven races with zero crashes, but only Hairpin seed 2 immediately saved a
+turn; Interlagos and Hungaroring reflowed at equal pace, while Nurburgring
+redistributed finisher turns without reducing the total. The full 22-track
+seeds-1-to-5 band remained 770/0 on both sides and was effectively flat
+(63.68 vs 63.69), while making Spa and Zandvoort about 0.1 move per finisher
+slower; Nurburgring and Coil gained about 0.1. The complete A/B took 479.5s.
+This fails the no-slower-track standard and adds expensive deep rollouts for
+a negligible aggregate result, so the remote candidate was removed. Its
+branch remains available for future forensic ideas; none of its code entered
+the champion.
+
 ## Round 74 — compressed rear-queue certificate (PROMOTED 2026-08-11)
 
 REFRESH: `origin/master` was already at the local Round 73 plus primitive
