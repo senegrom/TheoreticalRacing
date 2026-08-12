@@ -44,7 +44,7 @@ The frozen AI2 policy also has deterministic golden-race regression tests:
 sh ./run_golden_tests.sh
 ```
 
-The AI1 frontier also has deterministic pace and safety checkpoints:
+The AI1 frontier also has deterministic pace, mixed-field safety, and field-externality checkpoints:
 
 ```bash
 python3 tests/ai1_pace_regression.py
