@@ -48,6 +48,26 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 76 (local agent, IN GATES): certified-pace L2 arm on the finish-sprint champion
+
+The r58 certified-pace override composed with the r75 finish sprint:
+admit trap<=L2 (0.5) strictly-faster lines (was trap==0.0 only) and
+certify with the widened scorer-rival world (cap AI1_DEEP_CERT_RIVALS=6,
+AI1_DJS_ROUNDS) instead of smom-3 -- the world the r73/r74
+counterexamples proved blind at pack sites. Weaker filter, stronger
+proof. AI1 only; AI2 mirror untouched.
+
+HISTORY: originally gated clean as a round-75 candidate vs the r74
+champion (770/0 x3 with -0.01/-0.01/+0.00; h2h c=0 both bands, places
+net better on aggregate) -- superseded mid-flight by the finish-sprint
+promotion and renumbered. RE-COMPOSED on the new champion: 6-track
+seeds-1-5 bench -0.01 total, interlagos -0.1, lemans a hair faster, NO
+TRACK SLOWER (spa -- the rejected remote arm's failure track -- exactly
+tied), 0 crashes. Probe on the composition: 3/27 divergent (a pace arm
+should fire; divergences bench-verdicted). Full battery vs the
+finish-sprint champion in flight under the no-slower-track standard;
+verdict lands in this section.
+
 ## Round 75 - dual-model finish sprint (PROMOTED 2026-08-12)
 
 REFRESH: local and `origin/master` began at the Round 74 champion `b5348a9`.

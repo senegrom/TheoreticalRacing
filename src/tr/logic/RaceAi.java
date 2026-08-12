@@ -538,13 +538,18 @@ final class RaceAi {
 					continue;
 				if (scoreNSByDir[d.ordinal()] > bestNS + 1e-9)
 					continue;
-				if (trapByDir[d.ordinal()] != 0.0)
+				// round 75 (AI1): admit trap-L2 faster lines under a STRONGER
+				// proof -- the round-58 arm required trap 0 and certified with
+				// smom-3, the world the r73/r74 counterexamples proved blind at
+				// pack sites; the widened scorer-rival certificate replaces it.
+				if (trapByDir[d.ordinal()] > AI1_TRAP_L2)
 					continue;
 				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				if (sealable(nx, ny, nvx, nvy, playerNum))
 					continue;
-				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false, false) < 0)
+				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, true, true,
+						AI1_DEEP_CERT_RIVALS, null) < 0)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
