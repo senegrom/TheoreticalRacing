@@ -48,6 +48,49 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 79 (AI1 frontier): aligned-convoy field neutrality
+
+FORENSICS: the fully integrated Round 78 battery was crash-free and about one
+move per finisher faster on the regular 22-track stages, but the slow gate was
+one net move slower. Exact per-seed diagnosis isolated all of the delta to Cog:
+seed 1 was +2 moves, seed 2 was -1, and every other slow race tied. At Cog seed
+1 global move 89, player 1 changed champion `E` to private-lane `S`; the
+faithful rollout improved the mover's TTF 35 -> 34, but the real race gained one
+move for that car and cost the other finishers three. This was a field
+externality, not a survival or empty-map error.
+
+WHY ROUND 78 MISSED IT: its comparative field gate required every live rival
+within Chebyshev radius 10. The Cog train was narrow but longitudinally spread:
+all seven rivals lay along the mover's velocity corridor out to 18 cells. A
+larger isotropic radius would expose unrelated two-sided packs to the expensive
+and model-sensitive comparison.
+
+FIX: retain the radius-10 compact-pack arm, and add a kinematic aligned-convoy
+arm. With at least five live rivals and landing speed^2 >= 49, every rival must
+be within `max(10, 2 * max(|vx|, |vy|))`, no more than four cells from the
+mover's velocity ray (`cross^2 <= 16 * speed^2`), and at most one rival may be
+ahead (`dot > 0`). Only then run the existing five-round, six-rival comparative
+scorer world. The candidate still needs strict self improvement and
+non-worsening aggregate rival cost. The trigger is geometry/kinematics based;
+there is no Cog or slow-track special case.
+
+TARGET VERDICT: Cog seed 1 becomes move-identical to AI2 with finish list
+`[46, 46, 46, 47, 48, 48, 48]`; Cog seed 2 keeps its one-move AI1 gain. The
+full slow stage is 140/0 in both columns and one net AI1 move faster (both print
+104.16). Existing Monaco pace, mixed Le Mans safety and Zigzag field-neutral
+regressions remain green. An eight-track seeds-1-2 stress slice stays 112/0 in
+both columns at 98.29 vs 100.93 moves per finisher (-2.64). Cog seed 1 is added
+to the deterministic field-neutral regression.
+
+FULL GATE VERDICT: the exact Round 79 source completes all three 22-track
+8-car bands at 770/0 versus 770/0, with mean moves 62.73/63.69, 62.69/63.66
+and 62.70/63.64; no track is slower in any band. Mixed 4v4 places are
+4.472/4.528, 4.473/4.527 and 4.477/4.523, all at 0/0 crashes. The 2v2 and 1v1
+stages are 2.461/2.539 and 1.486/1.514, also 0/0. Slow remains 140/0 at
+104.16/104.16 with a one-move AI1 advantage before rounding. The candidate
+therefore clears the no-slower-track and safety standards as an AI1 frontier;
+AI2 promotion remains a separate mirror-and-self-tie action.
+
 ## Round 78 (AI1 frontier): field-neutral adversarial private lanes
 
 INTEGRATION: refreshed from `origin/master` at `fd88906`, after the local

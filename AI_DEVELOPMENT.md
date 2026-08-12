@@ -54,12 +54,11 @@ The manual **AI promotion battery** runs independent stages for:
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
 
-## Round 78 frontier candidate: field-neutral private lanes
+## Round 79 frontier candidate: field-neutral private lanes and convoys
 
-Round 78 is an **AI1-only** candidate rebased on the Round 75 champion after
-Round 76's certified-L2 arm was rejected and reverted. It recovers strictly
-faster empty-map lines with an adversarial private-lane proof instead of
-weakening the champion's trap or uncertainty prices:
+Round 79 is an **AI1-only** candidate rebased on the Round 75 champion after
+Round 76's certified-L2 arm was rejected and reverted. It retains Round 78's
+adversarial private-lane pace proof:
 
 - a cheap three-ply rectangle over-approximates every rival acceleration and
   requires three private empty-map-optimal continuations;
@@ -71,33 +70,43 @@ weakening the champion's trap or uncertainty prices:
 - an independent scorer-rival rollout must keep the selected line alive, and
   the existing seal and danger guards retain final veto authority.
 
-The Round 78 addition handles **field externalities**. A private line can be
-safe for its mover yet perturb the other scorers into a slower race. Only when
-a candidate is fast and every live rival in a large field is compressed within
-Chebyshev radius 10, AI1 rolls both candidate and incumbent through the same
-five-round, six-rival scorer world. The candidate must strictly improve its
-own final TTF without increasing a field cost made from surviving rivals'
-final TTFs plus a dominating penalty for simulated failures. Everywhere else
-the original cheap survival certificate remains in use.
+Round 78 added comparative field arbitration for a compressed fast pack. A
+private line can be safe for its mover while perturbing the other scorers into
+a slower or failed race, so candidate and incumbent are rolled through the
+same five-round, six-rival scorer world. The candidate must strictly improve
+its own final TTF without increasing the aggregate rival cost. The original
+trigger covered fields of at least six live cars only when every rival was
+within Chebyshev radius 10, repairing Zigzag seed 1.
 
-The boundary came from Zigzag seed 1 at global move 71. Player 7's private
-`NE` line looked two turns better for itself than `NW` in the faithful rollout,
-but the comparative field metric changed from 368 to 1,000,318 because another
-rival failed. In the real race the mover still finished in 66 personal moves,
-while other finishers lost four moves in total. The new arbitration retains
-`NW`, making AI1 and AI2 move-identical on Zigzag seeds 1-5. Dedicated Monaco
-pace, mixed Le Mans safety and Zigzag field-neutrality regressions pin all
-three boundaries.
+Round 79 generalises that trigger to a **kinematically aligned convoy** without
+naming tracks or progress coordinates. A wider train qualifies only when all
+live rivals remain within two mover-velocity spans, every body is at most four
+cells from the mover's velocity ray, and at most one rival is ahead. The same
+strict-self/non-worsening-field comparison then arbitrates the move; all other
+private-lane decisions keep the cheaper survival-only path.
 
-The previously completed regular gate covered all 22 tracks over seeds 1-15:
-**2,310 finishers / 0 crashes**, with mean finishing moves of **62.73 vs
-63.69**, **62.69 vs 63.66**, and **62.70 vs 63.64** across the three bands.
-No track was slower. The integrated branch re-runs those gates against the
-current Round 75 source before any AI2 promotion is considered.
+The new boundary came from Cog seed 1 at global move 89. Player 1's private `S`
+line improved its own rollout TTF from 35 to 34 versus champion `E`, but its
+real finish gain cost the rest of the field three moves. The compact-radius
+trigger missed the rear train because its seven rivals extended 18 cells along
+the same velocity corridor. The convoy trigger retains `E`, restoring the
+exact AI2 finish list `[46, 46, 46, 47, 48, 48, 48]`; Cog seed 2 keeps its
+one-move AI1 gain. The field-neutral regression now pins both Zigzag seed 1 and
+Cog seed 1 move-for-move.
+
+The exact JDK-25 promotion battery is crash-free and never slower on any
+reported track. The three 22-track eight-car bands each finish 770/0 in both
+columns, with AI1/AI2 mean finisher moves 62.73/63.69, 62.69/63.66 and
+62.70/63.64. The three 4v4 bands favour AI1 at mean places 4.472/4.528,
+4.473/4.527 and 4.477/4.523, with zero crashes on either side. The 2v2 and 1v1
+gates are 2.461/2.539 and 1.486/1.514, also crash-free. The slow stage is 140/0
+in both columns and one net AI1 move faster (both print 104.16). This clears
+the AI1 frontier gate; AI2 remains frozen until an explicit mirror,
+golden-fixture review and post-promotion self-tie battery.
 
 ## Current champion and frontier baseline
 
-Round 75 was promoted on 2026-08-12 and remains the frozen AI2 champion; AI1 now carries the Round 78 frontier candidate above. The champion now contains seven bounded safety proofs plus one bounded pace proof:
+Round 75 was promoted on 2026-08-12 and remains the frozen AI2 champion; AI1 now carries the Round 79 frontier candidate above. The champion now contains seven bounded safety proofs plus one bounded pace proof:
 
 - Round 75 recovers provably safe finish pace. Within 15 empty-map turns of the flag, a strictly faster low-trap candidate may replace the scorer choice only when both the score-shaped-rival and scorer-rival joint models finish at that candidate's empty-map lower bound. The first partial simulated round is accounted for explicitly, and the normal danger-joint search remains an independent downstream veto. On Monaco eight-car seed 16, this changes two late `S` choices at map ttf 15 to `SW` at ttf 14 and saves two racer-turns without changing the seven-finisher, zero-crash result.
 - Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.
