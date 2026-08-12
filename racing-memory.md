@@ -48,6 +48,37 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## OPEN CLASS (2 sites, ONE shape): the deep-horizon commitment class
+
+Both remaining harvest-2 crashes classify IDENTICALLY, and the shape is
+new: **zandvoort s42** (p6, death m614; sealed by m582, last avoidable
+**m566** with SIX survivors, chosen SW dies @r6) and **coil s32** (p7,
+death m319; sealed by m263, last avoidable **m247** with SEVEN
+survivors, chosen NE dies @r9).
+
+THE DEFINING PROPERTY: at both entries the faithful scorer-rival
+replica is EXACTLY AS BLIND as the cheap one --
+  zandvoort m566: chosen SW smom=alive t=67 tier=3, orivals=alive t=67 tier=3
+  coil    m247:   chosen NE smom=alive t=22 tier=3, orivals=alive t=22 tier=3
+(contrast the FIDELITY class -- m260/m103/m920 -- where orivals sees
+DEAD@r2 and only the in-game model was blind). No model upgrade can
+reach these: the deaths are 6 and 9 rounds out while every promoted
+rollout horizon is 3-8, and the entries are open, roomy, tier-3 states
+with no local danger signature at all. THE INSTRUMENT ITSELF IS
+EXHAUSTED for this class; the fidelity ladder is finished.
+
+Both survivors' signature is the same: at zandvoort m566 the chosen
+holds spd^2=58 into the coming narrowing while survivors shed to 34-53;
+at coil m247 the chosen holds spd^2=36 into a monotonically narrowing
+spiral while survivors shed to 16-26. CANDIDATE DIRECTIONS (unclaimed):
+(a) STATIC funnel/cut-set analysis on the reachability map -- the doom
+is a track-topology property, visible without any rollout, and matches
+AI_DEVELOPMENT.md's standing "bottleneck-aware triggers" direction;
+(b) speed-vs-corridor-width certification at entry. Rollout deepening
+is NOT the answer: 9-10 rounds at every fast fire is outside the
+measured budget and r65 showed horizon alone perturbs fields into new
+pockets.
+
 ## OPEN CLASS: coil s32 -- the 9-round commitment horizon (measured, unfixed)
 
 Forensics on the second harvest-2 crash (p7, m319 death). The oracle
