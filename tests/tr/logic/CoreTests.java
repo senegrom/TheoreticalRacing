@@ -18,6 +18,7 @@ public final class CoreTests {
         testEdgeLegalCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
+        testRaceAiStateIsolation();
         testSegmentIntersection();
         testStartZone();
         TrackDataTests.run();
@@ -133,6 +134,15 @@ public final class CoreTests {
         check(!RaceAi.hasDistinctCover(uniqueEight, 7), "seven opponents cannot cover eight escapes");
         check(!RaceAi.hasDistinctCover(new int[]{1, 1}, 2), "one opponent cannot cover two escapes simultaneously");
         check(RaceAi.hasDistinctCover(new int[]{3, 1}, 2), "matching should reroute a flexible first assignment");
+    }
+
+    private static void testRaceAiStateIsolation() {
+        for (final java.lang.reflect.Field field : RaceAi.class.getDeclaredFields()) {
+            final int modifiers = field.getModifiers();
+            check(!java.lang.reflect.Modifier.isStatic(modifiers)
+                    || java.lang.reflect.Modifier.isFinal(modifiers),
+                    "RaceAi mutable state must be instance-scoped: " + field.getName());
+        }
     }
 
     private static void testSegmentIntersection() {
