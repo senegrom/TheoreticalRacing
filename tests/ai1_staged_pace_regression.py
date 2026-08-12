@@ -16,6 +16,7 @@ CASES = {
     ("interlagos", 3): 875,
     ("lemans", 11): 486,
     ("spa", 11): 572,
+    ("silverstone", 18): 589,
 }
 
 

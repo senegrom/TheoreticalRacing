@@ -1383,11 +1383,19 @@ final class RaceAi {
 		// change can destabilise a different policy hundreds of moves later.
 		// This new long-horizon certificate is therefore self-play-only until a
 		// mixed-policy externality proof exists.
+		int rivalsAhead = 0;
 		for (final Player p : game.players) {
-			if (p.getNumber() != playerNum && !p.isFinished()
-					&& p.getKind() != Player.Kind.AI1)
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			if (p.getKind() != Player.Kind.AI1)
 				return chosen;
+			final int[] rivalPos = p.getPosition();
+			if ((long) (rivalPos[0] - pos[0]) * vel[0]
+					+ (long) (rivalPos[1] - pos[1]) * vel[1] > 0L)
+				rivalsAhead++;
 		}
+		if (rivalsAhead < 4)
+			return chosen;
 		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
 				- uncByDir[chosen.ordinal()];
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
