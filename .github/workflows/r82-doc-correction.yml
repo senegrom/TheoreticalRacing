@@ -1,0 +1,45 @@
+name: Correct private-lane documentation
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-78
+    paths:
+      - .github/workflows/r82-doc-correction.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correct the certificate description
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("AI_DEVELOPMENT.md")
+          text = path.read_text(encoding="utf-8")
+          old = (
+              "- a cheap three-ply rectangle over-approximates every rival acceleration and\n"
+              "  requires three private empty-map-optimal continuations;"
+          )
+          new = (
+              "- a cheap three-ply rectangle over-approximates every rival acceleration and\n"
+              "  follows an empty-map-optimal line until it reaches three private alive exits;"
+          )
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one outdated description, found {text.count(old)}")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+      - name: Commit the correction
+        run: |
+          git rm .github/workflows/r82-doc-correction.yml
+          git config user.name "OpenAI Agent"
+          git config user.email "noreply@openai.com"
+          git add AI_DEVELOPMENT.md
+          git diff --cached --check
+          git commit -m "Clarify private-lane certificate"
+          git push origin HEAD:agent/ai-racing-speed-78
