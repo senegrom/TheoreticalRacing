@@ -48,6 +48,48 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 78 (local agent, gates PASSED): scorer smoke test + scorer-me certification
+
+THE ZANDVOORT-S45 FORENSICS found a TWO-LAYER gap at m920 (p8, spd^2=40
+braking while p7 chases at spd^2=53 down the same straight):
+1. TRIGGER: the r60 smoke test's smom-5 read the doomed chosen ALIVE
+   tier-3 while orivals kills it @r2 -- the THIRD member of the
+   nurburgring-m260 / interlagos-m103 fidelity class, this time a
+   BEHIND-convergence (chaser), invisible to the ahead-gated corridor
+   check and the pack gates.
+2. CERTIFICATION (new gap class): the true survivor SE dies in BOTH
+   offline worlds because both model ME as the selfMove proxy -- the
+   survivor exists only under the champion's own continued play
+   (oracle t=26). Even a perfect trigger had nothing certifiable to
+   switch to: survival-only switching finds no survivor.
+
+Per-shape trigger gates were measured and REJECTED before building
+(chaser-converging slow moves: 121-235/race -- chasing is just racing).
+THE FIX reuses existing surfaces and machinery, no new gates:
+(a) the r60 smoke test (already on every trap-0 slow move) runs the
+    SCORER-RIVAL world instead of smom -- the chaser lands in the
+    round-59 nearest-3 set and the death is seen;
+(b) new scorerSelf flag through simOutcome/dangerJointSearch: the slow
+    escalation certifies ALTERNATIVES with a scorer-modeled me
+    (scorerMoveOverState applied to myself, recursion-guarded exactly
+    like scorer rivals). All other call sites byte-identical.
+
+SITE PROOF: zandvoort s45 saved (ESC scorer-dies at m920, DJS switch to
+SE simT=30, race 0-crash); BONUS: zandvoort s34 and hungaroring s40
+also saved -- 3 of the 5 harvest-2 crashes killed by one upgrade; the
+zandvoort doom band s31-45 improves 3 crashes -> 1. Coil s32 and
+zandvoort s42 remain open (different classes). All promoted saves
+intact; goldens pass; probe 2/27.
+
+GATES vs the r75 champion: never-worse everywhere -- 8car 770/0 x3 with
+exact-tie aggregates (63.69/63.66/63.64) and balanced +/-0.1 track
+reflows (hungaroring +0.1 on s1-5, slalom -0.1/gear +0.1 on s6-10,
+sprint -0.1/chicane +0.1 on s11-15 -- the safety-round reflow precedent
+of r72); h2h c=0 both bands with places netting BETTER (4.494/4.499 vs
+4.506/4.501); 4car/1v1/slow exact ties. COST: +29% wall on crawl-heavy
+monaco (worst case), ties on fast tracks. ROUND 78 IS PROMOTION-READY;
+the word is the user's.
+
 ## HARVEST 2 INTERIM (2026-08-12, local agent): fresh-seed crash rate up 5x
 
 Phase 1 of the second fresh-seed harvest (8-car seeds 31-45, all 22
