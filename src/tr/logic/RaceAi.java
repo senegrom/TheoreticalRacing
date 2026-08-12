@@ -890,7 +890,7 @@ final class RaceAi {
 		return fallback;
 	}
 
-	/**
+	/*
 	 * AI1 v5.1 queue-compression support (zandvoort forensic, round 21): count
 	 * live rivals within squared distance 36 of the candidate landing (x,y)
 	 * that are at-or-ahead of it in track progress and genuinely SLOWER than
