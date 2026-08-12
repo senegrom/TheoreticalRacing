@@ -237,6 +237,9 @@ final class RaceAi {
 	private final static double	AI1_PRIVATE_EXACT_UNC_MAX	= 15.0;	// round 77: homogeneous fast lines above this retain three exits
 	private final static int		AI1_PRIVATE_EXACT_NODES	= 512;	// per-turn exact-search budget; exhaustion fails closed
 	private final static int		AI1_PRIVATE_FIELD_MIN_RIVALS	= 5;	// round 78: compare field effects only in compressed large fields
+	private final static int		AI1_PRIVATE_CONVOY_RADIUS_V	= 2;	// round 79: look two mover-velocity spans along a nearly collinear train
+	private final static int		AI1_PRIVATE_CONVOY_HALF_WIDTH	= 4;	// maximum perpendicular distance from the mover's velocity ray
+	private final static int		AI1_PRIVATE_CONVOY_MAX_AHEAD	= 1;	// the externality case is a compact rear train, not a two-sided pack
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
@@ -1355,19 +1358,34 @@ final class RaceAi {
 
 	private boolean privateFieldComparisonRequired(final int x, final int y, final int vx,
 			final int vy, final int playerNum) {
-		if (vx * vx + vy * vy < AI1_DJS_SPD2)
+		final int speed2 = vx * vx + vy * vy;
+		if (speed2 < AI1_DJS_SPD2)
 			return false;
-		int rivals = 0;
+		int rivals = 0, rivalsAhead = 0;
+		boolean compactPack = true, alignedConvoy = true;
+		final int convoyRadius = Math.max(AI1_DEEP_PACK_R,
+				AI1_PRIVATE_CONVOY_RADIUS_V * Math.max(Math.abs(vx), Math.abs(vy)));
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
 			rivals++;
 			final int[] position = p.getPosition();
-			if (Math.abs(position[0] - x) > AI1_DEEP_PACK_R
-					|| Math.abs(position[1] - y) > AI1_DEEP_PACK_R)
+			final int dx = position[0] - x, dy = position[1] - y;
+			if (Math.abs(dx) > AI1_DEEP_PACK_R || Math.abs(dy) > AI1_DEEP_PACK_R)
+				compactPack = false;
+			final long cross = (long) dx * vy - (long) dy * vx;
+			if (Math.max(Math.abs(dx), Math.abs(dy)) > convoyRadius
+					|| cross * cross > (long) AI1_PRIVATE_CONVOY_HALF_WIDTH
+							* AI1_PRIVATE_CONVOY_HALF_WIDTH * speed2)
+				alignedConvoy = false;
+			if ((long) dx * vx + (long) dy * vy > 0L)
+				rivalsAhead++;
+			if (!compactPack && !alignedConvoy)
 				return false;
 		}
-		return rivals >= AI1_PRIVATE_FIELD_MIN_RIVALS;
+		return rivals >= AI1_PRIVATE_FIELD_MIN_RIVALS
+				&& (compactPack || alignedConvoy
+						&& rivalsAhead <= AI1_PRIVATE_CONVOY_MAX_AHEAD);
 	}
 
 	private int countSlowerRivalsAhead(final int x, final int y, final double mySpeed, final int playerNum) {

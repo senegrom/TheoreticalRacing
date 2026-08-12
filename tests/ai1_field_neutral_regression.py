@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the Round-78 compressed-field externality boundary."""
+"""Pin the Round-78/79 field-externality boundaries."""
 
 from pathlib import Path
 import sys
@@ -10,16 +10,46 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
-EXPECTED_FINISH_MOVE_SUM = 465
+EXPECTED = {
+    ("zigzag", 1): [65, 65, 66, 66, 67, 68, 68],
+    ("cog", 1): [46, 46, 46, 47, 48, 48, 48],
+}
 
 
-def run(kind: str) -> tuple[int, int, list[int]]:
+def run(track: str, seed: int, kind: str) -> tuple[int, int, list[int]]:
     bench_ai.set_nplayers(8)
     bench_ai.set_all_to(kind)
-    result = bench_ai.run_track("zigzag", timeout=600, seed=1)
+    result = bench_ai.run_track(track, timeout=600, seed=seed)
     if result is None:
-        raise SystemExit(f"{kind} Zigzag seed-1 race failed or produced no complete log")
+        raise SystemExit(
+            f"{kind} {track} seed-{seed} race failed or produced no complete log"
+        )
     return result
+
+
+def check(track: str, seed: int) -> None:
+    expected_moves = EXPECTED[(track, seed)]
+    ai1 = run(track, seed, "AI1")
+    ai2 = run(track, seed, "AI2")
+
+    for kind, result in (("AI1", ai1), ("AI2", ai2)):
+        finishes, crashes, finish_moves = result
+        if finishes != 7 or crashes != 0:
+            raise SystemExit(
+                f"{kind} {track} seed-{seed} field regression: "
+                f"finishes={finishes}, crashes={crashes}"
+            )
+        if finish_moves != expected_moves:
+            raise SystemExit(
+                f"{kind} {track} seed-{seed} pace changed: "
+                f"finish moves {finish_moves} != {expected_moves}"
+            )
+
+    if ai1[2] != ai2[2]:
+        raise SystemExit(
+            f"AI1 {track} seed-{seed} field-neutrality regression: "
+            f"AI1 finish moves {ai1[2]} != AI2 {ai2[2]}"
+        )
 
 
 def main() -> int:
@@ -28,32 +58,12 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-ai1-field-") as directory:
         bench_ai.configure_runtime(directory)
-        ai1 = run("AI1")
-        ai2 = run("AI2")
-
-    for kind, result in (("AI1", ai1), ("AI2", ai2)):
-        finishes, crashes, finish_moves = result
-        if finishes != 7 or crashes != 0:
-            raise SystemExit(
-                f"{kind} Zigzag seed-1 field regression: "
-                f"finishes={finishes}, crashes={crashes}"
-            )
-        move_sum = sum(finish_moves)
-        if move_sum != EXPECTED_FINISH_MOVE_SUM:
-            raise SystemExit(
-                f"{kind} Zigzag seed-1 pace changed: "
-                f"finisher move sum {move_sum} != {EXPECTED_FINISH_MOVE_SUM}"
-            )
-
-    if ai1[2] != ai2[2]:
-        raise SystemExit(
-            "AI1 Zigzag seed-1 field-neutrality regression: "
-            f"AI1 finish moves {ai1[2]} != AI2 {ai2[2]}"
-        )
+        for track, seed in EXPECTED:
+            check(track, seed)
 
     print(
         "AI1FieldNeutralRegression: OK "
-        f"(finishes=7/7, crashes=0/0, finisher-move-sum={EXPECTED_FINISH_MOVE_SUM})"
+        "(Zigzag seed 1 and Cog seed 1 match AI2, 7 finishers / 0 crashes)"
     )
     return 0
 
