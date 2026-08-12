@@ -881,16 +881,20 @@ final class RaceAi {
 					final boolean denseSlowPack = packAll && (sealRivals >= AI1_SLOW_PACK
 							? slowSpd2 >= AI1_SLOW_PACK_SPD2
 							: sealRivals >= AI1_SLOW_PACK_MIN && slowSpd2 >= AI1_SLOW_PACK_SPD2_SMALL);
+					// round 78 (AI1): the smoke test runs the SCORER-RIVAL world --
+					// smom read the zandvoort-s45 m920 chosen alive tier-3 while
+					// faithful rivals (the chaser p7 in the round-59 nearest set)
+					// kill it @r2; the third member of the m260/m103 class.
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									true, true, true, false) < 0;
+									true, true, true, true) < 0;
 					if (denseSlowPack || smokeDies) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
-									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " smom-dies")
+									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " scorer-dies")
 									+ " -> scorer rollout");
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								true, AI1_DJS_SLOW_ROUNDS);
+								true, AI1_DJS_SLOW_ROUNDS, AI1_SCORER_MAXRIVALS, true);
 					}
 				}
 			}
@@ -2141,13 +2145,33 @@ final class RaceAi {
 			final boolean exactRivals, final boolean scorerRivals, final int scorerCap,
 			final int[] outFinalTier) {
 		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
-				exactRivals, scorerRivals, scorerCap, outFinalTier, null);
+				exactRivals, scorerRivals, false, scorerCap, outFinalTier, null);
 	}
 
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int scorerCap,
 			final int[] outFinalTier, final long[] outFieldCost) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, false, scorerCap, outFinalTier, outFieldCost);
+	}
+
+	/** scorerSelf (round 78): model ME with the recursion-guarded real scorer
+	 *  (scorerMoveOverState) instead of the selfMove proxy -- the zandvoort
+	 *  m920 survivor exists only under the champion's own continued play, so
+	 *  selfMove-me kills it and survival-only switching finds nothing. */
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final int scorerCap, final int[] outFinalTier) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, scorerSelf, scorerCap, outFinalTier, null);
+	}
+
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final int scorerCap, final int[] outFinalTier, final long[] outFieldCost) {
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -2211,9 +2235,11 @@ final class RaceAi {
 				// rivals instead use their recursion-guarded real scorer.
 				final boolean moved;
 				if (i == myIdx)
-					moved = exactSelf
-							? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move)
-							: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
+					moved = scorerSelf
+							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer)
+							: exactSelf
+									? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move)
+									: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else if (scorerSet[i])
 					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer);
 				else if (exactRivals)
@@ -2276,12 +2302,20 @@ final class RaceAi {
 	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap) {
+		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, rounds, scorerCap, false);
+	}
+
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
+			final boolean scorerSelf) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
 		if (simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals,
-				scorerCap, null) >= 0)
+				scorerSelf, scorerCap, null) >= 0)
 			return chosen;
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 		if (dbg)
@@ -2305,7 +2339,7 @@ final class RaceAi {
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals,
-					scorerRivals, scorerCap, null);
+					scorerRivals, scorerSelf, scorerCap, null);
 			if (dbg)
 				System.err.println("AIDBG DJS  alt " + d + " land=(" + nx + "," + ny + ") simT="
 						+ (t < 0 ? "DIES" : String.valueOf(t)));
@@ -2858,16 +2892,19 @@ final class RaceAi {
 					final boolean denseSlowPack = packAll && (sealRivals >= AI1_SLOW_PACK
 							? slowSpd2 >= AI1_SLOW_PACK_SPD2
 							: sealRivals >= AI1_SLOW_PACK_MIN && slowSpd2 >= AI1_SLOW_PACK_SPD2_SMALL);
+					// Round 78 (PROMOTED): the smoke test runs the scorer-rival
+					// world -- smom is blind to convergence dooms. See the AI1
+					// body for the zandvoort-s45 m920 derivation.
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									true, true, true, false) < 0;
+									true, true, true, true) < 0;
 					if (denseSlowPack || smokeDies) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
-									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " smom-dies")
+									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " scorer-dies")
 									+ " -> scorer rollout");
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								true, AI1_DJS_SLOW_ROUNDS);
+								true, AI1_DJS_SLOW_ROUNDS, AI1_SCORER_MAXRIVALS, true);
 					}
 				}
 			}
