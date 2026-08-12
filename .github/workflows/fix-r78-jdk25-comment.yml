@@ -1,0 +1,47 @@
+name: Fix Round 78 JDK 25 comment warning
+
+on:
+  push:
+    branches: [agent/ai-racing-speed-78]
+    paths:
+      - .github/workflows/fix-r78-jdk25-comment.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Convert the unattached Javadoc to a block comment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/tr/logic/RaceAi.java')
+          text = path.read_text()
+          old = "\t/**\n\t * AI1 v5.1 queue-compression support"
+          new = "\t/*\n\t * AI1 v5.1 queue-compression support"
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one comment boundary, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          git diff --check
+
+          git config user.name 'OpenAI Agent'
+          git config user.email 'noreply@openai.com'
+          git add src/tr/logic/RaceAi.java
+          git commit -m 'Fix JDK 25 dangling documentation warning'
+          git push origin HEAD:agent/ai-racing-speed-78
