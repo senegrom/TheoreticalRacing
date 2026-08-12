@@ -1,0 +1,262 @@
+name: Apply correctness and debloat review
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-78
+    paths:
+      - .github/workflows/r82-correctness-debloat.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply reviewed cleanup
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/tr/logic/RaceAi.java")
+          text = path.read_text(encoding="utf-8")
+
+          def replace(old: str, new: str, expected: int = 1) -> None:
+              global text
+              count = text.count(old)
+              if count != expected:
+                  raise SystemExit(
+                      f"expected {expected} occurrence(s), found {count}: {old[:100]!r}"
+                  )
+              text = text.replace(old, new)
+
+          replace(
+              "\tprivate final long[] privateBestField = new long[1];\n"
+              "\tprivate final long[] privateChosenField = new long[1];",
+              "\tprivate final long[] rolloutFieldCost = new long[1];",
+          )
+          replace(
+              "\tprivate final static int\t\tAI1_DEEP_CERT_RIVALS\t= 6;\t"
+              "// round 73: scorer-rival cap for the ahead-pack corridor certification -- "
+              "the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond "
+              "the round-59 nearest-3 set\n",
+              "\tprivate final static int\t\tAI1_DEEP_CERT_RIVALS\t= 6;\t"
+              "// round 73: scorer-rival cap for the ahead-pack corridor certification -- "
+              "the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond "
+              "the round-59 nearest-3 set\n"
+              "\tprivate final static long\tROLLOUT_FAILURE_COST\t= 1_000_000L;\t"
+              "// field comparison: one simulated rival failure dominates all finite TTF sums\n",
+          )
+          replace(
+              "countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, playerNum, world)",
+              "countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, world)",
+              2,
+          )
+          replace(
+              "countRoomySuccessors(newX, newY, newVx, newVy, playerNum)",
+              "countRoomySuccessors(newX, newY, newVx, newVy)",
+              2,
+          )
+          replace(
+              "countSlowerRivalsAhead(newX, newY, speed, playerNum)",
+              "countStalledRivalsAhead(newX, newY, playerNum)",
+              2,
+          )
+          replace(
+              ">= 2 SLOWER rivals sit within squared distance 36 at-or-ahead",
+              ">= 2 STALLED rivals sit within squared distance 36 at-or-ahead",
+              2,
+          )
+          replace(
+              "\t/*\n"
+              "\t * AI1 v5.1 queue-compression support (zandvoort forensic, round 21): count\n"
+              "\t * live rivals within squared distance 36 of the candidate landing (x,y)\n"
+              "\t * that are at-or-ahead of it in track progress and genuinely SLOWER than\n"
+              "\t * the landing speed. Ahead-ness reuses {@link #hasConvergingOpponentAhead}\n"
+              "\t * semantics exactly (same-progress slack +3, |diff| <= 15 wall exclusion);\n"
+              "\t * slower reuses its 1.0 speed margin. Two or more such rivals directly in\n"
+              "\t * front of a fast landing are a compressing corner queue -- traffic that\n"
+              "\t * will NOT have flowed on by the time I arrive, whatever the greedy\n"
+              "\t * round-sims claim.\n"
+              "\t */\n\n",
+              "",
+          )
+          replace(
+              "\t\t\tint count = 0;\n"
+              "\t\t\tfor (final Player p : game.players)\n"
+              "\t\t\t\tif (p.getNumber() != playerNum && !p.isFinished())\n"
+              "\t\t\t\t\tcount++;\n"
+              "\t\t\tstarts = new int[count];",
+              "\t\t\tstarts = new int[rectangle.rivals];",
+          )
+          replace("privateSuccessors", "countPrivateEscapes", 2)
+          replace(
+              "\tprivate int countPrivateEscapes(final int x, final int y, final int vx, final int vy,\n",
+              "\t/** Count distinct private, alive one-move exits; crossing the finish is terminal success. */\n"
+              "\tprivate int countPrivateEscapes(final int x, final int y, final int vx, final int vy,\n",
+          )
+          replace(
+              "\tprivate int simOutcome(final int myX, final int myY, final int myVx, final int myVy,\n"
+              "\t\t\tfinal int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,\n"
+              "\t\t\tfinal boolean exactRivals, final boolean scorerRivals, final int scorerCap,\n"
+              "\t\t\tfinal int[] outFinalTier, final long[] outFieldCost) {\n"
+              "\t\treturn simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,\n"
+              "\t\t\t\texactRivals, scorerRivals, false, scorerCap, outFinalTier, outFieldCost);\n"
+              "\t}\n\n",
+              "\t/** Field-neutral scorer rollout used by the private and staged pace proofs.\n"
+              "\t *  Naming this fixed flag bundle keeps the safety-critical call sites out of\n"
+              "\t *  the boolean-argument soup used by the general simulator. */\n"
+              "\tprivate int scorerFieldOutcome(final int myX, final int myY, final int myVx, final int myVy,\n"
+              "\t\t\tfinal int playerNum, final int rounds, final int scorerCap, final long[] outFieldCost) {\n"
+              "\t\treturn simOutcome(myX, myY, myVx, myVy, playerNum, rounds, true, true, true, true,\n"
+              "\t\t\t\tfalse, scorerCap, null, outFieldCost);\n"
+              "\t}\n\n",
+          )
+          replace(
+              "\t\tfinal int bestFinal = simOutcome(bestX, bestY, bestVx, bestVy, playerNum,\n"
+              "\t\t\t\tAI1_DJS_SLOW_ROUNDS, true, true, true, true, scorerCap, null,\n"
+              "\t\t\t\tcompareField ? privateBestField : null);\n"
+              "\t\tif (bestFinal < 0)\n"
+              "\t\t\treturn chosen;\n"
+              "\t\tif (compareField) {\n"
+              "\t\t\tfinal int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;\n"
+              "\t\t\tfinal int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;\n"
+              "\t\t\tfinal int chosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,\n"
+              "\t\t\t\t\tAI1_DJS_SLOW_ROUNDS, true, true, true, true, AI1_DEEP_CERT_RIVALS,\n"
+              "\t\t\t\t\tnull, privateChosenField);\n"
+              "\t\t\t// A private lane can be safe for its mover while perturbing the rest of\n"
+              "\t\t\t// the field into slower or failed lines. In a compressed fast pack, take\n"
+              "\t\t\t// it only when the same scorer-rival world proves strict self progress and\n"
+              "\t\t\t// a non-worsening aggregate rival state.\n"
+              "\t\t\tif (chosenFinal < 0 || bestFinal >= chosenFinal\n"
+              "\t\t\t\t\t|| privateBestField[0] > privateChosenField[0]) {\n"
+              "\t\t\t\tif (AI_DEBUG_DJS)\n"
+              "\t\t\t\t\tSystem.err.println(\"AIDBG PRIVATE-FIELD p=\" + playerNum + \" pos=(\" + pos[0]\n"
+              "\t\t\t\t\t\t\t+ \",\" + pos[1] + \") keep \" + chosen + \" over \" + best + \" self \"\n"
+              "\t\t\t\t\t\t\t+ chosenFinal + \" -> \" + bestFinal + \" field \"\n"
+              "\t\t\t\t\t\t\t+ privateChosenField[0] + \" -> \" + privateBestField[0]);\n"
+              "\t\t\t\treturn chosen;\n"
+              "\t\t\t}\n"
+              "\t\t}\n",
+              "\t\tfinal int bestFinal = scorerFieldOutcome(bestX, bestY, bestVx, bestVy, playerNum,\n"
+              "\t\t\t\tAI1_DJS_SLOW_ROUNDS, scorerCap, compareField ? rolloutFieldCost : null);\n"
+              "\t\tif (bestFinal < 0)\n"
+              "\t\t\treturn chosen;\n"
+              "\t\tif (compareField) {\n"
+              "\t\t\tfinal long bestField = rolloutFieldCost[0];\n"
+              "\t\t\tfinal int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;\n"
+              "\t\t\tfinal int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;\n"
+              "\t\t\tfinal int chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy,\n"
+              "\t\t\t\t\tplayerNum, AI1_DJS_SLOW_ROUNDS, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n"
+              "\t\t\tfinal long chosenField = rolloutFieldCost[0];\n"
+              "\t\t\t// A private lane can be safe for its mover while perturbing the rest of\n"
+              "\t\t\t// the field into slower or failed lines. In a compressed fast pack, take\n"
+              "\t\t\t// it only when the same scorer-rival world proves strict self progress and\n"
+              "\t\t\t// a non-worsening aggregate rival state.\n"
+              "\t\t\tif (chosenFinal < 0 || bestFinal >= chosenFinal || bestField > chosenField) {\n"
+              "\t\t\t\tif (AI_DEBUG_DJS)\n"
+              "\t\t\t\t\tSystem.err.println(\"AIDBG PRIVATE-FIELD p=\" + playerNum + \" pos=(\" + pos[0]\n"
+              "\t\t\t\t\t\t\t+ \",\" + pos[1] + \") keep \" + chosen + \" over \" + best + \" self \"\n"
+              "\t\t\t\t\t\t\t+ chosenFinal + \" -> \" + bestFinal + \" field \"\n"
+              "\t\t\t\t\t\t\t+ chosenField + \" -> \" + bestField);\n"
+              "\t\t\t\treturn chosen;\n"
+              "\t\t\t}\n"
+              "\t\t}\n",
+          )
+          replace(
+              "if (rivalsAhead < 4 && chosenSpeed2 < AI1_SLOW_PACK_SPD2)",
+              "if (rivalsAhead == 3 && chosenSpeed2 < AI1_SLOW_PACK_SPD2)",
+          )
+          replace(
+              "\t\t\tif (chosenFinal == Integer.MIN_VALUE) {\n"
+              "\t\t\t\tchosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,\n"
+              "\t\t\t\t\t\tAI1_STAGED_HORIZON, true, true, true, true,\n"
+              "\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, privateChosenField);\n"
+              "\t\t\t\tchosenField = privateChosenField[0];\n"
+              "\t\t\t\tif (rivalsAhead < 4 && chosenField >= 1_000_000L)\n"
+              "\t\t\t\t\treturn chosen;\n"
+              "\t\t\t}\n"
+              "\t\t\tif (chosenFinal < 0)\n"
+              "\t\t\t\treturn chosen;\n"
+              "\t\t\tfinal int candidateFinal = simOutcome(nx, ny, nvx, nvy, playerNum,\n"
+              "\t\t\t\t\tAI1_STAGED_HORIZON, true, true, true, true,\n"
+              "\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, privateBestField);\n"
+              "\t\t\tif (candidateFinal < 0 || candidateFinal >= chosenFinal\n"
+              "\t\t\t\t\t|| privateBestField[0] > chosenField)\n",
+              "\t\t\tif (chosenFinal == Integer.MIN_VALUE) {\n"
+              "\t\t\t\tchosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,\n"
+              "\t\t\t\t\t\tAI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n"
+              "\t\t\t\tchosenField = rolloutFieldCost[0];\n"
+              "\t\t\t\tif (rivalsAhead == 3 && chosenField >= ROLLOUT_FAILURE_COST)\n"
+              "\t\t\t\t\treturn chosen;\n"
+              "\t\t\t}\n"
+              "\t\t\tif (chosenFinal < 0)\n"
+              "\t\t\t\treturn chosen;\n"
+              "\t\t\tfinal int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,\n"
+              "\t\t\t\t\tAI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n"
+              "\t\t\tif (candidateFinal < 0 || candidateFinal >= chosenFinal\n"
+              "\t\t\t\t\t|| rolloutFieldCost[0] > chosenField)\n",
+          )
+          replace("failedRivalCost += 1_000_000L;", "failedRivalCost += ROLLOUT_FAILURE_COST;")
+          replace(
+              "turns == Integer.MAX_VALUE ? 1_000_000L : turns",
+              "turns == Integer.MAX_VALUE ? ROLLOUT_FAILURE_COST : turns",
+          )
+          replace(
+              "\tprivate int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy, final int playerNum,\n"
+              "\t\t\tfinal int[][] occupancy) {",
+              "\tprivate int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy,\n"
+              "\t\t\tfinal int[][] occupancy) {",
+          )
+          replace(
+              "\tprivate int countSlowerRivalsAhead(final int x, final int y, final double mySpeed, final int playerNum) {",
+              "\t/** Queue-compression support: count live STALLED rivals within squared\n"
+              "\t *  distance 36 of the candidate landing that are at-or-ahead in track\n"
+              "\t *  progress. Ahead-ness keeps the same-progress +3 slack and the 15-cell\n"
+              "\t *  wall exclusion used by the original Zandvoort forensic. */\n"
+              "\tprivate int countStalledRivalsAhead(final int x, final int y, final int playerNum) {",
+          )
+          replace(
+              "{@link #countSlowerRivalsAhead} threshold",
+              "{@link #countStalledRivalsAhead} threshold",
+          )
+          replace(
+              "\t * AI2-only twin of {@link #countFutureSafeSuccessors} keyed on ROOMINESS",
+              "\t * Shared scorer twin of {@link #countFutureSafeSuccessors} keyed on ROOMINESS",
+          )
+          replace(
+              "\tprivate int countRoomySuccessors(final int x, final int y, final int vx, final int vy, final int playerNum) {",
+              "\tprivate int countRoomySuccessors(final int x, final int y, final int vx, final int vy) {",
+          )
+
+          path.write_text(text, encoding="utf-8")
+          PY
+      - name: Verify reviewed tree
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit reviewed cleanup
+        run: |
+          git rm .github/workflows/r82-correctness-debloat.yml
+          git config user.name "OpenAI Agent"
+          git config user.email "noreply@openai.com"
+          git add src/tr/logic/RaceAi.java
+          git commit -m "Correct and debloat rollout helpers"
+          git push origin HEAD:agent/ai-racing-speed-78
