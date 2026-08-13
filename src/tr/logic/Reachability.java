@@ -520,6 +520,73 @@ final class Reachability {
 					queue.add(nx * h + ny);
 				}
 		}
+		buildRingWidths(w, h);
+	}
+
+	/** Round 83: per-progress-ring corridor widths. ringWidth[d] counts the
+	 *  track cells at distance-to-finish d -- a narrowing corridor is a
+	 *  STATIC property of the distance map, visible without any rollout
+	 *  (the deep-horizon commitment class: both members hold speed into a
+	 *  monotonically narrowing ring sequence). */
+	private int[] ringWidth;
+
+	private void buildRingWidths(final int w, final int h) {
+		int maxDist = 0;
+		for (int x = 0; x < w; x++)
+			for (int y = 0; y < h; y++) {
+				final int d = distToFinish[x][y];
+				if (d != Integer.MAX_VALUE && d > maxDist)
+					maxDist = d;
+			}
+		final int[] widths = new int[maxDist + 1];
+		for (int x = 0; x < w; x++)
+			for (int y = 0; y < h; y++) {
+				final int d = distToFinish[x][y];
+				if (d != Integer.MAX_VALUE)
+					widths[d]++;
+			}
+		ringWidth = widths;
+	}
+
+	/** Minimum ring width over the next {@code span} progress rings ahead of
+	 *  (x,y); MAX_VALUE off-track. Rings 0-2 (the finish mouth) never count:
+	 *  a corridor that ends at the flag is victory, not doom. */
+	int minRingWidthAhead(final int x, final int y, final int span) {
+		final int d = distAt(x, y);
+		if (d == Integer.MAX_VALUE || ringWidth == null)
+			return Integer.MAX_VALUE;
+		int min = Integer.MAX_VALUE;
+		for (int k = 1; k <= span; k++) {
+			final int rd = d - k;
+			if (rd < 3)
+				break;
+			if (rd < ringWidth.length && ringWidth[rd] > 0 && ringWidth[rd] < min)
+				min = ringWidth[rd];
+		}
+		return min;
+	}
+
+	/** Longest consecutive run of rings with width <= {@code width} within the
+	 *  next {@code span} rings ahead of (x,y). A short narrow GATE (lemans
+	 *  chicane, 1-3 rings) is passable at speed; a SUSTAINED narrow corridor
+	 *  (the zandvoort funnels) is where overcommitment kills. */
+	int narrowRunAhead(final int x, final int y, final int span, final int width) {
+		final int d = distAt(x, y);
+		if (d == Integer.MAX_VALUE || ringWidth == null)
+			return 0;
+		int run = 0, best = 0;
+		for (int k = 1; k <= span; k++) {
+			final int rd = d - k;
+			if (rd < 3)
+				break;
+			if (rd < ringWidth.length && ringWidth[rd] > 0 && ringWidth[rd] <= width) {
+				run++;
+				if (run > best)
+					best = run;
+			} else
+				run = 0;
+		}
+		return best;
 	}
 
 	/** Dump the turnsToFinish reachability map for the loaded track: a little-

@@ -227,6 +227,9 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK_SPD2	= 16;
 	private final static int		AI1_SLOW_PACK_MIN	= 3;	// round 71 (promoted): small-field generalization of the dense-pack gate -- the monaco-4car s9 funnel doom (m27, spd^2=13, 3 rivals all within Cheb 10) is smom-blind and non-fragile but scorer-rival-visible @r2
 	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71 (promoted): speed floor for the small-field gate (start-grid moves stay below it)
+	private final static int		AI1_FUNNEL_WIDTH	= 4;	// round 83: static funnel escalation threshold -- the zandvoort corner and coil spiral pinch to ring width 4 while every measured open corridor is >= 7 (silverstone s1 distribution)
+	private final static int		AI1_FUNNEL_MIN_SPD	= 3;	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
+	private final static int		AI1_FUNNEL_RUN	= 6;	// round 83: minimum CONSECUTIVE narrow rings -- a short gate (lemans chicane, 1-3 rings) is passable at speed; sustained corridors kill	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): bounded near-finish sprint; candidate must finish at its empty-map optimum in two independent joint models
@@ -884,16 +887,34 @@ final class RaceAi {
 					// smom read the zandvoort-s45 m920 chosen alive tier-3 while
 					// faithful rivals (the chaser p7 in the round-59 nearest set)
 					// kill it @r2; the third member of the m260/m103 class.
+					// round 83 (AI1): STATIC funnel signal -- the deep-horizon
+					// commitment class (zandvoort corner, coil spiral) holds
+					// speed into a narrowing ring sequence; the narrowing is on
+					// the distance map, no rollout needed. On risk, certify at
+					// the deep horizon with the widened scorer-me world (the
+					// class deaths land @r6-9, past the 5-round smoke).
+					final int slowSpdInf = Math.max(Math.abs(scvx), Math.abs(scvy));
+					final int funnelSpan = slowSpdInf * (slowSpdInf + 1) / 2;
+					final int funnelMinRing = reach.minRingWidthAhead(scx, scy, funnelSpan);
+					final boolean funnelRisk = slowSpdInf >= AI1_FUNNEL_MIN_SPD
+							&& funnelMinRing <= AI1_FUNNEL_WIDTH && slowSpdInf > funnelMinRing
+							&& reach.narrowRunAhead(scx, scy, funnelSpan, AI1_FUNNEL_WIDTH) >= AI1_FUNNEL_RUN;
+					if (AI_DEBUG_DJS && slowSpdInf >= AI1_FUNNEL_MIN_SPD)
+						System.err.println("AIDBG RING p=" + playerNum + " land=(" + scx + "," + scy
+								+ ") spdInf=" + slowSpdInf + " span=" + funnelSpan + " minRing="
+								+ reach.minRingWidthAhead(scx, scy, funnelSpan));
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true) < 0;
-					if (denseSlowPack || smokeDies) {
+					if (denseSlowPack || smokeDies || funnelRisk) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
-									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " scorer-dies")
+									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack"
+											: smokeDies ? " scorer-dies" : " funnel-risk")
 									+ " -> scorer rollout");
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								true, AI1_DJS_SLOW_ROUNDS, AI1_SCORER_MAXRIVALS, true);
+								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
+								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true);
 					}
 				}
 			}

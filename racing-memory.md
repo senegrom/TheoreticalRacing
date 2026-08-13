@@ -48,6 +48,54 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 83 (local agent, IN GATES): static funnel guard for the frontier
+
+THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the
+r79-r82 stack found it never-worse on every suite EXCEPT the zandvoort
+doom band: 3 crashes (s32/s37/s44, new sites) vs the r78 champion's 1
+-- "the inherited Zandvoort crash profile" of their own r82 notes.
+s37/s44 die at the byte-identical corner state as the old s42; s32
+dives the top-wall funnel.
+
+THE INSTRUMENT (the recorded static-bottleneck direction, built):
+Reachability now derives per-progress-ring corridor widths from the
+distance map (ringWidth[d]; buildRingWidths) with two queries --
+minRingWidthAhead (rings 0-2 = the finish mouth never count) and
+narrowRunAhead (longest CONSECUTIVE narrow stretch). AI1's slow branch
+fires funnelRisk = spdInf>=3 AND minRing<=4 AND spdInf>minRing AND
+narrowRun>=6, escalating to the 8-round scorer-me certificate.
+Measured discrimination: the zandvoort corner reads minRing=4 along the
+whole descent; every open corridor measured >= 7 (silverstone s1
+distribution).
+
+EMPIRICAL REJECTIONS on the way (each a recorded law):
+1. A FAST-branch funnel arm saved NOTHING (s32's cert reads the doomed
+   line alive: the suppressed sim-me cannot reproduce the pace-arm
+   aggression that kills -- certificates certify a cautious ghost) and
+   broke the lemans-s3 staged-pace checkpoint via the same gap in
+   reverse (suppressed-me DIES on their private-lane line that real-me
+   survives). Dropped.
+2. An unconditional deepHandled claim reshaped hungaroring s40 into a
+   NEW crash with 531 fires and ZERO switches -- silencing downstream
+   arms is a behavior change even when the arm itself never acts.
+   Switch-only claiming is the law.
+3. narrowRun>=4 still cost the hungaroring-s10 pace pin 2 moves;
+   RUN=6 separates true funnels (the corner run) from long-but-straight
+   narrow sections cars legitimately thread at speed.
+
+RESULTS (frontier + funnel guard): zandvoort band 3 -> 1 = champion
+parity; s37/s42/s44/s45 all crash-free; every counterexample fixture
+clean (incl. their silverstone s15); all four AI1 checkpoints green;
+goldens pass; the frontier's pace FULLY PRESERVED (-3.57 on the five
+long tracks). OPEN (new class, recorded): zandvoort s32 -- last
+avoidable at m110 (survivor SW, death @r6 at spd^2=58), invisible to
+every certificate because the killer is the mover's OWN future
+pace-arm aggression, which IN_SCORER_SIM suppression removes from
+sim-me by design. The recursion boundary is now the frontier's
+fundamental limit; closing it needs either bounded-depth true-me
+rollouts or admission-level speed discipline in the pace arms
+themselves. Full battery in flight; verdict lands here.
+
 ## Master correctness/debloat pass (2026-08-13)
 
 SCOPE: ported only behavior-neutral maintenance from the Round-82 PR onto the
