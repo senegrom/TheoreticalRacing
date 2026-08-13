@@ -11,7 +11,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Properties;
 import java.util.Scanner;
-import javax.swing.JButton;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
@@ -26,6 +25,7 @@ import tr.gui.StartDialog;
  * @author CGH
  */
 public final class RaceGame {
+	private static final Direction[] DIRECTIONS = Direction.values();
 	final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
 			Color.ORANGE, Color.GRAY, Color.MAGENTA, Color.BLACK };
@@ -277,8 +277,7 @@ public final class RaceGame {
 					? "\n\nLog written to " + gameLogPath()
 					: "\n\nCould not write log to " + gameLogPath()));
 			gameFrame.setUndoEnabled(false);
-			for (final JButton b : gameFrame.getBtnDirections())
-				b.setEnabled(false);
+			gameFrame.setDirectionsEnabled(false);
 			gameFrame.repaint();
 			if (autoMode) {
 				SwingUtilities.invokeLater(() -> System.exit(0));
@@ -464,7 +463,7 @@ public final class RaceGame {
 
 	/** Activated when a direction button is clicked. */
 	public void clickedDirection(final Direction direction) {
-		if (gamestate != GameState.PLAY)
+		if (gamestate != GameState.PLAY || players[subgamestate].isAi())
 			return;
 		if (isShowingPrePath != direction.ordinal()) {
 			final int[] vel = players[subgamestate].getVelocity();
@@ -553,7 +552,7 @@ public final class RaceGame {
 	private static Direction directionOf(final int[] velBefore, final int[] velAfter) {
 		final int dx = velAfter[0] - velBefore[0];
 		final int dy = velAfter[1] - velBefore[1];
-		for (final Direction d : Direction.values())
+		for (final Direction d : DIRECTIONS)
 			if (d.dx == dx && d.dy == dy)
 				return d;
 		return Direction.NONE;
@@ -577,6 +576,7 @@ public final class RaceGame {
 		final int[] vel = players[subgamestate].getVelocity();
 		final int[] pos = players[subgamestate].getPosition();
 		gameFrame.setStatus(players[subgamestate].getName() + "'s turn...");
+		gameFrame.setDirectionsEnabled(!players[subgamestate].isAi());
 		rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
 		rui.setPrePath(null);
 		isShowingPrePath = -1;
@@ -833,7 +833,7 @@ public final class RaceGame {
 				final Player me = players[mover];
 				final int[] mp = me.getPosition(), mv = me.getVelocity();
 				final StringBuilder mask = new StringBuilder(9);
-				for (final Direction cd : Direction.values()) {
+				for (final Direction cd : DIRECTIONS) {
 					final int nvx = mv[0] + cd.dx, nvy = mv[1] + cd.dy;
 					final int nx = mp[0] + nvx, ny = mp[1] + nvy;
 					final char c;
@@ -975,6 +975,7 @@ public final class RaceGame {
 			moveHistory.clear();
 			subgamestate = 0;
 			gameFrame.setStatus(players[0].getName() + "'s turn...");
+			gameFrame.setDirectionsEnabled(!players[0].isAi());
 			rui.setVelVector(players[0].getPosition(), 0);
 			rui.setPrePath(null);
 			isShowingPrePath = -1;
@@ -1018,8 +1019,7 @@ public final class RaceGame {
 			rui.setPrePath(null);
 			isShowingPrePath = -1;
 			gameFrame.setUndoEnabled(hasUndoableHumanMove());
-			for (final JButton button : gameFrame.getBtnDirections())
-				button.setEnabled(true);
+			gameFrame.setDirectionsEnabled(true);
 			redoPlayerLabels();
 		}
 		gameFrame.repaint();

@@ -3,8 +3,9 @@ package tr.logic;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.nio.file.Files;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
@@ -17,6 +18,7 @@ import java.util.Properties;
  * point lists. Pure IO/parse helpers — no game state.
  */
 public final class TrackIO {
+	private static final int ATOMIC_PUBLISH_ATTEMPTS = 10;
 	private static final Path INSTALL_DIR = locateInstallDir();
 	private static final Path USER_PROPERTIES = INSTALL_DIR.resolve("user.properties");
 	private static final Path GAME_LOG = INSTALL_DIR.resolve("last_game.log");
@@ -45,12 +47,7 @@ public final class TrackIO {
 			try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temporary), 1 << 16)) {
 				writer.write(out);
 			}
-			try {
-				Files.move(temporary, absolute, StandardCopyOption.ATOMIC_MOVE,
-						StandardCopyOption.REPLACE_EXISTING);
-			} catch (final AtomicMoveNotSupportedException unsupported) {
-				Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
-			}
+			publish(temporary, absolute);
 		} catch (final IOException | RuntimeException | Error error) {
 			failure = error;
 			throw error;
@@ -61,6 +58,34 @@ public final class TrackIO {
 				if (failure == null)
 					throw cleanupFailure;
 				failure.addSuppressed(cleanupFailure);
+			}
+		}
+	}
+
+	/** Windows can briefly deny one of two simultaneous replacement renames.
+	 *  Retry only that transient failure; unsupported atomic moves use the
+	 *  existing single non-atomic fallback, and every other error propagates. */
+	private static void publish(final Path temporary, final Path target) throws IOException {
+		for (int attempt = 0; ; attempt++) {
+			try {
+				Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE,
+						StandardCopyOption.REPLACE_EXISTING);
+				return;
+			} catch (final AtomicMoveNotSupportedException unsupported) {
+				Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+				return;
+			} catch (final AccessDeniedException denied) {
+				if (attempt + 1 >= ATOMIC_PUBLISH_ATTEMPTS)
+					throw denied;
+				try {
+					Thread.sleep(1L << attempt);
+				} catch (final InterruptedException interrupted) {
+					Thread.currentThread().interrupt();
+					final IOException failure = new IOException("Interrupted while publishing " + target,
+							interrupted);
+					failure.addSuppressed(denied);
+					throw failure;
+				}
 			}
 		}
 	}

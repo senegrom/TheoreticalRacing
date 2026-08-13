@@ -28,7 +28,6 @@ import tr.logic.RaceGame;
 
 /** Main game-window facade. Swing controls are allocated only for GUI games. */
 public final class GameUI {
-	private static final JButton[] NO_DIRECTION_BUTTONS = new JButton[0];
 	private static final int RIGHT_SIZE = 170;
 
 	private JButton[] btnDirections;
@@ -63,13 +62,15 @@ public final class GameUI {
 		return frame;
 	}
 
-	public JButton[] getBtnDirections() {
-		return btnDirections == null ? NO_DIRECTION_BUTTONS : btnDirections;
-	}
-
 	public void repaint() {
 		if (frame != null)
 			frame.repaint();
+	}
+
+	public void setDirectionsEnabled(final boolean enabled) {
+		if (btnDirections != null)
+			for (final JButton button : btnDirections)
+				button.setEnabled(enabled);
 	}
 
 	public void setOkEnabled(final boolean enabled) {
@@ -225,8 +226,10 @@ public final class GameUI {
 		btnExit = new JButton("Exit");
 		btnRestart = new JButton("Restart");
 		btnDirections = new JButton[9];
-		for (int i = 0; i < btnDirections.length; i++)
+		for (int i = 0; i < btnDirections.length; i++) {
 			btnDirections[i] = new JButton(Direction.fromIndex(i).label());
+			btnDirections[i].setEnabled(false);
+		}
 		lblPlayerInfo = new JLabel[maxPlayers];
 		for (int i = 0; i < maxPlayers; i++)
 			lblPlayerInfo[i] = new JLabel(playerInfo[i]);

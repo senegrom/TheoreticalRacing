@@ -33,6 +33,7 @@ public final class CoreTests {
         testReachabilityCacheIO();
         testAutomaticStartPositionBounds();
         testEmptyTrackUndo();
+        testAiTurnRejectsManualDirection();
         tr.gui.GameUITests.run();
         testSegmentIntersection();
         testStartZone();
@@ -88,28 +89,31 @@ public final class CoreTests {
         try {
             directory = java.nio.file.Files.createTempDirectory("theoretical-racing-atomic-");
             final java.nio.file.Path target = directory.resolve("nested").resolve("state.bin");
-            final java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(2);
-            final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
-            final java.util.concurrent.atomic.AtomicReference<Throwable> failure =
-                    new java.util.concurrent.atomic.AtomicReference<>();
             final byte[] first = new byte[128 * 1024];
             final byte[] second = new byte[128 * 1024];
             java.util.Arrays.fill(first, (byte) 'A');
             java.util.Arrays.fill(second, (byte) 'B');
-            final Thread one = atomicWriter(target, first, ready, release, failure);
-            final Thread two = atomicWriter(target, second, ready, release, failure);
-            one.start();
-            two.start();
-            final boolean overlapped = ready.await(5, java.util.concurrent.TimeUnit.SECONDS);
-            release.countDown();
-            check(overlapped, "concurrent atomic writers did not overlap");
-            one.join(20_000);
-            two.join(20_000);
-            check(!one.isAlive() && !two.isAlive(), "concurrent atomic writer hung");
-            check(failure.get() == null, "concurrent atomic write failed: " + failure.get());
-            final byte[] actual = java.nio.file.Files.readAllBytes(target);
-            check(java.util.Arrays.equals(actual, first) || java.util.Arrays.equals(actual, second),
-                    "concurrent write exposed a partial file");
+            byte[] actual = null;
+            for (int round = 0; round < 8; round++) {
+                final java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(2);
+                final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+                final java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+                        new java.util.concurrent.atomic.AtomicReference<>();
+                final Thread one = atomicWriter(target, first, ready, release, failure);
+                final Thread two = atomicWriter(target, second, ready, release, failure);
+                one.start();
+                two.start();
+                final boolean overlapped = ready.await(5, java.util.concurrent.TimeUnit.SECONDS);
+                release.countDown();
+                check(overlapped, "concurrent atomic writers did not overlap");
+                one.join(20_000);
+                two.join(20_000);
+                check(!one.isAlive() && !two.isAlive(), "concurrent atomic writer hung");
+                check(failure.get() == null, "concurrent atomic write failed: " + failure.get());
+                actual = java.nio.file.Files.readAllBytes(target);
+                check(java.util.Arrays.equals(actual, first) || java.util.Arrays.equals(actual, second),
+                        "concurrent write exposed a partial file");
+            }
 
             final byte[] beforeFailure = actual.clone();
             try {
@@ -446,6 +450,25 @@ public final class CoreTests {
         game.clickedUndo();
         check(game.track.getLeft().isEmpty() && game.track.getRight().isEmpty(),
                 "undo on an empty border changed track state");
+    }
+
+    private static void testAiTurnRejectsManualDirection() {
+        final RaceGame game = new RaceGame(new java.util.Properties());
+        final Player ai = new Player("AI", 1, Color.BLUE, Player.Kind.AI1);
+        ai.setPosition(p(5, 6));
+        ai.setVelocity(p(1, 0));
+        game.players = new Player[]{ai};
+        game.subgamestate = 0;
+        try {
+            final java.lang.reflect.Field state = RaceGame.class.getDeclaredField("gamestate");
+            state.setAccessible(true);
+            state.set(game, GameState.PLAY);
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("could not arrange AI input-guard test", error);
+        }
+        game.clickedDirection(Direction.E);
+        checkPoint(ai.getPosition(), 5, 6);
+        checkPoint(ai.getVelocity(), 1, 0);
     }
 
     private static void testSegmentIntersection() {

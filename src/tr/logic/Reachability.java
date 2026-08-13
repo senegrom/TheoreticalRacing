@@ -21,6 +21,7 @@ import java.util.zip.CRC32;
  * the AI reads the resulting arrays directly.
  */
 final class Reachability {
+	private static final Direction[] DIRECTIONS = Direction.values();
 	private final RaceGame game;
 
 	Reachability(final RaceGame game) {
@@ -147,8 +148,6 @@ final class Reachability {
 		turnsArr = new int[total];
 		Arrays.fill(turnsArr, Integer.MAX_VALUE);
 		final IntQueue queue = new IntQueue();
-		final Direction[] dirs = Direction.values();
-
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
 				final int dist = distAt(x, y);
@@ -158,7 +157,7 @@ final class Reachability {
 					continue; // optimization: too far for direct finish-cross
 				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
 					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
-						for (final Direction d : dirs) {
+						for (final Direction d : DIRECTIONS) {
 							final int nvx = vx + d.dx;
 							final int nvy = vy + d.dy;
 							if (velocityOutOfRange(nvx, nvy))
@@ -198,7 +197,7 @@ final class Reachability {
 				continue;
 			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
 				continue;
-			for (final Direction d : dirs) {
+			for (final Direction d : DIRECTIONS) {
 				final int vx = vxp - d.dx;
 				final int vy = vyp - d.dy;
 				if (velocityOutOfRange(vx, vy))
@@ -262,7 +261,6 @@ final class Reachability {
 	 *  already checked the edge from the landing's unique cell-predecessor,
 	 *  which is exactly the source cell used here. */
 	short[] buildLegalAliveMask(final int total) {
-		final Direction[] dirs = Direction.values();
 		final int span = aliveSpan;
 		final short[] mask = new short[total];
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
@@ -274,9 +272,9 @@ final class Reachability {
 			final int y = rest % aliveH;
 			final int x = rest / aliveH;
 			short m = 0;
-			for (int di = 0; di < dirs.length; di++) {
-				final int nvx = vx + dirs[di].dx;
-				final int nvy = vy + dirs[di].dy;
+			for (int di = 0; di < DIRECTIONS.length; di++) {
+				final int nvx = vx + DIRECTIONS[di].dx;
+				final int nvy = vy + DIRECTIONS[di].dy;
 				if (velocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx;
@@ -299,7 +297,6 @@ final class Reachability {
 	 *  bit is set in {@code req}. {@code req == null} computes depth 0;
 	 *  {@code req == roomy0} computes depth 1. */
 	void sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {
-		final Direction[] dirs = Direction.values();
 		final int span = aliveSpan;
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
 			int rest = idx;
@@ -311,9 +308,9 @@ final class Reachability {
 			final int x = rest / aliveH;
 			final int mask = legalAlive[idx];
 			int count = 0;
-			for (int di = 0; di < dirs.length; di++) {
-				final int nvx = vx + dirs[di].dx;
-				final int nvy = vy + dirs[di].dy;
+			for (int di = 0; di < DIRECTIONS.length; di++) {
+				final int nvx = vx + DIRECTIONS[di].dx;
+				final int nvy = vy + DIRECTIONS[di].dy;
 				if (velocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx;
@@ -358,7 +355,6 @@ final class Reachability {
 	 *  {@code roomyReq != null}) whose state bit is set in {@code roomyReq} —
 	 *  exactly the per-step conditions of {@link #canShedSpeed}. */
 	byte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {
-		final Direction[] dirs = Direction.values();
 		final int span = aliveSpan;
 		final byte[] out = new byte[in.length];
 		Arrays.fill(out, (byte) 0xFF);
@@ -373,11 +369,11 @@ final class Reachability {
 			final int mask = legalAlive[idx];
 			final int v2 = vx * vx + vy * vy;
 			int best = in[idx] & 0xFF;
-			for (int di = 0; di < dirs.length; di++) {
+			for (int di = 0; di < DIRECTIONS.length; di++) {
 				if ((mask & 1 << di) == 0)
 					continue;
-				final int nvx = vx + dirs[di].dx;
-				final int nvy = vy + dirs[di].dy;
+				final int nvx = vx + DIRECTIONS[di].dx;
+				final int nvy = vy + DIRECTIONS[di].dy;
 				if (nvx * nvx + nvy * nvy > v2)
 					continue; // braking cone only
 				final int succ = aliveIdx(x + nvx, y + nvy, nvx, nvy);
@@ -405,7 +401,6 @@ final class Reachability {
 	 *  proof horizon; 255 if fewer than two entries qualify. Non-alive states
 	 *  keep 255 (only ever consulted behind an alive candidate). */
 	byte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {
-		final Direction[] dirs = Direction.values();
 		final int span = aliveSpan;
 		final byte[] arr = new byte[shed.length];
 		Arrays.fill(arr, (byte) 0xFF);
@@ -423,11 +418,11 @@ final class Reachability {
 			// state's own |v|^2 (the zero-move descent).
 			int min1 = Math.min(v2, 255);
 			int min2 = 256; // sentinel: fewer than two entries so far
-			for (int di = 0; di < dirs.length; di++) {
+			for (int di = 0; di < DIRECTIONS.length; di++) {
 				if ((mask & 1 << di) == 0)
 					continue;
-				final int nvx = vx + dirs[di].dx;
-				final int nvy = vy + dirs[di].dy;
+				final int nvx = vx + DIRECTIONS[di].dx;
+				final int nvy = vy + DIRECTIONS[di].dy;
 				if (nvx * nvx + nvy * nvy > v2)
 					continue; // braking cone only
 				final int cand = shed[aliveIdx(x + nvx, y + nvy, nvx, nvy)] & 0xFF;
@@ -605,7 +600,7 @@ final class Reachability {
 	private static final int CACHE_HEADER_BYTES = 4 * Integer.BYTES;
 	private static final int CACHE_CHECKSUM_BYTES = Integer.BYTES;
 	private static final int CACHE_IO_BYTES = 64 * 1024;
-	private static final int CACHE_DIRECTION_MASK = (1 << Direction.values().length) - 1;
+	private static final int CACHE_DIRECTION_MASK = (1 << DIRECTIONS.length) - 1;
 
 	private java.nio.file.Path reachCachePath() {
 		final Track track = game.track;
