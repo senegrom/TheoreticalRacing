@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Temporary exact Round-84 energy-cap screen against Round 83 master."""
+"""Exact Round-84 cap-13 screen against Round 83 master."""
 
 import json
 import os
@@ -11,8 +11,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE_SHA = "7a3c35033dc227ae5e2444a54d03d7869629bf1e"
-BASE_JAR = Path("/tmp/ai83.jar")
-CANDIDATE_JAR = Path("/tmp/ai84.jar")
+BASE_JAR = ROOT / "theoreticRacing-ai83.jar"
+CANDIDATE_JAR = ROOT / "theoreticRacing-ai84.jar"
 TRACKS = [
     "silverstone", "spa", "lemans", "monaco", "nurburgring",
     "hungaroring", "interlagos", "zandvoort", "coil",
@@ -35,7 +35,7 @@ def build_jars() -> None:
     source = ROOT / "src" / "tr" / "logic" / "RaceAi.java"
     text = source.read_text()
     old = "private final static int\t\tAI1_STAGED_MAX_SPEED2_GAIN\t= 9;"
-    new = "private final static int\t\tAI1_STAGED_MAX_SPEED2_GAIN\t= 16;"
+    new = "private final static int\t\tAI1_STAGED_MAX_SPEED2_GAIN\t= 13;"
     if old in text:
         if text.count(old) != 1:
             raise SystemExit("unexpected Round-83 energy constant count")
@@ -68,7 +68,8 @@ def run_race(jar: Path, track: str, seed: int) -> dict:
             "--seed", str(seed),
         ]
         process = subprocess.run(
-            command, capture_output=True, text=True, timeout=900, env=os.environ.copy()
+            command, cwd=ROOT, capture_output=True, text=True, timeout=900,
+            env=os.environ.copy()
         )
         if process.returncode != 0 or "Aborting" in process.stdout or not log.exists():
             return {
@@ -154,7 +155,7 @@ def main() -> int:
 
     report = {
         "baseline": BASE_SHA,
-        "candidate": "energy-cap-16",
+        "candidate": "energy-cap-13",
         "counts": counts,
         "net_move_delta": net_delta,
         "details": details,
