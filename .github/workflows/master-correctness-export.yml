@@ -1,0 +1,38 @@
+name: Export master for correctness review
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-78
+    paths:
+      - .github/workflows/master-correctness-export.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Package exact master source
+        run: |
+          git fetch origin master
+          git archive --format=zip --output=master-review-source.zip origin/master
+          git rev-parse origin/master > master-review-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: master-correctness-source
+          path: |
+            master-review-source.zip
+            master-review-sha.txt
+          retention-days: 2
+      - name: Remove temporary exporter
+        run: |
+          git config user.name "OpenAI Agent"
+          git config user.email "noreply@openai.com"
+          git rm .github/workflows/master-correctness-export.yml
+          git commit -m "Remove temporary master exporter"
+          git push origin HEAD:agent/ai-racing-speed-78
