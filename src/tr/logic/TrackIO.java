@@ -1,8 +1,12 @@
 package tr.logic;
 
+import java.io.BufferedOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -20,6 +24,47 @@ public final class TrackIO {
 	private static final Path REACH_CACHE_DIR = locateReachCacheDir();
 
 	private TrackIO() {}
+
+	@FunctionalInterface
+	interface OutputWriter {
+		void write(OutputStream out) throws IOException;
+	}
+
+	/** Write a complete replacement through a unique sibling temporary file.
+	 *  Unique names make concurrent writers in one JVM/process independent; the
+	 *  final move leaves readers seeing either the previous or complete new file. */
+	static void writeAtomically(final Path target, final OutputWriter writer) throws IOException {
+		final Path absoluteTarget = target.toAbsolutePath();
+		final Path parent = absoluteTarget.getParent();
+		if (parent == null || absoluteTarget.getFileName() == null)
+			throw new IOException("Invalid output path: " + target);
+		Files.createDirectories(parent);
+		final Path temporary = Files.createTempFile(parent,
+				absoluteTarget.getFileName().toString() + ".tmp-", null);
+		Throwable failure = null;
+		try {
+			try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temporary), 1 << 16)) {
+				writer.write(out);
+			}
+			try {
+				Files.move(temporary, absoluteTarget, StandardCopyOption.ATOMIC_MOVE,
+						StandardCopyOption.REPLACE_EXISTING);
+			} catch (final AtomicMoveNotSupportedException unsupported) {
+				Files.move(temporary, absoluteTarget, StandardCopyOption.REPLACE_EXISTING);
+			}
+		} catch (final IOException | RuntimeException | Error error) {
+			failure = error;
+			throw error;
+		} finally {
+			try {
+				Files.deleteIfExists(temporary);
+			} catch (final IOException cleanupFailure) {
+				if (failure == null)
+					throw cleanupFailure;
+				failure.addSuppressed(cleanupFailure);
+			}
+		}
+	}
 
 	/** Directory containing the JAR (or the classes dir in dev runs). */
 	private static Path locateInstallDir() {
@@ -69,11 +114,11 @@ public final class TrackIO {
 		if (!Files.isDirectory(dir))
 			return List.of();
 		try (java.util.stream.Stream<Path> s = Files.list(dir)) {
-			return s.filter(p -> p.toString().endsWith(".track"))
-					.map(p -> {
-					final String fileName = p.getFileName().toString();
-					return fileName.substring(0, fileName.length() - ".track".length());
-				})
+			return s.filter(Files::isRegularFile)
+					.map(path -> path.getFileName().toString())
+					.filter(fileName -> fileName.endsWith(".track"))
+					.map(fileName -> fileName.substring(0, fileName.length() - ".track".length()))
+					.filter(TrackIO::validTrackName)
 					.sorted()
 					.toList();
 		} catch (final IOException e) {

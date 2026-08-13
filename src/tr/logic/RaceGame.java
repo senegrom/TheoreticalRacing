@@ -5,10 +5,8 @@ import java.awt.geom.Area;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayDeque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -716,12 +714,9 @@ public final class RaceGame {
 	}
 
 	private void writeGameLog() {
-		final Path path = gameLogPath();
 		try {
-			final Path parent = path.toAbsolutePath().getParent();
-			if (parent != null)
-				Files.createDirectories(parent);
-			Files.writeString(path, gameLog.toString());
+			final byte[] content = gameLog.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+			TrackIO.writeAtomically(gameLogPath(), out -> out.write(content));
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}
@@ -1050,30 +1045,12 @@ public final class RaceGame {
 		return true;
 	}
 
-	/** Atomic property save: write to .tmp then rename. */
+	/** Atomically persist user settings without sharing a temporary filename. */
 	public void saveProperties() {
-		final Path target = TrackIO.userPropertiesPath();
 		try {
-			Files.createDirectories(target.getParent());
+			TrackIO.writeAtomically(TrackIO.userPropertiesPath(), out -> prop.store(out, null));
 		} catch (final IOException e) {
 			e.printStackTrace();
-			return;
-		}
-		final Path tmp = target.resolveSibling(target.getFileName().toString() + ".tmp");
-		try (OutputStream out = Files.newOutputStream(tmp)) {
-			prop.store(out, null);
-		} catch (final IOException e) {
-			e.printStackTrace();
-			return;
-		}
-		try {
-			Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-		} catch (final IOException e) {
-			try {
-				Files.move(tmp, target, StandardCopyOption.REPLACE_EXISTING);
-			} catch (final IOException e2) {
-				e2.printStackTrace();
-			}
 		}
 	}
 

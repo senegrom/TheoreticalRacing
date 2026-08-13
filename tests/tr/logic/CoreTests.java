@@ -13,7 +13,9 @@ public final class CoreTests {
         testPlayerKinds();
         testDefaultProperties();
         testPointParsing();
+        testAtomicWrites();
         testTrackNames();
+        testTrackListing();
         testBorderValidation();
         testEdgeLegalCache();
         testEndgameMemoKey();
@@ -71,6 +73,99 @@ public final class CoreTests {
         check(TrackIO.parsePointList("1,2;").isEmpty(), "trailing empty point should be rejected");
     }
 
+    private static void testAtomicWrites() {
+        java.nio.file.Path directory = null;
+        try {
+            directory = java.nio.file.Files.createTempDirectory("theoretical-racing-atomic-");
+            final java.nio.file.Path target = directory.resolve("nested").resolve("state.bin");
+            final java.util.concurrent.CountDownLatch ready = new java.util.concurrent.CountDownLatch(2);
+            final java.util.concurrent.CountDownLatch release = new java.util.concurrent.CountDownLatch(1);
+            final java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            final byte[] first = new byte[128 * 1024];
+            final byte[] second = new byte[128 * 1024];
+            java.util.Arrays.fill(first, (byte) 'A');
+            java.util.Arrays.fill(second, (byte) 'B');
+            final Thread one = atomicWriter(target, first, ready, release, failure);
+            final Thread two = atomicWriter(target, second, ready, release, failure);
+            one.start();
+            two.start();
+            final boolean overlapped = ready.await(5, java.util.concurrent.TimeUnit.SECONDS);
+            release.countDown();
+            check(overlapped, "concurrent atomic writers did not overlap");
+            one.join(20_000);
+            two.join(20_000);
+            check(!one.isAlive() && !two.isAlive(), "concurrent atomic writer hung");
+            check(failure.get() == null, "concurrent atomic write failed: " + failure.get());
+            final byte[] actual = java.nio.file.Files.readAllBytes(target);
+            check(java.util.Arrays.equals(actual, first) || java.util.Arrays.equals(actual, second),
+                    "concurrent write exposed a partial file");
+
+            final byte[] beforeFailure = actual.clone();
+            try {
+                TrackIO.writeAtomically(target, out -> {
+                    out.write('X');
+                    throw new java.io.IOException("expected test failure");
+                });
+                throw new AssertionError("failed atomic write unexpectedly succeeded");
+            } catch (final java.io.IOException expected) {
+                check("expected test failure".equals(expected.getMessage()),
+                        "atomic writer changed the original failure");
+            }
+            check(java.util.Arrays.equals(java.nio.file.Files.readAllBytes(target), beforeFailure),
+                    "failed atomic write replaced the previous complete file");
+            try (java.util.stream.Stream<java.nio.file.Path> files =
+                    java.nio.file.Files.list(target.getParent())) {
+                check(files.noneMatch(file -> file.getFileName().toString().contains(".tmp-")),
+                        "atomic writer left a temporary file behind");
+            }
+        } catch (final InterruptedException error) {
+            Thread.currentThread().interrupt();
+            throw new AssertionError("atomic write regression test was interrupted", error);
+        } catch (final java.io.IOException error) {
+            throw new AssertionError("atomic write regression test failed", error);
+        } finally {
+            if (directory != null)
+                deleteTree(directory);
+        }
+    }
+
+    private static Thread atomicWriter(final java.nio.file.Path target, final byte[] payload,
+            final java.util.concurrent.CountDownLatch ready,
+            final java.util.concurrent.CountDownLatch release,
+            final java.util.concurrent.atomic.AtomicReference<Throwable> failure) {
+        final Thread thread = new Thread(() -> {
+            try {
+                TrackIO.writeAtomically(target, out -> {
+                    ready.countDown();
+                    try {
+                        if (!release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                            throw new java.io.IOException("timed out waiting for concurrent writer");
+                    } catch (final InterruptedException error) {
+                        Thread.currentThread().interrupt();
+                        throw new java.io.IOException("atomic writer interrupted", error);
+                    }
+                    out.write(payload);
+                });
+            } catch (final Throwable error) {
+                failure.compareAndSet(null, error);
+            }
+        }, "atomic-writer-test");
+        thread.setDaemon(true);
+        return thread;
+    }
+
+    private static void deleteTree(final java.nio.file.Path root) {
+        if (!java.nio.file.Files.exists(root))
+            return;
+        try (java.util.stream.Stream<java.nio.file.Path> paths = java.nio.file.Files.walk(root)) {
+            for (final java.nio.file.Path path : paths.sorted(java.util.Comparator.reverseOrder()).toList())
+                java.nio.file.Files.deleteIfExists(path);
+        } catch (final java.io.IOException error) {
+            throw new AssertionError("could not clean test directory", error);
+        }
+    }
+
 
     private static void testTrackNames() {
         check(TrackIO.validTrackName("sprint"), "simple track name rejected");
@@ -80,6 +175,38 @@ public final class CoreTests {
         check(!TrackIO.validTrackName("C:sprint"), "drive-qualified track name accepted");
     }
 
+
+    private static void testTrackListing() {
+        final java.nio.file.Path directory = TrackIO.tracksDir();
+        final boolean directoryExisted = java.nio.file.Files.exists(directory);
+        final String suffix = Long.toUnsignedString(System.nanoTime());
+        final String validName = "listing_test_" + suffix;
+        final java.nio.file.Path valid = directory.resolve(validName + ".track");
+        final java.nio.file.Path invalid = directory.resolve("bad name " + suffix + ".track");
+        final java.nio.file.Path folder = directory.resolve("folder_" + suffix + ".track");
+        try {
+            java.nio.file.Files.createDirectories(directory);
+            java.nio.file.Files.writeString(valid, "");
+            java.nio.file.Files.writeString(invalid, "");
+            java.nio.file.Files.createDirectory(folder);
+            final java.util.List<String> tracks = TrackIO.listTracks();
+            check(tracks.contains(validName), "regular valid track file was not listed");
+            check(!tracks.contains("bad name " + suffix), "invalid track name was listed");
+            check(!tracks.contains("folder_" + suffix), "track directory was listed as a file");
+        } catch (final java.io.IOException error) {
+            throw new AssertionError("could not arrange track listing test", error);
+        } finally {
+            try {
+                java.nio.file.Files.deleteIfExists(valid);
+                java.nio.file.Files.deleteIfExists(invalid);
+                java.nio.file.Files.deleteIfExists(folder);
+                if (!directoryExisted)
+                    java.nio.file.Files.deleteIfExists(directory);
+            } catch (final java.io.IOException error) {
+                throw new AssertionError("could not clean track listing test", error);
+            }
+        }
+    }
 
     private static void testBorderValidation() {
         final List<int[]> left = new ArrayList<>();
@@ -194,6 +321,10 @@ public final class CoreTests {
                 "parallel separated segments should not intersect");
         check(TrackGeometry.checkIntersect(p(0, 0), p(10, 0), p(5, 0), p(15, 0), (byte) 0),
                 "collinear overlap should intersect");
+        check(TrackGeometry.checkIntersect(p(0, 0), p(10, 0), p(5, 0), p(5, 5), (byte) 0),
+                "endpoint-to-interior T junction should intersect");
+        check(TrackGeometry.checkIntersect(p(5, 0), p(5, 5), p(0, 0), p(10, 0), (byte) 0),
+                "T-junction detection should be orientation independent");
         check(!TrackGeometry.checkIntersect(p(0, 0), p(10, 0), p(10, 0), p(20, 0), (byte) 2),
                 "allowed adjacent endpoint should not count as self-intersection");
     }

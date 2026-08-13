@@ -183,8 +183,8 @@ public final class StartDialog extends JFrame {
 			prop.put("useLastTrack", "false");
 		} else if (TRACK_LAST.equals(trackSel)) {
 			prop.put("useLastTrack", "true");
-		} else {
-			TrackIO.loadTrack(prop, trackSel);
+		} else if (!TrackIO.loadTrack(prop, trackSel)) {
+			prop.put("useLastTrack", "false");
 		}
 	}
 
@@ -304,12 +304,6 @@ public final class StartDialog extends JFrame {
 		add(trackPanel, BorderLayout.EAST);
 		add(southContainer, BorderLayout.SOUTH);
 
-		setVisible(true);
-		// Same foreground nudge as the game frame: launched from a terminal,
-		// the dialog otherwise opens behind it.
-		toFront();
-		requestFocus();
-
 		txtSize[0].setText(prop.getProperty("windowX"));
 		txtSize[1].setText(prop.getProperty("windowY"));
 		txtSize[2].setText(prop.getProperty("gameX"));
@@ -351,6 +345,12 @@ public final class StartDialog extends JFrame {
 
 		cmbTrack.addActionListener(e -> updateTrackPreview());
 		updateTrackPreview();
+
+		setVisible(true);
+		// Same foreground nudge as the game frame: launched from a terminal,
+		// the dialog otherwise opens behind it.
+		toFront();
+		requestFocus();
 	}
 
 	private void doConfirm() {

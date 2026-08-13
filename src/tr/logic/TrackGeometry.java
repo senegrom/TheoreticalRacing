@@ -53,9 +53,9 @@ final class TrackGeometry {
 		} else if (seq == 0 || seq == 3) {
 			final double s = (dy1 * x1 - dy1 * x2 - dx1 * y1 + dx1 * y2) / d;
 			final double t = (dy2 * x1 - dy2 * x2 - dx2 * y1 + dx2 * y2) / d;
+			if (seq == 0)
+				return s >= 0 && s <= 1 && t >= 0 && t <= 1;
 			if (s > 0 && s < 1 && t > 0 && t < 1)
-				return true;
-			if (seq == 0 && (s == 0 || s == 1) && (t == 0 || t == 1))
 				return true;
 			// Corner-clip: AI line interior crosses through a border vertex
 			// (s in code = AI line parameter, t in code = border parameter)

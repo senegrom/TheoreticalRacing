@@ -518,17 +518,20 @@ final class Reachability {
 	 *  Integer.MAX_VALUE = unreachable). Python decodes with the same aliveIdx
 	 *  formula: ((x*aliveH+y)*span + (vx+VMAX))*span + (vy+VMAX), span=2*VMAX+1. */
 	void writeReachability(final String path) {
-		try (java.io.OutputStream out = new java.io.BufferedOutputStream(new java.io.FileOutputStream(path))) {
-			final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024).order(java.nio.ByteOrder.LITTLE_ENDIAN);
-			buf.putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
-			for (final int v : turnsArr) {
-				if (buf.remaining() < Integer.BYTES) {
-					out.write(buf.array(), 0, buf.position());
-					buf.clear();
+		try {
+			TrackIO.writeAtomically(java.nio.file.Path.of(path), out -> {
+				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024)
+						.order(java.nio.ByteOrder.LITTLE_ENDIAN);
+				buf.putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
+				for (final int v : turnsArr) {
+					if (buf.remaining() < Integer.BYTES) {
+						out.write(buf.array(), 0, buf.position());
+						buf.clear();
+					}
+					buf.putInt(v);
 				}
-				buf.putInt(v);
-			}
-			out.write(buf.array(), 0, buf.position());
+				out.write(buf.array(), 0, buf.position());
+			});
 		} catch (final java.io.IOException e) {
 			e.printStackTrace();
 			System.exit(3);
@@ -687,11 +690,7 @@ final class Reachability {
 		if (path == null)
 			return;
 		try {
-			java.nio.file.Files.createDirectories(path.getParent());
-			final java.nio.file.Path tmp = java.nio.file.Files.createTempFile(
-					path.getParent(), path.getFileName() + ".tmp.", null);
-			try (java.io.OutputStream out = new java.io.BufferedOutputStream(
-					java.nio.file.Files.newOutputStream(tmp), 1 << 16)) {
+			TrackIO.writeAtomically(path, out -> {
 				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024)
 						.order(java.nio.ByteOrder.LITTLE_ENDIAN);
 				buf.putInt(CACHE_MAGIC).putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
@@ -710,13 +709,7 @@ final class Reachability {
 					buf.putShort(v);
 				}
 				out.write(buf.array(), 0, buf.position());
-			}
-			try {
-				java.nio.file.Files.move(tmp, path, java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-						java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			} catch (final java.io.IOException e) {
-				java.nio.file.Files.move(tmp, path, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-			}
+			});
 		} catch (final java.io.IOException e) {
 			System.err.println("[reachability] cache write failed: " + e);
 		}

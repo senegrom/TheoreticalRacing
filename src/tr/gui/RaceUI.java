@@ -186,8 +186,7 @@ public final class RaceUI {
 			i++;
 		}
 		trackPol = new Polygon(tTrack[0], tTrack[1], tTrack[0].length);
-		if (grid != null)
-			grid.setBackground(colBackgrdForb);
+		grid.setBackground(colBackgrdForb);
 	}
 
 	public JPanel getGrid() {
