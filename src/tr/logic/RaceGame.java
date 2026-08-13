@@ -229,17 +229,20 @@ public final class RaceGame {
 				}
 			}
 		}
+		final boolean useLast = Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")) || autoMode;
+		final boolean trackLoaded = useLast && TrackIO.hasLastTrack(prop) && loadLastTrack();
 		if (!autoMode)
 			gameFrame.setupUI(rui.getGrid(), this, wx, wy, players);
 
-		final boolean useLast = Boolean.parseBoolean(prop.getProperty("useLastTrack", "false")) || autoMode;
-		if (useLast && TrackIO.hasLastTrack(prop) && loadLastTrack()) {
+		if (trackLoaded) {
 			gamestate = GameState.PLACEPLAYERS;
 			subgamestate = 0;
 			gameFrame.setOkEnabled(false);
 			autoPlaceAiPlayers();
 			updatePlaceStatus();
 			gameFrame.repaint();
+			if (!autoMode)
+				SwingUtilities.invokeLater(this::centerTrackStart);
 			if (autoMode && subgamestate == players.length)
 				SwingUtilities.invokeLater(this::clickedOK);
 			return;
@@ -887,6 +890,16 @@ public final class RaceGame {
 		}
 		buildTrackGeometry();
 		return true;
+	}
+
+	/** Put the selected circuit's start line and newly placed cars in view. */
+	private void centerTrackStart() {
+		if (track == null || track.getLeft().isEmpty() || track.getRight().isEmpty())
+			return;
+		final int[] left = track.getLeft().getFirst();
+		final int[] right = track.getRight().getFirst();
+		gameFrame.centerGridAt((left[0] + right[0]) * RaceUI.GRID_DIST / 2,
+				(left[1] + right[1]) * RaceUI.GRID_DIST / 2);
 	}
 
 	/** Activated when the game grid is clicked at grid coords (x,y). */

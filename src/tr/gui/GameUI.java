@@ -5,6 +5,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Point;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -20,6 +21,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.border.LineBorder;
 import tr.logic.Direction;
@@ -41,6 +43,8 @@ public final class GameUI {
 	private final int maxPlayers;
 	private boolean okEnabled = true;
 	private final String[] playerInfo;
+	private JPanel raceGrid;
+	private JScrollPane raceScroller;
 	private String status = " ";
 	private final String title;
 	private boolean undoEnabled;
@@ -65,6 +69,12 @@ public final class GameUI {
 	public void repaint() {
 		if (frame != null)
 			frame.repaint();
+	}
+
+	/** Center the scrollable field on a pixel position, clamped at its edges. */
+	public void centerGridAt(final int x, final int y) {
+		if (raceGrid != null && raceScroller != null)
+			centerGridAt(raceScroller, raceGrid, x, y);
 	}
 
 	public void setDirectionsEnabled(final boolean enabled) {
@@ -185,8 +195,9 @@ public final class GameUI {
 			}
 		});
 
-		final JScrollPane scroller = createGridScroller(grid);
-		gridContainer.add(scroller, BorderLayout.CENTER);
+		raceGrid = grid;
+		raceScroller = createGridScroller(grid);
+		gridContainer.add(raceScroller, BorderLayout.CENTER);
 		grid.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(final MouseEvent event) {
@@ -215,6 +226,24 @@ public final class GameUI {
 		final JScrollPane scroller = new JScrollPane(centeredGrid);
 		scroller.setBorder(new LineBorder(null, 0));
 		return scroller;
+	}
+
+	/** Package-visible for deterministic headless layout regression tests. */
+	static void centerGridAt(final JScrollPane scroller, final JPanel grid, final int x, final int y) {
+		final javax.swing.JViewport viewport = scroller.getViewport();
+		final Component view = viewport.getView();
+		if (view == null)
+			return;
+		final Dimension extent = viewport.getExtentSize();
+		final Dimension viewSize = view.getSize();
+		if (extent.width <= 0 || extent.height <= 0 || viewSize.width <= 0 || viewSize.height <= 0)
+			return;
+		final Point target = SwingUtilities.convertPoint(grid, x, y, view);
+		final int maxX = Math.max(0, viewSize.width - extent.width);
+		final int maxY = Math.max(0, viewSize.height - extent.height);
+		viewport.setViewPosition(new Point(
+				Math.max(0, Math.min(target.x - extent.width / 2, maxX)),
+				Math.max(0, Math.min(target.y - extent.height / 2, maxY))));
 	}
 
 	private void createControls() {
