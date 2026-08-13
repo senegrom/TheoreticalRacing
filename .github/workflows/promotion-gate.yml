@@ -15,7 +15,7 @@ jobs:
     name: Verify code and frozen AI2
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -66,7 +66,7 @@ jobs:
             args: --slow --seed-start 1 --seeds 5
             artifact: promotion-slow-s1-5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
