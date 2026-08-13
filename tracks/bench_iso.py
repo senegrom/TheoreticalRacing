@@ -12,7 +12,8 @@ import shutil
 import sys
 import tempfile
 
-sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Props/logs must live OFF any cloud-synced directory (OneDrive rewrites
@@ -23,44 +24,53 @@ spec = importlib.util.spec_from_file_location('bench_ai', os.path.join(REPO, 'tr
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
 
-MODE = sys.argv[1]
-SEED0 = int(sys.argv[2]) if len(sys.argv) > 2 else 1
-TRACKS = sys.argv[3:] or None
 
-m.PROPS = os.path.join(S, 'iso_%s.properties' % MODE)
-m.LOG = os.path.join(S, 'iso_%s.log' % MODE)
-_user = os.path.join(REPO, 'user.properties')
-_base = _user if os.path.exists(_user) else os.path.join(REPO, 'tracks', 'bench.properties')
-shutil.copy(_base, m.PROPS)
-try:
-    if MODE == 'slow':
-        m.SEEDS = [None]
-        m.bench(TRACKS or m.SLOW_TRACKS)
-    else:
-        tracks = TRACKS or m.DEFAULT_TRACKS
-        m.SEEDS = list(range(SEED0, SEED0 + 5))
+def main(argv):
+    if not argv:
+        raise SystemExit('usage: bench_iso.py MODE [SEED0] [track1 track2 ...]')
+    mode = argv[0]
+    seed0 = int(argv[1]) if len(argv) > 1 else 1
+    tracks_arg = argv[2:] or None
+
+    m.PROPS = os.path.join(S, 'iso_%s.properties' % mode)
+    m.LOG = os.path.join(S, 'iso_%s.log' % mode)
+    user = os.path.join(REPO, 'user.properties')
+    base = user if os.path.exists(user) else os.path.join(REPO, 'tracks', 'bench.properties')
+    shutil.copy(base, m.PROPS)
+    original_set_nplayers = m.set_nplayers
+    try:
+        if mode == 'slow':
+            m.SEEDS = [None]
+            return m.bench(tracks_arg or m.SLOW_TRACKS)
+
+        tracks = tracks_arg or m.DEFAULT_TRACKS
+        m.SEEDS = list(range(seed0, seed0 + 5))
         print('# seeds %s tracks %s' % (m.SEEDS, tracks))
-        if MODE == '8car':
-            m.bench(tracks)
-        elif MODE == 'h2h':
-            m.bench_field(tracks, 8, 4, 'h2h')
-        elif MODE == '4car':
-            orig = m.set_nplayers
+        if mode == '8car':
+            return m.bench(tracks)
+        if mode == 'h2h':
+            return m.bench_field(tracks, 8, 4, 'h2h')
+        if mode == '4car':
+            original = m.set_nplayers
 
-            def force(n, _o=orig):
-                _o(4)
+            def force(_n, setter=original):
+                setter(4)
             m.set_nplayers = force
-            m.bench(tracks)
-        elif MODE == '2car':
-            orig = m.set_nplayers
+            return m.bench(tracks)
+        if mode == '2car':
+            original = m.set_nplayers
 
-            def force2(n, _o=orig):
-                _o(2)
+            def force2(_n, setter=original):
+                setter(2)
             m.set_nplayers = force2
-            m.bench(tracks)
-        else:
-            raise SystemExit('unknown mode ' + MODE)
-finally:
-    for p in (m.PROPS, m.LOG):
-        if os.path.exists(p):
-            os.remove(p)
+            return m.bench(tracks)
+        raise SystemExit('unknown mode ' + mode)
+    finally:
+        m.set_nplayers = original_set_nplayers
+        for path in (m.PROPS, m.LOG):
+            if os.path.exists(path):
+                os.remove(path)
+
+
+if __name__ == '__main__':
+    raise SystemExit(0 if main(sys.argv[1:]) else 1)

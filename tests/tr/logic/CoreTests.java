@@ -1,7 +1,15 @@
 package tr.logic;
 
 import java.awt.Color;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.BitSet;
 import java.util.List;
 
 /** Lightweight dependency-free regression tests for pure core helpers. */
@@ -22,6 +30,8 @@ public final class CoreTests {
         testDistinctCoverMatching();
         testRaceAiStateIsolation();
         testReachabilityFailurePropagation();
+        testReachabilityCacheIO();
+        testAtomicWrite();
         testEmptyTrackUndo();
         tr.gui.GameUITests.run();
         testSegmentIntersection();
@@ -293,6 +303,95 @@ public final class CoreTests {
             throw new AssertionError("background reachability failure was swallowed");
         } catch (final IllegalStateException actual) {
             check(actual == expected, "reachability failure identity was not preserved");
+        }
+    }
+
+    private static void testReachabilityCacheIO() {
+        final int[] expectedInts = {1, Integer.MAX_VALUE, 0x01020304, -7};
+        final ByteBuffer intBytes = ByteBuffer.allocate(expectedInts.length * Integer.BYTES)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        for (final int value : expectedInts)
+            intBytes.putInt(value);
+        final int[] actualInts = new int[expectedInts.length];
+        try {
+            check(Reachability.readLittleEndian(new ByteArrayInputStream(intBytes.array()), actualInts, new byte[5]),
+                    "chunked integer cache read failed");
+            check(Arrays.equals(expectedInts, actualInts), "integer cache byte order changed");
+            check(!Reachability.readLittleEndian(
+                    new ByteArrayInputStream(Arrays.copyOf(intBytes.array(), intBytes.array().length - 1)),
+                    new int[expectedInts.length], new byte[7]), "truncated integer cache was accepted");
+        } catch (final IOException error) {
+            throw new AssertionError("cache integer test failed", error);
+        }
+
+        final short[] expectedShorts = {0, 1, 0x101, 7};
+        final ByteBuffer shortBytes = ByteBuffer.allocate(expectedShorts.length * Short.BYTES)
+                .order(ByteOrder.LITTLE_ENDIAN);
+        for (final short value : expectedShorts)
+            shortBytes.putShort(value);
+        final short[] actualShorts = new short[expectedShorts.length];
+        try {
+            check(Reachability.readLittleEndian(new ByteArrayInputStream(shortBytes.array()), actualShorts, new byte[3]),
+                    "chunked short cache read failed");
+            check(Arrays.equals(expectedShorts, actualShorts), "short cache byte order changed");
+        } catch (final IOException error) {
+            throw new AssertionError("cache short test failed", error);
+        }
+
+        final BitSet alive = new BitSet();
+        check(Reachability.validateCacheArrays(
+                new int[]{1, Integer.MAX_VALUE, 3}, new short[]{1, 0, 0x101}, alive),
+                "valid cache arrays were rejected");
+        check(alive.cardinality() == 2 && alive.get(0) && alive.get(2), "alive cache set was decoded incorrectly");
+        check(!Reachability.validateCacheArrays(new int[]{0}, new short[]{0}, new BitSet()),
+                "zero-turn cache state was accepted");
+        check(!Reachability.validateCacheArrays(new int[]{Integer.MAX_VALUE}, new short[]{1}, new BitSet()),
+                "unreachable cache state retained a successor mask");
+        check(!Reachability.validateCacheArrays(new int[]{1}, new short[]{1 << 9}, new BitSet()),
+                "cache mask accepted a non-direction bit");
+    }
+
+    private static void testAtomicWrite() {
+        Path directory = null;
+        try {
+            directory = Files.createTempDirectory("theoretical-racing-atomic-");
+            final Path target = directory.resolve("nested/state.txt");
+            TrackIO.writeAtomically(target, out -> out.write("complete".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            check("complete".equals(Files.readString(target)), "atomic writer lost complete output");
+
+            boolean failed = false;
+            try {
+                TrackIO.writeAtomically(target, out -> {
+                    out.write("partial".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    throw new IOException("expected writer failure");
+                });
+            } catch (final IOException expected) {
+                failed = true;
+            }
+            check(failed, "atomic writer swallowed a callback failure");
+            check("complete".equals(Files.readString(target)), "failed atomic write replaced the target");
+            try (java.util.stream.Stream<Path> files = Files.list(target.getParent())) {
+                check(files.noneMatch(path -> path.getFileName().toString().contains(".tmp.")),
+                        "failed atomic write leaked a temporary file");
+            }
+            Files.delete(target);
+            Files.delete(target.getParent());
+            Files.delete(directory);
+            directory = null;
+        } catch (final IOException error) {
+            throw new AssertionError("atomic write test failed", error);
+        } finally {
+            if (directory != null) {
+                try (java.util.stream.Stream<Path> paths = Files.walk(directory)) {
+                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (final IOException ignored) {
+                        }
+                    });
+                } catch (final IOException ignored) {
+                }
+            }
         }
     }
 

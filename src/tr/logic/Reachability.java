@@ -1,5 +1,12 @@
 package tr.logic;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.BitSet;
 
@@ -519,20 +526,13 @@ final class Reachability {
 	 *  formula: ((x*aliveH+y)*span + (vx+VMAX))*span + (vy+VMAX), span=2*VMAX+1. */
 	void writeReachability(final String path) {
 		try {
-			TrackIO.writeAtomically(java.nio.file.Path.of(path), out -> {
-				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024)
-						.order(java.nio.ByteOrder.LITTLE_ENDIAN);
-				buf.putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
-				for (final int v : turnsArr) {
-					if (buf.remaining() < Integer.BYTES) {
-						out.write(buf.array(), 0, buf.position());
-						buf.clear();
-					}
-					buf.putInt(v);
-				}
-				out.write(buf.array(), 0, buf.position());
+			TrackIO.writeAtomically(Path.of(path), out -> {
+				final ByteBuffer buffer = ByteBuffer.allocate(CACHE_IO_BYTES).order(ByteOrder.LITTLE_ENDIAN);
+				buffer.putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
+				writeLittleEndian(out, buffer, turnsArr);
+				flush(out, buffer);
 			});
-		} catch (final java.io.IOException e) {
+		} catch (final IOException e) {
 			e.printStackTrace();
 			System.exit(3);
 		}
@@ -594,6 +594,9 @@ final class Reachability {
 	// never land in cloud-synced folders.
 
 	private static final int CACHE_MAGIC = 0x54524331; // "TRC1"
+	private static final int CACHE_HEADER_BYTES = 4 * Integer.BYTES;
+	private static final int CACHE_IO_BYTES = 64 * 1024;
+	private static final int CACHE_DIRECTION_MASK = (1 << Direction.values().length) - 1;
 
 	private java.nio.file.Path reachCachePath() {
 		final Track track = game.track;
@@ -628,8 +631,8 @@ final class Reachability {
 	 *  the sweeps. Any validation or IO failure returns false and leaves the
 	 *  compute path to run from scratch. */
 	boolean tryLoadReachabilityCache() {
-		final java.nio.file.Path path = reachCachePath();
-		if (path == null || !java.nio.file.Files.isRegularFile(path))
+		final Path path = reachCachePath();
+		if (path == null || !Files.isRegularFile(path))
 			return false;
 		final long t0 = System.nanoTime();
 		final int w = game.gameCols + 1;
@@ -639,6 +642,14 @@ final class Reachability {
 		final long stateCount = (long) w * h * span * span;
 		if (stateCount > Integer.MAX_VALUE)
 			return false;
+		final long expectedBytes = CACHE_HEADER_BYTES
+				+ stateCount * (Integer.BYTES + Short.BYTES);
+		try {
+			if (Files.size(path) != expectedBytes)
+				return false;
+		} catch (final IOException e) {
+			return false;
+		}
 		final Runtime runtime = Runtime.getRuntime();
 		final long availableBytes = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
 		if (stateCount * 12L > availableBytes * 3 / 4)
@@ -646,29 +657,23 @@ final class Reachability {
 		final int total = (int) stateCount;
 		final int[] turns = new int[total];
 		final short[] legalAlive = new short[total];
-		try (java.io.InputStream in = new java.io.BufferedInputStream(
-				java.nio.file.Files.newInputStream(path), 1 << 16)) {
-			final byte[] head = in.readNBytes(4 * Integer.BYTES);
-			if (head.length < 4 * Integer.BYTES)
+		try (InputStream in = new java.io.BufferedInputStream(Files.newInputStream(path), CACHE_IO_BYTES)) {
+			final byte[] ioBuffer = new byte[CACHE_IO_BYTES];
+			if (in.readNBytes(ioBuffer, 0, CACHE_HEADER_BYTES) != CACHE_HEADER_BYTES)
 				return false;
-			final java.nio.ByteBuffer hb = java.nio.ByteBuffer.wrap(head).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			final ByteBuffer hb = ByteBuffer.wrap(ioBuffer, 0, CACHE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN);
 			if (hb.getInt() != CACHE_MAGIC || hb.getInt() != w || hb.getInt() != h || hb.getInt() != vmax)
 				return false;
-			final byte[] turnBytes = in.readNBytes(total * Integer.BYTES);
-			if (turnBytes.length < total * Integer.BYTES)
+			if (!readLittleEndian(in, turns, ioBuffer))
 				return false;
-			java.nio.ByteBuffer.wrap(turnBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asIntBuffer().get(turns);
-			final byte[] maskBytes = in.readNBytes(total * Short.BYTES);
-			if (maskBytes.length < total * Short.BYTES)
+			if (!readLittleEndian(in, legalAlive, ioBuffer) || in.read() != -1)
 				return false;
-			java.nio.ByteBuffer.wrap(maskBytes).order(java.nio.ByteOrder.LITTLE_ENDIAN).asShortBuffer().get(legalAlive);
-		} catch (final java.io.IOException e) {
+		} catch (final IOException e) {
 			return false;
 		}
 		final BitSet alive = new BitSet(total);
-		for (int i = 0; i < total; i++)
-			if (turns[i] != Integer.MAX_VALUE)
-				alive.set(i);
+		if (!validateCacheArrays(turns, legalAlive, alive))
+			return false;
 		aliveW = w;
 		aliveH = h;
 		aliveVMAX = vmax;
@@ -686,33 +691,98 @@ final class Reachability {
 
 	/** Best-effort atomic cache write; failures only cost the speedup. */
 	private void writeReachabilityCache(final short[] legalAlive) {
-		final java.nio.file.Path path = reachCachePath();
+		final Path path = reachCachePath();
 		if (path == null)
 			return;
 		try {
 			TrackIO.writeAtomically(path, out -> {
-				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024)
-						.order(java.nio.ByteOrder.LITTLE_ENDIAN);
-				buf.putInt(CACHE_MAGIC).putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
-				for (final int v : turnsArr) {
-					if (buf.remaining() < Integer.BYTES) {
-						out.write(buf.array(), 0, buf.position());
-						buf.clear();
-					}
-					buf.putInt(v);
-				}
-				for (final short v : legalAlive) {
-					if (buf.remaining() < Short.BYTES) {
-						out.write(buf.array(), 0, buf.position());
-						buf.clear();
-					}
-					buf.putShort(v);
-				}
-				out.write(buf.array(), 0, buf.position());
+				final ByteBuffer buffer = ByteBuffer.allocate(CACHE_IO_BYTES).order(ByteOrder.LITTLE_ENDIAN);
+				buffer.putInt(CACHE_MAGIC).putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
+				writeLittleEndian(out, buffer, turnsArr);
+				writeLittleEndian(out, buffer, legalAlive);
+				flush(out, buffer);
 			});
-		} catch (final java.io.IOException e) {
+		} catch (final IOException e) {
 			System.err.println("[reachability] cache write failed: " + e);
 		}
+	}
+
+	static boolean readLittleEndian(final InputStream in, final int[] values, final byte[] buffer) throws IOException {
+		if (buffer.length < Integer.BYTES)
+			throw new IllegalArgumentException("integer IO buffer is too small");
+		final ByteBuffer bytes = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN);
+		int offset = 0;
+		while (offset < values.length) {
+			final int count = Math.min(values.length - offset, buffer.length / Integer.BYTES);
+			final int byteCount = count * Integer.BYTES;
+			if (in.readNBytes(buffer, 0, byteCount) != byteCount)
+				return false;
+			bytes.clear();
+			bytes.limit(byteCount);
+			bytes.asIntBuffer().get(values, offset, count);
+			offset += count;
+		}
+		return true;
+	}
+
+	static boolean readLittleEndian(final InputStream in, final short[] values, final byte[] buffer) throws IOException {
+		if (buffer.length < Short.BYTES)
+			throw new IllegalArgumentException("short IO buffer is too small");
+		final ByteBuffer bytes = ByteBuffer.wrap(buffer).order(ByteOrder.LITTLE_ENDIAN);
+		int offset = 0;
+		while (offset < values.length) {
+			final int count = Math.min(values.length - offset, buffer.length / Short.BYTES);
+			final int byteCount = count * Short.BYTES;
+			if (in.readNBytes(buffer, 0, byteCount) != byteCount)
+				return false;
+			bytes.clear();
+			bytes.limit(byteCount);
+			bytes.asShortBuffer().get(values, offset, count);
+			offset += count;
+		}
+		return true;
+	}
+
+	static boolean validateCacheArrays(final int[] turns, final short[] legalAlive, final BitSet alive) {
+		if (turns.length != legalAlive.length)
+			return false;
+		for (int i = 0; i < turns.length; i++) {
+			final int mask = Short.toUnsignedInt(legalAlive[i]);
+			if ((mask & ~CACHE_DIRECTION_MASK) != 0)
+				return false;
+			if (turns[i] == Integer.MAX_VALUE) {
+				if (mask != 0)
+					return false;
+			} else {
+				if (turns[i] < 1)
+					return false;
+				alive.set(i);
+			}
+		}
+		return true;
+	}
+
+	private static void writeLittleEndian(final OutputStream out, final ByteBuffer buffer, final int[] values)
+			throws IOException {
+		for (final int value : values) {
+			if (buffer.remaining() < Integer.BYTES)
+				flush(out, buffer);
+			buffer.putInt(value);
+		}
+	}
+
+	private static void writeLittleEndian(final OutputStream out, final ByteBuffer buffer, final short[] values)
+			throws IOException {
+		for (final short value : values) {
+			if (buffer.remaining() < Short.BYTES)
+				flush(out, buffer);
+			buffer.putShort(value);
+		}
+	}
+
+	private static void flush(final OutputStream out, final ByteBuffer buffer) throws IOException {
+		out.write(buffer.array(), 0, buffer.position());
+		buffer.clear();
 	}
 
 }

@@ -4,9 +4,11 @@ import io
 from pathlib import Path
 import struct
 import tempfile
+import types
 import unittest
+from unittest import mock
 
-from tracks import bench_ai, oracle_roll
+from tracks import bench_ai, bench_iso, oracle_roll
 from tracks.forensics_common import INF, LogMove, Reach, parse_move, reconstruct_board
 
 
@@ -122,6 +124,7 @@ class ForensicsCommonTests(unittest.TestCase):
             path = Path(directory) / 'reach.bin'
             path.write_bytes(payload)
             reach = Reach(path)
+            self.assertEqual('<i', reach.VALUE.format)
             self.assertEqual(7, reach.turns(1, 0, 0, -1))
             self.assertIsNone(reach.turns(0, 0, 0, 0))
             self.assertIsNone(reach.turns(2, 0, 0, 0))
@@ -130,6 +133,29 @@ class ForensicsCommonTests(unittest.TestCase):
             path.write_bytes(payload + b'!')
             with self.assertRaisesRegex(ValueError, 'size mismatch'):
                 Reach(path)
+
+    def test_isolated_bench_propagates_invalid_result(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'tracks').mkdir()
+            (root / 'tracks' / 'bench.properties').write_text('nPlayers=8\n', encoding='utf-8')
+            original_setter = lambda _n: None
+            fake = types.SimpleNamespace(
+                DEFAULT_TRACKS=['sprint'],
+                SLOW_TRACKS=['slow'],
+                SEEDS=[],
+                set_nplayers=original_setter,
+                bench=lambda _tracks: False,
+                bench_field=lambda *_args: False,
+            )
+            with mock.patch.object(bench_iso, 'REPO', str(root)), \
+                    mock.patch.object(bench_iso, 'S', str(root)), \
+                    mock.patch.object(bench_iso, 'm', fake):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertFalse(bench_iso.main(['8car', '1', 'sprint']))
+                self.assertIs(original_setter, fake.set_nplayers)
+                self.assertFalse(Path(fake.PROPS).exists())
+                self.assertFalse(Path(fake.LOG).exists())
 
 
 if __name__ == '__main__':

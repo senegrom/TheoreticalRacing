@@ -62,6 +62,7 @@ class Reach:
     """Read-only view of a ``--dump-reach`` little-endian binary."""
 
     HEADER = struct.Struct("<iii")
+    VALUE = struct.Struct("<i")
 
     def __init__(self, path):
         self._data = Path(path).read_bytes()
@@ -79,7 +80,7 @@ class Reach:
                 "reachability dump size mismatch: expected %d bytes, found %d"
                 % (expected_size, len(self._data))
             )
-        self.arr = memoryview(self._data)[self.HEADER.size:].cast("i")
+        self._payload = memoryview(self._data)[self.HEADER.size:]
 
     def turns(self, x, y, vx, vy):
         if not (0 <= x < self.w and 0 <= y < self.h):
@@ -90,7 +91,7 @@ class Reach:
             ((x * self.h + y) * self.span + (vx + self.vmax)) * self.span
             + (vy + self.vmax)
         )
-        value = self.arr[index]
+        value = self.VALUE.unpack_from(self._payload, index * self.VALUE.size)[0]
         return None if value == INF else value
 
 

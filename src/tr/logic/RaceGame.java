@@ -5,7 +5,6 @@ import java.awt.geom.Area;
 import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Iterator;
@@ -237,7 +236,7 @@ public final class RaceGame {
 		if (useLast && TrackIO.hasLastTrack(prop) && loadLastTrack()) {
 			gamestate = GameState.PLACEPLAYERS;
 			subgamestate = 0;
-			gameFrame.getBtnOK().setEnabled(false);
+			gameFrame.setOkEnabled(false);
 			autoPlaceAiPlayers();
 			updatePlaceStatus();
 			gameFrame.repaint();
@@ -273,9 +272,11 @@ public final class RaceGame {
 			gameLog.append("# results\n");
 			for (int i = 1; i <= players.length; i++)
 				gameLog.append(i).append(". ").append(place[i]).append("\n");
-			writeGameLog();
-			dispMessage(sb.toString() + "\n\nLog written to " + gameLogPath());
-			gameFrame.getBtnUndo().setEnabled(false);
+			final boolean logWritten = writeGameLog();
+			dispMessage(sb.toString() + (logWritten
+					? "\n\nLog written to " + gameLogPath()
+					: "\n\nCould not write log to " + gameLogPath()));
+			gameFrame.setUndoEnabled(false);
 			for (final JButton b : gameFrame.getBtnDirections())
 				b.setEnabled(false);
 			gameFrame.repaint();
@@ -579,7 +580,7 @@ public final class RaceGame {
 		rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
 		rui.setPrePath(null);
 		isShowingPrePath = -1;
-		gameFrame.getBtnUndo().setEnabled(!players[subgamestate].isAi() && hasUndoableHumanMove());
+		gameFrame.setUndoEnabled(!players[subgamestate].isAi() && hasUndoableHumanMove());
 	}
 
 	private boolean hasUndoableHumanMove() {
@@ -674,7 +675,7 @@ public final class RaceGame {
 
 	private void updatePlaceStatus() {
 		final boolean allPlaced = subgamestate >= players.length;
-		gameFrame.getBtnOK().setEnabled(allPlaced);
+		gameFrame.setOkEnabled(allPlaced);
 		gameFrame.setStatus(allPlaced ? "Click OK to confirm." : "Place player " + players[subgamestate].getName());
 	}
 
@@ -713,12 +714,15 @@ public final class RaceGame {
 				.append(",").append(posAfter[1]).append(") ").append(outcome).append("\n");
 	}
 
-	private void writeGameLog() {
+	private boolean writeGameLog() {
+		final Path path = gameLogPath();
 		try {
-			final byte[] content = gameLog.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
-			TrackIO.writeAtomically(gameLogPath(), out -> out.write(content));
+			final byte[] contents = gameLog.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8);
+			TrackIO.writeAtomically(path, out -> out.write(contents));
+			return true;
 		} catch (final IOException e) {
 			e.printStackTrace();
+			return false;
 		}
 	}
 
@@ -927,7 +931,7 @@ public final class RaceGame {
 	/** Activated when the OK button is clicked. */
 	public void clickedOK() {
 		if (gamestate == GameState.START) {
-			gameFrame.getBtnUndo().setEnabled(true);
+			gameFrame.setUndoEnabled(true);
 			gameFrame.setStatus("Draw left track border.");
 			gamestate = GameState.DRAWTRACK;
 			subgamestate = 0;
@@ -953,13 +957,13 @@ public final class RaceGame {
 			}
 			gamestate = GameState.PLACEPLAYERS;
 			subgamestate = 0;
-			gameFrame.getBtnOK().setEnabled(false);
+			gameFrame.setOkEnabled(false);
 			buildTrackGeometry();
 			autoPlaceAiPlayers();
 			updatePlaceStatus();
 		} else if (gamestate == GameState.PLACEPLAYERS && subgamestate == players.length) {
-			gameFrame.getBtnOK().setEnabled(false);
-			gameFrame.getBtnUndo().setEnabled(false);
+			gameFrame.setOkEnabled(false);
+			gameFrame.setUndoEnabled(false);
 			for (final Player player : players)
 				player.logPosition(player.getPosition());
 			gamestate = GameState.PLAY;
@@ -1008,7 +1012,7 @@ public final class RaceGame {
 			rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
 			rui.setPrePath(null);
 			isShowingPrePath = -1;
-			gameFrame.getBtnUndo().setEnabled(hasUndoableHumanMove());
+			gameFrame.setUndoEnabled(hasUndoableHumanMove());
 			for (final JButton button : gameFrame.getBtnDirections())
 				button.setEnabled(true);
 			redoPlayerLabels();
@@ -1045,10 +1049,11 @@ public final class RaceGame {
 		return true;
 	}
 
-	/** Atomically persist user settings without sharing a temporary filename. */
+	/** Atomic property save. */
 	public void saveProperties() {
+		final Path target = TrackIO.userPropertiesPath();
 		try {
-			TrackIO.writeAtomically(TrackIO.userPropertiesPath(), out -> prop.store(out, null));
+			TrackIO.writeAtomically(target, out -> prop.store(out, null));
 		} catch (final IOException e) {
 			e.printStackTrace();
 		}

@@ -30,27 +30,26 @@ public final class TrackIO {
 		void write(OutputStream out) throws IOException;
 	}
 
-	/** Write a complete replacement through a unique sibling temporary file.
-	 *  Unique names make concurrent writers in one JVM/process independent; the
-	 *  final move leaves readers seeing either the previous or complete new file. */
+	/** Write a complete replacement beside {@code target}, then publish it with
+	 *  one rename. Unique temporary files keep concurrent game instances from
+	 *  truncating each other's properties, logs, dumps or reachability caches. */
 	static void writeAtomically(final Path target, final OutputWriter writer) throws IOException {
-		final Path absoluteTarget = target.toAbsolutePath();
-		final Path parent = absoluteTarget.getParent();
-		if (parent == null || absoluteTarget.getFileName() == null)
+		final Path absolute = target.toAbsolutePath().normalize();
+		final Path parent = absolute.getParent();
+		if (parent == null || absolute.getFileName() == null)
 			throw new IOException("Invalid output path: " + target);
 		Files.createDirectories(parent);
-		final Path temporary = Files.createTempFile(parent,
-				absoluteTarget.getFileName().toString() + ".tmp-", null);
+		final Path temporary = Files.createTempFile(parent, "." + absolute.getFileName() + ".tmp.", null);
 		Throwable failure = null;
 		try {
 			try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temporary), 1 << 16)) {
 				writer.write(out);
 			}
 			try {
-				Files.move(temporary, absoluteTarget, StandardCopyOption.ATOMIC_MOVE,
+				Files.move(temporary, absolute, StandardCopyOption.ATOMIC_MOVE,
 						StandardCopyOption.REPLACE_EXISTING);
 			} catch (final AtomicMoveNotSupportedException unsupported) {
-				Files.move(temporary, absoluteTarget, StandardCopyOption.REPLACE_EXISTING);
+				Files.move(temporary, absolute, StandardCopyOption.REPLACE_EXISTING);
 			}
 		} catch (final IOException | RuntimeException | Error error) {
 			failure = error;

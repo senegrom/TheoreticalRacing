@@ -28,11 +28,6 @@ import tr.logic.RaceGame;
 
 /** Main game-window facade. Swing controls are allocated only for GUI games. */
 public final class GameUI {
-	@FunctionalInterface
-	public interface EnabledControl {
-		void setEnabled(boolean enabled);
-	}
-
 	private static final JButton[] NO_DIRECTION_BUTTONS = new JButton[0];
 	private static final int RIGHT_SIZE = 170;
 
@@ -45,8 +40,6 @@ public final class GameUI {
 	private JLabel[] lblPlayerInfo;
 	private JLabel lblStatus;
 	private final int maxPlayers;
-	private final EnabledControl okControl = this::setOkEnabled;
-	private final EnabledControl undoControl = this::setUndoEnabled;
 	private boolean okEnabled = true;
 	private final String[] playerInfo;
 	private String status = " ";
@@ -72,14 +65,6 @@ public final class GameUI {
 
 	public JButton[] getBtnDirections() {
 		return btnDirections == null ? NO_DIRECTION_BUTTONS : btnDirections;
-	}
-
-	public EnabledControl getBtnOK() {
-		return okControl;
-	}
-
-	public EnabledControl getBtnUndo() {
-		return undoControl;
 	}
 
 	public void repaint() {
