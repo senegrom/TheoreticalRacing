@@ -20,6 +20,7 @@ public final class CoreTests {
         testDistinctCoverMatching();
         testRaceAiStateIsolation();
         testReachabilityFailurePropagation();
+        testEmptyTrackUndo();
         tr.gui.GameUITests.run();
         testSegmentIntersection();
         testStartZone();
@@ -166,6 +167,24 @@ public final class CoreTests {
         } catch (final IllegalStateException actual) {
             check(actual == expected, "reachability failure identity was not preserved");
         }
+    }
+
+    private static void testEmptyTrackUndo() {
+        final RaceGame game = new RaceGame(new java.util.Properties());
+        try {
+            final java.lang.reflect.Field state = RaceGame.class.getDeclaredField("gamestate");
+            state.setAccessible(true);
+            state.set(game, GameState.DRAWTRACK);
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("could not arrange track undo test", error);
+        }
+        game.subgamestate = 0;
+        game.clickedUndo();
+        game.track = new Track();
+        game.subgamestate = 1;
+        game.clickedUndo();
+        check(game.track.getLeft().isEmpty() && game.track.getRight().isEmpty(),
+                "undo on an empty border changed track state");
     }
 
     private static void testSegmentIntersection() {

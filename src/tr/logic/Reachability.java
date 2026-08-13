@@ -688,8 +688,8 @@ final class Reachability {
 			return;
 		try {
 			java.nio.file.Files.createDirectories(path.getParent());
-			final java.nio.file.Path tmp = path.resolveSibling(
-					path.getFileName() + ".tmp" + ProcessHandle.current().pid());
+			final java.nio.file.Path tmp = java.nio.file.Files.createTempFile(
+					path.getParent(), path.getFileName() + ".tmp.", null);
 			try (java.io.OutputStream out = new java.io.BufferedOutputStream(
 					java.nio.file.Files.newOutputStream(tmp), 1 << 16)) {
 				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.allocate(64 * 1024)

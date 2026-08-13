@@ -984,6 +984,8 @@ public final class RaceGame {
 	/** Activated when the Undo button is clicked. */
 	public void clickedUndo() {
 		if (gamestate == GameState.DRAWTRACK) {
+			if (track == null)
+				return;
 			if (subgamestate == 0)
 				track.removeLastLeft();
 			else
