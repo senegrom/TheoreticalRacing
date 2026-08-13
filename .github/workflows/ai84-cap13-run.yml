@@ -1,0 +1,40 @@
+name: AI84 cap13 run
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-84
+    paths:
+      - .github/workflows/ai84-cap13-run.yml
+
+permissions:
+  contents: read
+
+jobs:
+  screen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Compare cap 13 with Round 83 master
+        env:
+          RACING_REACH_CACHE: ${{ runner.temp }}/ai84-reach-cache
+        run: python tracks/ai84_energy_screen.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai84-energy-cap13-screen
+          path: |
+            ai84-energy-screen.json
+            ai84-energy-screen.txt
+          if-no-files-found: error
+          retention-days: 7
