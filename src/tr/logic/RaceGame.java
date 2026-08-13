@@ -615,6 +615,11 @@ public final class RaceGame {
 
 	final static int		AI_MAX_SPEED	= 12;
 
+	/** Direct comparisons avoid Math.abs(Integer.MIN_VALUE) wrapping negative. */
+	static boolean aiVelocityOutOfRange(final int vx, final int vy) {
+		return vx < -AI_MAX_SPEED || vx > AI_MAX_SPEED || vy < -AI_MAX_SPEED || vy > AI_MAX_SPEED;
+	}
+
 	final RaceAi ai = new RaceAi(this);
 
 	private void autoPlaceAiPlayers() {
@@ -649,8 +654,8 @@ public final class RaceGame {
 		final int yMin = (int) Math.floor(minY), yMax = (int) Math.ceil(maxY);
 		final int playerNum = players[subgamestate].getNumber();
 		final java.util.List<int[]> free = new java.util.ArrayList<>();
-		for (int x = xMin; x <= xMax; x++)
-			for (int y = yMin; y <= yMax; y++) {
+		for (int x = Math.max(0, xMin); x <= Math.min(gameCols, xMax); x++)
+			for (int y = Math.max(0, yMin); y <= Math.min(gameRows, yMax); y++) {
 				if (!startZoneA.contains(x, y))
 					continue;
 				if (isCrashingPlayer(x, y, playerNum))
@@ -806,7 +811,7 @@ public final class RaceGame {
 					final int finished = Integer.parseInt(f[4].trim());
 					if (finished < 0)
 						throw new IllegalArgumentException("Finished marker must be non-negative");
-					if (Math.abs((long) vx) > AI_MAX_SPEED || Math.abs((long) vy) > AI_MAX_SPEED)
+					if (aiVelocityOutOfRange(vx, vy))
 						throw new IllegalArgumentException("Query velocity outside AI planning domain");
 					if (finished == 0) {
 						if (x < 0 || y < 0 || x > gameCols || y > gameRows)
@@ -832,7 +837,7 @@ public final class RaceGame {
 					final int nvx = mv[0] + cd.dx, nvy = mv[1] + cd.dy;
 					final int nx = mp[0] + nvx, ny = mp[1] + nvy;
 					final char c;
-					if (Math.abs(nvx) > AI_MAX_SPEED || Math.abs(nvy) > AI_MAX_SPEED)
+					if (aiVelocityOutOfRange(nvx, nvy))
 						c = 'X';
 					else if (crossesFinish(mp[0], mp[1], nx, ny))
 						c = 'F';

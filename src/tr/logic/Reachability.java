@@ -9,6 +9,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.zip.CheckedInputStream;
+import java.util.zip.CheckedOutputStream;
+import java.util.zip.CRC32;
 
 /**
  * Track reachability solver extracted from {@link RaceGame}: the reverse-BFS
@@ -93,7 +96,7 @@ final class Reachability {
 		return ((x * aliveH + y) * aliveSpan + (vx + aliveVMAX)) * aliveSpan + (vy + aliveVMAX);
 	}
 
-	private boolean velocityOutOfRange(final int vx, final int vy) {
+	boolean velocityOutOfRange(final int vx, final int vy) {
 		return vx < -aliveVMAX || vx > aliveVMAX || vy < -aliveVMAX || vy > aliveVMAX;
 	}
 
@@ -597,8 +600,10 @@ final class Reachability {
 	// live outside the install dir (TrackIO.reachCacheDir) so multi-MB caches
 	// never land in cloud-synced folders.
 
-	private static final int CACHE_MAGIC = 0x54524331; // "TRC1"
+	// TRC2 appends a CRC32 so valid-looking, same-size corruption cannot alter AI decisions.
+	private static final int CACHE_MAGIC = 0x54524332; // "TRC2"
 	private static final int CACHE_HEADER_BYTES = 4 * Integer.BYTES;
+	private static final int CACHE_CHECKSUM_BYTES = Integer.BYTES;
 	private static final int CACHE_IO_BYTES = 64 * 1024;
 	private static final int CACHE_DIRECTION_MASK = (1 << Direction.values().length) - 1;
 
@@ -647,7 +652,7 @@ final class Reachability {
 		if (stateCount > Integer.MAX_VALUE)
 			return false;
 		final long expectedBytes = CACHE_HEADER_BYTES
-				+ stateCount * (Integer.BYTES + Short.BYTES);
+				+ stateCount * (Integer.BYTES + Short.BYTES) + CACHE_CHECKSUM_BYTES;
 		try {
 			if (Files.size(path) != expectedBytes)
 				return false;
@@ -662,15 +667,7 @@ final class Reachability {
 		final int[] turns = new int[total];
 		final short[] legalAlive = new short[total];
 		try (InputStream in = new java.io.BufferedInputStream(Files.newInputStream(path), CACHE_IO_BYTES)) {
-			final byte[] ioBuffer = new byte[CACHE_IO_BYTES];
-			if (in.readNBytes(ioBuffer, 0, CACHE_HEADER_BYTES) != CACHE_HEADER_BYTES)
-				return false;
-			final ByteBuffer hb = ByteBuffer.wrap(ioBuffer, 0, CACHE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN);
-			if (hb.getInt() != CACHE_MAGIC || hb.getInt() != w || hb.getInt() != h || hb.getInt() != vmax)
-				return false;
-			if (!readLittleEndian(in, turns, ioBuffer))
-				return false;
-			if (!readLittleEndian(in, legalAlive, ioBuffer) || in.read() != -1)
+			if (!readCacheData(in, w, h, vmax, turns, legalAlive))
 				return false;
 		} catch (final IOException e) {
 			return false;
@@ -699,16 +696,47 @@ final class Reachability {
 		if (path == null)
 			return;
 		try {
-			TrackIO.writeAtomically(path, out -> {
-				final ByteBuffer buffer = ByteBuffer.allocate(CACHE_IO_BYTES).order(ByteOrder.LITTLE_ENDIAN);
-				buffer.putInt(CACHE_MAGIC).putInt(aliveW).putInt(aliveH).putInt(aliveVMAX);
-				writeLittleEndian(out, buffer, turnsArr);
-				writeLittleEndian(out, buffer, legalAlive);
-				flush(out, buffer);
-			});
+			TrackIO.writeAtomically(path, out ->
+					writeCacheData(out, aliveW, aliveH, aliveVMAX, turnsArr, legalAlive));
 		} catch (final IOException e) {
 			System.err.println("[reachability] cache write failed: " + e);
 		}
+	}
+
+	static boolean readCacheData(final InputStream in, final int w, final int h, final int vmax,
+			final int[] turns, final short[] legalAlive) throws IOException {
+		if (turns.length != legalAlive.length)
+			return false;
+		final CRC32 checksum = new CRC32();
+		final CheckedInputStream checked = new CheckedInputStream(in, checksum);
+		final byte[] ioBuffer = new byte[CACHE_IO_BYTES];
+		if (checked.readNBytes(ioBuffer, 0, CACHE_HEADER_BYTES) != CACHE_HEADER_BYTES)
+			return false;
+		final ByteBuffer header = ByteBuffer.wrap(ioBuffer, 0, CACHE_HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN);
+		if (header.getInt() != CACHE_MAGIC || header.getInt() != w || header.getInt() != h || header.getInt() != vmax)
+			return false;
+		if (!readLittleEndian(checked, turns, ioBuffer) || !readLittleEndian(checked, legalAlive, ioBuffer))
+			return false;
+		if (in.readNBytes(ioBuffer, 0, CACHE_CHECKSUM_BYTES) != CACHE_CHECKSUM_BYTES || in.read() != -1)
+			return false;
+		final int stored = ByteBuffer.wrap(ioBuffer, 0, CACHE_CHECKSUM_BYTES)
+				.order(ByteOrder.LITTLE_ENDIAN).getInt();
+		return Integer.toUnsignedLong(stored) == checksum.getValue();
+	}
+
+	static void writeCacheData(final OutputStream out, final int w, final int h, final int vmax,
+			final int[] turns, final short[] legalAlive) throws IOException {
+		if (turns.length != legalAlive.length)
+			throw new IllegalArgumentException("cache array lengths differ");
+		final CRC32 checksum = new CRC32();
+		final CheckedOutputStream checked = new CheckedOutputStream(out, checksum);
+		final ByteBuffer buffer = ByteBuffer.allocate(CACHE_IO_BYTES).order(ByteOrder.LITTLE_ENDIAN);
+		buffer.putInt(CACHE_MAGIC).putInt(w).putInt(h).putInt(vmax);
+		writeLittleEndian(checked, buffer, turns);
+		writeLittleEndian(checked, buffer, legalAlive);
+		flush(checked, buffer);
+		buffer.putInt((int) checksum.getValue());
+		flush(out, buffer);
 	}
 
 	static boolean readLittleEndian(final InputStream in, final int[] values, final byte[] buffer) throws IOException {

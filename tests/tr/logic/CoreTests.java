@@ -2,11 +2,10 @@ package tr.logic;
 
 import java.awt.Color;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -32,7 +31,7 @@ public final class CoreTests {
         testReachabilityFailurePropagation();
         testReachabilityVelocityBounds();
         testReachabilityCacheIO();
-        testAtomicWrite();
+        testAutomaticStartPositionBounds();
         testEmptyTrackUndo();
         tr.gui.GameUITests.run();
         testSegmentIntersection();
@@ -127,7 +126,7 @@ public final class CoreTests {
                     "failed atomic write replaced the previous complete file");
             try (java.util.stream.Stream<java.nio.file.Path> files =
                     java.nio.file.Files.list(target.getParent())) {
-                check(files.noneMatch(file -> file.getFileName().toString().contains(".tmp-")),
+                check(files.noneMatch(file -> file.getFileName().toString().contains(".tmp.")),
                         "atomic writer left a temporary file behind");
             }
         } catch (final InterruptedException error) {
@@ -287,24 +286,33 @@ public final class CoreTests {
     }
 
     private static void testReachabilityVelocityBounds() {
-    final Reachability reach = new Reachability(new RaceGame(new java.util.Properties()));
-    reach.aliveW = 1;
-    reach.aliveH = 1;
-    reach.aliveVMAX = RaceGame.AI_MAX_SPEED;
-    reach.aliveSpan = 2 * reach.aliveVMAX + 1;
-    final int states = reach.aliveSpan * reach.aliveSpan;
-    reach.aliveStates = new java.util.BitSet(states);
-    reach.turnsArr = new int[states];
-    reach.certSq = new byte[states];
-    check(!reach.isAlive(0, 0, Integer.MIN_VALUE, 0),
-            "minimum integer velocity escaped the reachability bound");
-    check(reach.turnsToFinish(0, 0, Integer.MIN_VALUE, 0) == Integer.MAX_VALUE,
-            "minimum integer velocity reached the turns array");
-    check(reach.certBudget(0, 0, Integer.MIN_VALUE, 0) == 0,
-            "minimum integer velocity reached the certified-speed array");
-    check(!reach.isAlive(0, 0, Integer.MAX_VALUE, 0),
-            "maximum integer velocity escaped the reachability bound");
-}
+        check(!RaceGame.aiVelocityOutOfRange(RaceGame.AI_MAX_SPEED, -RaceGame.AI_MAX_SPEED),
+                "AI velocity boundary was rejected");
+        check(RaceGame.aiVelocityOutOfRange(RaceGame.AI_MAX_SPEED + 1, 0),
+                "AI velocity above the boundary was accepted");
+        check(RaceGame.aiVelocityOutOfRange(Integer.MIN_VALUE, 0),
+                "minimum integer velocity escaped the AI bound");
+        check(RaceGame.aiVelocityOutOfRange(Integer.MAX_VALUE, 0),
+                "maximum integer velocity escaped the AI bound");
+
+        final Reachability reach = new Reachability(new RaceGame(new java.util.Properties()));
+        reach.aliveW = 1;
+        reach.aliveH = 1;
+        reach.aliveVMAX = RaceGame.AI_MAX_SPEED;
+        reach.aliveSpan = 2 * reach.aliveVMAX + 1;
+        final int states = reach.aliveSpan * reach.aliveSpan;
+        reach.aliveStates = new java.util.BitSet(states);
+        reach.turnsArr = new int[states];
+        reach.certSq = new byte[states];
+        check(!reach.isAlive(0, 0, Integer.MIN_VALUE, 0),
+                "minimum integer velocity escaped the reachability bound");
+        check(reach.turnsToFinish(0, 0, Integer.MIN_VALUE, 0) == Integer.MAX_VALUE,
+                "minimum integer velocity reached the turns array");
+        check(reach.certBudget(0, 0, Integer.MIN_VALUE, 0) == 0,
+                "minimum integer velocity reached the certified-speed array");
+        check(!reach.isAlive(0, 0, Integer.MAX_VALUE, 0),
+                "maximum integer velocity escaped the reachability bound");
+    }
 
     private static void testReachabilityFailurePropagation() {
         final RaceGame game = new RaceGame(new java.util.Properties());
@@ -370,49 +378,55 @@ public final class CoreTests {
                 "unreachable cache state retained a successor mask");
         check(!Reachability.validateCacheArrays(new int[]{1}, new short[]{1 << 9}, new BitSet()),
                 "cache mask accepted a non-direction bit");
+
+        final int[] cacheTurns = {1, Integer.MAX_VALUE, 3};
+        final short[] cacheMasks = {1, 0, 0x101};
+        try {
+            final ByteArrayOutputStream encoded = new ByteArrayOutputStream();
+            Reachability.writeCacheData(encoded, 2, 3, RaceGame.AI_MAX_SPEED, cacheTurns, cacheMasks);
+            final byte[] cache = encoded.toByteArray();
+            final int[] decodedTurns = new int[cacheTurns.length];
+            final short[] decodedMasks = new short[cacheMasks.length];
+            check(Reachability.readCacheData(new ByteArrayInputStream(cache), 2, 3,
+                    RaceGame.AI_MAX_SPEED, decodedTurns, decodedMasks), "checksummed cache round-trip failed");
+            check(Arrays.equals(cacheTurns, decodedTurns) && Arrays.equals(cacheMasks, decodedMasks),
+                    "checksummed cache round-trip changed data");
+
+            final byte[] corrupted = cache.clone();
+            corrupted[4 * Integer.BYTES] = 2; // turn 1 -> turn 2: structurally valid, checksum-invalid
+            check(!Reachability.readCacheData(new ByteArrayInputStream(corrupted), 2, 3,
+                    RaceGame.AI_MAX_SPEED, new int[cacheTurns.length], new short[cacheMasks.length]),
+                    "same-size cache corruption was accepted");
+            check(!Reachability.readCacheData(
+                    new ByteArrayInputStream(Arrays.copyOf(cache, cache.length - 1)), 2, 3,
+                    RaceGame.AI_MAX_SPEED, new int[cacheTurns.length], new short[cacheMasks.length]),
+                    "truncated checksummed cache was accepted");
+            final byte[] trailing = Arrays.copyOf(cache, cache.length + 1);
+            check(!Reachability.readCacheData(new ByteArrayInputStream(trailing), 2, 3,
+                    RaceGame.AI_MAX_SPEED, new int[cacheTurns.length], new short[cacheMasks.length]),
+                    "checksummed cache accepted trailing data");
+        } catch (final IOException error) {
+            throw new AssertionError("cache checksum test failed", error);
+        }
     }
 
-    private static void testAtomicWrite() {
-        Path directory = null;
+    private static void testAutomaticStartPositionBounds() {
+        final RaceGame game = new RaceGame(new java.util.Properties());
+        game.gameCols = 2;
+        game.gameRows = 2;
+        game.players = new Player[]{new Player("AI", 1, Color.BLUE, Player.Kind.AI1) };
+        game.startZoneA = new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(-3, -3, 5, 5));
         try {
-            directory = Files.createTempDirectory("theoretical-racing-atomic-");
-            final Path target = directory.resolve("nested/state.txt");
-            TrackIO.writeAtomically(target, out -> out.write("complete".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
-            check("complete".equals(Files.readString(target)), "atomic writer lost complete output");
-
-            boolean failed = false;
-            try {
-                TrackIO.writeAtomically(target, out -> {
-                    out.write("partial".getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                    throw new IOException("expected writer failure");
-                });
-            } catch (final IOException expected) {
-                failed = true;
-            }
-            check(failed, "atomic writer swallowed a callback failure");
-            check("complete".equals(Files.readString(target)), "failed atomic write replaced the target");
-            try (java.util.stream.Stream<Path> files = Files.list(target.getParent())) {
-                check(files.noneMatch(path -> path.getFileName().toString().contains(".tmp.")),
-                        "failed atomic write leaked a temporary file");
-            }
-            Files.delete(target);
-            Files.delete(target.getParent());
-            Files.delete(directory);
-            directory = null;
-        } catch (final IOException error) {
-            throw new AssertionError("atomic write test failed", error);
-        } finally {
-            if (directory != null) {
-                try (java.util.stream.Stream<Path> paths = Files.walk(directory)) {
-                    paths.sorted(java.util.Comparator.reverseOrder()).forEach(path -> {
-                        try {
-                            Files.deleteIfExists(path);
-                        } catch (final IOException ignored) {
-                        }
-                    });
-                } catch (final IOException ignored) {
-                }
-            }
+            final java.lang.reflect.Field zone = RaceGame.class.getDeclaredField("startZone");
+            zone.setAccessible(true);
+            zone.set(game, new float[][]{{-2, 1, 1, -2 }, {-2, -2, 1, 1 } });
+            final java.lang.reflect.Method find = RaceGame.class.getDeclaredMethod("findStartPosition");
+            find.setAccessible(true);
+            final int[] position = (int[]) find.invoke(game);
+            check(position != null, "clipped start zone lost every grid position");
+            checkPoint(position, 0, 0);
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("could not arrange automatic start-position test", error);
         }
     }
 

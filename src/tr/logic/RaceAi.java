@@ -155,7 +155,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vx + d.dx;
 			final int newVy = vy + d.dy;
-			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
 				continue;
 			final int newX = x + newVx;
 			final int newY = y + newVy;
@@ -341,7 +341,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
@@ -604,7 +604,7 @@ final class RaceAi {
 				Direction safest = null;
 				for (final Direction d : DIRECTIONS) {
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-					if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+					if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 						continue;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 					if (game.crossesFinish(pos[0], pos[1], nx, ny)) {
@@ -955,7 +955,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
@@ -1052,7 +1052,7 @@ final class RaceAi {
 				if (direction != null) {
 					final int nvx = velocity[0] + direction.dx;
 					final int nvy = velocity[1] + direction.dy;
-					if (Math.abs(nvx) <= RaceGame.AI_MAX_SPEED && Math.abs(nvy) <= RaceGame.AI_MAX_SPEED
+					if (!RaceGame.aiVelocityOutOfRange(nvx, nvy)
 							&& game.isMoveLegalGeometryCached(current[0], current[1], current[0] + nvx, current[1] + nvy)
 							&& !cellOccupiedByPrediction(current[0] + nvx, current[1] + nvy, blocked)) {
 						nx = current[0] + nvx;
@@ -1106,7 +1106,7 @@ final class RaceAi {
 		double best = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -1148,7 +1148,7 @@ final class RaceAi {
 		int countAtMin = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -1196,7 +1196,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
@@ -1237,7 +1237,7 @@ final class RaceAi {
 					break;
 				final int nvx = pvx + direction.dx;
 				final int nvy = pvy + direction.dy;
-				if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 					break;
 				px += nvx;
 				py += nvy;
@@ -1288,7 +1288,7 @@ final class RaceAi {
 		boolean found = false;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -1318,7 +1318,7 @@ final class RaceAi {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -1350,7 +1350,7 @@ final class RaceAi {
 		boolean found = false;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -1392,7 +1392,7 @@ final class RaceAi {
 		boolean found = false;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -1476,7 +1476,7 @@ final class RaceAi {
 		if (direction == null)
 			return false;
 		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
-		if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+		if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 			return false;
 		final int nx = px[i] + nvx, ny = py[i] + nvy;
 		if (game.crossesFinish(px[i], py[i], nx, ny))
@@ -1665,7 +1665,7 @@ final class RaceAi {
 			if (d == chosen)
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (game.crossesFinish(pos[0], pos[1], nx, ny))
@@ -1788,7 +1788,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if (Math.abs(newVx) > RaceGame.AI_MAX_SPEED || Math.abs(newVy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
@@ -2025,7 +2025,7 @@ final class RaceAi {
 				Direction safest = null;
 				for (final Direction d : DIRECTIONS) {
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-					if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+					if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 						continue;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 					if (game.crossesFinish(pos[0], pos[1], nx, ny)) {
@@ -2375,7 +2375,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
@@ -2411,7 +2411,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
@@ -2476,7 +2476,7 @@ final class RaceAi {
 		int n = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = rv[0] + d.dx, nvy = rv[1] + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = rp[0] + nvx, ny = rp[1] + nvy;
 			if (game.crossesFinish(rp[0], rp[1], nx, ny))
@@ -2507,7 +2507,7 @@ final class RaceAi {
 	private Direction findForcedCrashMove(final int[] pos, final int[] vel, final int ri, final int playerNum) {
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (game.crossesFinish(pos[0], pos[1], nx, ny))
@@ -2552,7 +2552,7 @@ final class RaceAi {
 		int bestT = Integer.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (game.crossesFinish(pos[0], pos[1], nx, ny))
@@ -2596,7 +2596,7 @@ final class RaceAi {
 				break;
 			}
 			final int nvx = rvx + d.dx, nvy = rvy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = rx + nvx, ny = ry + nvy;
 			if (game.crossesFinish(rx, ry, nx, ny)) {
@@ -2636,7 +2636,7 @@ final class RaceAi {
 			if (egNodes > AI1_EG_NODES)
 				break;
 			final int nvx = mvx + d.dx, nvy = mvy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = mx + nvx, ny = my + nvy;
 			if (game.crossesFinish(mx, my, nx, ny)) {
@@ -2684,7 +2684,7 @@ final class RaceAi {
 		int escapeCount = 0;
 		for (final Direction direction : DIRECTIONS) {
 			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
@@ -2768,7 +2768,7 @@ final class RaceAi {
 			int cnt = 0;
 			for (final Direction d : DIRECTIONS) {
 				final int nvx = vx + d.dx, nvy = vy + d.dy;
-				if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx, ny = y + nvy;
 				if (game.crossesFinish(x, y, nx, ny)) {
@@ -2787,7 +2787,7 @@ final class RaceAi {
 		double best = 0.0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny)) {
@@ -2873,7 +2873,7 @@ final class RaceAi {
 		int x2 = 0, y2 = 0, x3 = 0, y3 = 0;
 		for (final Direction direction : DIRECTIONS) {
 			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
-			if (Math.abs(nvx) > reach.aliveVMAX || Math.abs(nvy) > reach.aliveVMAX)
+			if (reach.velocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (nx < 0 || ny < 0 || nx >= reach.aliveW || ny >= reach.aliveH)
@@ -2934,7 +2934,7 @@ final class RaceAi {
 		for (final Direction bd : DIRECTIONS) {
 			final int bvx = vx + bd.dx;
 			final int bvy = vy + bd.dy;
-			if (Math.abs(bvx) > RaceGame.AI_MAX_SPEED || Math.abs(bvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(bvx, bvy))
 				continue;
 			final double bSpeed = Math.hypot(bvx, bvy);
 			if (bSpeed > speed)
@@ -2992,7 +2992,7 @@ final class RaceAi {
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			if (Math.hypot(nvx, nvy) > speed)
 				continue; // braking cone only
@@ -3021,14 +3021,14 @@ final class RaceAi {
 		// recursive body, which handles them exactly as before (its in-range
 		// sub-calls hit the maps).
 		final BitSet roomyMap = depth == 0 ? reach.roomy0 : depth == 1 ? reach.roomy1 : null;
-		if (roomyMap != null && Math.abs(vx) <= reach.aliveVMAX && Math.abs(vy) <= reach.aliveVMAX && x >= 0 && y >= 0 && x < reach.aliveW
+		if (roomyMap != null && !reach.velocityOutOfRange(vx, vy) && x >= 0 && y >= 0 && x < reach.aliveW
 				&& y < reach.aliveH)
 			return roomyMap.get(reach.aliveIdx(x, y, vx, vy));
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (Math.abs(nvx) > RaceGame.AI_MAX_SPEED || Math.abs(nvy) > RaceGame.AI_MAX_SPEED)
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
