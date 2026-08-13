@@ -3,6 +3,7 @@ package tr.gui;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
@@ -134,7 +135,7 @@ public final class GameUI {
 		final JPanel directionContainer = new JPanel();
 		final JPanel playerInfoContainer = new JPanel();
 		final JPanel buttonContainer = new JPanel();
-		gridContainer.setLayout(null);
+		gridContainer.setLayout(new BorderLayout());
 		rightContainer.setLayout(new BoxLayout(rightContainer, BoxLayout.Y_AXIS));
 		directionContainer.setLayout(new GridLayout(3, 3, 1, 1));
 		playerInfoContainer.setLayout(new GridLayout(players.length, 3, 5, 5));
@@ -206,19 +207,8 @@ public final class GameUI {
 			}
 		});
 
-		final Dimension minSize = grid.getPreferredSize();
-		grid.setSize(minSize);
-		grid.setMinimumSize(minSize);
-		final Dimension containerSize = gridContainer.getSize();
-		final JScrollPane scroller = new JScrollPane(grid);
-		gridContainer.add(scroller);
-		scroller.setBorder(new LineBorder(null, 0));
-		scroller.setSize(
-				Math.min(containerSize.width,
-						minSize.width + (containerSize.height < minSize.height ? scroller.getVerticalScrollBar().getMinimumSize().width : 0)),
-				Math.min(containerSize.height,
-						minSize.height + (containerSize.width < minSize.width ? scroller.getHorizontalScrollBar().getMinimumSize().height : 0)));
-		scroller.setLocation(Math.max((containerSize.width - minSize.width) / 2, 0), Math.max((containerSize.height - minSize.height) / 2, 0));
+		final JScrollPane scroller = createGridScroller(grid);
+		gridContainer.add(scroller, BorderLayout.CENTER);
 		grid.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(final MouseEvent event) {
@@ -236,6 +226,17 @@ public final class GameUI {
 		frame.requestFocus();
 		frame.repaint();
 		frame.validate();
+	}
+
+	/** Build the scrollable race field without depending on pre-layout component
+	 *  sizes. The centered wrapper keeps small tracks centered; BorderLayout in
+	 *  the caller lets the scroller fill the window after Swing lays it out. */
+	static JScrollPane createGridScroller(final JPanel grid) {
+		final JPanel centeredGrid = new JPanel(new GridBagLayout());
+		centeredGrid.add(grid);
+		final JScrollPane scroller = new JScrollPane(centeredGrid);
+		scroller.setBorder(new LineBorder(null, 0));
+		return scroller;
 	}
 
 	private void createControls() {
