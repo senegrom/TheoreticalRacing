@@ -26,6 +26,8 @@ jobs:
           python-version: '3.13'
       - name: Merge current master with reviewed resolutions
         run: |
+          git config user.name "OpenAI Agent"
+          git config user.email "noreply@openai.com"
           git fetch origin master
           set +e
           git merge --no-commit --no-ff origin/master
@@ -92,8 +94,6 @@ jobs:
       - name: Commit merged frontier
         run: |
           git rm .github/workflows/merge-master-correctness.yml
-          git config user.name "OpenAI Agent"
-          git config user.email "noreply@openai.com"
           git add -A
           git commit -m "Merge master correctness fixes"
           git push origin HEAD:agent/ai-racing-speed-78
