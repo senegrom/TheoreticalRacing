@@ -1420,6 +1420,8 @@ final class RaceAi {
 		long chosenField = Long.MAX_VALUE;
 		Direction best = null;
 		double bestRestDelta = Double.MAX_VALUE;
+		RivalReach energyRectangles = null;
+		ExactRivalReach energyExact = null;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
 			if (turns == Integer.MAX_VALUE || chosenT - turns != 1
@@ -1435,10 +1437,23 @@ final class RaceAi {
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int speed2 = speedSquared(nvx, nvy);
-			if (speed2 >= AI1_DJS_SPD2
-					|| speed2 - chosenSpeed2 > AI1_STAGED_MAX_SPEED2_GAIN)
+			if (speed2 >= AI1_DJS_SPD2)
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			final boolean highEnergy = speed2 - chosenSpeed2 > AI1_STAGED_MAX_SPEED2_GAIN;
+			if (highEnergy) {
+				if (rivalsAhead < 4)
+					continue;
+				if (energyRectangles == null) {
+					energyRectangles = rivalReach(playerNum, AI1_PRIVATE_EXACT_HORIZON + 1);
+					energyExact = new ExactRivalReach(playerNum, energyRectangles);
+				}
+				final int requiredEscapes = unc <= AI1_PRIVATE_EXACT_UNC_MAX
+						? AI1_PRIVATE_EXACT_ESCAPES : AI1_PRIVATE_BASE_ESCAPES;
+				if (!privatePaceCertificate(nx, ny, nvx, nvy, turns, energyExact, 0,
+						AI1_PRIVATE_EXACT_HORIZON, requiredEscapes))
+					continue;
+			}
 			if (sealable(nx, ny, nvx, nvy, playerNum))
 				continue;
 			if (chosenFinal == Integer.MIN_VALUE) {
@@ -1452,8 +1467,12 @@ final class RaceAi {
 				return chosen;
 			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
 					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+			final long candidateField = rolloutFieldCost[0];
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal
-					|| rolloutFieldCost[0] > chosenField)
+					|| candidateField > chosenField)
+				continue;
+			if (highEnergy && (unc <= 0.0
+					|| rivalsAhead >= 5 && candidateField >= chosenField))
 				continue;
 			if (best == null || restDelta < bestRestDelta) {
 				best = d;

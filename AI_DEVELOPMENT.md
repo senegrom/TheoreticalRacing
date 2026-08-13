@@ -16,6 +16,7 @@ python3 tests/ai1_pace_regression.py
 python3 tests/ai1_mixed_safety_regression.py
 python3 tests/ai1_field_neutral_regression.py
 python3 tests/ai1_staged_pace_regression.py
+python3 tests/ai1_energy_pace_regression.py
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
@@ -54,6 +55,15 @@ The manual **AI promotion battery** runs independent stages for:
 - slow synthetic tracks on seeds 1–5
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
+
+## Round 90 frontier candidate: refined high-energy forward packs
+
+Above-cap staged candidates need four rivals ahead plus the existing fail-closed
+exact private-route proof. They must recover nonzero uncertainty; with five or
+more rivals ahead, the field rollout must improve strictly. This retains the
+Nurburgring seed-1 and Interlagos seed-29/47 boundaries while keeping six-move
+Spa seed-17 and Zandvoort seed-44 gains on the current funnel-guarded frontier.
+AI2 and mixed fields are unchanged; seal and danger vetoes remain final.
 
 ## Round 82 frontier candidate: stable three-ahead slow packs
 
