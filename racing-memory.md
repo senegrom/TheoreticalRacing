@@ -48,6 +48,32 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Master correctness/debloat pass (2026-08-13)
+
+SCOPE: ported only behavior-neutral maintenance from the Round-82 PR onto the
+promoted Round-78 champion. No private-lane or staged-pace frontier policy was
+moved into master, and AI1/AI2 remain byte-identical in racing behavior.
+
+CORRECTNESS: `RaceAi`'s recursive-scorer guard was mutable static state. Two
+concurrent `RaceGame` instances in one JVM could therefore suppress each
+other's endgame and danger machinery. The guard is now instance-scoped and a
+core invariant rejects future mutable static fields in `RaceAi`. A second
+master-only audit found two independent defects: the main-window race scroller
+was sized from its container before Swing layout (leaving it 0x0), and failures
+in the background reachability thread were swallowed, causing AI windows to
+poll forever or callers to continue after interruption with a partial map.
+The grid now uses normal layout management with a centered scrollable wrapper;
+reachability completion records and rethrows background failures and fails
+closed on interruption.
+
+DEBLOAT: removed two guaranteed-zero conflict probes, duplicate reachability
+lookups, repeated simulated-board occupancy loops, floating-point work for
+integer speed thresholds, three unused parameters, and inaccurate relative-
+speed helper naming. Squared distances use `long` arithmetic. Headless layout,
+state-isolation and failure-propagation regressions now pin the repaired
+boundaries. The full JDK-25/JDK-26 CI, frozen champion goldens, core tests,
+headless smoke and tooling checks must remain green on the exact master head.
+
 ## OPEN CLASS (2 sites, ONE shape): the deep-horizon commitment class
 
 Both remaining harvest-2 crashes classify IDENTICALLY, and the shape is

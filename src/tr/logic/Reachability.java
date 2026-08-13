@@ -56,6 +56,7 @@ final class Reachability {
 		}
 	}
 
+	private volatile Throwable reachabilityFailure;
 	private volatile boolean reachabilityReady;
 	private Thread reachabilityThread;
 	int[][] distToFinish;
@@ -538,34 +539,47 @@ final class Reachability {
 
 	/** Kick off reverse-BFS reachability on a daemon thread so it doesn't block the UI. */
 	void startReachabilityCompute() {
-		reachabilityReady = false;
+		reachabilityFailure = null;
 		final Thread t = new Thread(() -> {
-			if (!tryLoadReachabilityCache())
-				computeReachability();
-			reachabilityReady = true;
+			try {
+				if (!tryLoadReachabilityCache())
+					computeReachability();
+			} catch (final RuntimeException | Error failure) {
+				reachabilityFailure = failure;
+			} finally {
+				reachabilityReady = true;
+			}
 		}, "reachability-compute");
 		t.setDaemon(true);
 		reachabilityThread = t;
+		reachabilityReady = false; // volatile publication of the new thread/failure state
 		t.start();
 	}
 
-	/** Non-blocking readiness probe (ensureReachabilityReady joins instead). */
+	/** Non-blocking completion probe (ensureReachabilityReady joins and rethrows failures). */
 	boolean isReady() {
 		return reachabilityReady;
 	}
 
-	/** Wait for reachability if the background BFS hasn't finished yet. */
+	/** Wait for reachability and never expose a partial map after interruption or
+	 *  background failure. */
 	void ensureReachabilityReady() {
-		if (reachabilityReady)
-			return;
-		final Thread t = reachabilityThread;
-		if (t == null)
-			return;
-		try {
-			t.join();
-		} catch (final InterruptedException e) {
-			Thread.currentThread().interrupt();
+		if (!reachabilityReady) {
+			final Thread t = reachabilityThread;
+			if (t != null) {
+				try {
+					t.join();
+				} catch (final InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("Interrupted while computing track reachability", e);
+				}
+			}
 		}
+		final Throwable failure = reachabilityFailure;
+		if (failure instanceof RuntimeException runtimeFailure)
+			throw runtimeFailure;
+		if (failure instanceof Error errorFailure)
+			throw errorFailure;
 	}
 
 	// --- Reachability disk cache -----------------------------------------

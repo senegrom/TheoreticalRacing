@@ -18,6 +18,9 @@ public final class CoreTests {
         testEdgeLegalCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
+        testRaceAiStateIsolation();
+        testReachabilityFailurePropagation();
+        tr.gui.GameUITests.run();
         testSegmentIntersection();
         testStartZone();
         TrackDataTests.run();
@@ -133,6 +136,36 @@ public final class CoreTests {
         check(!RaceAi.hasDistinctCover(uniqueEight, 7), "seven opponents cannot cover eight escapes");
         check(!RaceAi.hasDistinctCover(new int[]{1, 1}, 2), "one opponent cannot cover two escapes simultaneously");
         check(RaceAi.hasDistinctCover(new int[]{3, 1}, 2), "matching should reroute a flexible first assignment");
+    }
+
+    private static void testRaceAiStateIsolation() {
+        for (final java.lang.reflect.Field field : RaceAi.class.getDeclaredFields()) {
+            final int modifiers = field.getModifiers();
+            check(!java.lang.reflect.Modifier.isStatic(modifiers)
+                    || java.lang.reflect.Modifier.isFinal(modifiers),
+                    "RaceAi mutable state must be instance-scoped: " + field.getName());
+        }
+    }
+
+    private static void testReachabilityFailurePropagation() {
+        final RaceGame game = new RaceGame(new java.util.Properties());
+        final IllegalStateException expected = new IllegalStateException("expected reachability failure");
+        try {
+            final java.lang.reflect.Field ready = Reachability.class.getDeclaredField("reachabilityReady");
+            final java.lang.reflect.Field failure = Reachability.class.getDeclaredField("reachabilityFailure");
+            ready.setAccessible(true);
+            failure.setAccessible(true);
+            failure.set(game.reach, expected);
+            ready.setBoolean(game.reach, true);
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("could not arrange reachability failure test", error);
+        }
+        try {
+            game.reach.ensureReachabilityReady();
+            throw new AssertionError("background reachability failure was swallowed");
+        } catch (final IllegalStateException actual) {
+            check(actual == expected, "reachability failure identity was not preserved");
+        }
     }
 
     private static void testSegmentIntersection() {
