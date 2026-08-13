@@ -93,11 +93,15 @@ final class Reachability {
 		return ((x * aliveH + y) * aliveSpan + (vx + aliveVMAX)) * aliveSpan + (vy + aliveVMAX);
 	}
 
+	private boolean velocityOutOfRange(final int vx, final int vy) {
+		return vx < -aliveVMAX || vx > aliveVMAX || vy < -aliveVMAX || vy > aliveVMAX;
+	}
+
 	/** True iff (x,y,vx,vy) can reach the finish via some legal sequence of moves. */
 	boolean isAlive(final int x, final int y, final int vx, final int vy) {
 		if (aliveStates == null)
 			return true; // not yet computed — be permissive
-		if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+		if (velocityOutOfRange(vx, vy))
 			return false;
 		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
 			return false;
@@ -108,7 +112,7 @@ final class Reachability {
 	int turnsToFinish(final int x, final int y, final int vx, final int vy) {
 		if (turnsArr == null)
 			return Integer.MAX_VALUE;
-		if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+		if (velocityOutOfRange(vx, vy))
 			return Integer.MAX_VALUE;
 		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
 			return Integer.MAX_VALUE;
@@ -154,7 +158,7 @@ final class Reachability {
 						for (final Direction d : dirs) {
 							final int nvx = vx + d.dx;
 							final int nvy = vy + d.dy;
-							if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
+							if (velocityOutOfRange(nvx, nvy))
 								continue;
 							if (game.crossesFinish(x, y, x + nvx, y + nvy)) {
 								final int idx = aliveIdx(x, y, vx, vy);
@@ -194,7 +198,7 @@ final class Reachability {
 			for (final Direction d : dirs) {
 				final int vx = vxp - d.dx;
 				final int vy = vyp - d.dy;
-				if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+				if (velocityOutOfRange(vx, vy))
 					continue;
 				final int idx = aliveIdx(x, y, vx, vy);
 				if (!aliveStates.get(idx)) {
@@ -270,7 +274,7 @@ final class Reachability {
 			for (int di = 0; di < dirs.length; di++) {
 				final int nvx = vx + dirs[di].dx;
 				final int nvy = vy + dirs[di].dy;
-				if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
+				if (velocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx;
 				final int ny = y + nvy;
@@ -307,7 +311,7 @@ final class Reachability {
 			for (int di = 0; di < dirs.length; di++) {
 				final int nvx = vx + dirs[di].dx;
 				final int nvy = vy + dirs[di].dy;
-				if (Math.abs(nvx) > aliveVMAX || Math.abs(nvy) > aliveVMAX)
+				if (velocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx;
 				final int ny = y + nvy;
@@ -447,7 +451,7 @@ final class Reachability {
 	int certBudget(final int x, final int y, final int vx, final int vy) {
 		if (certSq == null)
 			return 0;
-		if (Math.abs(vx) > aliveVMAX || Math.abs(vy) > aliveVMAX)
+		if (velocityOutOfRange(vx, vy))
 			return 0;
 		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
 			return 0;

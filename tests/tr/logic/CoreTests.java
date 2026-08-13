@@ -30,6 +30,7 @@ public final class CoreTests {
         testDistinctCoverMatching();
         testRaceAiStateIsolation();
         testReachabilityFailurePropagation();
+        testReachabilityVelocityBounds();
         testReachabilityCacheIO();
         testAtomicWrite();
         testEmptyTrackUndo();
@@ -284,6 +285,26 @@ public final class CoreTests {
                     "RaceAi mutable state must be instance-scoped: " + field.getName());
         }
     }
+
+    private static void testReachabilityVelocityBounds() {
+    final Reachability reach = new Reachability(new RaceGame(new java.util.Properties()));
+    reach.aliveW = 1;
+    reach.aliveH = 1;
+    reach.aliveVMAX = RaceGame.AI_MAX_SPEED;
+    reach.aliveSpan = 2 * reach.aliveVMAX + 1;
+    final int states = reach.aliveSpan * reach.aliveSpan;
+    reach.aliveStates = new java.util.BitSet(states);
+    reach.turnsArr = new int[states];
+    reach.certSq = new byte[states];
+    check(!reach.isAlive(0, 0, Integer.MIN_VALUE, 0),
+            "minimum integer velocity escaped the reachability bound");
+    check(reach.turnsToFinish(0, 0, Integer.MIN_VALUE, 0) == Integer.MAX_VALUE,
+            "minimum integer velocity reached the turns array");
+    check(reach.certBudget(0, 0, Integer.MIN_VALUE, 0) == 0,
+            "minimum integer velocity reached the certified-speed array");
+    check(!reach.isAlive(0, 0, Integer.MAX_VALUE, 0),
+            "maximum integer velocity escaped the reachability bound");
+}
 
     private static void testReachabilityFailurePropagation() {
         final RaceGame game = new RaceGame(new java.util.Properties());
