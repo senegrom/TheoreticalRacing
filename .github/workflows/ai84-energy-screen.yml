@@ -25,14 +25,32 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-      - name: Compare provisional energy cap with Round 83 master
+      - name: Prepare exact cap-13 screen
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tracks/ai84_energy_screen.py')
+          text = path.read_text()
+          changes = {
+              'BASE_JAR = Path("/tmp/ai83.jar")': 'BASE_JAR = ROOT / "theoreticRacing-ai83.jar"',
+              'CANDIDATE_JAR = Path("/tmp/ai84.jar")': 'CANDIDATE_JAR = ROOT / "theoreticRacing-ai84.jar"',
+              'AI1_STAGED_MAX_SPEED2_GAIN\\t= 16;': 'AI1_STAGED_MAX_SPEED2_GAIN\\t= 13;',
+              "'candidate': 'energy-cap-16'": "'candidate': 'energy-cap-13'",
+          }
+          for old, new in changes.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected screen text once: {old!r}')
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+      - name: Compare cap 13 with Round 83 master
         env:
           RACING_REACH_CACHE: ${{ runner.temp }}/ai84-reach-cache
         run: python tracks/ai84_energy_screen.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ai84-energy-screen
+          name: ai84-energy-cap13-screen
           path: |
             ai84-energy-screen.json
             ai84-energy-screen.txt
