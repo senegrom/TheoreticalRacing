@@ -27,6 +27,10 @@ jobs:
       - run: sh ./build_main.sh
       - run: python tests/headless_smoke.py
       - run: python tests/golden_races.py
+      - run: python tests/ai1_pace_regression.py
+      - run: python tests/ai1_mixed_safety_regression.py
+      - run: python tests/ai1_field_neutral_regression.py
+      - run: python tests/ai1_staged_pace_regression.py
       - run: python -m compileall -q tracks tests
 
   battery:
