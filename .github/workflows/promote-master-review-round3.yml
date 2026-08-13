@@ -1,0 +1,79 @@
+name: Promote master review round 3
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-78
+    paths:
+      - .github/workflows/promote-master-review-round3.yml
+
+permissions:
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Materialize reviewed candidate on exact master
+        run: |
+          base64 --decode .review/master-round3-code.patch.gz.b64 | gzip -dc > /tmp/master-round3.patch
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "e7126ee3ea53ffc2889961caa70b8984129a94e7"
+          git checkout -B master origin/master
+          git apply --check /tmp/master-round3.patch
+          git apply /tmp/master-round3.patch
+          git diff --check
+      - name: Verify candidate
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python -m compileall -q tracks tests
+          python -m unittest discover -s tests -p 'test_*.py'
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh
+          git diff --check
+      - name: Exercise cache write, load and corruption fallback
+        run: |
+          work="$(mktemp -d)"
+          mkdir -p "$work/cache"
+          RACING_REACH_CACHE="$work/cache" java -Djava.awt.headless=true -jar theoreticRacing.jar \
+            --auto --track sprint --props tracks/bench.properties --log "$work/first.log" --seed 1 > "$work/first.out"
+          RACING_REACH_CACHE="$work/cache" java -Djava.awt.headless=true -jar theoreticRacing.jar \
+            --auto --track sprint --props tracks/bench.properties --log "$work/second.log" --seed 1 > "$work/second.out"
+          grep -q 'cache-hit' "$work/second.out"
+          cmp "$work/first.log" "$work/second.log"
+          cache="$(find "$work/cache" -type f -name 'reach-*.bin' -print -quit)"
+          test -n "$cache"
+          python - "$cache" <<'PY'
+          from pathlib import Path
+          import sys
+          path = Path(sys.argv[1])
+          data = bytearray(path.read_bytes())
+          data[16:20] = (0).to_bytes(4, 'little', signed=True)
+          path.write_bytes(data)
+          PY
+          RACING_REACH_CACHE="$work/cache" java -Djava.awt.headless=true -jar theoreticRacing.jar \
+            --auto --track sprint --props tracks/bench.properties --log "$work/third.log" --seed 1 > "$work/third.out"
+          if grep -q 'cache-hit' "$work/third.out"; then
+            echo 'corrupt cache was accepted' >&2
+            exit 1
+          fi
+          cmp "$work/first.log" "$work/third.log"
+      - name: Commit and push verified master
+        run: |
+          git config user.name "OpenAI Agent"
+          git config user.email "noreply@openai.com"
+          git add -A
+          git commit -m "Further correct and debloat master IO"
+          git push origin HEAD:master
