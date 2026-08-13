@@ -1,0 +1,37 @@
+name: Export last correctness cleanup patch
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-78
+    paths:
+      - .github/workflows/export-last-cleanup-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Export exact cleanup commit
+        run: |
+          git show --format= --binary 524b0fe03bc58b2fbd8be334404e8bae68326e89 > last-cleanup.patch
+          git show --stat --oneline 524b0fe03bc58b2fbd8be334404e8bae68326e89 > last-cleanup-stat.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: last-correctness-cleanup-patch
+          path: |
+            last-cleanup.patch
+            last-cleanup-stat.txt
+          retention-days: 2
+      - name: Remove temporary exporter
+        run: |
+          git config user.name "OpenAI Agent"
+          git config user.email "noreply@openai.com"
+          git rm .github/workflows/export-last-cleanup-patch.yml
+          git commit -m "Remove temporary cleanup exporter"
+          git push origin HEAD:agent/ai-racing-speed-78
