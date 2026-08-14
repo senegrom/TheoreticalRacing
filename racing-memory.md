@@ -157,6 +157,18 @@ The workflow now runs benchmark pipes
 under explicit bash/pipefail so `tee` cannot mask a failed race, and regular
 bench reports show three decimals so a one-move per-band regression is visible.
 
+SELF-TIE CERTIFIED: probe 0/27 (twice), all stages column-identical --
+8car 770/0 x3 at the NEW CANON 62.71/62.67/62.68, h2h 4.500 parity both
+bands, 4car 330/0/61.10, 1v1 110/0/60.34, slow 28/0/104.11. Champion
+baselines re-seeded. ONE new tail-risk site surfaced during
+certification: a mixed 4v4 lemans crash in seeds 6-10, mirrored
+identically in both columns (the mirror holds; the site is
+new-champion territory -- this suite was clean when the composition
+raced the OLD champion, so the all-new mixed field reaches a fresh
+doom). Queued with zandvoort s32. Harvest 3 (8car s46-60, small fields
+s26-35) launches next: the most aggressive champion ever fielded gets
+its unseen-territory tail-risk measured, not assumed.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the
