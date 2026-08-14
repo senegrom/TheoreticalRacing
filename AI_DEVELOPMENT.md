@@ -40,7 +40,7 @@ Reach dumps named `tracks/reach_*.bin` are ignored by Git. The shared `forensics
 - **`policy_matrix.py`** — evaluates cheap simulated policies against known crash sites before Java implementation.
 - **`crash_scan.py`** — summarizes crashed players and final speeds.
 - **`extract_baseline.py`** — builds `BENCH_BASELINE` caches so candidate benchmarks can skip the frozen AI2 column. Rebuild caches after every promotion.
-- **`bench_iso.py`** — isolated all-AI battery runner, including 4-car and 2-car modes that `bench_ai.py` does not expose as all-AI comparisons.
+- **`bench_iso.py`** — isolated all-AI battery runner, including 4-car and 2-car modes that `bench_ai.py` does not expose as all-AI comparisons. It always starts from canonical `tracks/bench.properties` (or explicit `RACING_PROPS`) and uses process-unique temp files, so concurrent checkouts cannot corrupt each other's evidence.
 
 `racing-memory.md` keeps the detailed historical campaign record; this file only documents the current workflow.
 
@@ -52,9 +52,35 @@ The manual **AI promotion battery** runs independent stages for:
 - 4v4 mixed AI1/AI2 on the same three seed sets
 - 2v2 on seeds 1–5
 - 1v1 on seeds 1–5
+- homogeneous 4-car and 2-car self-play on seeds 1–5
 - slow synthetic tracks on seeds 1–5
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
+
+## Round 91 frontier candidate: track-progress-aware packs
+
+The staged pace proof used a velocity dot product to decide whether a rival was
+ahead. That is only a local half-plane test: it misclassifies cars across a
+hairpin or on a nearby return straight. AI1 now uses the reachability map's
+distance-to-finish coordinate for this count; AI2 retains the Round-90 rule as
+the frozen standard. Admission remains homogeneous-only and every existing
+private-route, eight-round self/field, seal and downstream danger proof is
+unchanged.
+
+The canonical 22-track eight-car bands remained 770/0 in both columns for
+seeds 1–5, 6–10 and 11–15, with no slower track. Silverstone seed 15 is the
+only result change in those bands: the final finisher completes in 85 rather
+than 86 moves, reducing the exact finisher-move sum from 585 to 584. Seeds
+16–30 are identical, and the Zandvoort 31–45 doom band is unchanged (seed 32
+remains the sole 6/1 race). Homogeneous 4-car (330/0), homogeneous 2-car
+(110/0), and slow (140/0) batteries are exact ties. The standard Java, golden,
+pace, mixed-safety, field-neutral, staged and energy regressions all pass.
+
+Two narrower alternatives were rejected before this candidate: reopening
+zero-uncertainty high-energy moves under a strict field improvement changed a
+Zandvoort trajectory but no finish result, while sweeping the staged minimum
+from 35 through 30/24/16 likewise produced no aggregate gain. Ranking already
+certified staged candidates by rollout outcome was inert on every pinned case.
 
 ## Round 90 frontier candidate: refined high-energy forward packs
 

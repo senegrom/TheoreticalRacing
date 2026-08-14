@@ -17,7 +17,8 @@ if hasattr(sys.stdout, 'reconfigure'):
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Props/logs must live OFF any cloud-synced directory (OneDrive rewrites
-# wedge long benches); default to the system temp dir.
+# wedge long benches). A caller may select a directory, but filenames remain
+# process-unique so concurrent modes and parallel checkouts cannot collide.
 S = os.environ.get('RACING_WORK_DIR', tempfile.gettempdir())
 
 spec = importlib.util.spec_from_file_location('bench_ai', os.path.join(REPO, 'tracks', 'bench_ai.py'))
@@ -32,10 +33,14 @@ def main(argv):
     seed0 = int(argv[1]) if len(argv) > 1 else 1
     tracks_arg = argv[2:] or None
 
-    m.PROPS = os.path.join(S, 'iso_%s.properties' % mode)
-    m.LOG = os.path.join(S, 'iso_%s.log' % mode)
-    user = os.path.join(REPO, 'user.properties')
-    base = user if os.path.exists(user) else os.path.join(REPO, 'tracks', 'bench.properties')
+    suffix = '%s-%s' % (mode, os.getpid())
+    m.PROPS = os.path.join(S, 'theoretical-racing-%s.properties' % suffix)
+    m.LOG = os.path.join(S, 'theoretical-racing-%s.log' % suffix)
+    # Promotion evidence must not depend on a developer's UI state, custom
+    # last-track geometry, or mixed player kinds from user.properties.
+    base = os.environ.get(
+        'RACING_PROPS', os.path.join(REPO, 'tracks', 'bench.properties')
+    )
     shutil.copy(base, m.PROPS)
     original_set_nplayers = m.set_nplayers
     try:

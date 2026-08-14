@@ -1,6 +1,7 @@
 import contextlib
 import importlib
 import io
+import os
 from pathlib import Path
 import struct
 import tempfile
@@ -156,6 +157,47 @@ class ForensicsCommonTests(unittest.TestCase):
                 self.assertIs(original_setter, fake.set_nplayers)
                 self.assertFalse(Path(fake.PROPS).exists())
                 self.assertFalse(Path(fake.LOG).exists())
+
+    def test_isolated_bench_uses_canonical_props_and_process_unique_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'tracks').mkdir()
+            (root / 'tracks' / 'bench.properties').write_text(
+                'source=canonical\n', encoding='utf-8'
+            )
+            (root / 'user.properties').write_text(
+                'source=user-ui-state\n', encoding='utf-8'
+            )
+            observed = {}
+            original_setter = lambda _n: None
+
+            def bench(_tracks):
+                observed['props'] = Path(fake.PROPS).read_text(encoding='utf-8')
+                observed['props_path'] = Path(fake.PROPS)
+                observed['log_path'] = Path(fake.LOG)
+                return True
+
+            fake = types.SimpleNamespace(
+                DEFAULT_TRACKS=['sprint'],
+                SLOW_TRACKS=['slow'],
+                SEEDS=[],
+                set_nplayers=original_setter,
+                bench=bench,
+                bench_field=lambda *_args: True,
+            )
+            with mock.patch.object(bench_iso, 'REPO', str(root)), \
+                    mock.patch.object(bench_iso, 'S', str(root)), \
+                    mock.patch.object(bench_iso, 'm', fake), \
+                    mock.patch.dict(os.environ, {}, clear=True):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    self.assertTrue(bench_iso.main(['8car', '1', 'sprint']))
+
+            self.assertEqual('source=canonical\n', observed['props'])
+            suffix = f'8car-{os.getpid()}'
+            self.assertIn(suffix, observed['props_path'].name)
+            self.assertIn(suffix, observed['log_path'].name)
+            self.assertFalse(observed['props_path'].exists())
+            self.assertFalse(observed['log_path'].exists())
 
 
 if __name__ == '__main__':

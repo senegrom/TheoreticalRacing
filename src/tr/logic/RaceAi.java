@@ -1445,14 +1445,21 @@ final class RaceAi {
 		// mixed-policy externality proof exists.
 		int rivalsAhead = 0;
 		final Player.Kind stagedMoverKind = moverKind(playerNum);
+		final int moverProgress = reach.distAt(pos[0], pos[1]);
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
 			if (p.getKind() != stagedMoverKind)
 				return chosen;
 			final int[] rivalPos = p.getPosition();
-			if (((long) rivalPos[0] - pos[0]) * vel[0]
-					+ ((long) rivalPos[1] - pos[1]) * vel[1] > 0L)
+			// Round 91 frontier: distance-to-finish is the track's actual
+			// progress coordinate. The old velocity dot product confuses nearby
+			// return straights and hairpins; retain it only for frozen AI2.
+			final boolean ahead = stagedMoverKind == Player.Kind.AI1
+					? reach.distAt(rivalPos[0], rivalPos[1]) < moverProgress
+					: ((long) rivalPos[0] - pos[0]) * vel[0]
+							+ ((long) rivalPos[1] - pos[1]) * vel[1] > 0L;
+			if (ahead)
 				rivalsAhead++;
 		}
 		// Round 82 opens the adjacent three-ahead class, but only after the

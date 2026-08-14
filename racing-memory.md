@@ -62,6 +62,44 @@ corpus) with the new lemans-s1-4p fixture pinning the 4-car rescue.
 All four AI1 pins green post-mirror (mixed-safety improved: places
 22/14). Self-tie battery in flight; certification appended here.
 
+## Round 91 (AI1 frontier, IN GATES): progress-aware staged packs
+
+CAUSE: stagedPaceOverride counted a rival as "ahead" with a velocity
+dot product. That is a local half-plane test, not track order: hairpins
+and adjacent return straights can put a geometrically forward car
+behind on the lap, or vice versa. AI1 now compares the reachability
+map's distance-to-finish coordinate; AI2 retains the promoted r90 rule.
+The arm remains kind-homogeneous-only, and the exact private route,
+8-round self/field comparison, seal guard and final danger veto are
+unchanged.
+
+RESULT: canonical 22-track 8-car bands seeds 1-5, 6-10 and 11-15 are
+770/0 in both columns with ZERO slower tracks. The only result change
+is Silverstone s15: final finisher 86 -> 85, exact sum 585 -> 584.
+Silverstone s16-30 is byte-identical. The Zandvoort s31-45 doom band is
+byte-identical (s32 remains the accepted lone 6/1 race). Homogeneous
+4-car = 330/0 exact tie, homogeneous 2-car = 110/0 exact tie, and slow
+= 140/0 exact tie. Java/core, goldens, pace, mixed-safety,
+field-neutral, staged and energy pins are green. Full mixed promotion
+matrix remains to run before any champion mirror.
+
+REJECTED FIRST: (1) reopening r90 zero-unc high-energy candidates only
+under strict field improvement changed Zandvoort s17's line but no
+finish result and did not repair s32; (2) staged minimum-turn sweeps
+35 -> 30 -> 24 -> 16 changed a Le Mans line but produced no aggregate
+pace; (3) ranking already-certified staged candidates by rollout final
+state was inert on every pinned staged case. None of those policies
+remain in source.
+
+HARNESS BUG FOUND/FIXED: bench_iso claimed full isolation but used
+fixed system-temp filenames, so concurrent checkouts could overwrite
+each other's props/logs; it also silently preferred user.properties
+over the canonical benchmark config. Files are now PID-unique and the
+default is tracks/bench.properties (RACING_PROPS remains an explicit
+override). Promotion-gate now includes homogeneous all-AI 4-car and
+2-car jobs; that missing class had previously let the Le Mans 4-car s1
+crash escape the standard mixed-field matrix.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the

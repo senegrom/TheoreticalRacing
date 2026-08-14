@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the Round-82 self-play-only staged-pace boundaries."""
+"""Pin the Round-82/91 self-play-only staged-pace boundaries."""
 
 from pathlib import Path
 import sys
@@ -17,7 +17,7 @@ CASES = {
     ("lemans", 3): 488,
     ("lemans", 11): 486,
     ("spa", 11): 572,
-    ("silverstone", 15): 585,
+    ("silverstone", 15): 584,
     ("silverstone", 18): 589,
     ("coil", 18): 425,
     ("hungaroring", 8): 865,
@@ -29,6 +29,7 @@ CASES = {
 # the three-ahead class must retain the exact integrated-frontier finish list.
 EXACT_MOVES = {
     ("lemans", 3): [65, 67, 69, 70, 71, 72, 74],
+    ("silverstone", 15): [81, 82, 83, 84, 84, 85, 85],
 }
 
 
@@ -78,7 +79,8 @@ def main() -> int:
     print(
         "AI1StagedPaceRegression: OK "
         "(three-ahead Coil/Hungaroring gains; low-speed Hungaroring and "
-        "ambiguous Le Mans vetoes; Silverstone gain; mixed Monaco seed 9 crash-free)"
+        "ambiguous Le Mans vetoes; progress-ranked Silverstone gain; "
+        "mixed Monaco seed 9 crash-free)"
     )
     return 0
 
