@@ -1,0 +1,110 @@
+name: Materialize Round 95 policy layer
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-95-policy-layer
+
+permissions:
+  contents: write
+
+concurrency:
+  group: round95-policy-layer
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.event.head_commit.message == 'Materialize Round 95 policy layer'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+      - name: Reconstruct and apply exact candidate
+        run: |
+          git merge-base --is-ancestor fc0f44d7ff7be30cf71e5ddf98fd8e2bf5a6ad72 HEAD
+          test "$(git hash-object src/tr/logic/RaceAi.java)" = 89cd5f1c456e245332eb4bc7073ecd32cad23dd3
+          cat .round95-policy-layer.patch.b64.{1,2,3,4,5,6} | tr -d '\n' | base64 -d > /tmp/round95-policy-layer.patch
+          printf '%s  %s\n' 8b13b6609558d42f4691d0e222f68f6400c7a04480b590f66ed36cd9d17bf387 /tmp/round95-policy-layer.patch | sha256sum -c -
+          git apply --check /tmp/round95-policy-layer.patch
+          git apply /tmp/round95-policy-layer.patch
+          test "$(git hash-object src/tr/logic/RaceAi.java)" = 9359f82148e1b08d414c47cb4d8e210744d1ae79
+          git diff --check
+      - name: Run deterministic verification
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python -m compileall -q tracks tests
+          python -m unittest discover -s tests -p 'test_*.py'
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh
+      - name: Pin the two recursion-boundary rescues
+        run: |
+          python - <<'PY'
+          import re
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          cache = Path(tempfile.mkdtemp(prefix='round95-cache-'))
+
+          def props(kind: str, target: Path) -> None:
+              text = (root / 'tracks/bench.properties').read_text()
+              text = re.sub(r'^nPlayers=.*$', 'nPlayers=8', text, flags=re.M)
+              for i in range(1, 9):
+                  text = re.sub(rf'^player{i}Kind=.*$', f'player{i}Kind={kind}', text, flags=re.M)
+              target.write_text(text)
+
+          def race(track: str, seed: int, kind: str) -> tuple[int, int]:
+              with tempfile.TemporaryDirectory(prefix='round95-race-') as name:
+                  tmp = Path(name)
+                  prop = tmp / 'race.properties'
+                  log = tmp / 'race.log'
+                  props(kind, prop)
+                  env = dict(__import__('os').environ)
+                  env['RACING_REACH_CACHE'] = str(cache)
+                  run = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / 'theoreticRacing.jar'),
+                      '--auto', '--track', track, '--props', str(prop), '--log', str(log),
+                      '--seed', str(seed),
+                  ], cwd=root, env=env, capture_output=True, text=True, timeout=900)
+                  if run.returncode or not log.exists() or 'Aborting' in run.stdout:
+                      raise SystemExit(f'{track} seed {seed} {kind} failed: {run.stdout[-800:]} {run.stderr[-800:]}')
+                  lines = log.read_text().splitlines()
+                  return sum(' FINISH ' in line for line in lines), sum(' CRASH ' in line for line in lines)
+
+          expected = {
+              ('chicane', 51, 'AI1'): (7, 0),
+              ('chicane', 51, 'AI2'): (6, 1),
+              ('zandvoort', 32, 'AI1'): (7, 0),
+              ('zandvoort', 32, 'AI2'): (6, 1),
+          }
+          for case, wanted in expected.items():
+              got = race(*case)
+              print(case, got)
+              if got != wanted:
+                  raise SystemExit(f'{case}: expected {wanted}, got {got}')
+          PY
+      - name: Commit exact frontier
+        run: |
+          git config user.name 'OpenAI Agent'
+          git config user.email 'noreply@openai.com'
+          git rm .round95-policy-layer.patch.b64.{1,2,3,4,5,6}
+          git add src/tr/logic/RaceAi.java
+          git commit -m 'Round 95: model one real-policy rollout layer'
+          git push origin HEAD:agent/ai-racing-speed-95-policy-layer
