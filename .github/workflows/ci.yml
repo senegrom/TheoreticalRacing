@@ -48,6 +48,7 @@ jobs:
       - run: python tests/ai1_field_neutral_regression.py
       - run: python tests/ai1_staged_pace_regression.py
       - run: python tests/ai1_energy_pace_regression.py
+      - run: python tests/ai1_policy_layer_regression.py
       - name: Verify benchmark failures propagate
         run: |
           if python tracks/bench_ai.py --seeds 1 definitely-not-a-track; then
