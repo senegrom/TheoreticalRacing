@@ -48,6 +48,22 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## Round 90 (local agent, IN GATES): proof-gated high-energy forward packs
+
+Round 90 reopens only the staged pace arm's previous speed-gain cap. A
+high-energy candidate must have at least four rivals ahead, pass the existing
+fail-closed exact private-route certificate, and recover nonzero uncertainty.
+With five or more rivals ahead its eight-round scorer-field cost must improve
+strictly; the existing seal and danger vetoes remain final. AI2 is untouched.
+
+The exact regression pins Nurburgring s1 and Interlagos s29/s47 to their
+unchanged finish lists, while Spa s17 and Zandvoort s44 each save six finisher
+moves (583 -> 577 and 1001 -> 995). The critical Zandvoort s31-45 band retains
+the Round-83 safety boundary at 104 finishes / 1 crash while improving mean
+finisher moves 142.17 vs frozen AI2's 146.23. Strict Java tests, goldens, smoke,
+and all five AI1 checkpoints pass; the full multi-stage promotion battery is
+the remaining gate before any AI2 mirror.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the

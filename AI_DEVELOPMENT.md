@@ -16,6 +16,7 @@ python3 tests/ai1_pace_regression.py
 python3 tests/ai1_mixed_safety_regression.py
 python3 tests/ai1_field_neutral_regression.py
 python3 tests/ai1_staged_pace_regression.py
+python3 tests/ai1_energy_pace_regression.py
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
@@ -23,6 +24,19 @@ python3 tracks/bench_ai.py --4p --seeds 5
 ```
 
 The golden corpus always drives **AI2**. Changing a fixture is a champion-promotion action, not routine maintenance. `ai_probe.py` is the go/no-go test: it compares normalized AI1/AI2 move logs and reports the first changed decision, so inert experiments are rejected before expensive benchmarking.
+
+## Round 90 frontier candidate: proof-gated high-energy forward packs
+
+Above-cap staged candidates now need at least four rivals ahead plus the
+existing fail-closed exact private-route proof. They must recover nonzero
+uncertainty; with five or more rivals ahead, the field rollout must improve
+strictly. This retains exact Nurburgring seed-1 and Interlagos seed-29/47
+finish lists while saving six finisher moves on both Spa seed 17 and
+Zandvoort seed 44 (583 -> 577 and 1001 -> 995). AI2 and mixed fields are
+unchanged; seal and danger vetoes remain final. Zandvoort seeds 31-45 retain
+the Round-83 safety boundary at
+104 finishes and one crash while improving mean finisher moves by 4.06 versus
+the frozen AI2 champion.
 
 ## Forensic toolchain
 
