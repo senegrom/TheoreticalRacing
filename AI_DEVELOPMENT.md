@@ -75,10 +75,14 @@ move-identical post-mirror.
 The canonical 22-track eight-car bands remained 770/0 in both columns for
 seeds 1–5, 6–10 and 11–15, with no slower track. Silverstone seed 15 is the
 only result change in those bands: the final finisher completes in 85 rather
-than 86 moves, reducing the exact finisher-move sum from 585 to 584. Seeds
-16–30 are identical, and the Zandvoort 31–45 doom band is unchanged (seed 32
-remains the sole 6/1 race). Homogeneous 4-car (330/0), homogeneous 2-car
-(110/0), and slow (140/0) batteries are exact ties. The standard Java, golden,
+than 86 moves, reducing the exact finisher-move sum from 585 to 584. An
+independent integer A/B replayed both versions over all 22 tracks and seeds
+1–15 (660 executions): each produced 2310 finishers and zero crashes, 329 of
+330 race tuples were identical, and total finisher moves fell 144811 ->
+144810. Seeds 16–30 are identical, and the Zandvoort 31–45 doom band is
+unchanged (seed 32 remains the sole 6/1 race). Homogeneous 4-car (330/0),
+homogeneous 2-car (110/0), and slow (140/0) batteries are exact ties. The
+standard Java, golden,
 pace, mixed-safety, field-neutral, staged and energy regressions all pass. The
 expanded pre-mirror mixed battery was place-neutral. Its only crashes were the
 same Le Mans seed-7 player-6 trajectory once in each symmetric ordering, so
@@ -98,6 +102,14 @@ zero-uncertainty high-energy moves under a strict field improvement changed a
 Zandvoort trajectory but no finish result, while sweeping the staged minimum
 from 35 through 30/24/16 likewise produced no aggregate gain. Ranking already
 certified staged candidates by rollout outcome was inert on every pinned case.
+The later exact remote screen confirmed that result on 500 race pairs. A
+certified private-lane runner-up fallback was also rejected after 62 current-
+champion differential pairs were move-identical and isolated instrumentation
+found no rank-1 attempt in its pinned cases; it would add a second scorer
+rollout on rare failures without a demonstrated pace gain. A later
+progress-quorum branch was not ported: it had no differential or faster-race
+evidence, counted ties and rivals up to three distance rings behind as part of
+its quorum, and could invoke extra exact and deep rollouts.
 
 ## Round 92 runtime cleanup: skip a redundant smoke rollout
 

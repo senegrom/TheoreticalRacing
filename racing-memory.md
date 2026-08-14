@@ -81,6 +81,11 @@ seal guard and final danger veto remain unchanged.
 RESULT: canonical 22-track 8-car bands seeds 1-5, 6-10 and 11-15 are
 770/0 in both columns with ZERO slower tracks. The only result change
 is Silverstone s15: final finisher 86 -> 85, exact sum 585 -> 584.
+An independent integer cross-version A/B then replayed all 22 tracks x seeds
+1-15 (660 executions): both versions produced 2310 finishers / 0 crashes;
+329/330 race tuples were identical, the sole delta was Silverstone s15, and
+total finisher moves improved 144811 -> 144810. This closes the rounding gap
+left by the earlier one-decimal reports.
 Silverstone s16-30 is byte-identical. The Zandvoort s31-45 doom band is
 byte-identical (s32 remains the accepted lone 6/1 race). Homogeneous
 4-car = 330/0 exact tie, homogeneous 2-car = 110/0 exact tie, and slow
@@ -115,6 +120,20 @@ finish result and did not repair s32; (2) staged minimum-turn sweeps
 pace; (3) ranking already-certified staged candidates by rollout final
 state was inert on every pinned staged case. None of those policies
 remain in source.
+
+POST-PROMOTION REJECTIONS: the rollout-ranking arm was subsequently screened
+exactly over 500 race pairs (ten tracks x seeds 1-50): all 500 were
+move-identical, net delta zero. The stale-base private runner-up branch passed
+its standard tests but had no active proof. A current-master AI1-only port was
+therefore screened on 62 exact pairs across Sprint, Hairpin, Silverstone,
+Zandvoort, Le Mans, Hungaroring and Monaco; every pair was move-identical.
+Separate isolated instrumentation saw zero rank-1 attempts in Monaco s1,
+Zigzag s1, Cog s1 and the mixed-safety pin. The fallback was removed: it can
+pay for a second scorer rollout when rank 0 fails, but has no demonstrated
+racing gain. The later stale-base progress-quorum branch was also rejected
+without a current port: it had no differential, changed-race or timing
+evidence, counted equal-progress and up-to-three-rings-behind rivals toward
+its quorum, and could add exact-private plus deep scorer work.
 
 HARNESS BUG FOUND/FIXED: bench_iso claimed full isolation but used
 fixed system-temp filenames, so concurrent checkouts could overwrite
