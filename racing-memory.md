@@ -64,7 +64,7 @@ All four AI1 pins green post-mirror (mixed-safety improved: places
 post-mirror identity record; Round 91's expanded matrix below then used this
 body as its comparison standard.
 
-## Rounds 91-92 (promotion candidate, FINAL GATES): faster launch and runtime
+## Rounds 91-92 (PROMOTED): faster launch and runtime
 
 CAUSE: stagedPaceOverride counted a rival as "ahead" with a velocity dot
 product. For a zero-velocity starting-grid car every dot product is zero, so
@@ -91,8 +91,22 @@ crashes; seeds 6-10 were 4.500/4.500 with one crash in each column; 2v2 was
 2.500/2.500, 1v1 1.500/1.500, homogeneous 4-car 330/0, homogeneous 2-car
 110/0, and slow 140/0. The two h2h crashes are the same Le Mans s7 p6
 trajectory in reversed kind order, not a candidate asymmetry. Post-mirror,
-the strict 27-race probe is 27/27 move-identical and all champion goldens pass;
-the final-head parallel matrix remains the last promotion gate.
+the strict 27-race probe is 27/27 move-identical and all champion goldens pass.
+The exact final-head parallel matrix also passed all 12 jobs: 8-car bands are
+770/0 exact self-ties at 62.714, 62.668 and 62.683, with every reported
+per-track delta +0.000; h2h is 4.500/4.500 at crashes 0/0, 1/1 and 0/0;
+2v2 2.500/2.500, 1v1 1.500/1.500, homogeneous 4-car 330/0,
+homogeneous 2-car 110/0, and slow 140/0. CI and CodeQL are green on the exact
+promotion commit.
+
+OPEN MIXED-FIELD SAFETY CLASS: both h2h crashes are Le Mans s7 p6/F and are
+move-identical under reversed kind order. The last rescue is global move 502
+at (13,101), v=(-2,-8): scorer S dies, SW finishes. The ordinary fast smom
+model incorrectly keeps S alive even at eight rounds; the scorer-rival model
+distinguishes S (dead at a four-round horizon) from SW (alive through eight).
+A future arm should therefore test a four-round scorer-rival escalation only
+for fast L2-or-worse, smom-fragile entries with a nearby rival. Merely raising
+the global three-round smom horizon will not repair this class.
 
 REJECTED FIRST: (1) reopening r90 zero-unc high-energy candidates only
 under strict field improvement changed Zandvoort s17's line but no
@@ -117,7 +131,10 @@ five-round smoke simulation first; its boolean could not change whether the
 deeper search ran. Both bodies now skip that redundant smoke call when either
 gate already mandates escalation, retaining it under every debug mode. Seven
 targeted pre/post full logs are byte-identical (Silverstone s15, Hungaroring
-s40, Le Mans s1, Zandvoort s32/s37/s44). The workflow now runs benchmark pipes
+s40, Le Mans s1, Zandvoort s32/s37/s44). Seven interleaved warm-cache
+Hungaroring s40 runs measured 10678.1 -> 10550.5 ms median (1.2%) and
+10638.6 -> 10564.8 ms trimmed mean (0.7%) for the narrowed-r91+r92 build.
+The workflow now runs benchmark pipes
 under explicit bash/pipefail so `tee` cannot mask a failed race, and regular
 bench reports show three decimals so a one-move per-band regression is visible.
 

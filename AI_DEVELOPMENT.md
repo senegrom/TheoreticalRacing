@@ -57,7 +57,7 @@ The manual **AI promotion battery** runs independent stages for:
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
 
-## Round 91 promotion candidate: proof-gated stationary launches
+## Round 91 promoted: proof-gated stationary launches
 
 The staged pace proof used a velocity dot product to decide whether a rival was
 ahead. A stationary car has no velocity half-plane, so the rule could never
@@ -83,7 +83,15 @@ pace, mixed-safety, field-neutral, staged and energy regressions all pass. The
 expanded pre-mirror mixed battery was place-neutral. Its only crashes were the
 same Le Mans seed-7 player-6 trajectory once in each symmetric ordering, so
 they are a pre-existing mixed-field safety gap rather than a Round-91
-asymmetry. Final-head matrix certification remains required after the mirror.
+asymmetry.
+
+The exact post-mirror matrix is a complete self-tie: all three 22-track
+eight-car bands are 770/0 in both columns at 62.714, 62.668 and 62.683 mean
+finisher moves, with every per-track delta `+0.000`. Mixed 4v4 is
+4.500/4.500 in all three bands (crashes 0/0, 1/1, 0/0); 2v2 is
+2.500/2.500, 1v1 1.500/1.500, homogeneous 4-car 330/0, homogeneous 2-car
+110/0, and slow 140/0. The corrected 12-job promotion workflow, CI and CodeQL
+all pass on the exact promoted commit.
 
 Two narrower alternatives were rejected before this candidate: reopening
 zero-uncertainty high-energy moves under a strict field improvement changed a
@@ -100,7 +108,10 @@ that smoke call only when one of those gates already mandates escalation;
 diagnostic runs retain it. The downstream horizon, rival cap, candidate search
 and selected move are unchanged. Pre/post builds produced byte-identical full
 logs on Silverstone seed 15, Hungaroring seed 40, Le Mans seed 1, and
-Zandvoort seeds 32/37/44.
+Zandvoort seeds 32/37/44. Seven interleaved warm-cache Hungaroring seed-40
+runs measured 10.678 s -> 10.551 s median (about 1.2% faster) and
+10.639 s -> 10.565 s trimmed mean (about 0.7% faster) for the final narrowed
+Round-91 plus Round-92 build.
 
 ## Round 90 frontier candidate: refined high-energy forward packs
 
@@ -200,7 +211,7 @@ golden-fixture review and post-promotion self-tie battery.
 
 ## Current champion and frontier baseline
 
-The rounds-79-to-90 pace stack plus the round-83 funnel guards were promoted on 2026-08-14, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its predecessor with a strictly better crash ledger: the full battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The mirror is wholesale; the self-play pace gates now key on kind-homogeneity with the mover rather than AI1-ness, proven move-identical by the strict probe. The champion retains the earlier bounded safety proofs:
+The rounds-79-to-91 pace stack plus the round-83 funnel guards were promoted on 2026-08-14, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 additionally saves one proven Silverstone seed-15 finisher move through a proof-gated stationary launch. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final Round-91 mirror is move-identical across every exact self-tie matrix. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness, proven move-identical by the strict probe. The champion retains the earlier bounded safety proofs:
 
 - Round 75 recovers provably safe finish pace. Within 15 empty-map turns of the flag, a strictly faster low-trap candidate may replace the scorer choice only when both the score-shaped-rival and scorer-rival joint models finish at that candidate's empty-map lower bound. The first partial simulated round is accounted for explicitly, and the normal danger-joint search remains an independent downstream veto. On Monaco eight-car seed 16, this changes two late `S` choices at map ttf 15 to `SW` at ttf 14 and saves two racer-turns without changing the seven-finisher, zero-crash result.
 - Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.
