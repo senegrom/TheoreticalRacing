@@ -60,18 +60,23 @@ off exactly as designed). After the fix: strict probe ALL IDENTICAL
 every fixture legitimately reflowed, 13 cases, ZERO crashes across the
 corpus) with the new lemans-s1-4p fixture pinning the 4-car rescue.
 All four AI1 pins green post-mirror (mixed-safety improved: places
-22/14). Self-tie battery in flight; certification appended here.
+22/14). The strict self-tie probe and champion goldens are the durable
+post-mirror identity record; Round 91's expanded matrix below then used this
+body as its comparison standard.
 
-## Round 91 (AI1 frontier, IN GATES): progress-aware staged packs
+## Rounds 91-92 (promotion candidate, FINAL GATES): faster launch and runtime
 
-CAUSE: stagedPaceOverride counted a rival as "ahead" with a velocity
-dot product. That is a local half-plane test, not track order: hairpins
-and adjacent return straights can put a geometrically forward car
-behind on the lap, or vice versa. AI1 now compares the reachability
-map's distance-to-finish coordinate; AI2 retains the promoted r90 rule.
-The arm remains kind-homogeneous-only, and the exact private route,
-8-round self/field comparison, seal guard and final danger veto are
-unchanged.
+CAUSE: stagedPaceOverride counted a rival as "ahead" with a velocity dot
+product. For a zero-velocity starting-grid car every dot product is zero, so
+the proof-gated pace arm could never open. The first broad experiment used the
+reachability distance heuristic everywhere. Exact debugging then located the
+only measured gain at Silverstone s15, p6's first move at (61,6): N -> NE,
+empty-map TTF 81 -> 80. The promotion candidate was narrowed to that proven
+class: use track-distance ordering only while velocity is (0,0) and the mover
+is still in the start zone; moving cars keep the r90 dot-product rule. Equal
+or unavailable distances fail closed. Both AI bodies now carry the narrowed
+rule. Kind-homogeneity, exact private route, 8-round self/field comparison,
+seal guard and final danger veto remain unchanged.
 
 RESULT: canonical 22-track 8-car bands seeds 1-5, 6-10 and 11-15 are
 770/0 in both columns with ZERO slower tracks. The only result change
@@ -80,8 +85,14 @@ Silverstone s16-30 is byte-identical. The Zandvoort s31-45 doom band is
 byte-identical (s32 remains the accepted lone 6/1 race). Homogeneous
 4-car = 330/0 exact tie, homogeneous 2-car = 110/0 exact tie, and slow
 = 140/0 exact tie. Java/core, goldens, pace, mixed-safety,
-field-neutral, staged and energy pins are green. Full mixed promotion
-matrix remains to run before any champion mirror.
+field-neutral, staged and energy pins are green. The expanded pre-mirror matrix
+also completed: h2h seeds 1-5 and 11-15 were exact 4.500/4.500 with zero
+crashes; seeds 6-10 were 4.500/4.500 with one crash in each column; 2v2 was
+2.500/2.500, 1v1 1.500/1.500, homogeneous 4-car 330/0, homogeneous 2-car
+110/0, and slow 140/0. The two h2h crashes are the same Le Mans s7 p6
+trajectory in reversed kind order, not a candidate asymmetry. Post-mirror,
+the strict 27-race probe is 27/27 move-identical and all champion goldens pass;
+the final-head parallel matrix remains the last promotion gate.
 
 REJECTED FIRST: (1) reopening r90 zero-unc high-energy candidates only
 under strict field improvement changed Zandvoort s17's line but no
@@ -99,6 +110,16 @@ default is tracks/bench.properties (RACING_PROPS remains an explicit
 override). Promotion-gate now includes homogeneous all-AI 4-car and
 2-car jobs; that missing class had previously let the Le Mans 4-car s1
 crash escape the standard mixed-field matrix.
+
+ROUND 92 CPU CLEANUP: dense-slow-pack and static-funnel risks already force a
+scorer-rival danger search. The old code nevertheless paid for a separate
+five-round smoke simulation first; its boolean could not change whether the
+deeper search ran. Both bodies now skip that redundant smoke call when either
+gate already mandates escalation, retaining it under every debug mode. Seven
+targeted pre/post full logs are byte-identical (Silverstone s15, Hungaroring
+s40, Le Mans s1, Zandvoort s32/s37/s44). The workflow now runs benchmark pipes
+under explicit bash/pipefail so `tee` cannot mask a failed race, and regular
+bench reports show three decimals so a one-move per-band regression is visible.
 
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 

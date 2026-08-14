@@ -79,7 +79,7 @@ def main() -> int:
     print(
         "AI1StagedPaceRegression: OK "
         "(three-ahead Coil/Hungaroring gains; low-speed Hungaroring and "
-        "ambiguous Le Mans vetoes; progress-ranked Silverstone gain; "
+        "ambiguous Le Mans vetoes; stationary-grid Silverstone gain; "
         "mixed Monaco seed 9 crash-free)"
     )
     return 0

@@ -940,7 +940,13 @@ final class RaceAi {
 						System.err.println("AIDBG RING p=" + playerNum + " land=(" + scx + "," + scy
 								+ ") spdInf=" + slowSpdInf + " span=" + funnelSpan + " minRing="
 								+ reach.minRingWidthAhead(scx, scy, funnelSpan));
-					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
+					// Round 92: dense-pack and funnel risks already force the
+					// following scorer rollout. Avoid paying for a redundant five-
+					// round smoke simulation unless diagnostics explicitly need it.
+					final boolean smokeRequired = AI_DEBUG_DJS || AI_DEBUG_COMP
+							|| AI_DEBUG_PLAYER >= 0 || !denseSlowPack && !funnelRisk;
+					final boolean smokeDies = smokeRequired
+							&& !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true) < 0;
 					if (denseSlowPack || smokeDies || funnelRisk) {
@@ -1445,6 +1451,8 @@ final class RaceAi {
 		// mixed-policy externality proof exists.
 		int rivalsAhead = 0;
 		final Player.Kind stagedMoverKind = moverKind(playerNum);
+		final boolean stagedLaunch = useTrackDistanceForStagedLaunch(vel[0], vel[1],
+				game.startZoneA.contains(pos[0], pos[1]));
 		final int moverProgress = reach.distAt(pos[0], pos[1]);
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
@@ -1452,11 +1460,13 @@ final class RaceAi {
 			if (p.getKind() != stagedMoverKind)
 				return chosen;
 			final int[] rivalPos = p.getPosition();
-			// Round 91 frontier: distance-to-finish is the track's actual
-			// progress coordinate. The old velocity dot product confuses nearby
-			// return straights and hairpins; retain it only for frozen AI2.
-			final boolean ahead = stagedMoverKind == Player.Kind.AI1
-					? reach.distAt(rivalPos[0], rivalPos[1]) < moverProgress
+			// Round 91: a stationary starting-grid car has no velocity
+			// half-plane, so use the track-distance heuristic for that launch
+			// only. Moving cars retain the promoted geometric rule. Equal or
+			// unavailable map distances fail closed.
+			final boolean ahead = stagedLaunch
+					? isStrictlyAheadByTrackDistance(moverProgress,
+							reach.distAt(rivalPos[0], rivalPos[1]))
 					: ((long) rivalPos[0] - pos[0]) * vel[0]
 							+ ((long) rivalPos[1] - pos[1]) * vel[1] > 0L;
 			if (ahead)
@@ -1956,6 +1966,17 @@ final class RaceAi {
 
 	private static int speedSquared(final int vx, final int vy) {
 		return vx * vx + vy * vy;
+	}
+
+	static boolean isStrictlyAheadByTrackDistance(final int moverDistance,
+			final int rivalDistance) {
+		return moverDistance != Integer.MAX_VALUE && rivalDistance != Integer.MAX_VALUE
+				&& rivalDistance < moverDistance;
+	}
+
+	static boolean useTrackDistanceForStagedLaunch(final int vx, final int vy,
+			final boolean inStartZone) {
+		return inStartZone && vx == 0 && vy == 0;
 	}
 
 	private static int saturatingInt(final long value) {
@@ -3119,7 +3140,13 @@ final class RaceAi {
 						System.err.println("AIDBG RING p=" + playerNum + " land=(" + scx + "," + scy
 								+ ") spdInf=" + slowSpdInf + " span=" + funnelSpan + " minRing="
 								+ reach.minRingWidthAhead(scx, scy, funnelSpan));
-					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
+					// Round 92: dense-pack and funnel risks already force the
+					// following scorer rollout. Avoid paying for a redundant five-
+					// round smoke simulation unless diagnostics explicitly need it.
+					final boolean smokeRequired = AI_DEBUG_DJS || AI_DEBUG_COMP
+							|| AI_DEBUG_PLAYER >= 0 || !denseSlowPack && !funnelRisk;
+					final boolean smokeDies = smokeRequired
+							&& !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true) < 0;
 					if (denseSlowPack || smokeDies || funnelRisk) {

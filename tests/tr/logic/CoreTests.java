@@ -27,6 +27,7 @@ public final class CoreTests {
         testEdgeLegalCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
+        testTrackDistanceOrdering();
         testRaceAiStateIsolation();
         testReachabilityFailurePropagation();
         testReachabilityVelocityBounds();
@@ -450,6 +451,25 @@ public final class CoreTests {
         game.clickedUndo();
         check(game.track.getLeft().isEmpty() && game.track.getRight().isEmpty(),
                 "undo on an empty border changed track state");
+    }
+
+    private static void testTrackDistanceOrdering() {
+        check(RaceAi.isStrictlyAheadByTrackDistance(20, 19),
+                "a smaller finite track distance should be strictly ahead");
+        check(!RaceAi.isStrictlyAheadByTrackDistance(20, 20),
+                "equal track-distance rings must not count as ahead");
+        check(!RaceAi.isStrictlyAheadByTrackDistance(20, 21),
+                "a larger track distance must not count as ahead");
+        check(!RaceAi.isStrictlyAheadByTrackDistance(Integer.MAX_VALUE, 19),
+                "an unavailable mover distance must fail closed");
+        check(!RaceAi.isStrictlyAheadByTrackDistance(20, Integer.MAX_VALUE),
+                "an unavailable rival distance must fail closed");
+        check(RaceAi.useTrackDistanceForStagedLaunch(0, 0, true),
+                "a stationary start-zone car should use track-distance ordering");
+        check(!RaceAi.useTrackDistanceForStagedLaunch(1, 0, true),
+                "a moving start-zone car should retain velocity ordering");
+        check(!RaceAi.useTrackDistanceForStagedLaunch(0, 0, false),
+                "a stopped car outside the start zone should retain velocity ordering");
     }
 
     private static void testAiTurnRejectsManualDirection() {

@@ -234,11 +234,11 @@ def bench(tracks):
         f1, c1, m1 = r1
         f2, c2, m2 = r2
         diff = m1 - m2
-        print(f'{t:18} | {f1}/{c1} mv={m1:5.1f}  | {f2}/{c2} mv={m2:5.1f}  | {diff:+.1f}')
+        print(f'{t:18} | {f1}/{c1} mv={m1:7.3f} | {f2}/{c2} mv={m2:7.3f} | {diff:+.3f}')
     print('-' * 70)
     f1, c1, m1, _ = results['AI1']
     f2, c2, m2, _ = results['AI2']
-    print(f'{"TOTAL":18} | f={f1} c={c1} mv={m1:.2f} | f={f2} c={c2} mv={m2:.2f} | {m1-m2:+.2f}')
+    print(f'{"TOTAL":18} | f={f1} c={c1} mv={m1:.3f} | f={f2} c={c2} mv={m2:.3f} | {m1-m2:+.3f}')
     return valid
 
 

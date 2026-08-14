@@ -88,6 +88,7 @@ jobs:
       - name: Build
         run: sh ./build_main.sh
       - name: Run ${{ matrix.label }}
+        shell: bash
         run: ${{ matrix.command }} | tee promotion-report.txt
       - name: Upload report
         uses: actions/upload-artifact@v4

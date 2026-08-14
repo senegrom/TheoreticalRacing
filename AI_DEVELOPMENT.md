@@ -57,15 +57,20 @@ The manual **AI promotion battery** runs independent stages for:
 
 Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
 
-## Round 91 frontier candidate: track-progress-aware packs
+## Round 91 promotion candidate: proof-gated stationary launches
 
 The staged pace proof used a velocity dot product to decide whether a rival was
-ahead. That is only a local half-plane test: it misclassifies cars across a
-hairpin or on a nearby return straight. AI1 now uses the reachability map's
-distance-to-finish coordinate for this count; AI2 retains the Round-90 rule as
-the frozen standard. Admission remains homogeneous-only and every existing
-private-route, eight-round self/field, seal and downstream danger proof is
-unchanged.
+ahead. A stationary car has no velocity half-plane, so the rule could never
+open on the starting grid. The broad first experiment used the reachability
+map's distance-to-finish heuristic throughout, but exact debugging showed that
+the sole measured gain came from player 6's first Silverstone seed-15 move.
+The promotion candidate is therefore narrower: it uses track-distance ordering
+only for a zero-velocity car still inside the start zone. Moving cars retain
+the Round-90 geometric rule, and equal or unavailable map distances fail
+closed. Admission remains homogeneous-only and every existing private-route,
+eight-round self/field, seal and downstream danger proof is unchanged. The
+same narrowed policy is mirrored into AI1 and AI2; the 27-race strict probe is
+move-identical post-mirror.
 
 The canonical 22-track eight-car bands remained 770/0 in both columns for
 seeds 1–5, 6–10 and 11–15, with no slower track. Silverstone seed 15 is the
@@ -74,13 +79,28 @@ than 86 moves, reducing the exact finisher-move sum from 585 to 584. Seeds
 16–30 are identical, and the Zandvoort 31–45 doom band is unchanged (seed 32
 remains the sole 6/1 race). Homogeneous 4-car (330/0), homogeneous 2-car
 (110/0), and slow (140/0) batteries are exact ties. The standard Java, golden,
-pace, mixed-safety, field-neutral, staged and energy regressions all pass.
+pace, mixed-safety, field-neutral, staged and energy regressions all pass. The
+expanded pre-mirror mixed battery was place-neutral. Its only crashes were the
+same Le Mans seed-7 player-6 trajectory once in each symmetric ordering, so
+they are a pre-existing mixed-field safety gap rather than a Round-91
+asymmetry. Final-head matrix certification remains required after the mirror.
 
 Two narrower alternatives were rejected before this candidate: reopening
 zero-uncertainty high-energy moves under a strict field improvement changed a
 Zandvoort trajectory but no finish result, while sweeping the staged minimum
 from 35 through 30/24/16 likewise produced no aggregate gain. Ranking already
 certified staged candidates by rollout outcome was inert on every pinned case.
+
+## Round 92 runtime cleanup: skip a redundant smoke rollout
+
+The dense-slow-pack and static-funnel gates already force the scorer-rival
+danger search, but both scorer bodies first paid for a separate five-round
+smoke simulation whose result could not change that decision. Round 92 skips
+that smoke call only when one of those gates already mandates escalation;
+diagnostic runs retain it. The downstream horizon, rival cap, candidate search
+and selected move are unchanged. Pre/post builds produced byte-identical full
+logs on Silverstone seed 15, Hungaroring seed 40, Le Mans seed 1, and
+Zandvoort seeds 32/37/44.
 
 ## Round 90 frontier candidate: refined high-energy forward packs
 
