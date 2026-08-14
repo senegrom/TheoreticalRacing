@@ -125,6 +125,31 @@ runs measured 10.678 s -> 10.551 s median (about 1.2% faster) and
 10.639 s -> 10.565 s trimmed mean (about 0.7% faster) for the final narrowed
 Round-91 plus Round-92 build.
 
+## Round 93: sparse fast-trap scorer recheck
+
+The remaining mixed Le Mans seed-7 crash sat just beyond two existing model
+boundaries. At global move 502, player 6 was at `(13,101)`, velocity
+`(-2,-8)`. The selected `S` landing had trap tier exactly L2 and one rival
+within Chebyshev distance 10. The normal three-round smom check kept it alive
+but at final tier 1; the real-scorer-rival model proved it dead in round four
+and kept `SW` alive. The new arm therefore applies only to a fast exact-L2
+landing with one or two nearby rivals whose normal three-round verdict is
+alive but final tier at most 1. Larger packs retain the established eight-
+round machinery. A four-round, three-rival scorer recheck remains
+survival-only and is mirrored in both AI bodies.
+
+In both kind orderings, move 502 changes `S` to `SW`, player 6 finishes at
+move 563/place 5, and the old symmetric 1/1 crashes become 0/0 while mean
+place remains 4.500/4.500. An isolated old-versus-new corpus covered 1,670
+paired races (3,340 executions): all 330 homogeneous eight-car pairs were
+exact; 658/660 mixed eight-car pairs were exact and the other two were the
+intended Le Mans rescues; homogeneous 4/2-car (220 pairs), mixed 2v2 (220),
+mixed 1v1 (220), and slow synthetic (20) were all exact. The Zandvoort
+seeds 31-45 doom band remains 104/1 in both columns. A 15-pair warm
+exact-behaviour control produced byte-identical logs and no child-JVM CPU
+regression; the repaired seed-7 race itself runs longer because the crashed
+car now remains alive and finishes.
+
 ## Round 90 frontier candidate: refined high-energy forward packs
 
 Above-cap staged candidates need four rivals ahead plus the existing fail-closed
@@ -223,7 +248,7 @@ golden-fixture review and post-promotion self-tie battery.
 
 ## Current champion and frontier baseline
 
-The rounds-79-to-91 pace stack plus the round-83 funnel guards were promoted on 2026-08-14, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 additionally saves one proven Silverstone seed-15 finisher move through a proof-gated stationary launch. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final Round-91 mirror is move-identical across every exact self-tie matrix. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness, proven move-identical by the strict probe. The champion retains the earlier bounded safety proofs:
+The rounds-79-to-93 stack plus the round-83 funnel guards were promoted on 2026-08-14, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 additionally saves one proven Silverstone seed-15 finisher move through a proof-gated stationary launch, and Round 93 removes the symmetric mixed Le Mans seed-7 crashes through a sparse fast-trap scorer recheck. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final mirrored body is move-identical across the strict probe. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness. The champion retains the earlier bounded safety proofs:
 
 - Round 75 recovers provably safe finish pace. Within 15 empty-map turns of the flag, a strictly faster low-trap candidate may replace the scorer choice only when both the score-shaped-rival and scorer-rival joint models finish at that candidate's empty-map lower bound. The first partial simulated round is accounted for explicitly, and the normal danger-joint search remains an independent downstream veto. On Monaco eight-car seed 16, this changes two late `S` choices at map ttf 15 to `SW` at ttf 14 and saves two racer-turns without changing the seven-finisher, zero-crash result.
 - Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.
@@ -234,6 +259,7 @@ The rounds-79-to-91 pace stack plus the round-83 funnel guards were promoted on 
 - Round 73 certifies convergence dooms the smom pre-screen cannot see. When the deep pre-screen reads a fast pack move as alive and non-fragile but at least three rivals sit ahead of the landing (positive dot with the landing velocity), the chosen move is re-verdicted in the scorer-rival world with the rival cap widened from the nearest 3 to 6 — on Interlagos eight-car seed 10 the killers are ranks 4-6 by landing distance while the nearest 3 are the harmless rear queue. The switch stays survival-only. This repaired the round-72 promotion regression (Interlagos 8-car s6-10: 769/1 back to 770/0, and the mixed-field crash to zero) with exact ties on every other battery stage.
 - Round 74 covers the complementary compressed-rear-queue shape. When all seven rivals are within the deep-pack radius, at most one is ahead, at least two rival bodies already occupy the mover's neutral 3x3 landing grid, and a near-equal low-trap escape exists, the same widened scorer-rival certificate arbitrates the move. On Zigzag eight-car seed 22, the smom model incorrectly keeps `S` alive at move 72; the scorer-rival model proves it dead within two rounds and keeps `NW` alive, preventing player 8's move-104 crash. The trigger was seen only 13 times in a 129-race harvest and changed only the failing target.
 - Round 78 repairs two stacked fidelity gaps found by the second fresh-seed harvest. The round-60 slow smoke test now runs the scorer-rival world instead of the smom proxy (a chaser converging from behind lands in the round-59 nearest-rival set, so behind-convergence dooms are finally visible), and the slow escalation certifies alternatives with a scorer-modeled self (`scorerSelf`) because the selfMove proxy killed the only true survivor at Zandvoort seed-45 move 920 in every offline world. One upgrade on existing surfaces — no new trigger gates — eliminated three of the five harvest crashes (Zandvoort s45 and s34, Hungaroring s40) and improved the doom-dense Zandvoort 31-45 band from three crashes to one, with never-worse full gates and both mixed-field bands crash-free.
+- Round 93 covers the sparse fast-L2 fidelity gap. Only one or two nearby rivals, a live-but-tier-1-or-worse three-round smom verdict, and trap exactly L2 may invoke the four-round scorer-rival recheck. On mixed Le Mans seed 7 it changes player 6's move 502 from `S` to `SW`; player 6 then finishes fifth instead of crashing 30 global moves later. Both symmetric kind orderings are repaired, while 1,668 of 1,670 old/new corpus pairs are exact and the other two are precisely those rescues.
 
 The Round 71 four-car Monaco seeds 6–10 slice improves 14 finishes / 1 crash to 15 / 0. Its target 2v2 seed keeps exact 2.500 place parity while changing one AI2 crash to zero AI1 crashes. Round 72 preserves the Le Mans seed-4, Hungaroring seeds 6/20, Monaco four-car seed-9 and Interlagos four-car seeds 3/4 rescue trajectories byte-for-byte. A same-policy A/B over 25 short-track eight-car races found 23 identical logs; the two deliberate seal-guard divergences remained crash-free and had a net zero turn-count change. The existing zigzag seed-4 golden case also remains crash-free and completes two turns sooner (530 instead of 532), so its champion fixture is intentionally updated. In the Nurburgring seed-19 mixed field, AI1 had zero crashes while the pre-promotion AI2 side had one.
 

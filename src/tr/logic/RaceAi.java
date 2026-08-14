@@ -213,6 +213,7 @@ final class RaceAi {
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
 	private final static int		AI1_DJS_ROUNDS	= 3;	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
+	private final static int		AI1_DJS_FAST_FRAGILE_ROUNDS	= 4;	// round 93: faithful-rival recheck for fast L2 landings that are already fragile after the normal 3-round screen
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
@@ -884,9 +885,43 @@ final class RaceAi {
 							}
 						}
 					}
-					if (!deepHandled)
-						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								djSlow, dangerRounds);
+					if (!deepHandled) {
+						boolean fastFragileHandled = false;
+						final int ffx = pos[0] + djvx, ffy = pos[1] + djvy;
+						// Round 93: Le Mans mixed seed 7 exposes a one-round/fidelity
+						// boundary. At a fast L2 landing with a nearby rival, the normal
+						// smom world keeps the chosen line alive but fragile after three
+						// rounds; real scorer rivals kill it in round four and preserve a
+						// different escape. Reuse the normal chosen-move screen while also
+						// collecting its final tier, and pay for the faithful extra round
+						// only on that exact fragile class. A dead smom verdict falls back
+						// to the established selector unchanged.
+						final boolean fastL2 = !djSlow && trapByDir[chosen.ordinal()] == AI1_TRAP_L2
+								&& !game.crossesFinish(pos[0], pos[1], ffx, ffy);
+						final int fastFragileRivals = fastL2
+								? countRivalsWithinCheb(ffx, ffy, playerNum, AI1_SCORER_NEAR) : 0;
+						// Three-or-more nearby rivals already have the deep-pack machinery.
+						if (fastFragileRivals > 0 && fastFragileRivals < AI1_DEEP_PACK) {
+							final int[] ft = rolloutWorkspace().finalTier;
+							ft[0] = 3;
+							final int fastVerdict = simOutcome(ffx, ffy, djvx, djvy, playerNum,
+									AI1_DJS_ROUNDS, true, true, true, false, AI1_SCORER_MAXRIVALS, ft);
+							if (fastVerdict >= 0) {
+								if (ft[0] <= 1) {
+									if (AI_DEBUG_DJS)
+										System.err.println("AIDBG FAST-FRAGILE p=" + playerNum + " pos=("
+												+ pos[0] + "," + pos[1] + ") chosen=" + chosen
+												+ " tier=" + ft[0] + " -> scorer-rival r4");
+									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+											true, AI1_DJS_FAST_FRAGILE_ROUNDS);
+								}
+								fastFragileHandled = true;
+							}
+						}
+						if (!fastFragileHandled)
+							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+									djSlow, dangerRounds);
+					}
 				} else {
 					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
 					// test -- the vacate-optimistic ladder reads roomy at the
@@ -3084,9 +3119,43 @@ final class RaceAi {
 							}
 						}
 					}
-					if (!deepHandled)
-						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								djSlow, dangerRounds);
+					if (!deepHandled) {
+						boolean fastFragileHandled = false;
+						final int ffx = pos[0] + djvx, ffy = pos[1] + djvy;
+						// Round 93: Le Mans mixed seed 7 exposes a one-round/fidelity
+						// boundary. At a fast L2 landing with a nearby rival, the normal
+						// smom world keeps the chosen line alive but fragile after three
+						// rounds; real scorer rivals kill it in round four and preserve a
+						// different escape. Reuse the normal chosen-move screen while also
+						// collecting its final tier, and pay for the faithful extra round
+						// only on that exact fragile class. A dead smom verdict falls back
+						// to the established selector unchanged.
+						final boolean fastL2 = !djSlow && trapByDir[chosen.ordinal()] == AI1_TRAP_L2
+								&& !game.crossesFinish(pos[0], pos[1], ffx, ffy);
+						final int fastFragileRivals = fastL2
+								? countRivalsWithinCheb(ffx, ffy, playerNum, AI1_SCORER_NEAR) : 0;
+						// Three-or-more nearby rivals already have the deep-pack machinery.
+						if (fastFragileRivals > 0 && fastFragileRivals < AI1_DEEP_PACK) {
+							final int[] ft = rolloutWorkspace().finalTier;
+							ft[0] = 3;
+							final int fastVerdict = simOutcome(ffx, ffy, djvx, djvy, playerNum,
+									AI1_DJS_ROUNDS, true, true, true, false, AI1_SCORER_MAXRIVALS, ft);
+							if (fastVerdict >= 0) {
+								if (ft[0] <= 1) {
+									if (AI_DEBUG_DJS)
+										System.err.println("AIDBG FAST-FRAGILE p=" + playerNum + " pos=("
+												+ pos[0] + "," + pos[1] + ") chosen=" + chosen
+												+ " tier=" + ft[0] + " -> scorer-rival r4");
+									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+											true, AI1_DJS_FAST_FRAGILE_ROUNDS);
+								}
+								fastFragileHandled = true;
+							}
+						}
+						if (!fastFragileHandled)
+							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+									djSlow, dangerRounds);
+					}
 				} else {
 					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
 					// test -- the vacate-optimistic ladder reads roomy at the

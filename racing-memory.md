@@ -169,6 +169,38 @@ doom). Queued with zandvoort s32. Harvest 3 (8car s46-60, small fields
 s26-35) launches next: the most aggressive champion ever fielded gets
 its unseen-territory tail-risk measured, not assumed.
 
+## Round 93 (PROMOTED): mixed Le Mans sparse fast-trap repair
+
+CAUSE: mixed Le Mans s7 p6 reached g502 at (13,101), v=(-2,-8). Scorer `S`
+lands (11,94), v=(-2,-7), trap exactly L2=0.5, with exactly one rival inside
+Cheb10 (p7 at distance 3). The normal smom3 world reports ALIVE/finalTier=1
+and therefore keeps it; the scorer-rival world reports S dead at a four-round
+horizon while SW survives. Reality matches the latter: S crashes at g532;
+SW lands (10,94), v=(-3,-7), and p6 finishes g563/place5. The same p6
+trajectory existed in both reversed kind orderings, so both scorer bodies had
+to change.
+
+INSTRUMENT: after existing funnel/deep-pack handling and before ordinary fast
+DJS fallback, only `!djSlow`, trap exactly L2, one or two rivals within
+Cheb10, and a smom3 verdict that is alive but finalTier<=1 may escalate. The
+chosen move is then re-verdicted with exact self/rivals, real scorer rivals,
+four rounds, cap3, and scorerSelf=false. Switching stays death-only. Packs of
+three or more remain owned by the existing eight-round deep path. On the
+target there are two scorer-r4 checks, one benign earlier check and the g502
+switch.
+
+RESULT: both mixed s7 orderings become exact 18/18 place sums with crashes
+0/0; mean place remains 4.500/4.500. Exact old-05de452 versus candidate A/B:
+330 homogeneous 8-car pairs exact; 660 mixed 8-car pairs with 658 exact and
+only the two symmetric target rescues changed; homogeneous 4/2-car 220/220
+exact; mixed 2v2 220/220 exact; mixed 1v1 220/220 exact; slow 20/20 exact.
+That is 1,670 pairs / 3,340 executions, 1,668 exact and two intended safety
+repairs, with zero invalid races. Zandvoort s31-45 stays 104/1 in both
+columns. A clean 15-pair warm Le Mans s6 control was byte-identical and showed
+no child-JVM CPU regression; do not call the noisier wall result a speedup or
+slowdown. The repaired s7 race naturally runs longer because p6 now survives.
+The focused mixed regression pins both orderings, g502 SW and g563 FINISH.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the
