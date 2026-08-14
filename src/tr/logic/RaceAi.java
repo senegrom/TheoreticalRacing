@@ -3092,10 +3092,38 @@ final class RaceAi {
 										if (game.crossesFinish(pos[0], pos[1], ax, ay)
 												|| simOutcome(ax, ay, avx, avy, playerNum, AI1_DEEP_HORIZON,
 														true, true, true, true) >= 0) {
-											deepChoice = smomAlt;
-											if (AI_DEBUG_DJS)
-												System.err.println("AIDBG DEEP p=" + playerNum
-														+ " cross-model SWITCH " + chosen + " -> " + smomAlt);
+											// Round 95: the topology-shaped model can false-kill a genuinely
+											// faster line. In a large homogeneous field, retain an exact-L2,
+											// zero-uncertainty, one-turn-faster chosen move only when the same
+											// eight-round scorer-rival world proves strict improvement for both
+											// the mover and aggregate field. Ambiguity keeps the old switch.
+											boolean retainChosen = false;
+											if (trapByDir[chosen.ordinal()] == AI1_TRAP_L2
+													&& uncByDir[chosen.ordinal()] == 0.0
+													&& poTByDir[chosen.ordinal()] + 1 == poTByDir[smomAlt.ordinal()]
+													&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
+													&& kindHomogeneousField(playerNum)) {
+												final int chosenFinal = scorerFieldOutcome(dcx, dcy, djvx, djvy,
+														playerNum, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS,
+														rolloutFieldCost);
+												final long chosenField = rolloutFieldCost[0];
+												final int altFinal = scorerFieldOutcome(ax, ay, avx, avy, playerNum,
+														AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+												final long altField = rolloutFieldCost[0];
+												retainChosen = chosenFinal >= 0 && altFinal >= 0
+														&& chosenFinal < altFinal && chosenField < altField;
+												if (AI_DEBUG_DJS && retainChosen)
+													System.err.println("AIDBG DEEP p=" + playerNum
+															+ " retain faster cross-model line " + chosen + " over "
+															+ smomAlt + " self " + chosenFinal + " < " + altFinal
+															+ " field " + chosenField + " < " + altField);
+											}
+											if (!retainChosen) {
+												deepChoice = smomAlt;
+												if (AI_DEBUG_DJS)
+													System.err.println("AIDBG DEEP p=" + playerNum
+															+ " cross-model SWITCH " + chosen + " -> " + smomAlt);
+											}
 										}
 									}
 								}

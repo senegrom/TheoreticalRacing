@@ -12,7 +12,7 @@ import bench_ai  # noqa: E402
 
 EXPECTED = {
     "AI1": (7, 0, [82, 83, 84, 85, 85, 86, 88]),
-    "AI2": (7, 0, [82, 83, 84, 85, 86, 87, 88]),
+    "AI2": (7, 0, [82, 83, 84, 85, 85, 86, 88]),
 }
 
 
@@ -37,14 +37,14 @@ def main() -> int:
 
     ai1_sum = sum(results["AI1"][2])
     ai2_sum = sum(results["AI2"][2])
-    if ai1_sum >= ai2_sum:
+    if ai1_sum != 593 or ai2_sum != 593 or results["AI1"] != results["AI2"]:
         raise SystemExit(
-            f"Round-95 cross-model pace gain lost: AI1 {ai1_sum}, AI2 {ai2_sum}"
+            f"Round-95 champion self-tie lost: AI1 {results['AI1']}, AI2 {results['AI2']}"
         )
 
     print(
         "AI1CrossModelPaceRegression: OK "
-        f"(Silverstone seed 1: {ai1_sum} vs {ai2_sum} finisher moves)"
+        f"(promoted Silverstone seed 1 self-tie at {ai1_sum} finisher moves)"
     )
     return 0
 
