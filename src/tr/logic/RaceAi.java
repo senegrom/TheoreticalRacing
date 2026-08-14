@@ -18,6 +18,7 @@ final class RaceAi {
 	private TwoRoundWorkspace twoRoundWorkspace;
 	private PredictionWorkspace predictionWorkspace;
 	private RolloutWorkspace rolloutWorkspace;
+	private RolloutWorkspace nestedRolloutWorkspace;
 	private final int[] sealEscapes = new int[DIRECTIONS.length * 2];
 	private final int[] sealCover = new int[DIRECTIONS.length];
 	private final int[] sealMatch = new int[Integer.SIZE];
@@ -27,6 +28,7 @@ final class RaceAi {
 	 *  recursion-guarded nested scorer, so those two levels need disjoint rows. */
 	private final CandidateWorkspace outerCandidates = new CandidateWorkspace();
 	private final CandidateWorkspace nestedCandidates = new CandidateWorkspace();
+	private final CandidateWorkspace deepNestedCandidates = new CandidateWorkspace();
 
 	private static final class CandidateWorkspace {
 		final double[] trapByDirection = new double[DIRECTIONS.length];
@@ -121,7 +123,8 @@ final class RaceAi {
 	}
 
 	private CandidateWorkspace candidateWorkspace() {
-		final CandidateWorkspace workspace = inScorerSim ? nestedCandidates : outerCandidates;
+		final CandidateWorkspace workspace = scorerSimDepth == 0 ? outerCandidates
+				: scorerSimDepth == 1 ? nestedCandidates : deepNestedCandidates;
 		workspace.reset();
 		return workspace;
 	}
@@ -261,6 +264,10 @@ final class RaceAi {
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
 	private boolean				inScorerSim;
+	private int					scorerSimDepth;
+	private boolean				allowScorerPolicyLayer;
+	private boolean				fullPolicySelfRollout;
+	private boolean				fullPolicyRivalsRollout;
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -275,6 +282,11 @@ final class RaceAi {
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
 	private final static double	AI1_TRAP_L1		= 2.0;	// trap ladder: 1 safe successor
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
+
+	/** Allow one outer scorer-policy layer while keeping its nested proofs suppressed. */
+	private boolean policyLayersEnabled() {
+		return !inScorerSim || allowScorerPolicyLayer;
+	}
 
 	/**
 	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.9 standard.
@@ -301,7 +313,7 @@ final class RaceAi {
 		// the rival is forced to crash under its best defense) -- the deep
 		// generalization of the 1-ply seal above; unproven values fall through
 		// to the normal scorer (insurance-premium law: no paranoid defense).
-		if (sealRivals == 1 && !inScorerSim) {
+		if (sealRivals == 1 && policyLayersEnabled()) {
 			final Direction eg = endgameSolve(pos, vel, playerNum);
 			if (eg != null) {
 				if (AI_DEBUG_PLAYER == playerNum || AI_DEBUG_DJS)
@@ -550,7 +562,7 @@ final class RaceAi {
 		// penalty, not sealable, and it survives the same 3-round joint
 		// roll-forward DJS trusts. Survival-only asymmetry -- an uncertified
 		// faster line is never taken.
-		if (best != null && !inScorerSim) {
+		if (best != null && policyLayersEnabled()) {
 			final double bestNS = scoreNSByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
@@ -582,7 +594,7 @@ final class RaceAi {
 		// strongest proof owned: zero trap, not sealable, and survival in the
 		// round-59 scorer-rival world (the proof round 52 lacked). Solo flips
 		// have empty scorer sets, so their proofs cost nothing.
-		if (best != null && !inScorerSim) {
+		if (best != null && policyLayersEnabled()) {
 			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
@@ -612,7 +624,7 @@ final class RaceAi {
 		// conservative rival-occupancy proof leaves an empty-track-optimal escape
 		// private, then require the independent real-scorer rollout to agree. The
 		// existing seal and danger guards below keep final veto authority.
-		if (chosen != null && !inScorerSim) {
+		if (chosen != null && policyLayersEnabled()) {
 			chosen = privatePaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
 					trapByDir, uncByDir, poTByDir);
 			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
@@ -673,7 +685,7 @@ final class RaceAi {
 			// the finish at the empty-map lower bound (ttf+1 simulation rounds; the
 			// first partial round contains only players after me). The normal DJS
 			// still runs afterwards, retaining its independent survival veto.
-			if (!inScorerSim) {
+			if (policyLayersEnabled()) {
 				int sprintT = poTByDir[chosen.ordinal()];
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
@@ -730,7 +742,7 @@ final class RaceAi {
 			// (oracle-proven at hungaroring-(64,115) and the lemans-s4
 			// funnel). Fast fires keep the proven smom world at 3 rounds.
 			final boolean djSlow = speedSquared(djvx, djvy) < AI1_DJS_SPD2;
-			if (!inScorerSim) {
+			if (policyLayersEnabled()) {
 				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
 					final int dangerRounds = djSlow && trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
 							? AI1_DJS_SLOW_L1_ROUNDS
@@ -878,8 +890,14 @@ final class RaceAi {
 												+ ") chosen=" + chosen + " ahead=" + aheadNear
 												+ " bodies=" + landingBodies
 												+ " -> certified scorer check");
-									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
+									if (aheadNear >= 6 && packNear == sealRivals
+											&& trapByDir[chosen.ordinal()] == AI1_TRAP_L2
+											&& kindHomogeneousWithMover(playerNum))
+										chosen = policyFieldDangerSearch(pos, vel, playerNum, chosen,
+												AI1_DEEP_HORIZON, sealRivals);
+									else
+										chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+												true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
 									deepHandled = true;
 								}
 							}
@@ -971,6 +989,14 @@ final class RaceAi {
 					final boolean funnelRisk = slowSpdInf >= AI1_FUNNEL_MIN_SPD
 							&& funnelMinRing <= AI1_FUNNEL_WIDTH && slowSpdInf > funnelMinRing
 							&& reach.narrowRunAhead(scx, scy, funnelSpan, AI1_FUNNEL_WIDTH) >= AI1_FUNNEL_RUN;
+					// A large but not whole-field queue can make the real policy accelerate
+					// into a short near-finish pinch that the recursion-guarded self ghost
+					// avoids. Re-run only this homogeneous boundary with one real-policy
+					// mover layer; nested proofs remain suppressed.
+					final boolean partialPolicyQueue = !denseSlowPack && !funnelRisk
+							&& slowSpd2 >= 25 && slowPack >= 5 && slowPack < sealRivals
+							&& chosenT <= 10 && closeEscape && funnelMinRing <= AI1_FUNNEL_WIDTH
+							&& kindHomogeneousWithMover(playerNum);
 					if (AI_DEBUG_DJS && slowSpdInf >= AI1_FUNNEL_MIN_SPD)
 						System.err.println("AIDBG RING p=" + playerNum + " land=(" + scx + "," + scy
 								+ ") spdInf=" + slowSpdInf + " span=" + funnelSpan + " minRing="
@@ -984,6 +1010,14 @@ final class RaceAi {
 							&& !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true) < 0;
+					if (partialPolicyQueue) {
+						if (AI_DEBUG_DJS)
+							System.err.println("AIDBG POLICY-QUEUE p=" + playerNum + " pos=("
+									+ pos[0] + "," + pos[1] + ") chosen=" + chosen
+									+ " nearby=" + slowPack + " -> one-level scorer policy");
+						chosen = policySelfDangerSearch(pos, vel, playerNum, chosen,
+								AI1_DJS_SLOW_ROUNDS, sealRivals);
+					}
 					if (denseSlowPack || smokeDies || funnelRisk) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
@@ -1345,6 +1379,15 @@ final class RaceAi {
 			if (p.getNumber() == playerNum)
 				return p.getKind();
 		return Player.Kind.AI1;
+	}
+
+	private boolean kindHomogeneousWithMover(final int playerNum) {
+		final Player.Kind kind = moverKind(playerNum);
+		for (final Player player : game.players)
+			if (player.getNumber() != playerNum && !player.isFinished()
+					&& player.getKind() != kind)
+				return false;
+		return true;
 	}
 
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
@@ -2209,9 +2252,19 @@ final class RaceAi {
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
 			final ScorerWorkspace workspace) {
+		return scorerMoveOverState(i, px, py, vx, vy, alive, out, workspace, false);
+	}
+
+	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
+			final ScorerWorkspace workspace, final boolean fullPolicy) {
 		final int n = game.players.length;
 		final int ss = game.subgamestate;
 		final boolean previousScorerSim = inScorerSim;
+		final int previousScorerSimDepth = scorerSimDepth;
+		final boolean previousPolicyLayer = allowScorerPolicyLayer;
+		final boolean previousFullPolicySelf = fullPolicySelfRollout;
+		final boolean previousFullPolicyRivals = fullPolicyRivalsRollout;
 		for (int j = 0; j < n; j++) {
 			final Player player = game.players[j];
 			workspace.originalPosition[j] = player.getPosition();
@@ -2234,9 +2287,19 @@ final class RaceAi {
 			}
 			game.subgamestate = i;
 			inScorerSim = true;
+			scorerSimDepth = previousScorerSimDepth + 1;
+			allowScorerPolicyLayer = fullPolicy && !previousScorerSim;
+			// Nested simulations launched by this real-policy layer use the ordinary
+			// recursion-guarded model and a separate rollout workspace.
+			fullPolicySelfRollout = false;
+			fullPolicyRivalsRollout = false;
 			direction = computeAiMove();
 		} finally {
 			inScorerSim = previousScorerSim;
+			scorerSimDepth = previousScorerSimDepth;
+			allowScorerPolicyLayer = previousPolicyLayer;
+			fullPolicySelfRollout = previousFullPolicySelf;
+			fullPolicyRivalsRollout = previousFullPolicyRivals;
 			for (int j = 0; j < n; j++) {
 				final Player player = game.players[j];
 				player.setPosition(workspace.originalPosition[j]);
@@ -2265,6 +2328,11 @@ final class RaceAi {
 
 	private RolloutWorkspace rolloutWorkspace() {
 		final int players = game.players.length;
+		if (scorerSimDepth > 0) {
+			if (nestedRolloutWorkspace == null || nestedRolloutWorkspace.px.length != players)
+				nestedRolloutWorkspace = new RolloutWorkspace(players);
+			return nestedRolloutWorkspace;
+		}
 		if (rolloutWorkspace == null || rolloutWorkspace.px.length != players)
 			rolloutWorkspace = new RolloutWorkspace(players);
 		return rolloutWorkspace;
@@ -2380,13 +2448,17 @@ final class RaceAi {
 				// rivals instead use their recursion-guarded real scorer.
 				final boolean moved;
 				if (i == myIdx)
-					moved = scorerSelf
-							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer)
-							: exactSelf
+					moved = fullPolicySelfRollout
+							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer, true)
+							: scorerSelf
+									? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer)
+									: exactSelf
 									? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move)
 									: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else if (scorerSet[i])
-					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer);
+					moved = fullPolicyRivalsRollout
+							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer, true)
+							: scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer);
 				else if (exactRivals)
 					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
@@ -2432,6 +2504,35 @@ final class RaceAi {
 			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
 					myIdx, px, py, alive);
 		return myFinished ? 0 : reach.turnsToFinish(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+	}
+
+	/** One-level real-policy self rollout for recursion-boundary dooms. */
+	private Direction policySelfDangerSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final int rounds, final int scorerCap) {
+		final boolean previous = fullPolicySelfRollout;
+		fullPolicySelfRollout = true;
+		try {
+			return dangerJointSearch(pos, vel, playerNum, chosen, true, true, true, true,
+					rounds, scorerCap);
+		} finally {
+			fullPolicySelfRollout = previous;
+		}
+	}
+
+	/** One-level real-policy rollout for the mover and its whole nearby field. */
+	private Direction policyFieldDangerSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final int rounds, final int scorerCap) {
+		final boolean previousSelf = fullPolicySelfRollout;
+		final boolean previousRivals = fullPolicyRivalsRollout;
+		fullPolicySelfRollout = true;
+		fullPolicyRivalsRollout = true;
+		try {
+			return dangerJointSearch(pos, vel, playerNum, chosen, true, true, true, true,
+					rounds, scorerCap);
+		} finally {
+			fullPolicySelfRollout = previousSelf;
+			fullPolicyRivalsRollout = previousRivals;
+		}
 	}
 
 	/** Danger joint search (round 40, AI1 only): if the chosen landing DIES in
