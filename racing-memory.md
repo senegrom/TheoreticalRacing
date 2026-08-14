@@ -234,6 +234,45 @@ no child-JVM CPU regression; do not call the noisier wall result a speedup or
 slowdown. The repaired s7 race naturally runs longer because p6 now survives.
 The focused mixed regression pins both orderings, g502 SW and g563 FINISH.
 
+## Round 94 (PROMOTED): homogeneous finish-sprint extension
+
+SOURCE LEAD / HARNESS DEFECT: the stale-base `speed-93-finish20` experiment
+changed only AI1's Round-75 dual-model finish cap from 15 to 20. Its workflow
+reported 0/390 divergences because it searched for `DIVERGENT`; `ai_probe.py`
+prints `DIVERGED`. Raw artifacts actually held 21 changes: 11 faster, nine
+outcome-neutral and one slower. Net was -16 finisher moves, but Le Mans s12
+regressed +4 when the new band selected `NONE`. Full mixed screens on the
+current port stayed crash-free but shifted places on Gear/Big Oval/Spa/Long
+Loop. The unrelated 111-line collective-field rescue was rejected without an
+A/B target: it could worsen the mover, scored all rivals rather than the
+activating forward pack, and added expensive eight-round rollout work.
+
+INSTRUMENT: retain `AI1_FINISH_CERT_TTF=15` as the legacy all-field cap. The
+new `AI1_FINISH_HOMOGENEOUS_TTF=20` band is admitted only when every live rival
+shares the mover's kind and the candidate is not `NONE`. Every established
+certificate remains: strict empty-map TTF improvement, trap<=L1, both the
+score-shaped-rival and scorer-rival worlds finish at the candidate's lower
+bound, then normal DJS remains an independent veto. Kind-relative homogeneity
+keeps the mirrored AI2 body semantically identical.
+
+RESULT: exact current-master A/B over the canonical 22 tracks x seeds1-15 was
+2310/0 in both columns. Of 330 pairs, 312 were trajectory-identical, ten were
+faster, eight changed line with the same finish list, none was slower; finisher
+moves fell 144810 -> 144793. Cog s1-15 contributes another -3 at s14, so the
+345-pair measured corpus is -20 overall (19 changed: 11 faster, 8 neutral).
+An isolated old/current Nurburgring s19 replay adds -1 finisher move: identical
+7/0/order, `[89,90,92,93,95,96,99]` -> `[89,90,92,93,95,96,98]`, with total
+turns 752 -> 750. Its first difference is exactly `SPRINT ... W -> N ttf=16`,
+so the 346-pair measured total is -21 and the golden is intentionally updated.
+Big Oval s7 is the active pin: `[20,21,22,22,22,22,23]` becomes
+`[20,20,21,21,22,22,23]` (move12 N -> NW). Homogeneous 4-car improves
+330/0/61.103 -> 330/0/61.091; homogeneous 2-car is exact 110/0/60.336;
+2v2 and 1v1 remain exact 2.500 and 1.500; slow s1-5 is exact 140/0/104.157;
+Zandvoort s31-45 remains exact 104/1/142.167. After the homogeneity boundary,
+mixed Gear/Big Oval/Spa/Long Loop/Le Mans s1-15 all return 4.500/4.500 c0.
+The mirrored body passes the strict 27/27 identity probe. Permanent tests pin
+the Big Oval gain, Le Mans s12 coast veto, and mixed Gear place neutrality.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the

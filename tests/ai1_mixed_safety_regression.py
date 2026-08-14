@@ -71,9 +71,27 @@ def main() -> int:
                     f"Round-93 mixed Le Mans seed-7 {label} did not finish player 6 in place 5"
                 )
 
+        # Round 94's longer finish sprint is homogeneous-only. The unrestricted
+        # experiment shifted places against the frozen policy on Gear; both grid
+        # orderings must retain exact aggregate parity in a heterogeneous field.
+        gear_totals = {"AI1": [0, 0, 0], "AI2": [0, 0, 0]}
+        for label, kinds in orderings:
+            bench_ai.set_kinds(kinds)
+            result = bench_ai.run_track_h2h("gear", timeout=600, seed=1)
+            if result is None:
+                raise SystemExit(f"Round-94 mixed Gear seed-1 {label} produced no result")
+            for kind in ("AI1", "AI2"):
+                for index, value in enumerate(result[kind]):
+                    gear_totals[kind][index] += value
+        expected_gear = {"AI1": [36, 8, 0], "AI2": [36, 8, 0]}
+        if gear_totals != expected_gear:
+            raise SystemExit(
+                f"Round-94 mixed Gear seed-1 place-boundary regression: {gear_totals}"
+            )
+
     print(
         "AI1MixedSafetyRegression: OK "
-        "(seed 2 crash-free; seed 7 both orderings take SW, p6 finishes, crashes=0/0)"
+        "(Le Mans seeds 2/7 safe; Gear seed 1 mixed place parity pinned)"
     )
     return 0
 

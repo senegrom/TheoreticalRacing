@@ -234,7 +234,8 @@ final class RaceAi {
 	private final static int		AI1_FUNNEL_DEEP_FIELD	= 4;	// round 83: max live rivals for trusting the deep fast-funnel verdict	// round 83: minimum CONSECUTIVE narrow rings -- a short gate (lemans chicane, 1-3 rings) is passable at speed; sustained corridors kill	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
-	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): bounded near-finish sprint; candidate must finish at its empty-map optimum in two independent joint models
+	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
+	private final static int		AI1_FINISH_HOMOGENEOUS_TTF	= 20;	// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
 	private final static int		AI1_PRIVATE_EXACT_HORIZON	= 4;	// round 77: geometry-clipped fallback horizon
 	private final static int		AI1_PRIVATE_BASE_ESCAPES	= 3;	// broad rectangles need the original wide frontier
@@ -678,7 +679,9 @@ final class RaceAi {
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
-					if (d == chosen || t >= sprintT || t > AI1_FINISH_CERT_TTF
+					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
+							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
+									|| !kindHomogeneousField(playerNum)))
 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 						continue;
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
@@ -1345,6 +1348,15 @@ final class RaceAi {
 			if (p.getNumber() == playerNum)
 				return p.getKind();
 		return Player.Kind.AI1;
+	}
+
+	/** Whether every live rival uses the mover's policy kind. */
+	private boolean kindHomogeneousField(final int playerNum) {
+		final Player.Kind kind = moverKind(playerNum);
+		for (final Player p : game.players)
+			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != kind)
+				return false;
+		return true;
 	}
 
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
@@ -2912,7 +2924,9 @@ final class RaceAi {
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
-					if (d == chosen || t >= sprintT || t > AI1_FINISH_CERT_TTF
+					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
+							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
+									|| !kindHomogeneousField(playerNum)))
 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 						continue;
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
