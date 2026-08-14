@@ -1,0 +1,46 @@
+name: Materialize Round 95 cross-model retention
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-95-cross-model-retention
+    paths:
+      - .github/workflows/materialize-round95-cross-model-retention.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Verify exact base and apply frontier
+        env:
+          PATCH_B64: ZGlmZiAtLWdpdCBhL3NyYy90ci9sb2dpYy9SYWNlQWkuamF2YSBiL3NyYy90ci9sb2dpYy9SYWNlQWkuamF2YQppbmRleCBkZTRjYmNhLi4yNWFiZjlhIDEwMDY0NAotLS0gYS9zcmMvdHIvbG9naWMvUmFjZUFpLmphdmEKKysrIGIvc3JjL3RyL2xvZ2ljL1JhY2VBaS5qYXZhCkBAIC04MTgsMTAgKzgxOCwzOSBAQCBmaW5hbCBjbGFzcyBSYWNlQWkgewogCQkJCQkJCQkJCWlmIChnYW1lLmNyb3NzZXNGaW5pc2gocG9zWzBdLCBwb3NbMV0sIGF4LCBheSkKIAkJCQkJCQkJCQkJCXx8IHNpbU91dGNvbWUoYXgsIGF5LCBhdngsIGF2eSwgcGxheWVyTnVtLCBBSTFfREVFUF9IT1JJWk9OLAogCQkJCQkJCQkJCQkJCQl0cnVlLCB0cnVlLCB0cnVlLCB0cnVlKSA+PSAwKSB7Ci0JCQkJCQkJCQkJCWRlZXBDaG9pY2UgPSBzbW9tQWx0OwotCQkJCQkJCQkJCQlpZiAoQUlfREVCVUdfREpTKQotCQkJCQkJCQkJCQkJU3lzdGVtLmVyci5wcmludGxuKCJBSURCRyBERUVQIHA9IiArIHBsYXllck51bQotCQkJCQkJCQkJCQkJCQkrICIgY3Jvc3MtbW9kZWwgU1dJVENIICIgKyBjaG9zZW4gKyAiIC0+ICIgKyBzbW9tQWx0KTsKKwkJCQkJCQkJCQkJLy8gUm91bmQgOTUgZnJvbnRpZXI6IHRoZSB0b3BvbG9neS1zaGFwZWQgbW9kZWwgY2FuIGZhbHNlLWtpbGwgYQorCQkJCQkJCQkJCQkvLyBnZW51aW5lbHkgZmFzdGVyIGxpbmUuIEluIGEgbGFyZ2UgaG9tb2dlbmVvdXMgZmllbGQsIHJldGFpbiBhbgorCQkJCQkJCQkJCQkvLyBleGFjdC1MMiwgemVyby11bmNlcnRhaW50eSwgb25lLXR1cm4tZmFzdGVyIGNob3NlbiBtb3ZlIG9ubHkgd2hlbgorCQkJCQkJCQkJCQkvLyB0aGUgc2FtZSBlaWdodC1yb3VuZCBzY29yZXItcml2YWwgd29ybGQgcHJvdmVzIHN0cmljdCBpbXByb3ZlbWVudAorCQkJCQkJCQkJCQkvLyBmb3IgYm90aCB0aGUgbW92ZXIgYW5kIGFnZ3JlZ2F0ZSBmaWVsZC4gQW1iaWd1aXR5IGtlZXBzIHRoZSBvbGQKKwkJCQkJCQkJCQkJLy8gc3Vydml2YWwgc3dpdGNoLgorCQkJCQkJCQkJCQlib29sZWFuIHJldGFpbkNob3NlbiA9IGZhbHNlOworCQkJCQkJCQkJCQlpZiAodHJhcEJ5RGlyW2Nob3Nlbi5vcmRpbmFsKCldID09IEFJMV9UUkFQX0wyCisJCQkJCQkJCQkJCQkJJiYgdW5jQnlEaXJbY2hvc2VuLm9yZGluYWwoKV0gPT0gMC4wCisJCQkJCQkJCQkJCQkJJiYgcG9UQnlEaXJbY2hvc2VuLm9yZGluYWwoKV0gKyAxID09IHBvVEJ5RGlyW3Ntb21BbHQub3JkaW5hbCgpXQorCQkJCQkJCQkJCQkJCSYmIGxpdmVSaXZhbHNSZW1haW5pbmcocGxheWVyTnVtKSA+PSBBSTFfUFJJVkFURV9GSUVMRF9NSU5fUklWQUxTCisJCQkJCQkJCQkJCQkJJiYga2luZEhvbW9nZW5lb3VzRmllbGQocGxheWVyTnVtKSkgeworCQkJCQkJCQkJCQkJZmluYWwgaW50IGNob3NlbkZpbmFsID0gc2NvcmVyRmllbGRPdXRjb21lKGRjeCwgZGN5LCBkanZ4LCBkanZ5LAorCQkJCQkJCQkJCQkJCQlwbGF5ZXJOdW0sIEFJMV9ERUVQX0hPUklaT04sIEFJMV9ERUVQX0NFUlRfUklWQUxTLAorCQkJCQkJCQkJCQkJCQlyb2xsb3V0RmllbGRDb3N0KTsKKwkJCQkJCQkJCQkJCWZpbmFsIGxvbmcgY2hvc2VuRmllbGQgPSByb2xsb3V0RmllbGRDb3N0WzBdOworCQkJCQkJCQkJCQkJZmluYWwgaW50IGFsdEZpbmFsID0gc2NvcmVyRmllbGRPdXRjb21lKGF4LCBheSwgYXZ4LCBhdnksIHBsYXllck51bSwKKwkJCQkJCQkJCQkJCQkJQUkxX0RFRVBfSE9SSVpPTiwgQUkxX0RFRVBfQ0VSVF9SSVZBTFMsIHJvbGxvdXRGaWVsZENvc3QpOworCQkJCQkJCQkJCQkJZmluYWwgbG9uZyBhbHRGaWVsZCA9IHJvbGxvdXRGaWVsZENvc3RbMF07CisJCQkJCQkJCQkJCQlyZXRhaW5DaG9zZW4gPSBjaG9zZW5GaW5hbCA+PSAwICYmIGFsdEZpbmFsID49IDAKKwkJCQkJCQkJCQkJCQkJJiYgY2hvc2VuRmluYWwgPCBhbHRGaW5hbCAmJiBjaG9zZW5GaWVsZCA8IGFsdEZpZWxkOworCQkJCQkJCQkJCQkJaWYgKEFJX0RFQlVHX0RKUyAmJiByZXRhaW5DaG9zZW4pCisJCQkJCQkJCQkJCQkJU3lzdGVtLmVyci5wcmludGxuKCJBSURCRyBERUVQIHA9IiArIHBsYXllck51bQorCQkJCQkJCQkJCQkJCQkJKyAiIHJldGFpbiBmYXN0ZXIgY3Jvc3MtbW9kZWwgbGluZSAiICsgY2hvc2VuICsgIiBvdmVyICIKKwkJCQkJCQkJCQkJCQkJCSsgc21vbUFsdCArICIgc2VsZiAiICsgY2hvc2VuRmluYWwgKyAiIDwgIiArIGFsdEZpbmFsCisJCQkJCQkJCQkJCQkJCQkrICIgZmllbGQgIiArIGNob3NlbkZpZWxkICsgIiA8ICIgKyBhbHRGaWVsZCk7CisJCQkJCQkJCQkJCX0KKwkJCQkJCQkJCQkJaWYgKCFyZXRhaW5DaG9zZW4pIHsKKwkJCQkJCQkJCQkJCWRlZXBDaG9pY2UgPSBzbW9tQWx0OworCQkJCQkJCQkJCQkJaWYgKEFJX0RFQlVHX0RKUykKKwkJCQkJCQkJCQkJCQlTeXN0ZW0uZXJyLnByaW50bG4oIkFJREJHIERFRVAgcD0iICsgcGxheWVyTnVtCisJCQkJCQkJCQkJCQkJCQkrICIgY3Jvc3MtbW9kZWwgU1dJVENIICIgKyBjaG9zZW4gKyAiIC0+ICIgKyBzbW9tQWx0KTsKKwkJCQkJCQkJCQkJfQogCQkJCQkJCQkJCX0KIAkJCQkJCQkJCX0KIAkJCQkJCQkJfQo=
+        run: |
+          test "$(git rev-parse HEAD^)" = f705c526a8071785293e33cff7d95c4d510e425f
+          printf '%s' "$PATCH_B64" | base64 -d > /tmp/round95.patch
+          printf '%s  %s\n' '220a56c88027684bbfdfa7144b3da69cd07e94e5a6426f2adc3100b79632b132' /tmp/round95.patch | sha256sum -c -
+          git apply --check /tmp/round95.patch
+          git apply /tmp/round95.patch
+      - name: Verify candidate
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python3 tracks/bench_ai.py --seeds 1 --seed-start 1 silverstone
+          git diff --check
+      - name: Commit exact candidate
+        run: |
+          git config user.name 'OpenAI Agent'
+          git config user.email 'noreply@openai.com'
+          git add src/tr/logic/RaceAi.java
+          git commit -m 'Round 95: retain exact faster cross-model lines'
+          git push origin HEAD:agent/ai-racing-speed-95-cross-model-retention
