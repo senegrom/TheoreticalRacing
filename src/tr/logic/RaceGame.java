@@ -61,9 +61,9 @@ public final class RaceGame {
 	boolean				autoMode	= false;
 	/** Batch mode: a finished auto race calls this instead of exiting the
 	 *  JVM, letting one process race many seeds (Main.runBatch). */
-	private static volatile Runnable autoRaceEndHook = null;
+	private Runnable autoRaceEndHook = null;
 
-	public static void setAutoRaceEndHook(final Runnable r) {
+	public void setAutoRaceEndHook(final Runnable r) {
 		autoRaceEndHook = r;
 	}
 
@@ -291,6 +291,7 @@ public final class RaceGame {
 			gameFrame.repaint();
 			if (autoMode) {
 				final Runnable hook = autoRaceEndHook;
+				autoRaceEndHook = null;
 				SwingUtilities.invokeLater(hook != null ? hook : () -> System.exit(0));
 			}
 			return true;

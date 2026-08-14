@@ -6,6 +6,7 @@ public final class MainTests {
 
 	public static void main(final String[] args) {
 		testValidOptions();
+		testSeedRanges();
 		testHeadlessModes();
 		expectFailure(new String[]{"--track"}, "--track requires a value");
 		expectFailure(new String[]{"--seed", "not-a-number"}, "--seed requires an integer");
@@ -13,6 +14,32 @@ public final class MainTests {
 		expectFailure(new String[]{"--unknown"}, "Unknown option");
 		expectFailure(new String[]{"positional"}, "Unknown option");
 		System.out.println("MainTests: OK");
+	}
+
+	private static void testSeedRanges() {
+		Main.Options options = Main.parseArgs(new String[]{
+				"--auto", "--seed", "1-3"
+		});
+		check(Long.valueOf(1).equals(options.seed()), "range start lost");
+		check(Long.valueOf(3).equals(options.seedEnd()), "range end lost");
+
+		options = Main.parseArgs(new String[]{
+				"--auto", "--seed", "1-3", "--seed", "5"
+		});
+		check(Long.valueOf(5).equals(options.seed()), "replacement seed lost");
+		check(options.seedEnd() == null, "scalar seed retained stale range end");
+
+		options = Main.parseArgs(new String[]{
+				"--auto", "--seed", Long.MAX_VALUE + "-" + Long.MAX_VALUE
+		});
+		check(Long.valueOf(Long.MAX_VALUE).equals(options.seed()), "maximum range start lost");
+		check(Long.valueOf(Long.MAX_VALUE).equals(options.seedEnd()), "maximum range end lost");
+
+		expectFailure(new String[]{"--seed", "1-3"}, "range requires --auto");
+		expectFailure(new String[]{"--auto", "--seed", "1-3", "--dump-reach", "r"},
+				"cannot be combined");
+		expectFailure(new String[]{"--auto", "--seed", "1-3", "--query-moves", "i", "o"},
+				"cannot be combined");
 	}
 
 	private static void testValidOptions() {

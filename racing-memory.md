@@ -74,6 +74,14 @@ golden suites green. MEASURED: monaco s1-3 = 18.2s as three singles vs
 Tooling (bench_ai/bench_iso batch wiring) is the follow-up; the game
 side is complete.
 
+POST-INTEGRATION HARDENING: range execution now terminates safely even
+at `Long.MAX_VALUE`, always gives default as well as explicit logs an
+`_sN` suffix, rejects a range without `--auto` and range/query mode
+mixes, clears a superseded range end, reports interrupted batches as a
+failure, and owns the one-shot completion hook per `RaceGame` rather
+than process-wide. `MainTests` pins the parser boundaries; direct batch
+versus single-log checks remain the behavior contract.
+
 ## PROMOTION 2026-08-14 (per user): the composition is the champion
 
 Executed: AI1's body mirrored WHOLESALE into AI2 (the r79-r90 pace

@@ -93,27 +93,32 @@ public final class Main {
 	 *  build), which removes the per-race JVM boot and cache-load overhead
 	 *  that dominates battery wall time. */
 	private static void runBatch(final Options options, final Properties baseProp) {
-		final String logPattern = options.logPath();
-		for (long s = options.seed(); s <= options.seedEnd(); s++) {
+		final String logPattern = options.logPath() != null
+				? options.logPath() : TrackIO.gameLogPath().toString();
+		long s = options.seed();
+		while (true) {
 			final long thisSeed = s;
 			final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
-			RaceGame.setAutoRaceEndHook(done::countDown);
 			EventQueue.invokeLater(() -> {
 				final Properties raceProp = new Properties();
 				raceProp.putAll(baseProp);
 				final RaceGame game = new RaceGame(raceProp);
 				game.setAutoMode(true);
+				game.setAutoRaceEndHook(done::countDown);
 				game.setStartSeed(thisSeed);
-				if (logPattern != null)
-					game.setGameLogPath(batchLogPath(logPattern, thisSeed));
+				game.setGameLogPath(batchLogPath(logPattern, thisSeed));
 				game.start();
 			});
 			try {
 				done.await();
 			} catch (final InterruptedException e) {
 				Thread.currentThread().interrupt();
-				break;
+				System.exit(1);
+				return;
 			}
+			if (s == options.seedEnd())
+				break;
+			s++;
 		}
 		System.exit(0);
 	}
@@ -159,6 +164,7 @@ public final class Main {
 								throw new IllegalArgumentException("--seed range end before start: " + raw);
 						} else {
 							seed = Long.valueOf(raw);
+							seedEnd = null;
 						}
 					} catch (final NumberFormatException error) {
 						throw new IllegalArgumentException("--seed requires an integer or A-B range: " + raw, error);
@@ -172,6 +178,10 @@ public final class Main {
 				default -> throw new IllegalArgumentException("Unknown option: " + option);
 			}
 		}
+		if (seedEnd != null && !auto)
+			throw new IllegalArgumentException("--seed range requires --auto");
+		if (seedEnd != null && (dumpReach != null || queryIn != null))
+			throw new IllegalArgumentException("--seed range cannot be combined with reach/query modes");
 		return new Options(auto, trackName, listTracks, dumpReach, queryIn, queryOut,
 				seed, seedEnd, logPath, propsPath);
 	}
@@ -184,7 +194,7 @@ public final class Main {
 
 	private static String usage() {
 		return "Usage: java -jar theoreticRacing.jar [--auto] [--track NAME] "
-				+ "[--props FILE] [--log FILE] [--seed N] [--dump-reach FILE] "
+				+ "[--props FILE] [--log FILE] [--seed N|A-B] [--dump-reach FILE] "
 				+ "[--query-moves INPUT OUTPUT] [--list-tracks]";
 	}
 
