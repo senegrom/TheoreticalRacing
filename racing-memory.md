@@ -48,6 +48,20 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## PROMOTION 2026-08-14 (per user): the composition is the champion
+
+Executed: AI1's body mirrored WHOLESALE into AI2 (the r79-r90 pace
+stack + r83 funnel guards). The first strict probe found 6/27 divergent
+-- their self-play pace gates were keyed on Kind.AI1 literals, so an
+all-AI2 field deactivated its own arms; the promotion-correct
+semantics is KIND-HOMOGENEITY WITH THE MOVER (mixed fields stay gated
+off exactly as designed). After the fix: strict probe ALL IDENTICAL
+0/27. Golden corpus fully regenerated (the champion is ~a move faster;
+every fixture legitimately reflowed, 13 cases, ZERO crashes across the
+corpus) with the new lemans-s1-4p fixture pinning the 4-car rescue.
+All four AI1 pins green post-mirror (mixed-safety improved: places
+22/14). Self-tie battery in flight; certification appended here.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the

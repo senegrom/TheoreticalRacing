@@ -1297,6 +1297,15 @@ final class RaceAi {
 		return false;
 	}
 
+
+	/** The mover's own kind, for self-play (kind-homogeneity) gates. */
+	private Player.Kind moverKind(final int playerNum) {
+		for (final Player p : game.players)
+			if (p.getNumber() == playerNum)
+				return p.getKind();
+		return Player.Kind.AI1;
+	}
+
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
 			final Direction chosen, final double[] scoreByDir, final double[] scoreNSByDir,
 			final double[] trapByDir, final double[] uncByDir, final int[] turnsByDir) {
@@ -1307,9 +1316,13 @@ final class RaceAi {
 				- uncByDir[chosen.ordinal()];
 		RivalReach rectangles = null;
 		ExactRivalReach exact = null;
+		// Promotion semantics (round 83 mirror): "self-play" means kind
+		// homogeneity with the MOVER, not AI1-ness -- an all-AI2 field of the
+		// promoted body is exactly as homogeneous as an all-AI1 one.
+		final Player.Kind moverKind = moverKind(playerNum);
 		boolean homogeneousFrontier = true;
 		for (final Player p : game.players) {
-			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != Player.Kind.AI1) {
+			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != moverKind) {
 				homogeneousFrontier = false;
 				break;
 			}
@@ -1431,10 +1444,11 @@ final class RaceAi {
 		// This new long-horizon certificate is therefore self-play-only until a
 		// mixed-policy externality proof exists.
 		int rivalsAhead = 0;
+		final Player.Kind stagedMoverKind = moverKind(playerNum);
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
-			if (p.getKind() != Player.Kind.AI1)
+			if (p.getKind() != stagedMoverKind)
 				return chosen;
 			final int[] rivalPos = p.getPosition();
 			if (((long) rivalPos[0] - pos[0]) * vel[0]
@@ -2439,7 +2453,7 @@ final class RaceAi {
 	 * yardstick; AI1 is the experimental copy being improved.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
-		// Endgame seal (per "force the last rival to crash = win"): with
+		// Endgame seal (frontier, per "force the last rival to crash = win"): with
 		// few rivals left, if a SAFE move of mine leaves the decisive rival with no
 		// legal move (a forced crash), take it. Only a rival that moves after me this
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
@@ -2453,9 +2467,11 @@ final class RaceAi {
 					return sd;
 			}
 		}
-		// Endgame solver (round 43, PROMOTED round 44): 1v1 exact paranoid
-		// minimax near the finish -- acts ONLY on proven wins; unproven values
-		// fall through to the normal scorer. See endgameSolve.
+		// Endgame solver (round 43, lever 5, AI1 only): 1v1 exact paranoid
+		// minimax near the finish. Acts ONLY on proven wins (I finish first or
+		// the rival is forced to crash under its best defense) -- the deep
+		// generalization of the 1-ply seal above; unproven values fall through
+		// to the normal scorer (insurance-premium law: no paranoid defense).
 		if (sealRivals == 1 && !inScorerSim) {
 			final Direction eg = endgameSolve(pos, vel, playerNum);
 			if (eg != null) {
@@ -2483,7 +2499,7 @@ final class RaceAi {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
 			final int[] pv = p.getVelocity();
-			if (speedSquared(pv[0], pv[1]) >= 9)
+			if (speedSquared(pv[0], pv[1]) >= AI1_VACATE_SPEED2)
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
@@ -2503,8 +2519,8 @@ final class RaceAi {
 		// certified pace tie-break after the loop.
 		final double[] scoreNSByDir = candidateWorkspace.scoreWithoutSpread;
 		final int[] poTByDir = candidateWorkspace.turnsByDirection;
-		// round 63 (PROMOTED round 62): score and unc per candidate for the
-		// certified UNC override -- see the AI1 body.
+		// round 62: full score and unc per candidate, for the certified UNC
+		// override after the loop.
 		final double[] scoreByDir = candidateWorkspace.scoreByDirection;
 		final double[] uncByDir = candidateWorkspace.uncertaintyByDirection;
 		MobilitySearch paceMobility = null;
@@ -2573,13 +2589,17 @@ final class RaceAi {
 			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
 					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, world));
 			double trapPenalty = d2SafeCount == 0 ? 50.0
-					: d2SafeCount == 1 ? 2.0
-							: d2SafeCount == 2 ? 0.5
+					: d2SafeCount == 1 ? AI1_TRAP_L1
+							: d2SafeCount == 2 ? AI1_TRAP_L2
 									: 0.0;
-			// round 63 (PROMOTED round 61): rival-conditional trap relief -- a
-			// 1-2-wide certified thread is uncontestable with no live rival
-			// within AI1_TRAP_SOLO_R of the landing; the map's certification
-			// suffices solo. 0-safe stays 50. See the AI1 body.
+			// round 61 (AI1): rival-conditional trap relief. The ladder prices a
+			// 1-2-wide certified thread as if a rival could claim the escape,
+			// but with NO live rival within AI1_TRAP_SOLO_R of the landing the
+			// thread is provably uncontestable for its consumption window and
+			// the map's reach-certification suffices (monaco (116,46): every
+			// car conceded 1 ttf to trap=2.0 on a SOLO thread the deep search
+			// itself preferred). 0-safe stays 50 -- entering a dead fan is bad
+			// even alone.
 			if (trapPenalty > 0.0 && d2SafeCount > 0 && !rivalWithinCheb(newX, newY, playerNum, AI1_TRAP_SOLO_R))
 				trapPenalty = 0.0;
 			trapByDir[d.ordinal()] = trapPenalty;
@@ -2592,7 +2612,7 @@ final class RaceAi {
 			final double overSpeed = Math.max(0.0, speed - widthBudget);
 			double speedCap = overSpeed * overSpeed * 0.4;
 			double uncertified = 0.0;
-			if (speed > 4.0) {
+			if (speed > AI1_BRAKE_SPEED) {
 				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
 				// is sheddable on the empty track -- waive the penalty entirely.
 				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
@@ -2603,7 +2623,7 @@ final class RaceAi {
 				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)) {
 					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true);
 					if (proofs < 2)
-						uncertified = (speed - 4.0) * (proofs == 0 ? 2.5 : 1.0);
+						uncertified = (speed - AI1_BRAKE_SPEED) * (proofs == 0 ? 2.5 : 1.0);
 				}
 			}
 			// Pack-gated knife-edge corner-entry brake: price roomy-successor
@@ -2613,10 +2633,10 @@ final class RaceAi {
 			// spares the lone fast knife-edge that is the racing line on tight
 			// circuits, so only genuine corner-entry traffic jams brake.
 			double cornerEntry = 0.0;
-			if (speed > 4.0) {
+			if (speed > AI1_BRAKE_SPEED) {
 				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy);
-				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, 36) >= 2)
-					cornerEntry = (speed - 4.0) * (roomySucc == 0 ? 3.0 : 1.5);
+				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, AI1_PACK_R2) >= 2)
+					cornerEntry = (speed - AI1_BRAKE_SPEED) * (roomySucc == 0 ? 3.0 : 1.5);
 			}
 			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
 			// only): the corner-entry brake above is opponent-BLIND in its
@@ -2632,9 +2652,9 @@ final class RaceAi {
 			// covered brake by 0.278. Price the coast like the survivable
 			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
 			double queueBox = 0.0;
-			if (speed > 4.0 && cornerEntry == 0.0) {
+			if (speed > AI1_BRAKE_SPEED && cornerEntry == 0.0) {
 				if (d2SafeCount <= 2 && countStalledRivalsAhead(newX, newY, playerNum) >= 2)
-					queueBox = (speed - 4.0) * 1.5;
+					queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
 				else {
 					// v3 long-range trigger: the near trigger needs d2SafeCount
 					// to collapse, but at speed 5+ the zandvoort pinch killed
@@ -2646,7 +2666,7 @@ final class RaceAi {
 					// ~1/round from s down to the stalled threshold 2.5).
 					final double stopCells = (speed * speed - 6.25) / 2.0;
 					if (stopCells > 0 && countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2)
-						queueBox = (speed - 4.0) * 1.5;
+						queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
 				}
 			}
 			// AI2.9 intentionally has no soft conflict term; the hard live-body check remains.
@@ -2659,16 +2679,23 @@ final class RaceAi {
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
 			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + spread - momentum - robustness;
 			final int poT = ownTurns;
+			if (AI_DEBUG_COMP)
+				System.err.println("R49C p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
+						+ vel[0] + "," + vel[1] + ") d=" + d + " land=(" + newX + "," + newY + ") ttf=" + poT
+						+ " score=" + score + " cost=" + costToFinish + " trap=" + trapPenalty
+						+ " cap=" + speedCap + " unc=" + uncertified + " ce=" + cornerEntry
+						+ " qb=" + queueBox + " spread=" + spread + " mom=" + momentum
+						+ " rob=" + robustness);
 			scoreNSByDir[d.ordinal()] = score - spread;
 			poTByDir[d.ordinal()] = poT;
 			scoreByDir[d.ordinal()] = score;
 			uncByDir[d.ordinal()] = uncertified;
 			if (poT < poBestT) {
 				if (paceMobility == null)
-					paceMobility = mobilitySearch(playerNum, true, AI2_MOBILITY_DEPTH);
+					paceMobility = mobilitySearch(playerNum, true, AI1_MOBILITY_DEPTH);
 				final double poRoom = futureMobility(newX, newY, newVx, newVy, paceMobility);
 				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
-				if (poRoom >= 0.88 || (poRoom >= 0.78 && poSpd <= 4)
+				if (poRoom >= AI1_PO_ROOM_HI || (poRoom >= AI1_PO_ROOM_MID && poSpd <= AI1_PO_SPD_MAX)
 						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
 							&& !sealable(newX, newY, newVx, newVy, playerNum))) {
 					poBestT = poT;
@@ -2681,12 +2708,19 @@ final class RaceAi {
 				poScorerT = poT;
 			}
 		}
-		// Certified pace tie-break (rounds 48-53, PROMOTED round 54): mirror of
-		// the AI1 frontier mechanism -- see optimalMoveAI1 for the derivation.
-		// Override `spread` toward a strictly faster line only when CERTIFIED:
-		// weakly better on every non-spread term (spread is the sole reason it
-		// lost), zero trap penalty, not sealable, and it survives the
-		// exact-self joint rollout. An uncertified faster line is never taken.
+		// Round 49 arm C (AI1): certified pace tie-break. The lateral-spacing
+		// term `spread` outranks raw pace -- in every decision it flips, the
+		// traffic-priced deep search rates the alternative EXACTLY equal on
+		// costToFinish and the alternative is strictly faster on the map
+		// (comp_counterfactual, 5 traffic sinks: 46 ttf recoverable, ZERO cases
+		// where the search preferred the slower cell). Deleting spread outright
+		// (arm A) buys ~0.45% pace but costs crashes where spacing is really
+		// load-bearing (hungaroring 1->6, lemans 1->5 over 10 seeds). So take
+		// the faster line only when it is CERTIFIED: weakly better on every
+		// non-spread term (spread is the sole reason it lost), zero trap
+		// penalty, not sealable, and it survives the same 3-round joint
+		// roll-forward DJS trusts. Survival-only asymmetry -- an uncertified
+		// faster line is never taken.
 		if (best != null && !inScorerSim) {
 			final double bestNS = scoreNSByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
@@ -2710,10 +2744,15 @@ final class RaceAi {
 			if (fast != null)
 				best = fast;
 		}
-		// round 63 (PROMOTED round 62): certified UNC override -- pay the
-		// surcharge everywhere except where a strictly faster line wins the
-		// unc-free comparison AND passes zero trap + !sealable + survival in
-		// the scorer-rival world. See the AI1 body for the derivation.
+		// round 62 (AI1): certified UNC override. The counterfactual on the
+		// r61 equilibrium still attributes the largest recoverable pool to
+		// `uncertified` (monaco s1: 50 ttf, deep search agreeing 48/48), and
+		// rounds 49-53 proved the surcharge is load-bearing insurance that
+		// must NOT be cut by predicate alone. Pay it everywhere EXCEPT where
+		// a strictly faster line wins the unc-free comparison AND passes the
+		// strongest proof owned: zero trap, not sealable, and survival in the
+		// round-59 scorer-rival world (the proof round 52 lacked). Solo flips
+		// have empty scorer sets, so their proofs cost nothing.
 		if (best != null && !inScorerSim) {
 			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
@@ -2740,6 +2779,16 @@ final class RaceAi {
 				best = fast;
 		}
 		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
+		// Round 75-77 (AI1): recover a strictly-faster line only when a
+		// conservative rival-occupancy proof leaves an empty-track-optimal escape
+		// private, then require the independent real-scorer rollout to agree. The
+		// existing seal and danger guards below keep final veto authority.
+		if (chosen != null && !inScorerSim) {
+			chosen = privatePaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
+					trapByDir, uncByDir, poTByDir);
+			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
+					trapByDir, uncByDir, poTByDir);
+		}
 		if (chosen != null) {
 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
 			// matching, legality-checked covers). If the chosen landing is
@@ -2747,9 +2796,12 @@ final class RaceAi {
 			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 			if (!game.crossesFinish(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
-				// Round 72 (PROMOTED): a worst-case seal warning must not force
-				// the scorer into a strictly narrower local trap. See the AI1
-				// body for the Nurburgring seed-19 derivation.
+				// Round 72 (AI1): a worst-case seal warning must not force the
+				// scorer into a strictly narrower local trap. Nurburgring 8-car
+				// seed 19 exposed the incoherence: the scorer's tier-L2 N was
+				// oracle-alive, while the old fastest-unsealable guard replaced it
+				// with tier-L1 E, which died. Keep the guard's anti-seal purpose,
+				// but require a trap-monotone escape.
 				final double chosenTrap = trapByDir[chosen.ordinal()];
 				int bestT = Integer.MAX_VALUE;
 				Direction safest = null;
@@ -2782,10 +2834,16 @@ final class RaceAi {
 				if (safest != null)
 					chosen = safest;
 			}
-			// Round 75 (PROMOTED): bounded near-finish pace recovery. A
-			// strictly-faster low-trap candidate may replace the scorer choice
-			// only when both independent joint models finish at the empty-map
-			// lower bound. See the AI1 body for the Monaco seed-16 derivation.
+			// Round 75 (PROMOTED): a bounded, proof-gated finish sprint. Local trap and
+			// uncertainty terms can spend a whole turn protecting a line even when
+			// a faster candidate is already close enough to certify all the way to
+			// the flag. Monaco s16 m789 is the minimal example: S has map ttf=15
+			// and finishes in 15 rounds, while narrow SW has ttf=14 and finishes in
+			// exactly 14; every other move dies. Accept a strictly-faster candidate
+			// only if BOTH the score-shaped-rival and scorer-rival joint worlds reach
+			// the finish at the empty-map lower bound (ttf+1 simulation rounds; the
+			// first partial round contains only players after me). The normal DJS
+			// still runs afterwards, retaining its independent survival veto.
 			if (!inScorerSim) {
 				int sprintT = poTByDir[chosen.ordinal()];
 				Direction sprint = null;
@@ -2812,38 +2870,87 @@ final class RaceAi {
 					chosen = sprint;
 				}
 			}
-			// Danger joint search (round 40, PROMOTED): survival-only override
-			// in flagged states -- see dangerJointSearch.
+			// Danger joint search (round 40): in flagged states (the landing's
+			// trap ladder >= 0.5, i.e. <= 2 safe successors) roll the joint game
+			// 3 rounds forward on a detached greedy board. STRICTLY asymmetric:
+			// only override when the pick provably dies in-sim and an alternative
+			// survives -- a surviving pick is always kept (fs1's false-alarm
+			// evasion crashes came from warning-based re-picks; survival-only
+			// switching cannot fire on a line that was actually fine).
 			if (AI_DEBUG_PLAYER == playerNum)
 				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
-			// round 58 (PROMOTED): wide speed trigger (rounds 55) + smom rival
-			// sim (round 57) -- matches AI1; see the frontier body for the
-			// oracle derivation. Landing velocity recomputed: the sealGuard may
-			// have swapped chosen.
+			// round 45 (AI1): sim fidelity only -- finished cars vanish from the
+			// sim board (the real game removes them; ghosts caused phantom
+			// blockage verdicts). The always-on trigger arm was REJECTED by the
+			// ancestral screen: 6 DJS switches/race (vs 0-1) -> false-death
+			// model errors perturbed the field into new doom pockets
+			// (hungaroring guard 1->5). The trap gate is not just a cost gate;
+			// it bounds exposure to sim model error.
+			// round 55 (AI1): retry a wider trigger UNDER exact-self fidelity
+			// (round 51 fixed the false-death class that sank the round-45 arm):
+			// also fire at high landing speed, where the ancestral crash shapes
+			// live but the trap ladder still reads 0. Survival-only asymmetry
+			// unchanged -- extra fires can only override provably dying picks.
+			// Landing velocity recomputed: the sealGuard may have swapped chosen.
 			final int djvx = vel[0] + chosen.dx, djvy = vel[1] + chosen.dy;
-			// round 63 (PROMOTED rounds 59+60): slow-class fires use the
-			// real-scorer near-rival world at the 5-round horizon; trap-0 slow
-			// moves get the smom smoke test that escalates to the scorer
-			// rollout on a death verdict. Fast fires keep smom at 3 rounds.
-			// round 66 (PROMOTED round 65): fast fires WITH a pack (>= 3 rivals
-			// within Chebyshev 10 of the landing) run the deep smom pre-screen
-			// and escalate to the scorer-rival world at horizon 8 on a
-			// dead-or-fragile verdict -- the 5-7-round doom class.
-			// round 68: trap-0 slow moves also escalate for the rare all-field
-			// dense-pack shape. Round 69 (PROMOTED): a locally narrow fast pick
-			// that smom proves dead may take a smom survivor only when the
-			// independent scorer-rival world also certifies it alive.
-			// Round 70 (PROMOTED): slow L1 traps extend the scorer-rival verdict
-			// from five to six rounds, covering the interlagos four-car queue doom.
-			// See the AI1 body for the oracle derivations.
+			// round 59 (AI1): slow-class fires (landing below the wide-trigger
+			// speed) use the real-scorer near-rival world and a 5-round
+			// horizon -- the six residual champion crashes are ALL slow queue
+			// dooms committing 3-5 rounds out, where every cheap proxy drifts
+			// (oracle-proven at hungaroring-(64,115) and the lemans-s4
+			// funnel). Fast fires keep the proven smom world at 3 rounds.
 			final boolean djSlow = speedSquared(djvx, djvy) < AI1_DJS_SPD2;
 			if (!inScorerSim) {
 				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
 					final int dangerRounds = djSlow && trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
 							? AI1_DJS_SLOW_L1_ROUNDS
 							: djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS;
+					// round 65 (AI1): pack-gated DEEP escalation for fast fires.
+					// The 5-7-round doom class (hairpin s10: three candidates
+					// FINISH @r6 while the chosen dies @r7) is invisible to the
+					// 3-round world. With >= AI1_DEEP_PACK rivals within
+					// Chebyshev AI1_DEEP_PACK_R of the landing, run the cheap
+					// smom pre-screen at the deep horizon and escalate to the
+					// scorer-rival world on a dead-or-FRAGILE (final tier <= 1)
+					// verdict; the scorer-rival re-verdict gates any switch.
 					boolean deepHandled = false;
+					// round 83 (AI1): the static funnel guard for FAST commitments,
+					// run-length gated -- lemans-4car-s1 m131 holds spd^2=85 into
+					// the bottom-turn complex and dies @r8 (survivors shed
+					// laterally); short gates (run < 6) never fire, which is what
+					// broke the first fast arm. Switch-only claiming.
+					if (!deepHandled) {
+						final int fCx = pos[0] + djvx, fCy = pos[1] + djvy;
+						final int fSpdInf = Math.max(Math.abs(djvx), Math.abs(djvy));
+						final int fSpan = fSpdInf * (fSpdInf + 1) / 2;
+						final int fMinRing = fSpdInf >= AI1_FUNNEL_MIN_SPD
+								? reach.minRingWidthAhead(fCx, fCy, fSpan)
+								: Integer.MAX_VALUE;
+						int liveRivals = 0;
+						for (final Player pp : game.players)
+							if (pp.getNumber() != playerNum && !pp.isFinished())
+								liveRivals++;
+						// Deep (8-round) sim verdicts are trustworthy in SPARSE
+						// fields: the 4car lemans-s1 geometric doom is model-robust
+						// at 3 rivals, while at 7 rivals accumulated rival drift
+						// false-kills the certified private lane (lemans-8car-s3,
+						// where 5-round worlds and reality agree it lives).
+						if (liveRivals <= AI1_FUNNEL_DEEP_FIELD
+								&& fMinRing <= AI1_FUNNEL_WIDTH && fSpdInf > fMinRing
+								&& reach.narrowRunAhead(fCx, fCy, fSpan, AI1_FUNNEL_WIDTH) >= AI1_FUNNEL_RUN
+								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)) {
+							if (AI_DEBUG_DJS)
+								System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
+										+ pos[1] + ") chosen=" + chosen + " fast-funnel-risk -> scorer rollout");
+							final Direction funnelChoice = dangerJointSearch(pos, vel, playerNum, chosen,
+									true, true, true, true, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, true);
+							if (funnelChoice != chosen) {
+								chosen = funnelChoice;
+								deepHandled = true;
+							}
+						}
+					}
 					if (!djSlow) {
 						final int dcx = pos[0] + djvx, dcy = pos[1] + djvy;
 						int packNear = 0;
@@ -2867,6 +2974,10 @@ final class RaceAi {
 											+ (dv < 0 ? "dies" : "fragile") + " -> scorer rollout");
 								Direction deepChoice = chosen;
 								if (dv < 0 && trapByDir[chosen.ordinal()] >= AI1_TRAP_L2) {
+									// Cross-model certificate: the topology-shaped smom world proves
+									// a locally narrow pick dies and proposes a survivor; accept that
+									// survivor only if the scorer-rival world independently keeps it
+									// alive. The local trap gate excludes open-line false deaths.
 									final Direction smomAlt = dangerJointSearch(pos, vel, playerNum, chosen,
 											true, true, true, false, AI1_DEEP_HORIZON);
 									if (smomAlt != chosen) {
@@ -2888,9 +2999,17 @@ final class RaceAi {
 								chosen = deepChoice;
 								deepHandled = true;
 							} else {
-								// Round 74 (PROMOTED): certified convergence check. The
-								// ahead-pack branch covers the Round 73 Interlagos case;
-								// the compressed-rear-queue branch covers Zigzag s22 m72.
+								// round 73 (AI1): the smom-8 pre-screen is blind to
+								// CONVERGENCE dooms -- interlagos s10 m103 reads alive
+								// tier-3 while faithful rivals kill @r2: the killers
+								// (ranks 4-6 by landing distance) brake INTO my
+								// shedding corridor, so drifting AND static rival
+								// models both vacate the kill. With >= AI1_DEEP_PACK
+								// rivals AHEAD of the landing (positive dot with the
+								// landing velocity), certify the chosen in the
+								// scorer-rival world at the widened cap (the nearest-3
+								// set here is exactly the harmless rear queue).
+								// Survival-only switch as everywhere.
 								int aheadNear = 0;
 								for (final Player pp : game.players) {
 									if (pp.getNumber() == playerNum || pp.isFinished())
@@ -2901,6 +3020,14 @@ final class RaceAi {
 											&& (ppos[0] - dcx) * djvx + (ppos[1] - dcy) * djvy > 0)
 										aheadNear++;
 								}
+								// Round 74 (AI1): a fast whole-field queue can converge
+								// from the SIDE/REAR, so the ahead-only Round 73 gate misses
+								// it. Zigzag s22 m72 has all seven rivals within Cheb 10,
+								// only one ahead, and three rival bodies already occupying
+								// the mover's neutral 3x3 landing grid: smom-8 reads the chosen
+								// alive/tier-3 while scorer rivals prove it dead @r2 and keep
+								// two equal-ttf escapes alive. Certify only that rare shape,
+								// and only when a near-equal low-trap escape is on the table.
 								boolean closeEscape = false;
 								final int chosenT = poTByDir[chosen.ordinal()];
 								for (final Direction d : DIRECTIONS) {
@@ -2933,11 +3060,13 @@ final class RaceAi {
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								djSlow, dangerRounds);
 				} else {
-					// round 68 (PROMOTED round 67): the dense slow-pack escape
-					// proof -- with the whole live field packed within Chebyshev
-					// AI1_SLOW_PACK_R and a near-equal low-trap alternative on
-					// the table, the scorer-rival rollout arbitrates even when
-					// the smom smoke test reads alive (the lemans-s4 funnel).
+					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
+					// test -- the vacate-optimistic ladder reads roomy at the
+					// zigzag-s4 doom entry (m102: count 0 in reality, death 4
+					// rounds out, smom sees it) so nothing fired there. A smom
+					// death ESCALATES to the faithful scorer-rival rollout,
+					// which re-verdicts the chosen and gates any switch -- smom
+					// false alarms are filtered before they can perturb.
 					final int scvx = vel[0] + chosen.dx, scvy = vel[1] + chosen.dy;
 					final int scx = pos[0] + scvx, scy = pos[1] + scvy;
 					final int slowSpd2 = speedSquared(scvx, scvy);
@@ -2951,27 +3080,50 @@ final class RaceAi {
 						}
 					}
 					final int slowPack = countRivalsWithinCheb(scx, scy, playerNum, AI1_SLOW_PACK_R);
-					// Round 71 (PROMOTED): generalise the dense-pack trigger to
-					// four-car fields with a lower speed floor. Whole-field packing
-					// and a near-equal low-trap escape keep the extra scorer rollout
-					// narrowly tied to the Monaco seed-9 funnel class.
+					// round 71 (AI1): the dense-pack gate generalized to SMALL
+					// fields -- the monaco-4car s9 funnel doom (entry m27,
+					// spd^2=13, all 3 rivals within Chebyshev 10, survivors N/SE)
+					// is smom-blind AND non-fragile (tier 3) yet scorer-rival
+					// visible @r2; only the trigger was missing. Whole live
+					// field packed + close escape, with a lower speed floor for
+					// fields below the 8-car pack size (start grids stay below
+					// spd^2=12).
 					final boolean packAll = slowPack == sealRivals && closeEscape;
 					final boolean denseSlowPack = packAll && (sealRivals >= AI1_SLOW_PACK
 							? slowSpd2 >= AI1_SLOW_PACK_SPD2
 							: sealRivals >= AI1_SLOW_PACK_MIN && slowSpd2 >= AI1_SLOW_PACK_SPD2_SMALL);
-					// Round 78 (PROMOTED): the smoke test runs the scorer-rival
-					// world -- smom is blind to convergence dooms. See the AI1
-					// body for the zandvoort-s45 m920 derivation.
+					// round 78 (AI1): the smoke test runs the SCORER-RIVAL world --
+					// smom read the zandvoort-s45 m920 chosen alive tier-3 while
+					// faithful rivals (the chaser p7 in the round-59 nearest set)
+					// kill it @r2; the third member of the m260/m103 class.
+					// round 83 (AI1): STATIC funnel signal -- the deep-horizon
+					// commitment class (zandvoort corner, coil spiral) holds
+					// speed into a narrowing ring sequence; the narrowing is on
+					// the distance map, no rollout needed. On risk, certify at
+					// the deep horizon with the widened scorer-me world (the
+					// class deaths land @r6-9, past the 5-round smoke).
+					final int slowSpdInf = Math.max(Math.abs(scvx), Math.abs(scvy));
+					final int funnelSpan = slowSpdInf * (slowSpdInf + 1) / 2;
+					final int funnelMinRing = reach.minRingWidthAhead(scx, scy, funnelSpan);
+					final boolean funnelRisk = slowSpdInf >= AI1_FUNNEL_MIN_SPD
+							&& funnelMinRing <= AI1_FUNNEL_WIDTH && slowSpdInf > funnelMinRing
+							&& reach.narrowRunAhead(scx, scy, funnelSpan, AI1_FUNNEL_WIDTH) >= AI1_FUNNEL_RUN;
+					if (AI_DEBUG_DJS && slowSpdInf >= AI1_FUNNEL_MIN_SPD)
+						System.err.println("AIDBG RING p=" + playerNum + " land=(" + scx + "," + scy
+								+ ") spdInf=" + slowSpdInf + " span=" + funnelSpan + " minRing="
+								+ reach.minRingWidthAhead(scx, scy, funnelSpan));
 					final boolean smokeDies = !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true) < 0;
-					if (denseSlowPack || smokeDies) {
+					if (denseSlowPack || smokeDies || funnelRisk) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
-									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack" : " scorer-dies")
+									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack"
+											: smokeDies ? " scorer-dies" : " funnel-risk")
 									+ " -> scorer rollout");
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-								true, AI1_DJS_SLOW_ROUNDS, AI1_SCORER_MAXRIVALS, true);
+								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
+								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true);
 					}
 				}
 			}

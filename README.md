@@ -54,7 +54,7 @@ python3 tests/ai1_staged_pace_regression.py
 python3 tests/ai1_energy_pace_regression.py
 ```
 
-The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10, Zandvoort seed-45, and Silverstone seed-15 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
+The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10, Zandvoort seed-45, Silverstone seed-15, and Le Mans four-car seed-1 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
 
 ## Benchmarks
 

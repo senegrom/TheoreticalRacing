@@ -35,6 +35,7 @@ SPECS = [
     {"name": "interlagos-s10-8p", "track": "interlagos", "seed": 10, "players": 8},
     {"name": "zigzag-s22-8p", "track": "zigzag", "seed": 22, "players": 8},
     {"name": "zandvoort-s45-8p", "track": "zandvoort", "seed": 45, "players": 8},
+    {"name": "lemans-s1-4p", "track": "lemans", "seed": 1, "players": 4},
 ]
 
 
