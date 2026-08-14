@@ -16,7 +16,7 @@ public final class Main {
 	private Main() {}
 
 	static record Options(boolean auto, String trackName, boolean listTracks,
-			String dumpReach, String queryIn, String queryOut, Long seed,
+			String dumpReach, String queryIn, String queryOut, Long seed, Long seedEnd,
 			String logPath, String propsPath) {
 		boolean headless() {
 			return auto || dumpReach != null || queryIn != null;
@@ -68,6 +68,10 @@ public final class Main {
 		} else {
 			installLookAndFeel();
 		}
+		if (options.seedEnd() != null && options.auto()) {
+			runBatch(options, prop);
+			return;
+		}
 		EventQueue.invokeLater(() -> {
 			final RaceGame game = new RaceGame(prop);
 			game.setAutoMode(options.headless());
@@ -83,6 +87,46 @@ public final class Main {
 		});
 	}
 
+	/** Batch mode: race every seed of the range in this one JVM. Each seed
+	 *  gets a fresh RaceGame over a fresh Properties copy; the reachability
+	 *  arrays are built once per track and reused in-process (read-only after
+	 *  build), which removes the per-race JVM boot and cache-load overhead
+	 *  that dominates battery wall time. */
+	private static void runBatch(final Options options, final Properties baseProp) {
+		final String logPattern = options.logPath();
+		for (long s = options.seed(); s <= options.seedEnd(); s++) {
+			final long thisSeed = s;
+			final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
+			RaceGame.setAutoRaceEndHook(done::countDown);
+			EventQueue.invokeLater(() -> {
+				final Properties raceProp = new Properties();
+				raceProp.putAll(baseProp);
+				final RaceGame game = new RaceGame(raceProp);
+				game.setAutoMode(true);
+				game.setStartSeed(thisSeed);
+				if (logPattern != null)
+					game.setGameLogPath(batchLogPath(logPattern, thisSeed));
+				game.start();
+			});
+			try {
+				done.await();
+			} catch (final InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+		}
+		System.exit(0);
+	}
+
+	/** Insert _sN before the extension: races/x.log + 7 -> races/x_s7.log. */
+	private static String batchLogPath(final String pattern, final long seed) {
+		final int dot = pattern.lastIndexOf('.');
+		final int sep = Math.max(pattern.lastIndexOf('/'), pattern.lastIndexOf('\\'));
+		if (dot > sep)
+			return pattern.substring(0, dot) + "_s" + seed + pattern.substring(dot);
+		return pattern + "_s" + seed;
+	}
+
 	static Options parseArgs(final String[] args) {
 		boolean auto = false;
 		String trackName = null;
@@ -91,6 +135,7 @@ public final class Main {
 		String queryIn = null;
 		String queryOut = null;
 		Long seed = null;
+		Long seedEnd = null;
 		String logPath = null;
 		String propsPath = null;
 
@@ -106,9 +151,17 @@ public final class Main {
 				case "--seed" -> {
 					final String raw = value(args, ++i, option);
 					try {
-						seed = Long.valueOf(raw);
+						final int dash = raw.indexOf('-', 1);
+						if (dash > 0) {
+							seed = Long.valueOf(raw.substring(0, dash));
+							seedEnd = Long.valueOf(raw.substring(dash + 1));
+							if (seedEnd < seed)
+								throw new IllegalArgumentException("--seed range end before start: " + raw);
+						} else {
+							seed = Long.valueOf(raw);
+						}
 					} catch (final NumberFormatException error) {
-						throw new IllegalArgumentException("--seed requires an integer: " + raw, error);
+						throw new IllegalArgumentException("--seed requires an integer or A-B range: " + raw, error);
 					}
 				}
 				case "--query-moves" -> {
@@ -120,7 +173,7 @@ public final class Main {
 			}
 		}
 		return new Options(auto, trackName, listTracks, dumpReach, queryIn, queryOut,
-				seed, logPath, propsPath);
+				seed, seedEnd, logPath, propsPath);
 	}
 
 	private static String value(final String[] args, final int index, final String option) {

@@ -48,6 +48,32 @@ of the road, learned from a mid-merge collision:
   repo -- the toolchain now lives in tracks/, documented in
   AI_DEVELOPMENT.md.
 
+## 2026-08-14 speedup: batch racing + in-process reachability memo
+
+RE-PROFILING the r91+ champion (the old "AI search is 3% of CPU" was
+stale): the AI hot path is now their search machinery (fmRec, mobility,
+two-round world-step -- their actively-optimized territory), and the
+BATTERY'S dominant fixed cost is per-race startup: ~1.3s reachability
+cache load+derive plus ~0.4s JVM boot x ~2900 races/cycle = 80+ min of
+pure overhead per campaign cycle.
+
+THE FIX, two parts, behavior-invisible by construction:
+1. **Batch racing**: `--seed A-B` races every seed in ONE JVM (Main
+   loops fresh RaceGame instances over fresh Properties copies; a new
+   autoRaceEndHook replaces the hard System.exit; per-seed logs get _sN
+   inserted before the extension).
+2. **In-process reachability memo** (Reachability.REACH_MEMO): the
+   fully-derived products (turns, alive, roomy, shed, cert) are adopted
+   instantly by later seeds of the same track -- all read-only after
+   build.
+
+PROOF: batch logs byte-identical to single-shot logs (monaco s1-3,
+cmp); one cache-hit print for three races (the memo works); unit +
+golden suites green. MEASURED: monaco s1-3 = 18.2s as three singles vs
+**9.5s batched (-48%)**; projected 35-45% off full battery wall time.
+Tooling (bench_ai/bench_iso batch wiring) is the follow-up; the game
+side is complete.
+
 ## PROMOTION 2026-08-14 (per user): the composition is the champion
 
 Executed: AI1's body mirrored WHOLESALE into AI2 (the r79-r90 pace

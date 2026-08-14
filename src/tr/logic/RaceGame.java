@@ -59,6 +59,13 @@ public final class RaceGame {
 	private final StringBuilder	gameLog		= new StringBuilder();
 	private int					turnCounter	= 0;
 	boolean				autoMode	= false;
+	/** Batch mode: a finished auto race calls this instead of exiting the
+	 *  JVM, letting one process race many seeds (Main.runBatch). */
+	private static volatile Runnable autoRaceEndHook = null;
+
+	public static void setAutoRaceEndHook(final Runnable r) {
+		autoRaceEndHook = r;
+	}
 
 	/** Complete pre-move state used to undo a human move and every AI reply
 	 *  that followed it. Auto-play does not allocate snapshots. */
@@ -283,7 +290,8 @@ public final class RaceGame {
 			gameFrame.setDirectionsEnabled(false);
 			gameFrame.repaint();
 			if (autoMode) {
-				SwingUtilities.invokeLater(() -> System.exit(0));
+				final Runnable hook = autoRaceEndHook;
+				SwingUtilities.invokeLater(hook != null ? hook : () -> System.exit(0));
 			}
 			return true;
 		}

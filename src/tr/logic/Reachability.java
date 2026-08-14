@@ -609,13 +609,51 @@ final class Reachability {
 				+ " (" + turnsArr.length + " states) -> " + path);
 	}
 
+	/** In-process memo of fully derived reachability products, keyed by the
+	 *  geometry-hash cache path. Batch racing (one JVM, many seeds of one
+	 *  track) adopts the arrays instantly instead of re-reading and
+	 *  re-deriving ~1.3s of cache per race; everything stored is read-only
+	 *  after build. */
+	private static final java.util.concurrent.ConcurrentHashMap<String, Object[]> REACH_MEMO =
+			new java.util.concurrent.ConcurrentHashMap<>();
+
+	private boolean adoptMemo(final String key) {
+		final Object[] m = key == null ? null : REACH_MEMO.get(key);
+		if (m == null)
+			return false;
+		aliveW = (Integer) m[0];
+		aliveH = (Integer) m[1];
+		aliveVMAX = (Integer) m[2];
+		aliveSpan = (Integer) m[3];
+		turnsArr = (int[]) m[4];
+		aliveStates = (BitSet) m[5];
+		roomy0 = (BitSet) m[6];
+		roomy1 = (BitSet) m[7];
+		minShed2 = (byte[]) m[8];
+		minShed2Roomy = (byte[]) m[9];
+		certSq = (byte[]) m[10];
+		return true;
+	}
+
+	private void publishMemo(final String key) {
+		if (key == null || turnsArr == null)
+			return;
+		REACH_MEMO.putIfAbsent(key, new Object[]{aliveW, aliveH, aliveVMAX, aliveSpan,
+				turnsArr, aliveStates, roomy0, roomy1, minShed2, minShed2Roomy, certSq});
+	}
+
 	/** Kick off reverse-BFS reachability on a daemon thread so it doesn't block the UI. */
 	void startReachabilityCompute() {
 		reachabilityFailure = null;
 		final Thread t = new Thread(() -> {
 			try {
-				if (!tryLoadReachabilityCache())
-					computeReachability();
+				final java.nio.file.Path cachePath = reachCachePath();
+				final String memoKey = cachePath == null ? null : cachePath.toString();
+				if (!adoptMemo(memoKey)) {
+					if (!tryLoadReachabilityCache())
+						computeReachability();
+					publishMemo(memoKey);
+				}
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
 			} finally {
