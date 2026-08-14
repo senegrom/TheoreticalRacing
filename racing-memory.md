@@ -94,7 +94,31 @@ pace-arm aggression, which IN_SCORER_SIM suppression removes from
 sim-me by design. The recursion boundary is now the frontier's
 fundamental limit; closing it needs either bounded-depth true-me
 rollouts or admission-level speed discipline in the pace arms
-themselves. Full battery in flight; verdict lands here.
+themselves. ROUND EXTENDED during gating: the first battery found a LEMANS 4-CAR
+s1 crash -- the frontier's OWN (pure pre-guard stack crashes it
+identically; their "small-field crash-free" gates raced MIXED fields
+only, so the all-AI1 4-car hole was outside their coverage). Last
+avoidable m131: p3 holds spd^2=85 into the bottom-turn complex, dies
+@r8, survivors shed laterally. Fixed by RE-ADDING the fast funnel arm
+with two additional laws learned the hard way:
+- narrowRun>=6 alone did not stop the lemans-8car-s3 false fire, and
+  CROSS-MODEL smom confirmation is NEGATIVE-VALUE for deep verdicts
+  (it blocked the true sparse-field death without stopping the dense
+  false one) -- removed;
+- the correct trust gate is FIELD SPARSITY: deep 8-round verdicts
+  track reality at <=AI1_FUNNEL_DEEP_FIELD=4 live rivals (the 4car
+  geometric doom is model-robust at 3) and drift into false kills at 7
+  (accumulated rival error); pace-arm precedence is NOT a shield
+  (their 5-round certificates are blind @r8).
+
+FINAL BATTERY (frontier + both funnel arms, vs the r78 champion):
+never-worse everywhere, strictly better nearly everywhere -- 8car
+770/0 x3 at -0.97/-0.99/-0.95 with ZERO slower tracks; h2h c=0 both
+bands with places WON (4.474/4.478 vs 4.526/4.522); 4car 330/0 at
+-0.64 (the crash repaired AND faster); 1v1 110/0 at -0.30; slow exact
+tie. All four AI1 pins green; every counterexample fixture clean.
+THE COMPOSITION (r79-r82 pace stack + r83 funnel guards) IS
+PROMOTION-READY; the word is the user's.
 
 ## Master correctness/debloat pass (2026-08-13)
 

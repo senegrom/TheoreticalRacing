@@ -229,7 +229,8 @@ final class RaceAi {
 	private final static int		AI1_SLOW_PACK_SPD2_SMALL	= 12;	// round 71 (promoted): speed floor for the small-field gate (start-grid moves stay below it)
 	private final static int		AI1_FUNNEL_WIDTH	= 4;	// round 83: static funnel escalation threshold -- the zandvoort corner and coil spiral pinch to ring width 4 while every measured open corridor is >= 7 (silverstone s1 distribution)
 	private final static int		AI1_FUNNEL_MIN_SPD	= 3;	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
-	private final static int		AI1_FUNNEL_RUN	= 6;	// round 83: minimum CONSECUTIVE narrow rings -- a short gate (lemans chicane, 1-3 rings) is passable at speed; sustained corridors kill	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
+	private final static int		AI1_FUNNEL_RUN	= 6;	// round 83: minimum CONSECUTIVE narrow rings (short gates are threadable)
+	private final static int		AI1_FUNNEL_DEEP_FIELD	= 4;	// round 83: max live rivals for trusting the deep fast-funnel verdict	// round 83: minimum CONSECUTIVE narrow rings -- a short gate (lemans chicane, 1-3 rings) is passable at speed; sustained corridors kill	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): bounded near-finish sprint; candidate must finish at its empty-map optimum in two independent joint models
@@ -742,6 +743,42 @@ final class RaceAi {
 					// scorer-rival world on a dead-or-FRAGILE (final tier <= 1)
 					// verdict; the scorer-rival re-verdict gates any switch.
 					boolean deepHandled = false;
+					// round 83 (AI1): the static funnel guard for FAST commitments,
+					// run-length gated -- lemans-4car-s1 m131 holds spd^2=85 into
+					// the bottom-turn complex and dies @r8 (survivors shed
+					// laterally); short gates (run < 6) never fire, which is what
+					// broke the first fast arm. Switch-only claiming.
+					if (!deepHandled) {
+						final int fCx = pos[0] + djvx, fCy = pos[1] + djvy;
+						final int fSpdInf = Math.max(Math.abs(djvx), Math.abs(djvy));
+						final int fSpan = fSpdInf * (fSpdInf + 1) / 2;
+						final int fMinRing = fSpdInf >= AI1_FUNNEL_MIN_SPD
+								? reach.minRingWidthAhead(fCx, fCy, fSpan)
+								: Integer.MAX_VALUE;
+						int liveRivals = 0;
+						for (final Player pp : game.players)
+							if (pp.getNumber() != playerNum && !pp.isFinished())
+								liveRivals++;
+						// Deep (8-round) sim verdicts are trustworthy in SPARSE
+						// fields: the 4car lemans-s1 geometric doom is model-robust
+						// at 3 rivals, while at 7 rivals accumulated rival drift
+						// false-kills the certified private lane (lemans-8car-s3,
+						// where 5-round worlds and reality agree it lives).
+						if (liveRivals <= AI1_FUNNEL_DEEP_FIELD
+								&& fMinRing <= AI1_FUNNEL_WIDTH && fSpdInf > fMinRing
+								&& reach.narrowRunAhead(fCx, fCy, fSpan, AI1_FUNNEL_WIDTH) >= AI1_FUNNEL_RUN
+								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)) {
+							if (AI_DEBUG_DJS)
+								System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
+										+ pos[1] + ") chosen=" + chosen + " fast-funnel-risk -> scorer rollout");
+							final Direction funnelChoice = dangerJointSearch(pos, vel, playerNum, chosen,
+									true, true, true, true, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, true);
+							if (funnelChoice != chosen) {
+								chosen = funnelChoice;
+								deepHandled = true;
+							}
+						}
+					}
 					if (!djSlow) {
 						final int dcx = pos[0] + djvx, dcy = pos[1] + djvy;
 						int packNear = 0;
