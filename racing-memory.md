@@ -165,9 +165,16 @@ certification: a mixed 4v4 lemans crash in seeds 6-10, mirrored
 identically in both columns (the mirror holds; the site is
 new-champion territory -- this suite was clean when the composition
 raced the OLD champion, so the all-new mixed field reaches a fresh
-doom). Queued with zandvoort s32. Harvest 3 (8car s46-60, small fields
-s26-35) launches next: the most aggressive champion ever fielded gets
-its unseen-territory tail-risk measured, not assumed.
+doom). Queued with zandvoort s32.
+
+HARVEST 3 COMPLETE (2026-08-14, the r91 champion, 8car s46-60 + small
+fields s26-35): **770 races, ONE crash** -- the campaign's best
+fresh-seed tail-risk ever (harvest 1: 2/770 on r70; harvest 2: 5/770 on
+r75), from the fastest champion ever fielded. Small-field phases (440
+races) perfectly clean for the third consecutive harvest. The single
+crash: **chicane s51** (8-car) -- chicane's first-ever crash entry.
+Open counterexample queue: chicane s51, the mixed-lemans s6-10 site,
+zandvoort s32 (the recursion-boundary class).
 
 ## Round 93 (PROMOTED): mixed Le Mans sparse fast-trap repair
 
