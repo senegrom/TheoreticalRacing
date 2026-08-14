@@ -117,8 +117,16 @@ never-worse everywhere, strictly better nearly everywhere -- 8car
 bands with places WON (4.474/4.478 vs 4.526/4.522); 4car 330/0 at
 -0.64 (the crash repaired AND faster); 1v1 110/0 at -0.30; slow exact
 tie. All four AI1 pins green; every counterexample fixture clean.
-THE COMPOSITION (r79-r82 pace stack + r83 funnel guards) IS
-PROMOTION-READY; the word is the user's.
+THE COMPOSITION IS PROMOTION-READY; the word is the user's.
+
+MERGED RE-CERTIFICATION (2026-08-14): their round 90 (high-energy
+forward-pack pace, PR #5) landed mid-battery; the full battery was
+re-run on the merged head (r79-r90 pace stack + r83 funnel guards) and
+came back BYTE-FOR-BYTE identical to the pre-merge sweep on every
+stage total -- 770/0 x3 at -0.97/-0.99/-0.95 with zero slower tracks,
+h2h places won c=0 both bands, 4car 330/0 -0.64, 1v1 110/0 -0.30, slow
+exact tie. All pins and fixtures green on the merged head. The merged
+composition is the promotion candidate.
 
 ## Master correctness/debloat pass (2026-08-13)
 
