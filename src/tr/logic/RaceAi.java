@@ -236,6 +236,7 @@ final class RaceAi {
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
 	private final static int		AI1_FINISH_HOMOGENEOUS_TTF	= 20;	// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting
+	private final static int		AI1_FINISH_NEUTRAL_ACCEL_TTF	= 30;	// round 96 candidate: low-energy cardinal acceleration from a neutral coast
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
 	private final static int		AI1_PRIVATE_EXACT_HORIZON	= 4;	// round 77: geometry-clipped fallback horizon
 	private final static int		AI1_PRIVATE_BASE_ESCAPES	= 3;	// broad rectangles need the original wide frontier
@@ -675,23 +676,50 @@ final class RaceAi {
 			// first partial round contains only players after me). The normal DJS
 			// still runs afterwards, retaining its independent survival veto.
 			if (!inScorerSim) {
-				int sprintT = poTByDir[chosen.ordinal()];
+				final int chosenT = poTByDir[chosen.ordinal()];
+				int sprintT = chosenT;
 				Direction sprint = null;
+				int neutralChosenFinal = Integer.MIN_VALUE;
+				long neutralChosenField = 0L;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
-					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
+					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+					final int energyGain = nvx * nvx + nvy * nvy - vel[0] * vel[0] - vel[1] * vel[1];
+					final boolean neutralAcceleration = t > AI1_FINISH_HOMOGENEOUS_TTF
+							&& t <= AI1_FINISH_NEUTRAL_ACCEL_TTF && t + 1 == chosenT
+							&& chosen == Direction.NONE && d != Direction.NONE
+							&& Math.abs(d.dx) + Math.abs(d.dy) == 1 && energyGain > 0 && energyGain <= 5
+							&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
+							&& kindHomogeneousField(playerNum) && trapByDir[d.ordinal()] == 0.0
+							&& uncByDir[d.ordinal()] == 0.0
+							&& scoreByDir[d.ordinal()] < scoreByDir[chosen.ordinal()];
+					if (d == chosen || t >= sprintT
+							|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !neutralAcceleration)
 							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
 									|| !kindHomogeneousField(playerNum)))
 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 						continue;
-					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-					final int rounds = t + 1;
-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
-						continue;
-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
-							AI1_DEEP_CERT_RIVALS, null) != 0)
-						continue;
+					if (neutralAcceleration) {
+						if (neutralChosenFinal == Integer.MIN_VALUE) {
+							neutralChosenFinal = scorerFieldOutcome(pos[0] + vel[0], pos[1] + vel[1],
+									vel[0], vel[1], playerNum, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS,
+									rolloutFieldCost);
+							neutralChosenField = rolloutFieldCost[0];
+						}
+						final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+						if (neutralChosenFinal < 0 || candidateFinal != neutralChosenFinal
+								|| rolloutFieldCost[0] != neutralChosenField)
+							continue;
+					} else {
+						final int rounds = t + 1;
+						if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+							continue;
+						if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+								AI1_DEEP_CERT_RIVALS, null) != 0)
+							continue;
+					}
 					sprint = d;
 					sprintT = t;
 				}
