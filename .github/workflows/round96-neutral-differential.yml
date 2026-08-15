@@ -1,0 +1,292 @@
+name: Round 96 neutral acceleration differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-neutral-accel
+    paths:
+      - .github/workflows/round96-neutral-differential.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  regular:
+    name: Exact regular ${{ matrix.track }} seeds 1-60
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      max-parallel: 22
+      matrix:
+        track:
+          - silverstone
+          - monza
+          - spa
+          - monaco
+          - spielberg
+          - nurburgring
+          - lemans
+          - interlagos
+          - zandvoort
+          - hungaroring
+          - circle
+          - the_long_loop
+          - sprint
+          - hairpin
+          - triangle
+          - chicane
+          - bigoval
+          - curve
+          - zigzag
+          - coil
+          - slalom
+          - gear
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 31861007012
+          name: round96-neutral-jar
+          path: .
+      - name: Compare exact races
+        env:
+          TRACK: ${{ matrix.track }}
+          SEED_END: '60'
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          from itertools import zip_longest
+          import json, os, re, sys, tempfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root / 'tracks'))
+          import bench_ai
+          from ai_probe import normalized_lines
+
+          track = os.environ['TRACK']
+          seed_end = int(os.environ['SEED_END'])
+
+          def run(kind: str, seed: int):
+              bench_ai.set_nplayers(8)
+              bench_ai.set_all_to(kind)
+              result = bench_ai.run_track(track, timeout=1200, seed=seed)
+              if result is None:
+                  raise RuntimeError(f'{track} seed {seed} {kind}: invalid race')
+              text = Path(bench_ai.LOG).read_text(encoding='utf-8')
+              per_player = {}
+              counts = {}
+              for line in text.splitlines():
+                  m = re.match(r'^(\d+) p(\d+) ', line)
+                  if not m:
+                      continue
+                  player = int(m.group(2))
+                  counts[player] = counts.get(player, 0) + 1
+                  if ' FINISH' in line:
+                      per_player[player] = counts[player]
+              return result, normalized_lines(text), per_player
+
+          rows = []
+          with tempfile.TemporaryDirectory(prefix=f'round96-{track}-') as directory:
+              bench_ai.configure_runtime(directory)
+              for seed in range(1, seed_end + 1):
+                  a1, log1, players1 = run('AI1', seed)
+                  a2, log2, players2 = run('AI2', seed)
+                  f1, c1, moves1 = a1
+                  f2, c2, moves2 = a2
+                  sum1, sum2 = sum(moves1), sum(moves2)
+                  status = 'identical' if log1 == log2 else 'changed'
+                  if (f1, c1) != (f2, c2):
+                      raise SystemExit(
+                          f'{track} seed {seed}: safety/finisher change AI1={a1} AI2={a2}'
+                      )
+                  if sum1 > sum2:
+                      raise SystemExit(
+                          f'{track} seed {seed}: slower AI1={a1} AI2={a2}'
+                      )
+                  if sum1 == sum2 and moves1 != moves2:
+                      raise SystemExit(
+                          f'{track} seed {seed}: equal-sum finish redistribution '
+                          f'AI1={moves1} AI2={moves2}'
+                      )
+                  if log1 != log2:
+                      first = None
+                      for index, (left, right) in enumerate(zip_longest(log1, log2), start=1):
+                          if left != right:
+                              first = {'line': index, 'ai1': left, 'ai2': right}
+                              break
+                      rows.append({
+                          'seed': seed,
+                          'status': status,
+                          'ai1': {'finishes': f1, 'crashes': c1, 'moves': moves1,
+                                  'sum': sum1, 'per_player': players1},
+                          'ai2': {'finishes': f2, 'crashes': c2, 'moves': moves2,
+                                  'sum': sum2, 'per_player': players2},
+                          'delta': sum1 - sum2,
+                          'first_difference': first,
+                      })
+
+          report = {
+              'track': track,
+              'seed_start': 1,
+              'seed_end': seed_end,
+              'pairs': seed_end,
+              'identical': seed_end - len(rows),
+              'changed': len(rows),
+              'faster': sum(1 for row in rows if row['delta'] < 0),
+              'neutral_changed': sum(1 for row in rows if row['delta'] == 0),
+              'net_move_delta': sum(row['delta'] for row in rows),
+              'changes': rows,
+          }
+          Path(f'round96-diff-{track}.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n'
+          )
+          print(
+              f"{track}: pairs={seed_end} identical={report['identical']} "
+              f"changed={report['changed']} faster={report['faster']} "
+              f"neutral={report['neutral_changed']} net={report['net_move_delta']}"
+          )
+          for row in rows:
+              print(
+                  f"  seed {row['seed']}: delta={row['delta']} "
+                  f"AI1={row['ai1']['moves']} AI2={row['ai2']['moves']}"
+              )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-diff-${{ matrix.track }}
+          path: round96-diff-${{ matrix.track }}.json
+          if-no-files-found: error
+
+  slow:
+    name: Exact slow ${{ matrix.track }} seeds 1-25
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        track:
+          - serpentine
+          - serpentine2
+          - spiral
+          - cog
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 31861007012
+          name: round96-neutral-jar
+          path: .
+      - name: Compare exact slow races
+        env:
+          TRACK: ${{ matrix.track }}
+          SEED_END: '25'
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          from itertools import zip_longest
+          import json, os, re, sys, tempfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root / 'tracks'))
+          import bench_ai
+          from ai_probe import normalized_lines
+
+          track = os.environ['TRACK']
+          seed_end = int(os.environ['SEED_END'])
+
+          def run(kind: str, seed: int):
+              bench_ai.set_nplayers(8)
+              bench_ai.set_all_to(kind)
+              result = bench_ai.run_track(track, timeout=1800, seed=seed)
+              if result is None:
+                  raise RuntimeError(f'{track} seed {seed} {kind}: invalid race')
+              text = Path(bench_ai.LOG).read_text(encoding='utf-8')
+              per_player = {}
+              counts = {}
+              for line in text.splitlines():
+                  m = re.match(r'^(\d+) p(\d+) ', line)
+                  if not m:
+                      continue
+                  player = int(m.group(2))
+                  counts[player] = counts.get(player, 0) + 1
+                  if ' FINISH' in line:
+                      per_player[player] = counts[player]
+              return result, normalized_lines(text), per_player
+
+          rows = []
+          with tempfile.TemporaryDirectory(prefix=f'round96-{track}-') as directory:
+              bench_ai.configure_runtime(directory)
+              for seed in range(1, seed_end + 1):
+                  a1, log1, players1 = run('AI1', seed)
+                  a2, log2, players2 = run('AI2', seed)
+                  f1, c1, moves1 = a1
+                  f2, c2, moves2 = a2
+                  sum1, sum2 = sum(moves1), sum(moves2)
+                  if (f1, c1) != (f2, c2):
+                      raise SystemExit(
+                          f'{track} seed {seed}: safety/finisher change AI1={a1} AI2={a2}'
+                      )
+                  if sum1 > sum2:
+                      raise SystemExit(f'{track} seed {seed}: slower AI1={a1} AI2={a2}')
+                  if sum1 == sum2 and moves1 != moves2:
+                      raise SystemExit(
+                          f'{track} seed {seed}: equal-sum finish redistribution '
+                          f'AI1={moves1} AI2={moves2}'
+                      )
+                  if log1 != log2:
+                      first = None
+                      for index, (left, right) in enumerate(zip_longest(log1, log2), start=1):
+                          if left != right:
+                              first = {'line': index, 'ai1': left, 'ai2': right}
+                              break
+                      rows.append({
+                          'seed': seed,
+                          'ai1': {'finishes': f1, 'crashes': c1, 'moves': moves1,
+                                  'sum': sum1, 'per_player': players1},
+                          'ai2': {'finishes': f2, 'crashes': c2, 'moves': moves2,
+                                  'sum': sum2, 'per_player': players2},
+                          'delta': sum1 - sum2,
+                          'first_difference': first,
+                      })
+
+          report = {
+              'track': track,
+              'seed_start': 1,
+              'seed_end': seed_end,
+              'pairs': seed_end,
+              'identical': seed_end - len(rows),
+              'changed': len(rows),
+              'faster': sum(1 for row in rows if row['delta'] < 0),
+              'neutral_changed': sum(1 for row in rows if row['delta'] == 0),
+              'net_move_delta': sum(row['delta'] for row in rows),
+              'changes': rows,
+          }
+          Path(f'round96-diff-{track}.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n'
+          )
+          print(
+              f"{track}: pairs={seed_end} identical={report['identical']} "
+              f"changed={report['changed']} faster={report['faster']} "
+              f"neutral={report['neutral_changed']} net={report['net_move_delta']}"
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-diff-${{ matrix.track }}
+          path: round96-diff-${{ matrix.track }}.json
+          if-no-files-found: error
