@@ -1447,15 +1447,37 @@ final class RaceAi {
 			final double[] uncByDir) {
 		if (inScorerSim || chosen == Direction.NONE
 				|| trapByDir[chosen.ordinal()] != AI1_TRAP_L1
-				|| uncByDir[chosen.ordinal()] != 0.0
-				|| liveRivalsRemaining(playerNum) < AI1_PRIVATE_FIELD_MIN_RIVALS
-				|| !kindHomogeneousRoster(playerNum))
+				|| uncByDir[chosen.ordinal()] != 0.0)
 			return chosen;
 
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
 		final int chosenInf = Math.max(Math.abs(chosenVx), Math.abs(chosenVy));
 		if (chosenSpeed2 < AI1_DJS_SPD2 || chosenInf < AI1_FUNNEL_MIN_SPD)
+			return chosen;
+
+		final int chosenT = poTByDir[chosen.ordinal()];
+		final double chosenScore = scoreByDir[chosen.ordinal()];
+		int candidateMask = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int ordinal = d.ordinal();
+			final double uncertainty = uncByDir[ordinal];
+			if (d == chosen || d == Direction.NONE
+					|| poTByDir[ordinal] != chosenT
+					|| scoreByDir[ordinal] == Double.MAX_VALUE
+					|| scoreByDir[ordinal] <= chosenScore + 1e-9
+					|| trapByDir[ordinal] != AI1_TRAP_L1
+					|| uncertainty <= 0.0
+					|| uncertainty > AI1_BOTTLENECK_BRAKE_UNC_MAX)
+				continue;
+			final int vx = vel[0] + d.dx, vy = vel[1] + d.dy;
+			if (speedSquared(vx, vy) < chosenSpeed2
+					&& Math.max(Math.abs(vx), Math.abs(vy)) == chosenInf)
+				candidateMask |= 1 << ordinal;
+		}
+		if (candidateMask == 0
+				|| liveRivalsRemaining(playerNum) < AI1_PRIVATE_FIELD_MIN_RIVALS
+				|| !kindHomogeneousRoster(playerNum))
 			return chosen;
 
 		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
@@ -1466,26 +1488,16 @@ final class RaceAi {
 						AI1_FUNNEL_WIDTH) < AI1_FUNNEL_RUN)
 			return chosen;
 
-		final int chosenT = poTByDir[chosen.ordinal()];
-		final double chosenScore = scoreByDir[chosen.ordinal()];
 		Direction brake = null;
 		int brakeSpeed2 = Integer.MAX_VALUE;
 		double brakeUncertainty = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
-			final double uncertainty = uncByDir[d.ordinal()];
-			if (d == chosen || d == Direction.NONE
-					|| poTByDir[d.ordinal()] != chosenT
-					|| scoreByDir[d.ordinal()] == Double.MAX_VALUE
-					|| scoreByDir[d.ordinal()] <= chosenScore + 1e-9
-					|| trapByDir[d.ordinal()] != AI1_TRAP_L1
-					|| uncertainty <= 0.0
-					|| uncertainty > AI1_BOTTLENECK_BRAKE_UNC_MAX)
+			final int ordinal = d.ordinal();
+			if ((candidateMask & 1 << ordinal) == 0)
 				continue;
+			final double uncertainty = uncByDir[ordinal];
 			final int vx = vel[0] + d.dx, vy = vel[1] + d.dy;
 			final int speed2 = speedSquared(vx, vy);
-			if (speed2 >= chosenSpeed2
-					|| Math.max(Math.abs(vx), Math.abs(vy)) != chosenInf)
-				continue;
 			final int x = pos[0] + vx, y = pos[1] + vy;
 			if (sealable(x, y, vx, vy, playerNum)
 					|| simOutcome(x, y, vx, vy, playerNum, AI1_DEEP_HORIZON,
