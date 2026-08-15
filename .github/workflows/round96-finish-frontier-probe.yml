@@ -1,0 +1,117 @@
+name: Round 96 finish frontier probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-frontier-probe
+    paths:
+      - .github/workflows/round96-finish-frontier-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 22
+      matrix:
+        track:
+          - silverstone
+          - monza
+          - spa
+          - monaco
+          - spielberg
+          - nurburgring
+          - lemans
+          - interlagos
+          - zandvoort
+          - hungaroring
+          - circle
+          - the_long_loop
+          - sprint
+          - hairpin
+          - triangle
+          - chicane
+          - bigoval
+          - curve
+          - zigzag
+          - coil
+          - slalom
+          - gear
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Instrument skipped finish-frontier candidates
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tr/logic/RaceAi.java')
+          s = p.read_text()
+          debug = '\tprivate final static boolean\tAI_DEBUG_COMP\t= Boolean.getBoolean("ai.debug.comp");\n'
+          assert debug in s
+          s = s.replace(debug, debug + '\tprivate final static boolean\tAI_DEBUG_FINISH_FRONTIER\t= Boolean.getBoolean("ai.debug.finishfrontier");\n', 1)
+          old = ('\t\t\t\tfor (final Direction d : DIRECTIONS) {\n'
+                 '\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];\n'
+                 '\t\t\t\t\tif (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF\n')
+          new = ('\t\t\t\tfor (final Direction d : DIRECTIONS) {\n'
+                 '\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];\n'
+                 '\t\t\t\t\tif (AI_DEBUG_FINISH_FRONTIER && d != chosen && t > AI1_FINISH_HOMOGENEOUS_TTF\n'
+                 '\t\t\t\t\t\t\t&& t <= 30 && t < sprintT && d != Direction.NONE\n'
+                 '\t\t\t\t\t\t\t&& kindHomogeneousField(playerNum) && trapByDir[d.ordinal()] <= AI1_TRAP_L1)\n'
+                 '\t\t\t\t\t\tSystem.err.println("AIDBG FINISHFRONTIER p=" + playerNum + " pos=(" + pos[0] + ","\n'
+                 '\t\t\t\t\t\t\t\t+ pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ") " + chosen + "[t="\n'
+                 '\t\t\t\t\t\t\t\t+ sprintT + ",score=" + scoreByDir[chosen.ordinal()] + "] -> " + d + "[t=" + t\n'
+                 '\t\t\t\t\t\t\t\t+ ",score=" + scoreByDir[d.ordinal()] + ",trap=" + trapByDir[d.ordinal()]\n'
+                 '\t\t\t\t\t\t\t\t+ ",unc=" + uncByDir[d.ordinal()] + "]");\n'
+                 '\t\t\t\t\tif (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF\n')
+          assert old in s
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Build probe
+        run: sh ./build_main.sh
+      - name: Configure homogeneous AI1 field
+        run: |
+          mkdir -p /tmp/round96
+          cp tracks/bench.properties /tmp/round96/bench.properties
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('/tmp/round96/bench.properties')
+          s = p.read_text()
+          s = re.sub(r'^nPlayers=\d+$', 'nPlayers=8', s, flags=re.M)
+          for i in range(1, 9):
+              s = re.sub(rf'^(player{i}Kind=).+$', rf'\g<1>AI1', s, flags=re.M)
+          p.write_text(s)
+          PY
+      - name: Probe seeds 1-15
+        env:
+          TRACK: ${{ matrix.track }}
+        run: |
+          set +e
+          timeout 1500s java -Djava.awt.headless=true -Dai.debug.finishfrontier=true \
+            -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round96/bench.properties --log /tmp/round96/race.log --seed 1-15 \
+            >/tmp/round96/stdout.txt 2>/tmp/round96/stderr.txt
+          rc=$?
+          set -e
+          grep '^AIDBG FINISHFRONTIER' /tmp/round96/stderr.txt > "finish-frontier-${TRACK}.txt" || true
+          printf 'track=%s candidates=%s rc=%s\n' "$TRACK" "$(wc -l < "finish-frontier-${TRACK}.txt")" "$rc" | tee "finish-frontier-${TRACK}.summary"
+          if [ "$rc" -ne 0 ]; then
+            tail -200 /tmp/round96/stdout.txt
+            tail -200 /tmp/round96/stderr.txt >&2
+            exit "$rc"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finish-frontier-${{ matrix.track }}
+          path: |
+            finish-frontier-${{ matrix.track }}.txt
+            finish-frontier-${{ matrix.track }}.summary
+          if-no-files-found: error
