@@ -150,6 +150,73 @@ exact-behaviour control produced byte-identical logs and no child-JVM CPU
 regression; the repaired seed-7 race itself runs longer because the crashed
 car now remains alive and finishes.
 
+## Round 96 promoted: neutral-coast finish acceleration
+
+The Round-94 dual-model finish sprint deliberately stopped at empty-map TTF
+20. A full frontier probe through TTF 30 found many apparent one-turn
+shortcuts, but both the existing full-to-finish certificate and a shorter
+scorer-field proof rejected every broad extension. Exact continuation isolated
+one real boundary instead: Zigzag seed 2, global move 312, player 8, where the
+champion coasted with `NONE` at `(9,27)`, velocity `(2,-3)`, while cardinal
+`E` reached the same safe forecast one empty-map turn sooner.
+
+The promoted arm therefore does not raise the finish cap generally. It admits
+only TTF 21-30 candidates when the incumbent is `NONE`, the candidate is a
+cardinal non-coast acceleration exactly one map turn faster, kinetic-energy
+gain is positive but at most five, at least five rivals remain in a mover-kind
+homogeneous field, trap and uncertainty are both exactly zero, and the
+candidate already has a strictly better scorer value. The incumbent and
+candidate are then compared in the same eight-round, six-rival scorer-field
+world. Their mover outcome and aggregate field cost must be exactly equal; any
+failure or ambiguity preserves the incumbent. The established downstream
+danger search remains an independent final veto.
+
+On Zigzag seed 2, move 312 changes `NONE` to `E`. Safety remains seven
+finishers / zero crashes, while finisher moves improve from
+`[65,66,66,66,67,67,68]` to `[65,66,66,66,66,67,68]` (465 -> 464). The exact
+frontier differential covered 22 regular tracks through seed 60 plus four slow
+tracks through seed 25: 1,419 of 1,420 pairs were byte-identical, the sole
+change was this one-move gain, and there were no invalid races, safety changes,
+slower races, neutral divergences, or equal-sum redistributions.
+
+The eleven-stage AI1 promotion battery was also never worse. Only eight-car
+seeds 1-5 changed: both columns were 770/0, mean finisher moves improved
+62.704 -> 62.703, and Zigzag improved 66.457 -> 66.429. The other ten mixed,
+small-field, homogeneous, canonical and slow stages were exact ties. A warmed,
+alternating-order runtime check measured target AI1/AI2 ratios of 1.0190
+median and 1.0138 trimmed mean; the exact control already measured 1.0069 and
+1.0041, and the target remained below the five-percent rejection boundary.
+The rule was mirrored explicitly into AI2 only after those gates passed. The
+post-mirror champion gate, run `31863230797`, proved all 22 regular tracks
+through seeds 1-15 move-identical and all eleven promotion matrices exact ties.
+The permanent regression pins both agents at the promoted 464-move result.
+
+## Round 95 promoted: exact faster cross-model retention
+
+Deep-pack safety arbitration normally trusts a topology-shaped opponent model
+before the exact scorer-rival selector. Silverstone seed 1 exposed a narrow
+false negative: at global move 147, player 3's chosen `W` line had empty-map
+TTF 64, while topology preferred `N` at TTF 65. The eight-round, six-rival
+scorer-field world kept both alive and rated `W` strictly better for the mover
+(57 versus 58) and aggregate field (404 versus 405).
+
+Round 95 retains the original line only for exact-L2, zero-uncertainty,
+one-map-turn-faster states with at least five live rivals in a kind-homogeneous
+field, and only when the common scorer-field rollout proves strict mover and
+field improvement. Every geometry, seal, private-lane and downstream danger
+veto remains final. Silverstone seed 1 stays seven finishers / zero crashes and
+falls from 595 to 593 aggregate finisher moves.
+
+The exact AI1-versus-frozen-AI2 differential covered 1,320 regular-track pairs
+through seed 60 plus 100 slow-track pairs through seed 25: 1,419 of 1,420 were
+byte-identical, one was faster by two moves, and none was invalid, unsafe,
+slower, or redistributed. The eleven-stage promotion battery changed only the
+eight-car seeds 1-5 band: 770/0 in both columns, mean 62.706 -> 62.704, with
+Silverstone 85.000 -> 84.943. A warmed paired runtime test was noise-neutral:
+target median/trimmed ratios 1.0007/1.0020 and exact-control ratios
+0.9915/0.9980. The explicit AI2 mirror and complete post-mirror identity gate
+passed before merge to master `434da856d1a454a417eecb373eb7f15869296b23`.
+
 ## Round 94: homogeneous finish-sprint extension
 
 Round 75's finish sprint accepts a strictly faster candidate only when two

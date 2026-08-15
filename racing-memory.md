@@ -242,6 +242,63 @@ no child-JVM CPU regression; do not call the noisier wall result a speedup or
 slowdown. The repaired s7 race naturally runs longer because p6 now survives.
 The focused mixed regression pins both orderings, g502 SW and g563 FINISH.
 
+## Round 96 (PROMOTED): neutral-coast finish acceleration
+
+CAUSE: the Round-94 finish sprint's TTF-20 ceiling concealed one genuine
+one-turn gain, but broad TTF-30 arms were false leads. Static frontier probes
+found many scorer-looking shortcuts; the existing full-finish certificate and
+a shorter comparative scorer-field arm both rejected them. Exact continuation
+found the real case at Zigzag s2 g312/p8, `(9,27)`, v=(2,-3): champion `NONE`
+coasts to `(11,24)`, while `E` accelerates to `(12,24)` and removes one real
+finisher move without changing safety. Neighbouring counterexamples either
+added materially more kinetic energy, changed the short forecast, or altered
+the remaining field.
+
+INSTRUMENT: preserve the legacy TTF<=20 finish sprint unchanged. In TTF 21-30,
+admit only an exact-one-map-turn-faster cardinal acceleration from incumbent
+`NONE` with positive energy gain <=5, at least five live rivals, mover-kind
+homogeneity, trap=0, uncertainty=0, and a strictly better existing scorer
+value. Compare incumbent and candidate in the same eight-round/six-rival
+scorer-field world. Both mover outcome and aggregate field cost must be exactly
+equal; negative or unequal results fail closed. The ordinary downstream danger
+search still vetoes the selected move. The body was gated AI1-only, then copied
+explicitly into the second scorer body after the frontier passed.
+
+RESULT: Zigzag s2 changes only g312/p8 `NONE -> E`. Both policies remain 7/0;
+finisher moves change `[65,66,66,66,67,67,68] ->
+[65,66,66,66,66,67,68]`, sum 465 -> 464. Exact frontier differential:
+22 regular tracks x seeds1-60 plus four slow tracks x seeds1-25 = 1,420 pairs;
+1,419 byte-identical, one faster, net -1, zero invalid/safety/slower/neutral or
+equal-sum redistribution cases. AI1 promotion: only eight-car s1-5 changes,
+770/0 both, mean 62.704 -> 62.703, Zigzag 66.457 -> 66.429; all other ten
+stages exact. Alternating warm runtime target ratios are 1.0190 median / 1.0138
+trimmed versus exact-control 1.0069 / 1.0041, below the 1.05 rejection line.
+Post-mirror run `31863230797` proves the 22-track seeds1-15 strict self-tie and
+all eleven champion matrix ties. The permanent test pins both agents at 464.
+
+## Round 95 (PROMOTED): exact faster cross-model retention
+
+CAUSE: Silverstone s1 g147/p3 exposed a cross-model false negative. Chosen `W`
+had empty-map TTF 64; topology switched to `N` at 65. The shared eight-round,
+six-rival scorer-field world kept both alive and rated W self/field 57/404
+versus N 58/405. The full race stayed 7/0 but the old champion spent 595
+finisher moves instead of 593.
+
+INSTRUMENT: retain the original line only for exact-L2, zero-uncertainty,
+one-map-turn-faster states with at least five live rivals in a kind-homogeneous
+field, when the common scorer-field rollout proves strict mover and aggregate
+field improvement. All seals, geometry, private-lane and downstream danger
+vetoes remain final. Validate in AI1 against frozen AI2 before an explicit
+second-body mirror.
+
+RESULT: 22 regular tracks x seeds1-60 plus four slow tracks x seeds1-25 =
+1,420 exact pairs; 1,419 byte-identical, one faster by two moves, zero invalid,
+unsafe, slower or redistributed cases. The eleven-stage frontier changed only
+8-car s1-5: 770/0 both, mean 62.706 -> 62.704, Silverstone 85.000 -> 84.943;
+all other stages exact. Warm runtime target ratios 1.0007/1.0020 and control
+0.9915/0.9980 are noise-neutral. The post-mirror identity gate passed and the
+champion merged as master `434da856d1a454a417eecb373eb7f15869296b23`.
+
 ## Round 94 (PROMOTED): homogeneous finish-sprint extension
 
 SOURCE LEAD / HARNESS DEFECT: the stale-base `speed-93-finish20` experiment
