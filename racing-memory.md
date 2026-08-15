@@ -6,6 +6,67 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 99 (local agent): bounded true-rival confirm -- zandvoort s32 SOLVED, class closed
+
+THE RECURSION BOUNDARY IS BREACHED -- affordably. Round 97 proved true
+rivals correct but cost-prohibitive as a general world; round 99 makes
+them a RARE CONFIRM: fire only where the suppressed corridor world says
+alive AND its own outputs betray fragility. The observe probe measured
+the signature at the two s32 doom decisions (verdict alive, finalTier=1,
+threadRounds=1/2, body on the neutral grid) at ~0.25 false fires per
+race elsewhere (2 in 8 healthy races, all zandvoort).
+
+MECHANISM (all AI1-only): scorerMoveOverState gains a suppress flag;
+suppress=false runs the rival's computeAiMove UNSUPPRESSED (pace arms
+included). simOutcome gains trueRivals (scorer-set rivals at full
+fidelity). dangerJointSearch gains trueConfirm: an alive corridor
+verdict matching the fragility signature is re-verdicted with
+AI1_TRUE_CONFIRM_ROUNDS=3 rounds of true rivals (the box seals at round
+INDEX 2 -- a 2-round confirm provably misses it, measured). True-dead
+falls into the normal switch, where each candidate is ALSO
+true-confirmed (first true-alive by cheap simT wins; cheap-best
+fallback). Wired at the r73/r74 corridor/queue certification only.
+
+THE r97 COST/CORRECTNESS WALLS, ENGINEERED AROUND:
+1. Workspace clobber (would have corrupted r97's results silently): an
+   unsuppressed rival compute re-enters rolloutWorkspace(); the confirm
+   swaps the field to null around computeAiMove so nested rollouts
+   allocate fresh; outer arrays live on as locals.
+2. Recursion runaway: static latch inTrueRivalConfirm -- rivals computed
+   at full fidelity cannot fire their own confirms.
+3. Cost: verdict-only + rare gate + 3-round bound = ~0.25s per fire,
+   +0.7s on the crash race, +0 on most races (canon window 1 wall time
+   unchanged).
+
+AT THE SITE: m102 fires and true rivals KEEP S (death @r7 is not yet
+sealed -- correctly not the decision point); m110 fires, true rivals
+KILL @3r, alt walk finds SW simT=125 true-ALIVE, switch -> 0 crashes.
+p8's one benign fire confirms alive. Debug-independent clean replay: 0.
+
+ONE REAL BUG CAUGHT BY THE PINS: the confirm's audit arrays leaked the
+r98 robust-switch into the corridor site ungated (a fully-threaded
+alive corridor verdict ran the thread switch with threadCheck=false),
+perturbing cog-s1 field-neutral by +2 moves. Fix: the robust switch
+requires threadCheck explicitly. Lesson recorded: when two audits share
+plumbing, each behavior needs its own explicit flag test.
+
+GATES (all green): nine pins PASS (incl. field-neutral after the fix,
+thread-fragility, golden corpus, headless smoke); canon
+62.706/62.651/62.679 -- IDENTICAL to the r98/champion record, f=770 c=0
+all windows, windows 2-3 exactly equal AI2; 4p 2.500/2.500, 1v1
+1.500/1.500, h2h 4.500/4.500, all c=0; slow 104.107 both kinds.
+Harvest 5 (same 770 races as harvests 3-4) = the certification sweep.
+
+HARVEST 5 RESULT: **0/770, all 3190 finishes present** -- the second
+consecutive zero-crash full sweep, now on the r99 champion. Confirm
+fires across the sweep stayed rare enough to leave every previously
+clean race untouched (the sweep is seed-identical to harvests 3-4).
+
+CLASS LEDGER: chicane s51 (rival-side) solved by r98 thread audit;
+zandvoort s32 (both-sided) solved by r99 true-rival confirm. NO KNOWN
+OPEN CRASH SITES. The two instruments compose: cheap-world fragility
+signals gate expensive fidelity exactly where model error is fatal.
+
 ## Round 98 (local agent): thread-fragility audit -- chicane s51 SOLVED
 
 THE RECURSION-BOUNDARY CLASS HAS A MODEL-FREE ANSWER. Round 97 proved

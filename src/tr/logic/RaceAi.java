@@ -211,7 +211,9 @@ final class RaceAi {
 	private final static int		AI1_SEAL_MAXRIVALS	= 3;	// endgame seal fires when <= this many rivals remain
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
-	private final static int		AI1_DJS_ROUNDS	= 3;	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
+	private final static int		AI1_DJS_ROUNDS	= 3;
+	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 3;	// round 99: horizon for the true-rival confirm -- the s32-class box seals at round INDEX 2 (the third simulated round), and every extra round multiplies full-champion rival computes
+	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
 	private final static int		AI1_DJS_FAST_FRAGILE_ROUNDS	= 4;	// round 93: faithful-rival recheck for fast L2 landings that are already fragile after the normal 3-round screen
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
@@ -262,6 +264,9 @@ final class RaceAi {
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
 	private boolean				inScorerSim;
+	/** Round 99: latch -- while a true-rival confirm runs, rivals computed at
+	 *  full fidelity must not fire their own confirms (cost recursion). */
+	private static boolean			inTrueRivalConfirm;
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -940,7 +945,8 @@ final class RaceAi {
 												+ " bodies=" + landingBodies
 												+ " -> certified scorer check");
 									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS);
+											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS, false, false,
+											true);
 									deepHandled = true;
 								}
 							}
@@ -2318,6 +2324,18 @@ final class RaceAi {
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
 			final ScorerWorkspace workspace) {
+		return scorerMoveOverState(i, px, py, vx, vy, alive, out, workspace, true);
+	}
+
+	/** suppress=false (round 99): the rival's computeAiMove runs its FULL pace
+	 *  stack -- the zandvoort-s32 killer move is a private-lane pace-arm
+	 *  product, invisible to every suppressed world. The rival's own nested
+	 *  sims still self-suppress (each nested scorer move re-sets the flag),
+	 *  and the workspace field is swapped out so the rival's rollouts cannot
+	 *  clobber the arrays of the rollout that spawned this move. */
+	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
+			final ScorerWorkspace workspace, final boolean suppress) {
 		final int n = game.players.length;
 		final int ss = game.subgamestate;
 		final boolean previousScorerSim = inScorerSim;
@@ -2342,8 +2360,18 @@ final class RaceAi {
 				player.setFinishedPlace(alive[j] ? 0 : 77);
 			}
 			game.subgamestate = i;
-			inScorerSim = true;
-			direction = computeAiMove();
+			inScorerSim = suppress;
+			if (suppress) {
+				direction = computeAiMove();
+			} else {
+				final RolloutWorkspace outer = rolloutWorkspace;
+				rolloutWorkspace = null;
+				try {
+					direction = computeAiMove();
+				} finally {
+					rolloutWorkspace = outer;
+				}
+			}
 		} finally {
 			inScorerSim = previousScorerSim;
 			for (int j = 0; j < n; j++) {
@@ -2427,7 +2455,7 @@ final class RaceAi {
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final int scorerCap, final int[] outFinalTier, final long[] outFieldCost) {
 		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
-				exactRivals, scorerRivals, scorerSelf, scorerCap, outFinalTier, outFieldCost, null);
+				exactRivals, scorerRivals, scorerSelf, false, scorerCap, outFinalTier, outFieldCost, null);
 	}
 
 	/** outThreadRounds (round 98): counts my move slots entered with at most ONE
@@ -2444,6 +2472,19 @@ final class RaceAi {
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final int scorerCap, final int[] outFinalTier, final long[] outFieldCost,
 			final int[] outThreadRounds) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, scorerSelf, false, scorerCap, outFinalTier, outFieldCost,
+				outThreadRounds);
+	}
+
+	/** trueRivals (round 99): scorer-set rivals run their UNSUPPRESSED real
+	 *  champion -- pace arms included. Reserved for the rare bounded confirm;
+	 *  cost is rivals x rounds full computeAiMove calls. */
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
+			final long[] outFieldCost, final int[] outThreadRounds) {
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -2534,7 +2575,8 @@ final class RaceAi {
 									? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move)
 									: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else if (scorerSet[i])
-					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer);
+					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer,
+							!trueRivals);
 				else if (exactRivals)
 					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
@@ -2611,20 +2653,59 @@ final class RaceAi {
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
 			final boolean scorerSelf, final boolean threadCheck) {
+		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, rounds, scorerCap, scorerSelf, threadCheck, false);
+	}
+
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
+			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
-		final int[] threadRounds = threadCheck ? new int[1] : null;
+		final boolean audit = threadCheck || trueConfirm;
+		final int[] threadRounds = audit ? new int[1] : null;
+		final int[] finalTier = audit ? rolloutWorkspace().finalTier : null;
+		if (finalTier != null)
+			finalTier[0] = 3;
+		boolean trueDead = false;
 		if (simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals,
-				scorerSelf, scorerCap, null, null, threadRounds) >= 0) {
+				scorerSelf, scorerCap, finalTier, null, threadRounds) >= 0) {
+			// Round 99: fragile alive verdict in pack traffic -> confirm the
+			// chosen with two rounds of FULL-FIDELITY rivals. The suppressed
+			// world's blind spot is the rivals' own pace arms (zandvoort s32:
+			// the killer move is a private-lane override); tier<=1 plus at
+			// least one threaded slot plus a body on the neutral grid is the
+			// measured signature of the two doom decisions, at ~0.25 fires
+			// per race elsewhere.
+			if (trueConfirm && !inTrueRivalConfirm && threadRounds != null && finalTier != null
+					&& finalTier[0] <= 1 && threadRounds[0] >= 1
+					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1) {
+				inTrueRivalConfirm = true;
+				try {
+					trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
+							simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
+							scorerCap, null, null, null) < 0;
+				} finally {
+					inTrueRivalConfirm = false;
+				}
+				if (AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
+					System.err.println("AIDBG TRUECONF p=" + playerNum + " pos=(" + pos[0] + ","
+							+ pos[1] + ") chosen=" + chosen + " tier=" + finalTier[0] + " thread="
+							+ threadRounds[0] + " -> true rivals "
+							+ (trueDead ? "KILL @" + AI1_TRUE_CONFIRM_ROUNDS + "r, switching"
+									: "keep alive"));
+			}
+			if (!trueDead) {
 			// Round 98 (AI1): an alive verdict that entered EVERY simulated move
 			// slot with at most one viable candidate is a single-file needle
 			// through traffic, not a survival proof -- the exact chicane-s51
 			// signature. Switch only to an alternative that is BOTH alive and
 			// non-threaded in the same world; if none exists, keep the chosen
 			// (survival-only asymmetry preserved: no untreaded rescue, no churn).
-			if (threadRounds == null || threadRounds[0] < rounds - 1)
+			if (!threadCheck || threadRounds == null || threadRounds[0] < rounds - 1)
 				return chosen;
 			final boolean tdbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 			if (tdbg)
@@ -2663,6 +2744,7 @@ final class RaceAi {
 				System.err.println("AIDBG THREAD  -> " + (robust != null
 						? "SWITCH " + robust + " simT=" + robustT : "KEEP " + chosen + " (no robust)"));
 			return robust != null ? robust : chosen;
+			}
 		}
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 		if (dbg)
@@ -2670,6 +2752,7 @@ final class RaceAi {
 					+ "," + vel[1] + ") chosen=" + chosen + " DIES in-sim");
 		Direction best = null;
 		int bestT = Integer.MAX_VALUE;
+		final boolean[] rejected = new boolean[DIRECTIONS.length];
 		for (final Direction d : DIRECTIONS) {
 			if (d == chosen)
 				continue;
@@ -2694,6 +2777,57 @@ final class RaceAi {
 				bestT = t;
 				best = d;
 			}
+		}
+		if (trueDead && best != null) {
+			// Round 99: the cheap world proposed the switch target; make the
+			// target itself survive the true-rival world too (a cheap-alive
+			// but truly-dead escape would trade one crash for another). Walk
+			// candidates by cheap sim-final ttf, first true-survivor wins.
+			Direction confirmed = null;
+			for (int pass = 0; pass < DIRECTIONS.length && confirmed == null; pass++) {
+				Direction cand = null;
+				int candT = Integer.MAX_VALUE;
+				for (final Direction d : DIRECTIONS) {
+					if (d == chosen || rejected[d.ordinal()])
+						continue;
+					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+					if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+						continue;
+					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+					if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
+							|| game.isCrashingPlayer(nx, ny, playerNum)
+							|| !reach.isAlive(nx, ny, nvx, nvy)
+							|| game.crossesFinish(pos[0], pos[1], nx, ny))
+						continue;
+					final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish,
+							exactSelf, exactRivals, scorerRivals, scorerSelf, scorerCap, null);
+					if (t >= 0 && t < candT) {
+						candT = t;
+						cand = d;
+					}
+				}
+				if (cand == null)
+					break;
+				final int ncvx = vel[0] + cand.dx, ncvy = vel[1] + cand.dy;
+				inTrueRivalConfirm = true;
+				final boolean survives;
+				try {
+					survives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
+							AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,
+							scorerSelf, true, scorerCap, null, null, null) >= 0;
+				} finally {
+					inTrueRivalConfirm = false;
+				}
+				if (dbg)
+					System.err.println("AIDBG TRUECONF  alt " + cand + " simT=" + candT
+							+ (survives ? " true-ALIVE" : " true-DIES"));
+				if (survives)
+					confirmed = cand;
+				else
+					rejected[cand.ordinal()] = true;
+			}
+			if (confirmed != null)
+				best = confirmed;
 		}
 		if (dbg)
 			System.err.println("AIDBG DJS  -> " + (best != null ? "SWITCH " + best + " simT=" + bestT
