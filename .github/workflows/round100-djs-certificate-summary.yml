@@ -1,0 +1,64 @@
+name: Summarize Round 100 danger-switch certificates
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-djs-probe
+    paths:
+      - .github/workflows/round100-djs-certificate-summary.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 31908537085
+          github-token: ${{ github.token }}
+          pattern: round100-djscert-*
+          path: reports
+          merge-multiple: true
+      - name: Aggregate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          tracks, details = [], []
+          totals = {'events': 0, 'relaxed': 0, 'robust': 0}
+          for path in sorted(Path('reports').glob('round100-djscert-*.txt')):
+              values, events = {}, []
+              for line in path.read_text().splitlines():
+                  if line.startswith('AIDBG DJSCERT'):
+                      events.append(line)
+                  elif '=' in line:
+                      key, value = line.split('=', 1)
+                      values[key] = value
+              row = {
+                  'track': values.get('track', path.stem),
+                  'events': int(values.get('events', 0)),
+                  'relaxed': int(values.get('relaxed', 0)),
+                  'robust': int(values.get('robust', 0)),
+              }
+              tracks.append(row)
+              for key in totals:
+                  totals[key] += row[key]
+              for event in events:
+                  details.append({'track': row['track'], 'event': event})
+          out = {'track_count': len(tracks), 'totals': totals,
+                 'tracks': tracks, 'details': details}
+          Path('round100-djs-certificate-summary.json').write_text(
+              json.dumps(out, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(out, indent=2, sort_keys=True))
+          if len(tracks) != 13:
+              raise SystemExit(f'expected 13 reports, found {len(tracks)}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-djs-certificate-summary
+          path: round100-djs-certificate-summary.json
+          if-no-files-found: error
