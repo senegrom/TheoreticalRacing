@@ -4,7 +4,7 @@ import java.util.BitSet;
 
 /**
  * The vector-racing AI extracted from {@link RaceGame}: move selection for both
- * variants (AI1 = frontier we improve, AI2 = frozen AI2.9 standard), opponent
+ * variants (AI1 = development frontier, AI2 = mirrored champion/control), opponent
  * prediction, box-seal detection, brake-proof pace discipline and the N-ply
  * escape-headroom search. Reads the reachability maps and its host's
  * legality/geometry predicates through back-refs; returns the chosen move.
@@ -126,9 +126,8 @@ final class RaceAi {
 		return workspace;
 	}
 
-	/** Dispatches to AI1 or AI2. AI2 is now the FROZEN STANDARD (the AI2.9
-	 *  zero-conflict champion: AI2.8 + conflict penalty zeroed); AI1 is forked
-	 *  from it and is the one we improve from here. */
+	/** Dispatches to AI1 or AI2. AI2 stays unchanged while a new AI1 experiment
+	 *  is measured, then receives the exact proven winner at promotion. */
 	Direction computeAiMove() {
 		reach.ensureReachabilityReady();
 		final Player p = game.players[game.subgamestate];
@@ -236,6 +235,7 @@ final class RaceAi {
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
 	private final static int		AI1_FINISH_HOMOGENEOUS_TTF	= 20;	// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting
+	private final static int		AI1_FINISH_EXTENDED_TTF	= 30;	// round 96: one-turn, non-coasting homogeneous extension of the full finish proof
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
 	private final static int		AI1_PRIVATE_EXACT_HORIZON	= 4;	// round 77: geometry-clipped fallback horizon
 	private final static int		AI1_PRIVATE_BASE_ESCAPES	= 3;	// broad rectangles need the original wide frontier
@@ -675,23 +675,52 @@ final class RaceAi {
 			// first partial round contains only players after me). The normal DJS
 			// still runs afterwards, retaining its independent survival veto.
 			if (!inScorerSim) {
-				int sprintT = poTByDir[chosen.ordinal()];
+				final int chosenT = poTByDir[chosen.ordinal()];
+				final boolean homogeneousLive = chosenT > AI1_FINISH_CERT_TTF
+						&& kindHomogeneousField(playerNum);
+				final boolean extendedContext = chosenT >= AI1_FINISH_HOMOGENEOUS_TTF + 2
+						&& chosenT <= AI1_FINISH_EXTENDED_TTF + 1
+						&& kindHomogeneousRoster(playerNum)
+						&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
+						&& hasAdjacentPriorVelocityPeer(pos, vel, playerNum);
+				int sprintT = chosenT;
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
-					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
+					final boolean extendedFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF
+							&& t <= AI1_FINISH_EXTENDED_TTF && t + 1 == chosenT
+							&& d != Direction.NONE && extendedContext
+							&& trapByDir[d.ordinal()] == AI1_TRAP_L2
+							&& uncByDir[d.ordinal()] == 0.0;
+					if (d == chosen || t >= sprintT
+							|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !extendedFrontier)
 							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
-									|| !kindHomogeneousField(playerNum)))
+									|| !homogeneousLive))
 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 						continue;
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+					if (extendedFrontier && sealable(nx, ny, nvx, nvy, playerNum))
+						continue;
 					final int rounds = t + 1;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
 						continue;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
 							AI1_DEEP_CERT_RIVALS, null) != 0)
 						continue;
+					if (extendedFrontier) {
+						final int frontierCvx = vel[0] + chosen.dx, frontierCvy = vel[1] + chosen.dy;
+						final int chosenFinal = scorerFieldOutcome(pos[0] + frontierCvx,
+								pos[1] + frontierCvy, frontierCvx, frontierCvy, playerNum,
+								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+						final long chosenField = rolloutFieldCost[0];
+						final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+						final long candidateField = rolloutFieldCost[0];
+						if (chosenFinal < 0 || candidateFinal < 0 || candidateFinal >= chosenFinal
+								|| candidateField >= chosenField)
+							continue;
+					}
 					sprint = d;
 					sprintT = t;
 				}
@@ -1386,6 +1415,37 @@ final class RaceAi {
 			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != kind)
 				return false;
 		return true;
+	}
+
+	/** Whether every racer in the starting roster uses the mover's policy kind.
+	 *  Unlike the live-field gate, this cannot become true late in a mixed race
+	 *  after the other policy has finished or crashed. */
+	private boolean kindHomogeneousRoster(final int playerNum) {
+		final Player.Kind kind = moverKind(playerNum);
+		for (final Player p : game.players)
+			if (p.getNumber() != playerNum && p.getKind() != kind)
+				return false;
+		return true;
+	}
+
+	/** Whether a previously moved live rival is adjacent, shares the mover's
+	 *  current velocity, and has a lateral (or nearly lateral) offset. */
+	private boolean hasAdjacentPriorVelocityPeer(final int[] pos, final int[] vel,
+			final int playerNum) {
+		for (int i = 0; i < game.subgamestate; i++) {
+			final Player p = game.players[i];
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = pp[0] - pos[0], dy = pp[1] - pos[1];
+			if (Math.max(Math.abs(dx), Math.abs(dy)) != 1)
+				continue;
+			final int[] pv = p.getVelocity();
+			if (pv[0] == vel[0] && pv[1] == vel[1]
+					&& Math.abs((long) dx * vel[0] + (long) dy * vel[1]) <= 1L)
+				return true;
+		}
+		return false;
 	}
 
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
@@ -2541,7 +2601,7 @@ final class RaceAi {
 	}
 
 	/**
-	 * AI2 (FROZEN STANDARD): the AI2.9 zero-conflict champion — the AI2.8
+	 * AI2 (CHAMPION MIRROR): the AI2.9 zero-conflict champion — the AI2.8
 	 * pace-ceiling base (queue-sensing + always-on ahead-rival ply-2 foresight)
 	 * with the predicted-cell conflict penalty ZEROED. That +3.0 was redundant
 	 * soft caution atop the hard isCrashingPlayer collision check, so removing
@@ -2553,8 +2613,8 @@ final class RaceAi {
 	 * crash-free on all 22 (the hard check prevents real collisions among
 	 * equally-aggressive cars); it wins by aggressive line-claiming that can
 	 * squeeze a differently-behaving opponent into a wall (~1/59 mixed races) —
-	 * a FEATURE in a racing game, per the user. Don't change AI2 — it's the
-	 * yardstick; AI1 is the experimental copy being improved.
+	 * a FEATURE in a racing game, per the user. During an experiment AI2 is the
+	 * unchanged yardstick; after promotion it mirrors the proven AI1 winner.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		// Endgame seal (frontier, per "force the last rival to crash = win"): with
@@ -2949,23 +3009,52 @@ final class RaceAi {
 			// first partial round contains only players after me). The normal DJS
 			// still runs afterwards, retaining its independent survival veto.
 			if (!inScorerSim) {
-				int sprintT = poTByDir[chosen.ordinal()];
+				final int chosenT = poTByDir[chosen.ordinal()];
+				final boolean homogeneousLive = chosenT > AI1_FINISH_CERT_TTF
+						&& kindHomogeneousField(playerNum);
+				final boolean extendedContext = chosenT >= AI1_FINISH_HOMOGENEOUS_TTF + 2
+						&& chosenT <= AI1_FINISH_EXTENDED_TTF + 1
+						&& kindHomogeneousRoster(playerNum)
+						&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
+						&& hasAdjacentPriorVelocityPeer(pos, vel, playerNum);
+				int sprintT = chosenT;
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
-					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
+					final boolean extendedFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF
+							&& t <= AI1_FINISH_EXTENDED_TTF && t + 1 == chosenT
+							&& d != Direction.NONE && extendedContext
+							&& trapByDir[d.ordinal()] == AI1_TRAP_L2
+							&& uncByDir[d.ordinal()] == 0.0;
+					if (d == chosen || t >= sprintT
+							|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !extendedFrontier)
 							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
-									|| !kindHomogeneousField(playerNum)))
+									|| !homogeneousLive))
 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 						continue;
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+					if (extendedFrontier && sealable(nx, ny, nvx, nvy, playerNum))
+						continue;
 					final int rounds = t + 1;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
 						continue;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
 							AI1_DEEP_CERT_RIVALS, null) != 0)
 						continue;
+					if (extendedFrontier) {
+						final int frontierCvx = vel[0] + chosen.dx, frontierCvy = vel[1] + chosen.dy;
+						final int chosenFinal = scorerFieldOutcome(pos[0] + frontierCvx,
+								pos[1] + frontierCvy, frontierCvx, frontierCvy, playerNum,
+								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+						final long chosenField = rolloutFieldCost[0];
+						final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+						final long candidateField = rolloutFieldCost[0];
+						if (chosenFinal < 0 || candidateFinal < 0 || candidateFinal >= chosenFinal
+								|| candidateField >= chosenField)
+							continue;
+					}
 					sprint = d;
 					sprintT = t;
 				}

@@ -17,6 +17,8 @@ python3 tests/ai1_mixed_safety_regression.py
 python3 tests/ai1_field_neutral_regression.py
 python3 tests/ai1_staged_pace_regression.py
 python3 tests/ai1_energy_pace_regression.py
+python3 tests/ai1_cross_model_pace_regression.py
+python3 tests/ai1_finish_frontier_regression.py
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
@@ -180,6 +182,51 @@ Loop and Le Mans seeds 1-15 checks all return 4.500/4.500 with zero crashes
 after the homogeneity gate. The mirrored final bodies pass the strict 27-race
 identity probe.
 
+## Round 95: strict cross-model pace retention
+
+The topology-shaped danger model can occasionally false-kill the scorer's
+faster line and switch to a slower survivor. In an exact-L2, zero-uncertainty,
+large homogeneous field, Round 95 retains the original line only when it is
+exactly one empty-map turn faster and the same eight-round scorer-rival world
+proves strict improvement for both the mover and aggregate field. Ambiguity
+keeps the established survival switch.
+
+The 22 regular tracks across seeds 1-60 produced 1,319 exact races out of
+1,320. The sole change, Silverstone seed 1, stayed at seven finishers and zero
+crashes while reducing the finisher-move list from
+`[82,83,84,85,86,87,88]` to `[82,83,84,85,85,86,88]` (595 -> 593).
+The 100 slow-track races were exact. The changed race also redistributes the
+finish order, so the promotion is an aggregate racing-pace gain rather than a
+per-place monotonicity claim. Warm alternating timing found no material runtime
+regression. The rule is mirrored in both AI bodies and permanently pinned.
+
+## Round 96: synchronized extended finish frontier
+
+A broad extension of the dual full-finish certificate into map TTF 21-30 found
+real Spa and Coil pace, but was rejected because it also slowed Coil seed 49
+and moved individual rivals backwards. Requiring exact L2, zero uncertainty,
+a homogeneous starting roster, at least five live rivals, a non-sealable
+landing, strict eight-round mover and field gains, and an adjacent previously
+moved rival sharing the mover's velocity isolates the stable formation case.
+The candidate must be non-coasting and exactly one map turn faster than the
+original scorer choice; both established full-to-finish worlds and downstream
+danger search remain independent vetoes.
+
+On Coil seed 6, global move 299 changes player 3 from `SW` to `W`. The result
+improves from `[58,60,61,61,61,62,63]` (426) to
+`[58,59,59,60,61,62,62]` (421), with the same seven finishers, zero crashes,
+and no individual finisher taking more moves. In the pre-mirror champion A/B
+over the canonical 22 tracks and seeds 1-15, 329/330 races are exact and this
+is the sole change, so total
+finisher moves fall from 144,791 to 144,786. Coil seeds 1-60 contain no other
+change; the former seed-47 individual regression and seed-49 aggregate slowdown
+are exact champion ties. Spa, Gear and Silverstone seeds 1-60, the other 18
+regular tracks seeds 1-15, the four slow tracks seeds 1-25, and the Zandvoort /
+Chicane tail-risk bands are exact. All three mixed 4v4 five-seed bands remain
+4.500/4.500 with zero crashes. Paired timing puts the active race's additional
+child-JVM work near 0.23-0.30 seconds, while whole-race wall time stays within
+the identical-control noise band.
+
 ## Round 90 frontier candidate: refined high-energy forward packs
 
 Above-cap staged candidates need four rivals ahead plus the existing fail-closed
@@ -278,7 +325,7 @@ golden-fixture review and post-promotion self-tie battery.
 
 ## Current champion and frontier baseline
 
-The rounds-79-to-94 stack plus the round-83 funnel guards were promoted on 2026-08-14, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 additionally saves one proven Silverstone seed-15 finisher move through a proof-gated stationary launch, Round 93 removes the symmetric mixed Le Mans seed-7 crashes through a sparse fast-trap scorer recheck, and Round 94 recovers 21 measured finisher moves by extending the dual-model finish sprint only in homogeneous fields. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final mirrored body is move-identical across the strict probe. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness. The champion retains the earlier bounded safety proofs:
+The rounds-79-to-96 stack plus the round-83 funnel guards are promoted, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 saves one proven Silverstone seed-15 move, Round 93 removes the symmetric mixed Le Mans seed-7 crashes, Round 94 extends the dual-model finish sprint through TTF 20, Round 95 retains one scorer-fast line that a topology proxy false-kills, and Round 96 certifies one synchronized TTF-21 formation gain. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final mirrored body is move-identical across the strict probe. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness. The champion retains the earlier bounded safety proofs:
 
 - Round 75 recovers provably safe finish pace. Within 15 empty-map turns of the flag, a strictly faster low-trap candidate may replace the scorer choice only when both the score-shaped-rival and scorer-rival joint models finish at that candidate's empty-map lower bound. The first partial simulated round is accounted for explicitly, and the normal danger-joint search remains an independent downstream veto. On Monaco eight-car seed 16, this changes two late `S` choices at map ttf 15 to `SW` at ttf 14 and saves two racer-turns without changing the seven-finisher, zero-crash result.
 - Round 68's dense slow-pack trigger invokes the expensive real-scorer-rival rollout only when a fast-enough car is inside an all-field funnel and a near-equal low-trap alternative exists. On Le Mans seed 4 it changes player 7's move 55 from `SE` to `SW`, converting 6 finishes / 1 crash into 7 / 0.
@@ -291,6 +338,8 @@ The rounds-79-to-94 stack plus the round-83 funnel guards were promoted on 2026-
 - Round 78 repairs two stacked fidelity gaps found by the second fresh-seed harvest. The round-60 slow smoke test now runs the scorer-rival world instead of the smom proxy (a chaser converging from behind lands in the round-59 nearest-rival set, so behind-convergence dooms are finally visible), and the slow escalation certifies alternatives with a scorer-modeled self (`scorerSelf`) because the selfMove proxy killed the only true survivor at Zandvoort seed-45 move 920 in every offline world. One upgrade on existing surfaces — no new trigger gates — eliminated three of the five harvest crashes (Zandvoort s45 and s34, Hungaroring s40) and improved the doom-dense Zandvoort 31-45 band from three crashes to one, with never-worse full gates and both mixed-field bands crash-free.
 - Round 93 covers the sparse fast-L2 fidelity gap. Only one or two nearby rivals, a live-but-tier-1-or-worse three-round smom verdict, and trap exactly L2 may invoke the four-round scorer-rival recheck. On mixed Le Mans seed 7 it changes player 6's move 502 from `S` to `SW`; player 6 then finishes fifth instead of crashing 30 global moves later. Both symmetric kind orderings are repaired, while 1,668 of 1,670 old/new corpus pairs are exact and the other two are precisely those rescues.
 - Round 94 extends the Round-75 dual optimal-finish proof from map TTF 15 to 20 only when every live rival shares the mover's policy kind, and forbids `NONE` in the new band. That boundary removes the broad experiment's sole slower race and its mixed-field place shifts while retaining all eleven measured faster races. On Big Oval seed 7 it changes move 12 from `N` to `NW` and saves three finisher moves; the canonical 22-track seeds 1-15 total improves by 17 moves with no slower race or safety change. Nürburgring seed 19 adds another one-move finisher gain and updates its golden from 752 to 750 total turns with unchanged 7/0 results.
+- Round 95 retains an exact-L2, zero-uncertainty scorer line over a false-death topology switch only when the scorer line is one map turn faster and an eight-round scorer-field comparison is strictly better for both mover and field. Silverstone seed 1 saves two aggregate finisher moves with seven finishers and zero crashes.
+- Round 96 extends the full-finish proof through map TTF 30 only for an exact-L2, zero-uncertainty, non-sealable synchronized-roster formation. Coil seed 6 saves five aggregate finisher moves with the same seven finishers and no individual slowdown; the former seeds 47/49 regressions are explicitly pinned out.
 
 The Round 71 four-car Monaco seeds 6–10 slice improves 14 finishes / 1 crash to 15 / 0. Its target 2v2 seed keeps exact 2.500 place parity while changing one AI2 crash to zero AI1 crashes. Round 72 preserves the Le Mans seed-4, Hungaroring seeds 6/20, Monaco four-car seed-9 and Interlagos four-car seeds 3/4 rescue trajectories byte-for-byte. A same-policy A/B over 25 short-track eight-car races found 23 identical logs; the two deliberate seal-guard divergences remained crash-free and had a net zero turn-count change. The existing zigzag seed-4 golden case also remains crash-free and completes two turns sooner (530 instead of 532), so its champion fixture is intentionally updated. In the Nurburgring seed-19 mixed field, AI1 had zero crashes while the pre-promotion AI2 side had one.
 

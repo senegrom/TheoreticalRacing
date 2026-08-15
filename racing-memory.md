@@ -281,6 +281,62 @@ mixed Gear/Big Oval/Spa/Long Loop/Le Mans s1-15 all return 4.500/4.500 c0.
 The mirrored body passes the strict 27/27 identity probe. Permanent tests pin
 the Big Oval gain, Le Mans s12 coast veto, and mixed Gear place neutrality.
 
+## Round 95 (PROMOTED): strict cross-model pace retention
+
+INSTRUMENT: when the topology-shaped eight-round model declares a fast-pack
+choice dead and proposes a scorer-rival-surviving alternative, keep the
+original choice only under the existing exact-L2 boundary, zero uncertainty,
+at least five live rivals and a mover-kind homogeneous field. Its empty-map TTF
+must be exactly one lower, and an eight-round six-rival scorer-field comparison
+must make both the mover and aggregate field strictly better. Otherwise retain
+the old survival switch. The rule was measured AI1-only and then mirrored.
+
+RESULT: 22 regular tracks x seeds 1-60 gave 1,319/1,320 exact races. The sole
+change was Silverstone s1: seven finishers, zero crashes, finisher moves
+`[82,83,84,85,86,87,88] -> [82,83,84,85,85,86,88]`, sum 595 -> 593.
+The 100 slow races were exact. The faster aggregate changes finisher identity /
+order, so this is deliberately a racing-pace promotion, not a monotone-place
+claim. Warm alternating target/control timing showed no material runtime
+regression. `ai1_cross_model_pace_regression.py` pins the mirrored 593 result.
+
+## Round 96 (PROMOTED): synchronized extended finish frontier
+
+REJECTED PATHS: a raw TTF21-30 dual-finish extension found many Spa/Coil gains
+but also made Coil s49 one move slower, changed finisher identities, and slowed
+individual racers. Adding the old seal veto removed one Spa line but not those
+field effects. Exact-L2 + zero uncertainty + strict eight-round mover/field
+improvement narrowed Coil to s6 and s47; s47 still slowed one finisher. A
+componentwise rival-cost rollout was rejected because its proxy accepted the
+bad s47 line and rejected the clean s6 line. Cross-model gap>=2, staged
+multi-turn zero/low-energy, and high-energy strict-field censuses were empty;
+private-proof budget exhaustion had one Spa s8 event but no later faster
+candidate casualty.
+
+INSTRUMENT: retain the Round-75/94 logic byte-for-byte for TTF<=20. The new
+TTF21-30 band is anchored to the original scorer choice (no chained one-turn
+steps), must be non-`NONE` and exactly one map turn faster, and requires an
+all-kind starting roster, at least five live rivals, exact trap L2, zero
+uncertainty, and an adjacent previously moved rival with the same velocity and
+a lateral or nearly lateral offset. The landing must be non-sealable. Both
+full-to-finish worlds must still hit the empty-map lower bound; an eight-round
+six-rival scorer-field rollout must strictly improve both mover and aggregate
+field; normal DJS remains downstream. No track or seed identity is encoded.
+
+RESULT: Coil s6 move299 p3 changes `SW v(1,-6)->(0,-5) (65,49)->(65,44)`
+to `W ->(0,-6) ->(65,43)`. The same seven finishers remain crash-free and
+their move list improves `[58,60,61,61,61,62,63] ->
+[58,59,59,60,61,62,62]`, sum 426 -> 421; no individual finisher slows.
+The pre-mirror champion A/B over canonical regular seeds1-15 is 329/330 exact,
+with this sole -5 change and
+144791 -> 144786 total finisher moves. Coil seeds1-60 have no other change;
+s47 and s49 are exact. Spa/Gear/Silverstone s1-60, the other 18 regular tracks
+s1-15, slow 4x25, all three mixed 4v4 bands and Zandvoort/Chicane s31-60 are exact or
+place-neutral with no candidate safety delta. Direct child-CPU timing assigns
+roughly 0.23-0.30 seconds of extra work to the active proof, while paired wall
+time stays inside identical-control noise. The mirrored regression pins the
+exact move, finisher identities/order/personal moves, full AI1/AI2 normalized
+log identity, and s47/s49 veto moves.
+
 ## Round 83 (local agent, IN GATES): static funnel guard for the frontier
 
 THE FRONTIER'S PROMOTION BLOCKER, repaired. Verification of the
