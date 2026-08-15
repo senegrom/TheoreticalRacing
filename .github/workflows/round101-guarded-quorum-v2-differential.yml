@@ -1,0 +1,218 @@
+name: Round 101 guarded-quorum v2 differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-101-guarded-quorum
+    paths:
+      - .github/workflows/round101-guarded-quorum-v2-differential.yml
+      - tracks/round101_guarded_quorum_v2_patch.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build normalized exact-master baseline
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round101-v2-baseline origin/master
+          cd /tmp/round101-v2-baseline
+          python - <<'PYBASE'
+          from pathlib import Path
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          old = "\tprivate static boolean\t\t\tinTrueRivalConfirm;"
+          new = "\tprivate boolean\t\t\t\tinTrueRivalConfirm;"
+          assert source.count(old) == 1
+          path.write_text(source.replace(old, new, 1))
+          PYBASE
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round101-v2-baseline.jar"
+      - name: Build and verify refined candidate
+        run: |
+          python tracks/round101_guarded_quorum_v2_patch.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_guarded_field_pace_regression.py
+          cp theoreticRacing.jar round101-v2-candidate.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-v2-jars
+          path: |
+            round101-v2-baseline.jar
+            round101-v2-candidate.jar
+          if-no-files-found: error
+
+  exact-regular:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        track:
+          - sprint
+          - circle
+          - triangle
+          - curve
+          - hairpin
+          - chicane
+          - bigoval
+          - slalom
+          - the_long_loop
+          - zigzag
+          - gear
+          - coil
+          - monaco
+          - hungaroring
+          - lemans
+          - interlagos
+          - spa
+          - silverstone
+          - spielberg
+          - zandvoort
+          - nurburgring
+          - monza
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round101-v2-jars
+      - name: Compare exact AI1 races through seed 80
+        run: |
+          python tracks/round101_compare_two_jars.py \
+            --baseline round101-v2-baseline.jar \
+            --candidate round101-v2-candidate.jar \
+            --track "${{ matrix.track }}" --seed-end 80 \
+            --out "round101-v2-${{ matrix.track }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-v2-result-${{ matrix.track }}
+          path: round101-v2-${{ matrix.track }}.json
+          if-no-files-found: error
+
+  exact-slow:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        track:
+          - cog
+          - spiral
+          - serpentine
+          - serpentine2
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round101-v2-jars
+      - name: Compare exact slow AI1 races through seed 25
+        run: |
+          python tracks/round101_compare_two_jars.py \
+            --baseline round101-v2-baseline.jar \
+            --candidate round101-v2-candidate.jar \
+            --track "${{ matrix.track }}" --seed-end 25 \
+            --out "round101-v2-${{ matrix.track }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-v2-result-${{ matrix.track }}
+          path: round101-v2-${{ matrix.track }}.json
+          if-no-files-found: error
+
+  summarize:
+    needs:
+      - exact-regular
+      - exact-slow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round101-v2-result-*
+          path: results
+          merge-multiple: true
+      - name: Reject every safety, pace, or ordering regression
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          totals = {
+              'pairs': 0, 'identical': 0, 'faster': 0, 'slower': 0,
+              'safety_gain': 0, 'safety_regression': 0,
+              'redistribution': 0, 'net_moves': 0,
+          }
+          events = []
+          runtimes = {'baseline_seconds': 0.0, 'candidate_seconds': 0.0}
+          for path in sorted(Path('results').glob('*.json')):
+              data = json.loads(path.read_text())
+              for key in totals:
+                  totals[key] += data.get(key, 0)
+              for key in runtimes:
+                  runtimes[key] += data.get(key, 0.0)
+              events.extend(
+                  {'track': data['track'], **event} for event in data.get('events', [])
+              )
+          bad = [
+              event for event in events
+              if event['classification'] in {
+                  'slower', 'safety_regression', 'redistribution'
+              }
+          ]
+          summary = {
+              'totals': totals,
+              'runtimes': runtimes,
+              'runtime_ratio': runtimes['candidate_seconds'] / runtimes['baseline_seconds'],
+              'events': events,
+              'bad': bad,
+          }
+          Path('round101-v2-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          if bad:
+              raise SystemExit(f"Round 101 v2 regressions: {bad}")
+          if totals['faster'] < 8 or totals['safety_gain'] < 1:
+              raise SystemExit(f"candidate unexpectedly inert: {totals}")
+          if summary['runtime_ratio'] > 1.15:
+              raise SystemExit(f"aggregate runtime regression: {summary['runtime_ratio']}")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-v2-summary
+          path: round101-v2-summary.json
+          if-no-files-found: error
