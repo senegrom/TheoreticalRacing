@@ -1,0 +1,97 @@
+name: Round 96 neutral acceleration screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-neutral-accel
+    paths:
+      - .github/workflows/round96-neutral-accel-screen.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply AI1-only neutral-acceleration gate
+        env:
+          PATCH_B64: LS0tIGEvc3JjL3RyL2xvZ2ljL1JhY2VBaS5qYXZhCisrKyBiL3NyYy90ci9sb2dpYy9SYWNlQWkuamF2YQpAQCAtMjM2LDYgKzIzNiw3IEBACiAJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgbG9uZwlST0xMT1VUX0ZBSUxVUkVfQ09TVAk9IDFfMDAwXzAwMEw7CS8vIGZpZWxkIGNvbXBhcmlzb246IG9uZSBzaW11bGF0ZWQgcml2YWwgZmFpbHVyZSBkb21pbmF0ZXMgYWxsIGZpbml0ZSBUVEYgc3VtcwogCXByaXZhdGUgZmluYWwgc3RhdGljIGludAkJQUkxX0ZJTklTSF9DRVJUX1RURgk9IDE1OwkvLyByb3VuZCA3NSAocHJvbW90ZWQpOiBsZWdhY3kgbWl4ZWQtZmllbGQgY2FwIGZvciB0aGUgZHVhbC1tb2RlbCBmaW5pc2ggc3ByaW50CiAJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgaW50CQlBSTFfRklOSVNIX0hPTU9HRU5FT1VTX1RURgk9IDIwOwkvLyByb3VuZCA5NDogZXh0ZW5kIG9ubHkgaW4gbW92ZXIta2luZCBob21vZ2VuZW91cyBmaWVsZHM7IHRoZSBuZXcgYmFuZCBmb3JiaWRzIGNvYXN0aW5nCisJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgaW50CQlBSTFfRklOSVNIX05FVVRSQUxfQUNDRUxfVFRGCT0gMzA7CS8vIHJvdW5kIDk2IGNhbmRpZGF0ZTogbG93LWVuZXJneSBjYXJkaW5hbCBhY2NlbGVyYXRpb24gZnJvbSBhIG5ldXRyYWwgY29hc3QKIAlwcml2YXRlIGZpbmFsIHN0YXRpYyBpbnQJCUFJMV9QUklWQVRFX0JBU0VfSE9SSVpPTgk9IDM7CS8vIHJvdW5kIDc3OiBjaGVhcCByZWN0YW5ndWxhciBwcml2YXRlLWxhbmUgY2VydGlmaWNhdGUKIAlwcml2YXRlIGZpbmFsIHN0YXRpYyBpbnQJCUFJMV9QUklWQVRFX0VYQUNUX0hPUklaT04JPSA0OwkvLyByb3VuZCA3NzogZ2VvbWV0cnktY2xpcHBlZCBmYWxsYmFjayBob3Jpem9uCiAJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgaW50CQlBSTFfUFJJVkFURV9CQVNFX0VTQ0FQRVMJPSAzOwkvLyBicm9hZCByZWN0YW5nbGVzIG5lZWQgdGhlIG9yaWdpbmFsIHdpZGUgZnJvbnRpZXIKQEAgLTY3NSwyMyArNjc2LDUwIEBACiAJCQkvLyBmaXJzdCBwYXJ0aWFsIHJvdW5kIGNvbnRhaW5zIG9ubHkgcGxheWVycyBhZnRlciBtZSkuIFRoZSBub3JtYWwgREpTCiAJCQkvLyBzdGlsbCBydW5zIGFmdGVyd2FyZHMsIHJldGFpbmluZyBpdHMgaW5kZXBlbmRlbnQgc3Vydml2YWwgdmV0by4KIAkJCWlmICghaW5TY29yZXJTaW0pIHsKLQkJCQlpbnQgc3ByaW50VCA9IHBvVEJ5RGlyW2Nob3Nlbi5vcmRpbmFsKCldOworCQkJCWZpbmFsIGludCBjaG9zZW5UID0gcG9UQnlEaXJbY2hvc2VuLm9yZGluYWwoKV07CisJCQkJaW50IHNwcmludFQgPSBjaG9zZW5UOwogCQkJCURpcmVjdGlvbiBzcHJpbnQgPSBudWxsOworCQkJCWludCBuZXV0cmFsQ2hvc2VuRmluYWwgPSBJbnRlZ2VyLk1JTl9WQUxVRTsKKwkJCQlsb25nIG5ldXRyYWxDaG9zZW5GaWVsZCA9IDBMOwogCQkJCWZvciAoZmluYWwgRGlyZWN0aW9uIGQgOiBESVJFQ1RJT05TKSB7CiAJCQkJCWZpbmFsIGludCB0ID0gcG9UQnlEaXJbZC5vcmRpbmFsKCldOwotCQkJCQlpZiAoZCA9PSBjaG9zZW4gfHwgdCA+PSBzcHJpbnRUIHx8IHQgPiBBSTFfRklOSVNIX0hPTU9HRU5FT1VTX1RURgorCQkJCQlmaW5hbCBpbnQgbnZ4ID0gdmVsWzBdICsgZC5keCwgbnZ5ID0gdmVsWzFdICsgZC5keTsKKwkJCQkJZmluYWwgaW50IGVuZXJneUdhaW4gPSBudnggKiBudnggKyBudnkgKiBudnkgLSB2ZWxbMF0gKiB2ZWxbMF0gLSB2ZWxbMV0gKiB2ZWxbMV07CisJCQkJCWZpbmFsIGJvb2xlYW4gbmV1dHJhbEFjY2VsZXJhdGlvbiA9IHQgPiBBSTFfRklOSVNIX0hPTU9HRU5FT1VTX1RURgorCQkJCQkJCSYmIHQgPD0gQUkxX0ZJTklTSF9ORVVUUkFMX0FDQ0VMX1RURiAmJiB0ICsgMSA9PSBjaG9zZW5UCisJCQkJCQkJJiYgY2hvc2VuID09IERpcmVjdGlvbi5OT05FICYmIGQgIT0gRGlyZWN0aW9uLk5PTkUKKwkJCQkJCQkmJiBNYXRoLmFicyhkLmR4KSArIE1hdGguYWJzKGQuZHkpID09IDEgJiYgZW5lcmd5R2FpbiA+IDAgJiYgZW5lcmd5R2FpbiA8PSA1CisJCQkJCQkJJiYgbGl2ZVJpdmFsc1JlbWFpbmluZyhwbGF5ZXJOdW0pID49IEFJMV9QUklWQVRFX0ZJRUxEX01JTl9SSVZBTFMKKwkJCQkJCQkmJiBraW5kSG9tb2dlbmVvdXNGaWVsZChwbGF5ZXJOdW0pICYmIHRyYXBCeURpcltkLm9yZGluYWwoKV0gPT0gMC4wCisJCQkJCQkJJiYgdW5jQnlEaXJbZC5vcmRpbmFsKCldID09IDAuMAorCQkJCQkJCSYmIHNjb3JlQnlEaXJbZC5vcmRpbmFsKCldIDwgc2NvcmVCeURpcltjaG9zZW4ub3JkaW5hbCgpXTsKKwkJCQkJaWYgKGQgPT0gY2hvc2VuIHx8IHQgPj0gc3ByaW50VAorCQkJCQkJCXx8ICh0ID4gQUkxX0ZJTklTSF9IT01PR0VORU9VU19UVEYgJiYgIW5ldXRyYWxBY2NlbGVyYXRpb24pCiAJCQkJCQkJfHwgKHQgPiBBSTFfRklOSVNIX0NFUlRfVFRGICYmIChkID09IERpcmVjdGlvbi5OT05FCiAJCQkJCQkJCQl8fCAha2luZEhvbW9nZW5lb3VzRmllbGQocGxheWVyTnVtKSkpCiAJCQkJCQkJfHwgdHJhcEJ5RGlyW2Qub3JkaW5hbCgpXSA+IEFJMV9UUkFQX0wxKQogCQkJCQkJY29udGludWU7Ci0JCQkJCWZpbmFsIGludCBudnggPSB2ZWxbMF0gKyBkLmR4LCBudnkgPSB2ZWxbMV0gKyBkLmR5OwogCQkJCQlmaW5hbCBpbnQgbnggPSBwb3NbMF0gKyBudngsIG55ID0gcG9zWzFdICsgbnZ5OwotCQkJCQlmaW5hbCBpbnQgcm91bmRzID0gdCArIDE7Ci0JCQkJCWlmIChzaW1PdXRjb21lKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSwgcm91bmRzLCB0cnVlLCB0cnVlLCB0cnVlLCBmYWxzZSkgIT0gMCkKLQkJCQkJCWNvbnRpbnVlOwotCQkJCQlpZiAoc2ltT3V0Y29tZShueCwgbnksIG52eCwgbnZ5LCBwbGF5ZXJOdW0sIHJvdW5kcywgdHJ1ZSwgdHJ1ZSwgdHJ1ZSwgdHJ1ZSwKLQkJCQkJCQlBSTFfREVFUF9DRVJUX1JJVkFMUywgbnVsbCkgIT0gMCkKLQkJCQkJCWNvbnRpbnVlOworCQkJCQlpZiAobmV1dHJhbEFjY2VsZXJhdGlvbikgeworCQkJCQkJaWYgKG5ldXRyYWxDaG9zZW5GaW5hbCA9PSBJbnRlZ2VyLk1JTl9WQUxVRSkgeworCQkJCQkJCW5ldXRyYWxDaG9zZW5GaW5hbCA9IHNjb3JlckZpZWxkT3V0Y29tZShwb3NbMF0gKyB2ZWxbMF0sIHBvc1sxXSArIHZlbFsxXSwKKwkJCQkJCQkJCXZlbFswXSwgdmVsWzFdLCBwbGF5ZXJOdW0sIEFJMV9ERUVQX0hPUklaT04sIEFJMV9ERUVQX0NFUlRfUklWQUxTLAorCQkJCQkJCQkJcm9sbG91dEZpZWxkQ29zdCk7CisJCQkJCQkJbmV1dHJhbENob3NlbkZpZWxkID0gcm9sbG91dEZpZWxkQ29zdFswXTsKKwkJCQkJCX0KKwkJCQkJCWZpbmFsIGludCBjYW5kaWRhdGVGaW5hbCA9IHNjb3JlckZpZWxkT3V0Y29tZShueCwgbnksIG52eCwgbnZ5LCBwbGF5ZXJOdW0sCisJCQkJCQkJCUFJMV9ERUVQX0hPUklaT04sIEFJMV9ERUVQX0NFUlRfUklWQUxTLCByb2xsb3V0RmllbGRDb3N0KTsKKwkJCQkJCWlmIChuZXV0cmFsQ2hvc2VuRmluYWwgPCAwIHx8IGNhbmRpZGF0ZUZpbmFsICE9IG5ldXRyYWxDaG9zZW5GaW5hbAorCQkJCQkJCQl8fCByb2xsb3V0RmllbGRDb3N0WzBdICE9IG5ldXRyYWxDaG9zZW5GaWVsZCkKKwkJCQkJCQljb250aW51ZTsKKwkJCQkJfSBlbHNlIHsKKwkJCQkJCWZpbmFsIGludCByb3VuZHMgPSB0ICsgMTsKKwkJCQkJCWlmIChzaW1PdXRjb21lKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSwgcm91bmRzLCB0cnVlLCB0cnVlLCB0cnVlLCBmYWxzZSkgIT0gMCkKKwkJCQkJCQljb250aW51ZTsKKwkJCQkJCWlmIChzaW1PdXRjb21lKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSwgcm91bmRzLCB0cnVlLCB0cnVlLCB0cnVlLCB0cnVlLAorCQkJCQkJCQlBSTFfREVFUF9DRVJUX1JJVkFMUywgbnVsbCkgIT0gMCkKKwkJCQkJCQljb250aW51ZTsKKwkJCQkJfQogCQkJCQlzcHJpbnQgPSBkOwogCQkJCQlzcHJpbnRUID0gdDsKIAkJCQl9Cg==
+        run: |
+          printf '%s' "$PATCH_B64" | base64 -d > /tmp/round96-neutral.patch
+          printf '%s  %s\n' 'd81baf1b0bbc138160936f29404bebbdf498a7375fd45ef1cb4c77903b7154d0' /tmp/round96-neutral.patch | sha256sum -c -
+          git apply --check /tmp/round96-neutral.patch
+          git apply /tmp/round96-neutral.patch
+      - name: Verify candidate
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-neutral-jar
+          path: theoreticRacing.jar
+          if-no-files-found: error
+
+  screen:
+    needs: verify
+    name: Screen ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      max-parallel: 22
+      matrix:
+        track:
+          - silverstone
+          - monza
+          - spa
+          - monaco
+          - spielberg
+          - nurburgring
+          - lemans
+          - interlagos
+          - zandvoort
+          - hungaroring
+          - circle
+          - the_long_loop
+          - sprint
+          - hairpin
+          - triangle
+          - chicane
+          - bigoval
+          - curve
+          - zigzag
+          - coil
+          - slalom
+          - gear
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round96-neutral-jar
+      - name: Compare AI1 candidate against champion AI2, seeds 1-15
+        env:
+          TRACK: ${{ matrix.track }}
+        run: python tracks/bench_ai.py --seeds 15 "$TRACK" | tee "round96-neutral-${TRACK}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-neutral-${{ matrix.track }}
+          path: round96-neutral-${{ matrix.track }}.txt
+          if-no-files-found: error
