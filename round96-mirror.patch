@@ -1,0 +1,96 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index 76c73ae..8393462 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -2977,23 +2977,50 @@ final class RaceAi {
+ 			// first partial round contains only players after me). The normal DJS
+ 			// still runs afterwards, retaining its independent survival veto.
+ 			if (!inScorerSim) {
+-				int sprintT = poTByDir[chosen.ordinal()];
++				final int chosenT = poTByDir[chosen.ordinal()];
++				int sprintT = chosenT;
+ 				Direction sprint = null;
++				int neutralChosenFinal = Integer.MIN_VALUE;
++				long neutralChosenField = 0L;
+ 				for (final Direction d : DIRECTIONS) {
+ 					final int t = poTByDir[d.ordinal()];
+-					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
++					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
++					final int energyGain = nvx * nvx + nvy * nvy - vel[0] * vel[0] - vel[1] * vel[1];
++					final boolean neutralAcceleration = t > AI1_FINISH_HOMOGENEOUS_TTF
++							&& t <= AI1_FINISH_NEUTRAL_ACCEL_TTF && t + 1 == chosenT
++							&& chosen == Direction.NONE && d != Direction.NONE
++							&& Math.abs(d.dx) + Math.abs(d.dy) == 1 && energyGain > 0 && energyGain <= 5
++							&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
++							&& kindHomogeneousField(playerNum) && trapByDir[d.ordinal()] == 0.0
++							&& uncByDir[d.ordinal()] == 0.0
++							&& scoreByDir[d.ordinal()] < scoreByDir[chosen.ordinal()];
++					if (d == chosen || t >= sprintT
++							|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !neutralAcceleration)
+ 							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
+ 									|| !kindHomogeneousField(playerNum)))
+ 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
+ 						continue;
+-					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+ 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+-					final int rounds = t + 1;
+-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+-						continue;
+-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+-							AI1_DEEP_CERT_RIVALS, null) != 0)
+-						continue;
++					if (neutralAcceleration) {
++						if (neutralChosenFinal == Integer.MIN_VALUE) {
++							neutralChosenFinal = scorerFieldOutcome(pos[0] + vel[0], pos[1] + vel[1],
++									vel[0], vel[1], playerNum, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS,
++									rolloutFieldCost);
++							neutralChosenField = rolloutFieldCost[0];
++						}
++						final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
++								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
++						if (neutralChosenFinal < 0 || candidateFinal != neutralChosenFinal
++								|| rolloutFieldCost[0] != neutralChosenField)
++							continue;
++					} else {
++						final int rounds = t + 1;
++						if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
++							continue;
++						if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
++								AI1_DEEP_CERT_RIVALS, null) != 0)
++							continue;
++					}
+ 					sprint = d;
+ 					sprintT = t;
+ 				}
+ diff --git a/tests/ai1_neutral_accel_pace_regression.py b/tests/ai1_neutral_accel_pace_regression.py
+index 054ec32..1c71b06 100644
+--- a/tests/ai1_neutral_accel_pace_regression.py
++++ b/tests/ai1_neutral_accel_pace_regression.py
+@@ -12,7 +12,7 @@ import bench_ai  # noqa: E402
+ 
+ EXPECTED = {
+     "AI1": (7, 0, [65, 66, 66, 66, 66, 67, 68]),
+-    "AI2": (7, 0, [65, 66, 66, 66, 67, 67, 68]),
++    "AI2": (7, 0, [65, 66, 66, 66, 66, 67, 68]),
+ }
+ 
+ 
+@@ -37,15 +37,15 @@ def main() -> int:
+ 
+     ai1_sum = sum(results["AI1"][2])
+     ai2_sum = sum(results["AI2"][2])
+-    if ai1_sum != 464 or ai2_sum != 465 or ai1_sum >= ai2_sum:
++    if ai1_sum != 464 or ai2_sum != 464 or ai1_sum != ai2_sum:
+         raise SystemExit(
+-            f"Round-96 neutral acceleration lost: AI1 {results['AI1']}, "
++            f"Round-96 promoted neutral acceleration lost identity: AI1 {results['AI1']}, "
+             f"AI2 {results['AI2']}"
+         )
+ 
+     print(
+         "AI1NeutralAccelPaceRegression: OK "
+-        f"(Zigzag seed 2 improves {ai2_sum} -> {ai1_sum} finisher moves)"
++        f"(Zigzag seed 2 promoted tie at {ai1_sum} finisher moves)"
+     )
+     return 0
+ 
