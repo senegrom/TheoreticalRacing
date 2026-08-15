@@ -212,7 +212,7 @@ final class RaceAi {
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
 	private final static int		AI1_DJS_ROUNDS	= 3;
-	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 3;	// round 99: horizon for the true-rival confirm -- the s32-class box seals at round INDEX 2 (the third simulated round), and every extra round multiplies full-champion rival computes
+	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 4;	// round 99: horizon for the true-rival confirm; round 100: 4 -- the s74 box seals at round index 3 (s32 sealed at 2), and every extra round multiplies full-champion rival computes
 	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
 	private final static int		AI1_DJS_FAST_FRAGILE_ROUNDS	= 4;	// round 93: faithful-rival recheck for fast L2 landings that are already fragile after the normal 3-round screen
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
@@ -2680,8 +2680,13 @@ final class RaceAi {
 			// least one threaded slot plus a body on the neutral grid is the
 			// measured signature of the two doom decisions, at ~0.25 fires
 			// per race elsewhere.
+			// Round 100: the tier<=1 leg dropped -- zandvoort s74 (the second
+			// specimen of the corridor class) carries thread=1 with a HEALTHY
+			// final tier at its last avoidable move; the widened predicate
+			// (any threaded slot + a body on the neutral grid) measured 0
+			// fires outside zandvoort across the healthy sample.
 			if (trueConfirm && !inTrueRivalConfirm && threadRounds != null && finalTier != null
-					&& finalTier[0] <= 1 && threadRounds[0] >= 1
+					&& threadRounds[0] >= 1
 					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1) {
 				inTrueRivalConfirm = true;
 				try {

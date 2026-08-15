@@ -201,6 +201,21 @@ SITES = [
 # purged; regenerate the race + reach dump before re-adding an entry. Current
 # entries are live investigation sites.
 POCKET = [
+    # hairpin 8car s68 m104: OPEN -- the finish-denial seal class (round
+    # 100). p8 commits SE at spd^2=65 with reach-ttf=1 (one move from
+    # winning); every cheap world lets it win (smom t=1 at ANY horizon),
+    # while the real p5 denies the finish lane and parks the pocket exit
+    # (endgame forced-crash seal): orivals DEAD@r7. Prevention needs
+    # ~7-round adversarial fidelity or finish-lane-contention modeling;
+    # outside the r99/r100 confirm (4 rounds) and the paranoid solver
+    # (proven-win side only). Log: harvest6/h8_hairpin_s68.log.
+    ('hairpin', 'harvest6/h8_hairpin_s68.log', 104,
+     [('chosen SE', 8), ('doomed-all NW', 0)]),
+    # zandvoort 8car s74 m109: SOLVED by round 100 (confirm predicate
+    # widened to thread>=1, horizon 4). Second corridor-class site; box
+    # seals at round index 3, fragile signature thread=1 tier-HEALTHY.
+    ('zandvoort', 'harvest6/h8_zandvoort_s74.log', 109,
+     [('chosen SW', 6), ('survivor S', 7)]),
     # zandvoort 8car s32 m110: the BOTH-SIDED recursion-boundary specimen.
     # Chosen S reads alive t=120 under smom (viable 2,2,...) yet dies @r2
     # under full champions: real p5 lands ON my only good r1 cell and

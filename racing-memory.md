@@ -6,6 +6,51 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 100 (local agent): corridor-class generalized (zandvoort s74 solved); new open class recorded (hairpin s68)
+
+HARVEST 6 (fresh windows: 8car s61-75, 4car/2car s36-45, 770 races) on
+the r99 champion: 2 crashes -- the improvement queue refilled exactly as
+the instruments were built to exploit.
+
+SPECIMEN 1, zandvoort 8car s74 m109 -- SOLVED. The second corridor-class
+site, one shape deeper than s32: last avoidable m109, survivor S, taken
+SW dies; the fragile signature carries thread=1 but a HEALTHY final
+tier (the r99 predicate's tier<=1 leg blocked the confirm), and the box
+seals at round index 3 (s32: index 2), one past the 3-round confirm.
+Round 100 tuning, both measured before building: predicate drops the
+tier leg (thread>=1 + body on the neutral grid; 0 fires outside
+zandvoort across the healthy sample, 3 on zandvoort s33),
+AI1_TRUE_CONFIRM_ROUNDS 3 -> 4. s74 fixed; s32/s33/s51 all stay clean.
+
+SPECIMEN 2, hairpin 8car s68 m146 -- NEW CLASS, RECORDED OPEN
+(finish-denial seal). Six cars finish; p5 and p8 arrive at the finish
+approach together with p8 at reach-ttf=1 -- ONE MOVE FROM WINNING. p5
+moves first, denies the finish lane, brakes 6->0 into the top-right
+pocket and PARKS at (77,14): the endgame forced-crash seal, executed
+mid-pocket. p8 overshoots into the dead spur; from m112 on, its own
+DJS reads every candidate dead (correct) with no survivor. The
+commitment was m104 ((41,6) SE at spd^2=65): the deep smom-8 pre-screen
+read the landing alive at ANY horizon (smom says t=1 -- in every cheap
+world p8 simply WINS; the proxy p5 never parks), while full champions
+kill @r7. Prevention needs ~7-round ADVERSARIAL fidelity or
+finish-lane-contention modeling -- outside every current instrument,
+including the 4-round confirm. Also outside the endgame paranoid
+solver's scope (it acts on proven wins near the finish; this is the
+LOSING side of a contested finish). Victim-side rate: first 2-car-
+context crash in any harvest; all 1v1/4p/h2h batteries crash-free.
+Note: p5's seal itself is CORRECT play (place-equivalent to finishing,
+ends the race with zero own risk).
+
+TOOLING: bench_ai.py seeded benches now run ONE JVM per track via
+--seed A-B batching (contiguous windows auto-detected; singles
+otherwise). Equivalence proven exact: batched canon window 1 reproduces
+62.706/62.704 +0.003 to the last digit. Gain is modest on warm-cache
+benches (JVM spin-up only); the harvest scripts already batch.
+
+GATES: all ten pins PASS; canon window 1 62.706 IDENTICAL to
+r98/r99/champion. Windows 2-3 + parities + both 770-race sweeps in
+flight at write time; results recorded in the next entry.
+
 ## Round 99 (local agent): bounded true-rival confirm -- zandvoort s32 SOLVED, class closed
 
 THE RECURSION BOUNDARY IS BREACHED -- affordably. Round 97 proved true

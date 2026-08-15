@@ -113,21 +113,14 @@ def set_nplayers(n):
 SEEDS = [None]   # --seeds N -> [1..N]: randomized start grids (statistical bench)
 
 
-def run_track(track, timeout=240, seed=None):
-    require_runtime()
-    cmd = ['java', '-Djava.awt.headless=true', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
-    if seed is not None:
-        cmd += ['--seed', str(seed)]
-    if os.path.exists(LOG):
-        os.remove(LOG)
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    if r.returncode != 0 or 'Aborting' in r.stdout or not os.path.exists(LOG):
-        if r.stderr.strip():
-            print(r.stderr.rstrip(), file=sys.stderr)
+def parse_race_log(path):
+    """Parse one race log -> (finishes, crashes, per-finisher move counts),
+    or None if the log is absent/incomplete."""
+    if not os.path.exists(path):
         return None
     moves, crashes, finishes = {}, set(), []
     saw_results = False
-    with open(LOG, encoding='utf-8') as f:
+    with open(path, encoding='utf-8') as f:
         for line in f:
             if line.startswith('# results'):
                 saw_results = True
@@ -143,6 +136,49 @@ def run_track(track, timeout=240, seed=None):
     if not saw_results:
         return None
     return len(finishes), len(crashes), [m for _, m in finishes]
+
+
+def run_track(track, timeout=240, seed=None):
+    require_runtime()
+    cmd = ['java', '-Djava.awt.headless=true', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
+    if seed is not None:
+        cmd += ['--seed', str(seed)]
+    if os.path.exists(LOG):
+        os.remove(LOG)
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    if r.returncode != 0 or 'Aborting' in r.stdout:
+        if r.stderr.strip():
+            print(r.stderr.rstrip(), file=sys.stderr)
+        return None
+    return parse_race_log(LOG)
+
+
+def run_track_batch(track, seeds, timeout=None):
+    """One JVM for a CONTIGUOUS seed range via --seed A-B (reachability
+    memoized in-process; ~35-45%% faster than singles). The game writes one
+    log per seed with _sN inserted before the extension. Returns a list of
+    per-seed parse_race_log results, or None if the JVM or any race failed."""
+    require_runtime()
+    base, ext = os.path.splitext(LOG)
+    per_seed = ['%s_s%d%s' % (base, s, ext) for s in seeds]
+    for p in per_seed:
+        if os.path.exists(p):
+            os.remove(p)
+    cmd = ['java', '-Djava.awt.headless=true', '-jar', JAR, '--auto', '--track', track,
+           '--props', PROPS, '--log', LOG, '--seed', '%d-%d' % (seeds[0], seeds[-1])]
+    r = subprocess.run(cmd, capture_output=True, text=True,
+                       timeout=timeout or (180 + 60 * len(seeds)))
+    if r.returncode != 0 or 'Aborting' in r.stdout:
+        if r.stderr.strip():
+            print(r.stderr.rstrip(), file=sys.stderr)
+        return None
+    out = []
+    for p in per_seed:
+        parsed = parse_race_log(p)
+        if parsed is None:
+            return None
+        out.append(parsed)
+    return out
 
 
 def bench(tracks):
@@ -172,23 +208,41 @@ def bench(tracks):
             tf = tc = 0
             tm = 0.0
             nt = 0
+            # Contiguous seed windows run as ONE JVM per track (--seed A-B);
+            # anything else (default [None], custom lists) keeps singles.
+            batched = (len(SEEDS) > 1 and SEEDS[0] is not None
+                       and list(SEEDS) == list(range(SEEDS[0], SEEDS[0] + len(SEEDS))))
             for t in tracks:
                 sf = sc = 0
                 sm = []
                 bad = False
-                for seed in SEEDS:
+                if batched:
                     try:
-                        r = run_track(t, seed=seed)
+                        rs = run_track_batch(t, list(SEEDS))
                     except subprocess.TimeoutExpired:
-                        r = None
-                    if r is None:
+                        rs = None
+                    if rs is None:
                         bad = True
-                        break
-                    f, c, mvs = r
-                    sf += f
-                    sc += c
-                    if mvs:   # a zero-finisher race (2-car ends at first crash) must not drag mv to 0
-                        sm.append(sum(mvs) / len(mvs))
+                    else:
+                        for f, c, mvs in rs:
+                            sf += f
+                            sc += c
+                            if mvs:
+                                sm.append(sum(mvs) / len(mvs))
+                else:
+                    for seed in SEEDS:
+                        try:
+                            r = run_track(t, seed=seed)
+                        except subprocess.TimeoutExpired:
+                            r = None
+                        if r is None:
+                            bad = True
+                            break
+                        f, c, mvs = r
+                        sf += f
+                        sc += c
+                        if mvs:   # a zero-finisher race (2-car ends at first crash) must not drag mv to 0
+                            sm.append(sum(mvs) / len(mvs))
                 if bad:
                     rows[t] = None
                     valid = False
