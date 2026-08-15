@@ -10,6 +10,14 @@ reproduces the real boxes and is worth building in Java.
 
 Policies: greedy (min ttf) | gmom (min ttf, tie: faster) |
           shape (ttf + trap ladder) | smom (shape, tie: faster) |
+          smin (shape, tie: SLOWER -- round 98 congestion hypothesis) |
+          strf (shape, tie: slower iff a live car sits within Chebyshev 2
+                of the current position, else faster -- traffic-conditioned) |
+          punion (rivals smom; ME pessimistic: every live rival's full
+                score-TIE set of best landings counts as occupied when
+                enumerating my viable moves -- round 98 tie-set occupancy;
+                divergent champions at m121 always picked inside the tie
+                set, so the tie set IS the uncertainty) |
           orivals (real scorer for rivals, selfMove me -- buildable ceiling)
 """
 import os
@@ -71,7 +79,34 @@ class Sim:
         n = sum(1 for c in mask if c in 'AF')
         return min(n, 3)
 
+    def tie_union(self, me, cars):
+        """Union of every live rival's minimal-score landing cells (the score
+        tie set under the shape formula). Cells a rival MIGHT take."""
+        cells = set()
+        for i, car in enumerate(cars):
+            if i == me or car[4] != 0:
+                continue
+            kind, v = self.viable(i, cars)
+            if kind == 'F' or not v:
+                continue
+            scored = []
+            for ci, tt, spd2, land in v:
+                tr = self.tier(i, cars, land)
+                trap = 50.0 if tr == 0 else 2.0 if tr == 1 else 0.5 if tr == 2 else 0.0
+                scored.append((tt + trap, land))
+            best = min(s for s, _ in scored)
+            for s, land in scored:
+                if s <= best + 1e-9:
+                    cells.add((land[0], land[1]))
+        return cells
+
     def rival_move(self, i, cars):
+        if self.policy == 'punion':
+            saved, self.policy = self.policy, 'smom'
+            try:
+                return self.rival_move(i, cars)
+            finally:
+                self.policy = saved
         if self.policy == 'orivals':
             dx, dy, mask = self.o.ask(i, cars)
             ci = DIRS.index((dx, dy))
@@ -87,7 +122,14 @@ class Sim:
             return 'F', None
         if not v:
             return None, None
-        need_tier = self.policy in ('shape', 'smom')
+        need_tier = self.policy in ('shape', 'smom', 'smin', 'strf')
+        slower_tie = self.policy == 'smin'
+        if self.policy == 'strf':
+            x0, y0 = cars[i][0], cars[i][1]
+            slower_tie = any(
+                q != i and c[4] == 0
+                and max(abs(c[0] - x0), abs(c[1] - y0)) <= 2
+                for q, c in enumerate(cars))
         best = None
         for ci, tt, spd2, land in v:
             trap = 0.0
@@ -99,8 +141,11 @@ class Sim:
                 best = (score, spd2, ci, land)
                 continue
             better = score < best[0] - 1e-9
-            if not better and abs(score - best[0]) <= 1e-9 and self.policy in ('gmom', 'smom'):
-                better = spd2 > best[1]
+            if not better and abs(score - best[0]) <= 1e-9:
+                if self.policy in ('gmom', 'smom'):
+                    better = spd2 > best[1]
+                elif self.policy in ('smin', 'strf'):
+                    better = spd2 < best[1] if slower_tie else spd2 > best[1]
             if better:
                 best = (score, spd2, ci, land)
         return 'M', best[3]
@@ -110,6 +155,9 @@ class Sim:
         kind, v = self.viable(i, cars)
         if kind == 'F':
             return 'F', None
+        if self.policy == 'punion' and v:
+            blocked = self.tie_union(i, cars)
+            v = [c for c in v if (c[3][0], c[3][1]) not in blocked]
         if not v:
             return None, None
         best = None                    # (tier, tt, ci, land)

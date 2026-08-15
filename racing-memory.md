@@ -6,6 +6,64 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 98 (local agent): thread-fragility audit -- chicane s51 SOLVED
+
+THE RECURSION-BOUNDARY CLASS HAS A MODEL-FREE ANSWER. Round 97 proved
+no affordable rival model reproduces the pack's champion braking. Round
+98 stops trying to predict the rivals and audits MY OWN certificate
+instead: the chicane-s51 chosen rolls out alive in every cheap world,
+but enters EVERY simulated move slot with at most ONE viable candidate
+(viable=1,1,1,1) -- a single-file needle through live traffic. The two
+oracle-proven survivors roll viable>=2 on every slot in the SAME cheap
+world (W: 4,6,8,7; S: never below 2). "Alive but fully threaded" is the
+death signature, and it is computable from the candidate enumeration the
+sim already performs: zero extra simulations, zero rival fidelity.
+
+MECHANISM: simOutcome gains an outThreadRounds channel (count of my move
+slots entered with <=1 viable candidate: legal, unoccupied,
+reachability-alive; a finish-crossing slot counts as open).
+dangerJointSearch gains a threadCheck mode: an ALIVE verdict that
+threaded rounds-1 of rounds-1 slots triggers a robust-alternative
+search; switch only to an alternative BOTH alive and non-threaded
+(survival-only asymmetry preserved -- no robust candidate, keep the
+chosen). Enabled at ONE site: the AI1 slow fallback DJS, gated on
+djSlow + >= AI1_DEEP_PACK rivals within AI1_DEEP_PACK_R of the landing.
+AI2 untouched.
+
+AT THE SITE: m121 fires "alive but viable<=1 on 4/4 slots", finds four
+robust alternatives (W/NONE/SW/S, all simT=3 thread=0), switches to W --
+the oracle-proven survivor -- and the race runs 0-crash with p1 alive in
+P8 (was CRASH place=8).
+
+NEGATIVE RESULTS BANKED (policy_matrix rows kept as instruments): smin
+(tie->slower), strf (traffic-conditioned tie), punion (pessimistic
+tie-set occupancy vs my successors) all still read SE alive -- the box
+needs the exact multi-car configuration; occupancy pessimism cannot
+reach BACKWARD from an over-fast rival flow. Divergence localization
+(diverge.py pattern: roll smom vs orivals side by side) and candidate
+autopsy identified the real signature: at score ties, back-of-pack
+champions brake into the funnel (their own r83-style discipline,
+stripped by inScorerSim); front-runners keep speed. Model-free
+robustness beat model fidelity.
+
+GATES (all green): nine pins PASS (7 ai1_* + golden corpus + headless
+smoke); pace canon 62.706/62.651/62.679 vs champion 62.71/62.67/62.68,
+f=770 c=0 every window (windows 2-3 EXACTLY equal AI2 -- zero perturbing
+fires; window 1 +0.003 vs AI2 62.704); fixed-grid bench identical to
+AI2 to the third decimal (62.604/62.604, +0.000 all 22 tracks); 4p
+2.500/2.500, 1v1 1.500/1.500, h2h 4.500/4.500 parity, all c=0; slow
+104.107 both kinds. New pin: tests/ai1_thread_fragility_regression.py
+(chicane s51 8car must stay 7 finishers / 0 crashes).
+
+CLASS STATUS: chicane s51 (rival-side) SOLVED. zandvoort s32 8car
+(self-side) still crashes -- expected: threading is a rival-side
+instrument; the self-side member needs sim-me to see its own future
+pace arms. Harvest 4 (the exact harvest-3 770-race sweep, batch-mode)
+in flight; pre-98 A/B on zandvoort s32 pending the jar lock.
+NEXT INSTRUMENT CANDIDATE: the thread audit generalizes -- the same
+outThreadRounds channel could gate other DJS sites (deep corridor,
+funnel) if new specimens appear; fire-rate so far is one site per 770.
+
 ## Round 97 (local agent, REJECTED after full forensics): chicane s51 and the pack-cohesion limit
 
 THE LAST HARVEST-3 CRASH, fully classified -- and the definitive

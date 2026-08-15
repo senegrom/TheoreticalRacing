@@ -979,9 +979,17 @@ final class RaceAi {
 								fastFragileHandled = true;
 							}
 						}
-						if (!fastFragileHandled)
+						if (!fastFragileHandled) {
+							// Round 98 (AI1): thread-fragility audit for slow pack
+							// commitments -- see outThreadRounds. Gated to landings
+							// with a real pack around them; solo single-file racing
+							// through chicane gates stays untouched.
+							final boolean threadPack = djSlow && countRivalsWithinCheb(
+									pos[0] + djvx, pos[1] + djvy, playerNum,
+									AI1_DEEP_PACK_R) >= AI1_DEEP_PACK;
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-									djSlow, dangerRounds);
+									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, false, threadPack);
+						}
 					}
 				} else {
 					// round 60 (AI1): trap-0 slow moves get a CHEAP smom smoke
@@ -2418,6 +2426,24 @@ final class RaceAi {
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final int scorerCap, final int[] outFinalTier, final long[] outFieldCost) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, scorerSelf, scorerCap, outFinalTier, outFieldCost, null);
+	}
+
+	/** outThreadRounds (round 98): counts my move slots entered with at most ONE
+	 *  viable candidate (legal, unoccupied, reachability-alive). An alive verdict
+	 *  that threads a one-lane needle on EVERY slot is no certificate at all in
+	 *  pack traffic -- chicane s51 m121 rolls alive through viable=1,1,1,1 in
+	 *  every affordable rival world while the real pack's champion braking (their
+	 *  own suppressed arms) seals the lane @r2; the two true survivors roll
+	 *  viable>=2 on all slots in the same cheap world. The count is model-free:
+	 *  no rival fidelity needed, no extra simulations, just the candidate
+	 *  enumeration my own sim move already performs. */
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final int scorerCap, final int[] outFinalTier, final long[] outFieldCost,
+			final int[] outThreadRounds) {
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -2476,6 +2502,27 @@ final class RaceAi {
 			for (int i = from; i < game.players.length; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
+				if (i == myIdx && outThreadRounds != null) {
+					int viable = 0;
+					for (final Direction d : DIRECTIONS) {
+						final int tvx = vx[i] + d.dx, tvy = vy[i] + d.dy;
+						if (RaceGame.aiVelocityOutOfRange(tvx, tvy))
+							continue;
+						final int tx = px[i] + tvx, ty = py[i] + tvy;
+						if (game.crossesFinish(px[i], py[i], tx, ty)) {
+							viable = DIRECTIONS.length;
+							break;
+						}
+						if (!game.isMoveLegalGeometryCached(px[i], py[i], tx, ty))
+							continue;
+						if (occupiedByOther(tx, ty, i, px, py, alive)
+								|| !reach.isAlive(tx, ty, tvx, tvy))
+							continue;
+						viable++;
+					}
+					if (viable <= 1)
+						outThreadRounds[0]++;
+				}
 				// Round 51: my car follows the trap-aware policy. Round 57:
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
@@ -2556,13 +2603,67 @@ final class RaceAi {
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
 			final boolean scorerSelf) {
+		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, rounds, scorerCap, scorerSelf, false);
+	}
+
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
+			final boolean scorerSelf, final boolean threadCheck) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
+		final int[] threadRounds = threadCheck ? new int[1] : null;
 		if (simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals,
-				scorerSelf, scorerCap, null) >= 0)
-			return chosen;
+				scorerSelf, scorerCap, null, null, threadRounds) >= 0) {
+			// Round 98 (AI1): an alive verdict that entered EVERY simulated move
+			// slot with at most one viable candidate is a single-file needle
+			// through traffic, not a survival proof -- the exact chicane-s51
+			// signature. Switch only to an alternative that is BOTH alive and
+			// non-threaded in the same world; if none exists, keep the chosen
+			// (survival-only asymmetry preserved: no untreaded rescue, no churn).
+			if (threadRounds == null || threadRounds[0] < rounds - 1)
+				return chosen;
+			final boolean tdbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
+			if (tdbg)
+				System.err.println("AIDBG THREAD p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+						+ ") chosen=" + chosen + " alive but viable<=1 on " + threadRounds[0]
+						+ "/" + (rounds - 1) + " slots -> robust alternative search");
+			Direction robust = null;
+			int robustT = Integer.MAX_VALUE;
+			for (final Direction d : DIRECTIONS) {
+				if (d == chosen)
+					continue;
+				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+					continue;
+				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+				if (game.crossesFinish(pos[0], pos[1], nx, ny))
+					return d;
+				if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+					continue;
+				if (game.isCrashingPlayer(nx, ny, playerNum))
+					continue;
+				if (!reach.isAlive(nx, ny, nvx, nvy))
+					continue;
+				threadRounds[0] = 0;
+				final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish, exactSelf,
+						exactRivals, scorerRivals, scorerSelf, scorerCap, null, null, threadRounds);
+				if (tdbg)
+					System.err.println("AIDBG THREAD  alt " + d + " land=(" + nx + "," + ny + ") simT="
+							+ (t < 0 ? "DIES" : String.valueOf(t)) + " thread=" + threadRounds[0]);
+				if (t >= 0 && threadRounds[0] < rounds - 1 && t < robustT) {
+					robustT = t;
+					robust = d;
+				}
+			}
+			if (tdbg)
+				System.err.println("AIDBG THREAD  -> " + (robust != null
+						? "SWITCH " + robust + " simT=" + robustT : "KEEP " + chosen + " (no robust)"));
+			return robust != null ? robust : chosen;
+		}
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
 		if (dbg)
 			System.err.println("AIDBG DJS p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0]
