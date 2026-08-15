@@ -1,0 +1,68 @@
+name: Summarize Round 100 slower danger switches
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-djs-probe
+    paths:
+      - .github/workflows/round100-djs-slow-switch-summary.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 31907926874
+          github-token: ${{ github.token }}
+          pattern: round100-djs-*
+          path: reports
+          merge-multiple: true
+      - name: Aggregate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows, details = [], []
+          total = 0
+          for path in sorted(Path('reports').glob('*-switches.txt')):
+              values, events = {}, []
+              for line in path.read_text().splitlines():
+                  if line.startswith('AIDBG SLOWDJS'):
+                      events.append(line)
+                  elif '=' in line:
+                      key, value = line.split('=', 1)
+                      values[key] = value
+              count = int(values.get('events', len(events)))
+              total += count
+              row = {
+                  'track': values.get('track', path.name),
+                  'elapsed_seconds': int(values.get('elapsed_seconds', 0)),
+                  'events': count,
+              }
+              rows.append(row)
+              for event in events:
+                  details.append({'track': row['track'], 'event': event})
+          out = {
+              'track_count': len(rows),
+              'total_events': total,
+              'tracks': rows,
+              'details': details,
+          }
+          Path('round100-djs-slow-switch-summary.json').write_text(
+              json.dumps(out, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(out, indent=2, sort_keys=True))
+          if len(rows) != 22:
+              raise SystemExit(f'expected 22 reports, found {len(rows)}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-djs-slow-switch-summary
+          path: round100-djs-slow-switch-summary.json
+          if-no-files-found: error
