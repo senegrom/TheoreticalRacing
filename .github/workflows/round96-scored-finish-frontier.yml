@@ -1,0 +1,82 @@
+name: Round 96 scored finish frontier
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-scored-finish-frontier
+    paths:
+      - .github/workflows/round96-scored-finish-frontier.yml
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    name: Targeted ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        track:
+          - zigzag
+          - the_long_loop
+          - coil
+          - gear
+          - spa
+          - silverstone
+          - monaco
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply AI1-only scored finish-frontier arm
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tr/logic/RaceAi.java')
+          s = p.read_text()
+          const = '\tprivate final static int\t\tAI1_FINISH_HOMOGENEOUS_TTF\t= 20;\t// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting\n'
+          assert s.count(const) == 1
+          s = s.replace(const, const + '\tprivate final static int\t\tAI1_FINISH_SCORED_FRONTIER_TTF\t= 30;\t// round 96 candidate: rare zero-risk, scorer-better finish frontier\n', 1)
+          old = ('\t\t\t\tfor (final Direction d : DIRECTIONS) {\n'
+                 '\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];\n'
+                 '\t\t\t\t\tif (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF\n'
+                 '\t\t\t\t\t\t\t|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE\n'
+                 '\t\t\t\t\t\t\t\t\t|| !kindHomogeneousField(playerNum)))\n'
+                 '\t\t\t\t\t\t\t|| trapByDir[d.ordinal()] > AI1_TRAP_L1)\n'
+                 '\t\t\t\t\t\tcontinue;\n')
+          new = ('\t\t\t\tfor (final Direction d : DIRECTIONS) {\n'
+                 '\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];\n'
+                 '\t\t\t\t\tfinal boolean scoredFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF\n'
+                 '\t\t\t\t\t\t\t&& t <= AI1_FINISH_SCORED_FRONTIER_TTF && t + 1 == sprintT\n'
+                 '\t\t\t\t\t\t\t&& d != Direction.NONE && kindHomogeneousField(playerNum)\n'
+                 '\t\t\t\t\t\t\t&& trapByDir[d.ordinal()] == 0.0 && uncByDir[d.ordinal()] == 0.0\n'
+                 '\t\t\t\t\t\t\t&& scoreByDir[d.ordinal()] < scoreByDir[chosen.ordinal()];\n'
+                 '\t\t\t\t\tif (d == chosen || t >= sprintT\n'
+                 '\t\t\t\t\t\t\t|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !scoredFrontier)\n'
+                 '\t\t\t\t\t\t\t|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE\n'
+                 '\t\t\t\t\t\t\t\t\t|| !kindHomogeneousField(playerNum)))\n'
+                 '\t\t\t\t\t\t\t|| trapByDir[d.ordinal()] > AI1_TRAP_L1)\n'
+                 '\t\t\t\t\t\tcontinue;\n')
+          assert s.count(old) == 2
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+      - name: Compare AI1 candidate against champion AI2, seeds 1-15
+        env:
+          TRACK: ${{ matrix.track }}
+        run: python tracks/bench_ai.py --seeds 15 "$TRACK" | tee "round96-${TRACK}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-scored-${{ matrix.track }}
+          path: round96-${{ matrix.track }}.txt
+          if-no-files-found: error
