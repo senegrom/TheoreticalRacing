@@ -1,0 +1,81 @@
+name: Round 100 danger-switch certificate probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-djs-probe
+    paths:
+      - .github/workflows/round100-djs-certificate-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Certify ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        track:
+          - chicane
+          - coil
+          - gear
+          - hairpin
+          - hungaroring
+          - interlagos
+          - lemans
+          - monaco
+          - monza
+          - silverstone
+          - spa
+          - zandvoort
+          - zigzag
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Add counterfactual certificate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tr/logic/RaceAi.java')
+          s = p.read_text()
+          old_latch = '\tprivate static boolean\t\t\tinTrueRivalConfirm;'
+          new_latch = '\tprivate boolean\t\t\t\tinTrueRivalConfirm;'
+          assert s.count(old_latch) == 1
+          s = s.replace(old_latch, new_latch, 1)
+          old = '''\t\tif (dbg)\n\t\t\tSystem.err.println("AIDBG DJS  -> " + (best != null ? "SWITCH " + best + " simT=" + bestT\n\t\t\t\t\t: "KEEP " + chosen + " (no survivor)"));\n\t\treturn best != null ? best : chosen;\n'''
+          new = '''\t\tif (best != null && !inScorerSim && !inTrueRivalConfirm\n\t\t\t\t&& moverKind(playerNum) == Player.Kind.AI1 && chosen != Direction.NONE\n\t\t\t\t&& kindHomogeneousRoster(playerNum)\n\t\t\t\t&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS) {\n\t\t\tfinal int chosenMapT = reach.turnsToFinish(cx, cy, cvx, cvy);\n\t\t\tfinal int bvx = vel[0] + best.dx, bvy = vel[1] + best.dy;\n\t\t\tfinal int bx = pos[0] + bvx, by = pos[1] + bvy;\n\t\t\tfinal int bestMapT = reach.turnsToFinish(bx, by, bvx, bvy);\n\t\t\tif (bestMapT == chosenMapT + 1 && !sealable(cx, cy, cvx, cvy, playerNum)) {\n\t\t\t\tfinal int[] trueTier = new int[1];\n\t\t\t\tfinal int[] trueThread = new int[1];\n\t\t\t\tfinal int trueOutcome;\n\t\t\t\tinTrueRivalConfirm = true;\n\t\t\t\ttry {\n\t\t\t\t\ttrueOutcome = simOutcome(cx, cy, cvx, cvy, playerNum,\n\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, true, true, true, true, true,\n\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, trueTier, null, trueThread);\n\t\t\t\t} finally {\n\t\t\t\t\tinTrueRivalConfirm = false;\n\t\t\t\t}\n\t\t\t\tfinal int chosenFinal = scorerFieldOutcome(cx, cy, cvx, cvy, playerNum,\n\t\t\t\t\t\tAI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n\t\t\t\tfinal long chosenField = rolloutFieldCost[0];\n\t\t\t\tfinal int bestFinal = scorerFieldOutcome(bx, by, bvx, bvy, playerNum,\n\t\t\t\t\t\tAI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n\t\t\t\tfinal long bestField = rolloutFieldCost[0];\n\t\t\t\tfinal boolean fieldBetter = chosenFinal >= 0 && bestFinal >= 0\n\t\t\t\t\t\t&& chosenFinal < bestFinal && chosenField < bestField;\n\t\t\t\tfinal boolean relaxed = trueOutcome >= 0 && fieldBetter;\n\t\t\t\tfinal boolean robust = relaxed && trueTier[0] >= 2\n\t\t\t\t\t\t&& trueThread[0] < AI1_TRUE_CONFIRM_ROUNDS;\n\t\t\t\tSystem.err.println("AIDBG DJSCERT p=" + playerNum + " pos=(" + pos[0] + ","\n\t\t\t\t\t\t+ pos[1] + ") " + chosen + " t=" + chosenMapT + " -> " + best\n\t\t\t\t\t\t+ " t=" + bestMapT + " true=" + trueOutcome + " tier=" + trueTier[0]\n\t\t\t\t\t\t+ " thread=" + trueThread[0] + " self=" + chosenFinal + "->" + bestFinal\n\t\t\t\t\t\t+ " field=" + chosenField + "->" + bestField\n\t\t\t\t\t\t+ " relaxed=" + relaxed + " robust=" + robust);\n\t\t\t}\n\t\t}\n\t\tif (dbg)\n\t\t\tSystem.err.println("AIDBG DJS  -> " + (best != null ? "SWITCH " + best + " simT=" + bestT\n\t\t\t\t\t: "KEEP " + chosen + " (no survivor)"));\n\t\treturn best != null ? best : chosen;\n'''
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+      - name: Probe seeds 1-60
+        env:
+          TRACK: ${{ matrix.track }}
+        run: |
+          cp tracks/bench.properties /tmp/round100-djscert.properties
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round100-djscert.properties --log "/tmp/round100-djscert-${TRACK}.log" \
+            --seed 1-60 >"round100-djscert-${TRACK}.stdout" 2>"round100-djscert-${TRACK}.stderr"
+          {
+            echo "track=$TRACK"
+            echo "events=$(grep -c 'AIDBG DJSCERT' round100-djscert-${TRACK}.stderr || true)"
+            echo "relaxed=$(grep -c 'relaxed=true' round100-djscert-${TRACK}.stderr || true)"
+            echo "robust=$(grep -c 'robust=true' round100-djscert-${TRACK}.stderr || true)"
+            grep 'AIDBG DJSCERT' "round100-djscert-${TRACK}.stderr" || true
+          } > "round100-djscert-${TRACK}.txt"
+          cat "round100-djscert-${TRACK}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-djscert-${{ matrix.track }}
+          path: round100-djscert-${{ matrix.track }}.txt
+          if-no-files-found: error
