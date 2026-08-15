@@ -153,6 +153,8 @@ SITES = [
 # purged; regenerate the race + reach dump before re-adding an entry. Current
 # entries are live investigation sites.
 POCKET = [
+    ('chicane', 'r94_chi51.log', 121,
+     [('chosen SE', 8), ('survivor W', 3), ('survivor S', 7)]),
     ('zandvoort', 'harvest/h8_zandvoort_s42.log', 566,
      [('chosen SW', 6), ('survivor S', 7), ('survivor NW', 0)]),
     ('coil', 'harvest/h8_coil_s32.log', 247,

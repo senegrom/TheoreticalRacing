@@ -6,6 +6,52 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 97 (local agent, REJECTED after full forensics): chicane s51 and the pack-cohesion limit
+
+THE LAST HARVEST-3 CRASH, fully classified -- and the definitive
+specimen of the recursion-boundary class. Chicane s51, p1 dies m145;
+**m121 is the last avoidable move**: three candidates FINISH @r7 and
+one stands a turn from the flag, while the taken SE (the fastest line)
+dies @r3. The matrix: smom=alive tier-3, orivals=DEAD@r2 -- yet no arm
+fired: the chosen carries trap 0.5 and routes through the trap-path
+DJS whose scorer world reads it alive.
+
+THE REAL MECHANISM (from the race log): p1 is LAST; after SE the
+entire six-car pack holds the lower racing-line corridor through
+rounds 1-2, forcing p1 into the upper fork, which dead-ends at
+(65,5). The kill is **pack-lane cohesion** -- the suppressed scorer
+world under-predicts how firmly the real pack (running its full pace
+stack) holds the line, so in-sim the lower lane opens and SE reads
+alive.
+
+THREE FIX ARMS BUILT AND REJECTED with measurements:
+1. Depth-1 TRUE RIVALS (unsuppressed computeAiMove for scorer-set
+   rivals): mutual recursion through nested contact gates ran ONE fire
+   past five minutes; a depth latch capped it but the direct cost
+   (~90 full champion computations per fire) still ran a 0.6s race
+   past ten minutes. Cost-prohibitive at any useful fire rate.
+2. Pessimistic-pursuit contact rival (zero recursion, fixed target,
+   then live-target): fires correctly at m121 but cannot reproduce a
+   six-car lane occupancy with one pessimistic pursuer -- the verdict
+   stays alive. (Bonus finding: ringWidth is a BFS level set and wraps
+   both legs of a switchback, so the static funnel signal reads a
+   2-cell chicane gate as wide; the funnel instrument is sound for
+   open funnels only.)
+3. All code reverted per the r76/r77 discipline; the analysis is the
+   deliverable.
+
+THE CLASS LEDGER now reads: zandvoort s32 (self-side: my own future
+pace arms invisible to sim-me), chicane s51 (rival-side: the pack's
+pace arms invisible to sim-rivals). Champion fresh-seed tail-risk
+stands at 1/770 (harvest 3) with these as the only known open sites.
+VIABLE DIRECTIONS (recorded, unclaimed): bounded multi-true-rival
+certification (needs a cost breakthrough -- e.g. memoized rival moves
+or a 1-round-only full-fidelity pass), a static racing-line occupancy
+prior (must solve horizon-sensitivity: static blocking kills waiting
+lines too), or admission-level speed discipline inside the pace arms
+themselves (the arms' own certificates are the only worlds that see
+their own aggression).
+
 ## What this project is
 
 theoreticRacing: Java Swing vector-racing game (grid, state = pos+vel, 9
