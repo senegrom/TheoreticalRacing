@@ -1,0 +1,110 @@
+name: Round 101 DJS-retention screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-101-djs-retention
+    paths:
+      - .github/workflows/round101-djs-retention-screen.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply candidate
+        run: python tracks/round101_djs_retention_patch.py
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-djs-retention-jar
+          path: theoreticRacing.jar
+          if-no-files-found: error
+
+  compare:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        track: [silverstone, zandvoort]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round101-djs-retention-jar
+          path: .
+      - name: Compare seeds 1-80
+        env:
+          TRACK: ${{ matrix.track }}
+        run: |
+          cp tracks/bench.properties /tmp/r101-ai1.properties
+          cp tracks/bench.properties /tmp/r101-ai2.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI1/' /tmp/r101-ai1.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI2/' /tmp/r101-ai2.properties
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/r101-ai1.properties --log "/tmp/r101-ai1-${TRACK}.log" --seed 1-80 \
+            >"r101-${TRACK}-ai1.stdout" 2>"r101-${TRACK}-ai1.stderr"
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/r101-ai2.properties --log "/tmp/r101-ai2-${TRACK}.log" --seed 1-80 \
+            >"r101-${TRACK}-ai2.stdout" 2>"r101-${TRACK}-ai2.stderr"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          track = os.environ['TRACK']
+          def parse(path):
+              moves, finishes, crashes = {}, {}, set()
+              for line in Path(path).read_text().splitlines():
+                  m = re.match(r'^(\d+) p(\d+) ', line)
+                  if not m: continue
+                  player = int(m.group(2)); moves[player] = moves.get(player, 0) + 1
+                  if 'CRASH' in line: crashes.add(player)
+                  elif 'FINISH' in line: finishes[player] = moves[player]
+              return finishes, sorted(crashes)
+          out = {'track': track, 'pairs': 80, 'identical': 0, 'faster': 0,
+                 'slower': 0, 'safety_gain': 0, 'safety_regression': 0,
+                 'redistribution': 0, 'net_moves': 0, 'events': []}
+          for seed in range(1, 81):
+              cf, cc = parse(f'/tmp/r101-ai1-{track}_s{seed}.log')
+              bf, bc = parse(f'/tmp/r101-ai2-{track}_s{seed}.log')
+              if cf == bf and cc == bc:
+                  out['identical'] += 1; continue
+              csum, bsum = sum(cf.values()), sum(bf.values())
+              event = {'seed': seed, 'candidate_finishers': len(cf),
+                       'champion_finishers': len(bf), 'candidate_crashes': len(cc),
+                       'champion_crashes': len(bc), 'candidate_moves': csum,
+                       'champion_moves': bsum, 'delta': csum - bsum,
+                       'candidate_by_player': cf, 'champion_by_player': bf}
+              if len(cf) < len(bf) or len(cc) > len(bc): kind = 'safety_regression'
+              elif len(cf) > len(bf) or len(cc) < len(bc): kind = 'safety_gain'
+              elif csum < bsum: kind = 'faster'
+              elif csum > bsum: kind = 'slower'
+              else: kind = 'redistribution'
+              event['classification'] = kind; out[kind] += 1
+              out['net_moves'] += csum - bsum; out['events'].append(event)
+          Path(f'round101-djs-{track}.json').write_text(json.dumps(out, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(out, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round101-djs-retention-${{ matrix.track }}
+          path: round101-djs-${{ matrix.track }}.json
+          if-no-files-found: error
