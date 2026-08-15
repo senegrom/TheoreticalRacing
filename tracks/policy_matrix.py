@@ -201,6 +201,16 @@ SITES = [
 # purged; regenerate the race + reach dump before re-adding an entry. Current
 # entries are live investigation sites.
 POCKET = [
+    # zandvoort 8car s32 m110: the BOTH-SIDED recursion-boundary specimen.
+    # Chosen S reads alive t=120 under smom (viable 2,2,...) yet dies @r2
+    # under full champions: real p5 lands ON my only good r1 cell and
+    # p3/p4/p5's one-cell divergences compound into a sealed box. Survivor
+    # SW lives ONLY by real-self single-file threading (viable=1 x6 under
+    # orivals-me). Rival fidelity needed for the death, self fidelity for
+    # the escape; the r98 thread audit correctly stays silent (chosen not
+    # threaded in any cheap world).
+    ('zandvoort', 'r98_zandvoort_s32.log', 110,
+     [('chosen S', 7), ('survivor SW', 6)]),
     ('chicane', 'r94_chi51.log', 121,
      [('chosen SE', 8), ('survivor W', 3), ('survivor S', 7)]),
     ('zandvoort', 'harvest/h8_zandvoort_s42.log', 566,

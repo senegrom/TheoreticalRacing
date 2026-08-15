@@ -60,6 +60,34 @@ CLASS STATUS: chicane s51 (rival-side) SOLVED. zandvoort s32 8car
 instrument; the self-side member needs sim-me to see its own future
 pace arms. Harvest 4 (the exact harvest-3 770-race sweep, batch-mode)
 in flight; pre-98 A/B on zandvoort s32 pending the jar lock.
+HARVEST 4 (r98 champion, the exact harvest-3 770-race sweep, batch
+mode): **0/770 -- the first zero-crash full harvest of the campaign**
+(harvest 3: 1/770). 3190 finishes = the exact full-field count; every
+race completed. The only known crash anywhere is zandvoort 8car s32
+(outside the harvest windows), PROVEN pre-existing: zero THREAD fires
+in that race, so the r98 champion raced it move-identically to r97's.
+
+ZANDVOORT S32 DISSECTED (round-99 groundwork, POCKET entry added):
+last avoidable move m110 (p6, pos (42,35) v(3,-8)); survivor SW
+(oracle-alive t=118), taken S dies @r6 under full champions. In-game:
+the r73 corridor check FIRED at m110 and its suppressed cap-6 world
+read S alive; one move later everything is dead (DJS correctly says
+"no survivor" @m118 -- detection one move late). Anatomy is BOTH-SIDED:
+(a) death needs rival fidelity -- real p5 lands ON my only good r1
+cell; the debug trace catches p5's PRIVATE-LANE PACE ARM firing right
+there (SW -> W ttf 125->124): the killer move is literally a pace-arm
+product, the class thesis verbatim; (b) escape needs self fidelity --
+survivor SW lives ONLY by real-champion single-file threading
+(viable=1 on six straight rounds under orivals-me). The r98 thread
+audit correctly stays silent (chosen S reads viable=2,2 in cheap
+worlds -- an inverted signature: here the SURVIVOR threads, the doomed
+line does not). Corridor-world thread counts to be measured by an
+observe-only probe; if the true in-game world also reads viable>=2,
+threading cannot catch the self-side face and round 99 needs a
+different instrument (bounded 2-round true-rival confirm at corridor
+alive-verdicts is the costed fallback: the box seals @r2, so 6 rivals
+x 2 rounds of full-fidelity moves per fire, fire-rate ~4/race/player
+-- needs a fragility pre-gate to be affordable).
 NEXT INSTRUMENT CANDIDATE: the thread audit generalizes -- the same
 outThreadRounds channel could gate other DJS sites (deep corridor,
 funnel) if new specimens appear; fire-rate so far is one site per 770.
