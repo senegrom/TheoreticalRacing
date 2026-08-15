@@ -231,6 +231,7 @@ final class RaceAi {
 	private final static int		AI1_FUNNEL_MIN_SPD	= 3;	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
 	private final static int		AI1_FUNNEL_RUN	= 6;	// round 83: minimum CONSECUTIVE narrow rings (short gates are threadable)
 	private final static int		AI1_FUNNEL_DEEP_FIELD	= 4;	// round 83: max live rivals for trusting the deep fast-funnel verdict	// round 83: minimum CONSECUTIVE narrow rings -- a short gate (lemans chicane, 1-3 rings) is passable at speed; sustained corridors kill	// round 83: Chebyshev landing-speed floor for the funnel signal (crawls cannot overcommit)
+	private final static double	AI1_BOTTLENECK_BRAKE_UNC_MAX	= 4.0;	// round 97 candidate: bounded uncertainty on a same-TTF transverse-energy brake
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
@@ -731,6 +732,9 @@ final class RaceAi {
 					chosen = sprint;
 				}
 			}
+			chosen = bottleneckPaceBrake(chosen, pos, vel, playerNum, poTByDir,
+					scoreByDir, trapByDir, uncByDir);
+
 			// Danger joint search (round 40): in flagged states (the landing's
 			// trap ladder >= 0.5, i.e. <= 2 safe successors) roll the joint game
 			// 3 rounds forward on a detached greedy board. STRICTLY asymmetric:
@@ -1426,6 +1430,83 @@ final class RaceAi {
 			if (p.getNumber() != playerNum && p.getKind() != kind)
 				return false;
 		return true;
+	}
+
+	/** Round 97 candidate: admission-level discipline for a fast exact-L1
+	 *  line inside a sustained static bottleneck. Recursive scorer worlds
+	 *  suppress the real pace arms and can therefore tie on a line that the
+	 *  live policy later overdrives. In an all-kind roster with a large live
+	 *  field, permit only a same-map-time, same-trap, non-coasting alternative
+	 *  that preserves the forward Chebyshev speed while shedding transverse
+	 *  kinetic energy. The incumbent must be zero-uncertainty; the brake must
+	 *  carry only bounded nonzero uncertainty and remain alive in the existing
+	 *  eight-round scorer-self world. Normal danger search remains downstream. */
+	private Direction bottleneckPaceBrake(final Direction chosen, final int[] pos,
+			final int[] vel, final int playerNum, final int[] poTByDir,
+			final double[] scoreByDir, final double[] trapByDir,
+			final double[] uncByDir) {
+		if (inScorerSim || chosen == Direction.NONE
+				|| trapByDir[chosen.ordinal()] != AI1_TRAP_L1
+				|| uncByDir[chosen.ordinal()] != 0.0
+				|| liveRivalsRemaining(playerNum) < AI1_PRIVATE_FIELD_MIN_RIVALS
+				|| !kindHomogeneousRoster(playerNum))
+			return chosen;
+
+		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
+		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
+		final int chosenInf = Math.max(Math.abs(chosenVx), Math.abs(chosenVy));
+		if (chosenSpeed2 < AI1_DJS_SPD2 || chosenInf < AI1_FUNNEL_MIN_SPD)
+			return chosen;
+
+		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
+		final int span = chosenInf * (chosenInf + 1) / 2;
+		final int minRing = reach.minRingWidthAhead(chosenX, chosenY, span);
+		if (minRing > AI1_FUNNEL_WIDTH || chosenInf <= minRing
+				|| reach.narrowRunAhead(chosenX, chosenY, span,
+						AI1_FUNNEL_WIDTH) < AI1_FUNNEL_RUN)
+			return chosen;
+
+		final int chosenT = poTByDir[chosen.ordinal()];
+		final double chosenScore = scoreByDir[chosen.ordinal()];
+		Direction brake = null;
+		int brakeSpeed2 = Integer.MAX_VALUE;
+		double brakeUncertainty = Double.MAX_VALUE;
+		for (final Direction d : DIRECTIONS) {
+			final double uncertainty = uncByDir[d.ordinal()];
+			if (d == chosen || d == Direction.NONE
+					|| poTByDir[d.ordinal()] != chosenT
+					|| scoreByDir[d.ordinal()] == Double.MAX_VALUE
+					|| scoreByDir[d.ordinal()] <= chosenScore + 1e-9
+					|| trapByDir[d.ordinal()] != AI1_TRAP_L1
+					|| uncertainty <= 0.0
+					|| uncertainty > AI1_BOTTLENECK_BRAKE_UNC_MAX)
+				continue;
+			final int vx = vel[0] + d.dx, vy = vel[1] + d.dy;
+			final int speed2 = speedSquared(vx, vy);
+			if (speed2 >= chosenSpeed2
+					|| Math.max(Math.abs(vx), Math.abs(vy)) != chosenInf)
+				continue;
+			final int x = pos[0] + vx, y = pos[1] + vy;
+			if (sealable(x, y, vx, vy, playerNum)
+					|| simOutcome(x, y, vx, vy, playerNum, AI1_DEEP_HORIZON,
+							true, true, true, true, true,
+							AI1_DEEP_CERT_RIVALS, null) < 0)
+				continue;
+			if (brake == null || speed2 < brakeSpeed2
+					|| speed2 == brakeSpeed2 && uncertainty < brakeUncertainty) {
+				brake = d;
+				brakeSpeed2 = speed2;
+				brakeUncertainty = uncertainty;
+			}
+		}
+		if (brake == null)
+			return chosen;
+		if (AI_DEBUG_DJS)
+			System.err.println("AIDBG BRAKE p=" + playerNum + " pos=("
+					+ pos[0] + "," + pos[1] + ") " + chosen + " -> " + brake
+					+ " ttf=" + chosenT + " speed2=" + chosenSpeed2
+					+ " -> " + brakeSpeed2 + " minRing=" + minRing);
+		return brake;
 	}
 
 	/** Whether a previously moved live rival is adjacent, shares the mover's
