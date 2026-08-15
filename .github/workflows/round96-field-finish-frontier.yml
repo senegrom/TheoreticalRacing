@@ -34,96 +34,13 @@ jobs:
           distribution: temurin
           java-version: '25'
       - name: Apply AI1-only field-certified finish frontier
+        env:
+          PATCH_B64: ZGlmZiAtLWdpdCBhL3NyYy90ci9sb2dpYy9SYWNlQWkuamF2YSBiL3NyYy90ci9sb2dpYy9SYWNlQWkuamF2YQppbmRleCBhNzY4NzEyLi5lMzQ0ODgxIDEwMDY0NAotLS0gYS9zcmMvdHIvbG9naWMvUmFjZUFpLmphdmEKKysrIGIvc3JjL3RyL2xvZ2ljL1JhY2VBaS5qYXZhCkBAIC0yMzYsNiArMjM2LDcgQEAgZmluYWwgY2xhc3MgUmFjZUFpIHsKIAlwcml2YXRlIGZpbmFsIHN0YXRpYyBsb25nCVJPTExPVVRfRkFJTFVSRV9DT1NUCT0gMV8wMDBfMDAwTDsJLy8gZmllbGQgY29tcGFyaXNvbjogb25lIHNpbXVsYXRlZCByaXZhbCBmYWlsdXJlIGRvbWluYXRlcyBhbGwgZmluaXRlIFRURiBzdW1zCiAJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgaW50CQlBSTFfRklOSVNIX0NFUlRfVFRGCT0gMTU7CS8vIHJvdW5kIDc1IChwcm9tb3RlZCk6IGxlZ2FjeSBtaXhlZC1maWVsZCBjYXAgZm9yIHRoZSBkdWFsLW1vZGVsIGZpbmlzaCBzcHJpbnQKIAlwcml2YXRlIGZpbmFsIHN0YXRpYyBpbnQJCUFJMV9GSU5JU0hfSE9NT0dFTkVPVVNfVFRGCT0gMjA7CS8vIHJvdW5kIDk0OiBleHRlbmQgb25seSBpbiBtb3Zlci1raW5kIGhvbW9nZW5lb3VzIGZpZWxkczsgdGhlIG5ldyBiYW5kIGZvcmJpZHMgY29hc3RpbmcKKwlwcml2YXRlIGZpbmFsIHN0YXRpYyBpbnQJCUFJMV9GSU5JU0hfRklFTERfRlJPTlRJRVJfVFRGCT0gMzA7CS8vIHJvdW5kIDk2IGNhbmRpZGF0ZTogY29tcGFyYXRpdmUgc2NvcmVyLWZpZWxkIGZyb250aWVyCiAJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgaW50CQlBSTFfUFJJVkFURV9CQVNFX0hPUklaT04JPSAzOwkvLyByb3VuZCA3NzogY2hlYXAgcmVjdGFuZ3VsYXIgcHJpdmF0ZS1sYW5lIGNlcnRpZmljYXRlCiAJcHJpdmF0ZSBmaW5hbCBzdGF0aWMgaW50CQlBSTFfUFJJVkFURV9FWEFDVF9IT1JJWk9OCT0gNDsJLy8gcm91bmQgNzc6IGdlb21ldHJ5LWNsaXBwZWQgZmFsbGJhY2sgaG9yaXpvbgogCXByaXZhdGUgZmluYWwgc3RhdGljIGludAkJQUkxX1BSSVZBVEVfQkFTRV9FU0NBUEVTCT0gMzsJLy8gYnJvYWQgcmVjdGFuZ2xlcyBuZWVkIHRoZSBvcmlnaW5hbCB3aWRlIGZyb250aWVyCkBAIC02NzUsMjMgKzY3Niw1MyBAQCBmaW5hbCBjbGFzcyBSYWNlQWkgewogCQkJLy8gZmlyc3QgcGFydGlhbCByb3VuZCBjb250YWlucyBvbmx5IHBsYXllcnMgYWZ0ZXIgbWUpLiBUaGUgbm9ybWFsIERKUwogCQkJLy8gc3RpbGwgcnVucyBhZnRlcndhcmRzLCByZXRhaW5pbmcgaXRzIGluZGVwZW5kZW50IHN1cnZpdmFsIHZldG8uCiAJCQlpZiAoIWluU2NvcmVyU2ltKSB7Ci0JCQkJaW50IHNwcmludFQgPSBwb1RCeURpcltjaG9zZW4ub3JkaW5hbCgpXTsKKwkJCQlmaW5hbCBpbnQgY2hvc2VuVCA9IHBvVEJ5RGlyW2Nob3Nlbi5vcmRpbmFsKCldOworCQkJCWludCBzcHJpbnRUID0gY2hvc2VuVDsKIAkJCQlEaXJlY3Rpb24gc3ByaW50ID0gbnVsbDsKKwkJCQlpbnQgZnJvbnRpZXJDaG9zZW5GaW5hbCA9IEludGVnZXIuTUlOX1ZBTFVFOworCQkJCWxvbmcgZnJvbnRpZXJDaG9zZW5GaWVsZCA9IDBMOwogCQkJCWZvciAoZmluYWwgRGlyZWN0aW9uIGQgOiBESVJFQ1RJT05TKSB7CiAJCQkJCWZpbmFsIGludCB0ID0gcG9UQnlEaXJbZC5vcmRpbmFsKCldOwotCQkJCQlpZiAoZCA9PSBjaG9zZW4gfHwgdCA+PSBzcHJpbnRUIHx8IHQgPiBBSTFfRklOSVNIX0hPTU9HRU5FT1VTX1RURgorCQkJCQlmaW5hbCBib29sZWFuIGZpZWxkRnJvbnRpZXIgPSB0ID4gQUkxX0ZJTklTSF9IT01PR0VORU9VU19UVEYKKwkJCQkJCQkmJiB0IDw9IEFJMV9GSU5JU0hfRklFTERfRlJPTlRJRVJfVFRGICYmIHQgKyAxID09IGNob3NlblQKKwkJCQkJCQkmJiBkICE9IERpcmVjdGlvbi5OT05FCisJCQkJCQkJJiYgbGl2ZVJpdmFsc1JlbWFpbmluZyhwbGF5ZXJOdW0pID49IEFJMV9QUklWQVRFX0ZJRUxEX01JTl9SSVZBTFMKKwkJCQkJCQkmJiBraW5kSG9tb2dlbmVvdXNGaWVsZChwbGF5ZXJOdW0pICYmIHRyYXBCeURpcltkLm9yZGluYWwoKV0gPT0gMC4wCisJCQkJCQkJJiYgdW5jQnlEaXJbZC5vcmRpbmFsKCldID09IDAuMAorCQkJCQkJCSYmIHNjb3JlQnlEaXJbZC5vcmRpbmFsKCldIDwgc2NvcmVCeURpcltjaG9zZW4ub3JkaW5hbCgpXTsKKwkJCQkJaWYgKGQgPT0gY2hvc2VuIHx8IHQgPj0gc3ByaW50VAorCQkJCQkJCXx8ICh0ID4gQUkxX0ZJTklTSF9IT01PR0VORU9VU19UVEYgJiYgIWZpZWxkRnJvbnRpZXIpCiAJCQkJCQkJfHwgKHQgPiBBSTFfRklOSVNIX0NFUlRfVFRGICYmIChkID09IERpcmVjdGlvbi5OT05FCiAJCQkJCQkJCQl8fCAha2luZEhvbW9nZW5lb3VzRmllbGQocGxheWVyTnVtKSkpCiAJCQkJCQkJfHwgdHJhcEJ5RGlyW2Qub3JkaW5hbCgpXSA+IEFJMV9UUkFQX0wxKQogCQkJCQkJY29udGludWU7CiAJCQkJCWZpbmFsIGludCBudnggPSB2ZWxbMF0gKyBkLmR4LCBudnkgPSB2ZWxbMV0gKyBkLmR5OwogCQkJCQlmaW5hbCBpbnQgbnggPSBwb3NbMF0gKyBudngsIG55ID0gcG9zWzFdICsgbnZ5OwotCQkJCQlmaW5hbCBpbnQgcm91bmRzID0gdCArIDE7Ci0JCQkJCWlmIChzaW1PdXRjb21lKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSwgcm91bmRzLCB0cnVlLCB0cnVlLCB0cnVlLCBmYWxzZSkgIT0gMCkKLQkJCQkJCWNvbnRpbnVlOwotCQkJCQlpZiAoc2ltT3V0Y29tZShueCwgbnksIG52eCwgbnZ5LCBwbGF5ZXJOdW0sIHJvdW5kcywgdHJ1ZSwgdHJ1ZSwgdHJ1ZSwgdHJ1ZSwKLQkJCQkJCQlBSTFfREVFUF9DRVJUX1JJVkFMUywgbnVsbCkgIT0gMCkKLQkJCQkJCWNvbnRpbnVlOworCQkJCQlpZiAoZmllbGRGcm9udGllcikgeworCQkJCQkJaWYgKHNlYWxhYmxlKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSkpCisJCQkJCQkJY29udGludWU7CisJCQkJCQlpZiAoZnJvbnRpZXJDaG9zZW5GaW5hbCA9PSBJbnRlZ2VyLk1JTl9WQUxVRSkgeworCQkJCQkJCWZpbmFsIGludCBjdnggPSB2ZWxbMF0gKyBjaG9zZW4uZHgsIGN2eSA9IHZlbFsxXSArIGNob3Nlbi5keTsKKwkJCQkJCQlmcm9udGllckNob3NlbkZpbmFsID0gc2NvcmVyRmllbGRPdXRjb21lKHBvc1swXSArIGN2eCwgcG9zWzFdICsgY3Z5LAorCQkJCQkJCQkJY3Z4LCBjdnksIHBsYXllck51bSwgQUkxX0RFRVBfSE9SSVpPTiwgQUkxX0RFRVBfQ0VSVF9SSVZBTFMsCisJCQkJCQkJCQlyb2xsb3V0RmllbGRDb3N0KTsKKwkJCQkJCQlmcm9udGllckNob3NlbkZpZWxkID0gcm9sbG91dEZpZWxkQ29zdFswXTsKKwkJCQkJCX0KKwkJCQkJCWZpbmFsIGludCBjYW5kaWRhdGVGaW5hbCA9IHNjb3JlckZpZWxkT3V0Y29tZShueCwgbnksIG52eCwgbnZ5LCBwbGF5ZXJOdW0sCisJCQkJCQkJCUFJMV9ERUVQX0hPUklaT04sIEFJMV9ERUVQX0NFUlRfUklWQUxTLCByb2xsb3V0RmllbGRDb3N0KTsKKwkJCQkJCWZpbmFsIGxvbmcgY2FuZGlkYXRlRmllbGQgPSByb2xsb3V0RmllbGRDb3N0WzBdOworCQkJCQkJaWYgKGZyb250aWVyQ2hvc2VuRmluYWwgPCAwIHx8IGNhbmRpZGF0ZUZpbmFsIDwgMAorCQkJCQkJCQl8fCBjYW5kaWRhdGVGaW5hbCA+PSBmcm9udGllckNob3NlbkZpbmFsCisJCQkJCQkJCXx8IGNhbmRpZGF0ZUZpZWxkID4gZnJvbnRpZXJDaG9zZW5GaWVsZCkKKwkJCQkJCQljb250aW51ZTsKKwkJCQkJfSBlbHNlIHsKKwkJCQkJCWZpbmFsIGludCByb3VuZHMgPSB0ICsgMTsKKwkJCQkJCWlmIChzaW1PdXRjb21lKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSwgcm91bmRzLCB0cnVlLCB0cnVlLCB0cnVlLCBmYWxzZSkgIT0gMCkKKwkJCQkJCQljb250aW51ZTsKKwkJCQkJCWlmIChzaW1PdXRjb21lKG54LCBueSwgbnZ4LCBudnksIHBsYXllck51bSwgcm91bmRzLCB0cnVlLCB0cnVlLCB0cnVlLCB0cnVlLAorCQkJCQkJCQlBSTFfREVFUF9DRVJUX1JJVkFMUywgbnVsbCkgIT0gMCkKKwkJCQkJCQljb250aW51ZTsKKwkJCQkJfQogCQkJCQlzcHJpbnQgPSBkOwogCQkJCQlzcHJpbnRUID0gdDsKIAkJCQl9Cg==
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('src/tr/logic/RaceAi.java')
-          s = p.read_text()
-          const = '\tprivate final static int\t\tAI1_FINISH_HOMOGENEOUS_TTF\t= 20;\t// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting\n'
-          assert s.count(const) == 1
-          s = s.replace(const, const + '\tprivate final static int\t\tAI1_FINISH_FIELD_FRONTIER_TTF\t= 30;\t// round 96 candidate: comparative scorer-field frontier\n', 1)
-          old = '''\t\t\tif (!inScorerSim) {
-\t\t\t\tint sprintT = poTByDir[chosen.ordinal()];
-\t\t\t\tDirection sprint = null;
-\t\t\t\tfor (final Direction d : DIRECTIONS) {
-\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];
-\t\t\t\t\tif (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
-\t\t\t\t\t\t\t|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
-\t\t\t\t\t\t\t\t\t|| !kindHomogeneousField(playerNum)))
-\t\t\t\t\t\t\t|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
-\t\t\t\t\t\tcontinue;
-\t\t\t\t\tfinal int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-\t\t\t\t\tfinal int nx = pos[0] + nvx, ny = pos[1] + nvy;
-\t\t\t\t\tfinal int rounds = t + 1;
-\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
-\t\t\t\t\t\tcontinue;
-\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
-\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null) != 0)
-\t\t\t\t\t\tcontinue;
-\t\t\t\t\tsprint = d;
-\t\t\t\t\tsprintT = t;
-\t\t\t\t}
-'''
-          new = '''\t\t\tif (!inScorerSim) {
-\t\t\t\tfinal int chosenT = poTByDir[chosen.ordinal()];
-\t\t\t\tint sprintT = chosenT;
-\t\t\t\tDirection sprint = null;
-\t\t\t\tint frontierChosenFinal = Integer.MIN_VALUE;
-\t\t\t\tlong frontierChosenField = 0L;
-\t\t\t\tint frontierBestFinal = Integer.MAX_VALUE;
-\t\t\t\tlong frontierBestField = Long.MAX_VALUE;
-\t\t\t\tfor (final Direction d : DIRECTIONS) {
-\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];
-\t\t\t\t\tfinal boolean fieldFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF
-\t\t\t\t\t\t\t&& t <= AI1_FINISH_FIELD_FRONTIER_TTF && t + 1 == chosenT
-\t\t\t\t\t\t\t&& d != Direction.NONE && liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
-\t\t\t\t\t\t\t&& kindHomogeneousField(playerNum) && trapByDir[d.ordinal()] == 0.0
-\t\t\t\t\t\t\t&& uncByDir[d.ordinal()] == 0.0
-\t\t\t\t\t\t\t&& scoreByDir[d.ordinal()] < scoreByDir[chosen.ordinal()];
-\t\t\t\t\tif (d == chosen || t >= sprintT
-\t\t\t\t\t\t\t|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !fieldFrontier)
-\t\t\t\t\t\t\t|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
-\t\t\t\t\t\t\t\t\t|| !kindHomogeneousField(playerNum)))
-\t\t\t\t\t\t\t|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
-\t\t\t\t\t\tcontinue;
-\t\t\t\t\tfinal int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-\t\t\t\t\tfinal int nx = pos[0] + nvx, ny = pos[1] + nvy;
-\t\t\t\t\tif (fieldFrontier) {
-\t\t\t\t\t\tif (sealable(nx, ny, nvx, nvy, playerNum))
-\t\t\t\t\t\t\tcontinue;
-\t\t\t\t\t\tif (frontierChosenFinal == Integer.MIN_VALUE) {
-\t\t\t\t\t\t\tfinal int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
-\t\t\t\t\t\t\tfrontierChosenFinal = scorerFieldOutcome(pos[0] + cvx, pos[1] + cvy,
-\t\t\t\t\t\t\t\t\tcvx, cvy, playerNum, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS,
-\t\t\t\t\t\t\t\t\trolloutFieldCost);
-\t\t\t\t\t\t\tfrontierChosenField = rolloutFieldCost[0];
-\t\t\t\t\t\t}
-\t\t\t\t\t\tfinal int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
-\t\t\t\t\t\t\t\tAI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
-\t\t\t\t\t\tfinal long candidateField = rolloutFieldCost[0];
-\t\t\t\t\t\tif (frontierChosenFinal < 0 || candidateFinal < 0
-\t\t\t\t\t\t\t\t|| candidateFinal >= frontierChosenFinal
-\t\t\t\t\t\t\t\t|| candidateField > frontierChosenField
-\t\t\t\t\t\t\t\t|| candidateFinal > frontierBestFinal
-\t\t\t\t\t\t\t\t|| candidateFinal == frontierBestFinal && candidateField >= frontierBestField)
-\t\t\t\t\t\t\tcontinue;
-\t\t\t\t\t\tfrontierBestFinal = candidateFinal;
-\t\t\t\t\t\tfrontierBestField = candidateField;
-\t\t\t\t\t} else {
-\t\t\t\t\t\tfinal int rounds = t + 1;
-\t\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
-\t\t\t\t\t\t\tcontinue;
-\t\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
-\t\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null) != 0)
-\t\t\t\t\t\t\tcontinue;
-\t\t\t\t\t}
-\t\t\t\t\tsprint = d;
-\t\t\t\t\tsprintT = t;
-\t\t\t\t}
-'''
-          assert s.count(old) == 2
-          p.write_text(s.replace(old, new, 1))
-          PY
+          printf '%s' "$PATCH_B64" | base64 -d > /tmp/round96-field.patch
+          printf '%s  %s\n' '4da0d7452a45b97f910838e68a58218e5e252b8e3f579fcfaf21aad8de9f188b' /tmp/round96-field.patch | sha256sum -c -
+          git apply --check /tmp/round96-field.patch
+          git apply /tmp/round96-field.patch
       - name: Verify and build
         run: |
           sh ./run_tests.sh
