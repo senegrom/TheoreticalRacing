@@ -1,0 +1,62 @@
+name: Summarize Round 100 finish frontier
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-finish-probe
+    paths:
+      - .github/workflows/round100-finish-frontier-summary.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 31907728730
+          github-token: ${{ github.token }}
+          pattern: round100-frontier-*
+          path: reports
+          merge-multiple: true
+      - name: Aggregate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows = []
+          total = 0
+          for path in sorted(Path('reports').glob('*-frontier.txt')):
+              values = {}
+              events = []
+              for line in path.read_text().splitlines():
+                  if line.startswith('AIDBG FRONTIER'):
+                      events.append(line)
+                  elif '=' in line:
+                      key, value = line.split('=', 1)
+                      values[key] = value
+              count = int(values.get('events', len(events)))
+              total += count
+              rows.append({
+                  'track': values.get('track', path.name),
+                  'elapsed_seconds': int(values.get('elapsed_seconds', 0)),
+                  'events': count,
+                  'details': events,
+              })
+          out = {'tracks': rows, 'track_count': len(rows), 'total_events': total}
+          Path('round100-finish-frontier-summary.json').write_text(
+              json.dumps(out, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(out, indent=2, sort_keys=True))
+          if len(rows) != 22:
+              raise SystemExit(f'expected 22 reports, found {len(rows)}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-finish-frontier-summary
+          path: round100-finish-frontier-summary.json
+          if-no-files-found: error
