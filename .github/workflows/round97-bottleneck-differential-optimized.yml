@@ -1,0 +1,226 @@
+name: Round 97 optimized bottleneck differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-97-bottleneck-brake
+    paths:
+      - .github/workflows/round97-bottleneck-differential-optimized.yml
+
+permissions:
+  contents: read
+
+jobs:
+  exact:
+    name: Exact ${{ matrix.track }} seeds 1-${{ matrix.seeds }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 26
+      matrix:
+        include:
+          - { track: silverstone, seeds: 60 }
+          - { track: monza, seeds: 60 }
+          - { track: spa, seeds: 60 }
+          - { track: monaco, seeds: 60 }
+          - { track: spielberg, seeds: 60 }
+          - { track: nurburgring, seeds: 60 }
+          - { track: lemans, seeds: 60 }
+          - { track: interlagos, seeds: 60 }
+          - { track: zandvoort, seeds: 60 }
+          - { track: hungaroring, seeds: 60 }
+          - { track: circle, seeds: 60 }
+          - { track: the_long_loop, seeds: 60 }
+          - { track: sprint, seeds: 60 }
+          - { track: hairpin, seeds: 60 }
+          - { track: triangle, seeds: 60 }
+          - { track: chicane, seeds: 60 }
+          - { track: bigoval, seeds: 60 }
+          - { track: curve, seeds: 60 }
+          - { track: zigzag, seeds: 60 }
+          - { track: coil, seeds: 60 }
+          - { track: slalom, seeds: 60 }
+          - { track: gear, seeds: 60 }
+          - { track: cog, seeds: 25 }
+          - { track: spiral, seeds: 25 }
+          - { track: serpentine, seeds: 25 }
+          - { track: serpentine2, seeds: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: sh ./build_main.sh
+      - name: Compare optimized AI1 against frozen AI2
+        env:
+          TRACK: ${{ matrix.track }}
+          SEEDS: ${{ matrix.seeds }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          import re
+          import subprocess
+          import tempfile
+
+          track = os.environ['TRACK']
+          seeds = int(os.environ['SEEDS'])
+          root = Path.cwd()
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def configure(source: Path, target: Path, kind: str) -> None:
+              text = source.read_text(encoding='utf-8')
+              text = re.sub(r'^(player[1-8]Kind=).*$', rf'\1{kind}', text, flags=re.M)
+              text = re.sub(r'^nPlayers=.*$', 'nPlayers=8', text, flags=re.M)
+              target.write_text(text, encoding='utf-8')
+
+          def log_path(pattern: Path, seed: int) -> Path:
+              return pattern.with_name(f'{pattern.stem}_s{seed}{pattern.suffix}')
+
+          def normalized(text: str) -> list[str]:
+              return [
+                  line.replace('AI1', 'AI').replace('AI2', 'AI')
+                  for line in text.splitlines()
+                  if line.startswith('player')
+                  or line.startswith('# turns')
+                  or line.startswith('# results')
+                  or (line and line[0].isdigit())
+              ]
+
+          def summary(text: str) -> dict:
+              moves = {}
+              finishers = []
+              crashes = []
+              valid = False
+              for line in text.splitlines():
+                  if line.startswith('# results'):
+                      valid = True
+                  match = move_re.match(line)
+                  if match is None:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'FINISH' in line:
+                      finishers.append((player, moves[player]))
+                  elif 'CRASH' in line:
+                      crashes.append((player, moves[player]))
+              return {
+                  'valid': valid,
+                  'finishers': finishers,
+                  'crashes': crashes,
+                  'sum': sum(move for _, move in finishers),
+              }
+
+          expected_ai1 = {
+              'valid': True,
+              'finishers': [(1, 139), (2, 140), (3, 141), (4, 142),
+                            (5, 143), (7, 144), (6, 146)],
+              'crashes': [],
+              'sum': 995,
+          }
+          expected_ai2 = {
+              'valid': True,
+              'finishers': [(1, 139), (2, 140), (3, 141), (4, 142),
+                            (5, 143), (7, 144)],
+              'crashes': [(6, 20)],
+              'sum': 849,
+          }
+
+          with tempfile.TemporaryDirectory(prefix=f'r97-opt-{track}-') as directory:
+              work = Path(directory)
+              source = root / 'tracks' / 'bench.properties'
+              stderr = {}
+              for kind in ('AI1', 'AI2'):
+                  props = work / f'{kind}.properties'
+                  pattern = work / f'{kind}.log'
+                  configure(source, props, kind)
+                  command = ['java', '-Djava.awt.headless=true']
+                  if kind == 'AI1':
+                      command.append('-Dai.debug.djs=true')
+                  command += [
+                      '-jar', str(root / 'theoreticRacing.jar'), '--auto',
+                      '--track', track, '--props', str(props), '--log', str(pattern),
+                      '--seed', f'1-{seeds}',
+                  ]
+                  completed = subprocess.run(
+                      command, cwd=root, text=True, capture_output=True,
+                      timeout=7000, check=False,
+                  )
+                  if completed.returncode:
+                      raise SystemExit(
+                          f'{track} {kind} exited {completed.returncode}: '
+                          f'{completed.stderr[-2000:]}'
+                      )
+                  stderr[kind] = completed.stderr
+
+              changed = []
+              for seed in range(1, seeds + 1):
+                  ai1_path = log_path(work / 'AI1.log', seed)
+                  ai2_path = log_path(work / 'AI2.log', seed)
+                  if not ai1_path.is_file() or not ai2_path.is_file():
+                      raise SystemExit(f'{track} seed {seed}: missing batch log')
+                  ai1_text = ai1_path.read_text(encoding='utf-8')
+                  ai2_text = ai2_path.read_text(encoding='utf-8')
+                  if normalized(ai1_text) == normalized(ai2_text):
+                      continue
+                  ai1_summary = summary(ai1_text)
+                  ai2_summary = summary(ai2_text)
+                  row = {
+                      'seed': seed,
+                      'ai1': ai1_summary,
+                      'ai2': ai2_summary,
+                      'delta_sum': ai1_summary['sum'] - ai2_summary['sum'],
+                      'delta_finishers': len(ai1_summary['finishers']) - len(ai2_summary['finishers']),
+                      'delta_crashes': len(ai1_summary['crashes']) - len(ai2_summary['crashes']),
+                  }
+                  changed.append(row)
+                  if not (track == 'zandvoort' and seed == 32
+                          and ai1_summary == expected_ai1
+                          and ai2_summary == expected_ai2
+                          and '110 p6 AI1 SW v(3,-8)→(2,-7) (42,35)→(44,28) ok'
+                              in ai1_text.splitlines()
+                          and '110 p6 AI2 S v(3,-8)→(3,-7) (42,35)→(45,28) ok'
+                              in ai2_text.splitlines()):
+                      raise SystemExit(
+                          f'unexpected optimized Round-97 differential on {track} seed {seed}: '
+                          + json.dumps(row, sort_keys=True)
+                      )
+
+              brakes = [
+                  line for line in stderr['AI1'].splitlines()
+                  if 'AIDBG BRAKE' in line
+              ]
+              if track == 'zandvoort':
+                  if len(brakes) != 1 or 'p=6 pos=(42,35) S -> SW' not in brakes[0]:
+                      raise SystemExit(f'unexpected optimized Zandvoort brake census: {brakes}')
+                  if [row['seed'] for row in changed] != [32]:
+                      raise SystemExit(f'unexpected optimized Zandvoort changed seeds: {changed}')
+              elif brakes or changed:
+                  raise SystemExit(
+                      f'{track}: unexpected optimized brakes={brakes}, changed={changed}'
+                  )
+
+              report = {
+                  'track': track,
+                  'seeds': seeds,
+                  'exact': seeds - len(changed),
+                  'changed': changed,
+                  'brakes': brakes,
+              }
+              Path(f'round97-optimized-diff-{track}.json').write_text(
+                  json.dumps(report, indent=2), encoding='utf-8'
+              )
+              print(json.dumps(report, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round97-optimized-diff-${{ matrix.track }}
+          path: round97-optimized-diff-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 14
