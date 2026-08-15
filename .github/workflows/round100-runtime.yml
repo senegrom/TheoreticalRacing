@@ -1,0 +1,112 @@
+name: Round 100 finish-seal runtime
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-seal-pace-screen
+    paths:
+      - .github/workflows/round100-runtime.yml
+
+permissions:
+  contents: read
+
+jobs:
+  paired:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build candidate
+        run: |
+          git apply .github/round100-sealpace-refined.patch
+          sh ./build_main.sh
+      - name: Alternate target and exact-control order
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+          import json, os, statistics, subprocess, tempfile, time
+          from pathlib import Path
+          import re, shutil
+
+          root = Path.cwd()
+          jar = root / 'theoreticRacing.jar'
+
+          def set_kind(props: Path, kind: str) -> None:
+              text = props.read_text()
+              text = re.sub(r'^(player[1-8]Kind=).*$', r'\1' + kind, text, flags=re.M)
+              text = re.sub(r'^nPlayers=\d+$', 'nPlayers=8', text, flags=re.M)
+              props.write_text(text)
+
+          def run_once(seed: int, kind: str, props: Path, log: Path, cache: Path) -> float:
+              set_kind(props, kind)
+              if log.exists():
+                  log.unlink()
+              env = os.environ.copy()
+              env['RACING_REACH_CACHE'] = str(cache)
+              start = time.perf_counter()
+              proc = subprocess.run(
+                  ['java', '-Djava.awt.headless=true', '-jar', str(jar), '--auto',
+                   '--track', 'the_long_loop', '--props', str(props), '--log', str(log),
+                   '--seed', str(seed)],
+                  cwd=root, env=env, text=True, stdout=subprocess.DEVNULL,
+                  stderr=subprocess.PIPE, timeout=1200,
+              )
+              elapsed = time.perf_counter() - start
+              if proc.returncode != 0 or not log.exists():
+                  raise RuntimeError(f'seed {seed} {kind} failed: {proc.stderr[-2000:]}')
+              return elapsed
+
+          def trimmed(values: list[float]) -> float:
+              ordered = sorted(values)
+              cut = max(1, len(ordered) // 10)
+              core = ordered[cut:-cut] if len(ordered) > 2 * cut else ordered
+              return statistics.mean(core)
+
+          results = {}
+          with tempfile.TemporaryDirectory(prefix='round100-runtime-') as directory:
+              work = Path(directory)
+              props = work / 'bench.properties'
+              log = work / 'race.log'
+              cache = work / 'reach-cache'
+              cache.mkdir()
+              shutil.copyfile(root / 'tracks' / 'bench.properties', props)
+
+              for label, seed in [('target', 1), ('control', 2)]:
+                  run_once(seed, 'AI1', props, log, cache)
+                  run_once(seed, 'AI2', props, log, cache)
+                  times = {'AI1': [], 'AI2': []}
+                  for pair in range(14):
+                      order = ('AI1', 'AI2') if pair % 2 == 0 else ('AI2', 'AI1')
+                      for kind in order:
+                          times[kind].append(run_once(seed, kind, props, log, cache))
+                  median_ratio = statistics.median(times['AI1']) / statistics.median(times['AI2'])
+                  trimmed_ratio = trimmed(times['AI1']) / trimmed(times['AI2'])
+                  results[label] = {
+                      'seed': seed,
+                      'ai1_seconds': times['AI1'],
+                      'ai2_seconds': times['AI2'],
+                      'ai1_median': statistics.median(times['AI1']),
+                      'ai2_median': statistics.median(times['AI2']),
+                      'ai1_trimmed_mean': trimmed(times['AI1']),
+                      'ai2_trimmed_mean': trimmed(times['AI2']),
+                      'median_ratio': median_ratio,
+                      'trimmed_ratio': trimmed_ratio,
+                  }
+                  print(f'{label}: median={median_ratio:.4f}, trimmed={trimmed_ratio:.4f}')
+
+          assert results['target']['median_ratio'] < 1.08
+          assert results['target']['trimmed_ratio'] < 1.08
+          assert results['control']['median_ratio'] < 1.05
+          assert results['control']['trimmed_ratio'] < 1.05
+          Path('round100-runtime.json').write_text(json.dumps(results, indent=2) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-runtime
+          path: round100-runtime.json
+          if-no-files-found: error
+          retention-days: 14
