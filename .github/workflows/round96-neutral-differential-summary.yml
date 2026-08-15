@@ -1,0 +1,76 @@
+name: Summarize Round 96 exact differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-neutral-accel
+    paths:
+      - .github/workflows/round96-neutral-differential-summary.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 31861559248
+          pattern: round96-diff-*
+          path: reports
+      - name: Assert exact frontier differential
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          files = sorted(Path('reports').rglob('round96-diff-*.json'))
+          reports = [json.loads(path.read_text()) for path in files]
+          assert len(reports) == 26, f'expected 26 track reports, got {len(reports)}'
+          assert len({report['track'] for report in reports}) == 26
+
+          summary = {
+              'tracks': len(reports),
+              'pairs': sum(report['pairs'] for report in reports),
+              'identical': sum(report['identical'] for report in reports),
+              'changed': sum(report['changed'] for report in reports),
+              'faster': sum(report['faster'] for report in reports),
+              'neutral_changed': sum(report['neutral_changed'] for report in reports),
+              'net_move_delta': sum(report['net_move_delta'] for report in reports),
+              'changed_tracks': [report for report in reports if report['changed']],
+          }
+          assert summary['pairs'] == 1420, summary
+          assert summary['identical'] == 1419, summary
+          assert summary['changed'] == 1, summary
+          assert summary['faster'] == 1, summary
+          assert summary['neutral_changed'] == 0, summary
+          assert summary['net_move_delta'] == -1, summary
+          assert len(summary['changed_tracks']) == 1
+          changed = summary['changed_tracks'][0]
+          assert changed['track'] == 'zigzag'
+          assert [row['seed'] for row in changed['changes']] == [2]
+          assert changed['changes'][0]['delta'] == -1
+
+          Path('round96-exact-differential.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          text = (
+              f"pairs={summary['pairs']} identical={summary['identical']} "
+              f"changed={summary['changed']} faster={summary['faster']} "
+              f"neutral={summary['neutral_changed']} net={summary['net_move_delta']}\n"
+              f"changed=zigzag seed=2 delta=-1\n"
+          )
+          Path('round96-exact-differential.txt').write_text(text)
+          print(text, end='')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-exact-differential
+          path: |
+            round96-exact-differential.json
+            round96-exact-differential.txt
+          if-no-files-found: error
