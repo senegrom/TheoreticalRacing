@@ -31,6 +31,15 @@ jobs:
           git fetch origin master
           git worktree add /tmp/round101-baseline origin/master
           cd /tmp/round101-baseline
+          python - <<'PYBASE'
+          from pathlib import Path
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          old = "\tprivate static boolean\t\t\tinTrueRivalConfirm;"
+          new = "\tprivate boolean\t\t\t\tinTrueRivalConfirm;"
+          assert source.count(old) == 1
+          path.write_text(source.replace(old, new, 1))
+          PYBASE
           sh ./run_tests.sh
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round101-baseline.jar"
