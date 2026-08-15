@@ -1,0 +1,34 @@
+name: Materialize Round 97 bottleneck brake
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-97-bottleneck-brake
+    paths:
+      - .github/workflows/materialize-round97-bottleneck-brake.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Apply validated candidate patch
+        run: |
+          printf '%s  %s\n' '51af72d1b120a18658caea8b5d1d266f36ea10fe832a8ec77626fe45f399642c' .github/round97-bottleneck.patch | sha256sum -c -
+          git apply --check .github/round97-bottleneck.patch
+          git apply .github/round97-bottleneck.patch
+          rm .github/round97-bottleneck.patch
+          rm .github/workflows/materialize-round97-bottleneck-brake.yml
+      - name: Commit candidate
+        run: |
+          git config user.name 'OpenAI Agent'
+          git config user.email 'noreply@openai.com'
+          git add -A
+          git commit -m 'Round 97: brake exact-L1 bottlenecks'
+          git push origin HEAD
