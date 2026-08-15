@@ -1,0 +1,86 @@
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -266,7 +266,7 @@
+ 	private boolean				inScorerSim;
+ 	/** Round 99: latch -- while a true-rival confirm runs, rivals computed at
+ 	 *  full fidelity must not fire their own confirms (cost recursion). */
+-	private static boolean			inTrueRivalConfirm;
++	private boolean				inTrueRivalConfirm;
+ 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
+ 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
+ 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
+@@ -625,6 +625,7 @@
+ 					trapByDir, uncByDir, poTByDir);
+ 		}
+ 		if (chosen != null) {
++			final Direction preSealChosen = chosen;
+ 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
+ 			// matching, legality-checked covers). If the chosen landing is
+ 			// sealable, take the FASTEST unsealable alternative instead.
+@@ -669,6 +670,9 @@
+ 				if (safest != null)
+ 					chosen = safest;
+ 			}
++			if (!inScorerSim && chosen != preSealChosen)
++				chosen = finishSealPaceRescue(pos, vel, playerNum, preSealChosen, chosen,
++						scoreByDir, trapByDir, uncByDir, poTByDir);
+ 			// Round 75 (PROMOTED): a bounded, proof-gated finish sprint. Local trap and
+ 			// uncertainty terms can spend a whole turn protecting a line even when
+ 			// a faster candidate is already close enough to certify all the way to
+@@ -1078,6 +1082,56 @@
+ 		return fallback;
+ 	}
+ 
++	/** Round 100 candidate: recover a one-turn finish line rejected only by the
++	 *  worst-case distinct-cover seal guard when the real-policy field proves the
++	 *  line safe and strictly less obstructive. This arm is confined to the
++	 *  already-certified homogeneous finish horizon. */
++	private Direction finishSealPaceRescue(final int[] pos, final int[] vel, final int playerNum,
++			final Direction faster, final Direction fallback, final double[] scoreByDir,
++			final double[] trapByDir, final double[] uncByDir, final int[] turnsByDir) {
++		if (faster == null || fallback == null || faster == fallback)
++			return fallback;
++		final int fasterT = turnsByDir[faster.ordinal()];
++		final int fallbackT = turnsByDir[fallback.ordinal()];
++		if (fasterT < AI1_FINISH_CERT_TTF || fasterT > AI1_FINISH_HOMOGENEOUS_TTF
++				|| fasterT + 1 != fallbackT
++				|| trapByDir[faster.ordinal()] != 0.0 || uncByDir[faster.ordinal()] != 0.0
++				|| scoreByDir[faster.ordinal()] >= scoreByDir[fallback.ordinal()]
++				|| liveRivalsRemaining(playerNum) < AI1_PRIVATE_FIELD_MIN_RIVALS
++				|| !kindHomogeneousField(playerNum))
++			return fallback;
++		final int fvx = vel[0] + faster.dx, fvy = vel[1] + faster.dy;
++		final int fx = pos[0] + fvx, fy = pos[1] + fvy;
++		final int bvx = vel[0] + fallback.dx, bvy = vel[1] + fallback.dy;
++		final int bx = pos[0] + bvx, by = pos[1] + bvy;
++		if (!sealable(fx, fy, fvx, fvy, playerNum))
++			return fallback;
++		final int horizon = fallbackT + 3;
++		final int fallbackFinal = scorerFieldOutcome(bx, by, bvx, bvy, playerNum, horizon,
++				AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
++		final long fallbackField = rolloutFieldCost[0];
++		final int fasterFinal = scorerFieldOutcome(fx, fy, fvx, fvy, playerNum, horizon,
++				AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
++		final long fasterField = rolloutFieldCost[0];
++		if (fallbackFinal != 0 || fasterFinal != 0 || fasterField >= fallbackField)
++			return fallback;
++		final boolean priorConfirm = inTrueRivalConfirm;
++		inTrueRivalConfirm = true;
++		final boolean trueAlive;
++		try {
++			trueAlive = simOutcome(fx, fy, fvx, fvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
++					true, true, true, true, true, true, AI1_DEEP_CERT_RIVALS,
++					null, null, null) >= 0;
++		} finally {
++			inTrueRivalConfirm = priorConfirm;
++		}
++		if (AI_DEBUG_DJS && trueAlive)
++			System.err.println("AIDBG FINISH-SEAL-PACE p=" + playerNum + " pos=("
++					+ pos[0] + "," + pos[1] + ") " + fallback + " -> " + faster
++					+ " ttf=" + fasterT + " field=" + fallbackField + "->" + fasterField);
++		return trueAlive ? faster : fallback;
++	}
++
+ 	/** Occupancy oracle used by the private-lane pace proof. */
+ 	private interface RivalOccupancy {
+ 		boolean mayOccupy(int ply, int x, int y);
