@@ -1,0 +1,285 @@
+name: Round 96 champion promotion gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-champion-gate
+    paths:
+      - .github/workflows/round96-champion-gate.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify mirrored champion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: sh ./run_tests.sh
+      - run: sh ./build_main.sh
+      - run: python tests/headless_smoke.py
+      - run: python tests/golden_races.py
+      - run: python tests/ai1_pace_regression.py
+      - run: python tests/ai1_mixed_safety_regression.py
+      - run: python tests/ai1_field_neutral_regression.py
+      - run: python tests/ai1_staged_pace_regression.py
+      - run: python tests/ai1_energy_pace_regression.py
+      - run: python tests/ai1_cross_model_pace_regression.py
+      - run: python tests/ai1_neutral_accel_pace_regression.py
+      - run: python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-champion-jar
+          path: theoreticRacing.jar
+          if-no-files-found: error
+
+  selftie:
+    name: Self-tie ${{ matrix.track }} seeds 1-15
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 22
+      matrix:
+        track:
+          - silverstone
+          - monza
+          - spa
+          - monaco
+          - spielberg
+          - nurburgring
+          - lemans
+          - interlagos
+          - zandvoort
+          - hungaroring
+          - circle
+          - the_long_loop
+          - sprint
+          - hairpin
+          - triangle
+          - chicane
+          - bigoval
+          - curve
+          - zigzag
+          - coil
+          - slalom
+          - gear
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round96-champion-jar
+          path: .
+      - name: Prove exact AI1/AI2 identity
+        env:
+          TRACK: ${{ matrix.track }}
+        run: |
+          python - <<'PY'
+          from itertools import zip_longest
+          import os, sys, tempfile
+          from pathlib import Path
+
+          root = Path.cwd()
+          sys.path.insert(0, str(root / 'tracks'))
+          import bench_ai
+          from ai_probe import normalized_lines
+
+          track = os.environ['TRACK']
+          pairs = 0
+          with tempfile.TemporaryDirectory(prefix=f'r96-selftie-{track}-') as directory:
+              bench_ai.configure_runtime(directory)
+              bench_ai.set_nplayers(8)
+              for seed in range(1, 16):
+                  outputs = {}
+                  logs = {}
+                  for kind in ('AI1', 'AI2'):
+                      bench_ai.set_all_to(kind)
+                      outputs[kind] = bench_ai.run_track(track, timeout=1500, seed=seed)
+                      if outputs[kind] is None:
+                          raise SystemExit(f'{track} seed {seed} {kind}: invalid race')
+                      logs[kind] = normalized_lines(Path(bench_ai.LOG).read_text(encoding='utf-8'))
+                  if outputs['AI1'] != outputs['AI2']:
+                      raise SystemExit(
+                          f'{track} seed {seed}: result mismatch '
+                          f"AI1={outputs['AI1']} AI2={outputs['AI2']}"
+                      )
+                  if logs['AI1'] != logs['AI2']:
+                      for index, (left, right) in enumerate(
+                          zip_longest(logs['AI1'], logs['AI2']), start=1
+                      ):
+                          if left != right:
+                              raise SystemExit(
+                                  f'{track} seed {seed}: first log difference line {index}: '
+                                  f'AI1={left!r} AI2={right!r}'
+                              )
+                  pairs += 1
+          report = f'track={track} pairs={pairs} exact=15\n'
+          Path(f'r96-selftie-{track}.txt').write_text(report)
+          print(report, end='')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r96-selftie-${{ matrix.track }}
+          path: r96-selftie-${{ matrix.track }}.txt
+          if-no-files-found: error
+
+  battery:
+    name: Champion ${{ matrix.label }}
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 11
+      matrix:
+        include:
+          - label: 8-car seeds 1-5
+            command: python tracks/bench_ai.py --seed-start 1 --seeds 5
+            artifact: 8car-s1-5
+          - label: 8-car seeds 6-10
+            command: python tracks/bench_ai.py --seed-start 6 --seeds 5
+            artifact: 8car-s6-10
+          - label: 8-car seeds 11-15
+            command: python tracks/bench_ai.py --seed-start 11 --seeds 5
+            artifact: 8car-s11-15
+          - label: 4v4 mixed seeds 1-5
+            command: python tracks/bench_ai.py --h2h --seed-start 1 --seeds 5
+            artifact: h2h-s1-5
+          - label: 4v4 mixed seeds 6-10
+            command: python tracks/bench_ai.py --h2h --seed-start 6 --seeds 5
+            artifact: h2h-s6-10
+          - label: 4v4 mixed seeds 11-15
+            command: python tracks/bench_ai.py --h2h --seed-start 11 --seeds 5
+            artifact: h2h-s11-15
+          - label: 2v2 mixed seeds 1-5
+            command: python tracks/bench_ai.py --4p --seed-start 1 --seeds 5
+            artifact: 2v2-s1-5
+          - label: 1v1 seeds 1-5
+            command: python tracks/bench_ai.py --1v1 --seed-start 1 --seeds 5
+            artifact: 1v1-s1-5
+          - label: 4-car homogeneous seeds 1-5
+            command: python tracks/bench_iso.py 4car 1
+            artifact: homogeneous-4car-s1-5
+          - label: 2-car homogeneous seeds 1-5
+            command: python tracks/bench_iso.py 2car 1
+            artifact: homogeneous-2car-s1-5
+          - label: Slow synthetic seeds 1-5
+            command: python tracks/bench_ai.py --slow --seed-start 1 --seeds 5
+            artifact: slow-s1-5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round96-champion-jar
+          path: .
+      - name: Run ${{ matrix.label }}
+        shell: bash
+        run: ${{ matrix.command }} | tee champion-report.txt
+      - name: Assert exact champion tie
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path('champion-report.txt').read_text()
+          if 'TOTAL mean place' in text:
+              m = re.search(
+                  r'^TOTAL mean place\s+\|\s*([0-9.]+) c=(\d+)\s+\|\s*([0-9.]+) c=(\d+)$',
+                  text,
+                  re.M,
+              )
+              assert m, text
+              assert m.group(1) == m.group(3) and m.group(2) == m.group(4), m.groups()
+          else:
+              total = re.search(
+                  r'^TOTAL\s+\|\s+f=(\d+) c=(\d+) mv=\s*([0-9.]+)\s+\|\s+'
+                  r'f=(\d+) c=(\d+) mv=\s*([0-9.]+)\s+\|\s+([+-][0-9.]+)$',
+                  text,
+                  re.M,
+              )
+              assert total, text
+              assert total.group(1) == total.group(4), total.groups()
+              assert total.group(2) == total.group(5), total.groups()
+              assert total.group(3) == total.group(6), total.groups()
+              assert float(total.group(7)) == 0.0, total.groups()
+              rows = re.findall(
+                  r'^(\S+)\s+\|\s+(\d+)/(\d+) mv=\s*([0-9.]+)\s+\|\s+'
+                  r'(\d+)/(\d+) mv=\s*([0-9.]+)\s+\|\s+([+-][0-9.]+)$',
+                  text,
+                  re.M,
+              )
+              assert rows, text
+              for row in rows:
+                  track, f1, c1, mv1, f2, c2, mv2, diff = row
+                  assert (f1, c1, mv1) == (f2, c2, mv2), row
+                  assert float(diff) == 0.0, row
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r96-champion-${{ matrix.artifact }}
+          path: champion-report.txt
+          if-no-files-found: error
+
+  summarize:
+    name: Summarize champion proof
+    needs:
+      - selftie
+      - battery
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: r96-selftie-*
+          path: selftie
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: r96-champion-*
+          path: battery
+      - name: Assert complete proof set
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          selftie = list(Path('selftie').rglob('r96-selftie-*.txt'))
+          battery = list(Path('battery').rglob('champion-report.txt'))
+          assert len(selftie) == 22, len(selftie)
+          assert len(battery) == 11, len(battery)
+          pairs = 0
+          for path in selftie:
+              text = path.read_text().strip()
+              assert 'pairs=15 exact=15' in text, (path, text)
+              pairs += 15
+          summary = (
+              f'selftie_tracks=22 selftie_pairs={pairs} exact={pairs}\n'
+              'promotion_stages=11 exact_ties=11\n'
+          )
+          Path('round96-champion-summary.txt').write_text(summary)
+          print(summary, end='')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-champion-summary
+          path: round96-champion-summary.txt
+          if-no-files-found: error
