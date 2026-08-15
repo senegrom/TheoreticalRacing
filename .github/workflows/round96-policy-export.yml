@@ -1,0 +1,23 @@
+name: Export Round 96 policy experiment
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-policy-export
+    paths:
+      - .github/workflows/round96-policy-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: tar --exclude=.git -czf /tmp/round96-policy.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-policy
+          path: /tmp/round96-policy.tar.gz
+          if-no-files-found: error
