@@ -1,0 +1,33 @@
+name: Materialize Round 97 fail-fast optimization
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-97-bottleneck-brake
+    paths:
+      - .github/workflows/materialize-round97-fastmask.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Apply optimized candidate body
+        run: |
+          printf '%s  %s\n' 'e775ea75a3f88e4bbeabac6ba4b3d0bbbdbf8dd1f90efe4a41577af021e529b1' .github/round97-fastmask.patch | sha256sum -c -
+          git apply --check .github/round97-fastmask.patch
+          git apply .github/round97-fastmask.patch
+          rm .github/round97-fastmask.patch
+      - name: Commit and push source-only optimization
+        run: |
+          git config user.name 'OpenAI Agent'
+          git config user.email 'noreply@openai.com'
+          git add src/tr/logic/RaceAi.java .github/round97-fastmask.patch
+          git commit -m 'Fail fast before bottleneck geometry'
+          git push origin HEAD
