@@ -12,7 +12,7 @@ import bench_ai  # noqa: E402
 
 EXPECTED = {
     "AI1": (7, 0, [65, 66, 66, 66, 66, 67, 68]),
-    "AI2": (7, 0, [65, 66, 66, 66, 67, 67, 68]),
+    "AI2": (7, 0, [65, 66, 66, 66, 66, 67, 68]),
 }
 
 
@@ -37,15 +37,15 @@ def main() -> int:
 
     ai1_sum = sum(results["AI1"][2])
     ai2_sum = sum(results["AI2"][2])
-    if ai1_sum != 464 or ai2_sum != 465 or ai1_sum >= ai2_sum:
+    if ai1_sum != 464 or ai2_sum != 464 or ai1_sum != ai2_sum:
         raise SystemExit(
-            f"Round-96 neutral acceleration lost: AI1 {results['AI1']}, "
+            f"Round-96 promoted neutral acceleration lost identity: AI1 {results['AI1']}, "
             f"AI2 {results['AI2']}"
         )
 
     print(
         "AI1NeutralAccelPaceRegression: OK "
-        f"(Zigzag seed 2 improves {ai2_sum} -> {ai1_sum} finisher moves)"
+        f"(Zigzag seed 2 promoted tie at {ai1_sum} finisher moves)"
     )
     return 0
 
