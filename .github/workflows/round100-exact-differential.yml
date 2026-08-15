@@ -1,0 +1,274 @@
+name: Round 100 exact finish-seal differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-seal-pace-screen
+    paths:
+      - .github/workflows/round100-exact-differential.yml
+
+permissions:
+  contents: read
+
+jobs:
+  exact:
+    name: Exact ${{ matrix.track }} seeds 1-${{ matrix.seeds }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 26
+      matrix:
+        include:
+          - { track: silverstone, seeds: 60 }
+          - { track: monza, seeds: 60 }
+          - { track: spa, seeds: 60 }
+          - { track: monaco, seeds: 60 }
+          - { track: spielberg, seeds: 60 }
+          - { track: nurburgring, seeds: 60 }
+          - { track: lemans, seeds: 60 }
+          - { track: interlagos, seeds: 60 }
+          - { track: zandvoort, seeds: 60 }
+          - { track: hungaroring, seeds: 60 }
+          - { track: circle, seeds: 60 }
+          - { track: the_long_loop, seeds: 60 }
+          - { track: sprint, seeds: 60 }
+          - { track: hairpin, seeds: 60 }
+          - { track: triangle, seeds: 60 }
+          - { track: chicane, seeds: 60 }
+          - { track: bigoval, seeds: 60 }
+          - { track: curve, seeds: 60 }
+          - { track: zigzag, seeds: 60 }
+          - { track: coil, seeds: 60 }
+          - { track: slalom, seeds: 60 }
+          - { track: gear, seeds: 60 }
+          - { track: cog, seeds: 25 }
+          - { track: spiral, seeds: 25 }
+          - { track: serpentine, seeds: 25 }
+          - { track: serpentine2, seeds: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Materialize refined AI1 candidate
+        run: |
+          echo '0c07b3729603a1f1b6d1ced1e3f3038c155c8762b3cad8f491783f7bb04e879b  .github/round100-sealpace-refined.patch' | sha256sum -c -
+          git apply --check .github/round100-sealpace-refined.patch
+          git apply .github/round100-sealpace-refined.patch
+          sh ./build_main.sh
+      - name: Compare candidate AI1 against champion AI2
+        env:
+          TRACK: ${{ matrix.track }}
+          SEEDS: ${{ matrix.seeds }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          import re
+          import subprocess
+          import tempfile
+
+          track = os.environ['TRACK']
+          seeds = int(os.environ['SEEDS'])
+          root = Path.cwd()
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def configure(source: Path, target: Path, kind: str) -> None:
+              text = source.read_text(encoding='utf-8')
+              text = re.sub(r'^(player[1-8]Kind=).*$', rf'\1{kind}', text, flags=re.M)
+              text = re.sub(r'^nPlayers=.*$', 'nPlayers=8', text, flags=re.M)
+              target.write_text(text, encoding='utf-8')
+
+          def log_path(pattern: Path, seed: int) -> Path:
+              return pattern.with_name(f'{pattern.stem}_s{seed}{pattern.suffix}')
+
+          def normalized(text: str) -> list[str]:
+              return [
+                  line.replace('AI1', 'AI').replace('AI2', 'AI')
+                  for line in text.splitlines()
+                  if line.startswith('player')
+                  or line.startswith('# turns')
+                  or line.startswith('# results')
+                  or (line and line[0].isdigit())
+              ]
+
+          def summary(text: str) -> dict:
+              moves = {}
+              finishers = []
+              crashes = []
+              valid = False
+              for line in text.splitlines():
+                  if line.startswith('# results'):
+                      valid = True
+                  match = move_re.match(line)
+                  if match is None:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'FINISH' in line:
+                      finishers.append((player, moves[player]))
+                  elif 'CRASH' in line:
+                      crashes.append((player, moves[player]))
+              return {
+                  'valid': valid,
+                  'finishers': finishers,
+                  'crashes': crashes,
+                  'sum': sum(move for _, move in finishers),
+              }
+
+          with tempfile.TemporaryDirectory(prefix=f'r100-diff-{track}-') as directory:
+              work = Path(directory)
+              source = root / 'tracks' / 'bench.properties'
+              stderr = {}
+              for kind in ('AI1', 'AI2'):
+                  props = work / f'{kind}.properties'
+                  pattern = work / f'{kind}.log'
+                  configure(source, props, kind)
+                  command = ['java', '-Djava.awt.headless=true']
+                  if kind == 'AI1':
+                      command.append('-Dai.debug.djs=true')
+                  command += [
+                      '-jar', str(root / 'theoreticRacing.jar'), '--auto',
+                      '--track', track, '--props', str(props), '--log', str(pattern),
+                      '--seed', f'1-{seeds}',
+                  ]
+                  completed = subprocess.run(
+                      command, cwd=root, text=True, capture_output=True,
+                      timeout=7000, check=False,
+                  )
+                  if completed.returncode:
+                      raise SystemExit(
+                          f'{track} {kind} exited {completed.returncode}: '
+                          f'{completed.stderr[-3000:]}'
+                      )
+                  stderr[kind] = completed.stderr
+
+              changed = []
+              bad = []
+              for seed in range(1, seeds + 1):
+                  ai1_path = log_path(work / 'AI1.log', seed)
+                  ai2_path = log_path(work / 'AI2.log', seed)
+                  if not ai1_path.is_file() or not ai2_path.is_file():
+                      raise SystemExit(f'{track} seed {seed}: missing batch log')
+                  ai1_text = ai1_path.read_text(encoding='utf-8')
+                  ai2_text = ai2_path.read_text(encoding='utf-8')
+                  if normalized(ai1_text) == normalized(ai2_text):
+                      continue
+                  ai1 = summary(ai1_text)
+                  ai2 = summary(ai2_text)
+                  row = {
+                      'seed': seed,
+                      'ai1': ai1,
+                      'ai2': ai2,
+                      'delta_sum': ai1['sum'] - ai2['sum'],
+                      'delta_finishers': len(ai1['finishers']) - len(ai2['finishers']),
+                      'delta_crashes': len(ai1['crashes']) - len(ai2['crashes']),
+                  }
+                  reason = None
+                  if not ai1['valid'] or not ai2['valid']:
+                      reason = 'invalid'
+                  elif len(ai1['finishers']) < len(ai2['finishers']):
+                      reason = 'lost_finisher'
+                  elif len(ai1['crashes']) > len(ai2['crashes']):
+                      reason = 'new_crash'
+                  elif (len(ai1['finishers']) == len(ai2['finishers'])
+                        and len(ai1['crashes']) == len(ai2['crashes'])):
+                      if ai1['sum'] > ai2['sum']:
+                          reason = 'slower'
+                      elif ai1['sum'] == ai2['sum']:
+                          reason = 'equal_sum_redistribution'
+                  row['classification'] = reason or (
+                      'pace_gain' if row['delta_sum'] < 0 else 'safety_gain'
+                  )
+                  changed.append(row)
+                  if reason is not None:
+                      bad.append(row)
+
+              fires = [
+                  line for line in stderr['AI1'].splitlines()
+                  if 'AIDBG FINISH-SEAL-PACE' in line
+              ]
+              if bad:
+                  raise SystemExit(
+                      f'Round-100 regression on {track}: '
+                      + json.dumps(bad, sort_keys=True)
+                  )
+              if track == 'the_long_loop':
+                  target = next((row for row in changed if row['seed'] == 1), None)
+                  if target is None or target['ai1']['sum'] != 257 or target['ai2']['sum'] != 260 \
+                          or len(target['ai1']['finishers']) != 7 \
+                          or len(target['ai1']['crashes']) != 0:
+                      raise SystemExit(
+                          'Round-100 target gain missing: '
+                          + json.dumps(target, sort_keys=True)
+                      )
+
+              report = {
+                  'track': track,
+                  'seeds': seeds,
+                  'exact': seeds - len(changed),
+                  'changed': changed,
+                  'fires': fires,
+              }
+              Path(f'round100-exact-{track}.json').write_text(
+                  json.dumps(report, indent=2), encoding='utf-8'
+              )
+              print(json.dumps(report, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-exact-${{ matrix.track }}
+          path: round100-exact-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs: exact
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round100-exact-*
+          path: reports
+          merge-multiple: true
+      - name: Assert net pace gain
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          reports = [json.loads(p.read_text()) for p in Path('reports').glob('*.json')]
+          changed = [
+              {'track': report['track'], **row}
+              for report in reports for row in report['changed']
+          ]
+          pace = [row for row in changed if row['classification'] == 'pace_gain']
+          safety = [row for row in changed if row['classification'] == 'safety_gain']
+          net = sum(row['delta_sum'] for row in pace)
+          if not pace or net >= 0:
+              raise SystemExit(f'no net Round-100 pace gain: {changed}')
+          summary = {
+              'reports': len(reports),
+              'race_pairs': sum(report['seeds'] for report in reports),
+              'changed': changed,
+              'pace_gains': len(pace),
+              'safety_gains': len(safety),
+              'net_equal_safety_move_delta': net,
+          }
+          Path('round100-exact-summary.json').write_text(
+              json.dumps(summary, indent=2), encoding='utf-8'
+          )
+          print(json.dumps(summary, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-exact-summary
+          path: round100-exact-summary.json
+          if-no-files-found: error
+          retention-days: 14
