@@ -1,0 +1,92 @@
+name: Summarize Round 96 neutral acceleration screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-neutral-accel
+    paths:
+      - .github/workflows/round96-neutral-summary.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 31861007012
+          pattern: round96-neutral-*
+          path: reports
+      - name: Assert safety and aggregate pace
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          rows = []
+          pattern = re.compile(
+              r'^(?P<track>\S+)\s+\|\s+' 
+              r'(?P<a1f>\d+)/(?P<a1c>\d+)\s+mv=\s*(?P<a1mv>[-+0-9.]+)\s+\|\s+'
+              r'(?P<a2f>\d+)/(?P<a2c>\d+)\s+mv=\s*(?P<a2mv>[-+0-9.]+)\s+\|\s+'
+              r'(?P<diff>[-+0-9.]+)$'
+          )
+          for path in sorted(Path('reports').rglob('round96-neutral-*.txt')):
+              for raw in path.read_text().splitlines():
+                  m = pattern.match(raw.strip())
+                  if not m or m.group('track') == 'TOTAL':
+                      continue
+                  row = m.groupdict()
+                  row.update({
+                      'a1f': int(row['a1f']), 'a1c': int(row['a1c']),
+                      'a2f': int(row['a2f']), 'a2c': int(row['a2c']),
+                      'a1mv': float(row['a1mv']), 'a2mv': float(row['a2mv']),
+                      'diff': float(row['diff']),
+                  })
+                  rows.append(row)
+
+          assert len(rows) == 22, f'expected 22 reports, got {len(rows)}'
+          assert len({r['track'] for r in rows}) == 22
+          safety = [r for r in rows if (r['a1f'], r['a1c']) != (r['a2f'], r['a2c'])]
+          slower = [r for r in rows if r['diff'] > 0.0005]
+          assert not safety, f'safety/finisher changes: {safety}'
+          assert not slower, f'slower tracks: {slower}'
+
+          improved = [r for r in rows if r['diff'] < -0.0005]
+          tied = [r for r in rows if abs(r['diff']) <= 0.0005]
+          total_finishers = sum(r['a1f'] for r in rows)
+          weighted_a1 = sum(r['a1f'] * r['a1mv'] for r in rows)
+          weighted_a2 = sum(r['a2f'] * r['a2mv'] for r in rows)
+          summary = {
+              'tracks': len(rows),
+              'total_finishers': total_finishers,
+              'total_crashes_ai1': sum(r['a1c'] for r in rows),
+              'total_crashes_ai2': sum(r['a2c'] for r in rows),
+              'weighted_mean_ai1': weighted_a1 / total_finishers,
+              'weighted_mean_ai2': weighted_a2 / total_finishers,
+              'weighted_move_delta': weighted_a1 - weighted_a2,
+              'improved': improved,
+              'tied_tracks': [r['track'] for r in tied],
+          }
+          Path('round96-neutral-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          Path('round96-neutral-summary.txt').write_text(
+              f"tracks={len(rows)} finishers={total_finishers} crashes={summary['total_crashes_ai1']}/"
+              f"{summary['total_crashes_ai2']} weighted_delta={summary['weighted_move_delta']:.3f}\n"
+              + '\n'.join(
+                  f"IMPROVED {r['track']} {r['a2mv']:.3f}->{r['a1mv']:.3f} diff={r['diff']:+.3f}"
+                  for r in improved
+              ) + '\n'
+          )
+          print(Path('round96-neutral-summary.txt').read_text(), end='')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-neutral-summary
+          path: |
+            round96-neutral-summary.json
+            round96-neutral-summary.txt
+          if-no-files-found: error
