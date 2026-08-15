@@ -1,0 +1,193 @@
+name: Round 101 guarded-field differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-101-guarded-field
+    paths:
+      - .github/workflows/round101-guarded-field-differential.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply AI1-only candidate
+        run: python tracks/round101_guarded_field_patch.py
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_thread_fragility_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-guarded-field-jar
+          path: theoreticRacing.jar
+          if-no-files-found: error
+
+  compare:
+    name: Compare ${{ matrix.track }} seeds ${{ matrix.seed_end }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - {track: silverstone, seed_end: 60}
+          - {track: monza, seed_end: 60}
+          - {track: spa, seed_end: 60}
+          - {track: monaco, seed_end: 60}
+          - {track: spielberg, seed_end: 60}
+          - {track: nurburgring, seed_end: 60}
+          - {track: lemans, seed_end: 60}
+          - {track: interlagos, seed_end: 60}
+          - {track: zandvoort, seed_end: 60}
+          - {track: hungaroring, seed_end: 60}
+          - {track: circle, seed_end: 60}
+          - {track: the_long_loop, seed_end: 60}
+          - {track: sprint, seed_end: 60}
+          - {track: hairpin, seed_end: 60}
+          - {track: triangle, seed_end: 60}
+          - {track: chicane, seed_end: 60}
+          - {track: bigoval, seed_end: 60}
+          - {track: curve, seed_end: 60}
+          - {track: zigzag, seed_end: 60}
+          - {track: coil, seed_end: 60}
+          - {track: slalom, seed_end: 60}
+          - {track: gear, seed_end: 60}
+          - {track: serpentine, seed_end: 25}
+          - {track: serpentine2, seed_end: 25}
+          - {track: spiral, seed_end: 25}
+          - {track: cog, seed_end: 25}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round101-guarded-field-jar
+          path: .
+      - name: Compare exact races
+        env:
+          TRACK: ${{ matrix.track }}
+          SEED_END: ${{ matrix.seed_end }}
+        run: |
+          cp tracks/bench.properties /tmp/round101-ai1.properties
+          cp tracks/bench.properties /tmp/round101-ai2.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI1/' /tmp/round101-ai1.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI2/' /tmp/round101-ai2.properties
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round101-ai1.properties --log "/tmp/round101-ai1-${TRACK}.log" \
+            --seed "1-${SEED_END}" >"round101-${TRACK}-ai1.stdout" \
+            2>"round101-${TRACK}-ai1.stderr"
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round101-ai2.properties --log "/tmp/round101-ai2-${TRACK}.log" \
+            --seed "1-${SEED_END}" >"round101-${TRACK}-ai2.stdout" \
+            2>"round101-${TRACK}-ai2.stderr"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+
+          track = os.environ['TRACK']
+          seed_end = int(os.environ['SEED_END'])
+
+          def parse(path):
+              moves, finishes, crashes = {}, {}, set()
+              saw_results = False
+              for line in Path(path).read_text().splitlines():
+                  if line.startswith('# results'):
+                      saw_results = True
+                  match = re.match(r'^(\d+) p(\d+) ', line)
+                  if not match:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'CRASH' in line:
+                      crashes.add(player)
+                  elif 'FINISH' in line:
+                      finishes[player] = moves[player]
+              if not saw_results:
+                  raise RuntimeError(f'invalid log {path}')
+              return {'finishes': finishes, 'crashes': sorted(crashes)}
+
+          summary = {
+              'track': track,
+              'pairs': seed_end,
+              'identical': 0,
+              'faster': 0,
+              'slower': 0,
+              'safety_gain': 0,
+              'safety_regression': 0,
+              'redistribution': 0,
+              'net_moves': 0,
+              'events': [],
+          }
+          for seed in range(1, seed_end + 1):
+              candidate = parse(f'/tmp/round101-ai1-{track}_s{seed}.log')
+              champion = parse(f'/tmp/round101-ai2-{track}_s{seed}.log')
+              if candidate == champion:
+                  summary['identical'] += 1
+                  continue
+              cf, bf = candidate['finishes'], champion['finishes']
+              cc, bc = candidate['crashes'], champion['crashes']
+              csum, bsum = sum(cf.values()), sum(bf.values())
+              event = {
+                  'seed': seed,
+                  'candidate_finishers': len(cf),
+                  'champion_finishers': len(bf),
+                  'candidate_crashes': len(cc),
+                  'champion_crashes': len(bc),
+                  'candidate_moves': csum,
+                  'champion_moves': bsum,
+                  'delta': csum - bsum,
+                  'candidate_by_player': cf,
+                  'champion_by_player': bf,
+              }
+              if len(cf) < len(bf) or len(cc) > len(bc):
+                  event['classification'] = 'safety_regression'
+                  summary['safety_regression'] += 1
+              elif len(cf) > len(bf) or len(cc) < len(bc):
+                  event['classification'] = 'safety_gain'
+                  summary['safety_gain'] += 1
+              elif csum < bsum:
+                  event['classification'] = 'faster'
+                  summary['faster'] += 1
+              elif csum > bsum:
+                  event['classification'] = 'slower'
+                  summary['slower'] += 1
+              else:
+                  event['classification'] = 'redistribution'
+                  summary['redistribution'] += 1
+              summary['net_moves'] += csum - bsum
+              summary['events'].append(event)
+
+          out = Path(f'round101-{track}-summary.json')
+          out.write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round101-differential-${{ matrix.track }}
+          path: round101-${{ matrix.track }}-summary.json
+          if-no-files-found: error
