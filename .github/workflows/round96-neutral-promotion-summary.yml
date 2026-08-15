@@ -1,0 +1,117 @@
+name: Summarize Round 96 promotion battery
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-neutral-accel
+    paths:
+      - .github/workflows/round96-neutral-promotion-summary.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 31861664098
+          pattern: r96-promotion-*
+          path: reports
+      - name: Assert promotion matrix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          files = sorted(Path('reports').rglob('promotion-report.txt'))
+          assert len(files) == 11, f'expected 11 promotion reports, got {len(files)}'
+          summary = {}
+          pace_total = re.compile(
+              r'^TOTAL\s+\|\s+f=(\d+) c=(\d+) mv=\s*([0-9.]+)\s+\|\s+'
+              r'f=(\d+) c=(\d+) mv=\s*([0-9.]+)\s+\|\s+([+-][0-9.]+)$',
+              re.M,
+          )
+          pace_row = re.compile(
+              r'^(\S+)\s+\|\s+(\d+)/(\d+) mv=\s*([0-9.]+)\s+\|\s+'
+              r'(\d+)/(\d+) mv=\s*([0-9.]+)\s+\|\s+([+-][0-9.]+)$',
+              re.M,
+          )
+          place_total = re.compile(
+              r'^TOTAL mean place\s+\|\s*([0-9.]+) c=(\d+)\s+\|\s*([0-9.]+) c=(\d+)$',
+              re.M,
+          )
+
+          for path in files:
+              label = path.parent.name
+              text = path.read_text()
+              if 'TOTAL mean place' in text:
+                  m = place_total.search(text)
+                  assert m, (label, text)
+                  a1, c1, a2, c2 = float(m.group(1)), int(m.group(2)), float(m.group(3)), int(m.group(4))
+                  assert c1 == c2 == 0, (label, m.groups())
+                  assert a1 == a2, (label, m.groups())
+                  summary[label] = {'kind': 'place', 'ai1': a1, 'ai2': a2, 'crashes': 0}
+                  continue
+
+              m = pace_total.search(text)
+              assert m, (label, text)
+              f1, c1, mv1, f2, c2, mv2, diff = (
+                  int(m.group(1)), int(m.group(2)), float(m.group(3)),
+                  int(m.group(4)), int(m.group(5)), float(m.group(6)), float(m.group(7)),
+              )
+              assert (f1, c1) == (f2, c2), (label, m.groups())
+              assert c1 == 0, (label, m.groups())
+              rows = []
+              for row in pace_row.finditer(text):
+                  track, rf1, rc1, rmv1, rf2, rc2, rmv2, rdiff = row.groups()
+                  rows.append({
+                      'track': track,
+                      'ai1_finishers': int(rf1), 'ai1_crashes': int(rc1), 'ai1_moves': float(rmv1),
+                      'ai2_finishers': int(rf2), 'ai2_crashes': int(rc2), 'ai2_moves': float(rmv2),
+                      'diff': float(rdiff),
+                  })
+              assert len(rows) in (4, 22), (label, len(rows))
+              assert all((r['ai1_finishers'], r['ai1_crashes']) == (r['ai2_finishers'], r['ai2_crashes']) for r in rows)
+              assert all(r['ai1_crashes'] == 0 for r in rows)
+              assert not [r for r in rows if r['diff'] > 0.0005], (label, rows)
+
+              if label == 'r96-promotion-8car-s1-5':
+                  assert (f1, c1, f2, c2) == (770, 0, 770, 0)
+                  assert (mv1, mv2, diff) == (62.703, 62.704, -0.001), m.groups()
+                  changed = [r for r in rows if abs(r['diff']) > 0.0005]
+                  assert len(changed) == 1 and changed[0]['track'] == 'zigzag', changed
+                  assert changed[0]['diff'] == -0.029, changed
+              else:
+                  assert mv1 == mv2 and abs(diff) <= 0.0005, (label, m.groups())
+                  assert all(abs(r['diff']) <= 0.0005 for r in rows), (label, rows)
+
+              summary[label] = {
+                  'kind': 'pace', 'finishers': f1, 'crashes': c1,
+                  'ai1_moves': mv1, 'ai2_moves': mv2, 'diff': diff,
+                  'changed_tracks': [r for r in rows if abs(r['diff']) > 0.0005],
+              }
+
+          Path('round96-promotion-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          text = (
+              'stages=11 all_safe=true\n'
+              'changed_stage=8car-seeds-1-5 total=770/0 both mean=62.704->62.703\n'
+              'changed_track=zigzag mean=66.457->66.429\n'
+              'other_stages=10 exact_ties\n'
+          )
+          Path('round96-promotion-summary.txt').write_text(text)
+          print(text, end='')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-promotion-summary
+          path: |
+            round96-promotion-summary.json
+            round96-promotion-summary.txt
+          if-no-files-found: error
