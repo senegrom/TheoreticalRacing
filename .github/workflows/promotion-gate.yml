@@ -33,6 +33,7 @@ jobs:
       - run: python tests/ai1_staged_pace_regression.py
       - run: python tests/ai1_energy_pace_regression.py
       - run: python tests/ai1_cross_model_pace_regression.py
+      - run: python tests/ai1_neutral_accel_pace_regression.py
       - run: python -m compileall -q tracks tests
 
   battery:
