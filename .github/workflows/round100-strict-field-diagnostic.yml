@@ -1,0 +1,99 @@
+name: Round 100 strict-field boundary diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-strict-field-probe
+    paths:
+      - .github/workflows/round100-strict-field-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply mode-1 candidate and add diagnostics
+        run: |
+          python tracks/round100_strict_field_patch.py 1
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tr/logic/RaceAi.java')
+          s = p.read_text()
+          old = '''\t\tif (best != null)\n\t\t\tSystem.err.println("AIDBG STRICT-FIELD mode=" + mode + " p=" + playerNum\n\t\t\t\t\t+ " pos=(" + pos[0] + "," + pos[1] + ") " + chosen + " -> " + best\n\t\t\t\t\t+ " ttf " + chosenT + " -> " + turnsByDir[best.ordinal()]\n\t\t\t\t\t+ " self " + chosenFinal + " -> " + bestFinal\n\t\t\t\t\t+ " field " + chosenField + " -> " + bestField);\n'''
+          new = '''\t\tif (best != null) {\n\t\t\tfinal int bestVx = vel[0] + best.dx, bestVy = vel[1] + best.dy;\n\t\t\tfinal int bestX = pos[0] + bestVx, bestY = pos[1] + bestVy;\n\t\t\tfinal int moverProgress = reach.distAt(pos[0], pos[1]);\n\t\t\tfinal boolean stagedLaunch = useTrackDistanceForStagedLaunch(vel[0], vel[1],\n\t\t\t\t\tgame.startZoneA.contains(pos[0], pos[1]));\n\t\t\tint ahead = 0, sameVelocity = 0, priorSameVelocity = 0;\n\t\t\tint minCheb = Integer.MAX_VALUE, maxCheb = 0;\n\t\t\tlong aheadGapSum = 0L;\n\t\t\tfor (int i = 0; i < game.players.length; i++) {\n\t\t\t\tfinal Player rival = game.players[i];\n\t\t\t\tif (rival.getNumber() == playerNum || rival.isFinished())\n\t\t\t\t\tcontinue;\n\t\t\t\tfinal int[] rp = rival.getPosition();\n\t\t\t\tfinal int dx = rp[0] - pos[0], dy = rp[1] - pos[1];\n\t\t\t\tfinal int cheb = Math.max(Math.abs(dx), Math.abs(dy));\n\t\t\t\tminCheb = Math.min(minCheb, cheb);\n\t\t\t\tmaxCheb = Math.max(maxCheb, cheb);\n\t\t\t\tfinal int[] rv = rival.getVelocity();\n\t\t\t\tif (rv[0] == vel[0] && rv[1] == vel[1]) {\n\t\t\t\t\tsameVelocity++;\n\t\t\t\t\tif (i < game.subgamestate)\n\t\t\t\t\t\tpriorSameVelocity++;\n\t\t\t\t}\n\t\t\t\tfinal int rivalProgress = reach.distAt(rp[0], rp[1]);\n\t\t\t\tfinal boolean isAhead = stagedLaunch\n\t\t\t\t\t\t? isStrictlyAheadByTrackDistance(moverProgress, rivalProgress)\n\t\t\t\t\t\t: (long) dx * vel[0] + (long) dy * vel[1] > 0L;\n\t\t\t\tif (isAhead) {\n\t\t\t\t\tahead++;\n\t\t\t\t\tif (moverProgress != Integer.MAX_VALUE && rivalProgress != Integer.MAX_VALUE)\n\t\t\t\t\t\taheadGapSum += (long) moverProgress - rivalProgress;\n\t\t\t\t}\n\t\t\t}\n\t\t\tSystem.err.println("AIDBG SFDIAG p=" + playerNum + " sub=" + game.subgamestate\n\t\t\t\t\t+ " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ") "\n\t\t\t\t\t+ chosen + "->" + best + " t=" + chosenT + "->" + turnsByDir[best.ordinal()]\n\t\t\t\t\t+ " currentSp2=" + speedSquared(vel[0], vel[1])\n\t\t\t\t\t+ " chosenSp2=" + speedSquared(chosenVx, chosenVy)\n\t\t\t\t\t+ " bestSp2=" + speedSquared(bestVx, bestVy)\n\t\t\t\t\t+ " spGain=" + (speedSquared(bestVx, bestVy) - speedSquared(chosenVx, chosenVy))\n\t\t\t\t\t+ " ahead=" + ahead + " gapSum=" + aheadGapSum\n\t\t\t\t\t+ " minCheb=" + minCheb + " maxCheb=" + maxCheb\n\t\t\t\t\t+ " sameV=" + sameVelocity + " priorSameV=" + priorSameVelocity\n\t\t\t\t\t+ " adjacentPeer=" + hasAdjacentPriorVelocityPeer(pos, vel, playerNum)\n\t\t\t\t\t+ " fieldShape=" + privateFieldComparisonRequired(bestX, bestY, bestVx, bestVy, playerNum)\n\t\t\t\t\t+ " stalled=" + countStalledRivalsAhead(bestX, bestY, playerNum)\n\t\t\t\t\t+ " chosenTrap=" + trapByDir[chosen.ordinal()]\n\t\t\t\t\t+ " chosenUnc=" + uncByDir[chosen.ordinal()]\n\t\t\t\t\t+ " self=" + chosenFinal + "->" + bestFinal\n\t\t\t\t\t+ " field=" + chosenField + "->" + bestField);\n\t\t}\n'''
+          assert s.count(old) == 1
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-strict-field-diagnostic-jar
+          path: theoreticRacing.jar
+          if-no-files-found: error
+
+  diagnose:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        include:
+          - {track: coil, seed: 1, verdict: good}
+          - {track: coil, seed: 5, verdict: bad}
+          - {track: coil, seed: 7, verdict: good}
+          - {track: coil, seed: 9, verdict: good}
+          - {track: coil, seed: 12, verdict: good}
+          - {track: hungaroring, seed: 8, verdict: bad}
+          - {track: monaco, seed: 19, verdict: bad}
+          - {track: silverstone, seed: 20, verdict: good}
+          - {track: spa, seed: 4, verdict: bad}
+          - {track: spa, seed: 5, verdict: good}
+          - {track: spa, seed: 7, verdict: good}
+          - {track: spa, seed: 12, verdict: bad}
+          - {track: spa, seed: 16, verdict: bad}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round100-strict-field-diagnostic-jar
+          path: .
+      - name: Replay boundary
+        env:
+          TRACK: ${{ matrix.track }}
+          SEED: ${{ matrix.seed }}
+          VERDICT: ${{ matrix.verdict }}
+        run: |
+          cp tracks/bench.properties /tmp/round100-diag.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI1/' /tmp/round100-diag.properties
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round100-diag.properties --log "/tmp/round100-${TRACK}-${SEED}.log" \
+            --seed "$SEED" >"round100-${TRACK}-${SEED}.stdout" \
+            2>"round100-${TRACK}-${SEED}.stderr"
+          {
+            echo "track=$TRACK"
+            echo "seed=$SEED"
+            echo "verdict=$VERDICT"
+            grep 'AIDBG SFDIAG' "round100-${TRACK}-${SEED}.stderr" || true
+          } > "round100-${TRACK}-${SEED}-diagnostic.txt"
+          cat "round100-${TRACK}-${SEED}-diagnostic.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-strict-field-diagnostic-${{ matrix.track }}-${{ matrix.seed }}
+          path: round100-${{ matrix.track }}-${{ matrix.seed }}-diagnostic.txt
+          if-no-files-found: error
