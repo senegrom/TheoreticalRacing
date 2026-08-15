@@ -1,0 +1,141 @@
+name: Round 96 field-certified finish frontier
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-96-scored-finish-frontier
+    paths:
+      - .github/workflows/round96-field-finish-frontier.yml
+
+permissions:
+  contents: read
+
+jobs:
+  targeted:
+    name: Field-certified ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        track:
+          - zigzag
+          - the_long_loop
+          - coil
+          - gear
+          - spa
+          - silverstone
+          - monaco
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply AI1-only field-certified finish frontier
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/tr/logic/RaceAi.java')
+          s = p.read_text()
+          const = '\tprivate final static int\t\tAI1_FINISH_HOMOGENEOUS_TTF\t= 20;\t// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting\n'
+          assert s.count(const) == 1
+          s = s.replace(const, const + '\tprivate final static int\t\tAI1_FINISH_FIELD_FRONTIER_TTF\t= 30;\t// round 96 candidate: comparative scorer-field frontier\n', 1)
+          old = '''\t\t\tif (!inScorerSim) {
+\t\t\t\tint sprintT = poTByDir[chosen.ordinal()];
+\t\t\t\tDirection sprint = null;
+\t\t\t\tfor (final Direction d : DIRECTIONS) {
+\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];
+\t\t\t\t\tif (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
+\t\t\t\t\t\t\t|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
+\t\t\t\t\t\t\t\t\t|| !kindHomogeneousField(playerNum)))
+\t\t\t\t\t\t\t|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\tfinal int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+\t\t\t\t\tfinal int nx = pos[0] + nvx, ny = pos[1] + nvy;
+\t\t\t\t\tfinal int rounds = t + 1;
+\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null) != 0)
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\tsprint = d;
+\t\t\t\t\tsprintT = t;
+\t\t\t\t}
+'''
+          new = '''\t\t\tif (!inScorerSim) {
+\t\t\t\tfinal int chosenT = poTByDir[chosen.ordinal()];
+\t\t\t\tint sprintT = chosenT;
+\t\t\t\tDirection sprint = null;
+\t\t\t\tint frontierChosenFinal = Integer.MIN_VALUE;
+\t\t\t\tlong frontierChosenField = 0L;
+\t\t\t\tint frontierBestFinal = Integer.MAX_VALUE;
+\t\t\t\tlong frontierBestField = Long.MAX_VALUE;
+\t\t\t\tfor (final Direction d : DIRECTIONS) {
+\t\t\t\t\tfinal int t = poTByDir[d.ordinal()];
+\t\t\t\t\tfinal boolean fieldFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF
+\t\t\t\t\t\t\t&& t <= AI1_FINISH_FIELD_FRONTIER_TTF && t + 1 == chosenT
+\t\t\t\t\t\t\t&& d != Direction.NONE && liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
+\t\t\t\t\t\t\t&& kindHomogeneousField(playerNum) && trapByDir[d.ordinal()] == 0.0
+\t\t\t\t\t\t\t&& uncByDir[d.ordinal()] == 0.0
+\t\t\t\t\t\t\t&& scoreByDir[d.ordinal()] < scoreByDir[chosen.ordinal()];
+\t\t\t\t\tif (d == chosen || t >= sprintT
+\t\t\t\t\t\t\t|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !fieldFrontier)
+\t\t\t\t\t\t\t|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
+\t\t\t\t\t\t\t\t\t|| !kindHomogeneousField(playerNum)))
+\t\t\t\t\t\t\t|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
+\t\t\t\t\t\tcontinue;
+\t\t\t\t\tfinal int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+\t\t\t\t\tfinal int nx = pos[0] + nvx, ny = pos[1] + nvy;
+\t\t\t\t\tif (fieldFrontier) {
+\t\t\t\t\t\tif (sealable(nx, ny, nvx, nvy, playerNum))
+\t\t\t\t\t\t\tcontinue;
+\t\t\t\t\t\tif (frontierChosenFinal == Integer.MIN_VALUE) {
+\t\t\t\t\t\t\tfinal int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
+\t\t\t\t\t\t\tfrontierChosenFinal = scorerFieldOutcome(pos[0] + cvx, pos[1] + cvy,
+\t\t\t\t\t\t\t\t\tcvx, cvy, playerNum, AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS,
+\t\t\t\t\t\t\t\t\trolloutFieldCost);
+\t\t\t\t\t\t\tfrontierChosenField = rolloutFieldCost[0];
+\t\t\t\t\t\t}
+\t\t\t\t\t\tfinal int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+\t\t\t\t\t\t\t\tAI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+\t\t\t\t\t\tfinal long candidateField = rolloutFieldCost[0];
+\t\t\t\t\t\tif (frontierChosenFinal < 0 || candidateFinal < 0
+\t\t\t\t\t\t\t\t|| candidateFinal >= frontierChosenFinal
+\t\t\t\t\t\t\t\t|| candidateField > frontierChosenField
+\t\t\t\t\t\t\t\t|| candidateFinal > frontierBestFinal
+\t\t\t\t\t\t\t\t|| candidateFinal == frontierBestFinal && candidateField >= frontierBestField)
+\t\t\t\t\t\t\tcontinue;
+\t\t\t\t\t\tfrontierBestFinal = candidateFinal;
+\t\t\t\t\t\tfrontierBestField = candidateField;
+\t\t\t\t\t} else {
+\t\t\t\t\t\tfinal int rounds = t + 1;
+\t\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+\t\t\t\t\t\t\tcontinue;
+\t\t\t\t\t\tif (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+\t\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null) != 0)
+\t\t\t\t\t\t\tcontinue;
+\t\t\t\t\t}
+\t\t\t\t\tsprint = d;
+\t\t\t\t\tsprintT = t;
+\t\t\t\t}
+'''
+          assert s.count(old) == 2
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+      - name: Compare AI1 candidate against champion AI2, seeds 1-15
+        env:
+          TRACK: ${{ matrix.track }}
+        run: python tracks/bench_ai.py --seeds 15 "$TRACK" | tee "round96-field-${TRACK}.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round96-field-${{ matrix.track }}
+          path: round96-field-${{ matrix.track }}.txt
+          if-no-files-found: error
