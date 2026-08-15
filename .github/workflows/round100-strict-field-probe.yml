@@ -1,0 +1,181 @@
+name: Round 100 strict-field pace probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-100-strict-field-probe
+    paths:
+      - .github/workflows/round100-strict-field-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build mode ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply candidate
+        run: python tracks/round100_strict_field_patch.py ${{ matrix.mode }}
+      - name: Verify and build
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-strict-field-jar-${{ matrix.mode }}
+          path: theoreticRacing.jar
+          if-no-files-found: error
+
+  screen:
+    name: Mode ${{ matrix.mode }} / ${{ matrix.track }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        mode: [1, 2, 3]
+        track:
+          - coil
+          - silverstone
+          - spa
+          - monaco
+          - hungaroring
+          - interlagos
+          - zandvoort
+          - lemans
+          - nurburgring
+          - bigoval
+          - gear
+          - zigzag
+          - spielberg
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round100-strict-field-jar-${{ matrix.mode }}
+          path: .
+      - name: Run exact paired seeds 1-20
+        env:
+          TRACK: ${{ matrix.track }}
+          MODE: ${{ matrix.mode }}
+        run: |
+          cp tracks/bench.properties /tmp/round100-candidate.properties
+          cp tracks/bench.properties /tmp/round100-champion.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI1/' /tmp/round100-candidate.properties
+          sed -Ei 's/^(player[1-8]Kind=).*/\1AI2/' /tmp/round100-champion.properties
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round100-candidate.properties --log "/tmp/round100-candidate-${TRACK}.log" \
+            --seed 1-20 >"round100-mode${MODE}-${TRACK}-candidate.stdout" \
+            2>"round100-mode${MODE}-${TRACK}-candidate.stderr"
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props /tmp/round100-champion.properties --log "/tmp/round100-champion-${TRACK}.log" \
+            --seed 1-20 >"round100-mode${MODE}-${TRACK}-champion.stdout" \
+            2>"round100-mode${MODE}-${TRACK}-champion.stderr"
+          python - <<'PY'
+          import json, os, re
+          from pathlib import Path
+
+          track = os.environ['TRACK']
+          mode = int(os.environ['MODE'])
+
+          def parse(path):
+              moves, finishes, crashes = {}, {}, set()
+              saw_results = False
+              for line in Path(path).read_text().splitlines():
+                  if line.startswith('# results'):
+                      saw_results = True
+                  match = re.match(r'^(\d+) p(\d+) ', line)
+                  if not match:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'CRASH' in line:
+                      crashes.add(player)
+                  elif 'FINISH' in line:
+                      finishes[player] = moves[player]
+              if not saw_results:
+                  raise RuntimeError(f'invalid log {path}')
+              return {'finishes': finishes, 'crashes': sorted(crashes)}
+
+          summary = {
+              'mode': mode,
+              'track': track,
+              'pairs': 20,
+              'identical': 0,
+              'faster': 0,
+              'slower': 0,
+              'safety_gain': 0,
+              'safety_regression': 0,
+              'redistribution': 0,
+              'net_moves': 0,
+              'events': [],
+          }
+          for seed in range(1, 21):
+              candidate = parse(f'/tmp/round100-candidate-{track}_s{seed}.log')
+              champion = parse(f'/tmp/round100-champion-{track}_s{seed}.log')
+              if candidate == champion:
+                  summary['identical'] += 1
+                  continue
+              cf, bf = candidate['finishes'], champion['finishes']
+              cc, bc = candidate['crashes'], champion['crashes']
+              csum, bsum = sum(cf.values()), sum(bf.values())
+              event = {
+                  'seed': seed,
+                  'candidate_finishers': len(cf),
+                  'champion_finishers': len(bf),
+                  'candidate_crashes': len(cc),
+                  'champion_crashes': len(bc),
+                  'candidate_moves': csum,
+                  'champion_moves': bsum,
+                  'delta': csum - bsum,
+                  'candidate_by_player': cf,
+                  'champion_by_player': bf,
+              }
+              if len(cf) < len(bf) or len(cc) > len(bc):
+                  summary['safety_regression'] += 1
+                  event['classification'] = 'safety_regression'
+              elif len(cf) > len(bf) or len(cc) < len(bc):
+                  summary['safety_gain'] += 1
+                  event['classification'] = 'safety_gain'
+              elif csum < bsum:
+                  summary['faster'] += 1
+                  event['classification'] = 'faster'
+              elif csum > bsum:
+                  summary['slower'] += 1
+                  event['classification'] = 'slower'
+              else:
+                  summary['redistribution'] += 1
+                  event['classification'] = 'redistribution'
+              summary['net_moves'] += csum - bsum
+              summary['events'].append(event)
+
+          stderr = Path(f'round100-mode{mode}-{track}-candidate.stderr').read_text()
+          summary['arm_fires'] = stderr.count('AIDBG STRICT-FIELD')
+          Path(f'round100-mode{mode}-{track}-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round100-strict-field-${{ matrix.mode }}-${{ matrix.track }}
+          path: round100-mode${{ matrix.mode }}-${{ matrix.track }}-summary.json
+          if-no-files-found: error
