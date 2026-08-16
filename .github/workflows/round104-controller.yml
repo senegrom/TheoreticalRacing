@@ -1,0 +1,562 @@
+name: Round 104 controller
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-controller-final
+    paths:
+      - .github/workflows/round104-controller.yml
+      - tracks/round104_candidate.py
+      - tracks/round104_compare.py
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+  checks: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Materialize exact master and AI1 candidate
+        run: |
+          git fetch origin master
+          git worktree add /tmp/r104-master origin/master
+          git worktree add /tmp/r104-candidate origin/master
+          git -C /tmp/r104-master rev-parse HEAD > round104-base.txt
+          (cd /tmp/r104-master && sh ./run_tests.sh && sh ./build_main.sh)
+          cp /tmp/r104-master/theoreticRacing.jar round104-baseline.jar
+          python tracks/round104_candidate.py --root /tmp/r104-candidate
+          (cd /tmp/r104-candidate && \
+            sh ./run_tests.sh && \
+            sh ./build_main.sh && \
+            python tests/headless_smoke.py && \
+            python tests/golden_races.py && \
+            python tests/ai1_pace_regression.py && \
+            python tests/ai1_mixed_safety_regression.py && \
+            python tests/ai1_field_neutral_regression.py && \
+            python tests/ai1_staged_pace_regression.py && \
+            python tests/ai1_energy_pace_regression.py && \
+            python tests/ai1_cross_model_pace_regression.py && \
+            python tests/ai1_finish_frontier_regression.py && \
+            python tests/ai1_thread_fragility_regression.py && \
+            git diff --check)
+          cp /tmp/r104-candidate/theoreticRacing.jar round104-candidate.jar
+          mkdir -p round104-source/src/tr/logic
+          cp /tmp/r104-candidate/src/tr/logic/RaceAi.java round104-source/src/tr/logic/
+          cp /tmp/r104-candidate/src/tr/logic/RaceGame.java round104-source/src/tr/logic/
+      - name: Require a targeted gain before the full screen
+        run: |
+          for CASE in 'coil 9' 'interlagos 40' 'spa 57' 'interlagos 38' 'interlagos 54' 'zigzag 76' 'monza 80'; do
+            set -- $CASE
+            python tracks/round104_compare.py \
+              --baseline round104-baseline.jar --candidate round104-candidate.jar \
+              --track "$1" --start "$2" --end "$2" --out "quick-$1-$2.json"
+          done
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          reports = [json.loads(p.read_text()) for p in Path('.').glob('quick-*.json')]
+          ai1 = [event for report in reports for event in report['by_kind']['AI1']['events']]
+          bad = [event for event in ai1 if event['classification'] in {
+              'slower', 'safety_regression', 'redistribution'
+          }]
+          gains = [event for event in ai1 if event['classification'] in {
+              'faster', 'safety_gain'
+          }]
+          if bad:
+              raise SystemExit(f'targeted regression: {bad}')
+          if not gains:
+              raise SystemExit('no targeted gain survived the ten-round confirmation')
+          for report in reports:
+              ai2 = report['by_kind']['AI2']
+              if ai2['identical'] != ai2['pairs']:
+                  raise SystemExit(f'frozen AI2 changed: {report}')
+          print(json.dumps({'gains': gains}, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-kit
+          path: |
+            round104-baseline.jar
+            round104-candidate.jar
+            round104-base.txt
+            round104-source
+            tracks/round104_candidate.py
+            tracks/round104_compare.py
+            quick-*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  verify26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: |
+          git fetch origin master
+          git worktree add /tmp/r104-candidate origin/master
+          python tracks/round104_candidate.py --root /tmp/r104-candidate
+          cd /tmp/r104-candidate
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          git diff --check
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end: 100 }
+          - { track: triangle, end: 100 }
+          - { track: curve, end: 100 }
+          - { track: hairpin, end: 100 }
+          - { track: chicane, end: 100 }
+          - { track: sprint, end: 100 }
+          - { track: bigoval, end: 100 }
+          - { track: slalom, end: 100 }
+          - { track: gear, end: 100 }
+          - { track: coil, end: 100 }
+          - { track: zigzag, end: 100 }
+          - { track: the_long_loop, end: 100 }
+          - { track: monaco, end: 100 }
+          - { track: hungaroring, end: 100 }
+          - { track: interlagos, end: 100 }
+          - { track: lemans, end: 100 }
+          - { track: spa, end: 100 }
+          - { track: silverstone, end: 100 }
+          - { track: monza, end: 100 }
+          - { track: zandvoort, end: 100 }
+          - { track: nurburgring, end: 100 }
+          - { track: spielberg, end: 100 }
+          - { track: serpentine, end: 25 }
+          - { track: serpentine2, end: 25 }
+          - { track: spiral, end: 25 }
+          - { track: cog, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-kit
+          path: .
+      - name: Compare current master and candidate
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round104_compare.py \
+            --baseline round104-baseline.jar --candidate round104-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round104-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round104-result-${{ matrix.track }}
+          path: round104-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-kit
+          path: .
+      - name: Alternating normalized runtime
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          cases = [('coil', 9), ('interlagos', 40), ('zigzag', 76), ('circle', 1)]
+          result = {'cases': {}}
+          with tempfile.TemporaryDirectory(prefix='r104-runtime-') as directory:
+              tmp = Path(directory)
+              text = (root / 'tracks/bench.properties').read_text()
+              text = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', text, flags=re.M)
+              props = tmp / 'bench.properties'
+              props.write_text(text)
+              for track, seed in cases:
+                  rows = []
+                  for iteration in range(6):
+                      order = ('baseline', 'candidate') if iteration % 2 == 0 else ('candidate', 'baseline')
+                      row = {}
+                      for label in order:
+                          log = tmp / f'{track}-{seed}-{iteration}-{label}.log'
+                          started = time.perf_counter()
+                          done = subprocess.run([
+                              'java', '-Djava.awt.headless=true', '-jar',
+                              str(root / f'round104-{label}.jar'), '--auto',
+                              '--track', track, '--props', str(props), '--log', str(log),
+                              '--seed', str(seed),
+                          ], cwd=root, text=True, capture_output=True, timeout=3600)
+                          elapsed = time.perf_counter() - started
+                          if done.returncode:
+                              raise SystemExit(done.stderr[-3000:])
+                          turns = sum(1 for line in log.read_text().splitlines()
+                                      if re.match(r'^\d+ p\d+ ', line))
+                          row[label] = elapsed / max(turns, 1)
+                      row['ratio'] = row['candidate'] / row['baseline']
+                      rows.append(row)
+                  ratios = [row['ratio'] for row in rows]
+                  result['cases'][f'{track}-{seed}'] = {
+                      'pairs': rows,
+                      'median_ratio': statistics.median(ratios),
+                      'trimmed_ratio': statistics.mean(sorted(ratios)[1:-1]),
+                  }
+          Path('round104-runtime.json').write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result, indent=2))
+          for case, values in result['cases'].items():
+              if values['median_ratio'] > 1.25 or values['trimmed_ratio'] > 1.25:
+                  raise SystemExit(f'runtime regression at {case}: {values}')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round104-runtime
+          path: round104-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [verify, verify26, differential, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANDIDATE_BRANCH: agent/ai-racing-speed-104-stable-field
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-kit
+          path: kit
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round104-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-runtime
+          path: results
+      - name: Summarize and require an exact clean frontier
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          race_files = sorted(Path('results').glob('round104-*.json'))
+          race_files = [path for path in race_files if path.name != 'round104-runtime.json']
+          if len(race_files) != 26:
+              raise SystemExit(f'expected 26 reports, found {len(race_files)}')
+          total = {
+              'reports': 26,
+              'pairs': 0,
+              'by_kind': {
+                  kind: {key: 0 for key in (
+                      'pairs', 'identical', 'faster', 'slower', 'safety_gain',
+                      'safety_regression', 'redistribution', 'net_moves'
+                  )} for kind in ('AI1', 'AI2')
+              },
+              'events': [],
+          }
+          for path in race_files:
+              report = json.loads(path.read_text())
+              total['pairs'] += report['pairs']
+              for kind, summary in report['by_kind'].items():
+                  for key in total['by_kind'][kind]:
+                      total['by_kind'][kind][key] += summary[key]
+                  for event in summary['events']:
+                      total['events'].append({'track': report['track'], 'kind': kind, **event})
+          total['runtime'] = json.loads(Path('results/round104-runtime.json').read_text())
+          Path('round104-summary.json').write_text(json.dumps(total, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(total, indent=2, sort_keys=True))
+          ai1, ai2 = total['by_kind']['AI1'], total['by_kind']['AI2']
+          if ai1['slower'] or ai1['safety_regression'] or ai1['redistribution']:
+              raise SystemExit(f'AI1 regression: {ai1}')
+          if not (ai1['faster'] or ai1['safety_gain']):
+              raise SystemExit('candidate produced no verified gain')
+          if ai2['identical'] != ai2['pairs']:
+              raise SystemExit(f'frozen AI2 changed: {ai2}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-summary
+          path: round104-summary.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Materialize mirrored champion on exact master
+        run: |
+          git fetch origin master
+          BASE=$(cat kit/round104-base.txt)
+          LIVE=$(git rev-parse origin/master)
+          test "$BASE" = "$LIVE" || { echo "master advanced: $BASE -> $LIVE"; exit 1; }
+          git worktree add /tmp/r104-publish origin/master
+          cp kit/round104-source/src/tr/logic/RaceAi.java /tmp/r104-publish/src/tr/logic/RaceAi.java
+          cp kit/round104-source/src/tr/logic/RaceGame.java /tmp/r104-publish/src/tr/logic/RaceGame.java
+          python tracks/round104_candidate.py --root /tmp/r104-publish --mirror
+          cp tracks/round104_compare.py /tmp/r104-publish/tracks/round104_compare.py
+          cp round104-summary.json /tmp/r104-publish/round104-summary.json
+      - name: Add deterministic champion regression and documentation
+        run: |
+          cd /tmp/r104-publish
+          sh ./build_main.sh
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, subprocess, sys, tempfile
+
+          root = Path.cwd()
+          summary = json.loads(Path('round104-summary.json').read_text())
+          gains = [event for event in summary['events']
+                   if event['kind'] == 'AI1' and event['classification'] in ('faster', 'safety_gain')]
+          gains.sort(key=lambda event: (event['classification'] != 'safety_gain', event['delta']))
+          cases = [(event['track'], event['seed']) for event in gains[:10]]
+          cases += [('interlagos', 38), ('interlagos', 54), ('spa', 57)]
+          cases = list(dict.fromkeys(cases))
+
+          sys.path.insert(0, str(root / 'tracks'))
+          import bench_ai
+          expected = {}
+          with tempfile.TemporaryDirectory(prefix='r104-pin-') as directory:
+              bench_ai.configure_runtime(directory)
+              bench_ai.set_nplayers(8)
+              for kind in ('AI1', 'AI2'):
+                  bench_ai.set_all_to(kind)
+                  for track, seed in cases:
+                      expected[(kind, track, seed)] = bench_ai.run_track(
+                          track, timeout=1800, seed=seed
+                      )
+          for track, seed in cases:
+              if expected[('AI1', track, seed)] != expected[('AI2', track, seed)]:
+                  raise SystemExit(f'mirror mismatch at {track} seed {seed}')
+
+          literal = repr({(track, seed): expected[('AI1', track, seed)]
+                          for track, seed in cases})
+          test = f'''#!/usr/bin/env python3
+          """Pin Round 104's stable forward-pack acceleration frontier."""
+          from pathlib import Path
+          import sys
+          import tempfile
+
+          ROOT = Path(__file__).resolve().parents[1]
+          sys.path.insert(0, str(ROOT / "tracks"))
+          import bench_ai
+
+          EXPECTED = {literal}
+
+          def main() -> int:
+              if not Path(bench_ai.JAR).is_file():
+                  raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
+              results = {{}}
+              with tempfile.TemporaryDirectory(prefix="field-acceleration-") as directory:
+                  bench_ai.configure_runtime(directory)
+                  bench_ai.set_nplayers(8)
+                  for kind in ("AI1", "AI2"):
+                      bench_ai.set_all_to(kind)
+                      for case in EXPECTED:
+                          results[(kind, case)] = bench_ai.run_track(
+                              case[0], timeout=1800, seed=case[1]
+                          )
+              for kind in ("AI1", "AI2"):
+                  for case, expected in EXPECTED.items():
+                      actual = results[(kind, case)]
+                      if actual != expected:
+                          raise SystemExit(
+                              f"Round-104 {{kind}} {{case}} regression: {{actual}}, expected {{expected}}"
+                          )
+              for case in EXPECTED:
+                  if results[("AI1", case)] != results[("AI2", case)]:
+                      raise SystemExit(f"Round-104 mirror mismatch at {{case}}")
+              print("AIFieldAccelerationRegression: OK")
+              return 0
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          '''
+          import textwrap
+          Path('tests/ai_field_acceleration_regression.py').write_text(textwrap.dedent(test))
+
+          golden = Path('tests/golden_races.py')
+          text = golden.read_text()
+          pattern = re.compile(
+              r'if __name__ == ["\']__main__["\']:\n\s+raise SystemExit\(main\(\)\)\s*$',
+              re.M,
+          )
+          replacement = '''if __name__ == "__main__":
+              status = main()
+              if status not in (None, 0):
+                  raise SystemExit(status)
+              from ai_field_acceleration_regression import main as field_acceleration_main
+              raise SystemExit(field_acceleration_main())
+          '''
+          text, count = pattern.subn(textwrap.dedent(replacement).rstrip(), text)
+          if count != 1:
+              raise SystemExit(f'could not integrate field regression: {count}')
+          golden.write_text(text + '\n')
+
+          development = Path('AI_DEVELOPMENT.md')
+          text = development.read_text()
+          anchor = '## Current champion and frontier baseline\n'
+          if text.count(anchor) != 1:
+              raise SystemExit('development anchor changed')
+          ai1 = summary['by_kind']['AI1']
+          section = f'''## Round 104: stable forward-pack acceleration
+
+          Round 104 admits a decisive one-turn acceleration only in a bounded
+          homogeneous forward pack. The candidate must be trap-free and
+          uncertainty-free, remain outside the slow near-finish class, survive the
+          seal veto, and strictly improve both the mover and aggregate field in
+          independent eight- and ten-round scorer worlds. Narrow funnels require
+          the complete five-rival forward quorum plus braking-envelope separation.
+
+          The exact AI1 screen covered {{ai1['pairs']}} races: {{ai1['identical']}}
+          identical, {{ai1['faster']}} faster, {{ai1['safety_gain']}} safety gains,
+          zero slower races, zero safety regressions and zero equal-sum
+          redistributions. Unchanged-safety events changed aggregate finisher moves
+          by {{ai1['net_moves']}}. AI2 stayed byte-for-byte identical during the
+          frontier screen, then received the exact proven call before promotion.
+
+          Mutable true-confirm and query-trace state is instance-owned, so games
+          running concurrently in one JVM cannot suppress one another's searches.
+          The rule contains no track, seed, coordinate or progress exception.
+
+          '''
+          development.write_text(text.replace(anchor, textwrap.dedent(section) + anchor, 1))
+          PY
+          rm round104-summary.json tracks/round104_compare.py
+      - name: Verify mirrored production tree
+        run: |
+          cd /tmp/r104-publish
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_field_acceleration_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          test "$(grep -c 'chosen = guardedFieldPaceOverride' src/tr/logic/RaceAi.java)" -eq 2
+      - name: Publish production branch and open PR
+        id: publish
+        run: |
+          cd /tmp/r104-publish
+          git switch -c "$CANDIDATE_BRANCH"
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java \
+            tests/ai_field_acceleration_regression.py tests/golden_races.py \
+            AI_DEVELOPMENT.md
+          git commit -m 'Round 104: certify stable forward-pack acceleration'
+          git push --force-with-lease origin "$CANDIDATE_BRANCH"
+          BODY=/tmp/round104-pr.md
+          python - <<'PY' > "$BODY"
+          import json
+          data = json.load(open('/home/runner/work/TheoreticalRacing/TheoreticalRacing/round104-summary.json'))
+          ai1, ai2 = data['by_kind']['AI1'], data['by_kind']['AI2']
+          print('## What changed\n')
+          print('Both race agents gain the independently certified Round 104 forward-pack acceleration rule. ')
+          print('A candidate must save exactly one empty-map turn, be trap- and uncertainty-free, pass the seal guard, and strictly improve both self and aggregate field cost at eight and ten rollout rounds.\n')
+          print('The true-confirm and query-trace guards are also instance-owned for concurrent-game correctness.\n')
+          print('## Exact frontier evidence\n')
+          print(f"- AI1 race pairs: {ai1['pairs']}")
+          print(f"- Identical: {ai1['identical']}")
+          print(f"- Faster: {ai1['faster']}")
+          print(f"- Safety gains: {ai1['safety_gain']}")
+          print(f"- Net same-safety finisher-move delta: {ai1['net_moves']}")
+          print(f"- Slower / safety regressions / redistributions: {ai1['slower']} / {ai1['safety_regression']} / {ai1['redistribution']}")
+          print(f"- Frozen AI2 identity before mirroring: {ai2['identical']} / {ai2['pairs']}\n")
+          print('JDK 25/26, headless, golden, every permanent AI regression, normalized runtime, exact regular seeds 1-100 and slow seeds 1-25 all passed before this branch was published.')
+          PY
+          EXISTING=$(gh pr list --head "$CANDIDATE_BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -z "$EXISTING" ]; then
+            PR_URL=$(gh pr create --base master --head "$CANDIDATE_BRANCH" \
+              --title 'Round 104: certify stable forward-pack acceleration' \
+              --body-file "$BODY")
+            PR_NUMBER=${PR_URL##*/}
+          else
+            PR_NUMBER=$EXISTING
+            gh pr edit "$PR_NUMBER" --title 'Round 104: certify stable forward-pack acceleration' \
+              --body-file "$BODY"
+          fi
+          echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+      - name: Wait for PR checks and squash-merge
+        env:
+          PR_NUMBER: ${{ steps.publish.outputs.pr_number }}
+        run: |
+          sleep 30
+          READY=0
+          for attempt in $(seq 1 180); do
+            JSON=$(gh pr checks "$PR_NUMBER" --json name,bucket,state 2>/dev/null || true)
+            COUNT=$(printf '%s' "$JSON" | python -c 'import json,sys; print(len(json.load(sys.stdin)))' 2>/dev/null || echo 0)
+            BAD=$(printf '%s' "$JSON" | python -c 'import json,sys; print(sum(x.get("bucket") in ("fail","cancel") for x in json.load(sys.stdin)))' 2>/dev/null || echo 1)
+            PENDING=$(printf '%s' "$JSON" | python -c 'import json,sys; print(sum(x.get("bucket") == "pending" for x in json.load(sys.stdin)))' 2>/dev/null || echo 1)
+            echo "checks: count=$COUNT bad=$BAD pending=$PENDING"
+            if [ "$COUNT" -ge 3 ] && [ "$BAD" -eq 0 ] && [ "$PENDING" -eq 0 ]; then
+              READY=1
+              break
+            fi
+            [ "$BAD" -eq 0 ] || exit 1
+            sleep 20
+          done
+          [ "$READY" -eq 1 ] || { echo 'PR checks did not settle'; exit 1; }
+          gh pr merge "$PR_NUMBER" --squash --delete-branch
+          gh api repos/${{ github.repository }}/branches/master --jq .commit.sha > /tmp/round104-master-sha
+          echo "merged master $(cat /tmp/round104-master-sha)"
