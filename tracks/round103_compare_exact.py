@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Compare Round 103 candidate and current master for one track and both AIs."""
+# Gate trigger retained so materializer-only fixes rerun the exact differential.
 from __future__ import annotations
 
 import argparse
