@@ -1,0 +1,55 @@
+name: Materialize Round 103 production code
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-zigzag-rescue
+    paths:
+      - .github/workflows/round103-materialize.yml
+      - tracks/round103_materialize_patch.py
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    if: github.event.head_commit.message != 'Round 103: confirm switch targets against six rivals'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply the verified production change
+        run: python tracks/round103_materialize_patch.py
+      - name: Verify the exact materialized tree
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_true_rival_confirmation_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit and push production files only
+        run: |
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java tests/ai_true_rival_confirmation_regression.py AI_DEVELOPMENT.md
+          git commit -m 'Round 103: confirm switch targets against six rivals'
+          git push origin HEAD:agent/ai-racing-speed-103-zigzag-rescue
