@@ -1,0 +1,296 @@
+name: Round 103 wide-confirm pace gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-wide-confirm-gate
+    paths:
+      - .github/workflows/round103-wide-confirm-gate.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact Round 102 baseline
+        run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-baseline.jar
+      - name: Apply stable pack acceleration and six-rival confirmation
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_guarded_field_v3.patch \
+            -o /tmp/round103-field.patch
+          printf '%s  %s\n' \
+            2231c6bf5cd53469c33e83d2055e92e6f140f76562ce52e5fe644a4603da48be \
+            /tmp/round103-field.patch | sha256sum -c -
+          git apply --check /tmp/round103-field.patch
+          git apply /tmp/round103-field.patch
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          old_chosen = '''\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tscorerCap, null, null, null) < 0;'''
+          new_chosen = '''\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, null, null) < 0;'''
+          old_target = '''\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, scorerCap, null, null, null) >= 0;'''
+          new_target = '''\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;'''
+          assert source.count(old_chosen) == 1
+          assert source.count(old_target) == 1
+          source = source.replace(old_chosen, new_chosen, 1)
+          source = source.replace(old_target, new_target, 1)
+          path.write_text(source)
+          PY
+      - name: Verify candidate and deterministic boundaries
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python - <<'PY'
+          from pathlib import Path
+          import sys, tempfile
+          sys.path.insert(0, str(Path.cwd() / 'tracks'))
+          import bench_ai
+
+          with tempfile.TemporaryDirectory(prefix='round103-zigzag-') as directory:
+              bench_ai.configure_runtime(directory)
+              bench_ai.set_nplayers(8)
+              bench_ai.set_all_to('AI1')
+              result = bench_ai.run_track('zigzag', timeout=1200, seed=76)
+          expected = (7, 0, [65, 65, 65, 66, 67, 67, 68])
+          if result != expected:
+              raise SystemExit(f'Round-103 Zigzag seed-76 regression: {result}, expected {expected}')
+          print('Round103WideConfirmRegression: OK')
+          PY
+          python -m compileall -q tracks tests
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-jars
+          path: |
+            round103-baseline.jar
+            round103-candidate.jar
+          if-no-files-found: error
+          retention-days: 3
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - { track: circle, end: 100 }
+          - { track: triangle, end: 100 }
+          - { track: curve, end: 100 }
+          - { track: hairpin, end: 100 }
+          - { track: chicane, end: 100 }
+          - { track: sprint, end: 100 }
+          - { track: bigoval, end: 100 }
+          - { track: slalom, end: 100 }
+          - { track: gear, end: 100 }
+          - { track: coil, end: 100 }
+          - { track: zigzag, end: 100 }
+          - { track: the_long_loop, end: 100 }
+          - { track: monaco, end: 100 }
+          - { track: hungaroring, end: 100 }
+          - { track: interlagos, end: 100 }
+          - { track: lemans, end: 100 }
+          - { track: spa, end: 100 }
+          - { track: silverstone, end: 100 }
+          - { track: monza, end: 100 }
+          - { track: zandvoort, end: 100 }
+          - { track: nurburgring, end: 100 }
+          - { track: spielberg, end: 100 }
+          - { track: serpentine, end: 25 }
+          - { track: serpentine2, end: 25 }
+          - { track: spiral, end: 25 }
+          - { track: cog, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-jars
+          path: .
+      - name: Install exact differential helpers
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_compare_exact.py \
+            -o tracks/round101_compare_exact.py
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_compare_current.py \
+            -o tracks/round101_compare_current.py
+      - name: Compare exact current champion against candidate
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round101_compare_current.py \
+            --baseline round103-baseline.jar \
+            --candidate round103-candidate.jar \
+            --track "$TRACK" \
+            --end "$END_SEED" \
+            --out "round103-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-result-${{ matrix.track }}
+          path: round103-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-jars
+          path: .
+      - name: Alternating-order Zigzag target benchmark
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          props_source = (root / 'tracks' / 'bench.properties').read_text()
+          props_source = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', props_source, flags=re.MULTILINE)
+          cache = Path(os.environ['RUNNER_TEMP']) / 'round103-reach-cache'
+          cache.mkdir()
+
+          def run(jar, label, iteration):
+              with tempfile.TemporaryDirectory(prefix=f'r103-{label}-') as directory:
+                  directory = Path(directory)
+                  props = directory / 'bench.properties'
+                  props.write_text(props_source)
+                  log = directory / 'race.log'
+                  env = os.environ.copy()
+                  env['RACING_REACH_CACHE'] = str(cache)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar), '--auto',
+                      '--track', 'zigzag', '--props', str(props), '--log', str(log), '--seed', '76'
+                  ], cwd=root, env=env, text=True, capture_output=True, timeout=1200)
+                  elapsed = time.perf_counter() - started
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-4000:])
+                  return elapsed
+
+          run('round103-baseline.jar', 'warm-base', 0)
+          run('round103-candidate.jar', 'warm-cand', 0)
+          baseline, candidate = [], []
+          for i in range(6):
+              order = [('round103-baseline.jar', baseline, 'base'),
+                       ('round103-candidate.jar', candidate, 'cand')]
+              if i % 2:
+                  order.reverse()
+              for jar, bucket, label in order:
+                  bucket.append(run(jar, label, i))
+          ratio_median = statistics.median(candidate) / statistics.median(baseline)
+          ratio_mean = statistics.fmean(candidate) / statistics.fmean(baseline)
+          report = {
+              'baseline': baseline,
+              'candidate': candidate,
+              'median_ratio': ratio_median,
+              'mean_ratio': ratio_mean,
+          }
+          Path('round103-runtime.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          if ratio_median > 1.25 or ratio_mean > 1.25:
+              raise SystemExit('Round 103 runtime regression exceeds 25%')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-runtime
+          path: round103-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    if: always()
+    needs: [differential, runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round103-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-runtime
+          path: results
+      - name: Aggregate exact verdict
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          summaries = []
+          for path in sorted(Path('results').glob('round103-*.json')):
+              if path.name == 'round103-runtime.json':
+                  continue
+              summaries.append(json.loads(path.read_text()))
+          if len(summaries) != 26:
+              raise SystemExit(f'expected 26 track summaries, found {len(summaries)}')
+          keys = ('pairs', 'identical', 'faster', 'slower', 'safety_gain',
+                  'safety_regression', 'redistribution', 'net_moves')
+          total = {key: sum(item[key] for item in summaries) for key in keys}
+          events = [dict(track=item['track'], **event)
+                    for item in summaries for event in item.get('events', [])]
+          runtime = json.loads(Path('results/round103-runtime.json').read_text())
+          report = {'total': total, 'events': events, 'runtime': runtime}
+          Path('round103-summary.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if total['slower'] or total['safety_regression'] or total['redistribution']:
+              raise SystemExit('Round 103 exact differential contains a regression')
+          if total['faster'] + total['safety_gain'] < 1:
+              raise SystemExit('Round 103 produced no verified improvement')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-summary
+          path: round103-summary.json
+          if-no-files-found: error
+          retention-days: 90
