@@ -1,0 +1,28 @@
+name: Export Round 103 source
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-source-export
+    paths:
+      - .github/workflows/round103-source-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Archive exact source tree
+        run: |
+          git rev-parse HEAD > ROUND103_SOURCE_HEAD
+          tar --exclude=.git --exclude=theoretical-racing-round103-source.tar.gz \
+            -czf theoretical-racing-round103-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theoretical-racing-round103-source
+          path: theoretical-racing-round103-source.tar.gz
+          if-no-files-found: error
+          retention-days: 3
