@@ -1,0 +1,39 @@
+name: Fix Round 104 parser
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-controller-final
+    paths:
+      - .github/workflows/round104-fix-parser.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Accept terminal FINISH and CRASH markers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('tracks/round104_compare.py')
+          text = path.read_text()
+          text = text.replace('if " CRASH " in line:', 'if "CRASH" in line:')
+          text = text.replace('elif " FINISH " in line:', 'elif "FINISH" in line:')
+          path.write_text(text)
+          PY
+          git diff --check
+          if git diff --quiet; then
+            echo 'Parser is already fixed.'
+            exit 0
+          fi
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add tracks/round104_compare.py
+          git commit -m 'Fix Round 104 terminal result parsing'
+          git push origin HEAD:agent/ai-racing-speed-104-controller-final
