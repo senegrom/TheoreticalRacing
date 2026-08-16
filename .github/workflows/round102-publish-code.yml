@@ -1,0 +1,85 @@
+name: Publish Round 102 AI code
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-102-stable-field-accel
+    paths:
+      - .github/workflows/round102-publish-code.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: github.event.head_commit.message != 'Apply Round 102 stable field acceleration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Materialize the independently verified source
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_guarded_field_v3.patch \
+            -o /tmp/round102.patch
+          printf '%s  %s\n' \
+            2231c6bf5cd53469c33e83d2055e92e6f140f76562ce52e5fe644a4603da48be \
+            /tmp/round102.patch | sha256sum -c -
+          git apply --check /tmp/round102.patch
+          git apply /tmp/round102.patch
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          source = source.replace(
+              'AI1_FIELD_ACCEL_MIN_SPEED2_GAIN\t= 16;\t// round 101:',
+              'AI1_FIELD_ACCEL_MIN_SPEED2_GAIN\t= 16;\t// round 102:',
+              1,
+          )
+          source = source.replace(
+              '/** Round 101: recover a one-turn acceleration only in a bounded forward',
+              '/** Round 102: recover a one-turn acceleration only in a bounded forward',
+              1,
+          )
+          call = (
+              '\t\t\tchosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,\n'
+              '\t\t\t\t\ttrapByDir, uncByDir, poTByDir);\n'
+          )
+          override = (
+              '\t\t\tchosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,\n'
+              '\t\t\t\t\ttrapByDir, uncByDir, poTByDir);\n'
+          )
+          assert source.count(call) == 2
+          assert source.count(override) == 1
+          parts = source.split(call)
+          source = parts[0] + call + parts[1] + call + override + parts[2]
+          assert source.count(override) == 2
+          path.write_text(source)
+          PY
+      - name: Verify and publish code-only commit
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          git diff --check
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java
+          git commit -m 'Apply Round 102 stable field acceleration'
+          git push origin HEAD:agent/ai-racing-speed-102-stable-field-accel
