@@ -1,0 +1,225 @@
+name: Round 102 guarded-field v3 fresh gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-102-v3-fresh-gate
+    paths:
+      - .github/workflows/round102-v3-fresh-gate.yml
+      - tracks/round102_compare_range.py
+      - tracks/round101_guarded_field_v3.patch
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact Round 100 baseline
+        run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar round102-baseline.jar
+      - name: Apply and verify v3 candidate
+        run: |
+          git apply --check tracks/round101_guarded_field_v3.patch
+          git apply tracks/round101_guarded_field_v3.patch
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round102-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round102-v3-jars
+          path: |
+            round102-baseline.jar
+            round102-candidate.jar
+          if-no-files-found: error
+          retention-days: 3
+
+  differential:
+    needs: verify
+    name: Fresh ${{ matrix.track }} ${{ matrix.start }}-${{ matrix.end }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - { track: circle, start: 76, end: 150 }
+          - { track: triangle, start: 76, end: 150 }
+          - { track: curve, start: 76, end: 150 }
+          - { track: hairpin, start: 101, end: 175 }
+          - { track: chicane, start: 76, end: 150 }
+          - { track: sprint, start: 76, end: 150 }
+          - { track: bigoval, start: 76, end: 150 }
+          - { track: slalom, start: 76, end: 150 }
+          - { track: gear, start: 76, end: 150 }
+          - { track: coil, start: 76, end: 150 }
+          - { track: zigzag, start: 76, end: 150 }
+          - { track: the_long_loop, start: 76, end: 150 }
+          - { track: monaco, start: 76, end: 150 }
+          - { track: hungaroring, start: 76, end: 150 }
+          - { track: interlagos, start: 76, end: 150 }
+          - { track: lemans, start: 76, end: 150 }
+          - { track: spa, start: 76, end: 150 }
+          - { track: silverstone, start: 76, end: 150 }
+          - { track: monza, start: 76, end: 150 }
+          - { track: zandvoort, start: 101, end: 175 }
+          - { track: nurburgring, start: 76, end: 150 }
+          - { track: spielberg, start: 76, end: 150 }
+          - { track: serpentine, start: 26, end: 50 }
+          - { track: serpentine2, start: 26, end: 50 }
+          - { track: spiral, start: 26, end: 50 }
+          - { track: cog, start: 26, end: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round102-v3-jars
+          path: .
+      - name: Compare candidate against current AI1
+        env:
+          TRACK: ${{ matrix.track }}
+          START_SEED: ${{ matrix.start }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round102_compare_range.py \
+            --baseline round102-baseline.jar \
+            --candidate round102-candidate.jar \
+            --track "$TRACK" --start "$START_SEED" --end "$END_SEED" \
+            --out "round102-fresh-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round102-fresh-${{ matrix.track }}
+          path: round102-fresh-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round102-v3-jars
+          path: .
+      - name: Alternate candidate and baseline order
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          ROOT=Path.cwd()
+          def props(path):
+              lines=[]
+              for line in (ROOT/'tracks/bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line=line.split('=',1)[0]+'=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines)+'\n')
+          def once(jar, track, seed_range, label, tmp):
+              p=tmp/f'{label}.properties'; props(p)
+              log=tmp/f'{label}-{track}.log'
+              start=time.perf_counter()
+              result=subprocess.run(['java','-Djava.awt.headless=true','-jar',str(jar),'--auto',
+                  '--track',track,'--props',str(p),'--log',str(log),'--seed',seed_range],
+                  cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.PIPE,text=True,timeout=2400)
+              elapsed=time.perf_counter()-start
+              if result.returncode:
+                  raise RuntimeError(result.stderr[-2000:])
+              return elapsed
+          def paired(track, seed_range):
+              base=ROOT/'round102-baseline.jar'; cand=ROOT/'round102-candidate.jar'
+              ratios=[]
+              with tempfile.TemporaryDirectory(prefix='r102-runtime-') as d:
+                  tmp=Path(d)
+                  once(base,track,seed_range,'warm-base',tmp)
+                  once(cand,track,seed_range,'warm-cand',tmp)
+                  for i in range(6):
+                      if i%2:
+                          ct=once(cand,track,seed_range,f'c{i}',tmp)
+                          bt=once(base,track,seed_range,f'b{i}',tmp)
+                      else:
+                          bt=once(base,track,seed_range,f'b{i}',tmp)
+                          ct=once(cand,track,seed_range,f'c{i}',tmp)
+                      ratios.append(ct/bt)
+              ordered=sorted(ratios)
+              trimmed=statistics.fmean(ordered[1:-1])
+              return {'track':track,'seed_range':seed_range,'ratios':ratios,
+                      'median_ratio':statistics.median(ratios),'trimmed_ratio':trimmed}
+          reports=[paired('coil','1-15'),paired('circle','1-15')]
+          Path('round102-runtime.json').write_text(json.dumps(reports,indent=2)+'\n')
+          print(json.dumps(reports,indent=2))
+          for report in reports:
+              assert report['median_ratio'] <= 1.10, report
+              assert report['trimmed_ratio'] <= 1.10, report
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round102-runtime
+          path: round102-runtime.json
+          retention-days: 30
+
+  summarize:
+    needs: [differential, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round102-fresh-*
+          path: reports
+          merge-multiple: true
+      - name: Assert fresh safety and pace
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          reports=[json.loads(p.read_text()) for p in sorted(Path('reports').glob('*.json'))]
+          assert len(reports)==26, len(reports)
+          keys=('pairs','identical','faster','slower','safety_gain','safety_regression','redistribution','net_moves')
+          total={k:sum(int(r.get(k,0)) for r in reports) for k in keys}
+          total['tracks']=len(reports)
+          total['events']=[{'track':r['track'],**e} for r in reports for e in r.get('events',[])]
+          Path('round102-fresh-summary.json').write_text(json.dumps(total,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(total,indent=2,sort_keys=True))
+          assert total['slower']==0
+          assert total['safety_regression']==0
+          assert total['redistribution']==0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round102-fresh-summary
+          path: round102-fresh-summary.json
+          retention-days: 30
