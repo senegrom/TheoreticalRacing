@@ -110,4 +110,7 @@ finish seven cars with zero crashes on that boundary. The true-confirmation
 latch is instance-scoped, so concurrent games cannot suppress each other.
 '''
 if "## Round 103: six-rival switch-target confirmation" not in doc:
-    development.write_text(doc.rstrip() + textwrap.dedent(section) + "\n", encoding="utf-8")
+    development.write_text(
+        doc.rstrip() + textwrap.dedent(section).rstrip() + "\n",
+        encoding="utf-8",
+    )
