@@ -1,0 +1,118 @@
+name: Round 103 field-structure probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-field-horizon-probe
+    paths:
+      - .github/workflows/round103-field-structure-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [cap7, midguard, cap7mid]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-baseline.jar
+      - name: Build structural candidate
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_guarded_field_v3.patch -o /tmp/field.patch
+          printf '%s  %s\n' 2231c6bf5cd53469c33e83d2055e92e6f140f76562ce52e5fe644a4603da48be /tmp/field.patch | sha256sum -c -
+          git apply /tmp/field.patch
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          mode = os.environ['MODE']
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          const_anchor = '\tprivate final static int\t\tAI1_FIELD_ACCEL_MAX_AHEAD\t= 5;'
+          assert source.count(const_anchor) == 1
+          extra = ''
+          if 'cap7' in mode:
+              extra += '\n\tprivate final static int\t\tAI1_FIELD_ACCEL_CERT_RIVALS\t= 7;'
+          if 'mid' in mode:
+              extra += '\n\tprivate final static int\t\tAI1_FIELD_ACCEL_MID_TURNS\t= 60;'
+          source = source.replace(const_anchor, const_anchor + extra, 1)
+          start = source.index('\tprivate Direction guardedFieldPaceOverride(')
+          end = source.index('\n\tprivate Direction privatePaceOverride(', start)
+          block = source[start:end]
+          if 'cap7' in mode:
+              block = block.replace('AI1_DEEP_CERT_RIVALS, rolloutFieldCost',
+                                    'AI1_FIELD_ACCEL_CERT_RIVALS, rolloutFieldCost')
+              assert block.count('AI1_FIELD_ACCEL_CERT_RIVALS') == 2
+          if 'mid' in mode:
+              old = '''\t\tif (liveRivals < AI1_PRIVATE_FIELD_MIN_RIVALS\n\t\t\t\t|| rivalsAhead < AI1_FIELD_ACCEL_MIN_AHEAD\n\t\t\t\t|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD || aheadProgress <= 0L)'''
+              new = '''\t\tif (liveRivals < AI1_PRIVATE_FIELD_MIN_RIVALS\n\t\t\t\t|| rivalsAhead < AI1_FIELD_ACCEL_MIN_AHEAD\n\t\t\t\t|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD || aheadProgress <= 0L\n\t\t\t\t|| chosenT >= AI1_FIELD_ACCEL_MID_TURNS\n\t\t\t\t\t\t&& rivalsAhead < AI1_FIELD_ACCEL_MAX_AHEAD\n\t\t\t\t\t\t&& aheadProgress * 2L < chosenT)'''
+              assert block.count(old) == 1
+              block = block.replace(old, new, 1)
+          source = source[:start] + block + source[end:]
+          path.write_text(source)
+          PY
+          sh ./build_main.sh
+          cp theoreticRacing.jar "round103-${MODE}.jar"
+      - name: Compare Spa targets
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, re, subprocess, tempfile
+          mode = os.environ['MODE']; root = Path.cwd()
+          props_text = (root / 'tracks' / 'bench.properties').read_text()
+          props_text = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', props_text, flags=re.MULTILINE)
+          result_re = re.compile(r'^(\d+) p(\d+) ')
+          def run(jar, seed, debug=False):
+              with tempfile.TemporaryDirectory(prefix=f'r103-{mode}-{seed}-') as directory:
+                  d = Path(directory); props = d/'bench.properties'; props.write_text(props_text); log=d/'race.log'
+                  cmd=['java','-Djava.awt.headless=true']
+                  if debug: cmd.append('-Dai.debug.djs=true')
+                  cmd += ['-jar',str(root/jar),'--auto','--track','spa','--props',str(props),'--log',str(log),'--seed',str(seed)]
+                  done=subprocess.run(cmd,cwd=root,text=True,capture_output=True,timeout=1200)
+                  if done.returncode: raise SystemExit(done.stderr[-4000:])
+                  moves={}; finish={}; crash=set()
+                  for line in log.read_text().splitlines():
+                      m=result_re.match(line)
+                      if not m: continue
+                      p=int(m.group(2)); moves[p]=moves.get(p,0)+1
+                      if 'CRASH' in line: crash.add(p)
+                      elif 'FINISH' in line: finish[p]=moves[p]
+                  return {'finishers':len(finish),'crashes':len(crash),'moves':sum(finish.values()),'by_player':finish,
+                          'debug':[line for line in done.stderr.splitlines() if 'FIELD-ACCEL' in line]}
+          report={'mode':mode,'cases':[]}
+          for seed in [5,7,38,49,57,79,96]:
+              b=run('round103-baseline.jar',seed); c=run(f'round103-{mode}.jar',seed,True)
+              if c['finishers']<b['finishers'] or c['crashes']>b['crashes']: kind='safety_regression'
+              elif c['finishers']>b['finishers'] or c['crashes']<b['crashes']: kind='safety_gain'
+              elif c['moves']<b['moves']: kind='faster'
+              elif c['moves']>b['moves']: kind='slower'
+              elif c['by_player']!=b['by_player']: kind='redistribution'
+              else: kind='identical'
+              report['cases'].append({'seed':seed,'classification':kind,'baseline':b,'candidate':c})
+          Path(f'round103-{mode}-spa.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(report,indent=2,sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-field-structure-${{ matrix.mode }}
+          path: round103-${{ matrix.mode }}-spa.json
+          if-no-files-found: error
+          retention-days: 30
