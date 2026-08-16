@@ -1,0 +1,278 @@
+name: Round 103 exact promotion gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-zigzag-rescue
+    paths:
+      - .github/workflows/round103-differential.yml
+      - tracks/round103_compare_exact.py
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master and candidate jars
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round103-master origin/master
+          (cd /tmp/round103-master && sh ./build_main.sh)
+          cp /tmp/round103-master/theoreticRacing.jar round103-baseline.jar
+          if [ ! -f tests/ai_true_rival_confirmation_regression.py ]; then
+            python tracks/round103_materialize_patch.py
+          fi
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_true_rival_confirmation_regression.py
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-gate-jars
+          path: |
+            round103-baseline.jar
+            round103-candidate.jar
+          if-no-files-found: error
+          retention-days: 3
+
+  verify26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: |
+          if [ ! -f tests/ai_true_rival_confirmation_regression.py ]; then
+            python tracks/round103_materialize_patch.py
+          fi
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/ai_true_rival_confirmation_regression.py
+          git diff --check
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end: 100 }
+          - { track: triangle, end: 100 }
+          - { track: curve, end: 100 }
+          - { track: hairpin, end: 100 }
+          - { track: chicane, end: 100 }
+          - { track: sprint, end: 100 }
+          - { track: bigoval, end: 100 }
+          - { track: slalom, end: 100 }
+          - { track: gear, end: 100 }
+          - { track: coil, end: 100 }
+          - { track: zigzag, end: 100 }
+          - { track: the_long_loop, end: 100 }
+          - { track: monaco, end: 100 }
+          - { track: hungaroring, end: 100 }
+          - { track: interlagos, end: 100 }
+          - { track: lemans, end: 100 }
+          - { track: spa, end: 100 }
+          - { track: silverstone, end: 100 }
+          - { track: monza, end: 100 }
+          - { track: zandvoort, end: 100 }
+          - { track: nurburgring, end: 100 }
+          - { track: spielberg, end: 100 }
+          - { track: serpentine, end: 25 }
+          - { track: serpentine2, end: 25 }
+          - { track: spiral, end: 25 }
+          - { track: cog, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-gate-jars
+          path: .
+      - name: Compare current master and candidate for both agents
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round103_compare_exact.py \
+            --baseline round103-baseline.jar \
+            --candidate round103-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round103-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-result-${{ matrix.track }}
+          path: round103-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-gate-jars
+          path: .
+      - name: Measure normalized alternating-order runtime
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          rows = []
+          with tempfile.TemporaryDirectory(prefix="r103-runtime-") as directory:
+              tmp = Path(directory)
+              props = tmp / "bench.properties"
+              text = (root / "tracks" / "bench.properties").read_text()
+              text = re.sub(r"^(player[1-8]Kind=).*$", r"\1AI1", text, flags=re.MULTILINE)
+              props.write_text(text)
+              for iteration in range(6):
+                  order = ("baseline", "candidate") if iteration % 2 == 0 else ("candidate", "baseline")
+                  row = {}
+                  for label in order:
+                      log = tmp / f"{iteration}-{label}.log"
+                      started = time.perf_counter()
+                      completed = subprocess.run([
+                          "java", "-Djava.awt.headless=true", "-jar", str(root / f"round103-{label}.jar"),
+                          "--auto", "--track", "zigzag", "--props", str(props),
+                          "--log", str(log), "--seed", "76",
+                      ], cwd=root, text=True, capture_output=True, timeout=2400)
+                      elapsed = time.perf_counter() - started
+                      if completed.returncode:
+                          raise SystemExit(completed.stderr[-3000:])
+                      turns = sum(1 for line in log.read_text().splitlines() if re.match(r"^\d+ p\d+ ", line))
+                      row[label] = elapsed / turns
+                  row["ratio"] = row["candidate"] / row["baseline"]
+                  rows.append(row)
+          ratios = [row["ratio"] for row in rows]
+          result = {
+              "pairs": rows,
+              "median_ratio": statistics.median(ratios),
+              "trimmed_ratio": statistics.mean(sorted(ratios)[1:-1]),
+          }
+          Path("round103-runtime.json").write_text(json.dumps(result, indent=2) + "\n")
+          print(json.dumps(result, indent=2))
+          if result["median_ratio"] > 1.25 or result["trimmed_ratio"] > 1.25:
+              raise SystemExit("Round 103 normalized runtime regression exceeds 25%")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-runtime
+          path: round103-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summary:
+    needs: [verify, verify26, differential, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round103-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-runtime
+          path: results
+      - name: Require a clean differential and mirrored rescue
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          files = sorted(Path("results").glob("round103-*.json"))
+          race_files = [path for path in files if path.name != "round103-runtime.json"]
+          if len(race_files) != 26:
+              raise SystemExit(f"expected 26 reports, found {len(race_files)}")
+          total = {
+              "reports": 26, "pairs": 0, "identical": 0, "faster": 0,
+              "safety_gain": 0, "slower": 0, "safety_regression": 0,
+              "redistribution": 0, "net_moves": 0, "events": [],
+          }
+          rescues = set()
+          for path in race_files:
+              report = json.loads(path.read_text())
+              total["pairs"] += report["pairs"]
+              for kind, summary in report["by_kind"].items():
+                  for key in ("identical", "faster", "safety_gain", "slower",
+                              "safety_regression", "redistribution"):
+                      total[key] += summary[key]
+                  total["net_moves"] += summary["net_moves"]
+                  for event in summary["events"]:
+                      record = {"track": report["track"], "kind": kind, **event}
+                      total["events"].append(record)
+                      if report["track"] == "zigzag" and event["seed"] == 76 \
+                              and event["classification"] == "safety_gain" \
+                              and event["candidate_finishers"] == 7 \
+                              and event["candidate_crashes"] == 0:
+                          rescues.add(kind)
+          total["runtime"] = json.loads(Path("results/round103-runtime.json").read_text())
+          Path("round103-summary.json").write_text(json.dumps(total, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(total, indent=2, sort_keys=True))
+          if total["slower"] or total["safety_regression"] or total["redistribution"]:
+              raise SystemExit("Round 103 contains a regression")
+          if rescues != {"AI1", "AI2"}:
+              raise SystemExit(f"missing mirrored Zigzag rescue: {rescues}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-summary
+          path: round103-summary.json
+          if-no-files-found: error
+          retention-days: 90
