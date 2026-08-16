@@ -1,0 +1,34 @@
+name: Fix Round 103 whitespace
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-zigzag-rescue
+    paths:
+      - .github/workflows/round103-fix-whitespace.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Remove trailing blank lines
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('AI_DEVELOPMENT.md')
+          path.write_text(path.read_text().rstrip() + '\n')
+          PY
+          git diff --check
+      - name: Commit the hygiene fix
+        run: |
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add AI_DEVELOPMENT.md
+          git commit -m 'Fix Round 103 documentation whitespace'
+          git push origin HEAD:agent/ai-racing-speed-103-zigzag-rescue
