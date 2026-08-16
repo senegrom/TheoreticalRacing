@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply the AI1-only Round 103 six-rival true-confirmation candidate."""
+"""Apply Round 103's six-rival true-confirmation rule to AI1 and AI2."""
 from pathlib import Path
 
 path = Path("src/tr/logic/RaceAi.java")
@@ -27,5 +27,15 @@ new_target = """\t\t\t\t\tsurvives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, nc
 \t\t\t\t\t\t\tscorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;"""
 assert source.count(old_target) == 1
 source = source.replace(old_target, new_target, 1)
+
+old_ai2 = """\t\t\t\t\t\t\t\tif (deepChoice == chosen)
+\t\t\t\t\t\t\t\t\tdeepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
+\t\t\t\t\t\t\t\t\t\t\ttrue, true, AI1_DEEP_HORIZON);"""
+new_ai2 = """\t\t\t\t\t\t\t\tif (deepChoice == chosen)
+\t\t\t\t\t\t\t\t\tdeepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
+\t\t\t\t\t\t\t\t\t\t\ttrue, true, AI1_DEEP_HORIZON, AI1_SCORER_MAXRIVALS,
+\t\t\t\t\t\t\t\t\t\t\tfalse, false, true);"""
+assert source.count(old_ai2) == 1
+source = source.replace(old_ai2, new_ai2, 1)
 
 path.write_text(source, encoding="utf-8")
