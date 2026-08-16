@@ -6,6 +6,58 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 102 (local agent): monza solved via three composed fixes; a sim-fidelity puzzle isolated
+
+HARVEST 9 (fresh windows: 8car s76-90, 4car/2car s46-55): 4/770 -- four
+specimens, four different lessons.
+
+MONZA 8car s80 m183 -- SOLVED, three composed fixes, each measured:
+1. ALONGSIDE-PACK GATE: the chosen lands amid four rivals braking into
+   turn 1 (Chebyshev <= 3 of the landing) yet ZERO pass the corridor
+   ahead-dot test; the gate now also opens on landingAdjacent >= 3.
+2. SPEED-SCALED CONFIRM NET: the true-rival membership radius
+   (Chebyshev 10 of the landing) cannot contain the braking car 11
+   cells downstream of a spd-inf-10 commitment; TRUE-RIVAL worlds now
+   use max(10, 2*spdInf). A GLOBAL radius change was tried first and
+   slowed the round-96 coil finish frontier by four moves (their pin
+   caught it within minutes) -- suppressed worlds keep the pinned
+   radius. The pin system is doing exactly its job.
+3. DEAD-PATH TARGET CONFIRMATION: a cheap-dead chosen in a confirm
+   context now true-confirms its switch targets (previously only the
+   fragile-alive path did) -- zigzag s76 m234 showed the scorer world
+   killing the TRUE survivor and switching onto the truly-dead
+   alternative.
+Result: monza s80 clean; all five prior sites clean; all ten pins
+PASS; canon 62.706/62.651/62.679 IDENTICAL; parities exact; slow
+104.107.
+
+STILL OPEN, each characterized:
+- zigzag s76 m234: THE SIM-FIDELITY PUZZLE. Python smom AND orivals
+  (selfMove me) both kill alt NE @r2 -- reality agrees (the race
+  crashed) -- yet the in-game 8-round scorer world reads NE simT=30
+  alive and the in-game 4-round true-rival confirm (cap 3 at this call
+  site) says true-ALIVE. The in-game rollout DISAGREES WITH ITS
+  REPLICA on a decided state. Either the replica diverges from
+  rivalMoveOverState in a detail, or the in-game board
+  installation/move-order has a subtle infidelity -- either way this
+  underlies multiple misses and wants a purpose-built probe: a
+  --query-sim debug mode that dumps the in-game rollout trace for a
+  given state, diffable line-by-line against the Python roll. THAT is
+  round 103.
+- monaco s88 m54: predicate-invisible rival-side kill (viable 2,2, no
+  thread, no tier tell, no bodies at decision time). The scorerSelf
+  escalation added this round fires one decision too late (m62). Needs
+  either the query-sim answer or an affordable always-confirm gate.
+- zandvoort s88 m96: the corridor class at depth SEVEN (true death
+  @r7; survivors differ by ONE unit of entry speed). Beyond the
+  4-round confirm; a deep confirm at the funnel escalation (8 true
+  rounds, ~50 champion computes/fire at rare funnel fires) is the
+  costed candidate, unmeasured.
+
+Fresh-seed residual: 4/770 on never-raced windows vs 0/770 on all
+regression windows -- the hunt-fix-pin engine converges per window;
+fresh geometry keeps supplying the frontier.
+
 ## Round 101 (local agent, REJECTED after measurement): the survival-dual probe
 
 The hairpin-s68 class got its first instrument attempt: a SURVIVAL DUAL

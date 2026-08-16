@@ -890,7 +890,8 @@ final class RaceAi {
 								}
 								if (deepChoice == chosen)
 									deepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
-											true, true, AI1_DEEP_HORIZON);
+											true, true, AI1_DEEP_HORIZON, AI1_SCORER_MAXRIVALS,
+											false, false, true);
 								chosen = deepChoice;
 								deepHandled = true;
 							} else {
@@ -937,7 +938,18 @@ final class RaceAi {
 								final boolean compressedRearQueue = packNear == sealRivals
 										&& sealRivals >= AI1_SLOW_PACK && aheadNear <= 1
 										&& landingBodies >= 2 && closeEscape;
-								if (aheadNear >= AI1_DEEP_PACK || compressedRearQueue) {
+								// Round 102 (AI1): ALONGSIDE packs -- monza s80 m183
+								// lands amid four rivals braking into the turn
+								// (Chebyshev <= 3 of the landing) yet none are
+								// "ahead" by the dot test, so the corridor gate
+								// stayed shut while the real field boxed the landing
+								// in one round. Bodies at the landing itself are the
+								// signature; the certified scorer check plus the
+								// round-99 true-rival confirm do the rest.
+								final int landingAdjacent = countRivalsWithinCheb(dcx, dcy,
+										playerNum, 3);
+								if (aheadNear >= AI1_DEEP_PACK || compressedRearQueue
+										|| landingAdjacent >= AI1_DEEP_PACK) {
 									if (AI_DEBUG_DJS)
 										System.err.println("AIDBG " + (compressedRearQueue ? "QUEUE" : "CORR")
 												+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
@@ -993,8 +1005,28 @@ final class RaceAi {
 							final boolean threadPack = djSlow && countRivalsWithinCheb(
 									pos[0] + djvx, pos[1] + djvy, playerNum,
 									AI1_DEEP_PACK_R) >= AI1_DEEP_PACK;
+							// Round 102 (AI1): monaco s88 m54 -- in this same gated context
+							// the selfMove proxy BRAKES where the real champion holds speed
+							// into the closing box (viable 2,2 -- no thread, no tier tell,
+							// no bodies: predicate-invisible). Model me with the recursion-
+							// guarded real scorer (round 78); a scorerSelf-dead verdict
+							// escalates the whole search into that world so any switch
+							// target is proven there too.
+							boolean scorerSelfDead = false;
+							if (threadPack) {
+								final int sfx = pos[0] + djvx, sfy = pos[1] + djvy;
+								scorerSelfDead = !game.crossesFinish(pos[0], pos[1], sfx, sfy)
+										&& simOutcome(sfx, sfy, djvx, djvy, playerNum, dangerRounds,
+												true, true, true, djSlow, true,
+												AI1_SCORER_MAXRIVALS, null) < 0;
+								if (scorerSelfDead && AI_DEBUG_DJS)
+									System.err.println("AIDBG SELFDEAD p=" + playerNum + " pos=("
+											+ pos[0] + "," + pos[1] + ") chosen=" + chosen
+											+ " -> scorerSelf world");
+							}
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, false, threadPack);
+									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
+									threadPack);
 						}
 					}
 				} else {
@@ -2520,8 +2552,17 @@ final class RaceAi {
 		// Membership is fixed at rollout start: the nearest
 		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR.
 		if (scorerRivals) {
+			// Round 102: for TRUE-RIVAL confirms only, the membership radius
+			// scales with MY speed -- monza s80 commits at spd-inf 10 toward a
+			// braking car 11 cells downstream; a fixed Chebyshev-10 net can
+			// never contain the rivals a fast landing reaches within the
+			// horizon. Suppressed worlds keep the pinned radius (a global
+			// change slowed the round-96 coil finish frontier by four moves).
+			final int spdInf = Math.max(Math.abs(myVx), Math.abs(myVy));
+			final int scorerNear = trueRivals ? Math.max(AI1_SCORER_NEAR, 2 * spdInf)
+					: AI1_SCORER_NEAR;
 			for (int k = 0; k < scorerCap; k++) {
-				int nearest = -1, nearestD = AI1_SCORER_NEAR + 1;
+				int nearest = -1, nearestD = scorerNear + 1;
 				for (int j = 0; j < game.players.length; j++) {
 					if (j == myIdx || !alive[j] || scorerSet[j])
 						continue;
@@ -2752,6 +2793,13 @@ final class RaceAi {
 			}
 		}
 		final boolean dbg = AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum;
+		// Round 102 (AI1): a cheap-dead chosen in a confirm-capable context
+		// must not hand the race to a cheap-alive-but-truly-dead switch
+		// target -- zigzag s76 m234: the scorer world kills the TRUE
+		// survivor E and its switch picks NE, which real rivals kill in two
+		// rounds. Confirm targets exactly as the fragile-alive path does.
+		if (trueConfirm && !inTrueRivalConfirm)
+			trueDead = true;
 		if (dbg)
 			System.err.println("AIDBG DJS p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0]
 					+ "," + vel[1] + ") chosen=" + chosen + " DIES in-sim");
