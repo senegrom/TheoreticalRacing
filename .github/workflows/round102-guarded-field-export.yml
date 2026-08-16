@@ -1,0 +1,24 @@
+name: Export Round 102 guarded-field source
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-102-guarded-field-export
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Materialize AI1 guarded-field candidate
+        run: python tracks/round101_guarded_field_patch.py
+      - name: Archive exact materialized tree
+        run: tar --exclude=.git -czf /tmp/theoretical-racing-round102-guarded-field.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theoretical-racing-round102-guarded-field-source
+          path: /tmp/theoretical-racing-round102-guarded-field.tar.gz
+          retention-days: 3
