@@ -1,0 +1,35 @@
+name: Hold Round 104 PR in draft
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-controller-final
+    paths:
+      - .github/workflows/round104-draft-watchdog.yml
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  hold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HEAD_BRANCH: agent/ai-racing-speed-104-stable-field
+    steps:
+      - name: Wait for the candidate PR and make it draft
+        run: |
+          for attempt in $(seq 1 1080); do
+            PR=$(gh pr list --repo '${{ github.repository }}' --head "$HEAD_BRANCH" \
+              --state open --json number --jq '.[0].number // empty')
+            if [ -n "$PR" ]; then
+              gh pr ready --repo '${{ github.repository }}' "$PR" --undo || true
+              echo "Held PR #$PR in draft for independent promotion."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo 'Candidate PR did not appear inside the watchdog window.'
+          exit 1
