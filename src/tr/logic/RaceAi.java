@@ -266,7 +266,7 @@ final class RaceAi {
 	private boolean				inScorerSim;
 	/** Round 99: latch -- while a true-rival confirm runs, rivals computed at
 	 *  full fidelity must not fire their own confirms (cost recursion). */
-	private static boolean			inTrueRivalConfirm;
+	private boolean				inTrueRivalConfirm;
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -2733,7 +2733,7 @@ final class RaceAi {
 				try {
 					trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
 							simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
-							scorerCap, null, null, null) < 0;
+							AI1_DEEP_CERT_RIVALS, null, null, null) < 0;
 				} finally {
 					inTrueRivalConfirm = false;
 				}
@@ -2867,7 +2867,7 @@ final class RaceAi {
 				try {
 					survives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
 							AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,
-							scorerSelf, true, scorerCap, null, null, null) >= 0;
+							scorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;
 				} finally {
 					inTrueRivalConfirm = false;
 				}
@@ -3506,7 +3506,8 @@ final class RaceAi {
 								}
 								if (deepChoice == chosen)
 									deepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
-											true, true, AI1_DEEP_HORIZON);
+											true, true, AI1_DEEP_HORIZON, AI1_SCORER_MAXRIVALS,
+											false, false, true);
 								chosen = deepChoice;
 								deepHandled = true;
 							} else {

@@ -6,6 +6,35 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 103: full-roster true confirmation closes two safety gaps
+
+The Zigzag seed-76 "sim-fidelity puzzle" was a bounded-roster miss, not a
+board-installation discrepancy. At p2's last avoidable decision, the full
+oracle kills `NE` in round two and keeps incumbent `E` alive, but the in-game
+true-confirmation inherited the local nearest-three rival cap. Rivals outside
+that truncated set therefore remained on the score-shaped proxy and the false
+survivor passed.
+
+The fix is deliberately narrow: only the already-rare unsuppressed true-rival
+confirmation widens to the existing six-rival deep-certificate cap, for both
+the incumbent and every switch target. AI2 enables the same confirmation at
+its mirrored deep-pack call. The recursion latch becomes instance-owned at the
+same time, satisfying the mutable-static invariant and preventing concurrent
+games from suppressing one another.
+
+AI1's exact Round-102 A/B covers 2,300 race pairs (regular seeds 1-100, slow
+seeds 1-25): 2,298 are identical and two are safety gains, with no slower race,
+safety regression or redistribution. Zigzag seed 76 moves from 6 finishers / 1
+crash to 7 / 0. Hungaroring seed 63 also moves from 6 / 1 to 7 / 0; AI2 already
+held the safe Hungaroring line before this change. AI2's independent
+2,300-pair gate changes only Zigzag seed 76 and is otherwise identical to its
+baseline.
+
+The agents are not globally move-identical because they retained older policy
+differences before this round; promotion therefore relies on each agent's own
+exact baseline differential, plus equal safe output on both Round-103 target
+pins. Monaco seed 88 and Zandvoort seed 88 remain open classes for later rounds.
+
 ## Round 102 (local agent): monza solved via three composed fixes; a sim-fidelity puzzle isolated
 
 HARVEST 9 (fresh windows: 8car s76-90, 4car/2car s46-55): 4/770 -- four

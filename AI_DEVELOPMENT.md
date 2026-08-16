@@ -323,6 +323,40 @@ in both columns and one net AI1 move faster (both print 104.16). This clears
 the AI1 frontier gate; AI2 remains frozen until an explicit mirror,
 golden-fixture review and post-promotion self-tie battery.
 
+## Round 103: full-roster true-rival confirmation
+
+The rare true-rival confirmation previously inherited the calling rollout's
+three-rival cap. That was insufficient at Zigzag seed 76: player 2's incumbent
+line was incorrectly declared dead, and the nearest-three confirmation then
+accepted `NE`, while rivals outside that truncated set completed the two-round
+box. The exact oracle showed `NE` crashing in round two and the incumbent `E`
+line surviving.
+
+Round 103 reuses the established six-rival deep-certification cap for both the
+incumbent and every proposed switch target whenever the expensive
+full-fidelity confirmation fires. The trigger, horizon, geometry, candidate
+ordering and fail-closed behavior are otherwise unchanged. The recursion latch
+is also instance-scoped, so independent games in one JVM cannot suppress one
+another's confirmation searches. AI2's corresponding deep-pack call enables
+the same bounded confirmation.
+
+Against the Round-102 champion, AI1's exact differential covers 2,300 race
+pairs: all 22 regular tracks through seed 100 and all four slow tracks through
+seed 25. It produces 2,298 identical races and two safety gains with no slower
+race, safety regression, invalid result or equal-sum redistribution:
+
+- Zigzag seed 76 improves from six finishers / one crash to seven / zero.
+- Hungaroring seed 63 improves from six finishers / one crash to seven / zero;
+  AI2 already held that safe line on the Round-102 baseline.
+
+AI2's independent 2,300-pair gate changes only Zigzag seed 76 and has no
+regression. Global AI1/AI2 move identity is intentionally not asserted because
+the agents retained pre-existing policy differences before this round; the
+permanent regression instead pins equal safe outcomes at the two Round-103
+target boundaries. Alternating-order target benchmarks show no compute
+regression: AI1's normalized median/trimmed ratios are 0.959/0.970, while
+AI2's are 1.013/1.000.
+
 ## Current champion and frontier baseline
 
 The rounds-79-to-96 stack plus the round-83 funnel guards are promoted, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 saves one proven Silverstone seed-15 move, Round 93 removes the symmetric mixed Le Mans seed-7 crashes, Round 94 extends the dual-model finish sprint through TTF 20, Round 95 retains one scorer-fast line that a topology proxy false-kills, and Round 96 certifies one synchronized TTF-21 formation gain. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final mirrored body is move-identical across the strict probe. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness. The champion retains the earlier bounded safety proofs:
