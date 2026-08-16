@@ -1,0 +1,111 @@
+name: Round 103 field-horizon probe v2
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-field-horizon-probe
+    paths:
+      - .github/workflows/round103-field-horizon-probe-v2.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Horizon ${{ matrix.horizon }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        horizon: [9, 10, 12]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-baseline.jar
+      - name: Build deeper-certificate candidate
+        env:
+          HORIZON: ${{ matrix.horizon }}
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_guarded_field_v3.patch -o /tmp/field.patch
+          printf '%s  %s\n' 2231c6bf5cd53469c33e83d2055e92e6f140f76562ce52e5fe644a4603da48be /tmp/field.patch | sha256sum -c -
+          git apply /tmp/field.patch
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          horizon = int(os.environ['HORIZON'])
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          anchor = '\tprivate final static int\t\tAI1_FIELD_ACCEL_MAX_AHEAD\t= 5;'
+          assert source.count(anchor) == 1
+          source = source.replace(anchor, anchor + f'\n\tprivate final static int\t\tAI1_FIELD_ACCEL_CONFIRM_HORIZON\t= {horizon};', 1)
+          state = '''\t\tint chosenFinal = Integer.MIN_VALUE;\n\t\tlong chosenField = Long.MAX_VALUE;\n\t\tDirection best = null;'''
+          replacement = '''\t\tint chosenFinal = Integer.MIN_VALUE;\n\t\tlong chosenField = Long.MAX_VALUE;\n\t\tint chosenConfirmFinal = Integer.MIN_VALUE;\n\t\tlong chosenConfirmField = Long.MAX_VALUE;\n\t\tDirection best = null;'''
+          assert source.count(state) >= 1
+          source = source.replace(state, replacement, 1)
+          gate = '''\t\t\tif (candidateFinal < 0 || candidateFinal >= chosenFinal\n\t\t\t\t\t|| candidateField >= chosenField)\n\t\t\t\tcontinue;\n\t\t\tif (best == null || candidateFinal < bestFinal'''
+          confirmed = '''\t\t\tif (candidateFinal < 0 || candidateFinal >= chosenFinal\n\t\t\t\t\t|| candidateField >= chosenField)\n\t\t\t\tcontinue;\n\t\t\tif (chosenConfirmFinal == Integer.MIN_VALUE) {\n\t\t\t\tchosenConfirmFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy,\n\t\t\t\t\t\tplayerNum, AI1_FIELD_ACCEL_CONFIRM_HORIZON, AI1_DEEP_CERT_RIVALS,\n\t\t\t\t\t\trolloutFieldCost);\n\t\t\t\tchosenConfirmField = rolloutFieldCost[0];\n\t\t\t\tif (chosenConfirmFinal < 0 || chosenConfirmField >= ROLLOUT_FAILURE_COST)\n\t\t\t\t\treturn chosen;\n\t\t\t}\n\t\t\tfinal int candidateConfirmFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,\n\t\t\t\t\tAI1_FIELD_ACCEL_CONFIRM_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n\t\t\tfinal long candidateConfirmField = rolloutFieldCost[0];\n\t\t\tif (candidateConfirmFinal < 0 || candidateConfirmFinal >= chosenConfirmFinal\n\t\t\t\t\t|| candidateConfirmField >= chosenConfirmField)\n\t\t\t\tcontinue;\n\t\t\tif (AI_DEBUG_DJS)\n\t\t\t\tSystem.err.println("AIDBG FIELD-CONFIRM h=" + AI1_FIELD_ACCEL_CONFIRM_HORIZON\n\t\t\t\t\t\t+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") "\n\t\t\t\t\t\t+ chosen + " -> " + d + " self " + chosenConfirmFinal + " -> "\n\t\t\t\t\t\t+ candidateConfirmFinal + " field " + chosenConfirmField + " -> "\n\t\t\t\t\t\t+ candidateConfirmField);\n\t\t\tif (best == null || candidateFinal < bestFinal'''
+          assert source.count(gate) == 1
+          path.write_text(source.replace(gate, confirmed, 1))
+          PY
+          sh ./build_main.sh
+          cp theoreticRacing.jar "round103-h${HORIZON}.jar"
+      - name: Compare Spa target cases
+        env:
+          HORIZON: ${{ matrix.horizon }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, re, subprocess, tempfile
+          h = int(os.environ['HORIZON'])
+          root = Path.cwd()
+          props_text = (root / 'tracks' / 'bench.properties').read_text()
+          props_text = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', props_text, flags=re.MULTILINE)
+          result_re = re.compile(r'^(\d+) p(\d+) ')
+          def run(jar, seed, debug=False):
+              with tempfile.TemporaryDirectory(prefix=f'r103-h{h}-{seed}-') as directory:
+                  directory = Path(directory)
+                  props = directory / 'bench.properties'; props.write_text(props_text)
+                  log = directory / 'race.log'
+                  cmd = ['java', '-Djava.awt.headless=true']
+                  if debug: cmd.append('-Dai.debug.djs=true')
+                  cmd += ['-jar', str(root / jar), '--auto', '--track', 'spa', '--props', str(props), '--log', str(log), '--seed', str(seed)]
+                  done = subprocess.run(cmd, cwd=root, text=True, capture_output=True, timeout=1200)
+                  if done.returncode: raise SystemExit(done.stderr[-4000:])
+                  moves, finish, crash = {}, {}, set()
+                  for line in log.read_text().splitlines():
+                      m = result_re.match(line)
+                      if not m: continue
+                      p = int(m.group(2)); moves[p] = moves.get(p, 0) + 1
+                      if 'CRASH' in line: crash.add(p)
+                      elif 'FINISH' in line: finish[p] = moves[p]
+                  return {'finishers': len(finish), 'crashes': len(crash), 'moves': sum(finish.values()), 'by_player': finish,
+                          'debug': [line for line in done.stderr.splitlines() if 'FIELD-' in line or 'TRUECONF' in line]}
+          report = {'horizon': h, 'cases': []}
+          for seed in [5, 7, 38, 49, 57, 79, 96]:
+              b = run('round103-baseline.jar', seed)
+              c = run(f'round103-h{h}.jar', seed, True)
+              if c['finishers'] < b['finishers'] or c['crashes'] > b['crashes']: kind = 'safety_regression'
+              elif c['finishers'] > b['finishers'] or c['crashes'] < b['crashes']: kind = 'safety_gain'
+              elif c['moves'] < b['moves']: kind = 'faster'
+              elif c['moves'] > b['moves']: kind = 'slower'
+              elif c['by_player'] != b['by_player']: kind = 'redistribution'
+              else: kind = 'identical'
+              report['cases'].append({'seed': seed, 'classification': kind, 'baseline': b, 'candidate': c})
+          Path(f'round103-h{h}-spa.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-field-horizon-v2-${{ matrix.horizon }}
+          path: round103-h${{ matrix.horizon }}-spa.json
+          if-no-files-found: error
+          retention-days: 30
