@@ -6,6 +6,52 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 103 (local agent): the query-sim probe finds two structural truths; zigzag solved
+
+THE INSTRUMENT: a `sim` command in the --query-moves protocol
+(RaceGame.processQueries) runs the in-game joint rollout from an
+installed board (me already AT the queried landing) with a chosen
+world (smom | scorer | true) and cap, replying "V=<verdict>" with
+SIMTRACE step lines on stderr -- the in-game rollout diffable LINE BY
+LINE against the offline Python roll (sim_diff.py pattern). Permanent
+tooling; simDepth guard keeps nested rollouts silent.
+
+TRUTH 1 -- THE BOUNDARY REGENERATES: at zigzag m234 the latched
+in-confirm rival vacated the kill cell the oracle champion claims.
+First hypothesis: since round 99 the confirm IS champion behavior, so
+a binary latch strips real arms from in-confirm rivals -- fixed by a
+DEPTH counter (one nested confirm level allowed, depth 2 blocks).
+Necessary but NOT sufficient here: the oracle on the EXACT same board
+agreed with the latched move -- no channel infidelity existed.
+
+TRUTH 2 -- THE CAP IS A WORLD PARAMETER: the real divergence was the
+scorer-set cap. At cap 3 the un-set cars run smom, and their flow
+hands the key rival a context where it vacates ((16,40)); at cap 6
+the same rival closes the box ((15,39)) exactly like the all-champion
+offline roll and the real race. V=34 alive at cap 3; V=-1 dead at cap
+6 -- measured through the probe, single query. FIX: true-rival
+confirms ALWAYS run the certification cap (max(scorerCap,
+AI1_DEEP_CERT_RIVALS)); every cheap world keeps its pinned cap.
+zigzag s76 FIXED; all five solved sites hold; ten pins PASS; canon
+62.706/62.651 (w3 pending at write time) identical.
+
+MONACO S88 RECORDED OPEN with a complete negative series: the m54
+chosen routes through the trap-0 r60 smoke branch (trap ladder reads
+healthy); measured invisible in EVERY cheap world -- python smom
+viable 2,2 (no thread), in-game trap-path world thread=2 but the m54
+route never reaches that gate, in-game SMOKE world thread=0 snug<=1,
+no bodies on the neutral grid, pack gate closed (killers converge
+from beyond Chebyshev 10: p8/p3 one-cell divergences seal @r2).
+Affordability wall: threadPack fires 27-73/race, alive-smoke-thread
+2-27/race -- every candidate gate is orders too hot for a cap-6 true
+confirm. The kill exists ONLY at true fidelity with no cheap
+signature. New debug diagnostics kept (THREADPACK, SMOKETHREAD,
+snug counter in outThreadRounds[1]).
+
+ZANDVOORT S88 stays open (corridor class at depth 7 -- the deep
+confirm at the funnel escalation remains the costed, unmeasured
+candidate).
+
 ## Round 102 (local agent): monza solved via three composed fixes; a sim-fidelity puzzle isolated
 
 HARVEST 9 (fresh windows: 8car s76-90, 4car/2car s46-55): 4/770 -- four

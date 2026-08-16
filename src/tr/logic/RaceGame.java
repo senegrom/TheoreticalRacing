@@ -807,6 +807,41 @@ public final class RaceGame {
 				final String[] parts = line.split(";", -1);
 				if (parts.length != players.length + 1)
 					throw new IllegalArgumentException("Query must contain exactly " + players.length + " player groups");
+				// Round 103: "sim,<mover>,<rounds>,<world>,<cap>" header runs the
+				// in-game joint rollout instead of a move query -- me already AT
+				// the queried landing in the board groups. world: smom | scorer |
+				// true (scorer-set rivals unsuppressed). Reply "V=<verdict>";
+				// SIMTRACE step lines go to stderr for line-by-line diffing
+				// against the offline Python roll.
+				if (parts[0].startsWith("sim,")) {
+					final String[] h = parts[0].split(",", -1);
+					final int smover = Integer.parseInt(h[1].trim());
+					final int srounds = Integer.parseInt(h[2].trim());
+					final String world = h[3].trim();
+					final int scap = Integer.parseInt(h[4].trim());
+					for (int i = 0; i < players.length; i++) {
+						final String[] f = parts[i + 1].split(",", -1);
+						players[i].setPosition(new int[]{Integer.parseInt(f[0].trim()),
+								Integer.parseInt(f[1].trim()) });
+						players[i].setVelocity(new int[]{Integer.parseInt(f[2].trim()),
+								Integer.parseInt(f[3].trim()) });
+						players[i].setFinishedPlace(Integer.parseInt(f[4].trim()));
+					}
+					subgamestate = smover;
+					RaceAi.simTrace = true;
+					final int verdict;
+					try {
+						verdict = ai.querySimOutcome(smover, srounds,
+								!"smom".equals(world), "true".equals(world), false, scap);
+					} finally {
+						RaceAi.simTrace = false;
+					}
+					System.err.flush();
+					bw.write("V=" + verdict);
+					bw.newLine();
+					bw.flush();
+					continue;
+				}
 				final int mover = Integer.parseInt(parts[0].trim());
 				if (mover < 0 || mover >= players.length)
 					throw new IllegalArgumentException("Mover index out of range: " + mover);

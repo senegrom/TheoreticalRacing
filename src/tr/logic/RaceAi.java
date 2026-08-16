@@ -264,9 +264,14 @@ final class RaceAi {
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
 	private boolean				inScorerSim;
-	/** Round 99: latch -- while a true-rival confirm runs, rivals computed at
-	 *  full fidelity must not fire their own confirms (cost recursion). */
-	private static boolean			inTrueRivalConfirm;
+	/** Round 99 latch, round 103 DEPTH: a binary latch stripped the confirm
+	 *  from every in-confirm rival -- and since round 99 the confirm IS part
+	 *  of champion behavior, so latched rivals diverged from real ones by
+	 *  exactly one arm (zigzag s76: oracle-i0 claims the kill cell its
+	 *  latched twin vacates -- the recursion boundary regenerating one level
+	 *  up). One nested level is allowed; depth 2 blocks (cost recursion). */
+	private static int				trueConfirmDepth;
+	private final static int		AI1_TRUE_CONFIRM_MAXDEPTH	= 2;
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -1013,6 +1018,17 @@ final class RaceAi {
 							// escalates the whole search into that world so any switch
 							// target is proven there too.
 							boolean scorerSelfDead = false;
+							if (threadPack && AI_DEBUG_DJS) {
+								final int[] snug = { 0, 0 };
+								final int pfx = pos[0] + djvx, pfy = pos[1] + djvy;
+								final int pv = game.crossesFinish(pos[0], pos[1], pfx, pfy) ? 99
+										: simOutcome(pfx, pfy, djvx, djvy, playerNum, dangerRounds,
+												true, true, true, djSlow, false,
+												AI1_SCORER_MAXRIVALS, null, null, snug);
+								System.err.println("AIDBG THREADPACK p=" + playerNum + " v=" + pv
+										+ " thread=" + snug[0] + " snug=" + snug[1] + "/"
+										+ (dangerRounds - 1));
+							}
 							if (threadPack) {
 								final int sfx = pos[0] + djvx, sfy = pos[1] + djvy;
 								scorerSelfDead = !game.crossesFinish(pos[0], pos[1], sfx, sfy)
@@ -1087,10 +1103,17 @@ final class RaceAi {
 					// round smoke simulation unless diagnostics explicitly need it.
 					final boolean smokeRequired = AI_DEBUG_DJS || AI_DEBUG_COMP
 							|| AI_DEBUG_PLAYER >= 0 || !denseSlowPack && !funnelRisk;
+					final int[] smokeThread = { 0, 0 };
 					final boolean smokeDies = smokeRequired
 							&& !game.crossesFinish(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									true, true, true, true) < 0;
+									true, true, true, true, false, AI1_SCORER_MAXRIVALS,
+									null, null, smokeThread) < 0;
+					if (AI_DEBUG_DJS && smokeRequired && (smokeThread[0] > 0 || smokeThread[1] > 1))
+						System.err.println("AIDBG SMOKETHREAD p=" + playerNum + " pos=(" + pos[0]
+								+ "," + pos[1] + ") chosen=" + chosen + " dies=" + smokeDies
+								+ " thread=" + smokeThread[0] + " snug=" + smokeThread[1] + "/"
+								+ (AI1_DJS_SLOW_ROUNDS - 1));
 					if (denseSlowPack || smokeDies || funnelRisk) {
 						if (AI_DEBUG_DJS)
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
@@ -2509,10 +2532,42 @@ final class RaceAi {
 				outThreadRounds);
 	}
 
+	/** Round 103 probe: when armed (query-sim protocol), the TOP-LEVEL
+	 *  rollout prints one SIMTRACE line per mover step to stderr -- the
+	 *  in-game twin of the Python roll, diffable line by line. Nested
+	 *  rollouts (inside scorer/true rival computes) stay silent. */
+	static volatile boolean			simTrace;
+	private int						simDepth;
+
+	/** Query-sim entry (round 103): verdict of the core rollout from the
+	 *  installed board, me already AT the queried landing. */
+	int querySimOutcome(final int mover, final int rounds, final boolean scorerRivals,
+			final boolean trueRivals, final boolean scorerSelf, final int scorerCap) {
+		final Player me = game.players[mover];
+		final int[] mp = me.getPosition(), mv = me.getVelocity();
+		return simOutcome(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
+				true, scorerRivals, scorerSelf, trueRivals, scorerCap, null, null, null);
+	}
+
 	/** trueRivals (round 99): scorer-set rivals run their UNSUPPRESSED real
 	 *  champion -- pace arms included. Reserved for the rare bounded confirm;
 	 *  cost is rivals x rounds full computeAiMove calls. */
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
+			final long[] outFieldCost, final int[] outThreadRounds) {
+		simDepth++;
+		try {
+			return simOutcomeCore(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish,
+					exactSelf, exactRivals, scorerRivals, scorerSelf, trueRivals, scorerCap,
+					outFinalTier, outFieldCost, outThreadRounds);
+		} finally {
+			simDepth--;
+		}
+	}
+
+	private int simOutcomeCore(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
@@ -2577,6 +2632,16 @@ final class RaceAi {
 				scorerSet[nearest] = true;
 			}
 		}
+		final boolean trace = simTrace && simDepth == 1;
+		if (trace) {
+			final StringBuilder sb = new StringBuilder("SIMTRACE start me=i").append(myIdx)
+					.append(" (").append(myX).append(',').append(myY).append(")v(")
+					.append(myVx).append(',').append(myVy).append(") scorerSet=");
+			for (int i = 0; i < game.players.length; i++)
+				if (scorerSet[i])
+					sb.append('i').append(i).append(' ');
+			System.err.println(sb);
+		}
 		for (int round = 0; round < rounds; round++) {
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
@@ -2604,6 +2669,8 @@ final class RaceAi {
 					}
 					if (viable <= 1)
 						outThreadRounds[0]++;
+					if (viable <= 2 && outThreadRounds.length > 1)
+						outThreadRounds[1]++;
 				}
 				// Round 51: my car follows the trap-aware policy. Round 57:
 				// rivals use the score-shaped ttf + trap proxy; selected close
@@ -2622,6 +2689,16 @@ final class RaceAi {
 					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
 					moved = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
+				if (trace)
+					System.err.println("SIMTRACE r=" + round + " i=" + i + " "
+							+ (i == myIdx ? (scorerSelf ? "scorerME" : exactSelf ? "selfME" : "greedyME")
+									: scorerSet[i] ? (trueRivals ? "TRUE" : "scorer")
+											: exactRivals ? "smom" : "greedy")
+							+ " (" + px[i] + "," + py[i] + ")v(" + vx[i] + "," + vy[i] + ") -> "
+							+ (!moved ? "STUCK"
+									: "(" + move[0] + "," + move[1] + ")v(" + move[2] + "," + move[3]
+											+ ")" + (game.crossesFinish(px[i], py[i], move[0], move[1])
+													? " FINISH" : "")));
 				if (simFinishVanish && moved && game.crossesFinish(px[i], py[i], move[0], move[1])) {
 					alive[i] = false;
 					if (i == myIdx) {
@@ -2726,16 +2803,22 @@ final class RaceAi {
 			// final tier at its last avoidable move; the widened predicate
 			// (any threaded slot + a body on the neutral grid) measured 0
 			// fires outside zandvoort across the healthy sample.
-			if (trueConfirm && !inTrueRivalConfirm && threadRounds != null && finalTier != null
+			if (trueConfirm && trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH
+					&& threadRounds != null && finalTier != null
 					&& threadRounds[0] >= 1
 					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1) {
-				inTrueRivalConfirm = true;
+				trueConfirmDepth++;
 				try {
+					// Round 103: confirms ALWAYS run the certification cap --
+					// zigzag s76 m234 is true-alive at cap 3 (the smom flow of
+					// the uncapped cars hands the key rival a context where it
+					// vacates the kill cell) and true-DEAD at cap 6, matching
+					// the offline all-champion roll and the real race.
 					trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
 							simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
-							scorerCap, null, null, null) < 0;
+							Math.max(scorerCap, AI1_DEEP_CERT_RIVALS), null, null, null) < 0;
 				} finally {
-					inTrueRivalConfirm = false;
+					trueConfirmDepth--;
 				}
 				if (AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
 					System.err.println("AIDBG TRUECONF p=" + playerNum + " pos=(" + pos[0] + ","
@@ -2798,7 +2881,7 @@ final class RaceAi {
 		// target -- zigzag s76 m234: the scorer world kills the TRUE
 		// survivor E and its switch picks NE, which real rivals kill in two
 		// rounds. Confirm targets exactly as the fragile-alive path does.
-		if (trueConfirm && !inTrueRivalConfirm)
+		if (trueConfirm && trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH)
 			trueDead = true;
 		if (dbg)
 			System.err.println("AIDBG DJS p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0]
@@ -2862,14 +2945,15 @@ final class RaceAi {
 				if (cand == null)
 					break;
 				final int ncvx = vel[0] + cand.dx, ncvy = vel[1] + cand.dy;
-				inTrueRivalConfirm = true;
+				trueConfirmDepth++;
 				final boolean survives;
 				try {
 					survives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
 							AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,
-							scorerSelf, true, scorerCap, null, null, null) >= 0;
+							scorerSelf, true, Math.max(scorerCap, AI1_DEEP_CERT_RIVALS),
+							null, null, null) >= 0;
 				} finally {
-					inTrueRivalConfirm = false;
+					trueConfirmDepth--;
 				}
 				if (dbg)
 					System.err.println("AIDBG TRUECONF  alt " + cand + " simT=" + candT
