@@ -6,6 +6,41 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 101 (local agent, REJECTED after measurement): the survival-dual probe
+
+The hairpin-s68 class got its first instrument attempt: a SURVIVAL DUAL
+of the endgame win solver (egSurvRival/egSurvMy -- paranoid minimax
+where I need only finish-or-stay-alive, horizon counts as survival),
+run OBSERVE-ONLY behind -Dai.probe.survival at near-finish commits
+(myT<=6, contesting rival = min-ttf live car within Cheb 10 with
+rT<=myT, 13 plies, 50k-node budget).
+
+MEASURED REFUTATION at the site itself:
+- p8's real m104 commitment reads SURVIVABLE vs worst-case p5 alone:
+  the 2-body model is TOO WEAK -- the real doom needs the multi-body
+  pocket shaping (p4's earlier lane pressure), and multi-body
+  adversarial search is intractable.
+- p5 (the eventual WINNER) gets flagged PROVABLE-LOSS/NO-ALT vs p4,
+  who in reality raced on and finished: the 2-body worst-case model is
+  TOO STRONG against opponents who never play adversarially -- the
+  insurance-premium law made quantitative.
+- Budget blows (>50k nodes) at 13 plies on open approaches; the win
+  solver survives the same depth only because win-proofs prune hard.
+
+Code reverted per the r76/r77 discipline; the committed r100 champion
+is unchanged. hairpin s68 STANDS as the open counterexample: place-
+NEUTRAL crash (the victim places 8th finishing or crashing), rarest
+class on record (1/1540 in the r100 dual sweep), requiring multi-body
+adversarial fidelity no affordable instrument provides. Recorded
+directions for whoever returns: (a) restrict to TRUE 2-live-car states
+(where the 2-body proof is sound and the flagged real decisions at
+m143+ are already all-dead -- needs the trigger EARLIER than 1v1
+materializes, which is the hard part); (b) an asymmetric model: MY
+moves paranoid-proven, rival constrained to its REAL policy envelope
+(champion-reachable moves only) -- cost between confirm and solver,
+unmeasured; (c) accept the class: the crash is place-neutral and the
+sealer''s play is correct -- the loss is cosmetic in ranking terms.
+
 ## Round 100 (local agent): corridor-class generalized (zandvoort s74 solved); new open class recorded (hairpin s68)
 
 HARVEST 6 (fresh windows: 8car s61-75, 4car/2car s36-45, 770 races) on
