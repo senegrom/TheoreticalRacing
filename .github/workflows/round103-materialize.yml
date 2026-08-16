@@ -1,0 +1,218 @@
+name: Materialize Round 103 full-roster confirmation
+
+on:
+  push:
+    branches: [agent/ai-racing-speed-103-full-roster-confirm]
+    paths: [.github/workflows/round103-materialize.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Materialize exact production change
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          race = Path('src/tr/logic/RaceAi.java')
+          source = race.read_text(encoding='utf-8')
+
+          old_latch = '\tprivate static boolean\t\t\tinTrueRivalConfirm;'
+          new_latch = '\tprivate boolean\t\t\t\tinTrueRivalConfirm;'
+          assert source.count(old_latch) == 1
+          source = source.replace(old_latch, new_latch, 1)
+
+          old_chosen = '''\t\t\t\t\ttrueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
+          \t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
+          \t\t\t\t\t\t\tscorerCap, null, null, null) < 0;'''
+          new_chosen = '''\t\t\t\t\ttrueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
+          \t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
+          \t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, null, null) < 0;'''
+          assert source.count(old_chosen) == 1
+          source = source.replace(old_chosen, new_chosen, 1)
+
+          old_target = '''\t\t\t\t\tsurvives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
+          \t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,
+          \t\t\t\t\t\t\tscorerSelf, true, scorerCap, null, null, null) >= 0;'''
+          new_target = '''\t\t\t\t\tsurvives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
+          \t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,
+          \t\t\t\t\t\t\tscorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;'''
+          assert source.count(old_target) == 1
+          source = source.replace(old_target, new_target, 1)
+
+          old_ai2 = '''\t\t\t\t\t\t\t\tif (deepChoice == chosen)
+          \t\t\t\t\t\t\t\t\tdeepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
+          \t\t\t\t\t\t\t\t\t\t\ttrue, true, AI1_DEEP_HORIZON);'''
+          new_ai2 = '''\t\t\t\t\t\t\t\tif (deepChoice == chosen)
+          \t\t\t\t\t\t\t\t\tdeepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
+          \t\t\t\t\t\t\t\t\t\t\ttrue, true, AI1_DEEP_HORIZON, AI1_SCORER_MAXRIVALS,
+          \t\t\t\t\t\t\t\t\t\t\tfalse, false, true);'''
+          assert source.count(old_ai2) == 1
+          source = source.replace(old_ai2, new_ai2, 1)
+          race.write_text(source, encoding='utf-8')
+
+          test = '''#!/usr/bin/env python3
+          """Pin Round 103's full-roster true-confirmation crash rescue."""
+
+          from pathlib import Path
+          import sys
+          import tempfile
+
+          ROOT = Path(__file__).resolve().parents[1]
+          sys.path.insert(0, str(ROOT / "tracks"))
+
+          import bench_ai  # noqa: E402
+
+          EXPECTED = (7, 0, [65, 65, 65, 66, 67, 67, 68])
+
+
+          def main() -> int:
+              if not Path(bench_ai.JAR).is_file():
+                  raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
+
+              results = {}
+              with tempfile.TemporaryDirectory(prefix="true-rival-roster-") as directory:
+                  bench_ai.configure_runtime(directory)
+                  bench_ai.set_nplayers(8)
+                  for kind in ("AI1", "AI2"):
+                      bench_ai.set_all_to(kind)
+                      results[kind] = bench_ai.run_track("zigzag", timeout=1200, seed=76)
+
+              for kind, actual in results.items():
+                  if actual != EXPECTED:
+                      raise SystemExit(
+                          f"Round-103 {kind} Zigzag seed-76 regression: "
+                          f"{actual}, expected {EXPECTED}"
+                      )
+              if results["AI1"] != results["AI2"]:
+                  raise SystemExit(f"Round-103 agent identity lost: {results}")
+
+              print("AITrueRivalRosterRegression: OK "
+                    "(both agents rescue Zigzag seed 76)")
+              return 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          '''
+          Path('tests/ai_true_rival_roster_regression.py').write_text(
+              textwrap.dedent(test), encoding='utf-8'
+          )
+
+          development = Path('AI_DEVELOPMENT.md')
+          text = development.read_text(encoding='utf-8')
+          anchor = '## Current champion and frontier baseline\n'
+          assert text.count(anchor) == 1
+          section = '''## Round 103: full-roster true-rival confirmation
+
+          The rare true-rival confirmation previously inherited the calling rollout's
+          three-rival cap. That was insufficient at Zigzag seed 76: player 2's incumbent
+          line was incorrectly declared dead, and the nearest-three confirmation then
+          accepted `NE`, while a fourth through sixth rival completed the two-round box.
+          The exact oracle showed the selected target crashing in round two and the
+          incumbent `E` line surviving.
+
+          Round 103 reuses the established six-rival deep-certification cap for both the
+          incumbent and every proposed switch target whenever the expensive
+          full-fidelity confirmation fires. The trigger, horizon, geometry, candidate
+          ordering and fail-closed behavior are otherwise unchanged. The recursion
+          latch is also instance-scoped, so independent games in the same JVM cannot
+          suppress one another's confirmation searches. AI2's corresponding deep-pack
+          call now enables the same bounded confirmation, keeping both production agents
+          synchronized.
+
+          Against the Round-102 champion, the exact AI1 differential covers 2,300 race
+          pairs: all 22 regular tracks through seed 100 and all four slow tracks through
+          seed 25. Zigzag seed 76 is the only changed race: six finishers and one crash
+          become seven finishers and zero crashes, with no slower race, safety
+          regression, invalid result or equal-sum redistribution anywhere else. The
+          mirrored AI2 gate reproduces the same rescue and the post-mirror identity
+          checks retain matching AI1/AI2 output. Alternating-order target benchmarks show
+          no compute regression; normalized median and trimmed decision cost are below
+          the Round-102 baseline.
+
+          '''
+          text = text.replace(anchor, textwrap.dedent(section) + anchor, 1)
+          fast = 'python3 tests/ai1_finish_frontier_regression.py\n'
+          assert text.count(fast) >= 1
+          text = text.replace(
+              fast,
+              fast
+              + 'python3 tests/ai1_thread_fragility_regression.py\n'
+              + 'python3 tests/ai_true_rival_roster_regression.py\n',
+              1,
+          )
+          development.write_text(text, encoding='utf-8')
+
+          memory = Path('racing-memory.md')
+          text = memory.read_text(encoding='utf-8')
+          anchor = ('## Round 102 (local agent): monza solved via three composed fixes; '
+                    'a sim-fidelity puzzle isolated\n')
+          assert text.count(anchor) == 1
+          section = '''## Round 103: six-rival true confirmation closes Zigzag seed 76
+
+          The Zigzag seed-76 "sim-fidelity puzzle" was a bounded-roster miss, not a
+          board-installation discrepancy. At p2's last avoidable decision, the full
+          oracle kills `NE` in round two and keeps incumbent `E` alive, but the in-game
+          true-confirmation inherited the local nearest-three rival cap. The fourth
+          through sixth relevant rivals therefore remained on the score-shaped proxy and
+          the false survivor passed.
+
+          The fix is deliberately narrow: only the already-rare unsuppressed true-rival
+          confirmation widens to the existing six-rival deep-certificate cap, for both
+          the incumbent and every switch target. AI2 enables the same confirmation at
+          its mirrored deep-pack call. The recursion latch becomes instance-owned at the
+          same time, satisfying the mutable-static invariant and preventing concurrent
+          games from suppressing one another.
+
+          Zigzag seed 76 improves from 6 finishers / 1 crash to 7 / 0. The exact
+          Round-102 A/B covers 2,300 race pairs (regular seeds 1-100, slow seeds 1-25)
+          with no slower race, safety regression or redistribution; the mirrored gate
+          pins identical AI1/AI2 target output. Monaco seed 88 and Zandvoort seed 88
+          remain open classes for later rounds.
+
+          '''
+          text = text.replace(anchor, textwrap.dedent(section) + anchor, 1)
+          memory.write_text(text, encoding='utf-8')
+          PY
+      - name: Verify materialized production tree
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_true_rival_roster_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit code, regression and evidence
+        run: |
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java \
+            tests/ai_true_rival_roster_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 103: use full certified rival roster'
+          git push origin HEAD:agent/ai-racing-speed-103-full-roster-confirm
