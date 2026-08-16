@@ -1,0 +1,160 @@
+name: Round 103 mirrored six-rival gate
+
+on:
+  push:
+    branches: [agent/ai-racing-speed-103-six-rival-mirror-gate-v2]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '25'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Build and verify mirrored candidate
+        run: |
+          python tracks/round103_six_rival_patch.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_true_rival_roster_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          git fetch --depth=1 origin d80b50ae2887733bffebfa8638c4c0350ed42d4b
+          git worktree add --detach /tmp/round103-baseline d80b50ae2887733bffebfa8638c4c0350ed42d4b
+          (cd /tmp/round103-baseline && sh ./build_main.sh)
+          cp /tmp/round103-baseline/theoreticRacing.jar round103-baseline.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-mirror-jars
+          path: |
+            round103-baseline.jar
+            round103-candidate.jar
+          retention-days: 3
+
+  differential:
+    needs: verify
+    name: AI2 differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        track: [circle, triangle, curve, hairpin, chicane, sprint, bigoval, slalom, gear, coil, zigzag, the_long_loop, monaco, hungaroring, interlagos, lemans, spa, silverstone, monza, zandvoort, nurburgring, spielberg, serpentine, serpentine2, spiral, cog]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '25'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - uses: actions/download-artifact@v4
+        with: {name: round103-mirror-jars, path: .}
+      - name: Compare mirrored AI2 against master AI2
+        env: {TRACK: '${{ matrix.track }}'}
+        run: |
+          END=100
+          case "$TRACK" in serpentine|serpentine2|spiral|cog) END=25;; esac
+          python tracks/round103_compare_jars.py \
+            --baseline round103-baseline.jar --candidate round103-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END" --kind AI2 \
+            --out "round103-ai2-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-ai2-result-${{ matrix.track }}
+          path: round103-ai2-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '25'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - uses: actions/download-artifact@v4
+        with: {name: round103-mirror-jars, path: .}
+      - name: Measure normalized AI2 target cost
+        run: |
+          python - <<'PY'
+          import json, re, statistics, subprocess, tempfile, time
+          from pathlib import Path
+          root = Path.cwd(); pattern = re.compile(r'^(\d+) p(\d+) ')
+          def run(jar, root_tmp, label, index):
+              props = root_tmp / f'{label}-{index}.properties'
+              text = (root/'tracks/bench.properties').read_text()
+              for n in range(1, 9):
+                  text = re.sub(rf'^player{n}Kind=.*$', f'player{n}Kind=AI2', text, flags=re.M)
+              props.write_text(text); log = root_tmp / f'{label}-{index}.log'
+              start=time.perf_counter()
+              p=subprocess.run(['java','-Djava.awt.headless=true','-jar',str(root/jar),'--auto','--track','zigzag','--props',str(props),'--log',str(log),'--seed','76'],text=True,capture_output=True,timeout=1200)
+              elapsed=time.perf_counter()-start
+              if p.returncode: raise SystemExit(p.stderr[-3000:])
+              turns=sum(bool(pattern.match(line)) for line in log.read_text().splitlines())
+              return elapsed/max(1,turns)
+          samples={'baseline':[],'candidate':[]}; jars={'baseline':'round103-baseline.jar','candidate':'round103-candidate.jar'}
+          with tempfile.TemporaryDirectory(prefix='r103-ai2-runtime-') as name:
+              tmp=Path(name); run(jars['baseline'],tmp,'warm-b',0); run(jars['candidate'],tmp,'warm-c',0)
+              for index,order in enumerate([('baseline','candidate'),('candidate','baseline')]*3,1):
+                  for label in order: samples[label].append(run(jars[label],tmp,label,index))
+          trim=lambda xs: statistics.mean(sorted(xs)[1:-1])
+          report={'median_ratio':statistics.median(samples['candidate'])/statistics.median(samples['baseline']),'trimmed_ratio':trim(samples['candidate'])/trim(samples['baseline']),'samples':samples}
+          Path('round103-ai2-runtime.json').write_text(json.dumps(report,indent=2)+'\n'); print(json.dumps(report,indent=2))
+          if max(report['median_ratio'],report['trimmed_ratio']) > 1.20: raise SystemExit('AI2 runtime regression exceeds 20%')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: round103-ai2-runtime, path: round103-ai2-runtime.json, retention-days: 30}
+
+  summarize:
+    needs: [differential, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {pattern: 'round103-ai2-result-*', path: results, merge-multiple: true}
+      - uses: actions/download-artifact@v4
+        with: {name: round103-ai2-runtime, path: results}
+      - name: Enforce mirrored no-regression result
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=sorted(Path('results').glob('round103-ai2-*.json')); race=[p for p in files if p.name!='round103-ai2-runtime.json']
+          if len(race)!=26: raise SystemExit(f'expected 26 race reports, found {len(race)}')
+          counts={k:0 for k in ('identical','faster','safety_gain','slower','safety_regression','redistribution')}; pairs=net=0; events=[]
+          for p in race:
+              r=json.loads(p.read_text()); pairs+=r['pairs']; net+=r['net_moves']
+              for k,v in r['counts'].items(): counts[k]+=v
+              events += [{'track':r['track'],**e} for e in r['events']]
+          target=[e for e in events if e['track']=='zigzag' and e['seed']==76 and e['classification']=='safety_gain' and len(e['candidate']['finishes'])==7 and len(e['candidate']['crashes'])==0]
+          summary={'pairs':pairs,'counts':counts,'net_moves':net,'events':events,'target_rescued':bool(target),'runtime':json.loads(Path('results/round103-ai2-runtime.json').read_text())}
+          Path('round103-ai2-summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n'); print(json.dumps(summary,indent=2,sort_keys=True))
+          if pairs!=2300: raise SystemExit(f'expected 2300 pairs, got {pairs}')
+          if counts['slower']+counts['safety_regression']+counts['redistribution']: raise SystemExit('AI2 regression found')
+          if not target: raise SystemExit('AI2 Zigzag seed-76 rescue missing')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: round103-ai2-summary, path: round103-ai2-summary.json, retention-days: 30}
