@@ -1,0 +1,401 @@
+name: Round 104 exact AI1 gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-real
+    paths:
+      - src/tr/logic/RaceAi.java
+      - src/tr/logic/RaceGame.java
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master and candidate jars
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round104-master origin/master
+          (cd /tmp/round104-master && sh ./run_tests.sh && sh ./build_main.sh)
+          cp /tmp/round104-master/theoreticRacing.jar round104-baseline.jar
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round104-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          git diff --check
+      - name: Create exact comparator
+        run: |
+          cat > round104_compare.py <<'PY'
+          from __future__ import annotations
+          import argparse, json, re, subprocess, tempfile
+          from pathlib import Path
+
+          ROOT = Path.cwd()
+          RESULT_RE = re.compile(r'^(\d+) p(\d+) ')
+
+          def configure(source: Path, destination: Path, kind: str) -> None:
+              lines = []
+              for line in source.read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=' + kind
+                  lines.append(line)
+              destination.write_text('\n'.join(lines) + '\n')
+
+          def parse_log(path: Path) -> dict:
+              moves, finishes, crashes = {}, {}, set()
+              saw_results = False
+              for line in path.read_text().splitlines():
+                  if line.startswith('# results'):
+                      saw_results = True
+                  match = RESULT_RE.match(line)
+                  if not match:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if ' CRASH ' in line:
+                      crashes.add(player)
+                  elif ' FINISH ' in line:
+                      finishes[player] = moves[player]
+              if not saw_results:
+                  raise RuntimeError(f'invalid log: {path}')
+              return {'finishes': finishes, 'crashes': sorted(crashes)}
+
+          def run_column(jar: Path, track: str, start: int, end: int, kind: str,
+                         label: str, tmp: Path) -> list[Path]:
+              props = tmp / f'{label}-{kind}.properties'
+              configure(ROOT / 'tracks/bench.properties', props, kind)
+              log = tmp / f'{label}-{kind}-{track}.log'
+              completed = subprocess.run([
+                  'java', '-Djava.awt.headless=true', '-jar', str(jar.resolve()),
+                  '--auto', '--track', track, '--props', str(props), '--log', str(log),
+                  '--seed', f'{start}-{end}',
+              ], cwd=ROOT, text=True, capture_output=True, timeout=18_000)
+              if completed.returncode:
+                  raise RuntimeError(
+                      f'{label} {kind} {track} failed: {completed.stderr[-3000:]}'
+                  )
+              base, ext = log.with_suffix(''), log.suffix
+              paths = [Path(f'{base}_s{seed}{ext}') for seed in range(start, end + 1)]
+              missing = [str(path) for path in paths if not path.is_file()]
+              if missing:
+                  raise RuntimeError('missing logs: ' + ', '.join(missing[:5]))
+              return paths
+
+          def classify(candidate: dict, baseline: dict) -> tuple[str, int]:
+              if candidate == baseline:
+                  return 'identical', 0
+              cf, bf = candidate['finishes'], baseline['finishes']
+              cc, bc = candidate['crashes'], baseline['crashes']
+              csum, bsum = sum(cf.values()), sum(bf.values())
+              if len(cf) < len(bf) or len(cc) > len(bc):
+                  return 'safety_regression', csum - bsum
+              if len(cf) > len(bf) or len(cc) < len(bc):
+                  return 'safety_gain', csum - bsum
+              if csum < bsum:
+                  return 'faster', csum - bsum
+              if csum > bsum:
+                  return 'slower', csum - bsum
+              return 'redistribution', 0
+
+          def main() -> int:
+              parser = argparse.ArgumentParser()
+              parser.add_argument('--baseline', type=Path, required=True)
+              parser.add_argument('--candidate', type=Path, required=True)
+              parser.add_argument('--track', required=True)
+              parser.add_argument('--start', type=int, required=True)
+              parser.add_argument('--end', type=int, required=True)
+              parser.add_argument('--out', type=Path, required=True)
+              args = parser.parse_args()
+              report = {
+                  'track': args.track, 'start': args.start, 'end': args.end,
+                  'pairs': (args.end - args.start + 1) * 2, 'by_kind': {},
+              }
+              bad = False
+              with tempfile.TemporaryDirectory(prefix=f'r104-{args.track}-') as directory:
+                  tmp = Path(directory)
+                  for kind in ('AI1', 'AI2'):
+                      bpaths = run_column(args.baseline, args.track, args.start, args.end,
+                                          kind, 'baseline', tmp)
+                      cpaths = run_column(args.candidate, args.track, args.start, args.end,
+                                          kind, 'candidate', tmp)
+                      summary = {
+                          'pairs': args.end - args.start + 1, 'identical': 0,
+                          'faster': 0, 'slower': 0, 'safety_gain': 0,
+                          'safety_regression': 0, 'redistribution': 0,
+                          'net_moves': 0, 'events': [],
+                      }
+                      for seed, bpath, cpath in zip(range(args.start, args.end + 1),
+                                                    bpaths, cpaths):
+                          baseline = parse_log(bpath)
+                          candidate = parse_log(cpath)
+                          classification, delta = classify(candidate, baseline)
+                          summary[classification] += 1
+                          summary['net_moves'] += delta
+                          if classification != 'identical':
+                              cf, bf = candidate['finishes'], baseline['finishes']
+                              cc, bc = candidate['crashes'], baseline['crashes']
+                              summary['events'].append({
+                                  'seed': seed, 'classification': classification,
+                                  'delta': delta, 'candidate_finishers': len(cf),
+                                  'baseline_finishers': len(bf),
+                                  'candidate_crashes': len(cc),
+                                  'baseline_crashes': len(bc),
+                                  'candidate_moves': sum(cf.values()),
+                                  'baseline_moves': sum(bf.values()),
+                                  'candidate_by_player': cf,
+                                  'baseline_by_player': bf,
+                              })
+                      report['by_kind'][kind] = summary
+                      if summary['slower'] or summary['safety_regression'] \
+                              or summary['redistribution']:
+                          bad = True
+              args.out.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+              print(json.dumps(report, indent=2, sort_keys=True))
+              return 1 if bad else 0
+
+          if __name__ == '__main__':
+              raise SystemExit(main())
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-gate-kit
+          path: |
+            round104-baseline.jar
+            round104-candidate.jar
+            round104_compare.py
+          if-no-files-found: error
+          retention-days: 3
+
+  verify26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          git diff --check
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end: 100 }
+          - { track: triangle, end: 100 }
+          - { track: curve, end: 100 }
+          - { track: hairpin, end: 100 }
+          - { track: chicane, end: 100 }
+          - { track: sprint, end: 100 }
+          - { track: bigoval, end: 100 }
+          - { track: slalom, end: 100 }
+          - { track: gear, end: 100 }
+          - { track: coil, end: 100 }
+          - { track: zigzag, end: 100 }
+          - { track: the_long_loop, end: 100 }
+          - { track: monaco, end: 100 }
+          - { track: hungaroring, end: 100 }
+          - { track: interlagos, end: 100 }
+          - { track: lemans, end: 100 }
+          - { track: spa, end: 100 }
+          - { track: silverstone, end: 100 }
+          - { track: monza, end: 100 }
+          - { track: zandvoort, end: 100 }
+          - { track: nurburgring, end: 100 }
+          - { track: spielberg, end: 100 }
+          - { track: serpentine, end: 25 }
+          - { track: serpentine2, end: 25 }
+          - { track: spiral, end: 25 }
+          - { track: cog, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-gate-kit
+          path: .
+      - name: Compare exact current master and candidate
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python round104_compare.py --baseline round104-baseline.jar \
+            --candidate round104-candidate.jar --track "$TRACK" \
+            --start 1 --end "$END_SEED" --out "round104-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round104-result-${{ matrix.track }}
+          path: round104-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-gate-kit
+          path: .
+      - name: Measure normalized alternating runtime
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          cases = [('coil', 9), ('interlagos', 40), ('zigzag', 76), ('circle', 1)]
+          result = {'cases': {}}
+          with tempfile.TemporaryDirectory(prefix='r104-runtime-') as directory:
+              tmp = Path(directory)
+              text = (root / 'tracks/bench.properties').read_text()
+              text = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', text, flags=re.M)
+              props = tmp / 'bench.properties'
+              props.write_text(text)
+              for track, seed in cases:
+                  rows = []
+                  for iteration in range(6):
+                      order = ('baseline', 'candidate') if iteration % 2 == 0 \
+                              else ('candidate', 'baseline')
+                      row = {}
+                      for label in order:
+                          log = tmp / f'{track}-{seed}-{iteration}-{label}.log'
+                          started = time.perf_counter()
+                          done = subprocess.run([
+                              'java', '-Djava.awt.headless=true', '-jar',
+                              str(root / f'round104-{label}.jar'), '--auto',
+                              '--track', track, '--props', str(props), '--log', str(log),
+                              '--seed', str(seed),
+                          ], cwd=root, text=True, capture_output=True, timeout=3600)
+                          elapsed = time.perf_counter() - started
+                          if done.returncode:
+                              raise SystemExit(done.stderr[-3000:])
+                          turns = sum(1 for line in log.read_text().splitlines()
+                                      if re.match(r'^\d+ p\d+ ', line))
+                          row[label] = elapsed / max(turns, 1)
+                      row['ratio'] = row['candidate'] / row['baseline']
+                      rows.append(row)
+                  ratios = [row['ratio'] for row in rows]
+                  result['cases'][f'{track}-{seed}'] = {
+                      'pairs': rows,
+                      'median_ratio': statistics.median(ratios),
+                      'trimmed_ratio': statistics.mean(sorted(ratios)[1:-1]),
+                  }
+          Path('round104-runtime.json').write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result, indent=2))
+          for case, values in result['cases'].items():
+              if values['median_ratio'] > 1.25 or values['trimmed_ratio'] > 1.25:
+                  raise SystemExit(f'Round 104 runtime regression at {case}: {values}')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round104-runtime
+          path: round104-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summary:
+    needs: [verify, verify26, differential, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round104-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-runtime
+          path: results
+      - name: Require clean AI1 gain and exact AI2 behavior
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          race_files = sorted(Path('results').glob('round104-*.json'))
+          race_files = [p for p in race_files if p.name != 'round104-runtime.json']
+          if len(race_files) != 26:
+              raise SystemExit(f'expected 26 race reports, found {len(race_files)}')
+          total = {
+              'reports': 26, 'pairs': 0, 'by_kind': {
+                  kind: {key: 0 for key in ('pairs','identical','faster','slower',
+                      'safety_gain','safety_regression','redistribution','net_moves')}
+                  for kind in ('AI1','AI2')
+              }, 'events': [],
+          }
+          for path in race_files:
+              report = json.loads(path.read_text())
+              total['pairs'] += report['pairs']
+              for kind, summary in report['by_kind'].items():
+                  for key in total['by_kind'][kind]:
+                      total['by_kind'][kind][key] += summary[key]
+                  for event in summary['events']:
+                      total['events'].append({'track': report['track'], 'kind': kind, **event})
+          total['runtime'] = json.loads(Path('results/round104-runtime.json').read_text())
+          Path('round104-summary.json').write_text(json.dumps(total, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(total, indent=2, sort_keys=True))
+          ai1 = total['by_kind']['AI1']
+          ai2 = total['by_kind']['AI2']
+          if ai1['slower'] or ai1['safety_regression'] or ai1['redistribution']:
+              raise SystemExit('Round 104 AI1 contains a regression')
+          if not (ai1['faster'] or ai1['safety_gain']):
+              raise SystemExit('Round 104 AI1 produced no verified gain')
+          if ai2['identical'] != ai2['pairs']:
+              raise SystemExit(f'Round 104 changed frozen AI2 behavior: {ai2}')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round104-summary
+          path: round104-summary.json
+          if-no-files-found: error
+          retention-days: 90
