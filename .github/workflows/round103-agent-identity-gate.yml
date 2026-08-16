@@ -1,0 +1,91 @@
+name: Round 103 agent identity gate
+
+on:
+  push:
+    branches: [agent/ai-racing-speed-103-agent-identity-gate]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '25'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - name: Build mirrored candidate
+        run: |
+          python tracks/round103_six_rival_patch.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/ai1_true_rival_roster_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-identity-jar
+          path: theoreticRacing.jar
+          retention-days: 3
+
+  identity:
+    needs: build
+    name: Identity ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        track: [circle, triangle, curve, hairpin, chicane, sprint, bigoval, slalom, gear, coil, zigzag, the_long_loop, monaco, hungaroring, interlagos, lemans, spa, silverstone, monza, zandvoort, nurburgring, spielberg, serpentine, serpentine2, spiral, cog]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with: {distribution: temurin, java-version: '25'}
+      - uses: actions/setup-python@v6
+        with: {python-version: '3.13'}
+      - uses: actions/download-artifact@v4
+        with: {name: round103-identity-jar, path: .}
+      - name: Compare AI1 and AI2 move-for-move
+        env: {TRACK: '${{ matrix.track }}'}
+        run: |
+          END=100
+          case "$TRACK" in serpentine|serpentine2|spiral|cog) END=25;; esac
+          python tracks/round103_compare_kinds.py \
+            --jar theoreticRacing.jar --track "$TRACK" \
+            --start 1 --end "$END" --out "round103-identity-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-identity-${{ matrix.track }}
+          path: round103-identity-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: identity
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {pattern: 'round103-identity-*', path: results, merge-multiple: true}
+      - name: Enforce exact identity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          files=sorted(Path('results').glob('round103-identity-*.json'))
+          if len(files)!=26: raise SystemExit(f'expected 26 reports, found {len(files)}')
+          pairs=identical=different=0; events=[]
+          for path in files:
+              report=json.loads(path.read_text()); pairs+=report['pairs']; identical+=report['identical']; different+=report['different']
+              events += [{'track':report['track'],**event} for event in report['events']]
+          summary={'pairs':pairs,'identical':identical,'different':different,'events':events}
+          Path('round103-identity-summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(summary,indent=2,sort_keys=True))
+          if pairs!=2300 or different: raise SystemExit('AI1/AI2 identity failed')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: round103-identity-summary, path: round103-identity-summary.json, retention-days: 30}
