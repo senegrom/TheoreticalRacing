@@ -1,0 +1,291 @@
+name: Round 103 full-policy rescue gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-full-field-confirm
+    paths:
+      - .github/workflows/round103-full-field-confirm-v2.yml
+      - tracks/round103_full_field_patch_v2.py
+      - tracks/round103_compare_exact.py
+      - tests/ai_true_rival_confirmation_regression_v2.py
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact champion jar
+        run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-baseline.jar
+      - name: Apply candidate and run complete deterministic suite
+        run: |
+          python tracks/round103_full_field_patch_v2.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_true_rival_confirmation_regression_v2.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-v2-jars
+          path: |
+            round103-baseline.jar
+            round103-candidate.jar
+          if-no-files-found: error
+          retention-days: 3
+
+  verify26:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: |
+          python tracks/round103_full_field_patch_v2.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/ai_true_rival_confirmation_regression_v2.py
+          git diff --check
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, start: 1, end: 100 }
+          - { track: triangle, start: 1, end: 100 }
+          - { track: curve, start: 1, end: 100 }
+          - { track: hairpin, start: 1, end: 100 }
+          - { track: chicane, start: 1, end: 100 }
+          - { track: sprint, start: 1, end: 100 }
+          - { track: bigoval, start: 1, end: 100 }
+          - { track: slalom, start: 1, end: 100 }
+          - { track: gear, start: 1, end: 100 }
+          - { track: coil, start: 1, end: 100 }
+          - { track: zigzag, start: 1, end: 100 }
+          - { track: the_long_loop, start: 1, end: 100 }
+          - { track: monaco, start: 1, end: 100 }
+          - { track: hungaroring, start: 1, end: 100 }
+          - { track: interlagos, start: 1, end: 100 }
+          - { track: lemans, start: 1, end: 100 }
+          - { track: spa, start: 1, end: 100 }
+          - { track: silverstone, start: 1, end: 100 }
+          - { track: monza, start: 1, end: 100 }
+          - { track: zandvoort, start: 1, end: 100 }
+          - { track: nurburgring, start: 1, end: 100 }
+          - { track: spielberg, start: 1, end: 100 }
+          - { track: serpentine, start: 1, end: 25 }
+          - { track: serpentine2, start: 1, end: 25 }
+          - { track: spiral, start: 1, end: 25 }
+          - { track: cog, start: 1, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-v2-jars
+          path: .
+      - name: Compare exact champion and candidate for both agents
+        env:
+          TRACK: ${{ matrix.track }}
+          START_SEED: ${{ matrix.start }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round103_compare_exact.py \
+            --baseline round103-baseline.jar \
+            --candidate round103-candidate.jar \
+            --track "$TRACK" \
+            --start "$START_SEED" \
+            --end "$END_SEED" \
+            --out "round103-v2-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-v2-result-${{ matrix.track }}
+          path: round103-v2-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-v2-jars
+          path: .
+      - name: Alternate-order per-turn runtime check
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          targets = (("zigzag", 76), ("monaco", 88), ("zandvoort", 88))
+          result = {"targets": {}}
+          with tempfile.TemporaryDirectory(prefix="r103-runtime-") as directory:
+              tmp = Path(directory)
+              props = tmp / "bench.properties"
+              text = (root / "tracks" / "bench.properties").read_text()
+              text = re.sub(r"^(player[1-8]Kind=).*$", r"\1AI1", text, flags=re.MULTILINE)
+              props.write_text(text)
+              for track, seed in targets:
+                  pairs = []
+                  for iteration in range(4):
+                      order = ["baseline", "candidate"] if iteration % 2 == 0 else ["candidate", "baseline"]
+                      row = {}
+                      for label in order:
+                          jar = root / f"round103-{label}.jar"
+                          log = tmp / f"{track}-{seed}-{iteration}-{label}.log"
+                          started = time.perf_counter()
+                          completed = subprocess.run([
+                              "java", "-Djava.awt.headless=true", "-jar", str(jar),
+                              "--auto", "--track", track, "--props", str(props),
+                              "--log", str(log), "--seed", str(seed),
+                          ], cwd=root, text=True, capture_output=True, timeout=2400)
+                          elapsed = time.perf_counter() - started
+                          if completed.returncode:
+                              raise SystemExit(completed.stderr[-3000:])
+                          turns = sum(1 for line in log.read_text().splitlines()
+                                      if re.match(r"^\d+ p\d+ ", line))
+                          row[label] = {"seconds": elapsed, "turns": turns,
+                                        "seconds_per_turn": elapsed / turns}
+                      row["ratio"] = row["candidate"]["seconds_per_turn"] / row["baseline"]["seconds_per_turn"]
+                      pairs.append(row)
+                  ratios = [row["ratio"] for row in pairs]
+                  result["targets"][f"{track}-s{seed}"] = {
+                      "pairs": pairs,
+                      "median_ratio": statistics.median(ratios),
+                      "trimmed_ratio": statistics.mean(sorted(ratios)[1:-1]),
+                  }
+          Path("round103-v2-runtime.json").write_text(json.dumps(result, indent=2) + "\n")
+          print(json.dumps(result, indent=2))
+          for name, data in result["targets"].items():
+              if data["median_ratio"] > 1.40 or data["trimmed_ratio"] > 1.40:
+                  raise SystemExit(f"Round 103 runtime regression exceeds 40% at {name}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-v2-runtime
+          path: round103-v2-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summary:
+    needs: [verify, verify26, differential, runtime]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round103-v2-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-v2-runtime
+          path: results
+      - name: Require clean differential and all mirrored rescues
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          race_files = sorted(Path("results").glob("round103-v2-*.json"))
+          race_files = [path for path in race_files if path.name != "round103-v2-runtime.json"]
+          if len(race_files) != 26:
+              raise SystemExit(f"expected 26 race reports, found {len(race_files)}")
+          aggregate = {
+              "reports": len(race_files), "pairs": 0, "identical": 0,
+              "faster": 0, "safety_gain": 0, "slower": 0,
+              "safety_regression": 0, "redistribution": 0,
+              "net_moves": 0, "events": [],
+          }
+          rescues = set()
+          expected = {
+              ("AI1", "zigzag", 76), ("AI2", "zigzag", 76),
+              ("AI1", "monaco", 88), ("AI2", "monaco", 88),
+              ("AI1", "zandvoort", 88), ("AI2", "zandvoort", 88),
+          }
+          for path in race_files:
+              report = json.loads(path.read_text())
+              aggregate["pairs"] += report["pairs"]
+              for kind, result in report["by_kind"].items():
+                  for name in ("identical", "faster", "safety_gain", "slower",
+                               "safety_regression", "redistribution"):
+                      aggregate[name] += result[name]
+                  aggregate["net_moves"] += result["net_moves"]
+                  for event in result["events"]:
+                      record = {"track": report["track"], "kind": kind, **event}
+                      aggregate["events"].append(record)
+                      key = (kind, report["track"], event["seed"])
+                      if key in expected and event["classification"] == "safety_gain" \
+                              and event["candidate_finishers"] == 7 \
+                              and event["candidate_crashes"] == 0:
+                          rescues.add(key)
+          aggregate["runtime"] = json.loads(Path("results/round103-v2-runtime.json").read_text())
+          Path("round103-v2-summary.json").write_text(json.dumps(aggregate, indent=2, sort_keys=True) + "\n")
+          print(json.dumps(aggregate, indent=2, sort_keys=True))
+          if aggregate["slower"] or aggregate["safety_regression"] or aggregate["redistribution"]:
+              raise SystemExit("Round 103 differential contains a regression")
+          if rescues != expected:
+              raise SystemExit(f"missing mirrored rescues: {sorted(expected - rescues)}")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-v2-summary
+          path: round103-v2-summary.json
+          if-no-files-found: error
+          retention-days: 90
