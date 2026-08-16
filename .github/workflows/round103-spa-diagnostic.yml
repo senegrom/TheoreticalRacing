@@ -1,0 +1,76 @@
+name: Round 103 Spa acceleration diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-spa-diagnostic
+    paths:
+      - .github/workflows/round103-spa-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Apply Round 103 candidate with trace
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_guarded_field_v3.patch \
+            -o /tmp/round103-field.patch
+          printf '%s  %s\n' \
+            2231c6bf5cd53469c33e83d2055e92e6f140f76562ce52e5fe644a4603da48be \
+            /tmp/round103-field.patch | sha256sum -c -
+          git apply /tmp/round103-field.patch
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          anchor = '\tprivate final static int\t\tAI1_TRUE_CONFIRM_ROUNDS\t= 4;'
+          assert source.count(anchor) == 1
+          source = source.replace(
+              anchor,
+              anchor + '\n\tprivate final static int\t\tAI1_TRUE_CONFIRM_MIN_RIVALS\t= 4;',
+              1,
+          )
+          old_chosen = '''\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tscorerCap, null, null, null) < 0;'''
+          new_chosen = '''\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tMath.max(scorerCap, AI1_TRUE_CONFIRM_MIN_RIVALS), null, null, null) < 0;'''
+          old_target = '''\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, scorerCap, null, null, null) >= 0;'''
+          new_target = '''\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, Math.max(scorerCap, AI1_TRUE_CONFIRM_MIN_RIVALS),\n\t\t\t\t\t\t\tnull, null, null) >= 0;'''
+          assert source.count(old_chosen) == 1
+          assert source.count(old_target) == 1
+          path.write_text(source.replace(old_chosen, new_chosen, 1).replace(old_target, new_target, 1))
+          PY
+          sh ./build_main.sh
+      - name: Run target and reference traces
+        run: |
+          mkdir -p traces cache
+          for seed in 7 57 79 96; do
+            java -Djava.awt.headless=true -Dai.debug.djs=true \
+              -jar theoreticRacing.jar --auto --track spa \
+              --props tracks/bench.properties --log "traces/spa-${seed}.log" --seed "$seed" \
+              >"traces/spa-${seed}.stdout" 2>"traces/spa-${seed}.stderr"
+          done
+        env:
+          RACING_REACH_CACHE: ${{ github.workspace }}/cache
+      - name: Extract acceleration and true-confirm events
+        run: |
+          for seed in 7 57 79 96; do
+            echo "=== SPA $seed ===" | tee -a traces/summary.txt
+            grep -E 'AIDBG (FIELD-ACCEL|TRUE|DJS|PICK)' "traces/spa-${seed}.stderr" \
+              | tee -a traces/summary.txt || true
+            tail -n 20 "traces/spa-${seed}.stdout" | tee -a traces/summary.txt
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-spa-diagnostic
+          path: traces
+          if-no-files-found: error
+          retention-days: 30
