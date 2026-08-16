@@ -1,22 +1,28 @@
 --- a/src/tr/logic/RaceAi.java
 +++ b/src/tr/logic/RaceAi.java
-@@ -25,6 +25,7 @@
- 	private final static int		AI2_PLY2_STEPS	= 2;		// frozen standard
- 	private final static boolean	AI1_MOBILITY	= true;	// frontier -- low-risk mobility headroom tie-break
- 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");	// forensic only; never enters scoring
-+	private final static boolean	AI_DEBUG_FINISH_DENIAL = Boolean.getBoolean("ai.debug.finishDenial");	// forensic only
- 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", 0);	// 0 = off; target player prints per-candidate scoring + pick
- 	private final static int		AI_DEBUG_MAX_LINES = 1000;	// hard per-process cap -- an accidental all-field debug cannot perturb a long benchmark via unbounded stderr I/O
- 	private static int			aiDebugLines;
-@@ -213,6 +214,7 @@
- 	private final static int		AI1_SEAL_MAXRIVALS	= 3;	// endgame seal fires when <= this many rivals remain
- 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
+@@ -213,6 +213,13 @@
  	private final static int		AI1_SPARSE_RIVALS	= 3;
-+	private final static int		AI1_FINISH_DENIAL_TTF	= 8;	// round 101: only the final approach can justify a full-fidelity leader denial proof
  	private final static int		AI1_DJS_ROUNDS	= 3;
  	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 4;	// round 99: horizon for the true-rival confirm; round 100: 4 -- the s74 box seals at round index 3 (s32 sealed at 2), and every extra round multiplies full-champion rival computes
++	private final static int		AI1_FINISH_DENIAL_ROUNDS	= 8;	// round 101: faithful horizon for a finish-pocket denial
++	private final static int		AI1_FINISH_DENIAL_RIVALS	= 2;	// nearest full-fidelity rivals suffice for the measured denial class
++	private final static int		AI1_FINISH_DENIAL_MAX_TTF	= 5;	// only the final one-turn map-gain commitment
++	private final static int		AI1_FINISH_DENIAL_MIN_SPEED2	= 64;	// high-energy approach that can overrun a closing pocket
++	private final static int		AI1_FINISH_DENIAL_MIN_BRAKE2	= 16;	// require a materially lower-energy escape
++	private final static int		AI1_FINISH_DENIAL_NEAR_RIVALS	= 4;	// compact finish pack, not open-line racing
++	private final static int		AI1_FINISH_DENIAL_ALIGNED_RIVALS	= 2;	// multiple similarly moving bodies ahead can close the lane
  	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
-@@ -266,7 +268,7 @@
+ 	private final static int		AI1_DJS_FAST_FRAGILE_ROUNDS	= 4;	// round 93: faithful-rival recheck for fast L2 landings that are already fragile after the normal 3-round screen
+ 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
+@@ -259,6 +266,7 @@
+ 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
+ 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
+ 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
++	private final static boolean	AI_DEBUG_FINISH_DENIAL	= Boolean.getBoolean("ai.debug.finishDenial");
+ 	private final static boolean	AI_DEBUG_COMP	= Boolean.getBoolean("ai.debug.comp");
+ 	/** True while this game instance computes a rollout move with the real
+ 	 *  scorer. Instance scope prevents concurrent games from suppressing each
+@@ -266,7 +274,7 @@
  	private boolean				inScorerSim;
  	/** Round 99: latch -- while a true-rival confirm runs, rivals computed at
  	 *  full fidelity must not fire their own confirms (cost recursion). */
@@ -25,158 +31,151 @@
  	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
  	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
  	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
-@@ -623,6 +625,8 @@
- 					trapByDir, uncByDir, poTByDir);
- 			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
- 					trapByDir, uncByDir, poTByDir);
-+			chosen = finishDenialBrakingOverride(pos, vel, playerNum, chosen,
-+					trapByDir, poTByDir);
- 		}
- 		if (chosen != null) {
- 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
-@@ -1462,6 +1466,178 @@
- 		return false;
+@@ -736,6 +744,15 @@
+ 					chosen = sprint;
+ 				}
+ 			}
++			// Round 101: a high-energy one-turn finish approach can be denied by a
++			// leader braking into the pocket after every cheap world has already
++			// declared the line safe. Pay for a bounded full-fidelity confirm only
++			// on the measured compact, aligned, last-slot class. Any replacement
++			// still passes the normal seal and danger machinery below.
++			if (!inScorerSim)
++				chosen = finishDenialOverride(pos, vel, playerNum, chosen, trapByDir,
++						uncByDir, poTByDir);
++
+ 			// Danger joint search (round 40): in flagged states (the landing's
+ 			// trap ladder >= 0.5, i.e. <= 2 safe successors) roll the joint game
+ 			// 3 rounds forward on a detached greedy board. STRICTLY asymmetric:
+@@ -1078,6 +1095,131 @@
+ 		return fallback;
  	}
  
-+	/** Round 101: detect the late finish-pocket denial class recorded at
-+	 * Hairpin seed 68. The normal score-shaped, scorer-shaped, and true-rival
-+	 * worlds all let the chosen line cross because the real leader itself
-+	 * yields to preserve first place, brakes, and seals the sole exit. In the
-+	 * final eight map turns, run one bounded full-fidelity world for each legal
-+	 * candidate. If the scorer's choice dies there, prefer a surviving move by
-+	 * actual finish round, then survivor margin and map TTF. Ambiguity keeps the
-+	 * champion line; the downstream danger pass remains an independent veto. */
-+	private Direction finishDenialBrakingOverride(final int[] pos, final int[] vel,
++	/** A finish-pocket denial certificate. The gate intentionally combines
++	 *  policy-independent geometry (last move slot, compact aligned pack,
++	 *  one-turn map gain, materially lower-energy escape) with the expensive
++	 *  evidence: the chosen must die under the mover's real scorer and the two
++	 *  nearest unsuppressed rivals, while an alternative survives that same
++	 *  world. No track, seed, player number or coordinate is encoded. */
++	private Direction finishDenialOverride(final int[] pos, final int[] vel,
 +			final int playerNum, final Direction chosen, final double[] trapByDir,
-+			final int[] turnsByDir) {
-+		if (inScorerSim || inTrueRivalConfirm || chosen == Direction.NONE
-+				|| !kindHomogeneousRoster(playerNum)
-+				|| liveRivalsRemaining(playerNum) < AI1_PRIVATE_FIELD_MIN_RIVALS)
++			final double[] uncByDir, final int[] turnsByDir) {
++		if (inTrueRivalConfirm || game.subgamestate != game.players.length - 1
++				|| !kindHomogeneousRoster(playerNum))
 +			return chosen;
 +		final int chosenT = turnsByDir[chosen.ordinal()];
-+		if (chosenT == Integer.MAX_VALUE || chosenT > AI1_FINISH_DENIAL_TTF)
++		if (chosenT < 0 || chosenT > AI1_FINISH_DENIAL_MAX_TTF
++				|| reach.turnsToFinish(pos[0], pos[1], vel[0], vel[1]) != chosenT + 1)
 +			return chosen;
-+
-+		int finishRivals = 0;
-+		for (final Player rival : game.players) {
-+			if (rival.getNumber() == playerNum || rival.isFinished())
++		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
++		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
++		if (game.crossesFinish(pos[0], pos[1], cx, cy))
++			return chosen;
++		final int chosenSpeed2 = speedSquared(cvx, cvy);
++		if (chosenSpeed2 < AI1_FINISH_DENIAL_MIN_SPEED2
++				|| countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) == 0
++				|| countRivalsWithinCheb(cx, cy, playerNum, AI1_SCORER_NEAR)
++						< AI1_FINISH_DENIAL_NEAR_RIVALS)
++			return chosen;
++		int alignedAhead = 0;
++		for (final Player p : game.players) {
++			if (p.getNumber() == playerNum || p.isFinished())
 +				continue;
-+			final int[] rivalPos = rival.getPosition();
-+			final int[] rivalVel = rival.getVelocity();
-+			final int rivalT = reach.turnsToFinish(rivalPos[0], rivalPos[1], rivalVel[0], rivalVel[1]);
-+			if (rivalT != Integer.MAX_VALUE && rivalT <= AI1_FINISH_DENIAL_TTF)
-+				finishRivals++;
++			final int[] pp = p.getPosition();
++			if (Math.abs(pp[0] - cx) > AI1_SCORER_NEAR
++					|| Math.abs(pp[1] - cy) > AI1_SCORER_NEAR
++					|| (long) (pp[0] - cx) * cvx + (long) (pp[1] - cy) * cvy <= 0L)
++				continue;
++			final int[] pv = p.getVelocity();
++			if (Math.abs(pv[0] - cvx) <= 2 && Math.abs(pv[1] - cvy) <= 2)
++				alignedAhead++;
 +		}
-+		if (finishRivals < 3)
++		if (alignedAhead < AI1_FINISH_DENIAL_ALIGNED_RIVALS)
 +			return chosen;
-+
-+		final Direction[] candidates = new Direction[DIRECTIONS.length];
-+		final int[] candidateT = new int[DIRECTIONS.length];
-+		final double[] candidateTrap = new double[DIRECTIONS.length];
-+		int candidateCount = 0;
++		// The full-fidelity scorer reuses this instance's direction scratch
++		// arrays. Snapshot eligibility as a bit-mask before entering it; reading
++		// trap/uncertainty arrays afterwards would inspect a simulated rival's
++		// last decision rather than this top-level move.
++		int brakeMask = 0;
 +		for (final Direction d : DIRECTIONS) {
-+			final int turns = turnsByDir[d.ordinal()];
-+			if (turns == Integer.MAX_VALUE || turns > AI1_FINISH_DENIAL_TTF
-+					|| trapByDir[d.ordinal()] == Double.MAX_VALUE)
++			if (d == chosen || turnsByDir[d.ordinal()] > chosenT + 1
++					|| trapByDir[d.ordinal()] > AI1_TRAP_L1
++					|| uncByDir[d.ordinal()] > uncByDir[chosen.ordinal()])
 +				continue;
 +			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-+				continue;
-+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-+			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
-+					|| collision(new int[] {nx, ny}, playerNum)
-+					|| sealable(nx, ny, nvx, nvy, playerNum))
-+				continue;
-+			candidates[candidateCount] = d;
-+			candidateT[candidateCount] = turns;
-+			candidateTrap[candidateCount] = trapByDir[d.ordinal()];
-+			candidateCount++;
++			if (chosenSpeed2 - speedSquared(nvx, nvy) >= AI1_FINISH_DENIAL_MIN_BRAKE2)
++				brakeMask |= 1 << d.ordinal();
 +		}
-+		if (candidateCount < 2)
++		if (brakeMask == 0)
 +			return chosen;
 +
-+		final int[] finishRound = new int[candidateCount];
-+		final int[] finalTier = new int[candidateCount];
-+		final int[] threadRound = new int[candidateCount];
++		final double[] savedTrap = trapByDir.clone();
++		final double[] savedUncertainty = uncByDir.clone();
++		final int[] savedTurns = turnsByDir.clone();
 +		inTrueRivalConfirm = true;
 +		try {
-+			for (int i = 0; i < candidateCount; i++) {
-+				final Direction d = candidates[i];
++			final int chosenFinal = simOutcome(cx, cy, cvx, cvy, playerNum,
++					AI1_FINISH_DENIAL_ROUNDS, true, true, true, true, true, true,
++					AI1_FINISH_DENIAL_RIVALS, null, null, null);
++			if (chosenFinal >= 0) {
++				if (AI_DEBUG_FINISH_DENIAL)
++					System.err.println("AIDBG FINISH-DENIAL p=" + playerNum + " pos=("
++							+ pos[0] + "," + pos[1] + ") chosen=" + chosen + " keep sim="
++							+ chosenFinal);
++				return chosen;
++			}
++			Direction best = null;
++			int bestFinal = Integer.MAX_VALUE;
++			int bestSpeed2 = Integer.MAX_VALUE;
++			int bestT = Integer.MAX_VALUE;
++			for (final Direction d : DIRECTIONS) {
++				if ((brakeMask & 1 << d.ordinal()) == 0)
++					continue;
 +				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-+				finishRound[i] = simOutcome(pos[0] + nvx, pos[1] + nvy, nvx, nvy,
-+						playerNum, AI1_FINISH_DENIAL_TTF, true, true, true, true, true,
-+						AI1_DEEP_CERT_RIVALS, new int[] {0}, null, new int[] {-1});
-+				// Re-run only for audit outputs when the candidate survived. Keeping
-+				// the production verdict and audit extraction separate prevents a
-+				// shared scratch array from leaking one candidate's flags into another.
-+				if (finishRound[i] >= 0) {
-+					final int[] tierOut = new int[1];
-+					final int[] threadOut = new int[] {-1};
-+					finishRound[i] = simOutcome(pos[0] + nvx, pos[1] + nvy, nvx, nvy,
-+							playerNum, AI1_FINISH_DENIAL_TTF, true, true, true, true, true,
-+							AI1_DEEP_CERT_RIVALS, tierOut, null, threadOut);
-+					finalTier[i] = tierOut[0];
-+					threadRound[i] = threadOut[0];
++				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
++					continue;
++				final int speed2 = speedSquared(nvx, nvy);
++				if (chosenSpeed2 - speed2 < AI1_FINISH_DENIAL_MIN_BRAKE2)
++					continue;
++				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
++				final int t = reach.turnsToFinish(nx, ny, nvx, nvy);
++				if (game.crossesFinish(pos[0], pos[1], nx, ny))
++					return d;
++				if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
++						|| game.isCrashingPlayer(nx, ny, playerNum)
++						|| !reach.isAlive(nx, ny, nvx, nvy))
++					continue;
++				final int candidateFinal = simOutcome(nx, ny, nvx, nvy, playerNum,
++						AI1_FINISH_DENIAL_ROUNDS, true, true, true, true, true, true,
++						AI1_FINISH_DENIAL_RIVALS, null, null, null);
++				if (AI_DEBUG_FINISH_DENIAL || AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
++					System.err.println("AIDBG FINISH-DENIAL alt=" + d + " t=" + t
++							+ " speed2=" + speed2 + " sim=" + candidateFinal);
++				if (candidateFinal < 0)
++					continue;
++				if (candidateFinal < bestFinal
++						|| candidateFinal == bestFinal && speed2 < bestSpeed2
++						|| candidateFinal == bestFinal && speed2 == bestSpeed2 && t < bestT) {
++					best = d;
++					bestFinal = candidateFinal;
++					bestSpeed2 = speed2;
++					bestT = t;
 +				}
 +			}
++			if (AI_DEBUG_FINISH_DENIAL || AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
++				System.err.println("AIDBG FINISH-DENIAL p=" + playerNum + " pos=("
++						+ pos[0] + "," + pos[1] + ") chosen=" + chosen + " dies -> "
++						+ (best == null ? "keep (no survivor)" : "switch " + best
++								+ " sim=" + bestFinal + " speed2=" + bestSpeed2));
++			return best != null ? best : chosen;
 +		} finally {
++			System.arraycopy(savedTrap, 0, trapByDir, 0, savedTrap.length);
++			System.arraycopy(savedUncertainty, 0, uncByDir, 0, savedUncertainty.length);
++			System.arraycopy(savedTurns, 0, turnsByDir, 0, savedTurns.length);
 +			inTrueRivalConfirm = false;
 +		}
-+
-+		int chosenIndex = -1;
-+		for (int i = 0; i < candidateCount; i++)
-+			if (candidates[i] == chosen) {
-+				chosenIndex = i;
-+				break;
-+			}
-+		if (chosenIndex < 0 || finishRound[chosenIndex] >= 0)
-+			return chosen;
-+
-+		Direction best = null;
-+		int bestRound = Integer.MAX_VALUE;
-+		int bestTier = Integer.MIN_VALUE;
-+		int bestT = Integer.MAX_VALUE;
-+		double bestTrap = Double.MAX_VALUE;
-+		for (int i = 0; i < candidateCount; i++) {
-+			if (finishRound[i] < 0)
-+				continue;
-+			final int normalizedRound = finishRound[i] == 0
-+					? AI1_FINISH_DENIAL_TTF + 1 : finishRound[i];
-+			if (best == null || normalizedRound < bestRound
-+					|| normalizedRound == bestRound && finalTier[i] > bestTier
-+					|| normalizedRound == bestRound && finalTier[i] == bestTier
-+							&& candidateT[i] < bestT
-+					|| normalizedRound == bestRound && finalTier[i] == bestTier
-+							&& candidateT[i] == bestT && candidateTrap[i] < bestTrap) {
-+				best = candidates[i];
-+				bestRound = normalizedRound;
-+				bestTier = finalTier[i];
-+				bestT = candidateT[i];
-+				bestTrap = candidateTrap[i];
-+			}
-+		}
-+		if (best != null && AI_DEBUG_FINISH_DENIAL) {
-+			System.err.println("AIDBG FINISH-DENIAL p=" + playerNum + " pos=(" + pos[0]
-+					+ "," + pos[1] + ") chosen=" + chosen + " t=" + chosenT
-+					+ " dead; brake=" + best + " t=" + bestT + " round=" + bestRound
-+					+ " tier=" + bestTier + " finishRivals=" + finishRivals);
-+			for (int i = 0; i < candidateCount; i++)
-+				System.err.println("AIDBG FINISH-DENIAL   " + candidates[i] + " t="
-+						+ candidateT[i] + " out=" + finishRound[i] + " tier="
-+						+ finalTier[i] + " thread=" + threadRound[i]);
-+		}
-+		return best != null ? best : chosen;
 +	}
 +
- 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
- 			final Direction chosen, final double[] scoreByDir, final double[] scoreNSByDir,
- 			final double[] trapByDir, final double[] uncByDir, final int[] turnsByDir) {
-@@ -3192,6 +3368,8 @@
- 					trapByDir, uncByDir, poTByDir);
- 			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
- 					trapByDir, uncByDir, poTByDir);
-+			chosen = finishDenialBrakingOverride(pos, vel, playerNum, chosen,
-+					trapByDir, poTByDir);
- 		}
- 		if (chosen != null) {
- 			chosen = sealGuard(pos, vel, playerNum, chosen, scoreByDir);
+ 	/** Occupancy oracle used by the private-lane pace proof. */
+ 	private interface RivalOccupancy {
+ 		boolean mayOccupy(int ply, int x, int y);
