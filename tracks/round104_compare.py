@@ -35,9 +35,9 @@ def parse_log(path: Path) -> dict:
             continue
         player = int(match.group(2))
         moves[player] = moves.get(player, 0) + 1
-        if " CRASH " in line:
+        if "CRASH" in line:
             crashes.add(player)
-        elif " FINISH " in line:
+        elif "FINISH" in line:
             finishes[player] = moves[player]
     if not saw_results:
         raise RuntimeError(f"invalid log: {path}")
