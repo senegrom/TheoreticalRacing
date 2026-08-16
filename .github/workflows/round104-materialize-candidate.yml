@@ -1,0 +1,305 @@
+name: Materialize Round 104 field candidate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-real
+    paths:
+      - .github/workflows/round104-materialize-candidate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact Round 103 baseline
+        run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar /tmp/round104-baseline.jar
+      - name: Apply AI1 field acceleration and isolate per-game state
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          race = Path('src/tr/logic/RaceAi.java')
+          source = race.read_text(encoding='utf-8')
+
+          source, depth_changes = re.subn(
+              r'(?m)^(\tprivate )static (int\s+trueConfirmDepth\s*;)$',
+              r'\1\2', source,
+          )
+          if depth_changes != 1:
+              raise SystemExit(f'expected one static trueConfirmDepth, changed {depth_changes}')
+
+          anchor = (
+              '\tprivate final static int\t\tAI1_STAGED_MAX_SPEED2_GAIN\t= 9;'
+              '\t// at most one |v|=4->5 axis of extra energy vs the scorer\n'
+          )
+          if source.count(anchor) != 1:
+              raise SystemExit('staged-energy anchor changed')
+          constants = anchor + (
+              '\tprivate final static int\t\tAI1_FIELD_ACCEL_MIN_SPEED2_GAIN\t= 16;'
+              '\t// round 104: accept only decisive one-turn accelerations\n'
+              '\tprivate final static int\t\tAI1_FIELD_ACCEL_MIN_AHEAD\t= 2;'
+              '\t// require a real forward pack rather than an isolated re-rank\n'
+              '\tprivate final static int\t\tAI1_FIELD_ACCEL_MAX_AHEAD\t= 5;'
+              '\t// six-ahead full-tail cases remain outside the bounded proof\n'
+              '\tprivate final static int\t\tAI1_FIELD_ACCEL_CONFIRM_HORIZON\t= 10;'
+              '\t// independently confirm that the eight-round gain does not reverse late\n'
+          )
+          source = source.replace(anchor, constants, 1)
+
+          staged_call = (
+              '\t\t\tchosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,\n'
+              '\t\t\t\t\ttrapByDir, uncByDir, poTByDir);\n'
+          )
+          field_call = (
+              '\t\t\tchosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,\n'
+              '\t\t\t\t\ttrapByDir, uncByDir, poTByDir);\n'
+          )
+          if source.count(staged_call) != 2 or field_call in source:
+              raise SystemExit('pace-call structure changed')
+          source = source.replace(staged_call, staged_call + field_call, 1)
+
+          method_anchor = (
+              '\tprivate Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,\n'
+          )
+          if source.count(method_anchor) != 1:
+              raise SystemExit('private-pace method anchor changed')
+          helper = r'''	/** Round 104: recover a one-turn acceleration only in a bounded forward
+	 * pack when independent eight- and ten-round scorer worlds both prove
+	 * strict mover and aggregate-field gains. Marginal energy changes,
+	 * six-ahead tails, close switchbacks and narrow braking funnels retain the
+	 * champion line. */
+	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
+			final int playerNum, final Direction chosen, final double[] trapByDir,
+			final double[] uncByDir, final int[] turnsByDir) {
+		final int chosenT = turnsByDir[chosen.ordinal()];
+		if (chosenT == Integer.MAX_VALUE || chosenT < AI1_FINISH_HOMOGENEOUS_TTF + 2
+				|| !kindHomogeneousRoster(playerNum))
+			return chosen;
+		int liveRivals = 0, rivalsAhead = 0;
+		long aheadProgress = 0L;
+		final boolean stagedLaunch = useTrackDistanceForStagedLaunch(vel[0], vel[1],
+				game.startZoneA.contains(pos[0], pos[1]));
+		final int moverProgress = reach.distAt(pos[0], pos[1]);
+		for (final Player rival : game.players) {
+			if (rival.getNumber() == playerNum || rival.isFinished())
+				continue;
+			liveRivals++;
+			final int[] rivalPos = rival.getPosition();
+			final int rivalProgress = reach.distAt(rivalPos[0], rivalPos[1]);
+			final boolean ahead = stagedLaunch
+					? isStrictlyAheadByTrackDistance(moverProgress, rivalProgress)
+					: ((long) rivalPos[0] - pos[0]) * vel[0]
+							+ ((long) rivalPos[1] - pos[1]) * vel[1] > 0L;
+			if (ahead) {
+				rivalsAhead++;
+				if (moverProgress != Integer.MAX_VALUE && rivalProgress != Integer.MAX_VALUE)
+					aheadProgress += (long) moverProgress - rivalProgress;
+			}
+		}
+		if (liveRivals < AI1_PRIVATE_FIELD_MIN_RIVALS
+				|| rivalsAhead < AI1_FIELD_ACCEL_MIN_AHEAD
+				|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD || aheadProgress <= 0L)
+			return chosen;
+
+		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
+		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
+		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
+		int chosenFinal8 = Integer.MIN_VALUE;
+		long chosenField8 = Long.MAX_VALUE;
+		int chosenFinal10 = Integer.MIN_VALUE;
+		long chosenField10 = Long.MAX_VALUE;
+		Direction best = null;
+		int bestFinal = Integer.MAX_VALUE;
+		long bestField = Long.MAX_VALUE;
+		for (final Direction d : DIRECTIONS) {
+			final int turns = turnsByDir[d.ordinal()];
+			if (d == chosen || d == Direction.NONE || turns == Integer.MAX_VALUE
+					|| turns + 1 != chosenT || trapByDir[d.ordinal()] != 0.0
+					|| uncByDir[d.ordinal()] != 0.0)
+				continue;
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			final int speed2 = speedSquared(nvx, nvy);
+			if (speed2 - chosenSpeed2 < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN)
+				continue;
+			if (turns <= AI1_FINISH_EXTENDED_TTF && speed2 < AI1_DJS_SPD2)
+				continue;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			final int candidateInf = Math.max(Math.abs(nvx), Math.abs(nvy));
+			final int candidateSpan = candidateInf * (candidateInf + 1) / 2;
+			final int candidateRing = reach.minRingWidthAhead(nx, ny, candidateSpan);
+			if (candidateRing < AI1_FUNNEL_WIDTH) {
+				final int chosenInf = Math.max(Math.abs(chosenVx), Math.abs(chosenVy));
+				final int chosenSpan = chosenInf * (chosenInf + 1) / 2;
+				if (rivalsAhead < AI1_FIELD_ACCEL_MAX_AHEAD
+						|| aheadProgress < (long) chosenSpan + candidateSpan)
+					continue;
+			}
+			if (sealable(nx, ny, nvx, nvy, playerNum))
+				continue;
+			if (chosenFinal8 == Integer.MIN_VALUE) {
+				chosenFinal8 = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy,
+						playerNum, AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS,
+						rolloutFieldCost);
+				chosenField8 = rolloutFieldCost[0];
+				if (chosenFinal8 < 0 || chosenField8 >= ROLLOUT_FAILURE_COST)
+					return chosen;
+			}
+			final int candidateFinal8 = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+			final long candidateField8 = rolloutFieldCost[0];
+			if (candidateFinal8 < 0 || candidateFinal8 >= chosenFinal8
+					|| candidateField8 >= chosenField8)
+				continue;
+			if (chosenFinal10 == Integer.MIN_VALUE) {
+				chosenFinal10 = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy,
+						playerNum, AI1_FIELD_ACCEL_CONFIRM_HORIZON,
+						AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+				chosenField10 = rolloutFieldCost[0];
+				if (chosenFinal10 < 0 || chosenField10 >= ROLLOUT_FAILURE_COST)
+					return chosen;
+			}
+			final int candidateFinal10 = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+					AI1_FIELD_ACCEL_CONFIRM_HORIZON, AI1_DEEP_CERT_RIVALS,
+					rolloutFieldCost);
+			final long candidateField10 = rolloutFieldCost[0];
+			if (candidateFinal10 < 0 || candidateFinal10 >= chosenFinal10
+					|| candidateField10 >= chosenField10)
+				continue;
+			if (best == null || candidateFinal10 < bestFinal
+					|| candidateFinal10 == bestFinal && candidateField10 < bestField) {
+				best = d;
+				bestFinal = candidateFinal10;
+				bestField = candidateField10;
+			}
+		}
+		if (best != null && AI_DEBUG_DJS)
+			System.err.println("AIDBG FIELD-ACCEL p=" + playerNum + " pos=(" + pos[0]
+					+ "," + pos[1] + ") " + chosen + " -> " + best + " ttf " + chosenT
+					+ " -> " + turnsByDir[best.ordinal()] + " ahead=" + rivalsAhead
+					+ " progress=" + aheadProgress + " confirm self " + chosenFinal10
+					+ " -> " + bestFinal + " field " + chosenField10 + " -> " + bestField);
+		return best != null ? best : chosen;
+	}
+
+'''
+          source = source.replace(method_anchor, helper + method_anchor, 1)
+          race.write_text(source, encoding='utf-8')
+
+          game = Path('src/tr/logic/RaceGame.java')
+          game_source = game.read_text(encoding='utf-8')
+          lines = game_source.splitlines(keepends=True)
+          trace_changes = 0
+          for index, line in enumerate(lines):
+              lower = line.lower()
+              if ('\tprivate static ' in line and ' final ' not in line
+                      and ('simtrace' in lower or 'simtrace' in ''.join(lines[max(0, index-2):index+3]).lower())):
+                  lines[index] = line.replace('\tprivate static ', '\tprivate ', 1)
+                  trace_changes += 1
+          if trace_changes > 1:
+              raise SystemExit(f'unexpected mutable SIMTRACE fields: {trace_changes}')
+          game.write_text(''.join(lines), encoding='utf-8')
+          print(f'isolated trueConfirmDepth and {trace_changes} query-trace field(s)')
+          PY
+      - name: Build and run targeted A/B screen
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar /tmp/round104-candidate.jar
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess, tempfile
+
+          root = Path.cwd()
+          result_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def props(path):
+              text = (root / 'tracks/bench.properties').read_text()
+              text = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', text, flags=re.M)
+              path.write_text(text)
+
+          def run(jar, track, seed, tmp, label):
+              prop = tmp / f'{label}.properties'
+              props(prop)
+              log = tmp / f'{label}-{track}-{seed}.log'
+              done = subprocess.run([
+                  'java', '-Djava.awt.headless=true', '-jar', str(jar), '--auto',
+                  '--track', track, '--props', str(prop), '--log', str(log),
+                  '--seed', str(seed),
+              ], cwd=root, text=True, capture_output=True, timeout=2400)
+              if done.returncode:
+                  raise SystemExit(done.stderr[-3000:])
+              moves, finishes, crashes = {}, {}, set()
+              for line in log.read_text().splitlines():
+                  match = result_re.match(line)
+                  if not match:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if ' CRASH ' in line:
+                      crashes.add(player)
+                  elif ' FINISH ' in line:
+                      finishes[player] = moves[player]
+              return len(finishes), len(crashes), sum(finishes.values()), finishes
+
+          cases = [
+              ('coil', 9), ('interlagos', 40), ('interlagos', 38),
+              ('interlagos', 54), ('spa', 57), ('zigzag', 76), ('monza', 80),
+          ]
+          gains = 0
+          with tempfile.TemporaryDirectory(prefix='round104-target-') as directory:
+              tmp = Path(directory)
+              for track, seed in cases:
+                  baseline = run(Path('/tmp/round104-baseline.jar'), track, seed, tmp, 'b')
+                  candidate = run(Path('/tmp/round104-candidate.jar'), track, seed, tmp, 'c')
+                  print(track, seed, baseline[:3], '->', candidate[:3])
+                  if candidate[0] < baseline[0] or candidate[1] > baseline[1]:
+                      raise SystemExit(f'safety regression at {track} seed {seed}')
+                  if candidate[0] == baseline[0] and candidate[1] == baseline[1]:
+                      if candidate[2] > baseline[2]:
+                          raise SystemExit(f'pace regression at {track} seed {seed}')
+                      if candidate[2] == baseline[2] and candidate[3] != baseline[3]:
+                          raise SystemExit(f'equal-sum redistribution at {track} seed {seed}')
+                      if candidate[2] < baseline[2]:
+                          gains += 1
+                  elif candidate[0] > baseline[0] or candidate[1] < baseline[1]:
+                      gains += 1
+          if gains == 0:
+              raise SystemExit('candidate produced no targeted gain')
+          PY
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit the verified AI1 candidate
+        run: |
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java
+          git commit -m 'Round 104: screen stable forward-pack acceleration'
+          git push origin HEAD:agent/ai-racing-speed-104-real
