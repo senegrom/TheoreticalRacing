@@ -1,0 +1,294 @@
+name: Round 103 minimal-confirm equivalence gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-103-min-confirm-gate
+    paths:
+      - .github/workflows/round103-min-confirm-gate.yml
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply stable field acceleration
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_guarded_field_v3.patch \
+            -o /tmp/round103-field.patch
+          printf '%s  %s\n' \
+            2231c6bf5cd53469c33e83d2055e92e6f140f76562ce52e5fe644a4603da48be \
+            /tmp/round103-field.patch | sha256sum -c -
+          git apply --check /tmp/round103-field.patch
+          git apply /tmp/round103-field.patch
+      - name: Build six-rival reference candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          old_chosen = '''\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tscorerCap, null, null, null) < 0;'''
+          new_chosen = '''\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, null, null) < 0;'''
+          old_target = '''\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, scorerCap, null, null, null) >= 0;'''
+          new_target = '''\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;'''
+          assert source.count(old_chosen) == 1
+          assert source.count(old_target) == 1
+          path.write_text(source.replace(old_chosen, new_chosen, 1).replace(old_target, new_target, 1))
+          PY
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-six.jar
+      - name: Build minimum-four-rival candidate
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('src/tr/logic/RaceAi.java')
+          source = path.read_text()
+          anchor = '\tprivate final static int\t\tAI1_TRUE_CONFIRM_ROUNDS\t= 4;'
+          assert source.count(anchor) == 1
+          source = source.replace(
+              anchor,
+              anchor + '\n\tprivate final static int\t\tAI1_TRUE_CONFIRM_MIN_RIVALS\t= 4;'
+              '\t// round 103: one extra rival resolves the zigzag-s76 false survivor',
+              1,
+          )
+          old_chosen = '''\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, null, null) < 0;'''
+          new_chosen = '''\t\t\t\t\t\t\tMath.max(scorerCap, AI1_TRUE_CONFIRM_MIN_RIVALS), null, null, null) < 0;'''
+          old_target = '''\t\t\t\t\t\t\tscorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;'''
+          new_target = '''\t\t\t\t\t\t\tscorerSelf, true, Math.max(scorerCap, AI1_TRUE_CONFIRM_MIN_RIVALS),\n\t\t\t\t\t\t\tnull, null, null) >= 0;'''
+          assert source.count(old_chosen) == 1
+          assert source.count(old_target) == 1
+          source = source.replace(old_chosen, new_chosen, 1).replace(old_target, new_target, 1)
+          path.write_text(source)
+          PY
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round103-four.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python - <<'PY'
+          from pathlib import Path
+          import sys, tempfile
+          sys.path.insert(0, str(Path.cwd() / 'tracks'))
+          import bench_ai
+          with tempfile.TemporaryDirectory(prefix='round103-min4-') as directory:
+              bench_ai.configure_runtime(directory)
+              bench_ai.set_nplayers(8)
+              bench_ai.set_all_to('AI1')
+              result = bench_ai.run_track('zigzag', timeout=1200, seed=76)
+          expected = (7, 0, [65, 65, 65, 66, 67, 67, 68])
+          if result != expected:
+              raise SystemExit(f'minimum-four Zigzag seed-76 regression: {result}')
+          print('Round103MinimumConfirmRegression: OK')
+          PY
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-min-confirm-jars
+          path: |
+            round103-six.jar
+            round103-four.jar
+          if-no-files-found: error
+          retention-days: 3
+
+  differential:
+    needs: verify
+    name: Equivalence ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - { track: circle, end: 100 }
+          - { track: triangle, end: 100 }
+          - { track: curve, end: 100 }
+          - { track: hairpin, end: 100 }
+          - { track: chicane, end: 100 }
+          - { track: sprint, end: 100 }
+          - { track: bigoval, end: 100 }
+          - { track: slalom, end: 100 }
+          - { track: gear, end: 100 }
+          - { track: coil, end: 100 }
+          - { track: zigzag, end: 100 }
+          - { track: the_long_loop, end: 100 }
+          - { track: monaco, end: 100 }
+          - { track: hungaroring, end: 100 }
+          - { track: interlagos, end: 100 }
+          - { track: lemans, end: 100 }
+          - { track: spa, end: 100 }
+          - { track: silverstone, end: 100 }
+          - { track: monza, end: 100 }
+          - { track: zandvoort, end: 100 }
+          - { track: nurburgring, end: 100 }
+          - { track: spielberg, end: 100 }
+          - { track: serpentine, end: 25 }
+          - { track: serpentine2, end: 25 }
+          - { track: spiral, end: 25 }
+          - { track: cog, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-min-confirm-jars
+          path: .
+      - name: Install exact comparison helpers
+        run: |
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_compare_exact.py \
+            -o tracks/round101_compare_exact.py
+          curl -fsSL \
+            https://raw.githubusercontent.com/senegrom/TheoreticalRacing/agent/ai-racing-speed-101-guarded-field-v3/tracks/round101_compare_current.py \
+            -o tracks/round101_compare_current.py
+      - name: Compare minimum-four against six-rival reference
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round101_compare_current.py \
+            --baseline round103-six.jar \
+            --candidate round103-four.jar \
+            --track "$TRACK" \
+            --end "$END_SEED" \
+            --out "round103-min-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round103-min-result-${{ matrix.track }}
+          path: round103-min-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-min-confirm-jars
+          path: .
+      - name: Compare minimum-four runtime with six-rival reference
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, os, re, statistics, subprocess, tempfile, time
+          root = Path.cwd()
+          props_text = (root / 'tracks' / 'bench.properties').read_text()
+          props_text = re.sub(r'^(player[1-8]Kind=).*$', r'\1AI1', props_text, flags=re.MULTILINE)
+          cache = Path(os.environ['RUNNER_TEMP']) / 'round103-min-cache'
+          cache.mkdir()
+          def run(jar, label):
+              with tempfile.TemporaryDirectory(prefix=f'r103-min-{label}-') as directory:
+                  directory = Path(directory)
+                  props = directory / 'bench.properties'
+                  props.write_text(props_text)
+                  log = directory / 'race.log'
+                  env = os.environ.copy()
+                  env['RACING_REACH_CACHE'] = str(cache)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar), '--auto',
+                      '--track', 'zigzag', '--props', str(props), '--log', str(log), '--seed', '76'
+                  ], cwd=root, env=env, text=True, capture_output=True, timeout=1200)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-4000:])
+                  return time.perf_counter() - started
+          run('round103-six.jar', 'warm-six')
+          run('round103-four.jar', 'warm-four')
+          six, four = [], []
+          for i in range(8):
+              order = [('round103-six.jar', six, 'six'), ('round103-four.jar', four, 'four')]
+              if i % 2:
+                  order.reverse()
+              for jar, bucket, label in order:
+                  bucket.append(run(jar, label))
+          report = {
+              'six': six, 'four': four,
+              'median_ratio': statistics.median(four) / statistics.median(six),
+              'mean_ratio': statistics.fmean(four) / statistics.fmean(six),
+          }
+          Path('round103-min-runtime.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          if report['median_ratio'] > 1.05 or report['mean_ratio'] > 1.05:
+              raise SystemExit('minimum-four confirmation is unexpectedly slower')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-min-runtime
+          path: round103-min-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    if: always()
+    needs: [differential, runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round103-min-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round103-min-runtime
+          path: results
+      - name: Require exact behavioral equivalence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          summaries = [json.loads(path.read_text())
+                       for path in sorted(Path('results').glob('round103-min-*.json'))
+                       if path.name != 'round103-min-runtime.json']
+          if len(summaries) != 26:
+              raise SystemExit(f'expected 26 summaries, found {len(summaries)}')
+          keys = ('pairs', 'identical', 'faster', 'slower', 'safety_gain',
+                  'safety_regression', 'redistribution', 'net_moves')
+          total = {key: sum(item[key] for item in summaries) for key in keys}
+          runtime = json.loads(Path('results/round103-min-runtime.json').read_text())
+          report = {'total': total, 'runtime': runtime}
+          Path('round103-min-summary.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if total['identical'] != total['pairs']:
+              raise SystemExit('minimum-four and six-rival candidates are not exactly equivalent')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round103-min-summary
+          path: round103-min-summary.json
+          if-no-files-found: error
+          retention-days: 90
