@@ -47,6 +47,29 @@ otherwise). Equivalence proven exact: batched canon window 1 reproduces
 62.706/62.704 +0.003 to the last digit. Gain is modest on warm-cache
 benches (JVM spin-up only); the harvest scripts already batch.
 
+SWEEP VERDICT (r100 certified): canon windows 2-3 62.651/62.679
+IDENTICAL to champion; 4p/1v1/h2h exact parity; slow 104.107. Dual
+770-race sweeps: harvest-6 windows 1/770 -- the single crash IS hairpin
+s68, the recorded open class, nothing else; harvest-4/5 windows 0/770.
+The r100 champion's only known crash in 2310 swept races is the one
+documented open specimen.
+
+OTHER AGENT OBSERVED IN-FLIGHT (branches, not yet on master):
+agent/ai-racing-speed-100-{seal-pace-screen,finish-probe,source-export}
+carry a stored candidate patch (.github/round100-sealpace-refined.patch)
+plus CI workflows. The candidate builds ON our r99 confirm machinery,
+INVERTED: where our confirm uses true rivals to KILL cheap-alive lines,
+theirs REVIVES sealGuard-demoted one-turn-faster finish lines when the
+field-outcome cert AND a true-rival+scorerSelf confirm both pass
+(finish band, trap-0, homogeneous, less-obstructive-field gates). It
+also flips inTrueRivalConfirm from static to instance -- correct (one
+RaceAi per game; instance isolates batch-mode races). NUMBERING NOTE:
+master's Round 100 (this entry) landed first; their branches also say
+Round 100 -- suggest they publish as Round 101 at merge time. Their
+candidate patch still applies cleanly on r100 (their hunks avoid the
+r100-tuned lines). Inspect-before-merge honored; branches left theirs
+to land after their battery completes.
+
 GATES: all ten pins PASS; canon window 1 62.706 IDENTICAL to
 r98/r99/champion. Windows 2-3 + parities + both 770-race sweeps in
 flight at write time; results recorded in the next entry.
