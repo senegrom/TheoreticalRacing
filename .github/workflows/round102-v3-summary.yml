@@ -1,0 +1,62 @@
+name: Summarize Round 102 v3 differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-102-v3-summary
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round101-v3-fixed-*
+          path: reports
+          merge-multiple: true
+          run-id: 31917554724
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Aggregate exact current-AI1 differential
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          reports=[]
+          for path in sorted(Path('reports').glob('*.json')):
+              data=json.loads(path.read_text())
+              if 'track' in data and 'pairs' in data:
+                  reports.append(data)
+          assert len(reports) == 26, len(reports)
+          keys=('pairs','identical','faster','slower','safety_gain','safety_regression','redistribution','net_moves')
+          total={key:sum(int(r.get(key,0)) for r in reports) for key in keys}
+          total['tracks']=len(reports)
+          total['changed_tracks']=[r['track'] for r in reports if r.get('events')]
+          total['events']=[{'track':r['track'], **event} for r in reports for event in r.get('events',[])]
+          total['runtime_geomean_ratio']=(__import__('math').prod(float(r['runtime_ratio']) for r in reports)) ** (1/len(reports))
+          total['runtime_max_ratio']=max(float(r['runtime_ratio']) for r in reports)
+          total['runtime_min_ratio']=min(float(r['runtime_ratio']) for r in reports)
+          Path('round102-v3-summary.json').write_text(json.dumps(total,indent=2,sort_keys=True)+'\n')
+          lines=['# Round 102 guarded-field v3 differential','']
+          for key in keys:
+              lines.append(f'- {key}: **{total[key]}**')
+          lines += [f'- tracks: **{total["tracks"]}**',f'- runtime geometric-mean ratio: **{total["runtime_geomean_ratio"]:.4f}**',f'- runtime range: **{total["runtime_min_ratio"]:.4f}–{total["runtime_max_ratio"]:.4f}**','', '## Changed races']
+          for event in total['events']:
+              lines.append(f'- {event["track"]} seed {event["seed"]}: {event["classification"]}, delta {event["delta"]:+d}')
+          Path('round102-v3-summary.md').write_text('\n'.join(lines)+'\n')
+          print(Path('round102-v3-summary.md').read_text())
+          assert total['slower'] == total['safety_regression'] == total['redistribution'] == 0
+          assert total['faster'] + total['safety_gain'] > 0
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round102-v3-summary
+          path: |
+            round102-v3-summary.json
+            round102-v3-summary.md
+          retention-days: 30
