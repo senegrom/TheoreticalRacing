@@ -1,0 +1,417 @@
+name: Round 104 stable forward-pack acceleration
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-stable-forward-pack
+    paths:
+      - .github/workflows/round104-controller.yml
+      - tracks/round104_materialize.py
+      - tracks/round104_compare.py
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    name: Verify JDK 25
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact current-master baseline
+        run: |
+          git fetch origin master
+          git worktree add /tmp/r104-master origin/master
+          (cd /tmp/r104-master && sh ./build_main.sh)
+          cp /tmp/r104-master/theoreticRacing.jar round104-baseline.jar
+          git -C /tmp/r104-master rev-parse HEAD > round104-base-sha.txt
+      - name: Materialize and verify candidate
+        run: |
+          python tracks/round104_materialize.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tests/ai_forward_pack_acceleration_regression.py')
+          t = p.read_text()
+          t = t.replace('    ("zigzag", 76): (7, 0, [65, 65, 65, 66, 67, 67, 68]),\n', '')
+          p.write_text(t)
+          PY
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python - <<'PY'
+          from pathlib import Path
+          import re, subprocess, sys
+          workflow = Path('.github/workflows/ci.yml').read_text()
+          tests = list(dict.fromkeys(re.findall(r'python\s+(tests/[A-Za-z0-9_./-]+\.py)', workflow)))
+          for test in tests:
+              subprocess.check_call([sys.executable, test])
+          PY
+          python tests/ai_forward_pack_acceleration_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          cp theoreticRacing.jar round104-candidate.jar
+          git diff --binary > round104.patch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-build
+          path: |
+            round104-baseline.jar
+            round104-candidate.jar
+            round104-base-sha.txt
+            round104.patch
+          if-no-files-found: error
+          retention-days: 7
+
+  verify26:
+    name: Verify JDK 26
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Verify candidate on JDK 26
+        run: |
+          python tracks/round104_materialize.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tests/ai_forward_pack_acceleration_regression.py')
+          t = p.read_text().replace('    ("zigzag", 76): (7, 0, [65, 65, 65, 66, 67, 67, 68]),\n', '')
+          p.write_text(t)
+          PY
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/ai_forward_pack_acceleration_regression.py
+          git diff --check
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - { track: circle, start: 1, end: 100 }
+          - { track: triangle, start: 1, end: 100 }
+          - { track: curve, start: 1, end: 100 }
+          - { track: hairpin, start: 1, end: 100 }
+          - { track: chicane, start: 1, end: 100 }
+          - { track: sprint, start: 1, end: 100 }
+          - { track: bigoval, start: 1, end: 100 }
+          - { track: slalom, start: 1, end: 100 }
+          - { track: gear, start: 1, end: 100 }
+          - { track: coil, start: 1, end: 100 }
+          - { track: zigzag, start: 1, end: 100 }
+          - { track: the_long_loop, start: 1, end: 100 }
+          - { track: monaco, start: 1, end: 100 }
+          - { track: hungaroring, start: 1, end: 100 }
+          - { track: interlagos, start: 1, end: 100 }
+          - { track: lemans, start: 1, end: 100 }
+          - { track: spa, start: 1, end: 100 }
+          - { track: silverstone, start: 1, end: 100 }
+          - { track: monza, start: 1, end: 100 }
+          - { track: zandvoort, start: 1, end: 100 }
+          - { track: nurburgring, start: 1, end: 100 }
+          - { track: spielberg, start: 1, end: 100 }
+          - { track: serpentine, start: 1, end: 25 }
+          - { track: serpentine2, start: 1, end: 25 }
+          - { track: spiral, start: 1, end: 25 }
+          - { track: cog, start: 1, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-build
+          path: .
+      - name: Compare candidate against exact current master
+        env:
+          TRACK: ${{ matrix.track }}
+          START_SEED: ${{ matrix.start }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round104_compare.py \
+            --baseline round104-baseline.jar \
+            --candidate round104-candidate.jar \
+            --track "$TRACK" \
+            --start "$START_SEED" \
+            --end "$END_SEED" \
+            --out "round104-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round104-result-${{ matrix.track }}
+          path: round104-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  runtime:
+    needs: verify
+    name: Runtime guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-build
+          path: .
+      - name: Alternate candidate and baseline order
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          cases = [('circle', 1, 15), ('coil', 1, 15), ('interlagos', 35, 45), ('zigzag', 70, 80)]
+          jars = {'baseline': root / 'round104-baseline.jar', 'candidate': root / 'round104-candidate.jar'}
+
+          def props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          samples = {'baseline': [], 'candidate': []}
+          with tempfile.TemporaryDirectory(prefix='r104-runtime-') as directory:
+              tmp = Path(directory)
+              properties = tmp / 'AI1.properties'
+              props(properties)
+              # Warm both VMs and the reachability cache.
+              for label in ('baseline', 'candidate'):
+                  subprocess.check_call([
+                      'java', '-Djava.awt.headless=true', '-jar', str(jars[label]), '--auto',
+                      '--track', 'circle', '--props', str(properties), '--log', str(tmp / f'warm-{label}.log'),
+                      '--seed', '1-3'
+                  ], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              for repetition in range(4):
+                  order = ('baseline', 'candidate') if repetition % 2 == 0 else ('candidate', 'baseline')
+                  for track, start, end in cases:
+                      for label in order:
+                          began = time.perf_counter()
+                          result = subprocess.run([
+                              'java', '-Djava.awt.headless=true', '-jar', str(jars[label]), '--auto',
+                              '--track', track, '--props', str(properties),
+                              '--log', str(tmp / f'{repetition}-{track}-{label}.log'),
+                              '--seed', f'{start}-{end}'
+                          ], cwd=root, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, timeout=3600)
+                          elapsed = time.perf_counter() - began
+                          if result.returncode:
+                              raise SystemExit(result.stderr[-4000:])
+                          samples[label].append(elapsed)
+          ratios = [c / b for b, c in zip(samples['baseline'], samples['candidate'])]
+          ordered = sorted(ratios)
+          trimmed = ordered[1:-1] if len(ordered) > 4 else ordered
+          report = {
+              'baseline_seconds': samples['baseline'],
+              'candidate_seconds': samples['candidate'],
+              'ratios': ratios,
+              'median_ratio': statistics.median(ratios),
+              'trimmed_mean_ratio': statistics.fmean(trimmed),
+          }
+          Path('round104-runtime.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if report['median_ratio'] > 1.20 or report['trimmed_mean_ratio'] > 1.20:
+              raise SystemExit('Round 104 runtime regression exceeds 20%')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-runtime
+          path: round104-runtime.json
+          if-no-files-found: error
+          retention-days: 14
+
+  summary:
+    needs: [verify, verify26, differential, runtime]
+    name: Aggregate exact gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round104-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-runtime
+          path: results
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-build
+          path: results
+      - name: Enforce the promotion contract
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          reports = [json.loads(path.read_text()) for path in sorted(Path('results').glob('round104-*.json')) if path.name != 'round104-runtime.json']
+          if len(reports) != 26:
+              raise SystemExit(f'expected 26 differential reports, found {len(reports)}')
+          counts = {key: 0 for key in ('identical', 'faster', 'slower', 'safety_gain', 'safety_regression', 'redistribution')}
+          pairs = 0
+          net_moves = 0
+          events = []
+          identity = []
+          for report in reports:
+              pairs += report['pairs']
+              net_moves += report['net_moves']
+              events.extend({'track': report['track'], **event} for event in report['events'])
+              identity.extend({'track': report['track'], **event} for event in report['candidate_identity_mismatches'])
+              for key, value in report['counts'].items():
+                  counts[key] += value
+          bad = counts['slower'] + counts['safety_regression'] + counts['redistribution'] + len(identity)
+          if pairs != 4600:
+              raise SystemExit(f'expected 4600 exact agent-race pairs, found {pairs}')
+          if bad:
+              raise SystemExit(f'Round 104 has {bad} rejected outcomes: counts={counts}, identity={identity[:3]}')
+          required = {
+              ('coil', 9, 'AI1', 'faster'),
+              ('coil', 9, 'AI2', 'faster'),
+              ('interlagos', 40, 'AI1', 'safety_gain'),
+              ('interlagos', 40, 'AI2', 'safety_gain'),
+          }
+          observed = {(event['track'], event['seed'], event['kind'], event['classification']) for event in events}
+          missing = sorted(required - observed)
+          if missing:
+              raise SystemExit(f'missing required Round 104 boundaries: {missing}')
+          runtime = json.loads(Path('results/round104-runtime.json').read_text())
+          if runtime['median_ratio'] > 1.20 or runtime['trimmed_mean_ratio'] > 1.20:
+              raise SystemExit(f'runtime guard failed: {runtime}')
+          summary = {
+              'base_sha': Path('results/round104-base-sha.txt').read_text().strip(),
+              'pairs': pairs,
+              'counts': counts,
+              'net_moves': net_moves,
+              'identity_mismatches': len(identity),
+              'events': events,
+              'runtime': runtime,
+          }
+          Path('round104-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-summary
+          path: round104-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  promote:
+    needs: summary
+    name: Fast-forward verified candidate to master
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: master
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round104-summary
+          path: /tmp/r104-summary
+      - name: Recreate the exact gated production tree
+        run: |
+          BASE=$(python -c "import json; print(json.load(open('/tmp/r104-summary/round104-summary.json'))['base_sha'])")
+          CURRENT=$(git rev-parse HEAD)
+          test "$CURRENT" = "$BASE"
+          git fetch origin agent/ai-racing-speed-104-stable-forward-pack:refs/remotes/origin/r104-controller
+          git show refs/remotes/origin/r104-controller:tracks/round104_materialize.py > /tmp/round104_materialize.py
+          python /tmp/round104_materialize.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('tests/ai_forward_pack_acceleration_regression.py')
+          p.write_text(p.read_text().replace('    ("zigzag", 76): (7, 0, [65, 65, 65, 66, 67, 67, 68]),\n', ''))
+          PY
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/ai_forward_pack_acceleration_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit and fast-forward master
+        run: |
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java \
+            tests/ai_forward_pack_acceleration_regression.py AI_DEVELOPMENT.md
+          git commit -m 'Round 104: stable forward-pack acceleration'
+          HEAD_SHA=$(git rev-parse HEAD)
+          REMOTE_MASTER=$(git ls-remote origin refs/heads/master | cut -f1)
+          BASE_SHA=$(git rev-parse HEAD^)
+          test "$REMOTE_MASTER" = "$BASE_SHA"
+          git push origin HEAD:master
+          python - <<PY
+          import json
+          from pathlib import Path
+          summary = json.load(open('/tmp/r104-summary/round104-summary.json'))
+          summary['head_sha'] = '$HEAD_SHA'
+          summary['promotion'] = 'fast-forwarded'
+          Path('round104-promotion.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          PY
+      - name: Verify the exact promoted head
+        run: |
+          git fetch origin master
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/ai_forward_pack_acceleration_regression.py
+          git status --short
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round104-promotion
+          path: round104-promotion.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Remove temporary Round 104 branches
+        if: success()
+        run: |
+          for branch in \
+            agent/ai-racing-speed-104-stable-forward-pack \
+            agent/ai-racing-speed-104-fast-field-geometry \
+            agent/ai-racing-speed-104-source-export; do
+            git push origin --delete "$branch" || true
+          done
