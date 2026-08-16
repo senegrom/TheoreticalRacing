@@ -47,6 +47,16 @@ parities exact; slow identical. hairpin s68 remains the sole
 accepted-open class (place-neutral finish-denial seal, correct
 opposing play). Certification sweeps follow.
 
+TRIPLE CERTIFICATION (r104): 2310 races across ALL harvest windows
+(std 46-60/26-35, h6 61-75/36-45, h9 76-90/46-55) -- EXACTLY ONE
+crash: hairpin s68, the accepted place-neutral finish-denial-seal
+class. The champion's measured residual across every window ever
+raced is precisely the one documented, correct-opposing-play site.
+PROMOTION CASE NOW: AI1 leads the frozen AI2 by seven solved crash
+classes at identical-to-marginally-faster pace (canon w2 -0.001);
+h2h/1v1/4p exact parity; ten pins green. Execution awaits the user's
+word, per the standing law.
+
 ALSO: process note -- a multi-step patch script aborted mid-assert
 BEFORE its single write, so five of six steps silently missed while
 the sixth (applied separately) landed; the first r104 test ran on a
