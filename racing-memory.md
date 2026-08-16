@@ -6,6 +6,54 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 104 (local agent): three-leg confirm predicate -- EVERY HARVEST SPECIMEN SOLVED
+
+The final two open specimens fall to one unified mechanism, every
+number probe-measured before a line of Java:
+
+THE THREE LEGS (all inside the dangerJointSearch confirm block, each
+surgical by measurement):
+1. CORRIDOR (r99/r100 unchanged): thread>=1 + neutral-grid body ->
+   the proven true-4 certification-cap check.
+2. SLOW-PACK (new): thread>=2 AND snug>=3 (snug = slots with <=2
+   viable, counted free in outThreadRounds[1]) -- fires ~1/race at the
+   threadPack fallback, and monaco-s88 m54's fire IS its one
+   qualifying event (v=101 thread=2 snug=3; invisible to every other
+   tell: no bodies, no pack proximity for the killers, trap-path
+   route).
+3. DEEP-TIER (new): finalTier<=1 with NO thread -- 1 fire across
+   eight debug races, and it is zandvoort-s88 m96 itself.
+
+THE COST LADDER for the new legs: the suppressed 8-round
+certification-cap world FIRST (~100ms; probe: it alone kills both new
+sites), true rivals only to verify a kill (true-4 for slow, true-6
+for deep -- the s88 box seals at true round index 5, probe-measured:
+true-4 V=124 alive, true-6 V=-1). Switch targets now pass the same
+ladder (scorer-8 then true-4); all survivor targets probe-verified
+alive in every ladder world before building.
+
+KEY PROBE FACTS BANKED: scorer-8-cap6 kills BOTH new sites -- no true
+rivals needed for detection, only for verification; cap matters at
+depth (scorer-8-cap3 reads s88 alive with thread=5!); the query-sim
+audit reply (V;tier;thread;snug) made every gate decision a
+one-command measurement.
+
+RESULT: all seven harvest specimens crash-free (chicane s51,
+zandvoort s32/s74/s88, monza s80, zigzag s76, monaco s88); race times
+unchanged (monaco 2.2s, zandvoort 3.0s); ten pins PASS; canon
+62.706 / 62.649 / 62.679 with window 2 now 0.001 FASTER than the
+champion mirror (a ladder switch found a marginally better line);
+parities exact; slow identical. hairpin s68 remains the sole
+accepted-open class (place-neutral finish-denial seal, correct
+opposing play). Certification sweeps follow.
+
+ALSO: process note -- a multi-step patch script aborted mid-assert
+BEFORE its single write, so five of six steps silently missed while
+the sixth (applied separately) landed; the first r104 test ran on a
+half-round build. Caught by the site battery reading 2 crashes.
+Standing rule reaffirmed: write patch scripts to FILES, assert all,
+write once, and always re-verify the diff stat after applying.
+
 ## Round 103 (local agent): the query-sim probe finds two structural truths; zigzag solved
 
 THE INSTRUMENT: a `sim` command in the --query-moves protocol

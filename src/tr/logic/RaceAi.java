@@ -272,6 +272,7 @@ final class RaceAi {
 	 *  up). One nested level is allowed; depth 2 blocks (cost recursion). */
 	private static int				trueConfirmDepth;
 	private final static int		AI1_TRUE_CONFIRM_MAXDEPTH	= 2;
+	private final static int		AI1_TRUE_CONFIRM_DEEP_ROUNDS	= 6;	// round 104: horizon for the deep-tier leg -- the zandvoort-s88 box seals at true round index 5
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -953,6 +954,16 @@ final class RaceAi {
 								// round-99 true-rival confirm do the rest.
 								final int landingAdjacent = countRivalsWithinCheb(dcx, dcy,
 										playerNum, 3);
+								if (AI_DEBUG_DJS && (aheadNear >= AI1_DEEP_PACK || compressedRearQueue
+										|| landingAdjacent >= AI1_DEEP_PACK)) {
+									final int[] cft = { 3 };
+									final int[] ctr = { 0, 0 };
+									final int cv = simOutcome(dcx, dcy, djvx, djvy, playerNum,
+											AI1_DJS_ROUNDS, true, true, true, true, false,
+											AI1_DEEP_CERT_RIVALS, cft, null, ctr);
+									System.err.println("AIDBG CORR-AUDIT p=" + playerNum + " v=" + cv
+											+ " tier=" + cft[0] + " thread=" + ctr[0] + " snug=" + ctr[1]);
+								}
 								if (aheadNear >= AI1_DEEP_PACK || compressedRearQueue
 										|| landingAdjacent >= AI1_DEEP_PACK) {
 									if (AI_DEBUG_DJS)
@@ -1042,7 +1053,7 @@ final class RaceAi {
 							}
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
-									threadPack);
+									threadPack, threadPack);
 						}
 					}
 				} else {
@@ -1115,11 +1126,20 @@ final class RaceAi {
 								+ " thread=" + smokeThread[0] + " snug=" + smokeThread[1] + "/"
 								+ (AI1_DJS_SLOW_ROUNDS - 1));
 					if (denseSlowPack || smokeDies || funnelRisk) {
-						if (AI_DEBUG_DJS)
+						if (AI_DEBUG_DJS) {
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
 									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack"
 											: smokeDies ? " scorer-dies" : " funnel-risk")
 									+ " -> scorer rollout");
+							final int[] eft = { 3 };
+							final int[] etr = { 0, 0 };
+							final int ev = simOutcome(scx, scy, scvx, scvy, playerNum,
+									funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS, true, true,
+									true, true, false, funnelRisk ? AI1_DEEP_CERT_RIVALS
+											: AI1_SCORER_MAXRIVALS, eft, null, etr);
+							System.err.println("AIDBG ESC-AUDIT p=" + playerNum + " v=" + ev
+									+ " tier=" + eft[0] + " thread=" + etr[0] + " snug=" + etr[1]);
+						}
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
 								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true);
@@ -2542,11 +2562,20 @@ final class RaceAi {
 	/** Query-sim entry (round 103): verdict of the core rollout from the
 	 *  installed board, me already AT the queried landing. */
 	int querySimOutcome(final int mover, final int rounds, final boolean scorerRivals,
-			final boolean trueRivals, final boolean scorerSelf, final int scorerCap) {
+			final boolean trueRivals, final boolean scorerSelf, final int scorerCap,
+			final int[] outAudit) {
 		final Player me = game.players[mover];
 		final int[] mp = me.getPosition(), mv = me.getVelocity();
-		return simOutcome(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
-				true, scorerRivals, scorerSelf, trueRivals, scorerCap, null, null, null);
+		final int[] ft = { 3 };
+		final int[] tr = { 0, 0 };
+		final int v = simOutcome(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
+				true, scorerRivals, scorerSelf, trueRivals, scorerCap, ft, null, tr);
+		if (outAudit != null) {
+			outAudit[0] = ft[0];
+			outAudit[1] = tr[0];
+			outAudit[2] = tr[1];
+		}
+		return v;
 	}
 
 	/** trueRivals (round 99): scorer-set rivals run their UNSUPPRESSED real
@@ -2784,7 +2813,7 @@ final class RaceAi {
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
 		final boolean audit = threadCheck || trueConfirm;
-		final int[] threadRounds = audit ? new int[1] : null;
+		final int[] threadRounds = audit ? new int[2] : null;
 		final int[] finalTier = audit ? rolloutWorkspace().finalTier : null;
 		if (finalTier != null)
 			finalTier[0] = 3;
@@ -2803,10 +2832,24 @@ final class RaceAi {
 			// final tier at its last avoidable move; the widened predicate
 			// (any threaded slot + a body on the neutral grid) measured 0
 			// fires outside zandvoort across the healthy sample.
-			if (trueConfirm && trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH
-					&& threadRounds != null && finalTier != null
+			// Round 104: THREE fragility legs, each measured surgical:
+			// corridor (r99/r100, thread + neutral-grid body -> the proven
+			// true-4 check, unchanged); slow-pack (thread>=2 AND snug>=3,
+			// ~1/race at the threadPack fallback -- monaco s88 m54 is
+			// invisible to every other tell); deep-tier (final tier<=1 with
+			// NO thread at ~0.13/race -- zandvoort s88 m96, box @true-r5).
+			// The new legs pay a cost ladder: the suppressed 8-round
+			// certification-cap world first (~100ms), true rivals only on a
+			// kill; the deep leg verifies at 6 true rounds.
+			final boolean legCorr = trueConfirm && threadRounds != null
 					&& threadRounds[0] >= 1
-					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1) {
+					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1;
+			final boolean legSlow = trueConfirm && threadRounds != null
+					&& threadRounds[0] >= 2 && threadRounds[1] >= 3;
+			final boolean legDeep = trueConfirm && threadRounds != null && finalTier != null
+					&& finalTier[0] <= 1 && threadRounds[0] == 0;
+			if ((legCorr || legSlow || legDeep)
+					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
 					// Round 103: confirms ALWAYS run the certification cap --
@@ -2814,9 +2857,21 @@ final class RaceAi {
 					// the uncapped cars hands the key rival a context where it
 					// vacates the kill cell) and true-DEAD at cap 6, matching
 					// the offline all-champion roll and the real race.
-					trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
-							simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
-							Math.max(scorerCap, AI1_DEEP_CERT_RIVALS), null, null, null) < 0;
+					final int confirmCap = Math.max(scorerCap, AI1_DEEP_CERT_RIVALS);
+					if (legCorr) {
+						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
+								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
+								confirmCap, null, null, null) < 0;
+					} else {
+						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
+								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
+								confirmCap, null, null, null) < 0
+								&& simOutcome(cx, cy, cvx, cvy, playerNum,
+										legDeep ? AI1_TRUE_CONFIRM_DEEP_ROUNDS
+												: AI1_TRUE_CONFIRM_ROUNDS,
+										simFinishVanish, exactSelf, exactRivals, true, scorerSelf,
+										true, confirmCap, null, null, null) < 0;
+					}
 				} finally {
 					trueConfirmDepth--;
 				}
@@ -2859,6 +2914,7 @@ final class RaceAi {
 				if (!reach.isAlive(nx, ny, nvx, nvy))
 					continue;
 				threadRounds[0] = 0;
+				threadRounds[1] = 0;
 				final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish, exactSelf,
 						exactRivals, scorerRivals, scorerSelf, scorerCap, null, null, threadRounds);
 				if (tdbg)
@@ -2949,9 +3005,14 @@ final class RaceAi {
 				final boolean survives;
 				try {
 					survives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
-							AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,
-							scorerSelf, true, Math.max(scorerCap, AI1_DEEP_CERT_RIVALS),
-							null, null, null) >= 0;
+							AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals, true,
+							scorerSelf, false, Math.max(scorerCap, AI1_DEEP_CERT_RIVALS),
+							null, null, null) >= 0
+							&& simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
+									AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf,
+									exactRivals, true, scorerSelf, true,
+									Math.max(scorerCap, AI1_DEEP_CERT_RIVALS),
+									null, null, null) >= 0;
 				} finally {
 					trueConfirmDepth--;
 				}

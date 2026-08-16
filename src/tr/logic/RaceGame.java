@@ -830,14 +830,16 @@ public final class RaceGame {
 					subgamestate = smover;
 					RaceAi.simTrace = true;
 					final int verdict;
+					final int[] audit = new int[3];
 					try {
 						verdict = ai.querySimOutcome(smover, srounds,
-								!"smom".equals(world), "true".equals(world), false, scap);
+								!"smom".equals(world), "true".equals(world), false, scap, audit);
 					} finally {
 						RaceAi.simTrace = false;
 					}
 					System.err.flush();
-					bw.write("V=" + verdict);
+					bw.write("V=" + verdict + ";tier=" + audit[0] + ";thread=" + audit[1]
+							+ ";snug=" + audit[2]);
 					bw.newLine();
 					bw.flush();
 					continue;
