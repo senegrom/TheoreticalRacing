@@ -1,0 +1,180 @@
+name: Round 101 guarded-field v3 differential
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-101-guarded-field-v3
+    paths:
+      - .github/workflows/round101-guarded-field-v3-differential.yml
+      - tracks/round101_guarded_field_v3.patch
+      - tracks/round101_compare_exact.py
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build exact baseline
+        run: |
+          sh ./build_main.sh
+          cp theoreticRacing.jar /tmp/round101-baseline.jar
+      - name: Apply and verify candidate
+        run: |
+          git apply --check tracks/round101_guarded_field_v3.patch
+          git apply tracks/round101_guarded_field_v3.patch
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar /tmp/round101-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round101-v3-jars
+          path: |
+            /tmp/round101-baseline.jar
+            /tmp/round101-candidate.jar
+          if-no-files-found: error
+          retention-days: 3
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - { track: circle, end: 75 }
+          - { track: triangle, end: 75 }
+          - { track: curve, end: 75 }
+          - { track: hairpin, end: 100 }
+          - { track: chicane, end: 75 }
+          - { track: sprint, end: 75 }
+          - { track: bigoval, end: 75 }
+          - { track: slalom, end: 75 }
+          - { track: gear, end: 75 }
+          - { track: coil, end: 75 }
+          - { track: zigzag, end: 75 }
+          - { track: the_long_loop, end: 75 }
+          - { track: monaco, end: 75 }
+          - { track: hungaroring, end: 75 }
+          - { track: interlagos, end: 75 }
+          - { track: lemans, end: 75 }
+          - { track: spa, end: 75 }
+          - { track: silverstone, end: 75 }
+          - { track: monza, end: 75 }
+          - { track: zandvoort, end: 100 }
+          - { track: nurburgring, end: 75 }
+          - { track: spielberg, end: 75 }
+          - { track: serpentine, end: 25 }
+          - { track: serpentine2, end: 25 }
+          - { track: spiral, end: 25 }
+          - { track: cog, end: 25 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round101-v3-jars
+          path: /tmp/round101-jars
+      - name: Compare exact current AI1 against candidate AI1
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python - <<'PY'
+          import importlib.util
+          import json
+          import os
+          import tempfile
+          import time
+          from pathlib import Path
+
+          spec = importlib.util.spec_from_file_location('exact', 'tracks/round101_compare_exact.py')
+          exact = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(exact)
+          track = os.environ['TRACK']
+          end = int(os.environ['END_SEED'])
+          baseline_jar = Path('/tmp/round101-jars/round101-baseline.jar')
+          candidate_jar = Path('/tmp/round101-jars/round101-candidate.jar')
+          with tempfile.TemporaryDirectory(prefix=f'r101-v3-{track}-') as directory:
+              tmp = Path(directory)
+              started = time.perf_counter()
+              exact.run_column(baseline_jar, track, end, 'AI1', tmp)
+              baseline_seconds = time.perf_counter() - started
+              for path in tmp.glob(f'AI1-{track}_s*.log'):
+                  path.rename(tmp / path.name.replace('AI1-', 'baseline-', 1))
+              started = time.perf_counter()
+              exact.run_column(candidate_jar, track, end, 'AI1', tmp)
+              candidate_seconds = time.perf_counter() - started
+              summary = {
+                  'track': track, 'pairs': end, 'identical': 0, 'faster': 0,
+                  'slower': 0, 'safety_gain': 0, 'safety_regression': 0,
+                  'redistribution': 0, 'net_moves': 0,
+                  'baseline_seconds': baseline_seconds,
+                  'candidate_seconds': candidate_seconds,
+                  'runtime_ratio': candidate_seconds / baseline_seconds,
+                  'events': [],
+              }
+              for seed in range(1, end + 1):
+                  baseline = exact.parse_log(tmp / f'baseline-{track}_s{seed}.log')
+                  candidate = exact.parse_log(tmp / f'AI1-{track}_s{seed}.log')
+                  if candidate == baseline:
+                      summary['identical'] += 1
+                      continue
+                  bf, cf = baseline['finishes'], candidate['finishes']
+                  bc, cc = baseline['crashes'], candidate['crashes']
+                  bsum, csum = sum(bf.values()), sum(cf.values())
+                  if len(cf) < len(bf) or len(cc) > len(bc):
+                      kind = 'safety_regression'
+                  elif len(cf) > len(bf) or len(cc) < len(bc):
+                      kind = 'safety_gain'
+                  elif csum < bsum:
+                      kind = 'faster'
+                  elif csum > bsum:
+                      kind = 'slower'
+                  else:
+                      kind = 'redistribution'
+                  summary[kind] += 1
+                  summary['net_moves'] += csum - bsum
+                  summary['events'].append({
+                      'seed': seed, 'classification': kind, 'delta': csum - bsum,
+                      'baseline_finishers': len(bf), 'candidate_finishers': len(cf),
+                      'baseline_crashes': len(bc), 'candidate_crashes': len(cc),
+                      'baseline_moves': bsum, 'candidate_moves': csum,
+                      'baseline_by_player': bf, 'candidate_by_player': cf,
+                  })
+          out = Path(f'round101-v3-{track}.json')
+          out.write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          if summary['safety_regression'] or summary['slower'] or summary['redistribution']:
+              raise SystemExit(1)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round101-v3-${{ matrix.track }}
+          path: round101-v3-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
