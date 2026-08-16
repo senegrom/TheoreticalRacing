@@ -1,0 +1,24 @@
+name: Export Round 102 v3 source
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-102-v3-export
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Materialize guarded-field v3
+        run: git apply tracks/round101_guarded_field_v3.patch
+      - name: Archive materialized source
+        run: tar --exclude=.git -czf /tmp/theoretical-racing-round102-v3.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theoretical-racing-round102-v3-source
+          path: /tmp/theoretical-racing-round102-v3.tar.gz
+          retention-days: 3
