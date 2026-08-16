@@ -26,14 +26,14 @@ jobs:
       - name: Build exact current-AI1 baseline
         run: |
           sh ./build_main.sh
-          mv theoreticRacing.jar round101-finish-baseline.jar
+          cp theoreticRacing.jar round101-finish-baseline.jar
       - name: Apply and verify candidate
         run: |
           git apply --check tracks/round101_finish_denial.patch
           git apply tracks/round101_finish_denial.patch
           sh ./run_tests.sh
           sh ./build_main.sh
-          mv theoreticRacing.jar round101-finish-candidate.jar
+          cp theoreticRacing.jar round101-finish-candidate.jar
           python tests/headless_smoke.py
           python tests/golden_races.py
           python tests/ai1_pace_regression.py
