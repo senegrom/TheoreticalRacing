@@ -1,0 +1,138 @@
+name: Publish Round 103 full-roster confirmation
+
+on:
+  push:
+    branches: [agent/ai-racing-speed-103-full-roster-confirm-v2]
+    paths: [.github/workflows/round103-publish-v2.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Materialize exact policy and regression
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          race = Path('src/tr/logic/RaceAi.java')
+          source = race.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  '\tprivate static boolean\t\t\tinTrueRivalConfirm;',
+                  '\tprivate boolean\t\t\t\tinTrueRivalConfirm;',
+              ),
+              (
+                  '''\t\t\t\t\ttrueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,\n\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tscorerCap, null, null, null) < 0;''',
+                  '''\t\t\t\t\ttrueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,\n\t\t\t\t\t\t\tsimFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,\n\t\t\t\t\t\t\tAI1_DEEP_CERT_RIVALS, null, null, null) < 0;''',
+              ),
+              (
+                  '''\t\t\t\t\tsurvives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,\n\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, scorerCap, null, null, null) >= 0;''',
+                  '''\t\t\t\t\tsurvives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,\n\t\t\t\t\t\t\tAI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf, exactRivals, true,\n\t\t\t\t\t\t\tscorerSelf, true, AI1_DEEP_CERT_RIVALS, null, null, null) >= 0;''',
+              ),
+              (
+                  '''\t\t\t\t\t\t\t\tif (deepChoice == chosen)\n\t\t\t\t\t\t\t\t\tdeepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,\n\t\t\t\t\t\t\t\t\t\t\ttrue, true, AI1_DEEP_HORIZON);''',
+                  '''\t\t\t\t\t\t\t\tif (deepChoice == chosen)\n\t\t\t\t\t\t\t\t\tdeepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,\n\t\t\t\t\t\t\t\t\t\t\ttrue, true, AI1_DEEP_HORIZON, AI1_SCORER_MAXRIVALS,\n\t\t\t\t\t\t\t\t\t\t\tfalse, false, true);''',
+              ),
+          ]
+          for old, new in replacements:
+              assert source.count(old) == 1, old[:80]
+              source = source.replace(old, new, 1)
+          race.write_text(source, encoding='utf-8')
+          PY
+          cat > tests/ai_true_rival_roster_regression.py <<'PY'
+          #!/usr/bin/env python3
+          """Pin Round 103's full-roster true-confirmation safety boundaries."""
+
+          from pathlib import Path
+          import sys
+          import tempfile
+
+          ROOT = Path(__file__).resolve().parents[1]
+          sys.path.insert(0, str(ROOT / "tracks"))
+
+          import bench_ai  # noqa: E402
+
+          EXPECTED = {
+              ("zigzag", 76): (7, 0, [65, 65, 65, 66, 67, 67, 68]),
+              ("hungaroring", 63): (7, 0, [118, 121, 122, 124, 127, 128, 129]),
+          }
+
+
+          def main() -> int:
+              if not Path(bench_ai.JAR).is_file():
+                  raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
+
+              results = {}
+              with tempfile.TemporaryDirectory(prefix="true-rival-roster-") as directory:
+                  bench_ai.configure_runtime(directory)
+                  bench_ai.set_nplayers(8)
+                  for kind in ("AI1", "AI2"):
+                      bench_ai.set_all_to(kind)
+                      for case in EXPECTED:
+                          track, seed = case
+                          results[(kind, case)] = bench_ai.run_track(
+                              track, timeout=1200, seed=seed
+                          )
+
+              for kind in ("AI1", "AI2"):
+                  for case, expected in EXPECTED.items():
+                      actual = results[(kind, case)]
+                      if actual != expected:
+                          raise SystemExit(
+                              f"Round-103 {kind} {case[0]} seed-{case[1]} regression: "
+                              f"{actual}, expected {expected}"
+                          )
+              for case in EXPECTED:
+                  if results[("AI1", case)] != results[("AI2", case)]:
+                      raise SystemExit(
+                          f"Round-103 target parity lost at {case}: {results}"
+                      )
+
+              print("AITrueRivalRosterRegression: OK "
+                    "(Zigzag 76 and Hungaroring 63 safety boundaries pinned)")
+              return 0
+
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          PY
+          chmod +x tests/ai_true_rival_roster_regression.py
+      - name: Verify exact production tree
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_true_rival_roster_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit verified production files
+        run: |
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java tests/ai_true_rival_roster_regression.py
+          git commit -m 'Round 103: use full certified rival roster'
+          git push origin HEAD:agent/ai-racing-speed-103-full-roster-confirm-v2
