@@ -48,6 +48,22 @@ confirm. The kill exists ONLY at true fidelity with no cheap
 signature. New debug diagnostics kept (THREADPACK, SMOKETHREAD,
 snug counter in outThreadRounds[1]).
 
+SWEEP VERDICT (r103 certified): dual 770-race sweeps -- harvest-9
+windows 2/770, the two crashes being EXACTLY monaco s88 and zandvoort
+s88 (the documented open set, nothing new); standard windows 0/770.
+The residual equals the documented frontier precisely. Canon window 3
+62.679 identical; 1v1/h2h/4p exact parity; slow 104.107.
+
+OTHER AGENT CONVERGENCE NOTE: their speed-103 branches independently
+reached the SAME zigzag site and the SAME cap conclusion
+(six-rival-gate / full-roster-confirm). Their patch is a subset of
+master 38e8595 (cap fix identical in effect; binary instance latch
+where master has the depth counter; no query-sim). Their
+six-rival-mirror-gate-v2 branch MIRRORS the confirm machinery into
+AI2 with a joint AI1/AI2 zigzag pin -- promotion-shaped work, held on
+the branch: per the standing law the AI2 mirror lands only on the
+user's explicit promotion word.
+
 ZANDVOORT S88 stays open (corridor class at depth 7 -- the deep
 confirm at the funnel escalation remains the costed, unmeasured
 candidate).
