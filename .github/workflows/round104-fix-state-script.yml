@@ -1,0 +1,72 @@
+name: Harden Round 104 state isolation
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-104-controller-final
+    paths:
+      - .github/workflows/round104-fix-state-script.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Make query-trace state instance-owned wherever declared
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tracks/round104_candidate.py')
+          text = path.read_text()
+          old = '''    race.write_text(source, encoding="utf-8")
+
+    game = root / "src/tr/logic/RaceGame.java"
+    lines = game.read_text(encoding="utf-8").splitlines(keepends=True)
+    trace_changes = 0
+    for index, line in enumerate(lines):
+        nearby = "".join(lines[max(0, index - 2): index + 3]).lower()
+        if ("\\tprivate static " in line and " final " not in line
+                and "simtrace" in nearby):
+            lines[index] = line.replace("\\tprivate static ", "\\tprivate ", 1)
+            trace_changes += 1
+    if trace_changes > 1:
+        raise RuntimeError(f"unexpected mutable SIMTRACE fields: {trace_changes}")
+    game.write_text("".join(lines), encoding="utf-8")
+'''
+          new = '''    race.write_text(source, encoding="utf-8")
+
+    trace_changes = 0
+    for target in (race, root / "src/tr/logic/RaceGame.java"):
+        lines = target.read_text(encoding="utf-8").splitlines(keepends=True)
+        for index, line in enumerate(lines):
+            nearby = "".join(lines[max(0, index - 2): index + 3]).lower()
+            if ("\\tprivate static " in line and " final " not in line
+                    and ("simtrace" in nearby or "querysim" in nearby
+                         or "query trace" in nearby)):
+                lines[index] = line.replace("\\tprivate static ", "\\tprivate ", 1)
+                trace_changes += 1
+        target.write_text("".join(lines), encoding="utf-8")
+    if trace_changes > 2:
+        raise RuntimeError(f"unexpected mutable query-trace fields: {trace_changes}")
+'''
+          if old not in text:
+              if new in text:
+                  raise SystemExit(0)
+              raise SystemExit('state-isolation block changed unexpectedly')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git diff --check
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add tracks/round104_candidate.py
+          git commit -m 'Harden Round 104 query-trace isolation'
+          git push origin HEAD:agent/ai-racing-speed-104-controller-final
