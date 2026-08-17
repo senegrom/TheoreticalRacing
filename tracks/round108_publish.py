@@ -72,14 +72,13 @@ The remaining Zandvoort seed-115 crash came from a danger-ladder switch between
 equal-speed lines: the topology rollout called both alive, while the existing
 full-fidelity rival model proved the selected line alive and the alternative
 dead. AI1 now vetoes only that false-target transition in a large homogeneous
-field. AI2's decision policy remains frozen. The associated recursive-confirm
-and trace guards are now instance-owned, satisfying the repository's state
-isolation invariant.
+field. AI2's decision policy remains frozen. The candidate is rebased on the
+promoted Round 106 guarded forward-pack acceleration.
 
 The exact 3,500-pair gate recorded {counts.get('safety_gain', 0)} safety gain(s),
 {counts.get('faster', 0)} same-order pace gain(s), no slower outcomes, no safety
 regressions and no field redistributions. Hungaroring seed 144 and Le Mans seed
-4 remained outcome-identical to live master.
+4 remained outcome-identical to the Round 106 champion.
 
 """
     development = Path("AI_DEVELOPMENT.md")
@@ -99,7 +98,8 @@ regressions and no field redistributions. Hungaroring seed 144 and Le Mans seed
             f"""
 
             {marker} Zandvoort s115 is closed by an AI1-only faithful-rival
-            veto on equal-speed danger-ladder switches. AI2's policy copy is
+            veto on equal-speed danger-ladder switches, rebased on the promoted
+            Round 106 guarded forward-pack champion. AI2's policy copy is
             untouched; Hungaroring s144 remains the sole documented mega-window
             crash frontier. Exact gate: {summary['pairs']} pairs,
             {counts.get('safety_gain', 0)} safety gain(s),
