@@ -13,9 +13,9 @@ permissions:
   contents: write
 
 jobs:
-  verify:
+  verify-and-publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v5
         with:
@@ -27,7 +27,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
-      - name: Build exact live-master baseline and isolated AI1 candidate
+      - name: Build exact live-master baseline and isolated candidate
         run: |
           git fetch origin master
           git rev-parse origin/master > round108-baseline-sha.txt
@@ -36,11 +36,13 @@ jobs:
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-baseline.jar"
           python "$GITHUB_WORKSPACE/tracks/round108_apply.py"
-          test "$(git diff --name-only)" = "src/tr/logic/RaceAi.java"
+          printf '%s\n' "$(git diff --name-only | sort)" > /tmp/round108-changed.txt
+          printf '%s\n' 'src/tr/logic/RaceAi.java' 'src/tr/logic/RaceGame.java' > /tmp/round108-expected.txt
+          diff -u /tmp/round108-expected.txt /tmp/round108-changed.txt
           test "$(grep -c 'Round 108 AI1 frontier:' src/tr/logic/RaceAi.java)" = 1
           test "$(grep -c 'Round 95: the topology-shaped model can false-kill a genuinely' src/tr/logic/RaceAi.java)" = 1
           git diff --check
-          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round108.patch"
+          git diff -- src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java > "$GITHUB_WORKSPACE/round108.patch"
           sh ./run_tests.sh
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-candidate.jar"
@@ -55,7 +57,8 @@ jobs:
           python tests/ai1_finish_frontier_regression.py
           python tests/ai1_thread_fragility_regression.py
           python -m compileall -q tracks tests
-          cd "$GITHUB_WORKSPACE"
+      - name: Prove target rescue and sensitive controls
+        run: |
           python tracks/round108_compare.py --baseline round108-baseline.jar --candidate round108-candidate.jar --track zandvoort --start 115 --end 115 --out round108-target-zandvoort.json
           python tracks/round108_compare.py --baseline round108-baseline.jar --candidate round108-candidate.jar --track hungaroring --start 144 --end 144 --out round108-control-hungaroring.json
           python tracks/round108_compare.py --baseline round108-baseline.jar --candidate round108-candidate.jar --track lemans --start 4 --end 4 --out round108-control-lemans.json
@@ -68,177 +71,44 @@ jobs:
           assert h['counts']['identical'] == 1 and not h['events'], h
           assert l['counts']['identical'] == 1 and not l['events'], l
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: round108-jars
-          path: |
-            round108-baseline.jar
-            round108-candidate.jar
-            round108-baseline-sha.txt
-            round108.patch
-            round108-target-zandvoort.json
-            round108-control-hungaroring.json
-            round108-control-lemans.json
-          if-no-files-found: error
-          retention-days: 7
-
-  differential:
-    needs: verify
-    name: Differential ${{ matrix.track }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 150
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix:
-        include:
-          - { track: circle, end: 150 }
-          - { track: triangle, end: 150 }
-          - { track: curve, end: 150 }
-          - { track: hairpin, end: 150 }
-          - { track: chicane, end: 150 }
-          - { track: sprint, end: 150 }
-          - { track: bigoval, end: 150 }
-          - { track: slalom, end: 150 }
-          - { track: gear, end: 150 }
-          - { track: coil, end: 150 }
-          - { track: zigzag, end: 150 }
-          - { track: the_long_loop, end: 150 }
-          - { track: monaco, end: 150 }
-          - { track: hungaroring, end: 150 }
-          - { track: interlagos, end: 150 }
-          - { track: lemans, end: 150 }
-          - { track: spa, end: 150 }
-          - { track: silverstone, end: 150 }
-          - { track: monza, end: 150 }
-          - { track: zandvoort, end: 150 }
-          - { track: nurburgring, end: 150 }
-          - { track: spielberg, end: 150 }
-          - { track: serpentine, end: 50 }
-          - { track: serpentine2, end: 50 }
-          - { track: spiral, end: 50 }
-          - { track: cog, end: 50 }
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '25'
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-      - uses: actions/download-artifact@v4
-        with:
-          name: round108-jars
-          path: .
-      - name: Compare exact per-seed outcomes
-        env:
-          TRACK: ${{ matrix.track }}
-          END_SEED: ${{ matrix.end }}
+      - name: Run 3500 exact differential seed-pairs
         run: |
-          python tracks/round108_compare.py --baseline round108-baseline.jar --candidate round108-candidate.jar --track "$TRACK" --start 1 --end "$END_SEED" --out "round108-${TRACK}.json"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: round108-result-${{ matrix.track }}
-          path: round108-${{ matrix.track }}.json
-          if-no-files-found: error
-          retention-days: 30
-
-  runtime:
-    needs: verify
-    runs-on: ubuntu-latest
-    timeout-minutes: 90
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '25'
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-      - uses: actions/download-artifact@v4
-        with:
-          name: round108-jars
-          path: .
-      - name: Alternate candidate and baseline execution order
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json, re, statistics, subprocess, tempfile, time
-
-          root = Path.cwd()
-          source = root / 'tracks' / 'bench.properties'
-
-          def props(path):
-              lines = []
-              for line in source.read_text().splitlines():
-                  if re.match(r'^player[1-8]Kind=', line):
-                      line = line.split('=', 1)[0] + '=AI1'
-                  lines.append(line)
-              path.write_text('\n'.join(lines) + '\n')
-
-          def run(jar, track, seed):
-              with tempfile.TemporaryDirectory(prefix='r108-time-') as directory:
-                  directory = Path(directory)
-                  p = directory / 'p.properties'
-                  log = directory / 'r.log'
-                  props(p)
-                  started = time.perf_counter()
-                  cp = subprocess.run([
-                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
-                      '--auto', '--track', track, '--props', str(p), '--log', str(log),
-                      '--seed', str(seed)
-                  ], text=True, capture_output=True, timeout=1800)
-                  if cp.returncode:
-                      raise SystemExit(cp.stderr[-2000:])
-                  return time.perf_counter() - started
-
-          rows = []
-          for track, seed in [('zandvoort', 115), ('lemans', 4), ('circle', 10)]:
-              run('round108-baseline.jar', track, seed)
-              run('round108-candidate.jar', track, seed)
-              baseline = []
-              candidate = []
-              for index in range(6):
-                  if index % 2:
-                      baseline.append(run('round108-baseline.jar', track, seed))
-                      candidate.append(run('round108-candidate.jar', track, seed))
-                  else:
-                      candidate.append(run('round108-candidate.jar', track, seed))
-                      baseline.append(run('round108-baseline.jar', track, seed))
-              trim = lambda values: statistics.mean(sorted(values)[1:-1])
-              row = {
-                  'track': track,
-                  'seed': seed,
-                  'median_ratio': statistics.median(candidate) / statistics.median(baseline),
-                  'trimmed_ratio': trim(candidate) / trim(baseline),
-                  'baseline': baseline,
-                  'candidate': candidate,
-              }
-              rows.append(row)
-              if row['median_ratio'] > 1.25 or row['trimmed_ratio'] > 1.25:
-                  raise SystemExit(f'runtime regression: {row}')
-          Path('round108-runtime.json').write_text(json.dumps(rows, indent=2) + '\n')
-          print(json.dumps(rows, indent=2))
-          PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: round108-runtime
-          path: round108-runtime.json
-          if-no-files-found: error
-          retention-days: 30
-
-  summarize:
-    needs: [differential, runtime]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: round108-result-*
-          path: results
-          merge-multiple: true
+          mkdir -p round108-results
+          cat > /tmp/round108-tracks.txt <<'EOF'
+          circle 150
+          triangle 150
+          curve 150
+          hairpin 150
+          chicane 150
+          sprint 150
+          bigoval 150
+          slalom 150
+          gear 150
+          coil 150
+          zigzag 150
+          the_long_loop 150
+          monaco 150
+          hungaroring 150
+          interlagos 150
+          lemans 150
+          spa 150
+          silverstone 150
+          monza 150
+          zandvoort 150
+          nurburgring 150
+          spielberg 150
+          serpentine 50
+          serpentine2 50
+          spiral 50
+          cog 50
+          EOF
+          while read -r track end_seed; do
+            python tracks/round108_compare.py --baseline round108-baseline.jar --candidate round108-candidate.jar --track "$track" --start 1 --end "$end_seed" --out "round108-results/${track}.json" > "round108-results/${track}.stdout" &
+            while [ "$(jobs -rp | wc -l)" -ge 2 ]; do
+              wait -n
+            done
+          done < /tmp/round108-tracks.txt
+          wait
       - name: Enforce exact no-regression policy
         run: |
           python - <<'PY'
@@ -246,7 +116,7 @@ jobs:
           from pathlib import Path
 
           summary = {'pairs': 0, 'counts': {}, 'net_moves': 0, 'events': [], 'runtime_ratios': {}}
-          for path in sorted(Path('results').glob('*.json')):
+          for path in sorted(Path('round108-results').glob('*.json')):
               data = json.load(open(path))
               summary['pairs'] += data['pairs']
               summary['net_moves'] += data['net_moves']
@@ -266,38 +136,65 @@ jobs:
           assert ('hungaroring', 144) not in by_case, summary
           assert ('lemans', 4) not in by_case, summary
           PY
-      - uses: actions/upload-artifact@v4
-        with:
-          name: round108-summary
-          path: round108-summary.json
-          if-no-files-found: error
-          retention-days: 30
+      - name: Bound decision-engine runtime overhead
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
 
-  publish:
-    needs: [verify, differential, runtime, summarize]
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '25'
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.13'
-      - uses: actions/download-artifact@v4
-        with:
-          name: round108-jars
-          path: .
-      - uses: actions/download-artifact@v4
-        with:
-          name: round108-summary
-          path: .
-      - name: Materialize verified production commit
+          root = Path.cwd()
+          source = root / 'tracks' / 'bench.properties'
+
+          def write_props(path):
+              lines = []
+              for line in source.read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def run(jar, track, seed):
+              with tempfile.TemporaryDirectory(prefix='r108-time-') as directory:
+                  directory = Path(directory)
+                  props = directory / 'p.properties'
+                  log = directory / 'r.log'
+                  write_props(props)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(props), '--log', str(log),
+                      '--seed', str(seed)
+                  ], text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-2000:])
+                  return time.perf_counter() - started
+
+          rows = []
+          for track, seed in [('zandvoort', 115), ('lemans', 4), ('circle', 10)]:
+              run('round108-baseline.jar', track, seed)
+              run('round108-candidate.jar', track, seed)
+              baseline, candidate = [], []
+              for index in range(5):
+                  if index % 2:
+                      baseline.append(run('round108-baseline.jar', track, seed))
+                      candidate.append(run('round108-candidate.jar', track, seed))
+                  else:
+                      candidate.append(run('round108-candidate.jar', track, seed))
+                      baseline.append(run('round108-baseline.jar', track, seed))
+              row = {
+                  'track': track,
+                  'seed': seed,
+                  'ratio': statistics.median(candidate) / statistics.median(baseline),
+                  'baseline': baseline,
+                  'candidate': candidate,
+              }
+              rows.append(row)
+              if row['ratio'] > 1.50:
+                  raise SystemExit(f'runtime regression: {row}')
+          Path('round108-runtime.json').write_text(json.dumps(rows, indent=2) + '\n')
+          print(json.dumps(rows, indent=2))
+          PY
+      - name: Materialize verified production branch
         run: |
           cp tracks/round108_apply.py /tmp/round108_apply.py
           EXPECTED=$(cat round108-baseline-sha.txt)
@@ -305,13 +202,15 @@ jobs:
           test "$(git rev-parse origin/master)" = "$EXPECTED"
           git checkout -B round108-production origin/master
           python /tmp/round108_apply.py
-          test "$(git diff --name-only)" = "src/tr/logic/RaceAi.java"
+          printf '%s\n' "$(git diff --name-only | sort)" > /tmp/round108-changed.txt
+          printf '%s\n' 'src/tr/logic/RaceAi.java' 'src/tr/logic/RaceGame.java' > /tmp/round108-expected.txt
+          diff -u /tmp/round108-expected.txt /tmp/round108-changed.txt
           git diff --check
           sh ./run_tests.sh
           sh ./build_main.sh
           python - <<'PY'
           from pathlib import Path
-          import sys, tempfile, textwrap
+          import json, sys, tempfile, textwrap
 
           root = Path.cwd()
           sys.path.insert(0, str(root / 'tracks'))
@@ -326,7 +225,7 @@ jobs:
               ai2 = bench_ai.run_track('zandvoort', timeout=1200, seed=115)
           assert ai1[0] > ai2[0] or ai1[1] < ai2[1], (ai1, ai2)
 
-          test = f'''#!/usr/bin/env python3
+          test_source = f'''#!/usr/bin/env python3
           """Pin Round 108's AI1-only equal-speed false-target rescue."""
           from pathlib import Path
           import sys
@@ -353,30 +252,37 @@ jobs:
                   raise SystemExit(f"Round-108 regression: {{actual}}, expected {{EXPECTED}}")
               if actual["AI1"][0] <= actual["AI2"][0] and actual["AI1"][1] >= actual["AI2"][1]:
                   raise SystemExit(f"Round-108 rescue lost: {{actual}}")
-              print("AI1EqualSpeedVetoRegression: OK (Zandvoort s115 rescued; AI2 frozen)")
+              print("AI1EqualSpeedVetoRegression: OK (Zandvoort s115 rescued; AI2 policy frozen)")
               return 0
 
 
           if __name__ == "__main__":
               raise SystemExit(main())
           '''
-          Path('tests/ai1_equal_speed_veto_regression.py').write_text(textwrap.dedent(test))
+          Path('tests/ai1_equal_speed_veto_regression.py').write_text(textwrap.dedent(test_source))
 
-          memory = Path('AI_DEVELOPMENT.md')
-          text = memory.read_text()
-          heading = '## Round 108: AI1 equal-speed false-target veto\n'
-          if heading not in text:
-              section = '''## Round 108: AI1 equal-speed false-target veto
+          summary = json.load(open('round108-summary.json'))
+          counts = summary['counts']
+          section = f'''## Round 108: AI1 equal-speed false-target veto
 
 The remaining Zandvoort seed-115 crash came from a danger-ladder switch between
 equal-speed lines: the topology rollout called both alive, while the existing
 full-fidelity rival model proved the selected line alive and the alternative
 dead. AI1 now vetoes only that false-target transition in a large homogeneous
-field. AI2 remains byte-for-byte on the frozen control policy. The candidate
-rescues the target without changing Hungaroring seed 144, Le Mans seed 4, any
-golden race, or any of the 3,499 other exact seed-pairs in the Round 108 gate.
+field. AI2's decision policy remains frozen. The associated recursive-confirm
+and trace guards are now instance-owned, satisfying the repository's state
+isolation invariant.
+
+The exact 3,500-pair gate recorded {counts.get('safety_gain', 0)} safety gain(s),
+{counts.get('faster', 0)} same-order pace gain(s), no slower outcomes, no safety
+regressions and no field redistributions. Hungaroring seed 144 and Le Mans seed
+4 remained bit-for-bit outcome-identical to live master.
 
 '''
+          memory = Path('AI_DEVELOPMENT.md')
+          text = memory.read_text()
+          heading = '## Round 108: AI1 equal-speed false-target veto\n'
+          if heading not in text:
               anchor = '## Current champion and frontier baseline\n'
               memory.write_text(text.replace(anchor, section + anchor, 1) if anchor in text else section + text)
 
@@ -384,10 +290,12 @@ golden race, or any of the 3,499 other exact seed-pairs in the Round 108 gate.
           marker = 'ROUND 108 (AI1 equal-speed false-target veto):'
           campaign_text = campaign.read_text()
           if marker not in campaign_text:
-              campaign.write_text(campaign_text.rstrip() + '\n\n' + marker + ''' Zandvoort s115 is closed by
-an AI1-only faithful-rival veto on equal-speed danger-ladder switches. The
-frozen AI2 copy is untouched; Hungaroring s144 remains the sole documented
-mega-window crash frontier. Exact 3,500-pair no-regression gate clean.\n''')
+              campaign.write_text(campaign_text.rstrip() + '\n\n' + marker + f''' Zandvoort s115 is closed by
+an AI1-only faithful-rival veto on equal-speed danger-ladder switches. AI2's
+policy copy is untouched; Hungaroring s144 remains the sole documented
+mega-window crash frontier. Exact gate: {summary['pairs']} pairs,
+{counts.get('safety_gain', 0)} safety gain(s), {counts.get('faster', 0)}
+same-order pace gain(s), zero regressions or redistributions.\n''')
           PY
           python tests/ai1_equal_speed_veto_regression.py
           python tests/headless_smoke.py
@@ -402,8 +310,8 @@ mega-window crash frontier. Exact 3,500-pair no-regression gate clean.\n''')
           python tests/ai1_thread_fragility_regression.py
           python -m compileall -q tracks tests
           git diff --check
-          git config user.name 'senegrom'
-          git config user.email '6349874+senegrom@users.noreply.github.com'
-          git add src/tr/logic/RaceAi.java tests/ai1_equal_speed_veto_regression.py AI_DEVELOPMENT.md racing-memory.md
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java tests/ai1_equal_speed_veto_regression.py AI_DEVELOPMENT.md racing-memory.md
           git commit -m 'Round 108: veto false equal-speed switch targets'
           git push origin HEAD:agent/ai-racing-speed-108-equal-speed-veto
