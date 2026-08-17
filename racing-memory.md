@@ -6,6 +6,47 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 108 (local agent): the smoke proximity gate -- a measured, behavior-preserving speedup
+
+USER DIRECTIVE: speed up the engine. Built a profiling twin of the
+champion (per-call-site simOutcome attribution, within-turn duplicate
+detection, smoke yield counters) -- the profile was unambiguous:
+
+- The r60 SMOKE TEST is 70-79%% of ALL simulation time (e.g. zandvoort
+  s33: escSmoke+escDJS 3.7s of 5.4s sim; interlagos s47: 3.9s of 5.0s)
+  and its verdict is DIES 0.1%% of the time (7 in 5162 profiled runs).
+- Within-turn duplicate scorer moves are only 6-8%% -- memoization is
+  NOT the win. The smoke's fire RATE is.
+
+THE GATE (AI1 only, second smoke occurrence = frozen AI2 untouched):
+a slow-landing box within the 5-round smoke horizon needs bodies near
+the landing. 5162 profiled smoke runs across 8/4/2-car fields, seven
+real kills: every 8-car kill has >= 4 rivals within Chebyshev 3 of
+the landing; the single sparse-field kill (monaco 4-car s9 m19 -- the
+round-71 pin site, caught when the first near3>=2 gate broke its
+move-identity) lives in a seal<=3 field. Gate:
+  smokeNear = sealRivals <= 3 || near3 >= 2
+(small fields exempt wholesale; 2x margin on the 8-car kills; debug
+modes unchanged). Keeps 54%% of runs and 7/7 kills.
+
+REJECTED SIBLING (measured): gating the funnel/dense ESC escalation by
+proximity -- zandvoort s37 re-crashes (the r83 funnel arm's rare
+switches fire with rivals FAR away; its fires are 0-switch in 4124
+profiled cases on healthy races, but the rare switch IS the r83
+zandvoort-band fix). The funnel arm stays ungated.
+
+VERIFICATION: 18-race A/B (8/4/2-car, every historic class site) --
+18/18 MOVE-IDENTICAL, total wall 118.2s -> 102.1s (-13.6%%; heavy
+pack tracks -20-25%%: zigzag s76 3.5->2.0s, monza s80 6.6->5.6s,
+zandvoort s33 6.4->5.1s). All ELEVEN pins pass on the candidate jar.
+Canon numbers must be bit-identical (move-identity implies it);
+window-1 verification in flight at write time.
+
+Also noted for the speed ledger: their r106 forward-pack arm moved
+canon window-1 wall time 5m50 -> 9m05 (+55%%); this gate claws back
+roughly a quarter of a window. The profiling twin (prof/ tree +
+prof.jar pattern) is reusable for the next speed round.
+
 ## Round 107 (local agent): direct true-5 at the ESC route -- hungaroring s144 solved, canon -0.010
 
 BUILT ON their promoted Round 106 (guarded forward-pack acceleration;

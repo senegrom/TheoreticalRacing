@@ -1118,8 +1118,21 @@ final class RaceAi {
 					// Round 92: dense-pack and funnel risks already force the
 					// following scorer rollout. Avoid paying for a redundant five-
 					// round smoke simulation unless diagnostics explicitly need it.
+					// Speed (round 108): the slow-queue dooms the smoke exists for
+					// need bodies close enough to box a slow landing within the
+					// 5-round horizon. Profiled: 5162 smoke runs across sixteen
+					// races spanning 8/4/2-car fields, seven real kills -- every
+					// 8-car kill has >= 4 rivals within Chebyshev 3 of the landing
+					// (gate at 2 = twice the margin), and the one sparse-field kill
+					// (monaco 4-car s9 m19, the round-71 pin site) sits in a
+					// seal<=3 field, so small fields are exempted wholesale. The
+					// ungated smoke was 70-79% of all simulation time and died
+					// 0.1% of the time; this keeps 54% of runs and 7/7 kills.
+					// Debug modes still run it everywhere.
+					final boolean smokeNear = sealRivals <= 3
+							|| countRivalsWithinCheb(scx, scy, playerNum, 3) >= 2;
 					final boolean smokeRequired = AI_DEBUG_DJS || AI_DEBUG_COMP
-							|| AI_DEBUG_PLAYER >= 0 || !denseSlowPack && !funnelRisk;
+							|| AI_DEBUG_PLAYER >= 0 || !denseSlowPack && !funnelRisk && smokeNear;
 					final int[] smokeThread = { 0, 0 };
 					final boolean smokeDies = smokeRequired
 							&& !game.crossesFinish(pos[0], pos[1], scx, scy)
