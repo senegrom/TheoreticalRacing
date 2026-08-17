@@ -1,0 +1,200 @@
+name: Round 110 per-rival Pareto acceleration probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-110-pareto-field-proof
+    paths:
+      - .github/workflows/round110-pareto-field-proof.yml
+      - tracks/round110_apply_pareto_field.py
+      - tracks/round109_compare_pace.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact baseline and per-rival candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round110-base-sha.txt
+          test "$(cat round110-base-sha.txt)" = '0f06698d455b5641eac3c78e39e9c9a9c6188b25'
+          git worktree add /tmp/round110-pareto origin/master
+          cd /tmp/round110-pareto
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round110-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round110_apply_pareto_field.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round110-candidate.jar"
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round110-pareto.patch"
+      - name: Run permanent behaviour pins
+        working-directory: /tmp/round110-pareto
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round110-pareto-build
+          path: |
+            round110-baseline.jar
+            round110-candidate.jar
+            round110-base-sha.txt
+            round110-pareto.patch
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - { track: circle, end_seed: 75 }
+          - { track: triangle, end_seed: 75 }
+          - { track: curve, end_seed: 75 }
+          - { track: hairpin, end_seed: 100 }
+          - { track: chicane, end_seed: 75 }
+          - { track: sprint, end_seed: 75 }
+          - { track: bigoval, end_seed: 75 }
+          - { track: slalom, end_seed: 75 }
+          - { track: gear, end_seed: 75 }
+          - { track: coil, end_seed: 100 }
+          - { track: zigzag, end_seed: 75 }
+          - { track: the_long_loop, end_seed: 75 }
+          - { track: monaco, end_seed: 75 }
+          - { track: hungaroring, end_seed: 100 }
+          - { track: interlagos, end_seed: 100 }
+          - { track: lemans, end_seed: 75 }
+          - { track: spa, end_seed: 100 }
+          - { track: silverstone, end_seed: 100 }
+          - { track: monza, end_seed: 100 }
+          - { track: zandvoort, end_seed: 120 }
+          - { track: nurburgring, end_seed: 100 }
+          - { track: spielberg, end_seed: 100 }
+          - { track: serpentine, end_seed: 30 }
+          - { track: serpentine2, end_seed: 30 }
+          - { track: spiral, end_seed: 30 }
+          - { track: cog, end_seed: 30 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round110-pareto-build
+          path: .
+      - name: Compare exact all-AI1 outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        run: |
+          mkdir -p baseline candidate
+          python tracks/round109_compare_pace.py run \
+            --jar round110-baseline.jar --track "$TRACK" --start 1 --end "$END_SEED" \
+            --label baseline --directory baseline
+          python tracks/round109_compare_pace.py run \
+            --jar round110-candidate.jar --track "$TRACK" --start 1 --end "$END_SEED" \
+            --label candidate --directory candidate
+          python tracks/round109_compare_pace.py compare \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --baseline-dir baseline --candidate-dir candidate \
+            --out "round110-pareto-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round110-pareto-${{ matrix.track }}
+          path: round110-pareto-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round110-pareto-*
+          path: results
+          merge-multiple: true
+      - name: Aggregate strict real-race results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = {
+              'variant': 'per_rival_pareto_field',
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'pairs': 0,
+              'counts': {},
+              'net_moves': 0,
+              'events': [],
+          }
+          for path in sorted(Path('results').glob('round110-pareto-*.json')):
+              data = json.loads(path.read_text())
+              if 'pairs' not in data:
+                  continue
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events']
+              )
+          bad = sum(summary['counts'].get(key, 0) for key in
+                    ('slower', 'safety_regression', 'redistribution'))
+          summary['bad'] = bad
+          summary['viable'] = (bad == 0
+              and summary['counts'].get('pareto_faster', 0) > 0)
+          Path('round110-pareto-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - name: Commit measured result to experiment branch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-110-pareto-field-proof
+          cp round110-pareto-summary.json .
+          git add round110-pareto-summary.json
+          git commit -m 'Record per-rival Pareto acceleration probe'
+          git push origin HEAD:agent/ai-racing-speed-110-pareto-field-proof
