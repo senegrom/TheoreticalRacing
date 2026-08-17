@@ -1,0 +1,130 @@
+name: Round 109 Hungaroring 144 boundary probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-hungaroring144-probe
+    paths:
+      - .github/workflows/round109-h144-probe.yml
+      - tracks/round109_broad_esc_confirm.py
+      - tracks/round109_compare.py
+      - tracks/round109_mixed_diff.py
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live champion and broad ESC diagnostic
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round109-work origin/master
+          cd /tmp/round109-work
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round109-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round109_broad_esc_confirm.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'Round 109 diagnostic' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round109-broad.jar"
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round109-broad.patch"
+      - name: Confirm the broad rule rescues Hungaroring seed 144
+        run: |
+          mkdir -p round109-results
+          python tracks/round109_compare.py \
+            --baseline round109-baseline.jar --candidate round109-broad.jar \
+            --track hungaroring --start 144 --end 144 \
+            --out round109-results/hungaroring-144.json
+          python - <<'PY'
+          import json
+          data = json.load(open('round109-results/hungaroring-144.json'))
+          assert data['counts']['safety_gain'] == 1, data
+          assert data['counts']['safety_regression'] == 0, data
+          PY
+      - name: Capture the target decision and broad-confirm trace
+        run: |
+          java -Djava.awt.headless=true -Dai.debug.djs=true -Dai.debug.player=2 \
+            -jar round109-baseline.jar --auto --track hungaroring \
+            --props tracks/bench.properties --log round109-results/h144-baseline.log \
+            --seed 144 > round109-results/h144-baseline.stdout \
+            2> round109-results/h144-baseline.stderr
+          java -Djava.awt.headless=true -Dai.debug.djs=true -Dai.debug.player=2 \
+            -jar round109-broad.jar --auto --track hungaroring \
+            --props tracks/bench.properties --log round109-results/h144-broad.log \
+            --seed 144 > round109-results/h144-broad.stdout \
+            2> round109-results/h144-broad.stderr
+          python - <<'PY'
+          import json
+          from tracks.forensics_common import log_player_count, reconstruct_board
+
+          report = {}
+          for label in ('baseline', 'broad'):
+              path = f'round109-results/h144-{label}.log'
+              cars, mover, real = reconstruct_board(path, 26, log_player_count(path))
+              move = real[0]
+              report[label] = {
+                  'mover': mover + 1,
+                  'move': move.__dict__,
+                  'cars': [list(car) for car in cars],
+              }
+          open('round109-results/h144-board.json', 'w').write(
+              json.dumps(report, indent=2, sort_keys=True, default=str) + '\n'
+          )
+          print(json.dumps(report, indent=2, sort_keys=True, default=str))
+          PY
+          grep -E 'AIDBG (ESC|TRUECONF|DJS|THREAD)' round109-results/h144-broad.stderr \
+            > round109-results/h144-broad-events.txt || true
+      - name: Locate the heterogeneous counterexample
+        run: |
+          mkdir -p round109-results/mixed
+          python tracks/round109_mixed_diff.py \
+            --baseline round109-baseline.jar --candidate round109-broad.jar \
+            --out round109-results/mixed/report.json
+          set +e
+          cp round109-broad.jar theoreticRacing.jar
+          python tests/ai1_mixed_safety_regression.py \
+            > round109-results/mixed/regression.stdout \
+            2> round109-results/mixed/regression.stderr
+          status=$?
+          set -e
+          echo "$status" > round109-results/mixed/regression.status
+          cat round109-results/mixed/report.json
+          cat round109-results/mixed/regression.stdout || true
+          cat round109-results/mixed/regression.stderr || true
+      - name: Perfect-fidelity candidate census
+        continue-on-error: true
+        run: |
+          cp round109-baseline.jar theoreticRacing.jar
+          java -Djava.awt.headless=true -jar theoreticRacing.jar --auto \
+            --track hungaroring --props tracks/bench.properties \
+            --dump-reach round109-results/reach_hungaroring.bin \
+            --log round109-results/h144-reach.log --seed 144 \
+            > round109-results/reach.stdout 2> round109-results/reach.stderr
+          RACING_WORK_DIR=round109-results RACING_PROPS=tracks/bench.properties \
+            python tracks/oracle_roll.py cand round109-results/h144-baseline.log \
+            hungaroring 26 8 > round109-results/h144-oracle.txt
+          cat round109-results/h144-oracle.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round109-h144-boundary
+          path: |
+            round109-results
+            round109-broad.patch
+          if-no-files-found: error
+          retention-days: 14
