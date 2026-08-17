@@ -38,12 +38,12 @@ jobs:
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-baseline.jar"
           python "$GITHUB_WORKSPACE/tracks/round108_apply.py"
           git diff --name-only | sort > /tmp/round108-changed.txt
-          printf '%s\n' 'src/tr/logic/RaceAi.java' 'src/tr/logic/RaceGame.java' > /tmp/round108-expected.txt
+          printf '%s\n' 'src/tr/logic/RaceAi.java' > /tmp/round108-expected.txt
           diff -u /tmp/round108-expected.txt /tmp/round108-changed.txt
           test "$(grep -c 'Round 108 AI1 frontier:' src/tr/logic/RaceAi.java)" = 1
           test "$(grep -c 'Round 95: the topology-shaped model can false-kill a genuinely' src/tr/logic/RaceAi.java)" = 1
           git diff --check
-          git diff -- src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java > "$GITHUB_WORKSPACE/round108.patch"
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round108.patch"
           sh ./run_tests.sh
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-candidate.jar"
@@ -205,7 +205,7 @@ jobs:
           git checkout -B round108-production origin/master
           python /tmp/round108_apply.py
           git diff --name-only | sort > /tmp/round108-changed.txt
-          printf '%s\n' 'src/tr/logic/RaceAi.java' 'src/tr/logic/RaceGame.java' > /tmp/round108-expected.txt
+          printf '%s\n' 'src/tr/logic/RaceAi.java' > /tmp/round108-expected.txt
           diff -u /tmp/round108-expected.txt /tmp/round108-changed.txt
           git diff --check
           sh ./run_tests.sh
@@ -226,6 +226,6 @@ jobs:
           git diff --check
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java tests/ai1_equal_speed_veto_regression.py AI_DEVELOPMENT.md racing-memory.md
+          git add src/tr/logic/RaceAi.java tests/ai1_equal_speed_veto_regression.py AI_DEVELOPMENT.md racing-memory.md
           git commit -m 'Round 108: veto false equal-speed switch targets'
           git push origin HEAD:agent/ai-racing-speed-108-equal-speed-veto
