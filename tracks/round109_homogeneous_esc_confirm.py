@@ -33,6 +33,6 @@ new = """\t\t\t\t\t\t// Round 109: the ESC corridor confirmation is safe only as
 assert head.count(old) == 1, head.count(old)
 assert "homogeneousEscConfirm" not in source
 head = head.replace(old, new, 1)
-assert head.count("homogeneousEscConfirm") == 5
+assert head.count("homogeneousEscConfirm") == 4
 path.write_text(head + tail)
 print("materialized homogeneous-only ESC true confirmation in AI1")
