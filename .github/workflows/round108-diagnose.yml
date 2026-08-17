@@ -1,0 +1,16 @@
+name: Diagnose Round 108 workflow
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-108-equal-speed-veto-gate
+    paths:
+      - .github/workflows/round108-diagnose.yml
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Parse workflow as YAML
+        run: ruby -e "require 'yaml'; YAML.load_file('.github/workflows/round108-equal-speed-gate.yml'); puts 'YAML parse OK'"
