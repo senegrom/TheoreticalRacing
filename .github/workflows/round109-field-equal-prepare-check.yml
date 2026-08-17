@@ -1,0 +1,98 @@
+name: Round 109 field-equality build check
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-field-equal-probe
+    paths:
+      - .github/workflows/round109-field-equal-prepare-check.yml
+      - tracks/round109_apply_pace_variant.py
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply, compile and always record the result
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round109-field-equal-check origin/master
+          cd /tmp/round109-field-equal-check
+          set +e
+          python "$GITHUB_WORKSPACE/tracks/round109_apply_pace_variant.py" field_equal \
+            > "$GITHUB_WORKSPACE/round109-field-equal-apply.log" 2>&1
+          APPLY=$?
+          DIFF=99
+          JAVA=99
+          BUILD=99
+          SMOKE=99
+          if [ "$APPLY" -eq 0 ]; then
+            git diff --check > "$GITHUB_WORKSPACE/round109-field-equal-diff.log" 2>&1
+            DIFF=$?
+          fi
+          if [ "$DIFF" -eq 0 ]; then
+            sh ./run_tests.sh > "$GITHUB_WORKSPACE/round109-field-equal-java.log" 2>&1
+            JAVA=$?
+          fi
+          if [ "$JAVA" -eq 0 ]; then
+            sh ./build_main.sh > "$GITHUB_WORKSPACE/round109-field-equal-build.log" 2>&1
+            BUILD=$?
+          fi
+          if [ "$BUILD" -eq 0 ]; then
+            python tests/headless_smoke.py > "$GITHUB_WORKSPACE/round109-field-equal-smoke.log" 2>&1
+            SMOKE=$?
+          fi
+          cd "$GITHUB_WORKSPACE"
+          APPLY="$APPLY" DIFF="$DIFF" JAVA="$JAVA" BUILD="$BUILD" SMOKE="$SMOKE" \
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          def tail(name):
+              path = Path(name)
+              return path.read_text(errors='replace')[-4000:] if path.exists() else ''
+
+          data = {
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'variant': 'field_equal',
+              'apply': int(os.environ['APPLY']),
+              'diff_check': int(os.environ['DIFF']),
+              'java_tests': int(os.environ['JAVA']),
+              'build': int(os.environ['BUILD']),
+              'smoke': int(os.environ['SMOKE']),
+              'ok': all(int(os.environ[key]) == 0
+                        for key in ('APPLY', 'DIFF', 'JAVA', 'BUILD', 'SMOKE')),
+              'logs': {
+                  'apply': tail('round109-field-equal-apply.log'),
+                  'diff': tail('round109-field-equal-diff.log'),
+                  'java': tail('round109-field-equal-java.log'),
+                  'build': tail('round109-field-equal-build.log'),
+                  'smoke': tail('round109-field-equal-smoke.log'),
+              },
+          }
+          Path('round109-field-equal-prepare.json').write_text(
+              json.dumps(data, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(data, indent=2, sort_keys=True))
+          PY
+      - name: Commit check result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-109-field-equal-probe
+          git add round109-field-equal-prepare.json
+          git commit -m 'Record field-equality build check'
+          git push origin HEAD:agent/ai-racing-speed-109-field-equal-probe
