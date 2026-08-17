@@ -1,0 +1,26 @@
+name: Export Round 106 source
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-106-source-export
+    paths:
+      - .github/workflows/round106-source-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Archive exact source tree
+        run: |
+          tar --exclude=.git -czf theoretical-racing-round106-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: theoretical-racing-round106-source
+          path: theoretical-racing-round106-source.tar.gz
+          if-no-files-found: error
+          retention-days: 3
