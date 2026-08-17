@@ -1,0 +1,100 @@
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -252,6 +252,8 @@
+ 	private final static int		AI1_STAGED_HORIZON	= 8;	// strict gain + non-worsening field
+ 	private final static int		AI1_STAGED_MIN_TURNS	= 35;	// leave the existing finish sprint in charge near the line
+ 	private final static int		AI1_STAGED_MAX_SPEED2_GAIN	= 9;	// at most one |v|=4->5 axis of extra energy vs the scorer
++	private final static int		AI1_LAUNCH_CONFIRM_MIN_TURNS	= 100;	// long-tail opening funnel only; short tracks retain the established scorer verdict
+ 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
+ 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
+ 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
+@@ -268,7 +270,7 @@
+ 	/** Round 99: depth guard -- while a true-rival confirm computes rivals at
+ 	 *  full fidelity, their own confirms are suppressed. Depth, not a boolean,
+ 	 *  remains correct if an instrument nests another guarded computation. */
+-	private static int				trueConfirmDepth;
++	private int					trueConfirmDepth;
+ 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
+ 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
+ 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
+@@ -303,7 +305,7 @@
+ 	private final static long[]	SIM_TRACE_HASH = new long[3]; // chosen candidate and aggregate hashes
+ 	private final static int[]	SIM_TRACE_STATE = new int[6]; // chosen final/tier/thread + first-two rival cells
+ 	private final static long[]	SIM_TRACE_RIVAL_HASH = new long[3]; // first two scorer-rival pick hashes + actor/state mix
+-	static volatile boolean			simTrace;
++	volatile boolean				simTrace;
+ 	static int[] simTraceState() { return SIM_TRACE_STATE; }
+ 	static long[] simTraceHash() { return SIM_TRACE_HASH; }
+ 	static long[] simTraceRivalHash() { return SIM_TRACE_RIVAL_HASH; }
+@@ -1146,9 +1148,16 @@
+ 								&& finalSealRiskCount(scx, scy, scvx, scvy, playerNum,
+ 										AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS) > 0;
+ 					if (denseSlowPack || smokeDies || funnelRisk) {
++						final boolean launchFunnelAudit = denseSlowPack
++								&& sealRivals >= AI1_SLOW_PACK && kindHomogeneousRoster(playerNum)
++								&& chosenT >= AI1_LAUNCH_CONFIRM_MIN_TURNS
++								&& speedSquared(vel[0], vel[1]) == 8 && slowSpd2 == 18;
+ 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+ 								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
+-								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true);
++								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true,
++								launchFunnelAudit, launchFunnelAudit, false, launchFunnelAudit);
+ 					}
+ 				}
+ 			}
+@@ -2397,6 +2406,16 @@
+ 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+ 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
+ 			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm,
++			final boolean corrLeg) {
++		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
++				exactRivals, scorerRivals, rounds, scorerCap, scorerSelf, threadCheck, trueConfirm,
++				corrLeg, false);
++	}
++
++	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
++			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
++			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
++			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm,
+ 			final boolean corrLeg, final boolean launchLeg) {
+ 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
+ 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
+@@ -2440,7 +2459,14 @@
+ 			final boolean legDeep = trueConfirm && threadRounds != null && finalTier != null
+ 					&& finalTier[0] <= 1 && threadRounds[0] == 0;
+-			if ((legCorr || legSlow || legDeep)
++			// Round 106 probe: the Hungaroring opening funnel is alive and tier-healthy
++			// in the five-round scorer world, but uniquely records exactly two
++			// threaded and two snug mover slots before real rivals close it at r4.
++			final boolean legLaunch = trueConfirm && launchLeg && threadRounds != null
++					&& finalTier != null && finalTier[0] >= 3
++					&& threadRounds[0] == 2 && threadRounds[1] == 2;
++			if ((legCorr || legSlow || legDeep || legLaunch)
+ 					&& scorerRivals && scorerSelf && trueConfirmDepth == 0) {
+ 				int trueOutcome;
+ 				int[] trueTier = null;
+@@ -2448,7 +2474,7 @@
+ 				trueConfirmDepth++;
+ 				try {
+-					if (legCorr) {
++					if (legCorr || legLaunch) {
+ 						trueTier = new int[1];
+ 						trueThread = new int[1];
+ 						trueOutcome = simOutcome(cx, cy, cvx, cvy, playerNum,
+--- a/src/tr/logic/RaceGame.java
++++ b/src/tr/logic/RaceGame.java
+@@ -819,13 +819,13 @@
+ 		}
+ 		final byte kind = (byte) playerKind.ordinal();
+ 		try {
+-			RaceAi.simTrace = true;
++			ai.simTrace = true;
+ 			ai.computeSimOutcome(x, y, vx, vy, playerNum, rounds,
+ 					finishVanish, exactSelf, exactRivals, scorerRivals, scorerSelf,
+ 					scorerCap, finalTier, threadRounds);
+ 			return makeSimQueryResult(kind, finalTier[0], threadRounds[0], threadRounds[1]);
+ 		} finally {
+-			RaceAi.simTrace = false;
++			ai.simTrace = false;
+ 		}
+ 	}
