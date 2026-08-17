@@ -1,0 +1,124 @@
+name: Round 110 dual-frontier focused probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-110-dual-frontier
+    paths:
+      - .github/workflows/round110-focused-probe.yml
+      - tracks/round110_apply.py
+      - tracks/round110_compare.py
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and Round 110 candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round110-base-sha.txt
+          git worktree add /tmp/round110-focused origin/master
+          cd /tmp/round110-focused
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round110-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round110_apply.py"
+          python - <<'PY'
+          import subprocess
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True
+          ).splitlines())
+          assert changed == {'src/tr/logic/RaceAi.java'}, changed
+          source = open('src/tr/logic/RaceAi.java').read()
+          assert source.count('final boolean openingPackConfirm') == 1
+          assert source.count('Round 110 equal-speed frontier') == 1
+          assert source.count('private Direction optimalMoveAI2') == 1
+          PY
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round110.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round110-candidate.jar"
+      - name: Run permanent regression suite
+        working-directory: /tmp/round110-focused
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+      - name: Prove both rescues and sensitive controls
+        run: |
+          mkdir -p round110-results
+          for spec in \
+            'hungaroring 144 h144' \
+            'zandvoort 115 z115' \
+            'zandvoort 128 z128' \
+            'zandvoort 134 z134' \
+            'lemans 4 lemans4'; do
+            set -- $spec
+            python tracks/round110_compare.py \
+              --baseline round110-baseline.jar --candidate round110-candidate.jar \
+              --track "$1" --start "$2" --end "$2" \
+              --out "round110-results/$3.json"
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          h = json.load(open('round110-results/h144.json'))
+          z = json.load(open('round110-results/z115.json'))
+          assert h['counts']['safety_gain'] == 1 and len(h['events']) == 1, h
+          assert z['counts']['safety_gain'] == 1 and len(z['events']) == 1, z
+          for name in ('z128', 'z134'):
+              data = json.load(open(f'round110-results/{name}.json'))
+              assert data['counts']['identical'] == 1 and not data['events'], data
+          l = json.load(open('round110-results/lemans4.json'))
+          bad = sum(l['counts'][key] for key in
+                    ('slower', 'safety_regression', 'redistribution'))
+          assert bad == 0, l
+          summary = {
+              name: json.load(open(path))
+              for name, path in (
+                  ('h144', 'round110-results/h144.json'),
+                  ('z115', 'round110-results/z115.json'),
+                  ('z128', 'round110-results/z128.json'),
+                  ('z134', 'round110-results/z134.json'),
+                  ('lemans4', 'round110-results/lemans4.json'),
+              )
+          }
+          Path('round110-results/focused-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round110-focused-probe
+          path: |
+            round110-results
+            round110.patch
+            round110-base-sha.txt
+            round110-baseline.jar
+            round110-candidate.jar
+          if-no-files-found: error
+          retention-days: 14
