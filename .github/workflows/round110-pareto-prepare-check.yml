@@ -1,0 +1,97 @@
+name: Round 110 Pareto proof build check
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-110-pareto-field-proof
+    paths:
+      - .github/workflows/round110-pareto-prepare-check.yml
+      - tracks/round110_apply_pareto_field.py
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Apply, compile and report every outcome
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round110-prepare origin/master
+          cd /tmp/round110-prepare
+          set +e
+          python "$GITHUB_WORKSPACE/tracks/round110_apply_pareto_field.py" \
+            > "$GITHUB_WORKSPACE/round110-prepare-apply.log" 2>&1
+          APPLY=$?
+          DIFF=99
+          JAVA=99
+          BUILD=99
+          SMOKE=99
+          if [ "$APPLY" -eq 0 ]; then
+            git diff --check > "$GITHUB_WORKSPACE/round110-prepare-diff.log" 2>&1
+            DIFF=$?
+          fi
+          if [ "$DIFF" -eq 0 ]; then
+            sh ./run_tests.sh > "$GITHUB_WORKSPACE/round110-prepare-java.log" 2>&1
+            JAVA=$?
+          fi
+          if [ "$JAVA" -eq 0 ]; then
+            sh ./build_main.sh > "$GITHUB_WORKSPACE/round110-prepare-build.log" 2>&1
+            BUILD=$?
+          fi
+          if [ "$BUILD" -eq 0 ]; then
+            python tests/headless_smoke.py > "$GITHUB_WORKSPACE/round110-prepare-smoke.log" 2>&1
+            SMOKE=$?
+          fi
+          cd "$GITHUB_WORKSPACE"
+          APPLY="$APPLY" DIFF="$DIFF" JAVA="$JAVA" BUILD="$BUILD" SMOKE="$SMOKE" \
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          def tail(name):
+              path = Path(name)
+              return path.read_text(errors='replace')[-4000:] if path.exists() else ''
+
+          data = {
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'apply': int(os.environ['APPLY']),
+              'diff_check': int(os.environ['DIFF']),
+              'java_tests': int(os.environ['JAVA']),
+              'build': int(os.environ['BUILD']),
+              'smoke': int(os.environ['SMOKE']),
+              'ok': all(int(os.environ[key]) == 0
+                        for key in ('APPLY', 'DIFF', 'JAVA', 'BUILD', 'SMOKE')),
+              'logs': {
+                  'apply': tail('round110-prepare-apply.log'),
+                  'diff': tail('round110-prepare-diff.log'),
+                  'java': tail('round110-prepare-java.log'),
+                  'build': tail('round110-prepare-build.log'),
+                  'smoke': tail('round110-prepare-smoke.log'),
+              },
+          }
+          Path('round110-pareto-prepare.json').write_text(
+              json.dumps(data, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(data, indent=2, sort_keys=True))
+          PY
+      - name: Commit check result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-110-pareto-field-proof
+          git add round110-pareto-prepare.json
+          git commit -m 'Record Pareto proof build check'
+          git push origin HEAD:agent/ai-racing-speed-110-pareto-field-proof
