@@ -828,14 +828,14 @@ public final class RaceGame {
 						players[i].setFinishedPlace(Integer.parseInt(f[4].trim()));
 					}
 					subgamestate = smover;
-					RaceAi.simTrace = true;
+					ai.simTrace = true;
 					final int verdict;
 					final int[] audit = new int[3];
 					try {
 						verdict = ai.querySimOutcome(smover, srounds,
 								!"smom".equals(world), "true".equals(world), false, scap, audit);
 					} finally {
-						RaceAi.simTrace = false;
+						ai.simTrace = false;
 					}
 					System.err.flush();
 					bw.write("V=" + verdict + ";tier=" + audit[0] + ";thread=" + audit[1]

@@ -253,6 +253,10 @@ final class RaceAi {
 	private final static int		AI1_STAGED_HORIZON	= 8;	// strict gain + non-worsening field
 	private final static int		AI1_STAGED_MIN_TURNS	= 35;	// leave the existing finish sprint in charge near the line
 	private final static int		AI1_STAGED_MAX_SPEED2_GAIN	= 9;	// at most one |v|=4->5 axis of extra energy vs the scorer
+	private final static int		AI1_FIELD_ACCEL_MIN_SPEED2_GAIN	= 16;	// round 106: decisive one-turn energy gain
+	private final static int		AI1_FIELD_ACCEL_MIN_AHEAD	= 2;	// require a real forward pack
+	private final static int		AI1_FIELD_ACCEL_MAX_AHEAD	= 5;	// bounded proof excludes full-tail six-ahead cases
+	private final static int		AI1_FIELD_ACCEL_MAX_TTF	= 90;	// keep the 8-round proof in the medium-range race phase
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	private final static int		AI2_MOBILITY_DEPTH	= 4;	// frozen standard
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
@@ -270,7 +274,7 @@ final class RaceAi {
 	 *  exactly one arm (zigzag s76: oracle-i0 claims the kill cell its
 	 *  latched twin vacates -- the recursion boundary regenerating one level
 	 *  up). One nested level is allowed; depth 2 blocks (cost recursion). */
-	private static int				trueConfirmDepth;
+	private int					trueConfirmDepth;
 	private final static int		AI1_TRUE_CONFIRM_MAXDEPTH	= 2;
 	private final static int		AI1_TRUE_CONFIRM_DEEP_ROUNDS	= 6;	// round 104: horizon for the deep-tier leg -- the zandvoort-s88 box seals at true round index 5
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
@@ -628,6 +632,8 @@ final class RaceAi {
 			chosen = privatePaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
 					trapByDir, uncByDir, poTByDir);
 			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
+					trapByDir, uncByDir, poTByDir);
+			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,
 					trapByDir, uncByDir, poTByDir);
 		}
 		if (chosen != null) {
@@ -1535,6 +1541,104 @@ final class RaceAi {
 				return true;
 		}
 		return false;
+	}
+
+	/** Round 106: recover a one-turn acceleration only in a bounded forward
+	 * pack when the same eight-round scorer world proves strict mover and
+	 * aggregate-field gains. The TTF cap prevents long-range rollout optimism. */
+	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
+			final int playerNum, final Direction chosen, final double[] trapByDir,
+			final double[] uncByDir, final int[] turnsByDir) {
+		final int chosenT = turnsByDir[chosen.ordinal()];
+		if (chosenT == Integer.MAX_VALUE || chosenT < AI1_FINISH_HOMOGENEOUS_TTF + 2
+				|| chosenT > AI1_FIELD_ACCEL_MAX_TTF || !kindHomogeneousRoster(playerNum))
+			return chosen;
+		int liveRivals = 0, rivalsAhead = 0;
+		long aheadProgress = 0L;
+		final boolean stagedLaunch = useTrackDistanceForStagedLaunch(vel[0], vel[1],
+				game.startZoneA.contains(pos[0], pos[1]));
+		final int moverProgress = reach.distAt(pos[0], pos[1]);
+		for (final Player rival : game.players) {
+			if (rival.getNumber() == playerNum || rival.isFinished())
+				continue;
+			liveRivals++;
+			final int[] rivalPos = rival.getPosition();
+			final int rivalProgress = reach.distAt(rivalPos[0], rivalPos[1]);
+			final boolean ahead = stagedLaunch
+					? isStrictlyAheadByTrackDistance(moverProgress, rivalProgress)
+					: ((long) rivalPos[0] - pos[0]) * vel[0]
+							+ ((long) rivalPos[1] - pos[1]) * vel[1] > 0L;
+			if (ahead) {
+				rivalsAhead++;
+				if (moverProgress != Integer.MAX_VALUE && rivalProgress != Integer.MAX_VALUE)
+					aheadProgress += (long) moverProgress - rivalProgress;
+			}
+		}
+		if (liveRivals < AI1_PRIVATE_FIELD_MIN_RIVALS
+				|| rivalsAhead < AI1_FIELD_ACCEL_MIN_AHEAD
+				|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD || aheadProgress <= 0L)
+			return chosen;
+
+		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
+		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
+		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
+		int chosenFinal = Integer.MIN_VALUE;
+		long chosenField = Long.MAX_VALUE;
+		Direction best = null;
+		int bestFinal = Integer.MAX_VALUE;
+		long bestField = Long.MAX_VALUE;
+		for (final Direction d : DIRECTIONS) {
+			final int turns = turnsByDir[d.ordinal()];
+			if (d == chosen || d == Direction.NONE || turns == Integer.MAX_VALUE
+					|| turns + 1 != chosenT || trapByDir[d.ordinal()] != 0.0
+					|| uncByDir[d.ordinal()] != 0.0)
+				continue;
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			final int speed2 = speedSquared(nvx, nvy);
+			if (speed2 - chosenSpeed2 < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN)
+				continue;
+			if (turns <= AI1_FINISH_EXTENDED_TTF && speed2 < AI1_DJS_SPD2)
+				continue;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			final int candidateInf = Math.max(Math.abs(nvx), Math.abs(nvy));
+			final int candidateSpan = candidateInf * (candidateInf + 1) / 2;
+			final int candidateRing = reach.minRingWidthAhead(nx, ny, candidateSpan);
+			if (candidateRing < AI1_FUNNEL_WIDTH) {
+				final int chosenInf = Math.max(Math.abs(chosenVx), Math.abs(chosenVy));
+				final int chosenSpan = chosenInf * (chosenInf + 1) / 2;
+				if (rivalsAhead < AI1_FIELD_ACCEL_MAX_AHEAD
+						|| aheadProgress < (long) chosenSpan + candidateSpan)
+					continue;
+			}
+			if (sealable(nx, ny, nvx, nvy, playerNum))
+				continue;
+			if (chosenFinal == Integer.MIN_VALUE) {
+				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
+						AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+				chosenField = rolloutFieldCost[0];
+				if (chosenFinal < 0 || chosenField >= ROLLOUT_FAILURE_COST)
+					return chosen;
+			}
+			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+			final long candidateField = rolloutFieldCost[0];
+			if (candidateFinal < 0 || candidateFinal >= chosenFinal
+					|| candidateField >= chosenField)
+				continue;
+			if (best == null || candidateFinal < bestFinal
+					|| candidateFinal == bestFinal && candidateField < bestField) {
+				best = d;
+				bestFinal = candidateFinal;
+				bestField = candidateField;
+			}
+		}
+		if (best != null && AI_DEBUG_DJS)
+			System.err.println("AIDBG FIELD-ACCEL p=" + playerNum + " pos=(" + pos[0]
+					+ "," + pos[1] + ") " + chosen + " -> " + best + " ttf " + chosenT
+					+ " -> " + turnsByDir[best.ordinal()] + " ahead=" + rivalsAhead
+					+ " progress=" + aheadProgress + " self " + chosenFinal + " -> "
+					+ bestFinal + " field " + chosenField + " -> " + bestField);
+		return best != null ? best : chosen;
 	}
 
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
@@ -2556,7 +2660,7 @@ final class RaceAi {
 	 *  rollout prints one SIMTRACE line per mover step to stderr -- the
 	 *  in-game twin of the Python roll, diffable line by line. Nested
 	 *  rollouts (inside scorer/true rival computes) stay silent. */
-	static volatile boolean			simTrace;
+	volatile boolean				simTrace;
 	private int						simDepth;
 
 	/** Query-sim entry (round 103): verdict of the core rollout from the
