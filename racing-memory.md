@@ -37,6 +37,10 @@ it perturbs the pinned equilibrium at any gate the corridor fire-rate
 offers. The corrLeg flag (suppress the corridor leg per call site)
 stays as inert plumbing.
 
+CERTIFICATION (r105): mega-window 2/990 -- EXACTLY the two documented
+open sites (s115, s144), nothing else; harvest-9 windows 0/770. The
+residual equals the documented frontier precisely, again.
+
 OPEN (full anatomy): zandvoort s115 m111 -- survivors are
 EQUAL-spd-inf lane changes (v(2,-7)/v(3,-7) vs taken v(4,-7)), outside
 the slower-first vocabulary; scorer-8 reads all three alive
