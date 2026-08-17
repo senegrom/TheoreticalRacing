@@ -1,0 +1,134 @@
+name: Round 111 opening-pack frontier census
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-111-opening-pack-census
+    paths:
+      - .github/workflows/round111-opening-census.yml
+      - tracks/round111_opening_census.py
+
+permissions:
+  contents: read
+
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live champion and instrumented candidate
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round111-census origin/master
+          cd /tmp/round111-census
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round111-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round111_opening_census.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'AIDBG OPEN-CAND' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round111-candidate.jar"
+      - name: Replay every changed opening boundary
+        run: |
+          mkdir -p round111-results
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('tracks/bench.properties').read_text()
+          text = re.sub(r'^(player[1-8]Kind)=.*$', r'\1=AI1', text, flags=re.M)
+          Path('round111-results/AI1.properties').write_text(text)
+          PY
+          for spec in \
+            'hungaroring 2' \
+            'hungaroring 43' \
+            'hungaroring 83' \
+            'hungaroring 100' \
+            'hungaroring 109' \
+            'hungaroring 118' \
+            'hungaroring 128' \
+            'hungaroring 143' \
+            'hungaroring 144' \
+            'lemans 4'; do
+            set -- $spec
+            track=$1
+            seed=$2
+            stem="${track}-${seed}"
+            java -Djava.awt.headless=true -jar round111-baseline.jar --auto \
+              --track "$track" --props round111-results/AI1.properties \
+              --log "round111-results/${stem}-baseline.log" --seed "$seed" \
+              > "round111-results/${stem}-baseline.stdout" \
+              2> "round111-results/${stem}-baseline.stderr"
+            java -Djava.awt.headless=true -Dai.debug.djs=true \
+              -jar round111-candidate.jar --auto --track "$track" \
+              --props round111-results/AI1.properties \
+              --log "round111-results/${stem}-candidate.log" --seed "$seed" \
+              > "round111-results/${stem}-candidate.stdout" \
+              2> "round111-results/${stem}-candidate.stderr"
+          done
+      - name: Extract first decision changes and opening features
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re
+
+          root = Path('round111-results')
+          rows = []
+          for candidate_log in sorted(root.glob('*-candidate.log')):
+              stem = candidate_log.name.removesuffix('-candidate.log')
+              baseline_log = root / f'{stem}-baseline.log'
+              baseline_moves = [line for line in baseline_log.read_text().splitlines()
+                                if re.match(r'^\d+ p\d+ ', line)]
+              candidate_moves = [line for line in candidate_log.read_text().splitlines()
+                                 if re.match(r'^\d+ p\d+ ', line)]
+              first = None
+              for index in range(max(len(baseline_moves), len(candidate_moves))):
+                  left = baseline_moves[index] if index < len(baseline_moves) else None
+                  right = candidate_moves[index] if index < len(candidate_moves) else None
+                  if left != right:
+                      first = {'index': index, 'baseline': left, 'candidate': right}
+                      break
+              stderr = (root / f'{stem}-candidate.stderr').read_text().splitlines()
+              opening = [line for line in stderr if 'AIDBG OPEN-' in line]
+              trueconf = [line for line in stderr if 'AIDBG TRUECONF' in line]
+              matched = []
+              if first and first['candidate']:
+                  match = re.search(r'p(\d+) .*?\(([-\d]+),([-\d]+)\)>',
+                                    first['candidate'])
+                  if match:
+                      player, x, y = match.groups()
+                      needle = f'p={player} pos=({x},{y})'
+                      matched = [line for line in opening + trueconf if needle in line]
+              row = {
+                  'case': stem,
+                  'first_difference': first,
+                  'matched_debug': matched,
+                  'opening_switches': [line for line in opening
+                                       if 'AIDBG OPEN-SWITCH' in line],
+                  'opening_candidates': [line for line in opening
+                                         if 'AIDBG OPEN-CAND' in line],
+              }
+              rows.append(row)
+              print(json.dumps(row, indent=2, sort_keys=True))
+          (root / 'census.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n'
+          )
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round111-opening-census
+          path: round111-results
+          if-no-files-found: error
+          retention-days: 14
