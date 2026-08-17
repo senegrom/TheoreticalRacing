@@ -36,6 +36,7 @@ jobs:
           python tests/ai1_field_neutral_regression.py
       - name: Pin measured pace wins and long-range veto
         run: |
+          # Retry after a GitHub-hosted runner setup failure on the first attempt.
           python - <<'PY'
           from pathlib import Path
           import re, subprocess, tempfile
