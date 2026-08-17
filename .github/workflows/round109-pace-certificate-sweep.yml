@@ -1,0 +1,263 @@
+name: Round 109 pace-certificate sweep
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-pace-certificate-sweep
+    paths:
+      - .github/workflows/round109-pace-certificate-sweep.yml
+      - tracks/round109_apply_pace_variant.py
+      - tracks/round109_compare_pace.py
+
+permissions:
+  contents: write
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live champion
+        run: |
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round109-baseline.jar
+      - name: Record exact baseline windows once
+        run: |
+          mkdir -p round109-baseline
+          for spec in \
+            'coil 1 100' \
+            'interlagos 1 100' \
+            'spa 1 100' \
+            'silverstone 1 100' \
+            'zandvoort 1 120' \
+            'monza 1 60' \
+            'hungaroring 1 60' \
+            'nurburgring 1 60' \
+            'lemans 1 60' \
+            'monaco 1 60'; do
+            set -- $spec
+            python tracks/round109_compare_pace.py run \
+              --jar round109-baseline.jar --track "$1" --start "$2" --end "$3" \
+              --label baseline --directory round109-baseline
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round109-baseline-bundle
+          path: |
+            round109-baseline.jar
+            round109-baseline
+          if-no-files-found: error
+          retention-days: 7
+
+  sweep:
+    needs: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 210
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        variant:
+          - field_equal
+          - speed9
+          - speed4
+          - ahead1
+          - ahead6
+          - ttf120
+          - finish41
+          - unc25
+          - trap_l2
+          - speed9_field_equal
+          - speed9_ahead6
+          - speed9_ttf120
+          - speed9_unc25
+          - speed9_finish41
+          - broad_strict
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-baseline-bundle
+          path: round109-input
+      - name: Apply, validate and screen variant
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          mkdir -p round109-results/candidate round109-results/tracks
+          fail_result() {
+            STAGE="$1" CODE="$2" python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path(f"round109-results/round109-{os.environ['VARIANT']}.json").write_text(
+              json.dumps({
+                  "variant": os.environ["VARIANT"],
+                  "status": "failed",
+                  "stage": os.environ["STAGE"],
+                  "code": int(os.environ["CODE"]),
+              }, indent=2, sort_keys=True) + "\n"
+          )
+          PY
+            exit 0
+          }
+
+          python tracks/round109_apply_pace_variant.py "$VARIANT" \
+            > round109-results/apply.json 2> round109-results/apply.stderr \
+            || fail_result apply "$?"
+          git diff --check || fail_result diff-check "$?"
+          sh ./run_tests.sh > round109-results/java-tests.log 2>&1 \
+            || fail_result java-tests "$?"
+          sh ./build_main.sh > round109-results/build.log 2>&1 \
+            || fail_result build "$?"
+
+          for test in \
+            tests/headless_smoke.py \
+            tests/golden_races.py \
+            tests/ai1_pace_regression.py \
+            tests/ai1_mixed_safety_regression.py \
+            tests/ai1_field_neutral_regression.py \
+            tests/ai1_staged_pace_regression.py \
+            tests/ai1_energy_pace_regression.py \
+            tests/ai1_cross_model_pace_regression.py \
+            tests/ai1_finish_frontier_regression.py \
+            tests/ai1_thread_fragility_regression.py \
+            tests/ai1_esc_true_confirm_regression.py; do
+            python "$test" >> round109-results/python-tests.log 2>&1 \
+              || fail_result "${test##*/}" "$?"
+          done
+
+          for spec in \
+            'coil 1 100' \
+            'interlagos 1 100' \
+            'spa 1 100' \
+            'silverstone 1 100' \
+            'zandvoort 1 120' \
+            'monza 1 60' \
+            'hungaroring 1 60' \
+            'nurburgring 1 60' \
+            'lemans 1 60' \
+            'monaco 1 60'; do
+            set -- $spec
+            python tracks/round109_compare_pace.py run \
+              --jar theoreticRacing.jar --track "$1" --start "$2" --end "$3" \
+              --label candidate --directory round109-results/candidate \
+              > "round109-results/${1}-run.json" \
+              || fail_result "run-${1}" "$?"
+            python tracks/round109_compare_pace.py compare \
+              --track "$1" --start "$2" --end "$3" \
+              --baseline-dir round109-input/round109-baseline \
+              --candidate-dir round109-results/candidate \
+              --out "round109-results/tracks/${1}.json" \
+              > "round109-results/${1}-compare.json" \
+              || fail_result "compare-${1}" "$?"
+          done
+
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          root = Path('round109-results/tracks')
+          summary = {
+              'variant': os.environ['VARIANT'],
+              'status': 'ok',
+              'pairs': 0,
+              'counts': {},
+              'net_moves': 0,
+              'events': [],
+              'tracks': {},
+              'config': json.loads(Path('round109-results/apply.json').read_text())['config'],
+          }
+          for path in sorted(root.glob('*.json')):
+              data = json.loads(path.read_text())
+              summary['tracks'][data['track']] = data['counts']
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events']
+              )
+          Path(f"round109-results/round109-{os.environ['VARIANT']}.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round109-sweep-${{ matrix.variant }}
+          path: round109-results/round109-${{ matrix.variant }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: sweep
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round109-sweep-*
+          path: round109-sweep-results
+          merge-multiple: true
+      - name: Rank viable pace variants
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = [json.loads(path.read_text())
+                  for path in sorted(Path('round109-sweep-results').glob('round109-*.json'))]
+          for row in rows:
+              counts = row.get('counts', {})
+              row['bad'] = sum(counts.get(key, 0) for key in
+                               ('slower', 'safety_regression', 'redistribution'))
+              row['pace_gains'] = counts.get('pareto_faster', 0)
+              row['safety_gains'] = counts.get('safety_gain', 0)
+              row['viable'] = (row.get('status') == 'ok' and row['bad'] == 0
+                               and row['pace_gains'] > 0)
+          ranked = sorted(
+              rows,
+              key=lambda row: (
+                  not row.get('viable', False),
+                  -row.get('pace_gains', 0),
+                  row.get('net_moves', 0),
+                  row.get('variant', ''),
+              ),
+          )
+          output = {
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'variants': ranked,
+              'viable': [row['variant'] for row in ranked if row.get('viable')],
+          }
+          Path('round109-pace-sweep-summary.json').write_text(
+              json.dumps(output, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(output, indent=2, sort_keys=True))
+          PY
+      - name: Publish the measured sweep result to the experiment branch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-109-pace-certificate-sweep
+          git add round109-pace-sweep-summary.json
+          git commit -m 'Record Round 109 pace-certificate sweep'
+          git push origin HEAD:agent/ai-racing-speed-109-pace-certificate-sweep
