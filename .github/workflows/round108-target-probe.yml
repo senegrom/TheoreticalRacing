@@ -1,0 +1,49 @@
+name: Round 108 target probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-108-equal-speed-veto-gate
+    paths:
+      - .github/workflows/round108-target-probe.yml
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live champion and candidate
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round108-probe origin/master
+          cd /tmp/round108-probe
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-probe-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round108_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-probe-candidate.jar"
+      - name: Compare target and controls
+        run: |
+          python tracks/round108_compare.py --baseline round108-probe-baseline.jar --candidate round108-probe-candidate.jar --track zandvoort --start 115 --end 115 --out round108-probe-zandvoort.json
+          python tracks/round108_compare.py --baseline round108-probe-baseline.jar --candidate round108-probe-candidate.jar --track hungaroring --start 144 --end 144 --out round108-probe-hungaroring.json
+          python tracks/round108_compare.py --baseline round108-probe-baseline.jar --candidate round108-probe-candidate.jar --track lemans --start 4 --end 4 --out round108-probe-lemans.json
+          cat round108-probe-zandvoort.json
+          cat round108-probe-hungaroring.json
+          cat round108-probe-lemans.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round108-target-probe
+          path: round108-probe-*.json
+          if-no-files-found: error
+          retention-days: 7
