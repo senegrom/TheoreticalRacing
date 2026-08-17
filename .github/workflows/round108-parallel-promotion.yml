@@ -1,0 +1,337 @@
+name: Round 108 parallel promotion to master
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-108-equal-speed-veto-gate
+    paths:
+      - .github/workflows/round108-parallel-promotion.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round108-parallel-base-sha.txt
+          git worktree add /tmp/round108-parallel origin/master
+          cd /tmp/round108-parallel
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-parallel-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round108_apply.py"
+          python - <<'PY'
+          import subprocess
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True
+          ).splitlines())
+          assert changed == {'src/tr/logic/RaceAi.java'}, changed
+          source = open('src/tr/logic/RaceAi.java').read()
+          assert source.count('Round 108 AI1 frontier:') == 1
+          assert source.count('Round 95: the topology-shaped model can false-kill a genuinely') == 1
+          PY
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round108-parallel.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round108-parallel-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+      - name: Prove target and sensitive controls
+        run: |
+          python tracks/round108_compare.py --baseline round108-parallel-baseline.jar --candidate round108-parallel-candidate.jar --track zandvoort --start 115 --end 115 --out round108-parallel-target.json
+          python tracks/round108_compare.py --baseline round108-parallel-baseline.jar --candidate round108-parallel-candidate.jar --track hungaroring --start 144 --end 144 --out round108-parallel-control-h.json
+          python tracks/round108_compare.py --baseline round108-parallel-baseline.jar --candidate round108-parallel-candidate.jar --track lemans --start 4 --end 4 --out round108-parallel-control-l.json
+          python - <<'PY'
+          import json
+          z = json.load(open('round108-parallel-target.json'))
+          h = json.load(open('round108-parallel-control-h.json'))
+          l = json.load(open('round108-parallel-control-l.json'))
+          assert z['counts']['safety_gain'] == 1 and len(z['events']) == 1, z
+          assert h['counts']['identical'] == 1 and not h['events'], h
+          assert l['counts']['identical'] == 1 and not l['events'], l
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round108-parallel-build
+          path: |
+            round108-parallel-baseline.jar
+            round108-parallel-candidate.jar
+            round108-parallel-base-sha.txt
+            round108-parallel.patch
+            round108-parallel-target.json
+            round108-parallel-control-h.json
+            round108-parallel-control-l.json
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end: 150 }
+          - { track: triangle, end: 150 }
+          - { track: curve, end: 150 }
+          - { track: hairpin, end: 150 }
+          - { track: chicane, end: 150 }
+          - { track: sprint, end: 150 }
+          - { track: bigoval, end: 150 }
+          - { track: slalom, end: 150 }
+          - { track: gear, end: 150 }
+          - { track: coil, end: 150 }
+          - { track: zigzag, end: 150 }
+          - { track: the_long_loop, end: 150 }
+          - { track: monaco, end: 150 }
+          - { track: hungaroring, end: 150 }
+          - { track: interlagos, end: 150 }
+          - { track: lemans, end: 150 }
+          - { track: spa, end: 150 }
+          - { track: silverstone, end: 150 }
+          - { track: monza, end: 150 }
+          - { track: zandvoort, end: 150 }
+          - { track: nurburgring, end: 150 }
+          - { track: spielberg, end: 150 }
+          - { track: serpentine, end: 50 }
+          - { track: serpentine2, end: 50 }
+          - { track: spiral, end: 50 }
+          - { track: cog, end: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round108-parallel-build
+          path: .
+      - name: Compare exact per-seed outcomes
+        run: |
+          python tracks/round108_compare.py \
+            --baseline round108-parallel-baseline.jar \
+            --candidate round108-parallel-candidate.jar \
+            --track "${{ matrix.track }}" --start 1 --end "${{ matrix.end }}" \
+            --out "round108-parallel-${{ matrix.track }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round108-parallel-result-${{ matrix.track }}
+          path: round108-parallel-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round108-parallel-build
+          path: .
+      - name: Alternate baseline and candidate order
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          source = root / 'tracks' / 'bench.properties'
+
+          def props(path):
+              text = source.read_text()
+              text = re.sub(r'^(player[1-8]Kind)=.*$', r'\1=AI1', text, flags=re.M)
+              path.write_text(text)
+
+          def run(jar, track, seed):
+              with tempfile.TemporaryDirectory(prefix='r108-par-time-') as directory:
+                  directory = Path(directory)
+                  p = directory / 'p.properties'
+                  log = directory / 'r.log'
+                  props(p)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(p), '--log', str(log),
+                      '--seed', str(seed)
+                  ], text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-2000:])
+                  return time.perf_counter() - started
+
+          rows = []
+          for track, seed in [('zandvoort', 115), ('lemans', 4), ('circle', 10)]:
+              run('round108-parallel-baseline.jar', track, seed)
+              run('round108-parallel-candidate.jar', track, seed)
+              baseline, candidate = [], []
+              for index in range(5):
+                  order = ('baseline', 'candidate') if index % 2 else ('candidate', 'baseline')
+                  for label in order:
+                      value = run(f'round108-parallel-{label}.jar', track, seed)
+                      (baseline if label == 'baseline' else candidate).append(value)
+              ratio = statistics.median(candidate) / statistics.median(baseline)
+              row = {'track': track, 'seed': seed, 'ratio': ratio,
+                     'baseline': baseline, 'candidate': candidate}
+              rows.append(row)
+              if ratio > 1.50:
+                  raise SystemExit(f'Round-108 runtime regression: {row}')
+          Path('round108-parallel-runtime.json').write_text(
+              json.dumps(rows, indent=2) + '\n'
+          )
+          print(json.dumps(rows, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round108-parallel-runtime
+          path: round108-parallel-runtime.json
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs: [differential, runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round108-parallel-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round108-parallel-runtime
+          path: results
+      - name: Enforce exact no-regression policy
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = {'pairs': 0, 'counts': {}, 'net_moves': 0, 'events': [], 'runtime_ratios': {}}
+          reports = sorted(Path('results').glob('round108-parallel-*.json'))
+          reports = [p for p in reports if p.name != 'round108-parallel-runtime.json']
+          assert len(reports) == 26, [p.name for p in reports]
+          for path in reports:
+              data = json.load(open(path))
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend({'track': data['track'], **event} for event in data['events'])
+          summary['runtime'] = json.load(open('results/round108-parallel-runtime.json'))
+          Path('round108-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          bad = sum(summary['counts'].get(key, 0) for key in
+                    ('safety_regression', 'slower', 'redistribution'))
+          assert summary['pairs'] == 3500, summary
+          assert bad == 0, summary
+          assert summary['counts'].get('safety_gain', 0) >= 1, summary
+          by_case = {(event['track'], event['seed']): event['classification']
+                     for event in summary['events']}
+          assert by_case.get(('zandvoort', 115)) == 'safety_gain', summary
+          assert ('hungaroring', 144) not in by_case, summary
+          assert ('lemans', 4) not in by_case, summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round108-parallel-summary
+          path: round108-summary.json
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [verify, differential, runtime, summarize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round108-parallel-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round108-parallel-summary
+          path: .
+      - name: Rebuild and publish the verified source to master
+        run: |
+          cp tracks/round108_apply.py /tmp/round108_apply.py
+          cp tracks/round108_publish.py /tmp/round108_publish.py
+          EXPECTED=$(cat round108-parallel-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round108-production origin/master
+          python /tmp/round108_apply.py
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round108_publish.py
+          python tests/ai1_equal_speed_veto_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java tests/ai1_equal_speed_veto_regression.py AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 108: veto false equal-speed switch targets'
+          git push origin HEAD:master
