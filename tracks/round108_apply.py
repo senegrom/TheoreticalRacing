@@ -2,22 +2,37 @@
 """Materialize Round 108's AI1-only equal-speed false-target veto.
 
 Round 105's remaining Zandvoort seed-115 crash occurs after the danger ladder
-switches from the selected line to an equal-speed alternative.  The topology
+switches from the selected line to an equal-speed alternative. The topology
 rollout calls both lines alive, but the existing full-fidelity rival model says
-that the selected line survives and the switch target dies.  Before taking an
+that the selected line survives and the switch target dies. Before taking an
 equal-speed switch in a large homogeneous field, compare those two lines with
 the faithful rival model and veto only that false-target transition.
 
-The AI2 copy is deliberately untouched: it remains the frozen control.
+The AI2 policy copy is deliberately untouched: it remains the frozen control.
+The recursive-confirm and trace guards are also made RaceAi-instance-owned, as
+required by the repository's state-isolation invariant; that is a mechanical
+state fix shared by both policy copies, not an AI2 policy change.
 """
 from pathlib import Path
 
 race = Path("src/tr/logic/RaceAi.java")
 source = race.read_text()
 
-# Include the AI1-only "frontier" comment in the anchor.  AI2 has the same
+# Master already carries the state-isolation regression but not its materialized
+# source fix. Keep recursive state local to the RaceAi/RaceGame instance before
+# introducing another bounded recursive confirmation call.
+old_depth = "\tprivate static int\t\t\t\ttrueConfirmDepth;"
+new_depth = "\tprivate int\t\t\t\t\ttrueConfirmDepth;"
+assert source.count(old_depth) == 1
+source = source.replace(old_depth, new_depth, 1)
+old_trace = "\tstatic volatile boolean\t\t\tsimTrace;"
+new_trace = "\tvolatile boolean\t\t\t\tsimTrace;"
+assert source.count(old_trace) == 1
+source = source.replace(old_trace, new_trace, 1)
+
+# Include the AI1-only "frontier" comment in the anchor. AI2 has the same
 # control flow but its following comment says only "Round 95", so this anchor
-# both proves the policy boundary and prevents an accidental champion edit.
+# proves the policy boundary and prevents an accidental champion edit.
 ai1_old = """\t\t\t\t\t\t\t\t\t\tif (game.crossesFinish(pos[0], pos[1], ax, ay)
 \t\t\t\t\t\t\t\t\t\t\t\t|| simOutcome(ax, ay, avx, avy, playerNum, AI1_DEEP_HORIZON,
 \t\t\t\t\t\t\t\t\t\t\t\t\t\ttrue, true, true, true) >= 0) {
@@ -62,6 +77,12 @@ assert "// Round 108 AI1 frontier:" not in source
 source = source.replace(ai1_old, ai1_new, 1)
 assert source.count(ai1_old) == 0
 assert source.count("// Round 108 AI1 frontier:") == 1
-# The frozen AI2 branch must retain its original corresponding condition.
+# The frozen AI2 policy branch retains its original corresponding condition.
 assert source.count("// Round 95: the topology-shaped model can false-kill a genuinely") == 1
 race.write_text(source)
+
+game = Path("src/tr/logic/RaceGame.java")
+game_source = game.read_text()
+assert game_source.count("RaceAi.simTrace") == 2
+game_source = game_source.replace("RaceAi.simTrace", "ai.simTrace")
+game.write_text(game_source)
