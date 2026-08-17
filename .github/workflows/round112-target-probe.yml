@@ -1,0 +1,64 @@
+name: Round 112 far-opening target probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-112-far-opening-confirm
+    paths:
+      - .github/workflows/round112-target-probe.yml
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live champion and candidate
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round112-probe origin/master
+          cd /tmp/round112-probe
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round112-probe-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round112_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round112-probe-candidate.jar"
+      - name: Compare target and exclusion controls
+        run: |
+          mkdir -p round112-probe-results
+          for spec in \
+            'hungaroring 144 h144' \
+            'lemans 4 lemans4' \
+            'zandvoort 115 z115'; do
+            set -- $spec
+            python tracks/round112_compare.py \
+              --baseline round112-probe-baseline.jar \
+              --candidate round112-probe-candidate.jar \
+              --track "$1" --start "$2" --end "$2" \
+              --out "round112-probe-results/$3.json"
+          done
+          python - <<'PY'
+          import json
+          h = json.load(open('round112-probe-results/h144.json'))
+          l = json.load(open('round112-probe-results/lemans4.json'))
+          z = json.load(open('round112-probe-results/z115.json'))
+          assert h['counts']['safety_gain'] == 1 and len(h['events']) == 1, h
+          assert l['counts']['identical'] == 1 and not l['events'], l
+          assert z['counts']['identical'] == 1 and not z['events'], z
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round112-target-probe
+          path: round112-probe-results
+          if-no-files-found: error
+          retention-days: 7
