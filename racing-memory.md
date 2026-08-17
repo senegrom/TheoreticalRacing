@@ -6,6 +6,19 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Harvest 15 (r104 champion): 0/770 ON NEVER-RACED SEEDS -- the family generalizes
+
+The first zero-crash FRESH harvest in campaign history (fresh windows
+8car s91-105, 4car/2car s56-65; all 3190 finishes present). Every
+prior fresh exam found specimens (harvest 6: 2, harvest 9: 4); the
+r104 champion's first fresh exam is perfect. The instrument family --
+thread audit, bounded confirms, three fragility legs, cost ladders --
+was built from seven specimens and holds on geometry it never saw.
+Measured residual now: ONE accepted place-neutral site (hairpin s68)
+in 3080 certified races, and 0 in 770 fresh. Next hunt widens to an
+8-car mega-window (all seven specimens were 8-car; the 4/2-car
+windows have been clean since harvest 3).
+
 ## Round 104 (local agent): three-leg confirm predicate -- EVERY HARVEST SPECIMEN SOLVED
 
 The final two open specimens fall to one unified mechanism, every
