@@ -116,7 +116,7 @@ assert source.count(equal_old) == 1, source.count(equal_old)
 assert "Round 110 equal-speed frontier" not in source
 source = source.replace(equal_old, equal_new, 1)
 
-assert source.count("openingPackConfirm") == 3
+assert source.count("openingPackConfirm") == 2
 assert source.count("Round 110 equal-speed frontier") == 1
 assert source.count("// Round 95: the topology-shaped model can false-kill a genuinely") == 1
 race.write_text(source)
