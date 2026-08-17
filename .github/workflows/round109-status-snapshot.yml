@@ -1,0 +1,67 @@
+name: Round 109 experiment status snapshot
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-field-equal-probe
+    paths:
+      - .github/workflows/round109-status-snapshot.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Query experiment workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/run-status
+          for branch in \
+            agent/ai-racing-speed-109-pace-certificate-sweep \
+            agent/ai-racing-speed-109-field-equal-probe \
+            agent/ai-racing-speed-110-pareto-field-proof; do
+            safe=$(printf '%s' "$branch" | tr '/' '_')
+            gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+              -f branch="$branch" -f per_page=100 \
+              > "/tmp/run-status/${safe}.json"
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = []
+          for path in sorted(Path('/tmp/run-status').glob('*.json')):
+              data = json.loads(path.read_text())
+              for run in data.get('workflow_runs', []):
+                  rows.append({
+                      'id': run['id'],
+                      'workflow': run['name'],
+                      'branch': run['head_branch'],
+                      'sha': run['head_sha'],
+                      'status': run['status'],
+                      'conclusion': run['conclusion'],
+                      'created_at': run['created_at'],
+                      'updated_at': run['updated_at'],
+                      'run_number': run['run_number'],
+                  })
+          rows.sort(key=lambda row: row['created_at'], reverse=True)
+          Path('round109-workflow-status.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Commit snapshot
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-109-field-equal-probe
+          git add round109-workflow-status.json
+          git commit -m 'Record experiment workflow status'
+          git push origin HEAD:agent/ai-racing-speed-109-field-equal-probe
