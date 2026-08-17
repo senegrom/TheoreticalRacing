@@ -1,0 +1,208 @@
+name: Round 109 normalized unfinished-rescue audit
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-108-equal-speed-veto-gate
+    paths:
+      - .github/workflows/round109-audit-v2.yml
+      - tracks/round109_audit.py
+      - tracks/round109_audit_v2.py
+      - .github/workflows/round109-selected-gate-template.yml
+
+permissions:
+  contents: write
+
+jobs:
+  wait-for-round108:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    outputs:
+      master_sha: ${{ steps.wait.outputs.master_sha }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: wait
+        run: |
+          for attempt in $(seq 1 720); do
+            git fetch origin master
+            SHA=$(git rev-parse origin/master)
+            SUBJECT=$(git log -1 --format=%s origin/master)
+            echo "master=$SHA $SUBJECT"
+            if [ "$SUBJECT" = 'Round 108: veto false equal-speed switch targets' ]; then
+              echo "master_sha=$SHA" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 30
+          done
+          exit 1
+
+  audit:
+    needs: wait-for-round108
+    name: Audit ${{ matrix.slug }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        include:
+          - { branch: agent/ai-racing-speed-107-actual-gate, slug: actual-gate }
+          - { branch: agent/ai-racing-speed-107-controller, slug: controller }
+          - { branch: agent/ai-racing-speed-107-controller-final, slug: controller-final }
+          - { branch: agent/ai-racing-speed-107-controller-final-v2, slug: controller-final-v2 }
+          - { branch: agent/ai-racing-speed-107-controller-gate, slug: controller-gate }
+          - { branch: agent/ai-racing-speed-107-controller-run, slug: controller-run }
+          - { branch: agent/ai-racing-speed-107-final-gate, slug: final-gate }
+          - { branch: agent/ai-racing-speed-107-gate, slug: gate }
+          - { branch: agent/ai-racing-speed-107-one-way-rescue, slug: one-way-rescue }
+          - { branch: agent/ai-racing-speed-107-one-way-rescue-controller, slug: one-way-rescue-controller }
+          - { branch: agent/ai-racing-speed-107-one-way-rescue-gate, slug: one-way-rescue-gate }
+          - { branch: agent/ai-racing-speed-107-one-way-rescue-gate-final, slug: one-way-rescue-gate-final }
+          - { branch: agent/ai-racing-speed-107-one-way-rescue-gate-v2, slug: one-way-rescue-gate-v2 }
+          - { branch: agent/ai-racing-speed-107-one-way-rescue-gate-v3, slug: one-way-rescue-gate-v3 }
+          - { branch: agent/ai-racing-speed-107-two-rescues, slug: two-rescues }
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Confirm exact champion
+        env:
+          EXPECTED: ${{ needs.wait-for-round108.outputs.master_sha }}
+        run: |
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+      - name: Isolate and test branch policy
+        env:
+          AUDIT_BRANCH: ${{ matrix.branch }}
+          AUDIT_SLUG: ${{ matrix.slug }}
+        run: python tracks/round109_audit_v2.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round109-v2-${{ matrix.slug }}
+          path: |
+            round109-audit-${{ matrix.slug }}.json
+            round109-audit-${{ matrix.slug }}.patch
+          if-no-files-found: warn
+          retention-days: 30
+
+  select:
+    needs: [wait-for-round108, audit]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    outputs:
+      has_candidate: ${{ steps.choose.outputs.has_candidate }}
+      selected_slug: ${{ steps.choose.outputs.selected_slug }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round109-v2-*
+          path: audits
+          merge-multiple: true
+      - id: choose
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          reports = []
+          for path in sorted(Path('audits').glob('round109-audit-*.json')):
+              data = json.load(open(path))
+              data['_slug'] = path.stem.removeprefix('round109-audit-')
+              reports.append(data)
+          qualified = [r for r in reports if r.get('qualified')]
+          qualified.sort(key=lambda r: (r.get('changed_lines') if r.get('changed_lines') is not None else 10**9, r['branch']))
+          selection = qualified[0] if qualified else None
+          summary = {
+              'master_sha': '${{ needs.wait-for-round108.outputs.master_sha }}',
+              'report_count': len(reports),
+              'qualified_count': len(qualified),
+              'qualified': qualified,
+              'reports': reports,
+          }
+          Path('round109-audit-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as handle:
+              handle.write(f"has_candidate={'true' if selection else 'false'}\n")
+              if selection:
+                  handle.write(f"selected_slug={selection['_slug']}\n")
+                  Path('round109-selection.json').write_text(json.dumps(selection, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round109-v2-summary
+          path: |
+            round109-audit-summary.json
+            round109-selection.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  prepare-selected:
+    needs: [wait-for-round108, select]
+    if: needs.select.outputs.has_candidate == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round109-v2-*
+          path: audits
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-v2-summary
+          path: .
+      - name: Build selected candidate and push its own exhaustive gate
+        env:
+          EXPECTED: ${{ needs.wait-for-round108.outputs.master_sha }}
+          SLUG: ${{ needs.select.outputs.selected_slug }}
+        run: |
+          cp .github/workflows/round109-selected-gate-template.yml /tmp/round109-selected-gate.yml
+          cp tracks/round108_compare.py /tmp/round109_compare.py
+          cp tracks/round109_publish.py /tmp/round109_publish.py
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round109-selected origin/master
+          git apply "audits/round109-audit-${SLUG}.patch"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          mkdir -p .github/workflows tracks
+          cp /tmp/round109-selected-gate.yml .github/workflows/round109-selected-gate.yml
+          cp /tmp/round109_compare.py tracks/round109_compare.py
+          cp /tmp/round109_publish.py tracks/round109_publish.py
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java round109-selection.json tracks/round109_compare.py tracks/round109_publish.py .github/workflows/round109-selected-gate.yml
+          git commit -m 'Round 109 candidate: recover unfinished Hungaroring rescue'
+          git push --force-with-lease origin HEAD:agent/ai-racing-speed-109-selected
