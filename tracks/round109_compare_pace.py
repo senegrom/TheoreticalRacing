@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Run and compare exact all-AI1 race windows for Round 109.
+"""Run and compare exact all-AI1 race windows for Round 111.
 
 A pace gain is accepted only when every pre-existing finisher is no slower,
-the finisher set and crash set are unchanged, and at least one driver finishes
-sooner.  Aggregate gains that make another driver slower are classified as
-redistribution rather than hidden as a win.
+the finisher set, crash set and finish order are unchanged, and at least one
+driver finishes sooner. Aggregate gains that make another driver slower or
+reorder the field are classified as redistribution rather than hidden as a win.
 """
 from __future__ import annotations
 
@@ -130,7 +130,8 @@ def classify(candidate: dict[str, object], baseline: dict[str, object]) -> tuple
         return "safety_regression", delta, {}
     if len(cf) > len(bf) or len(cc) < len(bc):
         return "safety_gain", delta, {}
-    if set(cf) != set(bf) or set(cc) != set(bc):
+    if (set(cf) != set(bf) or set(cc) != set(bc)
+            or candidate["order"] != baseline["order"]):
         return "redistribution", delta, {}
 
     by_player = {int(player): int(cf[player]) - int(bf[player]) for player in bf}
