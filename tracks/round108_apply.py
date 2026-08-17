@@ -9,26 +9,24 @@ equal-speed switch in a large homogeneous field, compare those two lines with
 the faithful rival model and veto only that false-target transition.
 
 The AI2 policy copy is deliberately untouched: it remains the frozen control.
-The recursive-confirm and trace guards are also made RaceAi-instance-owned, as
-required by the repository's state-isolation invariant; that is a mechanical
-state fix shared by both policy copies, not an AI2 policy change.
+This patcher is based on the promoted Round 106 champion, which already owns
+its recursive-confirm and trace state per RaceAi instance.
 """
 from pathlib import Path
 
 race = Path("src/tr/logic/RaceAi.java")
 source = race.read_text()
 
-# Master already carries the state-isolation regression but not its materialized
-# source fix. Keep recursive state local to the RaceAi/RaceGame instance before
-# introducing another bounded recursive confirmation call.
-old_depth = "\tprivate static int\t\t\t\ttrueConfirmDepth;"
-new_depth = "\tprivate int\t\t\t\t\ttrueConfirmDepth;"
-assert source.count(old_depth) == 1
-source = source.replace(old_depth, new_depth, 1)
-old_trace = "\tstatic volatile boolean\t\t\tsimTrace;"
-new_trace = "\tvolatile boolean\t\t\t\tsimTrace;"
-assert source.count(old_trace) == 1
-source = source.replace(old_trace, new_trace, 1)
+# Round 106 promoted the state-isolation repair while this experiment was being
+# prepared. Prove the new baseline rather than silently rematerializing stale
+# source, so the production diff remains a single AI1 policy change.
+assert source.count("\tprivate int\t\t\t\t\ttrueConfirmDepth;") == 1
+assert source.count("\tprivate static int\t\t\t\ttrueConfirmDepth;") == 0
+assert source.count("\tvolatile boolean\t\t\t\tsimTrace;") == 1
+assert source.count("\tstatic volatile boolean\t\t\tsimTrace;") == 0
+game_source = Path("src/tr/logic/RaceGame.java").read_text()
+assert game_source.count("ai.simTrace") == 2
+assert game_source.count("RaceAi.simTrace") == 0
 
 # Include the AI1-only "frontier" comment in the anchor. AI2 has the same
 # control flow but its following comment says only "Round 95", so this anchor
@@ -80,9 +78,3 @@ assert source.count("// Round 108 AI1 frontier:") == 1
 # The frozen AI2 policy branch retains its original corresponding condition.
 assert source.count("// Round 95: the topology-shaped model can false-kill a genuinely") == 1
 race.write_text(source)
-
-game = Path("src/tr/logic/RaceGame.java")
-game_source = game.read_text()
-assert game_source.count("RaceAi.simTrace") == 2
-game_source = game_source.replace("RaceAi.simTrace", "ai.simTrace")
-game.write_text(game_source)
