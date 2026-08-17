@@ -1,0 +1,163 @@
+name: Round 109 permanent-pin pace sweep
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-pace-certificate-sweep
+    paths:
+      - .github/workflows/round109-pace-pin-sweep.yml
+      - tracks/round109_apply_pace_variant.py
+
+permissions:
+  contents: write
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      max-parallel: 15
+      matrix:
+        variant:
+          - field_equal
+          - speed9
+          - speed4
+          - ahead1
+          - ahead6
+          - ttf120
+          - finish41
+          - unc25
+          - trap_l2
+          - speed9_field_equal
+          - speed9_ahead6
+          - speed9_ttf120
+          - speed9_unc25
+          - speed9_finish41
+          - broad_strict
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Run each permanent pin and always emit a result
+        env:
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          git fetch origin master
+          git worktree add "/tmp/pin-${VARIANT}" origin/master
+          cd "/tmp/pin-${VARIANT}"
+          set +e
+          python "$GITHUB_WORKSPACE/tracks/round109_apply_pace_variant.py" "$VARIANT" \
+            > "$GITHUB_WORKSPACE/apply.log" 2>&1
+          APPLY=$?
+          JAVA=99
+          BUILD=99
+          FAILED=''
+          PASSED=''
+          if [ "$APPLY" -eq 0 ]; then
+            sh ./run_tests.sh > "$GITHUB_WORKSPACE/java.log" 2>&1
+            JAVA=$?
+          fi
+          if [ "$JAVA" -eq 0 ]; then
+            sh ./build_main.sh > "$GITHUB_WORKSPACE/build.log" 2>&1
+            BUILD=$?
+          fi
+          if [ "$BUILD" -eq 0 ]; then
+            for test in \
+              tests/headless_smoke.py \
+              tests/golden_races.py \
+              tests/ai1_pace_regression.py \
+              tests/ai1_mixed_safety_regression.py \
+              tests/ai1_field_neutral_regression.py \
+              tests/ai1_staged_pace_regression.py \
+              tests/ai1_energy_pace_regression.py \
+              tests/ai1_cross_model_pace_regression.py \
+              tests/ai1_finish_frontier_regression.py \
+              tests/ai1_thread_fragility_regression.py \
+              tests/ai1_esc_true_confirm_regression.py; do
+              name=${test##*/}
+              python "$test" > "$GITHUB_WORKSPACE/${name}.log" 2>&1
+              code=$?
+              if [ "$code" -ne 0 ]; then
+                FAILED="$name"
+                break
+              fi
+              PASSED="${PASSED}${name},"
+            done
+          fi
+          cd "$GITHUB_WORKSPACE"
+          APPLY="$APPLY" JAVA="$JAVA" BUILD="$BUILD" FAILED="$FAILED" PASSED="$PASSED" \
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          failed = os.environ['FAILED']
+          log = Path(failed + '.log').read_text(errors='replace')[-5000:] if failed else ''
+          data = {
+              'variant': os.environ['VARIANT'],
+              'apply': int(os.environ['APPLY']),
+              'java': int(os.environ['JAVA']),
+              'build': int(os.environ['BUILD']),
+              'failed_test': failed or None,
+              'passed_tests': [x for x in os.environ['PASSED'].split(',') if x],
+              'ok': int(os.environ['APPLY']) == 0
+                    and int(os.environ['JAVA']) == 0
+                    and int(os.environ['BUILD']) == 0
+                    and not failed,
+              'failure_tail': log,
+          }
+          Path(f"round109-pin-{os.environ['VARIANT']}.json").write_text(
+              json.dumps(data, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(data, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round109-pin-${{ matrix.variant }}
+          path: round109-pin-${{ matrix.variant }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs: pins
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round109-pin-*
+          path: results
+          merge-multiple: true
+      - name: Aggregate pin results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows = [json.loads(path.read_text())
+                  for path in sorted(Path('results').glob('round109-pin-*.json'))]
+          output = {
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'passing': [row['variant'] for row in rows if row['ok']],
+              'results': rows,
+          }
+          Path('round109-pace-pin-summary.json').write_text(
+              json.dumps(output, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(output, indent=2, sort_keys=True))
+          PY
+      - name: Commit pin summary
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-109-pace-certificate-sweep
+          git add round109-pace-pin-summary.json
+          git commit -m 'Record permanent-pin pace sweep'
+          git push origin HEAD:agent/ai-racing-speed-109-pace-certificate-sweep
