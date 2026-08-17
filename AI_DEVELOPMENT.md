@@ -323,6 +323,20 @@ in both columns and one net AI1 move faster (both print 104.16). This clears
 the AI1 frontier gate; AI2 remains frozen until an explicit mirror,
 golden-fixture review and post-promotion self-tie battery.
 
+## Round 108: AI1 equal-speed false-target veto
+
+The remaining Zandvoort seed-115 crash came from a danger-ladder switch between
+equal-speed lines: the topology rollout called both alive, while the existing
+full-fidelity rival model proved the selected line alive and the alternative
+dead. AI1 now vetoes only that false-target transition in a large homogeneous
+field. AI2's decision policy remains frozen. The candidate is rebased on the
+promoted Round 106 guarded forward-pack acceleration.
+
+The exact 3,500-pair gate recorded 1 safety gain(s),
+0 same-order pace gain(s), no slower outcomes, no safety
+regressions and no field redistributions. Hungaroring seed 144 and Le Mans seed
+4 remained outcome-identical to the Round 106 champion.
+
 ## Current champion and frontier baseline
 
 The rounds-79-to-96 stack plus the round-83 funnel guards are promoted, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 saves one proven Silverstone seed-15 move, Round 93 removes the symmetric mixed Le Mans seed-7 crashes, Round 94 extends the dual-model finish sprint through TTF 20, Round 95 retains one scorer-fast line that a topology proxy false-kills, and Round 96 certifies one synchronized TTF-21 formation gain. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final mirrored body is move-identical across the strict probe. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness. The champion retains the earlier bounded safety proofs:

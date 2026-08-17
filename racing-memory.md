@@ -2487,3 +2487,12 @@ avoidable waste).
   contend; pause benches if they need it.
 - Effort: remind the user to run `/effort max` at session start (global
   CLAUDE.md rule).
+
+ROUND 108 (AI1 equal-speed false-target veto): Zandvoort s115 is closed by an AI1-only faithful-rival
+veto on equal-speed danger-ladder switches, rebased on the promoted
+Round 106 guarded forward-pack champion. AI2's policy copy is
+untouched; Hungaroring s144 remains the sole documented mega-window
+crash frontier. Exact gate: 3500 pairs,
+1 safety gain(s),
+0 same-order pace gain(s), zero regressions
+or redistributions.
