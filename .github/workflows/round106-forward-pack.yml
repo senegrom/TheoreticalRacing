@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - tracks/round106_forward_pack_materialize.py
+      - tracks/round106_instance_state_materialize.py
       - .github/workflows/round106-forward-pack.yml
 
 permissions:
@@ -26,7 +27,9 @@ jobs:
         with:
           python-version: '3.13'
       - name: Materialize candidate
-        run: python tracks/round106_forward_pack_materialize.py
+        run: |
+          python tracks/round106_instance_state_materialize.py
+          python tracks/round106_forward_pack_materialize.py
       - name: Build and core regression gates
         run: |
           sh ./run_tests.sh
@@ -36,7 +39,6 @@ jobs:
           python tests/ai1_field_neutral_regression.py
       - name: Pin measured pace wins and long-range veto
         run: |
-          # Retry after a GitHub-hosted runner setup failure on the first attempt.
           python - <<'PY'
           from pathlib import Path
           import re, subprocess, tempfile
@@ -81,6 +83,6 @@ jobs:
           git diff --check
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add src/tr/logic/RaceAi.java
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java
           git commit -m 'Round 106: guarded forward-pack acceleration'
           git push origin HEAD:master
