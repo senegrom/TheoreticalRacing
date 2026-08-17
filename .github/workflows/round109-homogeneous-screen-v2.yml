@@ -1,0 +1,132 @@
+name: Round 109 homogeneous ESC screen v2
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-hungaroring144-probe
+    paths:
+      - .github/workflows/round109-homogeneous-screen-v2.yml
+      - tracks/round109_homogeneous_esc_confirm.py
+      - tracks/round109_compare.py
+
+permissions:
+  contents: read
+
+jobs:
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live champion and candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round109-base-sha.txt
+          git worktree add /tmp/round109-v2 origin/master
+          cd /tmp/round109-v2
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round109-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round109_homogeneous_esc_confirm.py"
+          echo 'Tracked candidate changes:'
+          git status --short
+          git diff --name-only
+          python - <<'PY'
+          import subprocess
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--name-only'], text=True
+          ).splitlines())
+          assert changed == {'src/tr/logic/RaceAi.java'}, changed
+          text = open('src/tr/logic/RaceAi.java').read()
+          assert text.count('final boolean homogeneousEscConfirm') == 1
+          assert text.count('homogeneousEscConfirm') == 4
+          PY
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round109-candidate.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round109-candidate.jar"
+      - name: Run permanent regression suite
+        working-directory: /tmp/round109-v2
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+      - name: Prove target and preserve Zandvoort 115
+        run: |
+          mkdir -p round109-results
+          python tracks/round109_compare.py \
+            --baseline round109-baseline.jar --candidate round109-candidate.jar \
+            --track hungaroring --start 144 --end 144 \
+            --out round109-results/hungaroring-144.json
+          python tracks/round109_compare.py \
+            --baseline round109-baseline.jar --candidate round109-candidate.jar \
+            --track zandvoort --start 115 --end 115 \
+            --out round109-results/zandvoort-115.json
+          python - <<'PY'
+          import json
+          h = json.load(open('round109-results/hungaroring-144.json'))
+          z = json.load(open('round109-results/zandvoort-115.json'))
+          assert h['counts']['safety_gain'] == 1 and len(h['events']) == 1, h
+          assert z['counts']['identical'] == 1 and not z['events'], z
+          PY
+      - name: Run 295-pair sensitive same-policy screen
+        run: |
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track hungaroring --start 1 --end 150 --out round109-results/hungaroring-1-150.json > round109-results/hungaroring.stdout &
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track zandvoort --start 106 --end 150 --out round109-results/zandvoort-106-150.json > round109-results/zandvoort.stdout &
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track lemans --start 1 --end 50 --out round109-results/lemans-1-50.json > round109-results/lemans.stdout &
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track gear --start 1 --end 50 --out round109-results/gear-1-50.json > round109-results/gear.stdout &
+          wait
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          names = (
+              'hungaroring-1-150.json', 'zandvoort-106-150.json',
+              'lemans-1-50.json', 'gear-1-50.json'
+          )
+          summary = {'pairs': 0, 'counts': {}, 'net_moves': 0, 'events': []}
+          for name in names:
+              data = json.load(open(Path('round109-results') / name))
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend({'track': data['track'], **e} for e in data['events'])
+          Path('round109-results/summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          bad = sum(summary['counts'].get(key, 0) for key in
+                    ('safety_regression', 'slower', 'redistribution'))
+          assert summary['pairs'] == 295, summary
+          assert bad == 0, summary
+          assert any(e['track'] == 'hungaroring' and e['seed'] == 144
+                     and e['classification'] == 'safety_gain'
+                     for e in summary['events']), summary
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round109-homogeneous-screen-v2
+          path: |
+            round109-results
+            round109-candidate.patch
+            round109-base-sha.txt
+          if-no-files-found: error
+          retention-days: 14
