@@ -79,7 +79,7 @@ jobs:
               move = real[0]
               report[label] = {
                   'mover': mover + 1,
-                  'move': move.__dict__,
+                  'move': move._asdict(),
                   'cars': [list(car) for car in cars],
               }
           open('round109-results/h144-board.json', 'w').write(
