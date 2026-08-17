@@ -1,0 +1,235 @@
+{
+  "counts": {
+    "identical": 16,
+    "pareto_faster": 0,
+    "redistribution": 4,
+    "safety_gain": 0,
+    "safety_regression": 0,
+    "slower": 0
+  },
+  "events": [
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 122,
+          "2": 126,
+          "3": 123,
+          "4": 129,
+          "5": 130,
+          "7": 124,
+          "8": 127
+        },
+        "order": [
+          1,
+          3,
+          7,
+          2,
+          8,
+          4,
+          5
+        ]
+      },
+      "by_player": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": -2,
+        "5": -2,
+        "7": 0,
+        "8": 2
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 122,
+          "2": 126,
+          "3": 123,
+          "4": 127,
+          "5": 128,
+          "7": 124,
+          "8": 129
+        },
+        "order": [
+          1,
+          3,
+          7,
+          2,
+          4,
+          5,
+          8
+        ]
+      },
+      "classification": "redistribution",
+      "delta": -2,
+      "seed": 26,
+      "track": "interlagos"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 122,
+          "2": 123,
+          "3": 127,
+          "4": 124,
+          "5": 128,
+          "6": 129,
+          "8": 125
+        },
+        "order": [
+          1,
+          2,
+          4,
+          8,
+          3,
+          5,
+          6
+        ]
+      },
+      "by_player": {},
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 122,
+          "2": 123,
+          "3": 129,
+          "4": 124,
+          "5": 127,
+          "7": 130,
+          "8": 125
+        },
+        "order": [
+          1,
+          2,
+          4,
+          8,
+          5,
+          3,
+          7
+        ]
+      },
+      "classification": "redistribution",
+      "delta": 2,
+      "seed": 40,
+      "track": "interlagos"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 80,
+          "2": 87,
+          "3": 86,
+          "4": 81,
+          "5": 84,
+          "6": 78,
+          "8": 85
+        },
+        "order": [
+          6,
+          1,
+          4,
+          5,
+          8,
+          3,
+          2
+        ]
+      },
+      "by_player": {
+        "1": 0,
+        "2": 0,
+        "3": -5,
+        "4": 2,
+        "5": 0,
+        "6": 0,
+        "8": 0
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 80,
+          "2": 87,
+          "3": 81,
+          "4": 83,
+          "5": 84,
+          "6": 78,
+          "8": 85
+        },
+        "order": [
+          6,
+          1,
+          3,
+          4,
+          5,
+          8,
+          2
+        ]
+      },
+      "classification": "redistribution",
+      "delta": -3,
+      "seed": 57,
+      "track": "spa"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 79,
+          "2": 80,
+          "3": 81,
+          "5": 85,
+          "6": 83,
+          "7": 86,
+          "8": 84
+        },
+        "order": [
+          1,
+          2,
+          3,
+          6,
+          8,
+          5,
+          7
+        ]
+      },
+      "by_player": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "5": -1,
+        "6": 3,
+        "7": 0,
+        "8": 3
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 79,
+          "2": 80,
+          "3": 81,
+          "5": 84,
+          "6": 86,
+          "7": 86,
+          "8": 87
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      "classification": "redistribution",
+      "delta": 5,
+      "seed": 7,
+      "track": "spa"
+    }
+  ],
+  "net_moves": 2,
+  "pairs": 20,
+  "variant": "per_rival_pareto_field"
+}
