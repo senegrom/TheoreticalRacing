@@ -1148,7 +1148,8 @@ final class RaceAi {
 						}
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
-								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true);
+								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true,
+								false, true, false);
 					}
 				}
 			}
@@ -2962,7 +2963,7 @@ final class RaceAi {
 					&& threadRounds[0] >= 1
 					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1;
 			final boolean legSlow = trueConfirm && threadRounds != null
-					&& threadRounds[0] >= 2 && threadRounds[1] >= 3;
+					&& threadRounds[0] >= 2 && threadRounds[1] >= 2;
 			final boolean legDeep = trueConfirm && threadRounds != null && finalTier != null
 					&& finalTier[0] <= 1 && threadRounds[0] == 0;
 			if ((legCorr || legSlow || legDeep)
@@ -2979,6 +2980,17 @@ final class RaceAi {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
 								confirmCap, null, null, null) < 0;
+					} else if (legSlow && !corrLeg) {
+						// Round 107: at the ESC route the suppressed deep world
+						// is blind (hungaroring s144 m26: scorer-8 alive, true-5
+						// dead) -- true rivals directly, 5 rounds. Gated to the
+						// exact s144 signature (thread==2, snug==2, healthy tier;
+						// 0-3 fires/race) -- the wider slice cost +70% wall time.
+						trueDead = threadRounds[0] == 2 && threadRounds[1] == 2
+								&& finalTier != null && finalTier[0] >= 3
+								&& simOutcome(cx, cy, cvx, cvy, playerNum, 5,
+										simFinishVanish, exactSelf, exactRivals, true, scorerSelf,
+										true, confirmCap, null, null, null) < 0;
 					} else {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,

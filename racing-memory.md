@@ -6,6 +6,44 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 107 (local agent): direct true-5 at the ESC route -- hungaroring s144 solved, canon -0.010
+
+BUILT ON their promoted Round 106 (guarded forward-pack acceleration;
+pulled, site-battery-verified: all nine solved sites hold, s115/s144
+open as expected; their instance-field fixes for trueConfirmDepth /
+simTrace are correct for batch mode).
+
+THE FINDING (probe matrix, one command per cell): at hungaroring s144
+m26 the taken SE is ALIVE in every suppressed world (scorer-5-cap3
+V=113, scorer-8-cap6 V=112) and dead ONLY under true-5-cap6 (V=-1);
+its signature is thread=2 snug=2 in a healthy tier -- exactly the
+slice the round-104 cost ladder is BLIND to, because the ladder's
+cheap scorer-8 pre-check reads alive and never reaches true rivals.
+First trial (ESC-route confirm with the ladder) fired at m26 and said
+"true rivals keep alive" -- the ladder never ran them.
+
+MECHANISM: the r60 ESC call (dense-pack / scorer-dies / funnel-risk
+escalation) gains trueConfirm with the corridor leg suppressed
+(corrLeg=false); at that route the slow leg runs TRUE rivals DIRECTLY
+for 5 rounds at cap 6 -- no cheap pre-check -- gated to the exact
+s144 signature (thread==2, snug==2, tier>=3; 0-3 fires/race). legSlow
+snug threshold 3->2 (both s144 and the round-104 monaco site pass).
+
+COST, HONESTLY: canon window 1 wall time 9m35 vs 9m05 on their r106
+baseline (+5%); NOTE their r106 forward-pack arm itself moved the
+window from 5m50 to 9m05 -- the bulk of the recent slowdown is the
+pace arm's scorerFieldOutcome rollouts, recorded for the speed ledger.
+The wider slice (thread>=2 snug>=2 any tier) cost +70% and was
+rejected.
+
+RESULT: hungaroring s144 FIXED; all nine solved sites hold; ten pins
+PASS; canon 62.701 / 62.640 / 62.678 -- window 2 at -0.010 vs the
+frozen mirror is the LARGEST canon gain since parity (r105: -0.004);
+h2h 4.494 vs 4.506 held; 4p/1v1 exact; slow identical. Residual
+frontier: zandvoort s115 (equal-speed lane class -- their round 108
+equal-speed-veto branch is gating it via CI; left to them, inspect-
+before-merge) + accepted hairpin s68.
+
 ## Round 105 (local agent): slower-first switch targets; the shelf-rule refutation; harvest 16 census
 
 HARVEST 16 (8car mega-window s106-150, 990 races): 4 crashes, all
