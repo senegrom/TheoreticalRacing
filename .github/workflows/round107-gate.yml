@@ -1,0 +1,291 @@
+name: Round 107 narrowed rescue gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-107-gate
+    paths:
+      - .github/workflows/round107-gate.yml
+      - tracks/round107_apply.py
+      - tracks/round107_compare.py
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and candidate
+        run: |
+          cp tracks/round107_apply.py /tmp/round107_apply.py
+          git fetch origin master
+          git checkout --detach origin/master
+          git rev-parse HEAD > round107-baseline-sha.txt
+          sh ./build_main.sh
+          cp theoreticRacing.jar round107-baseline.jar
+          python /tmp/round107_apply.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round107-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai_rescue_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round107-jars
+          path: |
+            round107-baseline.jar
+            round107-candidate.jar
+            round107-baseline-sha.txt
+          if-no-files-found: error
+          retention-days: 3
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end: 150 }
+          - { track: triangle, end: 150 }
+          - { track: curve, end: 150 }
+          - { track: hairpin, end: 150 }
+          - { track: chicane, end: 150 }
+          - { track: sprint, end: 150 }
+          - { track: bigoval, end: 150 }
+          - { track: slalom, end: 150 }
+          - { track: gear, end: 150 }
+          - { track: coil, end: 150 }
+          - { track: zigzag, end: 150 }
+          - { track: the_long_loop, end: 150 }
+          - { track: monaco, end: 150 }
+          - { track: hungaroring, end: 150 }
+          - { track: interlagos, end: 150 }
+          - { track: lemans, end: 150 }
+          - { track: spa, end: 150 }
+          - { track: silverstone, end: 150 }
+          - { track: monza, end: 150 }
+          - { track: zandvoort, end: 150 }
+          - { track: nurburgring, end: 150 }
+          - { track: spielberg, end: 150 }
+          - { track: serpentine, end: 50 }
+          - { track: serpentine2, end: 50 }
+          - { track: spiral, end: 50 }
+          - { track: cog, end: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round107-jars
+          path: .
+      - name: Compare exact per-seed outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          python tracks/round107_compare.py \
+            --baseline round107-baseline.jar \
+            --candidate round107-candidate.jar \
+            --track "$TRACK" \
+            --end "$END_SEED" \
+            --out "round107-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round107-result-${{ matrix.track }}
+          path: round107-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round107-jars
+          path: .
+      - name: Alternate candidate and baseline execution order
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          source = root / 'tracks' / 'bench.properties'
+
+          def props(path):
+              lines=[]
+              for line in source.read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line=line.split('=',1)[0]+'=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines)+'\n')
+
+          def run(jar, track, seed):
+              with tempfile.TemporaryDirectory(prefix='r107-time-') as d:
+                  d=Path(d); p=d/'p.properties'; props(p); log=d/'r.log'
+                  start=time.perf_counter()
+                  cp=subprocess.run([
+                      'java','-Djava.awt.headless=true','-jar',str(root/jar),
+                      '--auto','--track',track,'--props',str(p),'--log',str(log),
+                      '--seed',str(seed)
+                  ],text=True,capture_output=True,timeout=1800)
+                  if cp.returncode:
+                      raise SystemExit(cp.stderr[-2000:])
+                  return time.perf_counter()-start
+
+          rows=[]
+          for track,seed in [('hungaroring',144),('zandvoort',115),('lemans',4),('circle',10)]:
+              run('round107-baseline.jar',track,seed)
+              run('round107-candidate.jar',track,seed)
+              b=[]; c=[]
+              for i in range(8):
+                  if i%2:
+                      b.append(run('round107-baseline.jar',track,seed))
+                      c.append(run('round107-candidate.jar',track,seed))
+                  else:
+                      c.append(run('round107-candidate.jar',track,seed))
+                      b.append(run('round107-baseline.jar',track,seed))
+              trim=lambda x: statistics.mean(sorted(x)[1:-1])
+              row={
+                  'track':track,'seed':seed,
+                  'median_ratio':statistics.median(c)/statistics.median(b),
+                  'trimmed_ratio':trim(c)/trim(b),
+                  'baseline':b,'candidate':c,
+              }
+              rows.append(row)
+              if row['median_ratio']>1.20 or row['trimmed_ratio']>1.20:
+                  raise SystemExit(f'runtime regression: {row}')
+          Path('round107-runtime.json').write_text(json.dumps(rows,indent=2)+'\n')
+          print(json.dumps(rows,indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round107-runtime
+          path: round107-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: [differential, runtime]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round107-result-*
+          path: results
+          merge-multiple: true
+      - name: Enforce exact no-regression policy
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary={'pairs':0,'counts':{},'net_moves':0,'events':[]}
+          for path in sorted(Path('results').glob('*.json')):
+              data=json.load(open(path))
+              summary['pairs']+=data['pairs']
+              summary['net_moves']+=data['net_moves']
+              for key,value in data['counts'].items():
+                  summary['counts'][key]=summary['counts'].get(key,0)+value
+              for event in data['events']:
+                  summary['events'].append({'track':data['track'],**event})
+          Path('round107-summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          print(json.dumps(summary,indent=2,sort_keys=True))
+          bad=sum(summary['counts'].get(k,0) for k in ('safety_regression','slower','redistribution'))
+          assert summary['pairs']==3500, summary
+          assert bad==0, summary
+          assert summary['counts'].get('safety_gain',0)>=2, summary
+          by_case={(e['track'],e['seed']):e['classification'] for e in summary['events']}
+          assert by_case.get(('hungaroring',144))=='safety_gain', summary
+          assert by_case.get(('zandvoort',115))=='safety_gain', summary
+          assert ('lemans',4) not in by_case, summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round107-summary
+          path: round107-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [verify, differential, runtime, summarize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round107-jars
+          path: .
+      - name: Materialize verified production commit
+        run: |
+          cp tracks/round107_apply.py /tmp/round107_apply.py
+          EXPECTED=$(cat round107-baseline-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round107-production origin/master
+          python /tmp/round107_apply.py
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/golden_races.py
+          python tests/ai_rescue_regression.py
+          git diff --check
+          git config user.name 'senegrom'
+          git config user.email '6349874+senegrom@users.noreply.github.com'
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java \
+            tests/ai_rescue_regression.py AI_DEVELOPMENT.md
+          git commit -m 'Round 107: rescue two dense-pack crash sites'
+          git push origin HEAD:agent/ai-racing-speed-107-two-rescues
