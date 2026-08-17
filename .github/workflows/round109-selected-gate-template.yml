@@ -1,0 +1,330 @@
+name: Round 109 selected-rescue master gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-109-selected
+    paths:
+      - src/tr/logic/RaceAi.java
+      - round109-selection.json
+      - tracks/round109_compare.py
+      - tracks/round109_publish.py
+      - .github/workflows/round109-selected-gate.yml
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and selected candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round109-base-sha.txt
+          git worktree add /tmp/round109-live-master origin/master
+          cd /tmp/round109-live-master
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round109-baseline.jar"
+          cd "$GITHUB_WORKSPACE"
+          test "$(git diff --name-only origin/master..HEAD -- src/tr/logic/RaceAi.java)" = 'src/tr/logic/RaceAi.java'
+          git diff --binary origin/master..HEAD -- src/tr/logic/RaceAi.java > round109-selected.patch
+          test -s round109-selected.patch
+          git diff --check origin/master..HEAD
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar round109-candidate.jar
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+      - name: Prove the target and controls before the broad gate
+        run: |
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track hungaroring --start 144 --end 144 --out round109-target.json
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track zandvoort --start 115 --end 115 --out round109-control-zandvoort.json
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track lemans --start 4 --end 4 --out round109-control-lemans.json
+          python - <<'PY'
+          import json
+          h = json.load(open('round109-target.json'))
+          z = json.load(open('round109-control-zandvoort.json'))
+          l = json.load(open('round109-control-lemans.json'))
+          assert h['counts']['safety_gain'] == 1 and len(h['events']) == 1, h
+          assert z['counts']['identical'] == 1 and not z['events'], z
+          assert l['counts']['identical'] == 1 and not l['events'], l
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round109-build
+          path: |
+            round109-base-sha.txt
+            round109-baseline.jar
+            round109-candidate.jar
+            round109-selected.patch
+            round109-selection.json
+            round109-target.json
+            round109-control-zandvoort.json
+            round109-control-lemans.json
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: verify
+    name: Differential ${{ matrix.track }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end: 150 }
+          - { track: triangle, end: 150 }
+          - { track: curve, end: 150 }
+          - { track: hairpin, end: 150 }
+          - { track: chicane, end: 150 }
+          - { track: sprint, end: 150 }
+          - { track: bigoval, end: 150 }
+          - { track: slalom, end: 150 }
+          - { track: gear, end: 150 }
+          - { track: coil, end: 150 }
+          - { track: zigzag, end: 150 }
+          - { track: the_long_loop, end: 150 }
+          - { track: monaco, end: 150 }
+          - { track: hungaroring, end: 150 }
+          - { track: interlagos, end: 150 }
+          - { track: lemans, end: 150 }
+          - { track: spa, end: 150 }
+          - { track: silverstone, end: 150 }
+          - { track: monza, end: 150 }
+          - { track: zandvoort, end: 150 }
+          - { track: nurburgring, end: 150 }
+          - { track: spielberg, end: 150 }
+          - { track: serpentine, end: 50 }
+          - { track: serpentine2, end: 50 }
+          - { track: spiral, end: 50 }
+          - { track: cog, end: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-build
+          path: .
+      - name: Compare exact per-seed outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end }}
+        run: |
+          set +e
+          python tracks/round109_compare.py --baseline round109-baseline.jar --candidate round109-candidate.jar --track "$TRACK" --start 1 --end "$END_SEED" --out "round109-${TRACK}.json"
+          RC=$?
+          set -e
+          test -s "round109-${TRACK}.json"
+          echo "compare_exit=$RC"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round109-result-${{ matrix.track }}
+          path: round109-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-build
+          path: .
+      - name: Alternate candidate and baseline execution order
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, statistics, subprocess, tempfile, time
+
+          root = Path.cwd()
+          source = root / 'tracks' / 'bench.properties'
+          def props(path):
+              lines = []
+              for line in source.read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+          def run(jar, track, seed):
+              with tempfile.TemporaryDirectory(prefix='r109-time-') as directory:
+                  tmp = Path(directory)
+                  p = tmp / 'p.properties'
+                  log = tmp / 'r.log'
+                  props(p)
+                  began = time.perf_counter()
+                  cp = subprocess.run(['java', '-Djava.awt.headless=true', '-jar', str(root / jar), '--auto', '--track', track, '--props', str(p), '--log', str(log), '--seed', str(seed)], text=True, capture_output=True, timeout=1800)
+                  if cp.returncode:
+                      raise SystemExit(cp.stderr[-2000:])
+                  return time.perf_counter() - began
+          rows = []
+          for track, seed in [('hungaroring', 144), ('zandvoort', 115), ('circle', 10)]:
+              run('round109-baseline.jar', track, seed)
+              run('round109-candidate.jar', track, seed)
+              baseline, candidate = [], []
+              for index in range(5):
+                  if index % 2:
+                      baseline.append(run('round109-baseline.jar', track, seed))
+                      candidate.append(run('round109-candidate.jar', track, seed))
+                  else:
+                      candidate.append(run('round109-candidate.jar', track, seed))
+                      baseline.append(run('round109-baseline.jar', track, seed))
+              row = {'track': track, 'seed': seed, 'ratio': statistics.median(candidate) / statistics.median(baseline), 'baseline': baseline, 'candidate': candidate}
+              rows.append(row)
+              if row['ratio'] > 1.50:
+                  raise SystemExit(f'runtime regression: {row}')
+          Path('round109-runtime.json').write_text(json.dumps(rows, indent=2) + '\n')
+          print(json.dumps(rows, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round109-runtime
+          path: round109-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: [differential, runtime]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round109-result-*
+          path: results
+          merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-runtime
+          path: results
+      - name: Enforce exact no-regression policy
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          summary = {'pairs': 0, 'counts': {}, 'net_moves': 0, 'events': [], 'runtime_ratios': {}}
+          reports = sorted(Path('results').glob('round109-*.json'))
+          reports = [p for p in reports if p.name != 'round109-runtime.json']
+          if len(reports) != 26:
+              raise SystemExit(f'expected 26 reports, found {len(reports)}')
+          for path in reports:
+              data = json.load(open(path))
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              for event in data['events']:
+                  summary['events'].append({'track': data['track'], **event})
+          Path('round109-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          bad = sum(summary['counts'].get(k, 0) for k in ('safety_regression', 'slower', 'redistribution'))
+          if summary['pairs'] != 3500 or bad:
+              raise SystemExit(f'Round 109 rejected: {summary}')
+          by_case = {(e['track'], e['seed']): e['classification'] for e in summary['events']}
+          if by_case.get(('hungaroring', 144)) != 'safety_gain':
+              raise SystemExit(f'Hungaroring 144 rescue missing: {summary}')
+          if ('zandvoort', 115) in by_case or ('lemans', 4) in by_case:
+              raise SystemExit(f'sensitive control changed: {summary}')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round109-summary
+          path: round109-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [verify, differential, runtime, summarize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round109-summary
+          path: .
+      - name: Materialize verified production commit and fast-forward master
+        run: |
+          cp tracks/round109_publish.py /tmp/round109_publish.py
+          EXPECTED=$(cat round109-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round109-production origin/master
+          git apply round109-selected.patch
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round109_publish.py
+          python tests/ai1_hungaroring_frontier_regression.py
+          python tests/ai1_equal_speed_veto_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java tests/ai1_hungaroring_frontier_regression.py AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 109: recover the Hungaroring frontier rescue'
+          git push origin HEAD:master
