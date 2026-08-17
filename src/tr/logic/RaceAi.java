@@ -212,7 +212,7 @@ final class RaceAi {
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
 	private final static int		AI1_DJS_ROUNDS	= 3;
-	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 4;	// round 99: horizon for the true-rival confirm; round 100: 4 -- the s74 box seals at round index 3 (s32 sealed at 2), and every extra round multiplies full-champion rival computes
+	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 4;	// round 99: horizon for the true-rival confirm; round 100: 4 -- the s74 box seals at round index 3 (s32 sealed at 2); every extra round multiplies full-champion rival computes and widens the false-kill window
 	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
 	private final static int		AI1_DJS_FAST_FRAGILE_ROUNDS	= 4;	// round 93: faithful-rival recheck for fast L2 landings that are already fragile after the normal 3-round screen
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
@@ -2808,6 +2808,19 @@ final class RaceAi {
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
 			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm) {
+		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, rounds, scorerCap, scorerSelf, threadCheck, trueConfirm,
+				true);
+	}
+
+	/** corrLeg=false (round 105): suppress the corridor fragility leg --
+	 *  thread-plus-bodies is ubiquitous at dense-pack ESC fires and switch
+	 *  churn there broke the mixed-safety pin; the slow and deep legs stay. */
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
+			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm,
+			final boolean corrLeg) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
@@ -2841,7 +2854,7 @@ final class RaceAi {
 			// The new legs pay a cost ladder: the suppressed 8-round
 			// certification-cap world first (~100ms), true rivals only on a
 			// kill; the deep leg verifies at 6 true rounds.
-			final boolean legCorr = trueConfirm && threadRounds != null
+			final boolean legCorr = trueConfirm && corrLeg && threadRounds != null
 					&& threadRounds[0] >= 1
 					&& countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) >= 1;
 			final boolean legSlow = trueConfirm && threadRounds != null
@@ -2979,6 +2992,7 @@ final class RaceAi {
 			for (int pass = 0; pass < DIRECTIONS.length && confirmed == null; pass++) {
 				Direction cand = null;
 				int candT = Integer.MAX_VALUE;
+				int candSpd = Integer.MAX_VALUE;
 				for (final Direction d : DIRECTIONS) {
 					if (d == chosen || rejected[d.ordinal()])
 						continue;
@@ -2993,8 +3007,13 @@ final class RaceAi {
 						continue;
 					final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish,
 							exactSelf, exactRivals, scorerRivals, scorerSelf, scorerCap, null);
-					if (t >= 0 && t < candT) {
+					// Round 105: slower-first -- the shelf invariant governs
+					// switch targets too: a fast sibling passing both ladder
+					// worlds can still be a depth-7 doom (zandvoort s128).
+					final int spd = Math.max(Math.abs(nvx), Math.abs(nvy));
+					if (t >= 0 && (spd < candSpd || spd == candSpd && t < candT)) {
 						candT = t;
+						candSpd = spd;
 						cand = d;
 					}
 				}

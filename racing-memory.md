@@ -6,6 +6,48 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 105 (local agent): slower-first switch targets; the shelf-rule refutation; harvest 16 census
+
+HARVEST 16 (8car mega-window s106-150, 990 races): 4 crashes, all
+depth-6-9 -- zandvoort s115 m111 / s128 m110 / s134 m98 (the corridor
+shelves again, three new shapes) and hungaroring s144 m26 (start
+funnel, @true-r4). Probe matrix banked the decisive negative: at
+depth 7+ the class is TRAFFIC-COUPLED past every affordable world --
+the state (44,28)v(2,-7) is oracle-ALIVE in s115 and oracle-DEAD in
+s128; identical local state, opposite outcomes on field context. No
+local verdict or static rule can decide these.
+
+WHAT SHIPPED (pin-clean): dead-path ladder SWITCH TARGETS pick
+SLOWER-FIRST (min spd-inf, then cheap ttf) -- the class invariant
+applied where it is safe: only among candidates that already passed
+the scorer-8 + true-4 ladder on an already-dead chosen. Fixes s128
+AND s134. Canon 62.705/62.647/62.679 with windows 1-2 both faster
+than the frozen champion, and H2H 4.494 vs 4.506 -- the FIRST
+head-to-head EDGE over the mirror since parity: braking one unit
+earlier at fragile shelves wins races.
+
+WHAT WAS REFUTED (three pin-measured attempts): the SHELF SPEED
+DISCIPLINE as an alive-branch rule. Gate tier<=1: breaks pace +
+field-neutral + staged + energy pins (corridor fires with fragile
+tiers are everywhere in packs). Gate tier<=1 AND thread>=1 AND
+snug>=2: still breaks them. ESC-call confirm with the corridor leg:
+breaks mixed-safety. Conclusion: the invariant is only safe where a
+verdict ALREADY killed the chosen; as a preference on alive verdicts
+it perturbs the pinned equilibrium at any gate the corridor fire-rate
+offers. The corrLeg flag (suppress the corridor leg per call site)
+stays as inert plumbing.
+
+OPEN (full anatomy): zandvoort s115 m111 -- survivors are
+EQUAL-spd-inf lane changes (v(2,-7)/v(3,-7) vs taken v(4,-7)), outside
+the slower-first vocabulary; scorer-8 reads all three alive
+(thread 6/5/3 of 7 -- massively threaded yet verdict-alive), true-8
+kills taken AND one true survivor (false kill) while keeping S: even
+true-8 is only per-candidate right here. hungaroring s144 m26 --
+tier-healthy (3) thread=2 snug=2 at every gate world, dies @true-r4,
+five survivors; the one confirm that sees it (legCorr at the ESC
+call, horizon 5) costs the mixed pin. Both are the residual frontier:
+2 open in 990 fresh mega-window races, plus accepted hairpin s68.
+
 ## Harvest 15 (r104 champion): 0/770 ON NEVER-RACED SEEDS -- the family generalizes
 
 The first zero-crash FRESH harvest in campaign history (fresh windows
