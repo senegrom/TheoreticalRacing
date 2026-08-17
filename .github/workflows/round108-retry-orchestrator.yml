@@ -1,0 +1,78 @@
+name: Round 108 gate retry orchestrator
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-108-equal-speed-veto-gate
+    paths:
+      - .github/workflows/round108-retry-orchestrator.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Monitor the parallel master gate and retry transient failures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          base = 'https://api.github.com/repos/senegrom/TheoreticalRacing'
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'Authorization': f"Bearer {os.environ['GH_TOKEN']}",
+              'X-GitHub-Api-Version': '2022-11-28',
+              'User-Agent': 'round108-retry-orchestrator',
+          }
+
+          def request(url, method='GET'):
+              req = urllib.request.Request(url, method=method, headers=headers)
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  payload = response.read()
+              return json.loads(payload) if payload else None
+
+          workflow = urllib.parse.quote('.github/workflows/round108-fast-master-gate.yml', safe='')
+          runs_url = f'{base}/actions/workflows/{workflow}/runs?branch=agent%2Fai-racing-speed-108-equal-speed-veto-gate&per_page=5'
+          retries = 0
+          observed = None
+          for _ in range(720):
+              runs = request(runs_url)['workflow_runs']
+              if not runs:
+                  print('parallel gate not visible yet', flush=True)
+                  time.sleep(30)
+                  continue
+              run = runs[0]
+              state = (run['id'], run['status'], run.get('conclusion'), run.get('run_attempt'))
+              if state != observed:
+                  print('gate', state, run['html_url'], flush=True)
+                  observed = state
+              if run['status'] != 'completed':
+                  time.sleep(30)
+                  continue
+              if run.get('conclusion') == 'success':
+                  raise SystemExit(0)
+              if retries >= 3:
+                  raise SystemExit(f"Round 108 gate still rejected after retries: {state}")
+              try:
+                  request(f"{base}/actions/runs/{run['id']}/rerun-failed-jobs", method='POST')
+              except urllib.error.HTTPError as error:
+                  # A run cancelled during setup has no failed jobs; rerun all.
+                  if error.code not in (403, 409, 422):
+                      raise
+                  request(f"{base}/actions/runs/{run['id']}/rerun", method='POST')
+              retries += 1
+              print('requested retry', retries, flush=True)
+              time.sleep(45)
+          raise SystemExit('timed out monitoring Round 108 gate')
+          PY
