@@ -1,0 +1,178 @@
+name: Promote verified Round 126 safety gain
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-126-equal-speed-veto
+    paths:
+      - round126-promote.trigger
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round126-build
+          path: .
+          run-id: 32192293681
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: round126-summary
+          path: .
+          run-id: 32192293681
+          github-token: ${{ github.token }}
+      - name: Verify exhaustive evidence and immutable parent
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path('round126-summary.json').read_text())
+          assert summary['baseline_sha'] == '453330a1098ed0dfcc092f37faeb190cf3400d5b', summary
+          assert summary['candidate'] == 'equal_speed_false_target_veto', summary
+          assert summary['pairs'] == 3500, summary
+          assert summary['bad'] == 0 and summary['viable'], summary
+          assert summary['counts'].get('safety_regression', 0) == 0, summary
+          assert summary['counts'].get('slower', 0) == 0, summary
+          assert summary['counts'].get('redistribution', 0) == 0, summary
+          assert summary['counts'].get('aggregate_faster', 0) == 0, summary
+          target = [event for event in summary['events']
+                    if event['track'] == 'zandvoort'
+                    and event['seed'] == 115
+                    and event['classification'] == 'safety_gain']
+          assert len(target) == 1, summary
+          event = target[0]
+          assert len(event['candidate']['finishes']) > len(event['baseline']['finishes']), event
+          assert len(event['candidate']['crashes']) < len(event['baseline']['crashes']), event
+          PY
+          EXPECTED=$(cat round126-base-sha.txt)
+          test "$EXPECTED" = '453330a1098ed0dfcc092f37faeb190cf3400d5b'
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+      - name: Measure active and control runtime
+        run: |
+          python - <<'PY'
+          import json, re, statistics, subprocess, tempfile, time
+          from pathlib import Path
+
+          root = Path.cwd()
+          source = root / 'tracks' / 'bench.properties'
+
+          def write_props(path):
+              lines = []
+              for line in source.read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def run(jar, track, seed):
+              with tempfile.TemporaryDirectory(prefix='round126-time-') as directory:
+                  tmp = Path(directory)
+                  props, log = tmp / 'bench.properties', tmp / 'race.log'
+                  write_props(props)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(props),
+                      '--log', str(log), '--seed', str(seed),
+                  ], cwd=root, text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-3000:])
+                  return time.perf_counter() - started
+
+          rows = []
+          for track, seed, bounded in [('zandvoort', 115, False),
+                                       ('lemans', 4, True),
+                                       ('silverstone', 93, True),
+                                       ('circle', 10, True)]:
+              run('round126-baseline.jar', track, seed)
+              run('round126-candidate.jar', track, seed)
+              baseline, candidate = [], []
+              for index in range(5):
+                  if index % 2:
+                      baseline.append(run('round126-baseline.jar', track, seed))
+                      candidate.append(run('round126-candidate.jar', track, seed))
+                  else:
+                      candidate.append(run('round126-candidate.jar', track, seed))
+                      baseline.append(run('round126-baseline.jar', track, seed))
+              ratio = statistics.median(candidate) / statistics.median(baseline)
+              row = {'track': track, 'seed': seed, 'ratio': ratio,
+                     'baseline': baseline, 'candidate': candidate}
+              rows.append(row)
+              if bounded:
+                  assert ratio <= 1.50, row
+          Path('round126-runtime.json').write_text(json.dumps(rows, indent=2) + '\n')
+          print(json.dumps(rows, indent=2))
+          PY
+      - name: Reproduce, test and publish production source
+        run: |
+          cp tracks/round126_apply.py /tmp/round126_apply.py
+          cp tracks/round126_publish.py /tmp/round126_publish.py
+          cp round126.patch /tmp/round126.patch
+          cp round126-summary.json /tmp/round126-summary.json
+          cp round126-runtime.json /tmp/round126-runtime.json
+          EXPECTED=$(cat round126-base-sha.txt)
+          git reset --hard
+          git clean -fd
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round126-production origin/master
+          python /tmp/round126_apply.py
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff -- src/tr/logic/RaceAi.java > /tmp/round126-reproduced.patch
+          cmp /tmp/round126.patch /tmp/round126-reproduced.patch
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp /tmp/round126-summary.json round126-summary.json
+          python /tmp/round126_publish.py
+          python tests/ai1_equal_speed_veto_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          python - <<'PY'
+          from pathlib import Path
+          for name in ('AI_DEVELOPMENT.md', 'racing-memory.md'):
+              path = Path(name)
+              path.write_text(path.read_text().rstrip() + '\n')
+          PY
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java \
+            tests/ai1_equal_speed_veto_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 126: veto false equal-speed switch targets'
+          git push origin HEAD:master
+          git rev-parse HEAD > round126-master-sha.txt
+          cp /tmp/round126-runtime.json round126-runtime.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round126-verified-promotion
+          path: |
+            round126-summary.json
+            round126-runtime.json
+            round126-master-sha.txt
+          if-no-files-found: error
+          retention-days: 30
