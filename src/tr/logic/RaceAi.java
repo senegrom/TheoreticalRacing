@@ -257,6 +257,8 @@ final class RaceAi {
 	private final static int		AI1_FIELD_ACCEL_MIN_AHEAD	= 2;	// require a real forward pack
 	private final static int		AI1_FIELD_ACCEL_MAX_AHEAD	= 5;	// bounded proof excludes full-tail six-ahead cases
 	private final static int		AI1_FIELD_ACCEL_MAX_TTF	= 90;	// keep the 8-round proof in the medium-range race phase
+	private final static int		AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN	= 9;	// round 115 frontier: moderate acceleration floor for AI1 only
+	private final static int		AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF	= 45;	// round 115: short-range boundary for speed2 gains 9..15
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
@@ -1558,7 +1560,9 @@ final class RaceAi {
 
 	/** Round 106: recover a one-turn acceleration only in a bounded forward
 	 * pack when the same eight-round scorer world proves strict mover and
-	 * aggregate-field gains. The TTF cap prevents long-range rollout optimism. */
+	 * aggregate-field gains. Round 115 leaves the promoted gain>=16 rule intact;
+	 * AI1 alone may test gains 9..15 inside TTF 45 from an incumbent below the
+	 * speed-7 danger threshold, never from a scorer coast. */
 	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
 			final int playerNum, final Direction chosen, final double[] trapByDir,
 			final double[] uncByDir, final int[] turnsByDir) {
@@ -1595,6 +1599,7 @@ final class RaceAi {
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
 		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
+		final boolean frontierMover = moverKind(playerNum) == Player.Kind.AI1;
 		int chosenFinal = Integer.MIN_VALUE;
 		long chosenField = Long.MAX_VALUE;
 		Direction best = null;
@@ -1608,7 +1613,14 @@ final class RaceAi {
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int speed2 = speedSquared(nvx, nvy);
-			if (speed2 - chosenSpeed2 < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN)
+			final int speed2Gain = speed2 - chosenSpeed2;
+			final boolean frontierModerateGain = frontierMover
+					&& chosen != Direction.NONE
+					&& chosenSpeed2 < AI1_DJS_SPD2
+					&& chosenT <= AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF
+					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN;
+			if (speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
+					&& !frontierModerateGain)
 				continue;
 			if (turns <= AI1_FINISH_EXTENDED_TTF && speed2 < AI1_DJS_SPD2)
 				continue;

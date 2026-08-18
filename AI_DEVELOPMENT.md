@@ -347,6 +347,30 @@ The frozen golden corpus now includes six promoted boundary cases (`monaco-s9-4p
 
 Round 75 completed all three 22-track eight-car bands with 770/0 finishes and no track slower: mean finisher moves improved from 63.82 to 63.69, 63.79 to 63.66, and 63.78 to 63.64. It won all three mixed 4v4 bands at zero crashes (4.483/4.517, 4.483/4.517, and 4.475/4.525), slightly won 2v2 (2.498/2.502), tied 1v1 exactly, and improved the five-seed slow suite from 104.27 to 104.16 at 140/0 finishes. Seven interleaved warm Monaco seed-16 pairs measured a small compute cost: roughly 1.8% by trimmed mean and 3.2% by median. This is a racing-pace improvement, not a CPU-speed optimization.
 
+## Round 115: low-energy graduated field acceleration
+
+Round 106 required a speed-squared gain of at least 16 before its eight-round
+scorer-field certificate could recover a one-map-turn acceleration. Unfinished
+Round 111-114 branches showed that lowering the floor to 9 exposes real pace,
+but also found two distinct overreach classes: long-range Spa changes and a
+high-energy Silverstone redistribution. The promoted frontier therefore keeps
+the gain>=16 rule unchanged and admits gains 9..15 only for AI1, only through
+TTF 45, only when the incumbent speed-squared is below 49, and never when the
+scorer deliberately coasts. The existing trap, uncertainty, funnel, seal,
+strict-self and strict-aggregate-field proofs remain mandatory. AI2 stays the
+frozen Round-110 yardstick.
+
+The exact 3500-pair differential recorded
+2 Pareto-faster race(s),
+0 safety gain(s), and zero slower races, safety
+regressions or field redistributions. Net finisher moves changed by
+-3. Coil seed 1 improves from
+427 to 425 moves and Coil
+seed 38 from 426 to
+425, with the same finishers, order and no individual
+slowdown. Coil seed 106 remains exact, as do the Spa and Silverstone
+counterexample pins.
+
 ## Highest-value next directions
 
 1. **Bottleneck-aware triggers** — detect narrow future cut sets or collapsing route width, then invoke expensive rollout based on topology instead of track-shaped heuristics.

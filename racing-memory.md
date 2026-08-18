@@ -2659,3 +2659,13 @@ avoidable waste).
   contend; pause benches if they need it.
 - Effort: remind the user to run `/effort max` at session start (global
   CLAUDE.md rule).
+
+ROUND 115 (low-energy graduated field acceleration): The Round-106 field certificate now admits AI1-only
+speed2 gains 9..15 through TTF 45 when the incumbent speed2 is below
+49 and the scorer is not coasting. This retains the Coil seed-1 and
+seed-38 Pareto gains while excluding the long-range Spa and
+high-energy Silverstone counterexamples. Exact gate:
+3500 pairs, 2
+Pareto-faster, 0 safety gain(s), zero
+slower/safety-regression/redistribution outcomes, net
+-3 finisher moves. AI2 remains frozen.
