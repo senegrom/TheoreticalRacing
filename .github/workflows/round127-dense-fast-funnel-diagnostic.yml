@@ -1,0 +1,70 @@
+name: Round 127 dense-funnel admission diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-127-dense-fast-funnel
+    paths:
+      - .github/workflows/round127-dense-fast-funnel-diagnostic.yml
+      - tracks/round127_apply_dense_funnel.py
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build instrumented current-master candidate
+        run: |
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          test "$BASE" = '5ab10eafe547b2d02bfaaa23d9edfe076ca9aeaf'
+          git worktree add /tmp/round127-diagnostic "$BASE"
+          cd /tmp/round127-diagnostic
+          python "$GITHUB_WORKSPACE/tracks/round127_apply_dense_funnel.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round127-diagnostic.jar"
+      - name: Trace Zandvoort seed 195 admission boundary
+        run: |
+          java -Djava.awt.headless=true -Dai.debug.player=6 -Dai.debug.djs=true \
+            -jar round127-diagnostic.jar --auto --track zandvoort \
+            --props tracks/bench.properties --log round127-diagnostic-z195.log --seed 195 \
+            > round127-diagnostic-z195.stdout 2> round127-diagnostic-z195.stderr
+          grep -E 'AIDBG DENSE-CHECK|AIDBG DENSE-FUNNEL|AIDBG turn-REAL p=6|AIDBG RING p=6|AIDBG ESC p=6' \
+            round127-diagnostic-z195.stderr > round127-dense-diagnostic.txt
+          test -s round127-dense-diagnostic.txt
+          cat round127-dense-diagnostic.txt
+      - name: Record diagnostic result
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round127-diagnostic-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
+          git add round127-dense-diagnostic.txt round127-diagnostic-run-id.txt
+          git commit -m 'Record Round 127 dense-funnel admission diagnostic'
+          git push origin HEAD:"$GITHUB_REF_NAME"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round127-dense-funnel-diagnostic
+          path: |
+            round127-dense-diagnostic.txt
+            round127-diagnostic-z195.log
+            round127-diagnostic-z195.stderr
+            round127-diagnostic-z195.stdout
+          if-no-files-found: warn
+          retention-days: 30
