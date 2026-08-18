@@ -1,0 +1,72 @@
+{
+  "baseline_sha": "0f06698d455b5641eac3c78e39e9c9a9c6188b25",
+  "variants": [
+    {
+      "bad": 0,
+      "baseline_sha": "0f06698d455b5641eac3c78e39e9c9a9c6188b25",
+      "counts": {
+        "identical": 740,
+        "pareto_faster": 0,
+        "redistribution": 0,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 0
+      },
+      "events": [],
+      "failed_stage": null,
+      "max_ttf": 35,
+      "net_moves": 0,
+      "pairs": 740,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "status": "ok",
+      "variant": "finish_sync_ttf_35",
+      "viable": false
+    },
+    {
+      "bad": 0,
+      "baseline_sha": "0f06698d455b5641eac3c78e39e9c9a9c6188b25",
+      "counts": {
+        "identical": 740,
+        "pareto_faster": 0,
+        "redistribution": 0,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 0
+      },
+      "events": [],
+      "failed_stage": null,
+      "max_ttf": 40,
+      "net_moves": 0,
+      "pairs": 740,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "status": "ok",
+      "variant": "finish_sync_ttf_40",
+      "viable": false
+    }
+  ],
+  "viable": []
+}
