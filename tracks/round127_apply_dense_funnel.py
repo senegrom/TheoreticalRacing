@@ -56,15 +56,26 @@ dense = '''\t\t\t\t\t\t// Round 127 AI1 frontier: the sparse fast-funnel arm sto
 \t\t\t\t\t\t// accept only a braking target within one map turn.
 \t\t\t\t\t\tfinal int fNarrowRun = fSpdInf >= AI1_FUNNEL_MIN_SPD
 \t\t\t\t\t\t\t\t? reach.narrowRunAhead(fCx, fCy, fSpan, AI1_FUNNEL_WIDTH) : 0;
+\t\t\t\t\t\tfinal int fPackNear = countRivalsWithinCheb(fCx, fCy, playerNum,
+\t\t\t\t\t\t\t\tAI1_DEEP_PACK_R);
+\t\t\t\t\t\tfinal boolean fHomogeneous = kindHomogeneousRoster(playerNum);
+\t\t\t\t\t\tfinal boolean fCrossesFinish = game.crossesFinish(pos[0], pos[1], fCx, fCy);
+\t\t\t\t\t\tif (AI_DEBUG_PLAYER == playerNum)
+\t\t\t\t\t\t\tSystem.err.println("AIDBG DENSE-CHECK p=" + playerNum + " pos=("
+\t\t\t\t\t\t\t\t\t+ pos[0] + "," + pos[1] + ") chosen=" + chosen
+\t\t\t\t\t\t\t\t\t+ " slow=" + djSlow + " spdInf=" + fSpdInf
+\t\t\t\t\t\t\t\t\t+ " minRing=" + fMinRing + " run=" + fNarrowRun
+\t\t\t\t\t\t\t\t\t+ " pack=" + fPackNear + " live=" + liveRivals
+\t\t\t\t\t\t\t\t\t+ " homogeneous=" + fHomogeneous
+\t\t\t\t\t\t\t\t\t+ " finish=" + fCrossesFinish);
 \t\t\t\t\t\tfinal boolean denseFastFunnel = !djSlow
 \t\t\t\t\t\t\t\t&& moverKind(playerNum) == Player.Kind.AI1
 \t\t\t\t\t\t\t\t&& liveRivals >= AI1_PRIVATE_FIELD_MIN_RIVALS
-\t\t\t\t\t\t\t\t&& kindHomogeneousRoster(playerNum)
+\t\t\t\t\t\t\t\t&& fHomogeneous
 \t\t\t\t\t\t\t\t&& fMinRing <= AI1_FUNNEL_WIDTH - 1
 \t\t\t\t\t\t\t\t&& fSpdInf > fMinRing && fNarrowRun >= AI1_FUNNEL_RUN
-\t\t\t\t\t\t\t\t&& countRivalsWithinCheb(fCx, fCy, playerNum,
-\t\t\t\t\t\t\t\t\t\tAI1_DEEP_PACK_R) >= AI1_DEEP_PACK
-\t\t\t\t\t\t\t\t&& !game.crossesFinish(pos[0], pos[1], fCx, fCy);
+\t\t\t\t\t\t\t\t&& fPackNear >= AI1_DEEP_PACK
+\t\t\t\t\t\t\t\t&& !fCrossesFinish;
 \t\t\t\t\t\tif (denseFastFunnel) {
 \t\t\t\t\t\t\tif (AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
 \t\t\t\t\t\t\t\tSystem.err.println("AIDBG DENSE-FUNNEL p=" + playerNum + " pos=("
@@ -98,6 +109,7 @@ source = source.replace(marker, "\t\t\t\t\t\t}\n" + dense
                         + "\t\t\t\t\t}\n\t\t\t\t\tif (!djSlow) {\n", 1)
 
 assert source.count("AI1_DENSE_FAST_FUNNEL_ROUNDS") == 2
+assert source.count("AIDBG DENSE-CHECK p=") == 1
 assert source.count("AIDBG DENSE-FUNNEL p=") == 1
 assert source.count("private Direction optimalMoveAI2") == 1
 path.write_text(source)
