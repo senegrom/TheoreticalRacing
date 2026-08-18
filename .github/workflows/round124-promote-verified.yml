@@ -124,14 +124,22 @@ jobs:
         run: |
           cp tracks/round124_apply.py /tmp/round124_apply.py
           cp tracks/round124_publish.py /tmp/round124_publish.py
-          EXPECTED=$(cat round124-base-sha.txt)
+          cp round124-summary.json /tmp/round124-summary.json
+          cp round124-base-sha.txt /tmp/round124-base-sha.txt
+          cp round124.patch /tmp/round124.patch
+          cp round124-runtime.json /tmp/round124-runtime.json
+          EXPECTED=$(cat /tmp/round124-base-sha.txt)
           git fetch origin master
           test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git reset --hard
+          git clean -fd
           git checkout -B round124-production origin/master
+          cp /tmp/round124-summary.json round124-summary.json
+          cp /tmp/round124-runtime.json round124-runtime.json
           python /tmp/round124_apply.py
           test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
           git diff -- src/tr/logic/RaceAi.java > /tmp/round124-reproduced.patch
-          cmp round124.patch /tmp/round124-reproduced.patch
+          cmp /tmp/round124.patch /tmp/round124-reproduced.patch
           git diff --check
           sh ./run_tests.sh
           sh ./build_main.sh
