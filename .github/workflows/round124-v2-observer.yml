@@ -31,3 +31,5 @@ jobs:
           git add round124-v2-status.json
           git commit -m 'Record Round 124 v2 gate status'
           git push origin HEAD:"$GITHUB_REF_NAME"
+
+# Observe the final current-master rerun.
