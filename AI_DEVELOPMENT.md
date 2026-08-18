@@ -371,6 +371,23 @@ seed 38 from 426 to
 slowdown. Coil seed 106 remains exact, as do the Spa and Silverstone
 counterexample pins.
 
+## Round 117: synchronized exact-six-ahead acceleration
+
+Round 106 capped its strict field-acceleration proof at five rivals ahead. A
+sixth-place extension exposed one genuine Coil pace gain and two field
+redistributions from the same local move. Board reconstruction found a
+track-independent separator: only the good state has a previously moved rival
+adjacent to the candidate landing with the candidate's exact velocity. That
+synchronized formation may enter the existing eight-round high-energy proof;
+lone back-marker accelerations remain excluded. Round 115's moderate
+speed-squared 9..15 frontier stays capped at five ahead and AI2 stays frozen.
+
+The exact 3500-pair gate recorded 1
+Pareto-faster race(s), 0 safety gain(s), zero
+slower races, zero safety regressions, zero field redistributions and a net
+-1 finisher moves. The changed races were
+coil seed 86.
+
 ## Highest-value next directions
 
 1. **Bottleneck-aware triggers** — detect narrow future cut sets or collapsing route width, then invoke expensive rollout based on topology instead of track-shaped heuristics.

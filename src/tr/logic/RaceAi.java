@@ -259,6 +259,7 @@ final class RaceAi {
 	private final static int		AI1_FIELD_ACCEL_MAX_TTF	= 90;	// keep the 8-round proof in the medium-range race phase
 	private final static int		AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN	= 9;	// round 115 frontier: moderate acceleration floor for AI1 only
 	private final static int		AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF	= 45;	// round 115: short-range boundary for speed2 gains 9..15
+	private final static int		AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS	= 8;	// round 117: synchronized six-ahead formations retain the established proof depth
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
@@ -1558,9 +1559,34 @@ final class RaceAi {
 		return false;
 	}
 
+
+	/** Round 117 candidate-formation proof: a previously moved rival is
+	 * adjacent to the proposed landing and already carries its exact velocity.
+	 * The lateral dot bound keeps the peer alongside rather than directly in
+	 * the mover's path. */
+	private boolean hasAdjacentPriorCandidateVelocityPeer(final int x, final int y,
+			final int vx, final int vy, final int playerNum) {
+		for (int i = 0; i < game.subgamestate; i++) {
+			final Player p = game.players[i];
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			final int dx = pp[0] - x, dy = pp[1] - y;
+			if (Math.max(Math.abs(dx), Math.abs(dy)) != 1)
+				continue;
+			final int[] pv = p.getVelocity();
+			if (pv[0] == vx && pv[1] == vy
+					&& Math.abs((long) dx * vx + (long) dy * vy) <= 1L)
+				return true;
+		}
+		return false;
+	}
+
 	/** Round 106: recover a one-turn acceleration only in a bounded forward
 	 * pack when the same eight-round scorer world proves strict mover and
-	 * aggregate-field gains. Round 115 leaves the promoted gain>=16 rule intact;
+	 * aggregate-field gains. Round 117 admits an exact-six-ahead high-energy
+	 * formation only with an adjacent prior candidate-velocity peer. Round 115
+	 * leaves the promoted gain>=16 rule otherwise intact;
 	 * AI1 alone may test gains 9..15 inside TTF 45 from an incumbent below the
 	 * speed-7 danger threshold, never from a scorer coast. */
 	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
@@ -1591,15 +1617,20 @@ final class RaceAi {
 					aheadProgress += (long) moverProgress - rivalProgress;
 			}
 		}
+		final boolean frontierMover = moverKind(playerNum) == Player.Kind.AI1;
+		final boolean sixAheadFrontier = frontierMover
+				&& rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD + 1;
 		if (liveRivals < AI1_PRIVATE_FIELD_MIN_RIVALS
 				|| rivalsAhead < AI1_FIELD_ACCEL_MIN_AHEAD
-				|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD || aheadProgress <= 0L)
+				|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD && !sixAheadFrontier
+				|| aheadProgress <= 0L)
 			return chosen;
 
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 		final int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;
 		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
-		final boolean frontierMover = moverKind(playerNum) == Player.Kind.AI1;
+		final int fieldProofRounds = sixAheadFrontier
+				? AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS : AI1_STAGED_HORIZON;
 		int chosenFinal = Integer.MIN_VALUE;
 		long chosenField = Long.MAX_VALUE;
 		Direction best = null;
@@ -1622,9 +1653,16 @@ final class RaceAi {
 			if (speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
 					&& !frontierModerateGain)
 				continue;
+			// The new six-ahead class is the established high-energy arm only;
+			// Round 115's moderate 9..15 frontier remains capped at five ahead.
+			if (sixAheadFrontier && speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN)
+				continue;
 			if (turns <= AI1_FINISH_EXTENDED_TTF && speed2 < AI1_DJS_SPD2)
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			if (sixAheadFrontier && !hasAdjacentPriorCandidateVelocityPeer(
+					nx, ny, nvx, nvy, playerNum))
+				continue;
 			final int candidateInf = Math.max(Math.abs(nvx), Math.abs(nvy));
 			final int candidateSpan = candidateInf * (candidateInf + 1) / 2;
 			final int candidateRing = reach.minRingWidthAhead(nx, ny, candidateSpan);
@@ -1639,13 +1677,13 @@ final class RaceAi {
 				continue;
 			if (chosenFinal == Integer.MIN_VALUE) {
 				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
-						AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+						fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 				chosenField = rolloutFieldCost[0];
 				if (chosenFinal < 0 || chosenField >= ROLLOUT_FAILURE_COST)
 					return chosen;
 			}
 			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
-					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+					fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 			final long candidateField = rolloutFieldCost[0];
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal
 					|| candidateField >= chosenField)

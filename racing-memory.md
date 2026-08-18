@@ -2710,3 +2710,13 @@ high-energy Silverstone counterexamples. Exact gate:
 Pareto-faster, 0 safety gain(s), zero
 slower/safety-regression/redistribution outcomes, net
 -3 finisher moves. AI2 remains frozen.
+
+ROUND 117 (synchronized exact-six-ahead acceleration): AI1 may enter the established high-energy field
+acceleration with exactly six rivals ahead only when a previously
+moved rival is adjacent to the proposed landing and already carries
+the candidate velocity. Exact gate: 3500 pairs,
+1 Pareto gain(s),
+0 safety gain(s), zero slower,
+safety-regression or redistribution outcomes, net
+-1 finisher moves. Coil s5/s22 are exact controls;
+Coil s86 is the target gain. AI2 remains frozen.
