@@ -3,8 +3,9 @@
 
 The promoted Round-106 certificate remains unchanged for every speed-squared
 gain of at least 16. AI1 alone may also test moderate gains 9..15, but only
-inside TTF 45 and never by replacing a deliberate scorer coast. The same
-8-round scorer-field proof still has to show strict mover and aggregate-field
+inside TTF 45, from an incumbent below the existing speed-7 danger threshold,
+and never by replacing a deliberate scorer coast. The same 8-round
+scorer-field proof still has to show strict mover and aggregate-field
 improvement. AI2 remains the frozen Round-110 yardstick through delegation.
 """
 from pathlib import Path
@@ -43,7 +44,8 @@ javadoc = """\t/** Round 106: recover a one-turn acceleration only in a bounded 
 replacement_javadoc = """\t/** Round 106: recover a one-turn acceleration only in a bounded forward
 \t * pack when the same eight-round scorer world proves strict mover and
 \t * aggregate-field gains. Round 115 leaves the promoted gain>=16 rule intact;
-\t * AI1 alone may test gains 9..15 inside TTF 45, never from a scorer coast. */
+\t * AI1 alone may test gains 9..15 inside TTF 45 from an incumbent below the
+\t * speed-7 danger threshold, never from a scorer coast. */
 """
 assert source.count(javadoc) == 1
 source = source.replace(javadoc, replacement_javadoc, 1)
@@ -70,6 +72,7 @@ speed_replacement = (
     "\t\t\tfinal int speed2Gain = speed2 - chosenSpeed2;\n"
     "\t\t\tfinal boolean frontierModerateGain = frontierMover\n"
     "\t\t\t\t\t&& chosen != Direction.NONE\n"
+    "\t\t\t\t\t&& chosenSpeed2 < AI1_DJS_SPD2\n"
     "\t\t\t\t\t&& chosenT <= AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF\n"
     "\t\t\t\t\t&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN;\n"
     "\t\t\tif (speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN\n"
@@ -82,5 +85,6 @@ source = source.replace(speed_anchor, speed_replacement, 1)
 assert source.count(ai2) == 1
 assert source.count("frontierModerateGain") == 2
 assert source.count("AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF") == 2
+assert source.count("chosenSpeed2 < AI1_DJS_SPD2") == 1
 path.write_text(source)
-print("materialized Round 115 AI1-only graduated field acceleration")
+print("materialized Round 115 AI1-only low-energy graduated field acceleration")
