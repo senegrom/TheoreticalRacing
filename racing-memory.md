@@ -6,6 +6,21 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+
+## Round 126: equal-speed false-target veto
+
+Ported and re-certified the unfinished Zandvoort s115 mechanism on the
+Round-124 master.  At an equal-map-turn, equal-speed, positive-trap
+topology switch in a large homogeneous AI1 field, the bounded
+certification-cap faithful-rival world is run on both landings.  A
+switch is vetoed only when it would leave a true-alive chosen line for
+a true-dead target.  AI2 is kind-gated out.
+
+Exact gate: 3500 pairs,
+1 safety gain(s), zero safety regressions,
+individual slowdowns or redistributions.  Zandvoort s115 is rescued.
+Residual frontier: accepted hairpin s68 and ultra-deep zandvoort s195.
+
 ## Round 114 (local agent): the pair-squeeze confirm leg -- three of four fresh specimens in one mechanism
 
 HARVEST 22 (fresh 8car mega-window s151-200, 1100 races): 4 crashes --

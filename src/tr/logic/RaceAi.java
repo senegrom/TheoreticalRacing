@@ -863,9 +863,40 @@ final class RaceAi {
 									if (smomAlt != chosen) {
 										final int avx = vel[0] + smomAlt.dx, avy = vel[1] + smomAlt.dy;
 										final int ax = pos[0] + avx, ay = pos[1] + avy;
-										if (game.crossesFinish(pos[0], pos[1], ax, ay)
+										boolean falseAliveTarget = false;
+										// Round 126 AI1 frontier: an equal-speed topology switch can
+										// leave a faithful-rival-alive line for a faithful-rival-dead
+										// one. Reuse the bounded true-confirm model only for that
+										// transition; all ordinary ladder decisions remain unchanged.
+										if (moverKind(playerNum) == Player.Kind.AI1
+												&& poTByDir[chosen.ordinal()] == poTByDir[smomAlt.ordinal()]
+												&& Math.max(Math.abs(djvx), Math.abs(djvy))
+														== Math.max(Math.abs(avx), Math.abs(avy))
+												&& trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
+												&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
+												&& kindHomogeneousRoster(playerNum)
+												&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
+											trueConfirmDepth++;
+											try {
+												final int confirmCap = Math.max(AI1_SCORER_MAXRIVALS,
+														AI1_DEEP_CERT_RIVALS);
+												final boolean chosenTrueAlive = simOutcome(dcx, dcy, djvx, djvy,
+														playerNum, AI1_DEEP_HORIZON, true, true, true, true,
+														false, true, confirmCap, null, null, null) >= 0;
+												final boolean altTrueAlive = simOutcome(ax, ay, avx, avy, playerNum,
+														AI1_DEEP_HORIZON, true, true, true, true, false, true,
+														confirmCap, null, null, null) >= 0;
+												falseAliveTarget = chosenTrueAlive && !altTrueAlive;
+												if (AI_DEBUG_DJS && falseAliveTarget)
+													System.err.println("AIDBG EQUAL-VETO p=" + playerNum
+															+ " keep " + chosen + " over false target " + smomAlt);
+											} finally {
+												trueConfirmDepth--;
+											}
+										}
+										if (!falseAliveTarget && (game.crossesFinish(pos[0], pos[1], ax, ay)
 												|| simOutcome(ax, ay, avx, avy, playerNum, AI1_DEEP_HORIZON,
-														true, true, true, true) >= 0) {
+												true, true, true, true) >= 0)) {
 											// Round 95 frontier: the topology-shaped model can false-kill a
 											// genuinely faster line. In a large homogeneous field, retain an
 											// exact-L2, zero-uncertainty, one-turn-faster chosen move only when

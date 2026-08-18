@@ -408,6 +408,25 @@ finisher moves. The changed finish order is solely the faster driver joining
 an existing same-move tie; no other driver's finish count changes. Changed
 races: silverstone seed 93.
 
+
+## Round 126: equal-speed false-target veto
+
+The residual Zandvoort seed-115 failure was not a bad initial choice but a
+false survival switch.  The topology-shaped eight-round world abandoned an
+equal-speed chosen lane for an alternative that the bounded faithful-rival
+world killed, while that same faithful world kept the chosen lane alive.
+AI1 now compares both landings only for an equal-map-turn, equal-speed,
+positive-trap switch in a large homogeneous field and vetoes precisely the
+true-alive to true-dead transition.  AI2 is explicitly excluded and remains
+the frozen control; every non-equal-speed ladder decision is unchanged.
+
+The exact 3500-pair differential recorded
+1 safety gain(s), zero safety regressions,
+zero individual slowdowns, zero redistributions and net
+141 finisher moves.  Zandvoort seed 115 is the required
+target rescue.  The documented residual safety frontier is now the accepted
+Hairpin seed 68 finish-denial seal plus ultra-deep Zandvoort seed 195.
+
 ## Highest-value next directions
 
 1. **Bottleneck-aware triggers** — detect narrow future cut sets or collapsing route width, then invoke expensive rollout based on topology instead of track-shaped heuristics.
