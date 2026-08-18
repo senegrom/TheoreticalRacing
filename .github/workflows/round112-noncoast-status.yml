@@ -1,0 +1,54 @@
+name: Round 112 non-coasting probe status
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-112-speed9-noncoast
+    paths:
+      - .github/workflows/round112-noncoast-status.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Query branch workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+            -f branch='agent/ai-racing-speed-112-speed9-noncoast' \
+            -f per_page=100 > /tmp/noncoast-runs.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows = []
+          for run in json.loads(Path('/tmp/noncoast-runs.json').read_text()).get('workflow_runs', []):
+              rows.append({
+                  'id': run['id'],
+                  'workflow': run['name'],
+                  'sha': run['head_sha'],
+                  'status': run['status'],
+                  'conclusion': run['conclusion'],
+                  'created_at': run['created_at'],
+                  'updated_at': run['updated_at'],
+              })
+          rows.sort(key=lambda row: row['created_at'], reverse=True)
+          Path('round112-noncoast-status.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Commit status snapshot
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-112-speed9-noncoast
+          git add round112-noncoast-status.json
+          git commit -m 'Record non-coasting probe status'
+          git push origin HEAD:agent/ai-racing-speed-112-speed9-noncoast
