@@ -12,7 +12,7 @@ AI2 remains frozen.
 from pathlib import Path
 import runpy
 
-runpy.run_path("tracks/round121_apply.py", run_name="__main__")
+runpy.run_path(str(Path(__file__).with_name("round121_apply.py")), run_name="__main__")
 
 path = Path("src/tr/logic/RaceAi.java")
 source = path.read_text()
