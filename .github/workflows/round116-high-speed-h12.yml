@@ -1,0 +1,354 @@
+name: Round 116 high-speed H12 pace gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-116-high-speed-h12
+    paths:
+      - .github/workflows/round116-high-speed-h12.yml
+      - tracks/round116_apply_h12_high_speed.py
+      - tracks/round116_compare_range.py
+      - tracks/round116_publish.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and isolated candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round116-base-sha.txt
+          test "$(cat round116-base-sha.txt)" = 'abd3d780e6bf95b243fd92f89cb1fd8c81449ed3'
+          git worktree add /tmp/round116-work origin/master
+          cd /tmp/round116-work
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round116-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round116_apply_h12_high_speed.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'AIDBG FIELD-H12' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round116.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round116-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+      - name: Replay gains, exclusions and safety frontiers
+        run: |
+          mkdir -p round116-targets
+          for spec in \
+            'coil 1' \
+            'coil 38' \
+            'coil 106' \
+            'silverstone 78' \
+            'silverstone 112' \
+            'silverstone 120' \
+            'spa 12' \
+            'spa 31' \
+            'spa 40' \
+            'spa 47' \
+            'zandvoort 115' \
+            'hungaroring 144'; do
+            set -- $spec
+            python tracks/round116_compare_range.py \
+              --baseline round116-baseline.jar --candidate round116-candidate.jar \
+              --track "$1" --start "$2" --end "$2" \
+              --out "round116-targets/$1-$2.json"
+          done
+          python tracks/round116_compare_range.py \
+            --baseline round116-baseline.jar --candidate round116-candidate.jar \
+            --track silverstone --start 78 --end 78 \
+            --baseline-kind AI2 --candidate-kind AI2 \
+            --out round116-targets/silverstone-78-ai2.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in Path('round116-targets').glob('*.json'):
+              data = json.loads(path.read_text())
+              assert data['counts']['identical'] == data['pairs'], (path, data)
+              assert not data['events'], (path, data)
+          print('Round116Targets: all known gains, exclusions, safety pins and AI2 are exact')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round116-build
+          path: |
+            round116-baseline.jar
+            round116-candidate.jar
+            round116-base-sha.txt
+            round116.patch
+            round116-targets
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        include:
+          - { track: circle, end_seed: 150 }
+          - { track: triangle, end_seed: 150 }
+          - { track: curve, end_seed: 150 }
+          - { track: hairpin, end_seed: 150 }
+          - { track: chicane, end_seed: 150 }
+          - { track: sprint, end_seed: 150 }
+          - { track: bigoval, end_seed: 150 }
+          - { track: slalom, end_seed: 150 }
+          - { track: gear, end_seed: 150 }
+          - { track: coil, end_seed: 150 }
+          - { track: zigzag, end_seed: 150 }
+          - { track: the_long_loop, end_seed: 150 }
+          - { track: monaco, end_seed: 150 }
+          - { track: hungaroring, end_seed: 150 }
+          - { track: interlagos, end_seed: 150 }
+          - { track: lemans, end_seed: 150 }
+          - { track: spa, end_seed: 150 }
+          - { track: silverstone, end_seed: 150 }
+          - { track: monza, end_seed: 150 }
+          - { track: zandvoort, end_seed: 150 }
+          - { track: nurburgring, end_seed: 150 }
+          - { track: spielberg, end_seed: 150 }
+          - { track: serpentine, end_seed: 50 }
+          - { track: serpentine2, end_seed: 50 }
+          - { track: spiral, end_seed: 50 }
+          - { track: cog, end_seed: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round116-build
+          path: .
+      - name: Compare exact per-seed outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        run: |
+          python tracks/round116_compare_range.py \
+            --baseline round116-baseline.jar --candidate round116-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round116-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round116-result-${{ matrix.track }}
+          path: round116-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round116-result-*
+          path: round116-results
+          merge-multiple: true
+      - name: Enforce exact no-regression policy
+        id: gate
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = {
+              'baseline_sha': 'abd3d780e6bf95b243fd92f89cb1fd8c81449ed3',
+              'candidate': 'round116_high_speed_h12',
+              'pairs': 0,
+              'counts': {},
+              'events': [],
+              'net_moves': 0,
+              'runtime_ratios': {},
+          }
+          for path in sorted(Path('round116-results').glob('*.json')):
+              data = json.loads(path.read_text())
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events'])
+          bad = sum(summary['counts'].get(key, 0)
+                    for key in ('slower', 'safety_regression', 'redistribution'))
+          summary['bad'] = bad
+          summary['viable'] = (
+              summary['pairs'] == 3500
+              and bad == 0
+              and summary['counts'].get('pareto_faster', 0) > 0
+          )
+          Path('round116-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          with open(Path(__import__('os').environ['GITHUB_OUTPUT']), 'a') as out:
+              print('viable=' + ('true' if summary['viable'] else 'false'), file=out)
+          assert summary['pairs'] == 3500, summary
+          assert bad == 0, summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round116-summary
+          path: round116-summary.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Record measured screen on the experiment branch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-116-high-speed-h12
+          git add round116-summary.json
+          git commit -m 'Record Round 116 exact differential'
+          git push origin HEAD:agent/ai-racing-speed-116-high-speed-h12
+
+  publish:
+    needs: [prepare, summarize]
+    if: needs.summarize.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round116-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round116-summary
+          path: .
+      - name: Bound active-race runtime overhead
+        run: |
+          python - <<'PY'
+          import json, re, statistics, subprocess, tempfile, time
+          from pathlib import Path
+
+          root = Path.cwd()
+          summary = json.loads(Path('round116-summary.json').read_text())
+          event = next(e for e in summary['events'] if e['classification'] == 'pareto_faster')
+          track, seed = event['track'], event['seed']
+
+          def props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def run(jar):
+              with tempfile.TemporaryDirectory(prefix='round116-time-') as directory:
+                  directory = Path(directory)
+                  p = directory / 'bench.properties'
+                  log = directory / 'race.log'
+                  props(p)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(p),
+                      '--log', str(log), '--seed', str(seed),
+                  ], text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-3000:])
+                  return time.perf_counter() - started
+
+          run('round116-baseline.jar')
+          run('round116-candidate.jar')
+          baseline, candidate = [], []
+          for index in range(5):
+              if index % 2:
+                  baseline.append(run('round116-baseline.jar'))
+                  candidate.append(run('round116-candidate.jar'))
+              else:
+                  candidate.append(run('round116-candidate.jar'))
+                  baseline.append(run('round116-baseline.jar'))
+          ratio = statistics.median(candidate) / statistics.median(baseline)
+          result = {'track': track, 'seed': seed, 'ratio': ratio,
+                    'baseline': baseline, 'candidate': candidate}
+          Path('round116-runtime.json').write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result, indent=2))
+          assert ratio <= 1.50, result
+          PY
+      - name: Materialize, pin and publish verified source to master
+        run: |
+          cp tracks/round116_apply_h12_high_speed.py /tmp/round116_apply.py
+          cp tracks/round116_publish.py /tmp/round116_publish.py
+          EXPECTED=$(cat round116-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round116-production origin/master
+          python /tmp/round116_apply.py
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round116_publish.py
+          python tests/ai1_high_speed_h12_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java \
+            tests/ai1_high_speed_h12_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 116: certify high-speed moderate acceleration'
+          git push origin HEAD:master
+          git rev-parse HEAD > round116-master-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round116-promotion
+          path: |
+            round116-summary.json
+            round116-runtime.json
+            round116-master-sha.txt
+          if-no-files-found: error
+          retention-days: 30
