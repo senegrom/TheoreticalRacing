@@ -42,6 +42,23 @@ zandvoort s33 6.4->5.1s). All ELEVEN pins pass on the candidate jar.
 Canon numbers must be bit-identical (move-identity implies it);
 window-1 verification in flight at write time.
 
+UNIFIED CERTIFICATION (r107 champion, 4070 races -- 8car s46-150 x22
+tracks, 4car+2car s26-65 x22): EXACTLY TWO crashes -- hairpin s68
+(accepted place-neutral seal) and zandvoort s115 (documented open,
+their round-108 target). The residual equals the documented frontier
+across every window and field size ever raced; zero new specimens in
+the widest sweep the campaign has run. Candidate canon window 1 on
+the smoke-gated jar: 62.701 BIT-IDENTICAL to r107.
+
+CANON IDENTITY COMPLETE: windows 1-3 all BIT-IDENTICAL on the gated
+jar (62.701 / 62.640 / 62.678). BENCH WORKFLOW SPEEDUP banked
+alongside: bench_ai's existing BENCH_BASELINE cache is now seeded per
+canon window (scratchpad ai2_base_w{1,2,3}.json) -- AI2 is the frozen
+champion, identical on every candidate run, so cached-baseline benches
+run the AI1 column only and HALVE canon wall time on top of the smoke
+gate. Caches invalidate at promotion (delete the files when AI2
+changes) -- recorded here so both agents adopt the flow.
+
 Also noted for the speed ledger: their r106 forward-pack arm moved
 canon window-1 wall time 5m50 -> 9m05 (+55%%); this gate claws back
 roughly a quarter of a window. The profiling twin (prof/ tree +
