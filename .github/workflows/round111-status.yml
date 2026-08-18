@@ -1,0 +1,62 @@
+name: Round 111 live pace gate status
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-111-speed9-simple
+    paths:
+      - .github/workflows/round111-status.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Query current pace experiments
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/status
+          for branch in \
+            agent/ai-racing-speed-111-speed9-simple \
+            agent/ai-racing-speed-111-speed9-pareto \
+            agent/ai-racing-speed-112-finish31-frontier; do
+            safe=$(printf '%s' "$branch" | tr '/' '_')
+            gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
+              -f branch="$branch" -f per_page=100 > "/tmp/status/${safe}.json"
+          done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows = []
+          for path in Path('/tmp/status').glob('*.json'):
+              for run in json.loads(path.read_text()).get('workflow_runs', []):
+                  rows.append({
+                      'id': run['id'],
+                      'workflow': run['name'],
+                      'branch': run['head_branch'],
+                      'sha': run['head_sha'],
+                      'status': run['status'],
+                      'conclusion': run['conclusion'],
+                      'created_at': run['created_at'],
+                      'updated_at': run['updated_at'],
+                  })
+          rows.sort(key=lambda row: row['created_at'], reverse=True)
+          Path('round111-workflow-status.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Commit status snapshot
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-111-speed9-simple
+          git add round111-workflow-status.json
+          git commit -m 'Record live pace gate status'
+          git push origin HEAD:agent/ai-racing-speed-111-speed9-simple
