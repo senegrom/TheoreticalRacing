@@ -30,8 +30,14 @@ def main() -> int:
     player_moves = [move for move in moves if move.player == crash.player]
     if player_moves[-1].index != crash.index:
         raise SystemExit("crash is not the player's final move")
+    if len(player_moves) < 13:
+        raise SystemExit("insufficient decision history for the branching-window audit")
     tail = player_moves[-16:]
-    probe = player_moves[-4:]
+    # Pass one proved the final four decisions have 36/36 crashing
+    # continuations. Move the deep oracle to the last genuine branching
+    # window: the five decisions 13..9 mover turns before the crash.
+    probe = player_moves[-13:-8]
+    late_probe = player_moves[-4:]
     data = {
         "crash_player": crash.player,
         "crash_index": crash.index,
@@ -45,6 +51,7 @@ def main() -> int:
         "player_move_count": len(player_moves),
         "tail_indices": [move.index for move in tail],
         "probe_indices": [move.index for move in probe],
+        "late_probe_indices": [move.index for move in late_probe],
         "tail": [move._asdict() for move in tail],
     }
     args.out.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
