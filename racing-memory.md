@@ -6,6 +6,39 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 112 (local agent): boundary-refined hybrid raster -- another -8%%
+
+Continuing the legality attack (post-r111 JFR: legality still 38%% of
+samples; the fallbacks hug walls, where racing lines live).
+
+REJECTED, measured: a flat RES=4 sub-raster (+25%% wall -- 4x walk
+density taxed EVERY edge and the 16x build taxed every JVM start).
+FIRST HYBRID also +29%%: the sub-build refined every non-clean cell,
+i.e. the entire outside-the-track area.
+
+SHIPPED: the hybrid with a perimeter-bounded build. RES=1 walk stays
+primary (open-track edges at round-111 cost); a RES=4 sub-walk is
+tried only when RES=1 fails, before the exact predicate; the
+sub-raster refines ONLY non-clean cells with a clean-interior
+neighbour (the true boundary band) -- deep-outside and deep-wall
+subcells stay unproven and fall through, which is correct (those
+edges are mostly illegal anyway). Same one-sided band proof at each
+resolution; the hybrid is an OR of two proofs.
+
+VERIFICATION: 12/12 move-identical A/B against the post-r117 master,
+probe 0/27, ALL THIRTEEN pins (their new graduated-field-accel and
+six-ahead pins included). Canon on the r112 jar: AI1 62.699 vs AI2
+62.701 -- the -0.003 column split is THEIR kind-gated rounds 115/117
+pace gain (post-delegation frontier law: new arms gate on the mover
+kind so the AI2 yardstick stays frozen), not a raster effect; the
+raster is one-sided-provable and the A/B ran on exactly this
+baseline. A/B wall 34.6 -> 31.8s (-8.2%%), stacking with r111 for
+~-18%% total on the set, on top of r108's smoke gate.
+
+JFR NEXT TARGETS: searchMinTurnsSoft3 / CountedSoft3 (the mobility
+projection, now ~19%% and rising as legality shrinks); the residual
+near-wall exact fallbacks.
+
 ## Round 111 (local agent): the legality raster -- function-level profiling pays
 
 CORRECTION FIRST: round 108's ledger blamed their r106 forward-pack arm

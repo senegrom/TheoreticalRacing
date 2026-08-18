@@ -326,6 +326,103 @@ public final class RaceGame {
 		markPath(r, w, track.getLeft());
 		markPath(r, w, track.getRight());
 		legalRaster = r;
+		buildSubRaster(r, w);
+	}
+
+	/** Round 112: RES=4 sub-raster refined only where the unit raster cannot
+	 *  already prove an edge (boundary band); interior unit cells propagate
+	 *  to all 16 subcells wholesale, so the exact Area work scales with the
+	 *  track perimeter. Consulted only after the unit-cell walk fails. */
+	private static final int SUB_RES = 4;
+	private byte[] subRaster;
+	private int subH;
+
+	private void buildSubRaster(final byte[] unit, final int unitW) {
+		final int w = unitW * SUB_RES;
+		subH = rasterH * SUB_RES;
+		final byte[] r = new byte[w * subH];
+		final double sub = 1.0 / SUB_RES;
+		for (int cx = 0; cx < unitW; cx++)
+			for (int cy = 0; cy < rasterH; cy++) {
+				final byte u = unit[cx * rasterH + cy];
+				final boolean interiorClean = u == 1;
+				// Refine only the true boundary band: non-clean cells with a
+				// clean-interior neighbour. Deep-outside and deep-wall cells
+				// stay 0 (the sub-walk correctly fails there), which keeps
+				// the exact Area work proportional to the track perimeter.
+				boolean refine = false;
+				if (!interiorClean)
+					for (int nx = cx - 1; nx <= cx + 1 && !refine; nx++)
+						for (int ny = cy - 1; ny <= cy + 1; ny++)
+							if (nx >= 0 && ny >= 0 && nx < unitW && ny < rasterH
+									&& unit[nx * rasterH + ny] == 1) {
+								refine = true;
+								break;
+							}
+				if (!interiorClean && !refine)
+					continue;
+				for (int ox = 0; ox < SUB_RES; ox++)
+					for (int oy = 0; oy < SUB_RES; oy++) {
+						final int sx = cx * SUB_RES + ox, sy = cy * SUB_RES + oy;
+						if (interiorClean) {
+							r[sx * subH + sy] = 1;
+							continue;
+						}
+						final double x = (cx + ox * sub) - 0.001, y = (cy + oy * sub) - 0.001;
+						if (trackA.contains(x, y, sub + 0.002, sub + 0.002)
+								|| startZoneA.contains(x, y, sub + 0.002, sub + 0.002))
+							r[sx * subH + sy] = 1;
+					}
+			}
+		markSubPath(r, w, track.getLeft());
+		markSubPath(r, w, track.getRight());
+		subRaster = r;
+	}
+
+	private void markSubPath(final byte[] r, final int w, final java.util.List<int[]> path) {
+		for (int i = 1; i < path.size(); i++) {
+			final int[] a = path.get(i - 1);
+			final int[] b = path.get(i);
+			final int steps = 2 * SUB_RES * Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) + 1;
+			final double dx = (double) (b[0] - a[0]) / steps, dy = (double) (b[1] - a[1]) / steps;
+			for (int j = 0; j <= steps; j++) {
+				final int cx = (int) Math.floor((a[0] + j * dx) * SUB_RES);
+				final int cy = (int) Math.floor((a[1] + j * dy) * SUB_RES);
+				for (int ox = -1; ox <= 1; ox++)
+					for (int oy = -1; oy <= 1; oy++) {
+						final int qx = cx + ox, qy = cy + oy;
+						if (qx >= 0 && qy >= 0 && qx < w && qy < subH && r[qx * subH + qy] == 1)
+							r[qx * subH + qy] = 3;
+					}
+			}
+		}
+	}
+
+	/** RES=4 band walk, same proof as the unit walk at subcell scale. */
+	private boolean fastLegalSub(final int x1, final int y1, final int x2, final int y2) {
+		final byte[] r = subRaster;
+		if (r == null)
+			return false;
+		final int w = r.length / subH;
+		final int steps = 2 * SUB_RES * Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) + 1;
+		final double dx = (double) (x2 - x1) * SUB_RES / steps;
+		final double dy = (double) (y2 - y1) * SUB_RES / steps;
+		final double sx0 = x1 * (double) SUB_RES, sy0 = y1 * (double) SUB_RES;
+		int lastCx = Integer.MIN_VALUE, lastCy = Integer.MIN_VALUE;
+		for (int j = 0; j <= steps; j++) {
+			final double px = sx0 + j * dx, py = sy0 + j * dy;
+			final int cx = (int) Math.floor(px - 0.5), cy = (int) Math.floor(py - 0.5);
+			if (cx == lastCx && cy == lastCy)
+				continue;
+			if (cx < 0 || cy < 0 || cx + 1 >= w || cy + 1 >= subH)
+				return false;
+			if (r[cx * subH + cy] != 1 || r[cx * subH + cy + 1] != 1
+					|| r[(cx + 1) * subH + cy] != 1 || r[(cx + 1) * subH + cy + 1] != 1)
+				return false;
+			lastCx = cx;
+			lastCy = cy;
+		}
+		return true;
 	}
 
 	private void markPath(final byte[] r, final int w, final java.util.List<int[]> path) {
@@ -389,7 +486,7 @@ public final class RaceGame {
 	 * across an inside corner of the corridor).
 	 */
 	boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
-		if (fastLegal(x1, y1, x2, y2))
+		if (fastLegal(x1, y1, x2, y2) || fastLegalSub(x1, y1, x2, y2))
 			return true;
 		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
 			return false;
