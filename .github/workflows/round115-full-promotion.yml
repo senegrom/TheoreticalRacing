@@ -1,0 +1,310 @@
+name: Round 115 graduated acceleration promotion
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-115-graduated-frontier
+    paths:
+      - .github/workflows/round115-full-promotion.yml
+      - tracks/round115_apply.py
+      - tracks/round115_compare.py
+      - tracks/round115_compare_range.py
+      - tracks/round115_publish.py
+      - tracks/round115_runtime.py
+      - tracks/round115_summarize.py
+
+permissions:
+  contents: write
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Publish observable run id
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          for attempt in 1 2 3; do
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            printf '%s\n' "$GITHUB_RUN_ID" > round115-full-run-id.txt
+            git add round115-full-run-id.txt
+            if git diff --cached --quiet; then
+              exit 0
+            fi
+            git commit -m 'Record Round 115 promotion run'
+            if git push origin HEAD:"$GITHUB_REF_NAME"; then
+              exit 0
+            fi
+            git reset --hard "origin/$GITHUB_REF_NAME"
+          done
+          exit 1
+
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and isolated candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round115-base-sha.txt
+          test "$(cat round115-base-sha.txt)" = 'e7a15039ab4b17a863f57c84bf2dae8665ab340d'
+          git worktree add /tmp/round115-promotion origin/master
+          cd /tmp/round115-promotion
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round115-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round115_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'frontierModerateGain' src/tr/logic/RaceAi.java)" = 2
+          test "$(grep -c 'chosenSpeed2 < AI1_DJS_SPD2' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round115.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round115-candidate.jar"
+      - name: Run permanent regression suite
+        working-directory: /tmp/round115-promotion
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+          python -m compileall -q tracks tests
+      - name: Prove AI2 remains frozen
+        run: |
+          python tracks/round115_compare.py \
+            --baseline round115-baseline.jar \
+            --candidate round115-candidate.jar \
+            --track coil --seed 1 \
+            --baseline-kind AI2 --candidate-kind AI2 \
+            --out round115-ai2-control.json
+          python - <<'PY'
+          import json
+          data = json.load(open('round115-ai2-control.json'))
+          assert data['classification'] == 'identical', data
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round115-promotion-build
+          path: |
+            round115-baseline.jar
+            round115-candidate.jar
+            round115-base-sha.txt
+            round115.patch
+            round115-ai2-control.json
+          if-no-files-found: error
+          retention-days: 30
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 26
+      matrix:
+        include:
+          - { track: circle, end_seed: 150 }
+          - { track: triangle, end_seed: 150 }
+          - { track: curve, end_seed: 150 }
+          - { track: hairpin, end_seed: 150 }
+          - { track: chicane, end_seed: 150 }
+          - { track: sprint, end_seed: 150 }
+          - { track: bigoval, end_seed: 150 }
+          - { track: slalom, end_seed: 150 }
+          - { track: gear, end_seed: 150 }
+          - { track: coil, end_seed: 150 }
+          - { track: zigzag, end_seed: 150 }
+          - { track: the_long_loop, end_seed: 150 }
+          - { track: monaco, end_seed: 150 }
+          - { track: hungaroring, end_seed: 150 }
+          - { track: interlagos, end_seed: 150 }
+          - { track: lemans, end_seed: 150 }
+          - { track: spa, end_seed: 150 }
+          - { track: silverstone, end_seed: 150 }
+          - { track: monza, end_seed: 150 }
+          - { track: zandvoort, end_seed: 150 }
+          - { track: nurburgring, end_seed: 150 }
+          - { track: spielberg, end_seed: 150 }
+          - { track: serpentine, end_seed: 50 }
+          - { track: serpentine2, end_seed: 50 }
+          - { track: spiral, end_seed: 50 }
+          - { track: cog, end_seed: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round115-promotion-build
+          path: .
+      - name: Compare exact per-seed outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        run: |
+          python tracks/round115_compare_range.py \
+            --baseline round115-baseline.jar \
+            --candidate round115-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round115-range-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round115-range-${{ matrix.track }}
+          path: round115-range-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round115-promotion-build
+          path: .
+      - name: Alternate baseline and candidate runtime order
+        run: |
+          python tracks/round115_runtime.py \
+            --baseline round115-baseline.jar \
+            --candidate round115-candidate.jar \
+            --out round115-runtime.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round115-runtime
+          path: round115-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round115-range-*
+          path: round115-results
+          merge-multiple: true
+      - name: Enforce exact no-regression policy
+        run: |
+          python tracks/round115_summarize.py round115-results \
+            --expected-pairs 3500 --out round115-full-summary.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round115-full-summary
+          path: round115-full-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, runtime, summarize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round115-promotion-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round115-full-summary
+          path: .
+      - name: Materialize and retest production commit
+        run: |
+          cp tracks/round115_apply.py /tmp/round115_apply.py
+          cp tracks/round115_publish.py /tmp/round115_publish.py
+          EXPECTED=$(cat round115-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round115-production origin/master
+          python /tmp/round115_apply.py
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round115_publish.py
+          python tests/ai1_graduated_field_accel_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java \
+            tests/ai1_graduated_field_accel_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 115: graduate low-energy field acceleration'
+          git push origin HEAD:master
+          git rev-parse HEAD > round115-master-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round115-master-commit
+          path: round115-master-sha.txt
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish promoted master SHA on experiment branch
+        run: |
+          PROMOTED=$(cat round115-master-sha.txt)
+          git fetch origin agent/ai-racing-speed-115-graduated-frontier
+          git checkout -B round115-marker origin/agent/ai-racing-speed-115-graduated-frontier
+          printf '%s\n' "$PROMOTED" > round115-master-sha.txt
+          git add round115-master-sha.txt
+          git commit -m 'Record promoted Round 115 master commit'
+          git push origin HEAD:agent/ai-racing-speed-115-graduated-frontier
