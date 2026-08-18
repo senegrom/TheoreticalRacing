@@ -1,0 +1,33 @@
+name: Observe Round 124 exact gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-124-early-round-trap
+    paths:
+      - .github/workflows/round124-gate-observer.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record latest gate run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            'repos/${{ github.repository }}/actions/workflows/round124-early-round-trap-gate.yml/runs?branch=agent%2Fai-racing-speed-124-early-round-trap&per_page=5' \
+            --jq '.workflow_runs[0] | {id,status,conclusion,head_sha,created_at,updated_at}' \
+            > round124-gate-status.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round124-gate-status.json
+          git commit -m 'Record Round 124 gate status'
+          git push origin HEAD:"$GITHUB_REF_NAME"
