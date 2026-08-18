@@ -1,0 +1,143 @@
+name: Round 112 non-coasting speed-nine probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-112-speed9-noncoast
+    paths:
+      - .github/workflows/round112-noncoast-probe.yml
+      - tracks/round112_apply_speed9_noncoast.py
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact baseline and candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round112-base-sha.txt
+          test "$(cat round112-base-sha.txt)" = '0f06698d455b5641eac3c78e39e9c9a9c6188b25'
+          git worktree add /tmp/round112-noncoast origin/master
+          cd /tmp/round112-noncoast
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round112_apply_speed9_noncoast.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/candidate.jar"
+      - name: Run permanent regression suite
+        working-directory: /tmp/round112-noncoast
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+      - name: Prove both gains and remove the coast counterexample
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, subprocess, tempfile
+
+          root = Path.cwd()
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def parse(path):
+              moves, finishes, crashes = {}, {}, set()
+              for line in path.read_text().splitlines():
+                  match = move_re.match(line)
+                  if not match:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'CRASH' in line:
+                      crashes.add(player)
+                  elif 'FINISH' in line:
+                      finishes[player] = moves[player]
+              return {
+                  'finishes': finishes,
+                  'crashes': sorted(crashes),
+                  'order': [p for p, _ in sorted(finishes.items(),
+                            key=lambda item: (item[1], item[0]))],
+              }
+
+          def run(jar, seed, label, tmp):
+              log = tmp / f'{label}-{seed}.log'
+              result = subprocess.run(
+                  ['java', '-Djava.awt.headless=true', '-jar', str(jar), '--auto',
+                   '--track', 'coil', '--props', str(tmp / 'bench.properties'),
+                   '--log', str(log), '--seed', str(seed)],
+                  cwd=root, text=True, capture_output=True, timeout=1200)
+              if result.returncode:
+                  raise SystemExit(result.stderr[-3000:])
+              return parse(log)
+
+          rows = []
+          with tempfile.TemporaryDirectory(prefix='r112-noncoast-') as directory:
+              tmp = Path(directory)
+              props(tmp / 'bench.properties')
+              for seed in (1, 38, 106):
+                  baseline = run(root / 'baseline.jar', seed, 'baseline', tmp)
+                  candidate = run(root / 'candidate.jar', seed, 'candidate', tmp)
+                  bf, cf = baseline['finishes'], candidate['finishes']
+                  deltas = {p: cf[p] - bf[p] for p in bf if p in cf}
+                  identical = candidate == baseline
+                  pareto = (set(cf) == set(bf)
+                            and candidate['crashes'] == baseline['crashes']
+                            and candidate['order'] == baseline['order']
+                            and all(delta <= 0 for delta in deltas.values())
+                            and any(delta < 0 for delta in deltas.values()))
+                  rows.append({'seed': seed, 'baseline': baseline,
+                               'candidate': candidate, 'deltas': deltas,
+                               'identical': identical, 'pareto_faster': pareto})
+          assert rows[0]['pareto_faster'], rows
+          assert rows[1]['pareto_faster'], rows
+          assert rows[2]['identical'], rows
+          output = {
+              'candidate': 'speed9_noncoast',
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'rows': rows,
+              'passed': True,
+          }
+          Path('round112-noncoast-probe.json').write_text(
+              json.dumps(output, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(output, indent=2, sort_keys=True))
+          PY
+      - name: Commit probe result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-112-speed9-noncoast
+          git add round112-noncoast-probe.json
+          git commit -m 'Record non-coasting speed-nine probe'
+          git push origin HEAD:agent/ai-racing-speed-112-speed9-noncoast
