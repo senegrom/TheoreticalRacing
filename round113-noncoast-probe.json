@@ -1,0 +1,185 @@
+{
+  "baseline_sha": "41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f",
+  "candidate": "speed9_noncoast",
+  "code": 0,
+  "logs": {
+    "apply.log": "materialized Round 113 non-coasting speed-nine acceleration\n",
+    "boundary.log": "",
+    "candidate-build.log": "",
+    "diff.log": "",
+    "java-tests.log": "TrackDataTests: 26 tracks OK\nCoreTests: OK\nMainTests: OK\n",
+    "permanent-pins.log": "HeadlessSmoke: OK\nsprint-s1-8p: OK (bea51814694c)\nhairpin-s10-8p: OK (65c6af2d2bd7)\nzigzag-s4-8p: OK (91524509cfcd)\nhungaroring-s13-8p: OK (f99d1494e616)\nlemans-s4-8p: OK (742405b5f120)\nhairpin-s1-2p: OK (2ca8a53f5441)\nmonaco-s9-4p: OK (020cba229ce9)\nmonaco-s16-8p: OK (5dc2ef6bfa57)\nnurburgring-s19-8p: OK (a475821ab633)\ninterlagos-s10-8p: OK (d2666fbb0e86)\nzigzag-s22-8p: OK (2f8544722d24)\nzandvoort-s45-8p: OK (afbecd898fc1)\nlemans-s1-4p: OK (4ac1f906d9ac)\nAI1PaceRegression: OK (Monaco sum=799; Big Oval finish sprint and Le Mans veto pinned)\nAI1MixedSafetyRegression: OK (Le Mans seeds 2/7 safe; Gear seed 1 mixed place parity pinned)\nAI1FieldNeutralRegression: OK (Zigzag seed 1 and Cog seed 1 match AI2, 7 finishers / 0 crashes)\nAI1StagedPaceRegression: OK (three-ahead Coil/Hungaroring gains; low-speed Hungaroring and ambiguous Le Mans vetoes; stationary-grid Silverstone gain; mixed Monaco seed 9 crash-free)\nAI1EnergyPaceRegression: OK\nAI1CrossModelPaceRegression: OK (promoted Silverstone seed 1 self-tie at 593 finisher moves)\nAI1FinishFrontierRegression: OK (Coil seed 6 self-tie at 421 moves; seeds 47/49 vetoes pinned)\nai1 thread fragility pin OK: chicane s51 7/0\nai1 ESC true-confirm pin OK: hungaroring s144 7/0\n"
+  },
+  "passed": true,
+  "rows": [
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 60,
+          "3": 62,
+          "4": 62,
+          "5": 63,
+          "6": 63,
+          "7": 59
+        },
+        "order": [
+          1,
+          7,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 60,
+          "3": 61,
+          "4": 62,
+          "5": 62,
+          "6": 63,
+          "7": 59
+        },
+        "order": [
+          1,
+          7,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "deltas": {
+        "1": 0,
+        "2": 0,
+        "3": -1,
+        "4": 0,
+        "5": -1,
+        "6": 0,
+        "7": 0
+      },
+      "identical": false,
+      "pareto_faster": true,
+      "seed": 1
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 61,
+          "4": 61,
+          "5": 62,
+          "6": 62,
+          "7": 63
+        },
+        "order": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 61,
+          "4": 61,
+          "5": 62,
+          "6": 62,
+          "7": 62
+        },
+        "order": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "deltas": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": -1
+      },
+      "identical": false,
+      "pareto_faster": true,
+      "seed": 38
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 60,
+          "5": 62,
+          "6": 62,
+          "7": 63,
+          "8": 63
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 60,
+          "5": 62,
+          "6": 62,
+          "7": 63,
+          "8": 63
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7,
+          8
+        ]
+      },
+      "deltas": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "identical": true,
+      "pareto_faster": false,
+      "seed": 106
+    }
+  ],
+  "stage": "boundary-replay"
+}
