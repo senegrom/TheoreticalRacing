@@ -29,6 +29,22 @@ champion); ALL ELEVEN pins pass; self-tie h2h 4.500/4.500 c=0;
 fixed-grid bench columns identical (62.604/62.604 +0.000); stale
 BENCH_BASELINE caches deleted per the round-108 rule.
 
+THE CROSS-ERA EXHIBITION (new tooling: cross_era.py -- any two
+commits can now race each other): the r109 champion vs the r60
+champion (rebuilt from 886fab9 as era60.jar), four cars each through
+a dual-oracle referee (each era's brain answers only for its own cars
+on a shared board; the new jar's mask is the rulebook), 24 races =
+6 tracks x 2 seeds x both grid assignments, 96 car-races per side.
+VERDICT: NEW 4.438 vs OLD 4.562 mean place, both crash-free.
+Reading it honestly: competent vector racing is largely processional
+(hairpin/interlagos ran perfectly grid-antisymmetric), so the +0.12
+edge lives entirely on the tracks where overtaking exists (monaco,
+zandvoort, chicane, lemans -- e.g. chicane s7: NEW 1,3,4,6 with OLD
+pushed to 2,5,7,8). The 49 rounds between the two eras bought
+head-to-head pace only modestly; what they really bought is the TAIL:
+the r60 champion crashed ~1/40 on fresh seeds in its own era's
+harvests, the r109 champion runs 1 accepted crash in 4070.
+
 WHAT WAS PROMOTED (the arc in one line each):
 r98 thread-fragility audit; r99 bounded true-rival confirm (depth
 latch -> r103 depth counter); r100 corridor generalization; r102
