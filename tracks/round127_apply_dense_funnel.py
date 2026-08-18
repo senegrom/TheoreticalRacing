@@ -46,7 +46,7 @@ marker = (
 )
 assert source.count(marker) == 1, source.count(marker)
 
-dense = r'''\t\t\t\t\t\t// Round 127 AI1 frontier: the sparse fast-funnel arm stops at
+dense = '''\t\t\t\t\t\t// Round 127 AI1 frontier: the sparse fast-funnel arm stops at
 \t\t\t\t\t\t// four live rivals because its eight-round proxy false-killed
 \t\t\t\t\t\t// dense Le Mans traffic. Zandvoort s195 is the complementary
 \t\t\t\t\t\t// class: seven live homogeneous rivals, a width-three sustained
