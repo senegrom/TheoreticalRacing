@@ -6,6 +6,47 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 111 (local agent): the legality raster -- function-level profiling pays
+
+CORRECTION FIRST: round 108's ledger blamed their r106 forward-pack arm
+for +55%% canon wall. The profiling twin now shows that arm fires 0
+times on 21 of 22 canon tracks (coil: 2 bounded fires, ~0.4s) -- the
+attribution was environment noise between measurements. Withdrawn.
+
+REJECTED FIRST ATTEMPT (measured): static successor tables for the
+tier computation (safeSuccessorsOverState). Behavior-identical 12/12
+but ZERO wall gain -- site-level attribution had misled; the tier is
+not the inner cost. Reverted per discipline.
+
+THE REAL HOTSPOT (JFR, function-level): ~60%% of all execution samples
+sit in first-time edge legality -- isMoveLegalGeometry samples the
+segment at ~2x its length, each sample a java.awt.geom.Area.contains
+CURVE test, and the sims explore hundreds of thousands of fresh edges
+per race (the edge cache never evicts; these are genuine first visits).
+
+THE FIX: a one-time conservative legality raster per track. Each unit
+cell is classified provably-fully-inside the expanded track region
+(EXACT Area.contains(rect) with a boundary-covering margin) and cells
+near the left/right boundary polylines are marked (sampled cover with
+one-cell dilation). Fast path: walk samples along the segment at
+axis-step <= 0.5; every segment point lies within 0.5/axis of a
+sample, so its cell is inside the 2x2 block at floor(sample - 0.5) --
+if every such block is interior and path-free, all exact-check sample
+points are inside and no polyline intersection is possible -> LEGAL
+with integer math only. One-sided (fast path never answers illegal);
+everything else runs the unchanged exact predicate. First cut used a
+3x3 dilation tube (-6.7%%); the provable 2x2 band doubled the fast
+tube's reach near walls (-10.6%%).
+
+VERIFICATION: 12/12 move-identical A/B across every historic class
+site and field size; probe 0/27; ALL ELEVEN pins; canon identity in
+flight at write time. Total wall on the A/B set 40.0s -> 35.8s.
+
+PROCESS NOTES: two more -Werror dangling-doc-comment trips (the
+recurring insert-above-a-doc-comment trap); and jobs now launch at
+Windows Idle priority per the user's new standing rule (Start-Process
+-PassThru; PriorityClass='Idle'; children inherit).
+
 ## Round 110 (local agent): post-promotion simplification batch
 
 USER DIRECTIVE: clean out old files and tools. Removed, with the

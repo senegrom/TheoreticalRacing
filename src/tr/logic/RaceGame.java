@@ -305,6 +305,82 @@ public final class RaceGame {
 				&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
 	}
 
+	/** Round 111: conservative legality raster over unit cells. Bit 0 = the
+	 *  cell's (margin-padded) closed square is provably fully inside trackA
+	 *  or startZoneA (exact Area.contains(rect)); bit 1 = the cell lies in
+	 *  the one-cell dilation of a boundary polyline's sampled cover. See
+	 *  {@link #fastLegal} for the soundness argument. */
+	private byte[] legalRaster;
+	private int rasterH;
+
+	private void buildLegalRaster() {
+		final int w = gameCols + 2;
+		rasterH = gameRows + 2;
+		final byte[] r = new byte[w * rasterH];
+		for (int cx = 0; cx < w; cx++)
+			for (int cy = 0; cy < rasterH; cy++) {
+				final double x = cx - 0.001, y = cy - 0.001, s = 1.002;
+				if (trackA.contains(x, y, s, s) || startZoneA.contains(x, y, s, s))
+					r[cx * rasterH + cy] = 1;
+			}
+		markPath(r, w, track.getLeft());
+		markPath(r, w, track.getRight());
+		legalRaster = r;
+	}
+
+	private void markPath(final byte[] r, final int w, final java.util.List<int[]> path) {
+		for (int i = 1; i < path.size(); i++) {
+			final int[] a = path.get(i - 1);
+			final int[] b = path.get(i);
+			final int steps = 2 * Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1])) + 1;
+			final double dx = (double) (b[0] - a[0]) / steps, dy = (double) (b[1] - a[1]) / steps;
+			for (int j = 0; j <= steps; j++) {
+				final int cx = (int) Math.floor(a[0] + j * dx), cy = (int) Math.floor(a[1] + j * dy);
+				for (int ox = -1; ox <= 1; ox++)
+					for (int oy = -1; oy <= 1; oy++) {
+						final int qx = cx + ox, qy = cy + oy;
+						if (qx >= 0 && qy >= 0 && qx < w && qy < rasterH)
+							r[qx * rasterH + qy] |= 2;
+					}
+			}
+		}
+	}
+
+	/** Fast path: LEGAL iff the 3x3 dilation of every sampled cell along the
+	 *  segment is provably interior and away from both boundary polylines.
+	 *  Axis-step is <= 0.5, so every point of the segment falls inside the
+	 *  dilation of some sample's cell; interior cells cover all exact-check
+	 *  sample points, and the path bitmap's own dilated cover means a
+	 *  polyline intersection would need a cell both interior-clean and
+	 *  path-marked -- excluded. Returns false to mean "unproven", never
+	 *  "illegal". */
+	private boolean fastLegal(final int x1, final int y1, final int x2, final int y2) {
+		final byte[] r = legalRaster;
+		if (r == null)
+			return false;
+		final int w = r.length / rasterH;
+		final int steps = 2 * Math.max(Math.abs(x2 - x1), Math.abs(y2 - y1)) + 1;
+		final double dx = (double) (x2 - x1) / steps, dy = (double) (y2 - y1) / steps;
+		int lastCx = Integer.MIN_VALUE, lastCy = Integer.MIN_VALUE;
+		for (int j = 0; j <= steps; j++) {
+			final double px = x1 + j * dx, py = y1 + j * dy;
+			// Any segment point lies within 0.5 per axis of some sample, so
+			// its cell is one of the 2x2 block at floor(p - 0.5): a 2-wide
+			// tube, half the former 3x3 dilation, still a provable cover.
+			final int cx = (int) Math.floor(px - 0.5), cy = (int) Math.floor(py - 0.5);
+			if (cx == lastCx && cy == lastCy)
+				continue;
+			if (cx < 0 || cy < 0 || cx + 1 >= w || cy + 1 >= rasterH)
+				return false;
+			if (r[cx * rasterH + cy] != 1 || r[cx * rasterH + cy + 1] != 1
+					|| r[(cx + 1) * rasterH + cy] != 1 || r[(cx + 1) * rasterH + cy + 1] != 1)
+				return false;
+			lastCx = cx;
+			lastCy = cy;
+		}
+		return true;
+	}
+
 	/**
 	 * Geometry-only legality (no player crash check). The interval scan is
 	 * scaled by move length: ~2 samples per unit of euclidean distance. This
@@ -313,6 +389,8 @@ public final class RaceGame {
 	 * across an inside corner of the corridor).
 	 */
 	boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
+		if (fastLegal(x1, y1, x2, y2))
+			return true;
 		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
 			return false;
 		final long dxi = (long) x2 - x1, dyi = (long) y2 - y1;
@@ -758,6 +836,7 @@ public final class RaceGame {
 		p.closePath();
 		startZoneA = TrackGeometry.getToleranceExpandedShape(p);
 		trackA = TrackGeometry.getToleranceExpandedShape(TrackGeometry.newPrefilledPath(track.getLeft(), track.getRight()));
+		buildLegalRaster();
 		rui.finishTrack();
 		reach.computeDistMap();
 		reach.startReachabilityCompute();
