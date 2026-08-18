@@ -30,7 +30,7 @@ jobs:
         run: |
           git fetch origin master
           git rev-parse origin/master > round112-base-sha.txt
-          test "$(cat round112-base-sha.txt)" = '0f06698d455b5641eac3c78e39e9c9a9c6188b25'
+          test "$(cat round112-base-sha.txt)" = '41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f'
           git worktree add /tmp/round112-noncoast origin/master
           cd /tmp/round112-noncoast
           sh ./build_main.sh
@@ -125,7 +125,7 @@ jobs:
           assert rows[2]['identical'], rows
           output = {
               'candidate': 'speed9_noncoast',
-              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'baseline_sha': '41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f',
               'rows': rows,
               'passed': True,
           }
