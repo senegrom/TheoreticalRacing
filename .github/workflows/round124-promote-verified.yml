@@ -1,0 +1,171 @@
+name: Promote verified Round 124 pace gain
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-124-early-round-trap
+    paths:
+      - .github/workflows/round124-promote-verified.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round124-final-build
+          path: .
+          run-id: 32186389309
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: round124-final-summary
+          path: .
+          run-id: 32186389309
+          github-token: ${{ github.token }}
+      - name: Verify exhaustive evidence and immutable parent
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path('round124-summary.json').read_text())
+          assert summary['candidate'] == 'early_round_trap_l2', summary
+          assert summary['pairs'] == 3500, summary
+          assert summary['bad'] == 0 and summary['viable'], summary
+          assert summary['counts'] == {
+              'aggregate_faster': 0,
+              'identical': 3499,
+              'pareto_faster': 1,
+              'redistribution': 0,
+              'safety_gain': 0,
+              'safety_regression': 0,
+              'slower': 0,
+          }, summary
+          assert summary['net_moves'] == -1, summary
+          assert len(summary['events']) == 1, summary
+          event = summary['events'][0]
+          assert (event['track'], event['seed'], event['classification']) == (
+              'silverstone', 93, 'pareto_faster'), event
+          assert event['deltas'] == {'1': 0, '2': -1, '3': 0, '4': 0,
+                                     '6': 0, '7': 0, '8': 0}, event
+          PY
+          EXPECTED=$(cat round124-base-sha.txt)
+          test "$EXPECTED" = 'dc388abf3dde3c691be711c2d0ccd99e34e1c3aa'
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+      - name: Bound active-race runtime overhead
+        run: |
+          python - <<'PY'
+          import json, re, statistics, subprocess, tempfile, time
+          from pathlib import Path
+
+          root = Path.cwd()
+          summary = json.loads(Path('round124-summary.json').read_text())
+          event = summary['events'][0]
+          track, seed = event['track'], event['seed']
+
+          def write_props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def run(jar):
+              with tempfile.TemporaryDirectory(prefix='round124-time-') as directory:
+                  tmp = Path(directory)
+                  props, log = tmp / 'bench.properties', tmp / 'race.log'
+                  write_props(props)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(props),
+                      '--log', str(log), '--seed', str(seed),
+                  ], cwd=root, text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-3000:])
+                  return time.perf_counter() - started
+
+          run('round124-baseline.jar')
+          run('round124-candidate.jar')
+          baseline, candidate = [], []
+          for index in range(5):
+              if index % 2:
+                  baseline.append(run('round124-baseline.jar'))
+                  candidate.append(run('round124-candidate.jar'))
+              else:
+                  candidate.append(run('round124-candidate.jar'))
+                  baseline.append(run('round124-baseline.jar'))
+          ratio = statistics.median(candidate) / statistics.median(baseline)
+          output = {'track': track, 'seed': seed, 'ratio': ratio,
+                    'baseline': baseline, 'candidate': candidate}
+          Path('round124-runtime.json').write_text(json.dumps(output, indent=2) + '\n')
+          print(json.dumps(output, indent=2))
+          assert ratio <= 1.50, output
+          PY
+      - name: Reproduce source from the verified parent
+        run: |
+          cp tracks/round124_apply.py /tmp/round124_apply.py
+          cp tracks/round124_publish.py /tmp/round124_publish.py
+          EXPECTED=$(cat round124-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round124-production origin/master
+          python /tmp/round124_apply.py
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff -- src/tr/logic/RaceAi.java > /tmp/round124-reproduced.patch
+          cmp round124.patch /tmp/round124-reproduced.patch
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round124_publish.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in ('AI_DEVELOPMENT.md', 'racing-memory.md'):
+              path = Path(name)
+              path.write_text(path.read_text().rstrip() + '\n')
+          PY
+          python tests/ai1_early_round_trap_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit and push master
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java \
+            tests/ai1_early_round_trap_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 124: certify phase-consistent trap acceleration'
+          git push origin HEAD:master
+          git rev-parse HEAD > round124-master-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round124-verified-promotion
+          path: |
+            round124-summary.json
+            round124-runtime.json
+            round124-master-sha.txt
+          if-no-files-found: error
+          retention-days: 30
