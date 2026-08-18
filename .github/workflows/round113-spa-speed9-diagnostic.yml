@@ -1,0 +1,129 @@
+name: Round 113 Spa speed-nine diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-113-speed9-spa-diagnostic
+    paths:
+      - .github/workflows/round113-spa-speed9-diagnostic.yml
+      - tracks/round113_apply_speed9.py
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build baseline and diagnostic candidate
+        run: |
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = '41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f'
+          git worktree add /tmp/round113-spa origin/master
+          cd /tmp/round113-spa
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round113_apply_speed9.py"
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/candidate.jar"
+      - name: Replay Spa seeds 12, 31, 40 and 47
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('tracks/bench.properties').read_text()
+          text = re.sub(r'^(player[1-8]Kind)=.*$', r'\1=AI1', text, flags=re.M)
+          Path('AI1.properties').write_text(text)
+          PY
+          for seed in 12 31 40 47; do
+            java -Djava.awt.headless=true -jar baseline.jar --auto --track spa \
+              --props AI1.properties --log "spa-${seed}-baseline.log" --seed "$seed" \
+              > "spa-${seed}-baseline.stdout" 2> "spa-${seed}-baseline.stderr"
+            java -Djava.awt.headless=true -Dai.debug.djs=true -jar candidate.jar \
+              --auto --track spa --props AI1.properties \
+              --log "spa-${seed}-candidate.log" --seed "$seed" \
+              > "spa-${seed}-candidate.stdout" 2> "spa-${seed}-candidate.stderr"
+          done
+      - name: Extract exact first divergences and accepted accelerations
+        run: |
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def move_lines(path):
+              return [line for line in Path(path).read_text().splitlines()
+                      if move_re.match(line)]
+
+          def race_result(path):
+              moves, finishes, crashes = {}, {}, []
+              for line in Path(path).read_text().splitlines():
+                  match = move_re.match(line)
+                  if match is None:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'FINISH' in line:
+                      finishes[player] = moves[player]
+                  elif 'CRASH' in line:
+                      crashes.append(player)
+              return {
+                  'finishes': finishes,
+                  'crashes': crashes,
+                  'sum': sum(finishes.values()),
+                  'order': [player for player, _ in sorted(
+                      finishes.items(), key=lambda item: (item[1], item[0]))],
+              }
+
+          rows = []
+          for seed in (12, 31, 40, 47):
+              baseline = move_lines(f'spa-{seed}-baseline.log')
+              candidate = move_lines(f'spa-{seed}-candidate.log')
+              first = None
+              for index in range(max(len(baseline), len(candidate))):
+                  left = baseline[index] if index < len(baseline) else None
+                  right = candidate[index] if index < len(candidate) else None
+                  if left != right:
+                      first = {
+                          'index': index,
+                          'baseline': left,
+                          'candidate': right,
+                          'baseline_context': baseline[max(0, index-4):index+7],
+                          'candidate_context': candidate[max(0, index-4):index+7],
+                      }
+                      break
+              stderr = Path(f'spa-{seed}-candidate.stderr').read_text().splitlines()
+              rows.append({
+                  'seed': seed,
+                  'baseline_result': race_result(f'spa-{seed}-baseline.log'),
+                  'candidate_result': race_result(f'spa-{seed}-candidate.log'),
+                  'first_difference': first,
+                  'field_accel_events': [line for line in stderr
+                                         if 'AIDBG FIELD-ACCEL' in line],
+                  'danger_events': [line for line in stderr
+                                    if ('AIDBG DJS' in line or 'AIDBG ESC' in line)],
+              })
+          Path('round113-spa-speed9-diagnostic.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Commit diagnostic result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-113-speed9-spa-diagnostic
+          git add round113-spa-speed9-diagnostic.json
+          git commit -m 'Record Spa speed-nine counterexamples'
+          git push origin HEAD:agent/ai-racing-speed-113-speed9-spa-diagnostic
