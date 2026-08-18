@@ -31,3 +31,5 @@ jobs:
           git add round124-promotion-status.json
           git commit -m 'Record Round 124 promotion status'
           git push origin HEAD:"$GITHUB_REF_NAME"
+
+# Refresh after isolating downloaded evidence from the production worktree.
