@@ -32,4 +32,4 @@ jobs:
           git commit -m 'Record Round 127 dense-funnel status'
           git push origin HEAD:"$GITHUB_REF_NAME"
 
-# Refreshed after repairing the generated Java block closure.
+# Refreshed after repairing both generated block closure and indentation escapes.
