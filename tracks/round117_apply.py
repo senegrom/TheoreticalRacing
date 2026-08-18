@@ -140,7 +140,7 @@ source = source[:method_start] + method + source[method_end:]
 
 assert source.count("AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS") == 2
 assert source.count("hasAdjacentPriorCandidateVelocityPeer") == 2
-assert source.count("sixAheadFrontier") == 4
+assert source.count("sixAheadFrontier") == 5
 assert source.count("fieldProofRounds") == 3
 path.write_text(source)
 print("materialized Round 117 synchronized exact-six-ahead acceleration")
