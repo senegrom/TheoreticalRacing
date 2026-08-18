@@ -1,0 +1,371 @@
+name: Round 111 speed-nine exact promotion gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-111-speed9-simple
+    paths:
+      - .github/workflows/round111-speed9-promotion.yml
+      - tracks/round109_apply_pace_variant.py
+      - tracks/round109_compare_pace.py
+      - tracks/round111_compare_pace.py
+      - tracks/round111_runtime.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round111-base-sha.txt
+          test "$(cat round111-base-sha.txt)" = '0f06698d455b5641eac3c78e39e9c9a9c6188b25'
+          git worktree add /tmp/round111-speed9-full origin/master
+          cd /tmp/round111-speed9-full
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round111-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round109_apply_pace_variant.py" speed9
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round111-speed9.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round111-candidate.jar"
+      - name: Run permanent regression suite
+        working-directory: /tmp/round111-speed9-full
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round111-speed9-build
+          path: |
+            round111-baseline.jar
+            round111-candidate.jar
+            round111-base-sha.txt
+            round111-speed9.patch
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        include:
+          - { track: circle, end_seed: 150 }
+          - { track: triangle, end_seed: 150 }
+          - { track: curve, end_seed: 150 }
+          - { track: hairpin, end_seed: 150 }
+          - { track: chicane, end_seed: 150 }
+          - { track: sprint, end_seed: 150 }
+          - { track: bigoval, end_seed: 150 }
+          - { track: slalom, end_seed: 150 }
+          - { track: gear, end_seed: 150 }
+          - { track: coil, end_seed: 150 }
+          - { track: zigzag, end_seed: 150 }
+          - { track: the_long_loop, end_seed: 150 }
+          - { track: monaco, end_seed: 150 }
+          - { track: hungaroring, end_seed: 150 }
+          - { track: interlagos, end_seed: 150 }
+          - { track: lemans, end_seed: 150 }
+          - { track: spa, end_seed: 150 }
+          - { track: silverstone, end_seed: 150 }
+          - { track: monza, end_seed: 150 }
+          - { track: zandvoort, end_seed: 150 }
+          - { track: nurburgring, end_seed: 150 }
+          - { track: spielberg, end_seed: 150 }
+          - { track: serpentine, end_seed: 50 }
+          - { track: serpentine2, end_seed: 50 }
+          - { track: spiral, end_seed: 50 }
+          - { track: cog, end_seed: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round111-speed9-build
+          path: .
+      - name: Compare exact all-AI1 outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        run: |
+          mkdir -p baseline candidate
+          python tracks/round111_compare_pace.py run \
+            --jar round111-baseline.jar --track "$TRACK" --start 1 --end "$END_SEED" \
+            --label baseline --directory baseline
+          python tracks/round111_compare_pace.py run \
+            --jar round111-candidate.jar --track "$TRACK" --start 1 --end "$END_SEED" \
+            --label candidate --directory candidate
+          python tracks/round111_compare_pace.py compare \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --baseline-dir baseline --candidate-dir candidate \
+            --out "round111-speed9-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round111-speed9-${{ matrix.track }}
+          path: round111-speed9-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round111-speed9-build
+          path: .
+      - name: Bound alternating warm runtime overhead
+        run: |
+          python tracks/round111_runtime.py \
+            --baseline round111-baseline.jar --candidate round111-candidate.jar \
+            --out round111-speed9-runtime.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round111-speed9-runtime
+          path: round111-speed9-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round111-speed9-*
+          path: results
+          merge-multiple: true
+      - name: Enforce exact pace and safety policy
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = {
+              'candidate': 'speed9_strict_field',
+              'baseline_sha': '0f06698d455b5641eac3c78e39e9c9a9c6188b25',
+              'pairs': 0,
+              'counts': {},
+              'net_moves': 0,
+              'events': [],
+          }
+          paths = sorted(Path('results').glob('round111-speed9-*.json'))
+          for path in paths:
+              data = json.loads(path.read_text())
+              if 'pairs' not in data:
+                  continue
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events'])
+          bad = sum(summary['counts'].get(key, 0) for key in
+                    ('slower', 'safety_regression', 'redistribution'))
+          summary['bad'] = bad
+          summary['viable'] = (summary['pairs'] == 3500 and bad == 0
+              and summary['counts'].get('pareto_faster', 0) > 0)
+          Path('round111-speed9-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          assert summary['pairs'] == 3500, summary
+          assert bad == 0, summary
+          assert summary['counts'].get('pareto_faster', 0) > 0, summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round111-speed9-summary
+          path: round111-speed9-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, runtime, summarize]
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round111-speed9-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round111-speed9-summary
+          path: .
+      - name: Materialize measured production change
+        run: |
+          cp tracks/round109_apply_pace_variant.py /tmp/round109_apply_pace_variant.py
+          EXPECTED=$(cat round111-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round111-production origin/master
+          python /tmp/round109_apply_pace_variant.py speed9
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path('round111-speed9-summary.json').read_text())
+          event = next(e for e in summary['events']
+                       if e['classification'] == 'pareto_faster')
+          track = event['track']
+          seed = event['seed']
+          expected = event['candidate']
+          baseline = event['baseline']
+
+          test = f'''#!/usr/bin/env python3
+          """Pin Round 111's proven lower-energy field acceleration."""
+          from __future__ import annotations
+
+          import json
+          import re
+          import subprocess
+          import tempfile
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          JAR = ROOT / "theoreticRacing.jar"
+          TRACK = {track!r}
+          SEED = {seed}
+          EXPECTED = json.loads({json.dumps(json.dumps(expected))})
+          RESULT_RE = re.compile(r"^(\\d+) p(\\d+) ")
+
+          def parse(path: Path) -> dict:
+              moves = {{}}
+              finishes = {{}}
+              crashes = set()
+              for line in path.read_text().splitlines():
+                  match = RESULT_RE.match(line)
+                  if match is None:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if "CRASH" in line:
+                      crashes.add(player)
+                  elif "FINISH" in line:
+                      finishes[str(player)] = moves[player]
+              order = [int(player) for player, _ in sorted(
+                  finishes.items(), key=lambda item: (item[1], int(item[0])))]
+              return {{"finishes": finishes, "crashes": sorted(crashes), "order": order}}
+
+          def main() -> int:
+              source = (ROOT / "src" / "tr" / "logic" / "RaceAi.java").read_text()
+              if not re.search(r"AI1_FIELD_ACCEL_MIN_SPEED2_GAIN\\s*=\\s*9;", source):
+                  raise SystemExit("Round 111 speed-nine threshold missing")
+              with tempfile.TemporaryDirectory(prefix="ai1-speed9-") as directory:
+                  tmp = Path(directory)
+                  props = tmp / "bench.properties"
+                  lines = []
+                  for line in (ROOT / "tracks" / "bench.properties").read_text().splitlines():
+                      if re.match(r"^player[1-8]Kind=", line):
+                          line = line.split("=", 1)[0] + "=AI1"
+                      lines.append(line)
+                  props.write_text("\\n".join(lines) + "\\n")
+                  log = tmp / "race.log"
+                  result = subprocess.run(
+                      ["java", "-Djava.awt.headless=true", "-jar", str(JAR),
+                       "--auto", "--track", TRACK, "--props", str(props),
+                       "--log", str(log), "--seed", str(SEED)],
+                      cwd=ROOT, text=True, capture_output=True, timeout=1200)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-3000:])
+                  actual = parse(log)
+              if actual != EXPECTED:
+                  raise SystemExit(f"Round 111 {{TRACK}} seed {{SEED}} regression: "
+                                   f"{{actual}}, expected {{EXPECTED}}")
+              print(f"AI1Speed9FieldPaceRegression: OK ({{TRACK}} seed {{SEED}})")
+              return 0
+
+          if __name__ == "__main__":
+              raise SystemExit(main())
+          '''
+          test = '\n'.join(line[10:] if line.startswith('          ') else line
+                           for line in test.splitlines()) + '\n'
+          Path('tests/ai1_speed9_field_pace_regression.py').write_text(test)
+
+          section = f'''\n## Round 111: lower-energy strict-field acceleration\n\nThe existing Round-106 acceleration certificate is unchanged except for its\nminimum speed-squared gain, reduced from 16 to 9. Every accepted move remains\nexactly one empty-map turn faster, zero-trap, zero-uncertainty, non-sealable,\ninside a homogeneous two-to-five-car forward pack and the established TTF\nwindow. The same eight-round scorer-field proof must strictly improve both the\nmover and aggregate field, and all downstream danger vetoes remain active.\n\nAcross 3,500 exact baseline/candidate races, the gate recorded\n{{summary['counts'].get('pareto_faster', 0)}} pace gains,\n{{summary['counts'].get('safety_gain', 0)}} safety gains and zero slower,\nredistributed or less-safe races. Aggregate finisher moves changed by\n{{summary['net_moves']}}. The permanent pin is {{track}} seed {{seed}}:\n{{baseline}} -> {{expected}}.\n'''
+          for name in ('AI_DEVELOPMENT.md', 'racing-memory.md'):
+              path = Path(name)
+              path.write_text(path.read_text() + section)
+          PY
+          python tests/ai1_speed9_field_pace_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+          python -m compileall -q tracks tests
+          git diff --check
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java tests/ai1_speed9_field_pace_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 111: admit proven speed-nine field accelerations'
+          git push origin HEAD:master
