@@ -36,7 +36,7 @@ def measure_boundaries() -> dict[str, dict[int, object]]:
 
 def write_test(expected: dict[str, dict[int, object]]) -> None:
     source = f'''#!/usr/bin/env python3
-"""Pin Round 117's AI1-only exact-six-ahead acceleration."""
+"""Pin Round 117's AI1-only synchronized six-ahead acceleration."""
 from pathlib import Path
 import sys
 import tempfile
@@ -83,15 +83,16 @@ def update_docs(summary: dict[str, object]) -> None:
     counts = summary["counts"]
     events = summary["events"]
     gains = [event for event in events if event["classification"] == "pareto_faster"]
-    section = f"""## Round 117: exact-six-ahead acceleration
+    section = f"""## Round 117: synchronized exact-six-ahead acceleration
 
 Round 106 capped its strict field-acceleration proof at five rivals ahead. A
 sixth-place extension exposed one genuine Coil pace gain and two field
-redistributions from geometrically identical decisions. Extending only that
-AI1 high-energy class from the normal eight-round proof to ten rounds is the
-smallest measured horizon that separates them: Coil seeds 5 and 22 retain the
-champion line while seed 86 keeps the faster acceleration. Round 115's moderate
-speed-squared 9..15 frontier remains capped at five ahead; AI2 stays frozen.
+redistributions from the same local move. Board reconstruction found a
+track-independent separator: only the good state has a previously moved rival
+adjacent to the candidate landing with the candidate's exact velocity. That
+synchronized formation may enter the existing eight-round high-energy proof;
+lone back-marker accelerations remain excluded. Round 115's moderate
+speed-squared 9..15 frontier stays capped at five ahead and AI2 stays frozen.
 
 The exact {summary['pairs']}-pair gate recorded {counts.get('pareto_faster', 0)}
 Pareto-faster race(s), {counts.get('safety_gain', 0)} safety gain(s), zero
@@ -102,7 +103,7 @@ slower races, zero safety regressions, zero field redistributions and a net
 """
     development = Path("AI_DEVELOPMENT.md")
     text = development.read_text()
-    heading = "## Round 117: exact-six-ahead acceleration\n"
+    heading = "## Round 117: synchronized exact-six-ahead acceleration\n"
     if heading not in text:
         anchor = "## Highest-value next directions\n"
         development.write_text(
@@ -110,15 +111,16 @@ slower races, zero safety regressions, zero field redistributions and a net
         )
 
     memory = Path("racing-memory.md")
-    marker = "ROUND 117 (exact-six-ahead acceleration):"
+    marker = "ROUND 117 (synchronized exact-six-ahead acceleration):"
     text = memory.read_text()
     if marker not in text:
         note = textwrap.dedent(
             f"""
 
-            {marker} AI1 may enter the established high-energy field acceleration
-            with exactly six rivals ahead only under a ten-round scorer-field
-            proof. Exact gate: {summary['pairs']} pairs,
+            {marker} AI1 may enter the established high-energy field
+            acceleration with exactly six rivals ahead only when a previously
+            moved rival is adjacent to the proposed landing and already carries
+            the candidate velocity. Exact gate: {summary['pairs']} pairs,
             {counts.get('pareto_faster', 0)} Pareto gain(s),
             {counts.get('safety_gain', 0)} safety gain(s), zero slower,
             safety-regression or redistribution outcomes, net
