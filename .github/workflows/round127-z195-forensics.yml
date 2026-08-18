@@ -1,0 +1,161 @@
+name: Round 127 Zandvoort 195 forensics
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-127-z195-forensics
+    paths:
+      - .github/workflows/round127-z195-forensics.yml
+      - tracks/round127_select_z195.py
+      - tracks/round127_oracle_tail.py
+
+permissions:
+  contents: read
+
+jobs:
+  forensic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact Round 126 master
+        run: |
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          test "$BASE" = '5ab10eafe547b2d02bfaaa23d9edfe076ca9aeaf'
+          test -z "$(git diff --name-only origin/master -- src/tr/logic src/tr/main)"
+          git worktree add /tmp/round127-master "$BASE"
+          cd /tmp/round127-master
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/theoreticRacing.jar"
+      - name: Reproduce Zandvoort seed 195 and dump reachability
+        run: |
+          java -Djava.awt.headless=true -jar theoreticRacing.jar \
+            --track zandvoort --props tracks/bench.properties \
+            --dump-reach tracks/reach_zandvoort.bin \
+            > round127-reach.stdout 2> round127-reach.stderr
+          test -s tracks/reach_zandvoort.bin
+          java -Djava.awt.headless=true -jar theoreticRacing.jar \
+            --auto --track zandvoort --props tracks/bench.properties \
+            --log round127-z195.log --seed 195 \
+            > round127-z195.stdout 2> round127-z195.stderr
+          python tracks/round127_select_z195.py \
+            round127-z195.log round127-meta.json
+      - name: Re-run with scorer, topology and comparator diagnostics
+        run: |
+          DEBUG_PLAYER=$(python - <<'PY'
+          import json
+          print(json.load(open('round127-meta.json'))['crash_player'] - 1)
+          PY
+          )
+          java -Djava.awt.headless=true \
+            -Dai.debug.player="$DEBUG_PLAYER" \
+            -Dai.debug.djs=true -Dai.debug.comp=true \
+            -jar theoreticRacing.jar \
+            --auto --track zandvoort --props tracks/bench.properties \
+            --log round127-z195-debug.log --seed 195 \
+            > round127-z195-debug.stdout 2> round127-z195-debug.stderr
+          grep -E 'AIDBG (turn-REAL|RING|ESC|ESC-AUDIT|DJS|EQUAL|COMP|SMOKE|SMOKETHREAD)' \
+            round127-z195-debug.stderr > round127-debug-filtered.txt || true
+          python tracks/round127_select_z195.py \
+            round127-z195-debug.log round127-debug-meta.json
+          python - <<'PY'
+          import json
+          left = json.load(open('round127-meta.json'))
+          right = json.load(open('round127-debug-meta.json'))
+          assert (left['crash_player'], left['crash_index']) == (
+              right['crash_player'], right['crash_index']), (left, right)
+          PY
+      - name: Materialize the final sixteen board states
+        run: |
+          : > round127-boards.txt
+          python - <<'PY' > round127-tail-indices.txt
+          import json
+          for index in json.load(open('round127-meta.json'))['tail_indices']:
+              print(index)
+          PY
+          while read -r index; do
+            printf '\n=== MOVE %s ===\n' "$index" >> round127-boards.txt
+            python tracks/board_at.py round127-z195.log \
+              tracks/reach_zandvoort.bin "$index" >> round127-boards.txt
+          done < round127-tail-indices.txt
+      - name: Run the faithful deep oracle on the final four decisions
+        run: |
+          set +e
+          python tracks/round127_oracle_tail.py \
+            round127-z195.log zandvoort tracks/reach_zandvoort.bin \
+            round127-meta.json round127-oracle.json round127-oracle.txt \
+            --rounds 18 --seed 195 --props tracks/bench.properties \
+            > round127-oracle.stdout 2> round127-oracle.stderr
+          STATUS=$?
+          set -e
+          printf '%s\n' "$STATUS" > round127-oracle-exit.txt
+          test -s round127-oracle.json || true
+      - name: Summarize forensic signals
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          meta = json.loads(Path('round127-meta.json').read_text())
+          summary = {
+              'master_sha': '5ab10eafe547b2d02bfaaa23d9edfe076ca9aeaf',
+              'track': 'zandvoort',
+              'seed': 195,
+              'crash_player': meta['crash_player'],
+              'crash_index': meta['crash_index'],
+              'tail_indices': meta['tail_indices'],
+              'probe_indices': meta['probe_indices'],
+              'oracle_exit': int(Path('round127-oracle-exit.txt').read_text())
+                  if Path('round127-oracle-exit.txt').exists() else None,
+              'debug_lines': len(Path('round127-debug-filtered.txt').read_text().splitlines())
+                  if Path('round127-debug-filtered.txt').exists() else 0,
+          }
+          if Path('round127-oracle.json').exists():
+              oracle = json.loads(Path('round127-oracle.json').read_text())
+              summary['oracle_reproduced'] = all(
+                  row['oracle_matches_log'] for row in oracle['decisions'])
+              summary['decision_count'] = len(oracle['decisions'])
+              summary['candidate_terminal_counts'] = {}
+              for row in oracle['decisions']:
+                  for candidate in row['candidates']:
+                      fate = candidate.get('terminal_fate', candidate['initial_fate'])
+                      summary['candidate_terminal_counts'][fate] = (
+                          summary['candidate_terminal_counts'].get(fate, 0) + 1)
+          Path('round127-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round127-z195-forensics
+          path: |
+            round127-summary.json
+            round127-meta.json
+            round127-z195.log
+            round127-z195.stdout
+            round127-z195.stderr
+            round127-z195-debug.log
+            round127-z195-debug.stdout
+            round127-z195-debug.stderr
+            round127-debug-filtered.txt
+            round127-boards.txt
+            round127-oracle.json
+            round127-oracle.txt
+            round127-oracle.stdout
+            round127-oracle.stderr
+            round127-oracle-exit.txt
+          if-no-files-found: warn
+          retention-days: 30
