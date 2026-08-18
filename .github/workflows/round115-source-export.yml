@@ -8,7 +8,7 @@ on:
       - .github/workflows/round115-source-export.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -29,3 +29,11 @@ jobs:
             round115-source-sha.txt
           if-no-files-found: error
           retention-days: 7
+      - name: Publish the workflow run id
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round115-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round115-run-id.txt
+          git commit -m 'Record Round 115 source-export run'
+          git push origin HEAD:"$GITHUB_REF_NAME"
