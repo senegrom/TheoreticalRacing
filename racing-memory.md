@@ -6,6 +6,32 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 110 (local agent): post-promotion simplification batch
+
+USER DIRECTIVE: clean out old files and tools. Removed, with the
+promotion probe + goldens + all pins + tooling tests green after:
+
+- tracks/round106_{forward_pack,instance_state}_materialize.py and
+  .github/workflows/round106-forward-pack.yml -- the other agent's
+  one-shot round-106 promotion machinery; its changes have been on
+  master since b9d69fd and the workflow only ever triggered on edits
+  to the deleted scripts themselves. The round lives in the ledger.
+- AI2_MOBILITY_DEPTH -- the ONLY dead member left in RaceAi after the
+  delegation promotion (a reference sweep found the 796-line mirror
+  body shared every other helper with the frontier).
+- Untracked root debris (era60/prof jars, stray logs) -- era jars are
+  one-command rebuilds, recipe now documented.
+
+ADDED (permanence for round-109 tooling): tracks/cross_era.py -- the
+dual-oracle cross-era referee, promoted from scratchpad with the era-
+jar build recipe and the first exhibition result in its docstring.
+OLD_JAR/RACING_WORK_DIR env overrides for reuse.
+
+KEPT deliberately: bench_iso.py (tooling tests import it), tests/tr
+Java unit suites, ci.yml + promotion-gate.yml, verify_reach_cache.sh,
+policy_matrix POCKET entries (worked-example documentation; the file
+already tells readers to regenerate logs before replaying).
+
 ## Round 109 (local agent): PROMOTION -- the rounds-98-108 champion is AI2
 
 USER'S EXPLICIT WORD: "Promote now!". Executed the full protocol:
