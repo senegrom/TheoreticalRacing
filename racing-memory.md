@@ -6,6 +6,45 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 114 (local agent): the pair-squeeze confirm leg -- three of four fresh specimens in one mechanism
+
+HARVEST 22 (fresh 8car mega-window s151-200, 1100 races): 4 crashes --
+silverstone s167/s191, hungaroring s195, zandvoort s195.
+
+THE CLASS (silverstone s167 m157, fully probed): a fast L2 landing
+with ONE rival racing a cell away (Chebyshev 1). Every pack gate needs
+~three bodies; the fast fallback historically runs the smom world
+(r59: "fast fires keep the proven smom world") which reads the squeeze
+alive with NO tell (thread=0, snug=1 -- and the true SURVIVOR shows
+thread=2: inverted again). The plain 3-round scorer world at the
+DEFAULT cap separates perfectly (kills the taken W, keeps survivor N).
+
+TWO SHAPES REJECTED MEASURED: the raw world flip (scorerRivals at
+pair fires) fixed s167 but broke the hungaroring-s10 staged pin
+(7/0 -> 6/1) -- the r59 wisdom holds; smom must stay the verdict.
+SHIPPED: a PAIR-CONFIRM LEG in the existing confirm framework -- gate
+= fast + L2 trap + rival within Chebyshev 2 of the landing (measured
+0-5 fires/race); a smom-alive chosen dies only when the 3-round
+scorer world AND the true-rival confirm agree; switch targets
+ladder-verified as everywhere.
+
+RESULT: s167 FIXED, and silverstone s191 + hungaroring s195 come FREE
+(the same leg). All thirteen prior sites hold; twelve pins PASS;
+probe 0/27. zandvoort s195 recorded OPEN: the top-complex corridor at
+ULTRA depth -- no oracle survivor within twelve walk-decisions at
+14-round horizons; beyond the walk's own resolution (the
+champion-play-everyone rollout frays at that depth). Residual set:
+hairpin s68 (accepted), zandvoort s115 (their round-108 target),
+zandvoort s195 (new, ultra-deep).
+
+PROCESS: the silent-stale-jar failure mode found and neutralized --
+builds no-op when the harvest holds the jar lock (rm fails, set -eu
+aborts, and "cannot remove" matched no error grep); several probe
+runs and the whole RES=8 experiment ran on a 30-minute-old jar and
+are VOID (RES=8 to be re-measured honestly). Recovery: side-jar
+builds (compile to scratch, jar under a different name) bypass the
+lock; jar freshness is now verified behaviorally after every build.
+
 ## Round 113 (local agent, REJECTED measured): mobility memoization
 
 The next JFR target after the rasters was the mobility projection pair

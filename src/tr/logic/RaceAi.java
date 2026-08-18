@@ -758,7 +758,7 @@ final class RaceAi {
 			// evasion crashes came from warning-based re-picks; survival-only
 			// switching cannot fire on a line that was actually fine).
 			if (AI_DEBUG_PLAYER == playerNum)
-				System.err.println("AIDBG turn p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
+				System.err.println("AIDBG turn" + (inScorerSim ? "-sim" : "-REAL") + " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
 			// round 45 (AI1): sim fidelity only -- finished cars vanish from the
 			// sim board (the real game removes them; ghosts caused phantom
@@ -1022,6 +1022,23 @@ final class RaceAi {
 							}
 						}
 						if (!fastFragileHandled) {
+							// Round 114 (AI1): the fast PAIR-SQUEEZE class -- silverstone
+							// s167 m157 commits a fast L2 landing with ONE rival racing a
+							// cell away (Chebyshev 1); every pack gate needs three-ish
+							// bodies and the fast fallback historically runs the smom
+							// world, which reads the squeeze alive (thread=0!) while the
+							// plain 3-round scorer world at the DEFAULT cap already kills
+							// it and keeps the true survivor (probe-verified both ways).
+							// Gate measured at 0-5 fires/race: fast + L2 trap + a rival
+							// within Chebyshev 2 of the landing arms a PAIR CONFIRM
+							// leg: smom stays the verdict (a raw world flip broke
+							// the hungaroring-s10 staged pin), and a smom-alive
+							// chosen is killed only when the 3-round scorer world
+							// AND the true-rival confirm both agree, with switch
+							// targets ladder-verified as everywhere.
+							final boolean fastPairRisk = !djSlow
+									&& trapByDir[chosen.ordinal()] == AI1_TRAP_L2
+									&& countRivalsWithinCheb(pos[0] + djvx, pos[1] + djvy, playerNum, 2) >= 1;
 							// Round 98 (AI1): thread-fragility audit for slow pack
 							// commitments -- see outThreadRounds. Gated to landings
 							// with a real pack around them; solo single-file racing
@@ -1061,7 +1078,7 @@ final class RaceAi {
 							}
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
-									threadPack, threadPack);
+									threadPack, threadPack || fastPairRisk, true, fastPairRisk);
 						}
 					}
 				} else {
@@ -1164,7 +1181,7 @@ final class RaceAi {
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
 								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true,
-								false, true, false);
+								false, true, false, false);
 					}
 				}
 			}
@@ -2977,7 +2994,7 @@ final class RaceAi {
 			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm) {
 		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf,
 				exactRivals, scorerRivals, rounds, scorerCap, scorerSelf, threadCheck, trueConfirm,
-				true);
+				true, false);
 	}
 
 	/** corrLeg=false (round 105): suppress the corridor fragility leg --
@@ -2987,7 +3004,7 @@ final class RaceAi {
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
 			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm,
-			final boolean corrLeg) {
+			final boolean corrLeg, final boolean pairRisk) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
@@ -3028,7 +3045,13 @@ final class RaceAi {
 					&& threadRounds[0] >= 2 && threadRounds[1] >= 2;
 			final boolean legDeep = trueConfirm && threadRounds != null && finalTier != null
 					&& finalTier[0] <= 1 && threadRounds[0] == 0;
-			if ((legCorr || legSlow || legDeep)
+			// Round 114: the pair-squeeze leg -- armed by the call site when a
+			// fast L2 landing has a rival within Chebyshev 2; detection is the
+			// 3-round scorer world at the default cap (probe-verified to kill
+			// silverstone-s167 m157 and keep its survivor), verification the
+			// standard true-rival confirm.
+			final boolean legPair = trueConfirm && pairRisk;
+			if ((legCorr || legSlow || legDeep || legPair)
 					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
@@ -3038,7 +3061,14 @@ final class RaceAi {
 					// vacates the kill cell) and true-DEAD at cap 6, matching
 					// the offline all-champion roll and the real race.
 					final int confirmCap = Math.max(scorerCap, AI1_DEEP_CERT_RIVALS);
-					if (legCorr) {
+					if (legPair && !legCorr && !legSlow && !legDeep) {
+						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, rounds,
+								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
+								AI1_SCORER_MAXRIVALS, null, null, null) < 0
+								&& simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
+										simFinishVanish, exactSelf, exactRivals, true, scorerSelf,
+										true, confirmCap, null, null, null) < 0;
+					} else if (legCorr) {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
 								confirmCap, null, null, null) < 0;
