@@ -22,6 +22,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Refresh after rebasing the behavioral probe onto 41a2e209.
           gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
             -f branch='agent/ai-racing-speed-112-speed9-noncoast' \
             -f per_page=100 > /tmp/noncoast-runs.json
