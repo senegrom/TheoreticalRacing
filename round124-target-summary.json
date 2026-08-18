@@ -1,0 +1,81 @@
+{
+  "bad": 0,
+  "baseline_sha": "3f059b3778570541d62322e4f17905af6a53192b",
+  "candidate": "early_round_trap_l2",
+  "counts": {
+    "aggregate_faster": 0,
+    "identical": 299,
+    "pareto_faster": 1,
+    "redistribution": 0,
+    "safety_gain": 0,
+    "safety_regression": 0,
+    "slower": 0
+  },
+  "events": [
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 81,
+          "2": 86,
+          "3": 82,
+          "4": 83,
+          "6": 87,
+          "7": 84,
+          "8": 85
+        },
+        "order": [
+          1,
+          3,
+          4,
+          7,
+          8,
+          2,
+          6
+        ],
+        "sum": 588
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 81,
+          "2": 85,
+          "3": 82,
+          "4": 83,
+          "6": 87,
+          "7": 84,
+          "8": 85
+        },
+        "order": [
+          1,
+          3,
+          4,
+          7,
+          2,
+          8,
+          6
+        ],
+        "sum": 587
+      },
+      "classification": "pareto_faster",
+      "deltas": {
+        "1": 0,
+        "2": -1,
+        "3": 0,
+        "4": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "seed": 93,
+      "track": "silverstone"
+    }
+  ],
+  "net_moves": -1,
+  "pairs": 300,
+  "promising": true,
+  "runtime_ratios": {
+    "silverstone": 0.9702876693677738,
+    "spa": 1.0052913903562304
+  }
+}
