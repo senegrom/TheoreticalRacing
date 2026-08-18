@@ -1,0 +1,89 @@
+{
+  "bad": 1,
+  "baseline_sha": "1d0bf9fdd613abf0aaa56a7b8fc5739f94fc9660",
+  "candidate": "low_speed_ttf60_moderate",
+  "counts": {
+    "aggregate_faster": 0,
+    "identical": 1499,
+    "pareto_faster": 0,
+    "redistribution": 1,
+    "safety_gain": 0,
+    "safety_regression": 0,
+    "slower": 0
+  },
+  "events": [
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "2": 80,
+          "3": 87,
+          "4": 81,
+          "5": 85,
+          "6": 83,
+          "7": 87,
+          "8": 78
+        },
+        "order": [
+          8,
+          2,
+          4,
+          6,
+          5,
+          3,
+          7
+        ],
+        "sum": 581
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "2": 80,
+          "3": 88,
+          "4": 81,
+          "5": 85,
+          "6": 83,
+          "7": 87,
+          "8": 78
+        },
+        "order": [
+          8,
+          2,
+          4,
+          6,
+          5,
+          7,
+          3
+        ],
+        "sum": 582
+      },
+      "classification": "redistribution",
+      "deltas": {
+        "2": 0,
+        "3": 1,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "seed": 47,
+      "track": "spa"
+    }
+  ],
+  "net_moves": 1,
+  "pairs": 1500,
+  "promising": false,
+  "runtime_ratios": {
+    "coil": 0.9811267541778721,
+    "hungaroring": 1.0162220039415,
+    "interlagos": 0.9327127995645559,
+    "lemans": 0.9657359184673198,
+    "monza": 0.9656007347540837,
+    "nurburgring": 0.9828380736517004,
+    "silverstone": 0.9873616139293817,
+    "spa": 0.9598484903553235,
+    "spielberg": 0.9521938860944188,
+    "zandvoort": 0.9849350739896157
+  }
+}
