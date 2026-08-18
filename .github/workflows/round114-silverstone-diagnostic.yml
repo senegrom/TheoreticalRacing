@@ -1,0 +1,104 @@
+name: Round 114 Silverstone speed-nine diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-114-speed9-silverstone-diagnostic
+    paths:
+      - .github/workflows/round114-silverstone-diagnostic.yml
+      - tracks/round114_apply_speed9.py
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build baseline and candidate
+        run: |
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = '41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f'
+          git worktree add /tmp/round114-silverstone origin/master
+          cd /tmp/round114-silverstone
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round114_apply_speed9.py"
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/candidate.jar"
+      - name: Replay seeds 78, 112 and 120
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('tracks/bench.properties').read_text()
+          text = re.sub(r'^(player[1-8]Kind)=.*$', r'\1=AI1', text, flags=re.M)
+          Path('AI1.properties').write_text(text)
+          PY
+          for seed in 78 112 120; do
+            java -Djava.awt.headless=true -jar baseline.jar --auto --track silverstone \
+              --props AI1.properties --log "silverstone-${seed}-baseline.log" --seed "$seed" \
+              > /dev/null 2> "silverstone-${seed}-baseline.stderr"
+            java -Djava.awt.headless=true -Dai.debug.djs=true -jar candidate.jar \
+              --auto --track silverstone --props AI1.properties \
+              --log "silverstone-${seed}-candidate.log" --seed "$seed" \
+              > /dev/null 2> "silverstone-${seed}-candidate.stderr"
+          done
+      - name: Extract diagnostic
+        run: |
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def moves(path):
+              return [line for line in Path(path).read_text().splitlines()
+                      if move_re.match(line)]
+
+          rows = []
+          for seed in (78, 112, 120):
+              baseline = moves(f'silverstone-{seed}-baseline.log')
+              candidate = moves(f'silverstone-{seed}-candidate.log')
+              first = None
+              for index in range(max(len(baseline), len(candidate))):
+                  left = baseline[index] if index < len(baseline) else None
+                  right = candidate[index] if index < len(candidate) else None
+                  if left != right:
+                      first = {
+                          'index': index,
+                          'baseline': left,
+                          'candidate': right,
+                          'baseline_context': baseline[max(0, index-3):index+5],
+                          'candidate_context': candidate[max(0, index-3):index+5],
+                      }
+                      break
+              stderr = Path(f'silverstone-{seed}-candidate.stderr').read_text().splitlines()
+              rows.append({
+                  'seed': seed,
+                  'first_difference': first,
+                  'field_accel_events': [line for line in stderr
+                                         if 'AIDBG FIELD-ACCEL' in line],
+              })
+          Path('round114-silverstone-diagnostic.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Commit diagnostic result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-114-speed9-silverstone-diagnostic
+          git add round114-silverstone-diagnostic.json
+          git commit -m 'Record Silverstone speed-nine counterexamples'
+          git push origin HEAD:agent/ai-racing-speed-114-speed9-silverstone-diagnostic
