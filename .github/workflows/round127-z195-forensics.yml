@@ -51,11 +51,11 @@ jobs:
             > round127-z195.stdout 2> round127-z195.stderr
           python tracks/round127_select_z195.py \
             round127-z195.log round127-meta.json
-      - name: Re-run with scorer, topology and comparator diagnostics
+      - name: Trace the actual crash player with scorer and topology diagnostics
         run: |
           DEBUG_PLAYER=$(python - <<'PY'
           import json
-          print(json.load(open('round127-meta.json'))['crash_player'] - 1)
+          print(json.load(open('round127-meta.json'))['crash_player'])
           PY
           )
           java -Djava.awt.headless=true \
@@ -89,7 +89,7 @@ jobs:
             python tracks/board_at.py round127-z195.log \
               tracks/reach_zandvoort.bin "$index" >> round127-boards.txt
           done < round127-tail-indices.txt
-      - name: Run the faithful deep oracle on the final four decisions
+      - name: Run the faithful deep oracle on moves 70 through 102
         run: |
           set +e
           python tracks/round127_oracle_tail.py \
@@ -117,6 +117,7 @@ jobs:
               'crash_index': meta['crash_index'],
               'tail_indices': meta['tail_indices'],
               'probe_indices': meta['probe_indices'],
+              'late_probe_indices': meta['late_probe_indices'],
               'oracle_exit': int(Path('round127-oracle-exit.txt').read_text())
                   if Path('round127-oracle-exit.txt').exists() else None,
               'debug_lines': len(Path('round127-debug-filtered.txt').read_text().splitlines())
