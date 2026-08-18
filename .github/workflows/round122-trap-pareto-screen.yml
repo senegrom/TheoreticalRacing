@@ -32,7 +32,7 @@ jobs:
         run: |
           git fetch origin master
           git rev-parse origin/master > round122-base-sha.txt
-          test "$(cat round122-base-sha.txt)" = '1d0bf9fdd613abf0aaa56a7b8fc5739f94fc9660'
+          test "$(cat round122-base-sha.txt)" = '3f059b3778570541d62322e4f17905af6a53192b'
           git worktree add /tmp/round122-work origin/master
           cd /tmp/round122-work
           sh ./build_main.sh
@@ -63,7 +63,7 @@ jobs:
           from pathlib import Path
 
           summary = {
-              'baseline_sha': '1d0bf9fdd613abf0aaa56a7b8fc5739f94fc9660',
+              'baseline_sha': '3f059b3778570541d62322e4f17905af6a53192b',
               'candidate': 'trap_l2_per_rival_pareto',
               'pairs': 0,
               'counts': {},
