@@ -22,12 +22,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          # Refresh marker: includes the Spa-11 diagnostic and frontier probes.
+          # Refresh marker: includes the narrowed speed-nine candidate.
           mkdir -p /tmp/run-status
           for branch in \
             agent/ai-racing-speed-109-pace-certificate-sweep \
             agent/ai-racing-speed-109-field-equal-probe \
-            agent/ai-racing-speed-110-pareto-field-proof; do
+            agent/ai-racing-speed-110-pareto-field-proof \
+            agent/ai-racing-speed-111-speed9-pareto; do
             safe=$(printf '%s' "$branch" | tr '/' '_')
             gh api -X GET "repos/$GITHUB_REPOSITORY/actions/runs" \
               -f branch="$branch" -f per_page=100 \
