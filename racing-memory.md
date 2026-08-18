@@ -6,6 +6,40 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 109 (local agent): PROMOTION -- the rounds-98-108 champion is AI2
+
+USER'S EXPLICIT WORD: "Promote now!". Executed the full protocol:
+
+MIRROR BY DELEGATION: optimalMoveAI2's 796-line round-95-era body is
+replaced by a delegation to optimalMoveAI1. The champion is one body
+of code; every kind-sensitive gate in the shared machinery is
+mover-symmetric (kindHomogeneous* compare against the mover's kind;
+the confirm family is flag-gated, not kind-gated), so homogeneous
+fields of either kind behave identically. Frontier law unchanged:
+future experiments live in optimalMoveAI1 and must leave the
+delegation untouched until the next promotion; during experiments the
+delegation makes AI2 the OLD champion only after the next frontier
+edit lands -- i.e. the yardstick freezes the moment AI1's body first
+diverges again.
+
+CERTIFICATION: strict probe 0/27 divergent (the mirror proof, exact
+by construction and verified anyway); golden corpus REGENERATED and
+green (two fixtures changed hashes as expected -- AI2 is a new
+champion); ALL ELEVEN pins pass; self-tie h2h 4.500/4.500 c=0;
+fixed-grid bench columns identical (62.604/62.604 +0.000); stale
+BENCH_BASELINE caches deleted per the round-108 rule.
+
+WHAT WAS PROMOTED (the arc in one line each):
+r98 thread-fragility audit; r99 bounded true-rival confirm (depth
+latch -> r103 depth counter); r100 corridor generalization; r102
+alongside-pack gate + speed-scaled nets + dead-path target
+confirmation; r103 certification-cap confirms + query-sim probe; r104
+three-leg predicate with cost ladders; r105 slower-first ladder
+targets; r107 ESC-route direct true-rival confirm; r108 smoke
+proximity gate. Eleven crash specimens solved; residual = hairpin s68
+(accepted) + zandvoort s115 (their round-108 CI target -- their
+branches now need a rebase onto the promoted master, noted for them).
+
 ## Round 108 (local agent): the smoke proximity gate -- a measured, behavior-preserving speedup
 
 USER DIRECTIVE: speed up the engine. Built a profiling twin of the
