@@ -1,0 +1,314 @@
+name: Round 124 early-round trap-L2 exact gate v2
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-124-early-round-trap
+    paths:
+      - .github/workflows/round124-early-round-trap-gate-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master pair
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round124-base-sha.txt
+          git worktree add /tmp/round124-gate-v2 origin/master
+          cd /tmp/round124-gate-v2
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round124-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round124_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'earlyRoundTrapFrontier' src/tr/logic/RaceAi.java)" = 2
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round124-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round124.patch"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round124-v2-build
+          path: |
+            round124-baseline.jar
+            round124-candidate.jar
+            round124-base-sha.txt
+            round124.patch
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 13
+      matrix:
+        include:
+          - { track: circle, end_seed: 150 }
+          - { track: triangle, end_seed: 150 }
+          - { track: curve, end_seed: 150 }
+          - { track: hairpin, end_seed: 150 }
+          - { track: chicane, end_seed: 150 }
+          - { track: sprint, end_seed: 150 }
+          - { track: bigoval, end_seed: 150 }
+          - { track: slalom, end_seed: 150 }
+          - { track: gear, end_seed: 150 }
+          - { track: coil, end_seed: 150 }
+          - { track: zigzag, end_seed: 150 }
+          - { track: the_long_loop, end_seed: 150 }
+          - { track: monaco, end_seed: 150 }
+          - { track: hungaroring, end_seed: 150 }
+          - { track: interlagos, end_seed: 150 }
+          - { track: lemans, end_seed: 150 }
+          - { track: spa, end_seed: 150 }
+          - { track: silverstone, end_seed: 150 }
+          - { track: monza, end_seed: 150 }
+          - { track: zandvoort, end_seed: 150 }
+          - { track: nurburgring, end_seed: 150 }
+          - { track: spielberg, end_seed: 150 }
+          - { track: serpentine, end_seed: 50 }
+          - { track: serpentine2, end_seed: 50 }
+          - { track: spiral, end_seed: 50 }
+          - { track: cog, end_seed: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round124-v2-build
+          path: .
+      - name: Compare exact per-seed outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        run: |
+          python tracks/round124_compare.py \
+            --baseline round124-baseline.jar --candidate round124-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round124-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round124-v2-result-${{ matrix.track }}
+          path: round124-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round124-v2-result-*
+          path: round124-results
+          merge-multiple: true
+      - name: Enforce per-driver no-slowdown policy
+        id: gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          summary = {
+              'candidate': 'early_round_trap_l2',
+              'pairs': 0,
+              'counts': {},
+              'events': [],
+              'net_moves': 0,
+              'runtime_ratios': {},
+          }
+          for path in sorted(Path('round124-results').glob('*.json')):
+              data = json.loads(path.read_text())
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events'])
+          bad = sum(summary['counts'].get(key, 0) for key in
+                    ('aggregate_faster', 'slower', 'safety_regression', 'redistribution'))
+          summary['bad'] = bad
+          summary['viable'] = (
+              summary['pairs'] == 3500
+              and bad == 0
+              and summary['counts'].get('pareto_faster', 0) > 0
+          )
+          Path('round124-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=' + ('true' if summary['viable'] else 'false'), file=out)
+          assert summary['pairs'] == 3500, summary
+          assert bad == 0, summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round124-v2-summary
+          path: round124-summary.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Record exact gate result
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round124-v2-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-124-early-round-trap
+          git add round124-summary.json round124-v2-run-id.txt
+          git commit -m 'Record Round 124 exact Pareto gate'
+          git push origin HEAD:agent/ai-racing-speed-124-early-round-trap
+
+  publish:
+    needs: [prepare, summarize]
+    if: needs.summarize.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round124-v2-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round124-v2-summary
+          path: .
+      - name: Bound active-race runtime overhead
+        run: |
+          python - <<'PY'
+          import json, re, statistics, subprocess, tempfile, time
+          from pathlib import Path
+
+          root = Path.cwd()
+          summary = json.loads(Path('round124-summary.json').read_text())
+          event = next(e for e in summary['events'] if e['classification'] == 'pareto_faster')
+          track, seed = event['track'], event['seed']
+
+          def write_props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def run(jar):
+              with tempfile.TemporaryDirectory(prefix='round124-time-') as directory:
+                  tmp = Path(directory)
+                  props, log = tmp / 'bench.properties', tmp / 'race.log'
+                  write_props(props)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(props),
+                      '--log', str(log), '--seed', str(seed),
+                  ], cwd=root, text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-3000:])
+                  return time.perf_counter() - started
+
+          run('round124-baseline.jar')
+          run('round124-candidate.jar')
+          baseline, candidate = [], []
+          for index in range(5):
+              if index % 2:
+                  baseline.append(run('round124-baseline.jar'))
+                  candidate.append(run('round124-candidate.jar'))
+              else:
+                  candidate.append(run('round124-candidate.jar'))
+                  baseline.append(run('round124-baseline.jar'))
+          ratio = statistics.median(candidate) / statistics.median(baseline)
+          result = {'track': track, 'seed': seed, 'ratio': ratio,
+                    'baseline': baseline, 'candidate': candidate}
+          Path('round124-runtime.json').write_text(json.dumps(result, indent=2) + '\n')
+          print(json.dumps(result, indent=2))
+          assert ratio <= 1.50, result
+          PY
+      - name: Materialize verified production source
+        run: |
+          cp tracks/round124_apply.py /tmp/round124_apply.py
+          cp tracks/round124_publish.py /tmp/round124_publish.py
+          EXPECTED=$(cat round124-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+          git checkout -B round124-production origin/master
+          python /tmp/round124_apply.py
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round124_publish.py
+          python tests/ai1_early_round_trap_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          git diff --check
+      - name: Commit and push master
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/tr/logic/RaceAi.java \
+            tests/ai1_early_round_trap_regression.py \
+            AI_DEVELOPMENT.md racing-memory.md
+          git commit -m 'Round 124: certify phase-consistent trap acceleration'
+          git push origin HEAD:master
+          git rev-parse HEAD > round124-master-sha.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round124-v2-promotion
+          path: |
+            round124-summary.json
+            round124-runtime.json
+            round124-master-sha.txt
+          if-no-files-found: error
+          retention-days: 30
