@@ -39,3 +39,5 @@ jobs:
           git add round120-run-id.txt
           git commit -m 'Record Round 120 source-export run'
           git push origin HEAD:"$GITHUB_REF_NAME"
+
+# Retry marker: current master source required for the next pace experiment.
