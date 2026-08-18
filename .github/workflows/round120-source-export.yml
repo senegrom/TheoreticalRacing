@@ -1,0 +1,41 @@
+name: Round 120 live-source export
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-120-source-export
+    paths:
+      - .github/workflows/round120-source-export.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record and archive exact source
+        run: |
+          git rev-parse HEAD > round120-source-sha.txt
+          git rev-parse origin/master > round120-master-sha.txt
+          tar --exclude=.git -czf round120-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round120-live-source
+          path: |
+            round120-source.tar.gz
+            round120-source-sha.txt
+            round120-master-sha.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Publish workflow run id
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round120-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round120-run-id.txt
+          git commit -m 'Record Round 120 source-export run'
+          git push origin HEAD:"$GITHUB_REF_NAME"
