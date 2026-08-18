@@ -22,6 +22,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Refresh after rebasing the screen on the live master.
           gh api \
             'repos/${{ github.repository }}/actions/workflows/round122-trap-pareto-screen.yml/runs?branch=agent%2Fai-racing-speed-122-trap-pareto&per_page=5' \
             --jq '.workflow_runs[0] | {id,status,conclusion,head_sha,created_at,updated_at}' \
