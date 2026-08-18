@@ -1,0 +1,33 @@
+name: Observe Round 121 screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-121-pareto-vector
+    paths:
+      - .github/workflows/round121-screen-observer.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record latest screen run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            'repos/${{ github.repository }}/actions/workflows/round121-pareto-vector-screen.yml/runs?branch=agent%2Fai-racing-speed-121-pareto-vector&per_page=5' \
+            --jq '.workflow_runs[0] | {id,status,conclusion,head_sha,created_at,updated_at}' \
+            > round121-screen-status.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round121-screen-status.json
+          git commit -m 'Record Round 121 screen status'
+          git push origin HEAD:"$GITHUB_REF_NAME"
