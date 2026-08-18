@@ -1,0 +1,334 @@
+{
+  "baseline_sha": "0f06698d455b5641eac3c78e39e9c9a9c6188b25",
+  "passing": [
+    "ahead1",
+    "ahead6",
+    "finish41",
+    "speed4",
+    "speed9",
+    "speed9_ahead6",
+    "speed9_finish41",
+    "speed9_ttf120",
+    "speed9_unc25",
+    "trap_l2",
+    "ttf120",
+    "unc25"
+  ],
+  "results": [
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "ahead1"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "ahead6"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": "ai1_staged_pace_regression.py",
+      "failure_tail": "AI1 spa seed-11 pace regression: finisher move sum 573 exceeds 572\n",
+      "java": 0,
+      "ok": false,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py"
+      ],
+      "variant": "broad_strict"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": "ai1_finish_frontier_regression.py",
+      "failure_tail": "Round-96 Coil seed-6 AI1 regression: (7, 0, [58, 59, 60, 61, 62, 62, 63]), expected (7, 0, [58, 59, 59, 60, 61, 62, 62])\n",
+      "java": 0,
+      "ok": false,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py"
+      ],
+      "variant": "field_equal"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "finish41"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "speed4"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "speed9"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "speed9_ahead6"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": "ai1_staged_pace_regression.py",
+      "failure_tail": "AI1 silverstone seed-18 pace regression: finisher move sum 590 exceeds 589\n",
+      "java": 0,
+      "ok": false,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py"
+      ],
+      "variant": "speed9_field_equal"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "speed9_finish41"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "speed9_ttf120"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "speed9_unc25"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "trap_l2"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "ttf120"
+    },
+    {
+      "apply": 0,
+      "build": 0,
+      "failed_test": null,
+      "failure_tail": "",
+      "java": 0,
+      "ok": true,
+      "passed_tests": [
+        "headless_smoke.py",
+        "golden_races.py",
+        "ai1_pace_regression.py",
+        "ai1_mixed_safety_regression.py",
+        "ai1_field_neutral_regression.py",
+        "ai1_staged_pace_regression.py",
+        "ai1_energy_pace_regression.py",
+        "ai1_cross_model_pace_regression.py",
+        "ai1_finish_frontier_regression.py",
+        "ai1_thread_fragility_regression.py",
+        "ai1_esc_true_confirm_regression.py"
+      ],
+      "variant": "unc25"
+    }
+  ]
+}
