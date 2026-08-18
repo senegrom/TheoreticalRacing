@@ -1,0 +1,206 @@
+name: Round 115 graduated acceleration focused screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-115-graduated-frontier
+    paths:
+      - .github/workflows/round115-focused-screen.yml
+      - tracks/round115_apply.py
+      - tracks/round115_compare.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and isolated candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round115-base-sha.txt
+          test "$(cat round115-base-sha.txt)" = 'e7a15039ab4b17a863f57c84bf2dae8665ab340d'
+          git worktree add /tmp/round115-focused origin/master
+          cd /tmp/round115-focused
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round115-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round115_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'frontierModerateGain' src/tr/logic/RaceAi.java)" = 2
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round115.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round115-candidate.jar"
+      - name: Run permanent regression suite
+        working-directory: /tmp/round115-focused
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          python tests/ai1_pace_regression.py
+          python tests/ai1_mixed_safety_regression.py
+          python tests/ai1_field_neutral_regression.py
+          python tests/ai1_staged_pace_regression.py
+          python tests/ai1_energy_pace_regression.py
+          python tests/ai1_cross_model_pace_regression.py
+          python tests/ai1_finish_frontier_regression.py
+          python tests/ai1_thread_fragility_regression.py
+          python tests/ai1_esc_true_confirm_regression.py
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round115-focused-build
+          path: |
+            round115-baseline.jar
+            round115-candidate.jar
+            round115-base-sha.txt
+            round115.patch
+          if-no-files-found: error
+          retention-days: 14
+
+  target:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 15
+      matrix:
+        include:
+          - { id: coil-1, track: coil, seed: 1, baseline_kind: AI1, candidate_kind: AI1, expectation: pareto_faster }
+          - { id: coil-38, track: coil, seed: 38, baseline_kind: AI1, candidate_kind: AI1, expectation: pareto_faster }
+          - { id: coil-106, track: coil, seed: 106, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: spa-12, track: spa, seed: 12, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: spa-31, track: spa, seed: 31, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: spa-40, track: spa, seed: 40, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: spa-47, track: spa, seed: 47, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: silverstone-78, track: silverstone, seed: 78, baseline_kind: AI1, candidate_kind: AI1, expectation: safe }
+          - { id: silverstone-112, track: silverstone, seed: 112, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: silverstone-120, track: silverstone, seed: 120, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: zandvoort-115, track: zandvoort, seed: 115, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: hungaroring-144, track: hungaroring, seed: 144, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: lemans-4, track: lemans, seed: 4, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: interlagos-40, track: interlagos, seed: 40, baseline_kind: AI1, candidate_kind: AI1, expectation: identical }
+          - { id: coil-1-ai2, track: coil, seed: 1, baseline_kind: AI2, candidate_kind: AI2, expectation: identical }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round115-focused-build
+          path: .
+      - name: Compare exact race
+        env:
+          CASE_ID: ${{ matrix.id }}
+          TRACK: ${{ matrix.track }}
+          SEED: ${{ matrix.seed }}
+          BASELINE_KIND: ${{ matrix.baseline_kind }}
+          CANDIDATE_KIND: ${{ matrix.candidate_kind }}
+          EXPECTATION: ${{ matrix.expectation }}
+        run: |
+          python tracks/round115_compare.py \
+            --baseline round115-baseline.jar \
+            --candidate round115-candidate.jar \
+            --track "$TRACK" --seed "$SEED" \
+            --baseline-kind "$BASELINE_KIND" \
+            --candidate-kind "$CANDIDATE_KIND" \
+            --out "round115-${CASE_ID}.json"
+          python - <<'PY'
+          import json, os
+          path = f"round115-{os.environ['CASE_ID']}.json"
+          data = json.load(open(path))
+          data['case_id'] = os.environ['CASE_ID']
+          data['expectation'] = os.environ['EXPECTATION']
+          open(path, 'w').write(json.dumps(data, indent=2, sort_keys=True) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round115-focused-${{ matrix.id }}
+          path: round115-${{ matrix.id }}.json
+          if-no-files-found: error
+          retention-days: 14
+
+  summarize:
+    needs: target
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round115-focused-*
+          path: round115-focused-results
+          merge-multiple: true
+      - name: Write focused summary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          rows = []
+          for path in sorted(Path('round115-focused-results').glob('round115-*.json')):
+              rows.append(json.loads(path.read_text()))
+          summary = {
+              'baseline_sha': 'e7a15039ab4b17a863f57c84bf2dae8665ab340d',
+              'candidate': 'round115_ai1_graduated_field_accel',
+              'rows': rows,
+              'counts': {},
+          }
+          for row in rows:
+              key = row['classification']
+              summary['counts'][key] = summary['counts'].get(key, 0) + 1
+          Path('round115-focused-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - name: Publish focused measurements
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-115-graduated-frontier
+          git add round115-focused-summary.json
+          git commit -m 'Record Round 115 focused measurements'
+          git push origin HEAD:agent/ai-racing-speed-115-graduated-frontier
+      - name: Enforce focused policy
+        run: |
+          python - <<'PY'
+          import json
+          data = json.load(open('round115-focused-summary.json'))
+          rows = {row['case_id']: row for row in data['rows']}
+          assert len(rows) == 15, rows.keys()
+          for case_id, row in rows.items():
+              expected = row['expectation']
+              actual = row['classification']
+              if expected == 'safe':
+                  assert actual in ('identical', 'pareto_faster', 'safety_gain'), row
+              else:
+                  assert actual == expected, row
+          assert rows['coil-1']['classification'] == 'pareto_faster'
+          assert rows['coil-38']['classification'] == 'pareto_faster'
+          assert rows['coil-1-ai2']['classification'] == 'identical'
+          PY
