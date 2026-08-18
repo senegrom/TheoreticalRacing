@@ -1,0 +1,5001 @@
+{
+  "baseline_sha": "0f06698d455b5641eac3c78e39e9c9a9c6188b25",
+  "variants": [
+    {
+      "bad": 9,
+      "config": {
+        "max_ahead": 6,
+        "min_speed2_gain": 9
+      },
+      "counts": {
+        "identical": 807,
+        "pareto_faster": 4,
+        "redistribution": 8,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 62,
+              "4": 62,
+              "5": 63,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": -1,
+            "4": 0,
+            "5": -1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 61,
+              "4": 62,
+              "5": 62,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 1,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 60,
+              "4": 62,
+              "5": 61,
+              "7": 62,
+              "8": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              8
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 60,
+              "4": 63,
+              "5": 61,
+              "6": 63,
+              "8": 61
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              8,
+              4,
+              6
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 5,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 60,
+              "5": 62,
+              "6": 63,
+              "7": 61
+            },
+            "order": [
+              1,
+              2,
+              4,
+              3,
+              7,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": -1,
+            "6": -1,
+            "7": 1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 60,
+              "5": 61,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              4,
+              3,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 22,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 38,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 86,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 78,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 78,
+              "3": 87,
+              "4": 80,
+              "5": 84,
+              "6": 81,
+              "7": 86,
+              "8": 83
+            },
+            "order": [
+              2,
+              4,
+              6,
+              8,
+              5,
+              7,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 89,
+              "2": 78,
+              "4": 80,
+              "5": 82,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 5,
+          "seed": 12,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 83,
+              "3": 85,
+              "4": 87,
+              "5": 85,
+              "6": 78,
+              "7": 79
+            },
+            "order": [
+              6,
+              7,
+              1,
+              2,
+              3,
+              5,
+              4
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": -2,
+            "5": 1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 83,
+              "3": 85,
+              "4": 85,
+              "5": 86,
+              "6": 78,
+              "7": 79
+            },
+            "order": [
+              6,
+              7,
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 27,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 81,
+              "3": 87,
+              "4": 86,
+              "5": 84,
+              "6": 78,
+              "7": 85,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              5,
+              7,
+              4,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 81,
+              "4": 86,
+              "5": 86,
+              "6": 78,
+              "7": 82,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              7,
+              1,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -4,
+          "seed": 31,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 86,
+              "3": 79,
+              "5": 85,
+              "6": 80,
+              "7": 82,
+              "8": 83
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              8,
+              5,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 84,
+              "3": 79,
+              "4": 85,
+              "6": 80,
+              "7": 82,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              2,
+              4,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 40,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 87,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              3,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 88,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              7,
+              3
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 47,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 80,
+              "2": 87,
+              "3": 86,
+              "4": 81,
+              "5": 84,
+              "6": 78,
+              "8": 85
+            },
+            "order": [
+              6,
+              1,
+              4,
+              5,
+              8,
+              3,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 80,
+              "3": 81,
+              "4": 85,
+              "5": 85,
+              "6": 78,
+              "7": 87,
+              "8": 82
+            },
+            "order": [
+              6,
+              1,
+              3,
+              8,
+              4,
+              5,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -3,
+          "seed": 57,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 88,
+              "3": 79,
+              "4": 80,
+              "5": 81,
+              "6": 84,
+              "7": 84,
+              "8": 86
+            },
+            "order": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "by_player": {
+            "1": -1,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 87,
+              "3": 79,
+              "4": 80,
+              "5": 81,
+              "6": 84,
+              "7": 84,
+              "8": 85
+            },
+            "order": [
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 83,
+          "track": "spa"
+        }
+      ],
+      "net_moves": -7,
+      "pace_gains": 4,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 95,
+          "pareto_faster": 3,
+          "redistribution": 2,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 93,
+          "pareto_faster": 1,
+          "redistribution": 5,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "speed9_ahead6",
+      "viable": false
+    },
+    {
+      "bad": 6,
+      "config": {
+        "max_unc": "AI1_STAGED_UNC_MAX",
+        "min_speed2_gain": 9
+      },
+      "counts": {
+        "identical": 811,
+        "pareto_faster": 3,
+        "redistribution": 5,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 62,
+              "4": 62,
+              "5": 63,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": -1,
+            "4": 0,
+            "5": -1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 61,
+              "4": 62,
+              "5": 62,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 1,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 38,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 75,
+              "2": 65,
+              "3": 70,
+              "4": 67,
+              "6": 71,
+              "7": 73,
+              "8": 68
+            },
+            "order": [
+              2,
+              4,
+              8,
+              3,
+              6,
+              7,
+              1
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 65,
+              "3": 70,
+              "4": 67,
+              "5": 71,
+              "6": 72,
+              "7": 73,
+              "8": 68
+            },
+            "order": [
+              2,
+              4,
+              8,
+              3,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -3,
+          "seed": 14,
+          "track": "lemans"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 65,
+              "2": 76,
+              "3": 67,
+              "5": 71,
+              "6": 69,
+              "7": 73,
+              "8": 74
+            },
+            "order": [
+              1,
+              3,
+              6,
+              5,
+              7,
+              8,
+              2
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": -1,
+            "3": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1,
+            "8": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 65,
+              "2": 75,
+              "3": 67,
+              "5": 71,
+              "6": 69,
+              "7": 72,
+              "8": 73
+            },
+            "order": [
+              1,
+              3,
+              6,
+              5,
+              7,
+              8,
+              2
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -3,
+          "seed": 29,
+          "track": "lemans"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 78,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 78,
+              "3": 87,
+              "4": 80,
+              "5": 84,
+              "6": 81,
+              "7": 86,
+              "8": 83
+            },
+            "order": [
+              2,
+              4,
+              6,
+              8,
+              5,
+              7,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 89,
+              "2": 78,
+              "4": 80,
+              "5": 82,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 5,
+          "seed": 12,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 81,
+              "3": 87,
+              "4": 86,
+              "5": 84,
+              "6": 78,
+              "7": 85,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              5,
+              7,
+              4,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 81,
+              "4": 86,
+              "5": 86,
+              "6": 78,
+              "7": 82,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              7,
+              1,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -4,
+          "seed": 31,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 86,
+              "3": 79,
+              "5": 85,
+              "6": 80,
+              "7": 82,
+              "8": 83
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              8,
+              5,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 84,
+              "3": 79,
+              "4": 85,
+              "6": 80,
+              "7": 82,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              2,
+              4,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 40,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 87,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              3,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 88,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              7,
+              3
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 47,
+          "track": "spa"
+        }
+      ],
+      "net_moves": -6,
+      "pace_gains": 3,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 98,
+          "pareto_faster": 2,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 58,
+          "pareto_faster": 1,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 96,
+          "pareto_faster": 0,
+          "redistribution": 3,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "speed9_unc25",
+      "viable": false
+    },
+    {
+      "bad": 5,
+      "config": {
+        "min_speed2_gain": 4
+      },
+      "counts": {
+        "identical": 813,
+        "pareto_faster": 2,
+        "redistribution": 4,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 62,
+              "4": 62,
+              "5": 63,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": -1,
+            "4": 0,
+            "5": -1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 61,
+              "4": 62,
+              "5": 62,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 1,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 38,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 78,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 78,
+              "3": 87,
+              "4": 80,
+              "5": 84,
+              "6": 81,
+              "7": 86,
+              "8": 83
+            },
+            "order": [
+              2,
+              4,
+              6,
+              8,
+              5,
+              7,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 89,
+              "2": 78,
+              "4": 80,
+              "5": 82,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 5,
+          "seed": 12,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 81,
+              "3": 87,
+              "4": 86,
+              "5": 84,
+              "6": 78,
+              "7": 85,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              5,
+              7,
+              4,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 81,
+              "4": 86,
+              "5": 86,
+              "6": 78,
+              "7": 82,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              7,
+              1,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -4,
+          "seed": 31,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 86,
+              "3": 79,
+              "5": 85,
+              "6": 80,
+              "7": 82,
+              "8": 83
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              8,
+              5,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 84,
+              "3": 79,
+              "4": 85,
+              "6": 80,
+              "7": 82,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              2,
+              4,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 40,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 87,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              3,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 88,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              7,
+              3
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 47,
+          "track": "spa"
+        }
+      ],
+      "net_moves": 0,
+      "pace_gains": 2,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 98,
+          "pareto_faster": 2,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 96,
+          "pareto_faster": 0,
+          "redistribution": 3,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "speed4",
+      "viable": false
+    },
+    {
+      "bad": 5,
+      "config": {
+        "min_speed2_gain": 9
+      },
+      "counts": {
+        "identical": 813,
+        "pareto_faster": 2,
+        "redistribution": 4,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 62,
+              "4": 62,
+              "5": 63,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": -1,
+            "4": 0,
+            "5": -1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 61,
+              "4": 62,
+              "5": 62,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 1,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 38,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 78,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 78,
+              "3": 87,
+              "4": 80,
+              "5": 84,
+              "6": 81,
+              "7": 86,
+              "8": 83
+            },
+            "order": [
+              2,
+              4,
+              6,
+              8,
+              5,
+              7,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 89,
+              "2": 78,
+              "4": 80,
+              "5": 82,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 5,
+          "seed": 12,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 81,
+              "3": 87,
+              "4": 86,
+              "5": 84,
+              "6": 78,
+              "7": 85,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              5,
+              7,
+              4,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 81,
+              "4": 86,
+              "5": 86,
+              "6": 78,
+              "7": 82,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              7,
+              1,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -4,
+          "seed": 31,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 86,
+              "3": 79,
+              "5": 85,
+              "6": 80,
+              "7": 82,
+              "8": 83
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              8,
+              5,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 84,
+              "3": 79,
+              "4": 85,
+              "6": 80,
+              "7": 82,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              2,
+              4,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 40,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 87,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              3,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 88,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              7,
+              3
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 47,
+          "track": "spa"
+        }
+      ],
+      "net_moves": 0,
+      "pace_gains": 2,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 98,
+          "pareto_faster": 2,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 96,
+          "pareto_faster": 0,
+          "redistribution": 3,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "speed9",
+      "viable": false
+    },
+    {
+      "bad": 7,
+      "config": {
+        "max_ttf": 120,
+        "min_speed2_gain": 9
+      },
+      "counts": {
+        "identical": 811,
+        "pareto_faster": 2,
+        "redistribution": 6,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 62,
+              "4": 62,
+              "5": 63,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": -1,
+            "4": 0,
+            "5": -1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 61,
+              "4": 62,
+              "5": 62,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 1,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 38,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 126,
+              "3": 123,
+              "4": 129,
+              "5": 130,
+              "7": 124,
+              "8": 127
+            },
+            "order": [
+              1,
+              3,
+              7,
+              2,
+              8,
+              4,
+              5
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": -2,
+            "5": -2,
+            "7": 0,
+            "8": 2
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 126,
+              "3": 123,
+              "4": 127,
+              "5": 128,
+              "7": 124,
+              "8": 129
+            },
+            "order": [
+              1,
+              3,
+              7,
+              2,
+              4,
+              5,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -2,
+          "seed": 26,
+          "track": "interlagos"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 123,
+              "3": 127,
+              "4": 124,
+              "5": 128,
+              "6": 129,
+              "8": 125
+            },
+            "order": [
+              1,
+              2,
+              4,
+              8,
+              3,
+              5,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 123,
+              "3": 129,
+              "4": 124,
+              "5": 127,
+              "7": 130,
+              "8": 125
+            },
+            "order": [
+              1,
+              2,
+              4,
+              8,
+              5,
+              3,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 2,
+          "seed": 40,
+          "track": "interlagos"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 78,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 78,
+              "3": 87,
+              "4": 80,
+              "5": 84,
+              "6": 81,
+              "7": 86,
+              "8": 83
+            },
+            "order": [
+              2,
+              4,
+              6,
+              8,
+              5,
+              7,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 89,
+              "2": 78,
+              "4": 80,
+              "5": 82,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 5,
+          "seed": 12,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 81,
+              "3": 87,
+              "4": 86,
+              "5": 84,
+              "6": 78,
+              "7": 85,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              5,
+              7,
+              4,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 81,
+              "4": 86,
+              "5": 86,
+              "6": 78,
+              "7": 82,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              7,
+              1,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -4,
+          "seed": 31,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 86,
+              "3": 79,
+              "5": 85,
+              "6": 80,
+              "7": 82,
+              "8": 83
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              8,
+              5,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 84,
+              "3": 79,
+              "4": 85,
+              "6": 80,
+              "7": 82,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              2,
+              4,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 40,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 87,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              3,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 88,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              7,
+              3
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 47,
+          "track": "spa"
+        }
+      ],
+      "net_moves": 0,
+      "pace_gains": 2,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 98,
+          "pareto_faster": 2,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 98,
+          "pareto_faster": 0,
+          "redistribution": 2,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 96,
+          "pareto_faster": 0,
+          "redistribution": 3,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "speed9_ttf120",
+      "viable": false
+    },
+    {
+      "bad": 6,
+      "config": {
+        "finish_speed2_floor": 41,
+        "min_speed2_gain": 9
+      },
+      "counts": {
+        "identical": 812,
+        "pareto_faster": 2,
+        "redistribution": 4,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 2
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 62,
+              "4": 62,
+              "5": 63,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": -1,
+            "4": 0,
+            "5": -1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 60,
+              "3": 61,
+              "4": 62,
+              "5": 62,
+              "6": 63,
+              "7": 59
+            },
+            "order": [
+              1,
+              7,
+              2,
+              3,
+              4,
+              5,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -2,
+          "seed": 1,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 38,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 78,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 78,
+              "3": 87,
+              "4": 80,
+              "5": 84,
+              "6": 81,
+              "7": 86,
+              "8": 83
+            },
+            "order": [
+              2,
+              4,
+              6,
+              8,
+              5,
+              7,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 89,
+              "2": 78,
+              "4": 80,
+              "5": 82,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              2,
+              4,
+              5,
+              6,
+              7,
+              8,
+              1
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 5,
+          "seed": 12,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 81,
+              "3": 87,
+              "4": 86,
+              "5": 84,
+              "6": 78,
+              "7": 85,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              5,
+              7,
+              4,
+              3
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 81,
+              "4": 86,
+              "5": 86,
+              "6": 78,
+              "7": 82,
+              "8": 79
+            },
+            "order": [
+              6,
+              8,
+              2,
+              7,
+              1,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -4,
+          "seed": 31,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 86,
+              "3": 79,
+              "5": 85,
+              "6": 80,
+              "7": 82,
+              "8": 83
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              8,
+              5,
+              2
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 78,
+              "2": 84,
+              "3": 79,
+              "4": 85,
+              "6": 80,
+              "7": 82,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              6,
+              7,
+              2,
+              4,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 40,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 87,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              3,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 80,
+              "3": 88,
+              "4": 81,
+              "5": 85,
+              "6": 83,
+              "7": 87,
+              "8": 78
+            },
+            "order": [
+              8,
+              2,
+              4,
+              6,
+              5,
+              7,
+              3
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 47,
+          "track": "spa"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 80,
+              "2": 87,
+              "3": 86,
+              "4": 81,
+              "5": 84,
+              "6": 78,
+              "8": 85
+            },
+            "order": [
+              6,
+              1,
+              4,
+              5,
+              8,
+              3,
+              2
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 1,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 80,
+              "2": 88,
+              "3": 87,
+              "4": 81,
+              "5": 84,
+              "6": 78,
+              "8": 85
+            },
+            "order": [
+              6,
+              1,
+              4,
+              5,
+              8,
+              3,
+              2
+            ]
+          },
+          "classification": "slower",
+          "delta": 2,
+          "seed": 57,
+          "track": "spa"
+        }
+      ],
+      "net_moves": 2,
+      "pace_gains": 2,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 98,
+          "pareto_faster": 2,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 95,
+          "pareto_faster": 0,
+          "redistribution": 3,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 2
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "speed9_finish41",
+      "viable": false
+    },
+    {
+      "bad": 8,
+      "config": {
+        "max_trap": "AI1_TRAP_L2"
+      },
+      "counts": {
+        "identical": 811,
+        "pareto_faster": 1,
+        "redistribution": 7,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 82,
+              "2": 83,
+              "3": 85,
+              "5": 88,
+              "6": 86,
+              "7": 87,
+              "8": 84
+            },
+            "order": [
+              1,
+              2,
+              8,
+              3,
+              6,
+              7,
+              5
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 82,
+              "2": 83,
+              "3": 84,
+              "4": 84,
+              "5": 85,
+              "6": 86,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -5,
+          "seed": 7,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "7": 87,
+              "8": 86
+            },
+            "order": [
+              2,
+              3,
+              5,
+              4,
+              6,
+              8,
+              7
+            ]
+          },
+          "by_player": {
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": 0,
+            "8": 1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "7": 87,
+              "8": 87
+            },
+            "order": [
+              2,
+              3,
+              5,
+              4,
+              6,
+              7,
+              8
+            ]
+          },
+          "classification": "slower",
+          "delta": 1,
+          "seed": 17,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              6,
+              8
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 82,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 86,
+              "7": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              6
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 24,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 83,
+              "2": 85,
+              "3": 84,
+              "4": 81,
+              "5": 85,
+              "6": 87,
+              "7": 86
+            },
+            "order": [
+              4,
+              1,
+              3,
+              2,
+              5,
+              7,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": -1,
+            "7": 1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 83,
+              "2": 85,
+              "3": 84,
+              "4": 81,
+              "5": 85,
+              "6": 86,
+              "7": 87
+            },
+            "order": [
+              4,
+              1,
+              3,
+              2,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 0,
+          "seed": 28,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 82,
+              "2": 83,
+              "3": 84,
+              "4": 84,
+              "5": 85,
+              "7": 86,
+              "8": 85
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              8,
+              7
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 82,
+              "2": 84,
+              "3": 83,
+              "4": 84,
+              "5": 85,
+              "6": 86,
+              "7": 87
+            },
+            "order": [
+              1,
+              3,
+              2,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 2,
+          "seed": 29,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 86,
+              "3": 82,
+              "4": 83,
+              "5": 85,
+              "6": 84,
+              "8": 87
+            },
+            "order": [
+              1,
+              3,
+              4,
+              6,
+              5,
+              2,
+              8
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "3": 82,
+              "4": 83,
+              "5": 85,
+              "6": 84,
+              "7": 85,
+              "8": 86
+            },
+            "order": [
+              1,
+              3,
+              4,
+              6,
+              5,
+              7,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -2,
+          "seed": 43,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 82,
+              "2": 83,
+              "4": 84,
+              "5": 86,
+              "6": 85,
+              "7": 84,
+              "8": 86
+            },
+            "order": [
+              1,
+              2,
+              4,
+              7,
+              6,
+              5,
+              8
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 82,
+              "2": 84,
+              "3": 83,
+              "4": 85,
+              "5": 84,
+              "6": 85,
+              "7": 86
+            },
+            "order": [
+              1,
+              3,
+              2,
+              5,
+              4,
+              6,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 54,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 86,
+              "3": 82,
+              "4": 83,
+              "6": 87,
+              "7": 84,
+              "8": 85
+            },
+            "order": [
+              1,
+              3,
+              4,
+              7,
+              8,
+              2,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": -1,
+            "3": 0,
+            "4": 0,
+            "6": 0,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 85,
+              "3": 82,
+              "4": 83,
+              "6": 87,
+              "7": 84,
+              "8": 85
+            },
+            "order": [
+              1,
+              3,
+              4,
+              7,
+              2,
+              8,
+              6
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 93,
+          "track": "silverstone"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "2": 79,
+              "3": 80,
+              "4": 87,
+              "5": 81,
+              "6": 84,
+              "7": 87,
+              "8": 85
+            },
+            "order": [
+              2,
+              3,
+              5,
+              6,
+              8,
+              4,
+              7
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 84,
+              "2": 79,
+              "3": 80,
+              "5": 85,
+              "6": 87,
+              "7": 86,
+              "8": 81
+            },
+            "order": [
+              2,
+              3,
+              8,
+              1,
+              5,
+              7,
+              6
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 32,
+          "track": "spa"
+        }
+      ],
+      "net_moves": -7,
+      "pace_gains": 1,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 92,
+          "pareto_faster": 1,
+          "redistribution": 6,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "spa": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "trap_l2",
+      "viable": false
+    },
+    {
+      "bad": 3,
+      "config": {
+        "max_ahead": 6
+      },
+      "counts": {
+        "identical": 816,
+        "pareto_faster": 1,
+        "redistribution": 3,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 0
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 60,
+              "4": 62,
+              "5": 61,
+              "7": 62,
+              "8": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              4,
+              7,
+              8
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 60,
+              "4": 63,
+              "5": 61,
+              "6": 63,
+              "8": 61
+            },
+            "order": [
+              1,
+              2,
+              3,
+              5,
+              8,
+              4,
+              6
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 1,
+          "seed": 5,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 60,
+              "5": 62,
+              "6": 63,
+              "7": 61
+            },
+            "order": [
+              1,
+              2,
+              4,
+              3,
+              7,
+              5,
+              6
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": -1,
+            "6": -1,
+            "7": 1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 60,
+              "5": 61,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              4,
+              3,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 22,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 63
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "7": -1
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "2": 59,
+              "3": 61,
+              "4": 61,
+              "5": 62,
+              "6": 62,
+              "7": 62
+            },
+            "order": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7
+            ]
+          },
+          "classification": "pareto_faster",
+          "delta": -1,
+          "seed": 86,
+          "track": "coil"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 83,
+              "3": 85,
+              "4": 87,
+              "5": 85,
+              "6": 78,
+              "7": 79
+            },
+            "order": [
+              6,
+              7,
+              1,
+              2,
+              3,
+              5,
+              4
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": -2,
+            "5": 1,
+            "6": 0,
+            "7": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 81,
+              "2": 83,
+              "3": 85,
+              "4": 85,
+              "5": 86,
+              "6": 78,
+              "7": 79
+            },
+            "order": [
+              6,
+              7,
+              1,
+              2,
+              3,
+              4,
+              5
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 27,
+          "track": "spa"
+        }
+      ],
+      "net_moves": -2,
+      "pace_gains": 1,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 97,
+          "pareto_faster": 1,
+          "redistribution": 2,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "ahead6",
+      "viable": false
+    },
+    {
+      "bad": 1,
+      "config": {
+        "min_ahead": 1
+      },
+      "counts": {
+        "identical": 819,
+        "pareto_faster": 0,
+        "redistribution": 1,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 0
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "3": 62,
+              "4": 59,
+              "5": 61,
+              "6": 62,
+              "7": 62,
+              "8": 63
+            },
+            "order": [
+              1,
+              4,
+              5,
+              3,
+              6,
+              7,
+              8
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "3": -3,
+            "4": 2,
+            "5": 1,
+            "6": -1,
+            "7": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 58,
+              "3": 59,
+              "4": 61,
+              "5": 62,
+              "6": 61,
+              "7": 62,
+              "8": 63
+            },
+            "order": [
+              1,
+              3,
+              4,
+              6,
+              5,
+              7,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -1,
+          "seed": 84,
+          "track": "coil"
+        }
+      ],
+      "net_moves": -1,
+      "pace_gains": 0,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 1,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "ahead1",
+      "viable": false
+    },
+    {
+      "bad": 0,
+      "code": 1,
+      "pace_gains": 0,
+      "safety_gains": 0,
+      "stage": "ai1_staged_pace_regression.py",
+      "status": "failed",
+      "variant": "broad_strict",
+      "viable": false
+    },
+    {
+      "bad": 0,
+      "code": 1,
+      "pace_gains": 0,
+      "safety_gains": 0,
+      "stage": "ai1_finish_frontier_regression.py",
+      "status": "failed",
+      "variant": "field_equal",
+      "viable": false
+    },
+    {
+      "bad": 0,
+      "code": 1,
+      "pace_gains": 0,
+      "safety_gains": 0,
+      "stage": "ai1_staged_pace_regression.py",
+      "status": "failed",
+      "variant": "speed9_field_equal",
+      "viable": false
+    },
+    {
+      "bad": 2,
+      "config": {
+        "max_ttf": 120
+      },
+      "counts": {
+        "identical": 818,
+        "pareto_faster": 0,
+        "redistribution": 2,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 0
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 126,
+              "3": 123,
+              "4": 129,
+              "5": 130,
+              "7": 124,
+              "8": 127
+            },
+            "order": [
+              1,
+              3,
+              7,
+              2,
+              8,
+              4,
+              5
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 0,
+            "3": 0,
+            "4": -2,
+            "5": -2,
+            "7": 0,
+            "8": 2
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 126,
+              "3": 123,
+              "4": 127,
+              "5": 128,
+              "7": 124,
+              "8": 129
+            },
+            "order": [
+              1,
+              3,
+              7,
+              2,
+              4,
+              5,
+              8
+            ]
+          },
+          "classification": "redistribution",
+          "delta": -2,
+          "seed": 26,
+          "track": "interlagos"
+        },
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 123,
+              "3": 127,
+              "4": 124,
+              "5": 128,
+              "6": 129,
+              "8": 125
+            },
+            "order": [
+              1,
+              2,
+              4,
+              8,
+              3,
+              5,
+              6
+            ]
+          },
+          "by_player": {},
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 122,
+              "2": 123,
+              "3": 129,
+              "4": 124,
+              "5": 127,
+              "7": 130,
+              "8": 125
+            },
+            "order": [
+              1,
+              2,
+              4,
+              8,
+              5,
+              3,
+              7
+            ]
+          },
+          "classification": "redistribution",
+          "delta": 2,
+          "seed": 40,
+          "track": "interlagos"
+        }
+      ],
+      "net_moves": 0,
+      "pace_gains": 0,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 98,
+          "pareto_faster": 0,
+          "redistribution": 2,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "ttf120",
+      "viable": false
+    },
+    {
+      "bad": 0,
+      "config": {
+        "max_unc": "AI1_STAGED_UNC_MAX"
+      },
+      "counts": {
+        "identical": 820,
+        "pareto_faster": 0,
+        "redistribution": 0,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 0
+      },
+      "events": [],
+      "net_moves": 0,
+      "pace_gains": 0,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "unc25",
+      "viable": false
+    },
+    {
+      "bad": 1,
+      "config": {
+        "finish_speed2_floor": 41
+      },
+      "counts": {
+        "identical": 819,
+        "pareto_faster": 0,
+        "redistribution": 0,
+        "safety_gain": 0,
+        "safety_regression": 0,
+        "slower": 1
+      },
+      "events": [
+        {
+          "baseline": {
+            "crashes": [],
+            "finishes": {
+              "1": 80,
+              "2": 87,
+              "3": 86,
+              "4": 81,
+              "5": 84,
+              "6": 78,
+              "8": 85
+            },
+            "order": [
+              6,
+              1,
+              4,
+              5,
+              8,
+              3,
+              2
+            ]
+          },
+          "by_player": {
+            "1": 0,
+            "2": 1,
+            "3": 1,
+            "4": 0,
+            "5": 0,
+            "6": 0,
+            "8": 0
+          },
+          "candidate": {
+            "crashes": [],
+            "finishes": {
+              "1": 80,
+              "2": 88,
+              "3": 87,
+              "4": 81,
+              "5": 84,
+              "6": 78,
+              "8": 85
+            },
+            "order": [
+              6,
+              1,
+              4,
+              5,
+              8,
+              3,
+              2
+            ]
+          },
+          "classification": "slower",
+          "delta": 2,
+          "seed": 57,
+          "track": "spa"
+        }
+      ],
+      "net_moves": 2,
+      "pace_gains": 0,
+      "pairs": 820,
+      "safety_gains": 0,
+      "status": "ok",
+      "tracks": {
+        "coil": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "hungaroring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "interlagos": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "lemans": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monaco": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "monza": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "nurburgring": {
+          "identical": 60,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "silverstone": {
+          "identical": 100,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        },
+        "spa": {
+          "identical": 99,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 1
+        },
+        "zandvoort": {
+          "identical": 120,
+          "pareto_faster": 0,
+          "redistribution": 0,
+          "safety_gain": 0,
+          "safety_regression": 0,
+          "slower": 0
+        }
+      },
+      "variant": "finish41",
+      "viable": false
+    }
+  ],
+  "viable": []
+}
