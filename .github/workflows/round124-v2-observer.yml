@@ -1,4 +1,4 @@
-name: Observe Round 124 Pareto gate v2
+name: Observe Round 124 verified promotion
 
 on:
   push:
@@ -18,18 +18,16 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
-      - name: Record latest v2 gate run
+      - name: Record latest promotion run
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh api \
-            'repos/${{ github.repository }}/actions/workflows/round124-early-round-trap-gate-v2.yml/runs?branch=agent%2Fai-racing-speed-124-early-round-trap&per_page=5' \
+            'repos/${{ github.repository }}/actions/workflows/round124-promote-verified.yml/runs?branch=agent%2Fai-racing-speed-124-early-round-trap&per_page=5' \
             --jq '.workflow_runs[0] | {id,status,conclusion,head_sha,created_at,updated_at}' \
-            > round124-v2-status.json
+            > round124-promotion-status.json
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add round124-v2-status.json
-          git commit -m 'Record Round 124 v2 gate status'
+          git add round124-promotion-status.json
+          git commit -m 'Record Round 124 promotion status'
           git push origin HEAD:"$GITHUB_REF_NAME"
-
-# Observe the final current-master rerun.
