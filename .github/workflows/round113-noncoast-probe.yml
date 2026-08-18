@@ -1,0 +1,206 @@
+name: Round 113 non-coasting speed-nine probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-113-speed9-noncoast-v2
+    paths:
+      - .github/workflows/round113-noncoast-probe.yml
+      - tracks/round113_apply_speed9_noncoast.py
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build, test and replay the measured boundary
+        run: |
+          set +e
+          BASE='41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f'
+          STAGE='fetch'
+          CODE=0
+          git fetch origin master || CODE=$?
+          if [ "$CODE" -eq 0 ] && [ "$(git rev-parse origin/master)" != "$BASE" ]; then
+            STAGE='stale-master'
+            CODE=90
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            STAGE='worktree'
+            git worktree add /tmp/round113-noncoast origin/master || CODE=$?
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            cd /tmp/round113-noncoast
+            STAGE='baseline-build'
+            sh ./build_main.sh > "$GITHUB_WORKSPACE/baseline-build.log" 2>&1 || CODE=$?
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            cp theoreticRacing.jar "$GITHUB_WORKSPACE/baseline.jar"
+            STAGE='apply'
+            python "$GITHUB_WORKSPACE/tracks/round113_apply_speed9_noncoast.py" \
+              > "$GITHUB_WORKSPACE/apply.log" 2>&1 || CODE=$?
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            STAGE='diff-check'
+            test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java' \
+              && git diff --check > "$GITHUB_WORKSPACE/diff.log" 2>&1 || CODE=$?
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            STAGE='java-tests'
+            sh ./run_tests.sh > "$GITHUB_WORKSPACE/java-tests.log" 2>&1 || CODE=$?
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            STAGE='candidate-build'
+            sh ./build_main.sh > "$GITHUB_WORKSPACE/candidate-build.log" 2>&1 || CODE=$?
+          fi
+          if [ "$CODE" -eq 0 ]; then
+            cp theoreticRacing.jar "$GITHUB_WORKSPACE/candidate.jar"
+            STAGE='permanent-pins'
+            for test in \
+              tests/headless_smoke.py \
+              tests/golden_races.py \
+              tests/ai1_pace_regression.py \
+              tests/ai1_mixed_safety_regression.py \
+              tests/ai1_field_neutral_regression.py \
+              tests/ai1_staged_pace_regression.py \
+              tests/ai1_energy_pace_regression.py \
+              tests/ai1_cross_model_pace_regression.py \
+              tests/ai1_finish_frontier_regression.py \
+              tests/ai1_thread_fragility_regression.py \
+              tests/ai1_esc_true_confirm_regression.py; do
+              python "$test" >> "$GITHUB_WORKSPACE/permanent-pins.log" 2>&1
+              result=$?
+              if [ "$result" -ne 0 ]; then
+                CODE=$result
+                STAGE="pin-${test##*/}"
+                break
+              fi
+            done
+          fi
+          cd "$GITHUB_WORKSPACE"
+          if [ "$CODE" -eq 0 ]; then
+            STAGE='boundary-replay'
+            python - <<'PY' > boundary.log 2>&1
+          from pathlib import Path
+          import json, re, subprocess, tempfile
+
+          root = Path.cwd()
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def write_props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def parse(path):
+              moves, finishes, crashes = {}, {}, set()
+              for line in path.read_text().splitlines():
+                  match = move_re.match(line)
+                  if match is None:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'CRASH' in line:
+                      crashes.add(player)
+                  elif 'FINISH' in line:
+                      finishes[player] = moves[player]
+              return {
+                  'finishes': finishes,
+                  'crashes': sorted(crashes),
+                  'order': [player for player, _ in sorted(
+                      finishes.items(), key=lambda item: (item[1], item[0]))],
+              }
+
+          def run(jar, seed, label, directory):
+              log = directory / f'{label}-{seed}.log'
+              completed = subprocess.run(
+                  ['java', '-Djava.awt.headless=true', '-jar', str(jar), '--auto',
+                   '--track', 'coil', '--props', str(directory / 'bench.properties'),
+                   '--log', str(log), '--seed', str(seed)],
+                  cwd=root, text=True, capture_output=True, timeout=1200)
+              if completed.returncode:
+                  raise RuntimeError(completed.stderr[-3000:])
+              return parse(log)
+
+          rows = []
+          with tempfile.TemporaryDirectory(prefix='r113-boundary-') as tmp_name:
+              tmp = Path(tmp_name)
+              write_props(tmp / 'bench.properties')
+              for seed in (1, 38, 106):
+                  baseline = run(root / 'baseline.jar', seed, 'baseline', tmp)
+                  candidate = run(root / 'candidate.jar', seed, 'candidate', tmp)
+                  bf, cf = baseline['finishes'], candidate['finishes']
+                  same_field = (set(cf) == set(bf)
+                                and candidate['crashes'] == baseline['crashes']
+                                and candidate['order'] == baseline['order'])
+                  deltas = {player: cf[player] - bf[player]
+                            for player in bf if player in cf}
+                  pareto = (same_field
+                            and all(delta <= 0 for delta in deltas.values())
+                            and any(delta < 0 for delta in deltas.values()))
+                  rows.append({
+                      'seed': seed,
+                      'baseline': baseline,
+                      'candidate': candidate,
+                      'deltas': deltas,
+                      'identical': candidate == baseline,
+                      'pareto_faster': pareto,
+                  })
+          assert rows[0]['pareto_faster'], rows
+          assert rows[1]['pareto_faster'], rows
+          assert rows[2]['identical'], rows
+          Path('boundary-result.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          PY
+            CODE=$?
+          fi
+          STAGE="$STAGE" CODE="$CODE" python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          stage = os.environ['STAGE']
+          code = int(os.environ['CODE'])
+          data = {
+              'candidate': 'speed9_noncoast',
+              'baseline_sha': '41a2e209e7b0a4d29c77f2c4ebddc1dc6710ed4f',
+              'stage': stage,
+              'code': code,
+              'passed': code == 0,
+          }
+          boundary = Path('boundary-result.json')
+          if boundary.exists():
+              data['rows'] = json.loads(boundary.read_text())
+          logs = {}
+          for name in ('apply.log', 'diff.log', 'java-tests.log',
+                       'candidate-build.log', 'permanent-pins.log', 'boundary.log'):
+              path = Path(name)
+              if path.exists():
+                  logs[name] = path.read_text(errors='replace')[-5000:]
+          data['logs'] = logs
+          Path('round113-noncoast-probe.json').write_text(
+              json.dumps(data, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(data, indent=2, sort_keys=True))
+          PY
+      - name: Commit probe result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-113-speed9-noncoast-v2
+          git add round113-noncoast-probe.json
+          git commit -m 'Record clean non-coasting speed-nine probe'
+          git push origin HEAD:agent/ai-racing-speed-113-speed9-noncoast-v2
