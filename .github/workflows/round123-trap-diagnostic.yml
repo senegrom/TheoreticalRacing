@@ -1,0 +1,144 @@
+name: Round 123 trap-L2 frontier diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-123-trap-diagnostic
+    paths:
+      - .github/workflows/round123-trap-diagnostic.yml
+      - tracks/round123_apply.py
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build baseline and diagnostic candidate
+        run: |
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = '3f059b3778570541d62322e4f17905af6a53192b'
+          git worktree add /tmp/round123-work origin/master
+          cd /tmp/round123-work
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round123-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round123_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round123-candidate.jar"
+      - name: Replay gain and counterexamples with decision traces
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json, re, subprocess, tempfile
+
+          root = Path.cwd()
+          cases = [
+              ('silverstone', 7), ('silverstone', 17), ('silverstone', 24),
+              ('silverstone', 28), ('silverstone', 29), ('silverstone', 43),
+              ('silverstone', 54), ('silverstone', 93), ('spa', 32),
+          ]
+          move_re = re.compile(r'^\d+ p\d+ ')
+
+          def write_props(path):
+              lines = []
+              for line in (root / 'tracks' / 'bench.properties').read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI1'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def result(path):
+              moves, finishes, crashes = {}, {}, []
+              for line in path.read_text().splitlines():
+                  match = re.match(r'^(\d+) p(\d+) ', line)
+                  if not match:
+                      continue
+                  p = int(match.group(2))
+                  moves[p] = moves.get(p, 0) + 1
+                  if 'FINISH' in line:
+                      finishes[p] = moves[p]
+                  elif 'CRASH' in line:
+                      crashes.append(p)
+              return {
+                  'finishes': finishes,
+                  'crashes': sorted(crashes),
+                  'order': [p for p, _ in sorted(finishes.items(), key=lambda x: (x[1], x[0]))],
+                  'sum': sum(finishes.values()),
+              }
+
+          rows = []
+          with tempfile.TemporaryDirectory(prefix='round123-trap-') as directory:
+              tmp = Path(directory)
+              props = tmp / 'bench.properties'
+              write_props(props)
+              for track, seed in cases:
+                  logs = {}
+                  stderrs = {}
+                  for label, jar, debug in (
+                      ('baseline', root / 'round123-baseline.jar', False),
+                      ('candidate', root / 'round123-candidate.jar', True),
+                  ):
+                      log = tmp / f'{track}-{seed}-{label}.log'
+                      cmd = ['java', '-Djava.awt.headless=true']
+                      if debug:
+                          cmd.append('-Dai.debug.djs=true')
+                      cmd += ['-jar', str(jar), '--auto', '--track', track,
+                              '--props', str(props), '--log', str(log), '--seed', str(seed)]
+                      run = subprocess.run(cmd, cwd=root, text=True, capture_output=True,
+                                           timeout=1800)
+                      if run.returncode:
+                          raise SystemExit(run.stderr[-3000:])
+                      logs[label] = log.read_text().splitlines()
+                      stderrs[label] = run.stderr.splitlines()
+                  bm = [line for line in logs['baseline'] if move_re.match(line)]
+                  cm = [line for line in logs['candidate'] if move_re.match(line)]
+                  first = None
+                  for index in range(max(len(bm), len(cm))):
+                      left = bm[index] if index < len(bm) else None
+                      right = cm[index] if index < len(cm) else None
+                      if left != right:
+                          first = {
+                              'index': index,
+                              'baseline': left,
+                              'candidate': right,
+                              'baseline_context': bm[max(0, index-4):index+7],
+                              'candidate_context': cm[max(0, index-4):index+7],
+                          }
+                          break
+                  rows.append({
+                      'track': track,
+                      'seed': seed,
+                      'baseline_result': result(tmp / f'{track}-{seed}-baseline.log'),
+                      'candidate_result': result(tmp / f'{track}-{seed}-candidate.log'),
+                      'first_difference': first,
+                      'field_accel_events': [line for line in stderrs['candidate']
+                                             if 'AIDBG FIELD-ACCEL' in line],
+                  })
+          Path('round123-trap-diagnostic.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Publish diagnostic
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round123-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-123-trap-diagnostic
+          git add round123-trap-diagnostic.json round123-run-id.txt
+          git commit -m 'Record trap-L2 frontier diagnostic'
+          git push origin HEAD:agent/ai-racing-speed-123-trap-diagnostic
