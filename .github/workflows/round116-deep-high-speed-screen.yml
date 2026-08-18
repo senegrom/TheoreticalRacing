@@ -1,0 +1,182 @@
+name: Round 116 deep high-speed acceleration screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-116-deep-high-speed-accel
+    paths:
+      - .github/workflows/round116-deep-high-speed-screen.yml
+      - tracks/round116_apply.py
+      - tracks/round116_compare.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Publish run id
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round116-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round116-run-id.txt
+          git commit -m 'Record Round 116 screen run'
+          git push origin HEAD:"$GITHUB_REF_NAME"
+      - name: Build exact live-master pair
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round116-base-sha.txt
+          git worktree add /tmp/round116 origin/master
+          cd /tmp/round116
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round116-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round116_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round116.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round116-candidate.jar"
+      - name: Run permanent regressions
+        working-directory: /tmp/round116
+        run: |
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+      - name: Reject the known high-speed redistribution
+        run: |
+          python tracks/round116_compare.py \
+            --baseline round116-baseline.jar --candidate round116-candidate.jar \
+            --track silverstone --start 78 --end 78 --out round116-silverstone78.json
+          python - <<'PY'
+          import json
+          data = json.load(open('round116-silverstone78.json'))
+          assert data['counts']['identical'] == 1, data
+          assert not data['events'], data
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round116-build
+          path: |
+            round116-baseline.jar
+            round116-candidate.jar
+            round116-base-sha.txt
+            round116.patch
+            round116-silverstone78.json
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        track:
+          - coil
+          - spa
+          - silverstone
+          - monza
+          - interlagos
+          - hungaroring
+          - zandvoort
+          - nurburgring
+          - spielberg
+          - lemans
+          - monaco
+          - the_long_loop
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round116-build
+          path: .
+      - name: Compare seeds 1-150 exactly
+        env:
+          TRACK: ${{ matrix.track }}
+        run: |
+          python tracks/round116_compare.py \
+            --baseline round116-baseline.jar --candidate round116-candidate.jar \
+            --track "$TRACK" --start 1 --end 150 --out "round116-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round116-result-${{ matrix.track }}
+          path: round116-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round116-result-*
+          path: round116-results
+          merge-multiple: true
+      - name: Aggregate exact results
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          summary = {'pairs': 0, 'counts': {}, 'net_moves': 0, 'events': [], 'runtime_ratios': {}}
+          for path in sorted(Path('round116-results').glob('*.json')):
+              data = json.load(open(path))
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend({'track': data['track'], **event} for event in data['events'])
+          Path('round116-summary.json').write_text(json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round116-summary
+          path: round116-summary.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce focused-screen policy
+        run: |
+          python - <<'PY'
+          import json
+          data = json.load(open('round116-summary.json'))
+          counts = data['counts']
+          bad = sum(counts.get(key, 0) for key in (
+              'slower', 'safety_regression', 'redistribution', 'aggregate_faster'))
+          assert data['pairs'] == 1800, data
+          assert bad == 0, data
+          assert counts.get('pareto_faster', 0) > 0, data
+          PY
