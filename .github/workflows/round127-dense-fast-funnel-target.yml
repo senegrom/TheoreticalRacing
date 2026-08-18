@@ -1,0 +1,117 @@
+name: Round 127 dense fast-funnel target gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-127-dense-fast-funnel
+    paths:
+      - .github/workflows/round127-dense-fast-funnel-target.yml
+      - tracks/round127_apply_dense_funnel.py
+      - tracks/round127_compare.py
+
+permissions:
+  contents: write
+
+jobs:
+  target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact Round 126 baseline and Round 127 candidate
+        run: |
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          test "$BASE" = '5ab10eafe547b2d02bfaaa23d9edfe076ca9aeaf'
+          printf '%s\n' "$BASE" > round127-base-sha.txt
+          git worktree add /tmp/round127-target "$BASE"
+          cd /tmp/round127-target
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round127-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round127_apply_dense_funnel.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'AI1_DENSE_FAST_FUNNEL_ROUNDS' src/tr/logic/RaceAi.java)" = 2
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round127-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round127.patch"
+      - name: Prove target and structural controls
+        run: |
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track zandvoort --start 195 --end 195 --out target-z195.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track lemans --start 3 --end 3 --out control-lemans8-s3.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track lemans --start 1 --end 1 --out control-lemans-s1.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track zandvoort --start 115 --end 115 --out control-z115.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track zandvoort --start 128 --end 128 --out control-z128.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track zandvoort --start 134 --end 134 --out control-z134.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track silverstone --start 93 --end 93 --out control-silverstone93.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track hungaroring --start 144 --end 144 --out control-hungaroring144.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --track hairpin --start 68 --end 68 --out control-hairpin68.json
+          python tracks/round127_compare.py --baseline round127-baseline.jar --candidate round127-candidate.jar --baseline-kind AI2 --candidate-kind AI2 --track zandvoort --start 195 --end 195 --out control-ai2-z195.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = {path.stem: json.loads(path.read_text()) for path in Path('.').glob('*.json')}
+          target = rows['target-z195']
+          assert target['counts']['safety_gain'] == 1 and len(target['events']) == 1, target
+          event = target['events'][0]
+          assert len(event['candidate']['finishes']) > len(event['baseline']['finishes']), event
+          assert len(event['candidate']['crashes']) < len(event['baseline']['crashes']), event
+          for name in (
+              'control-lemans8-s3', 'control-lemans-s1', 'control-z115',
+              'control-z128', 'control-z134', 'control-silverstone93',
+              'control-hungaroring144', 'control-hairpin68', 'control-ai2-z195'):
+              row = rows[name]
+              assert row['counts']['identical'] == 1 and not row['events'], (name, row)
+          Path('round127-target-summary.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Capture the exact dense-funnel intervention
+        run: |
+          java -Djava.awt.headless=true -Dai.debug.player=6 -Dai.debug.djs=true \
+            -jar round127-candidate.jar --auto --track zandvoort \
+            --props tracks/bench.properties --log round127-z195-candidate.log --seed 195 \
+            > round127-z195-candidate.stdout 2> round127-z195-candidate.stderr
+          grep 'AIDBG DENSE-FUNNEL' round127-z195-candidate.stderr \
+            > round127-dense-funnel-events.txt
+          test -s round127-dense-funnel-events.txt
+      - name: Publish target result
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round127-target-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round127-target-summary.json round127-target-run-id.txt
+          git commit -m 'Record Round 127 dense-funnel target gate'
+          git push origin HEAD:agent/ai-racing-speed-127-dense-fast-funnel
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round127-dense-funnel-target
+          path: |
+            round127-target-summary.json
+            round127-base-sha.txt
+            round127.patch
+            round127-baseline.jar
+            round127-candidate.jar
+            round127-z195-candidate.log
+            round127-z195-candidate.stderr
+            round127-dense-funnel-events.txt
+          if-no-files-found: warn
+          retention-days: 30
