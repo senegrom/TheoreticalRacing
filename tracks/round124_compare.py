@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Compare a baseline and candidate jar exactly over one seeded track range."""
+"""Compare a baseline and candidate jar exactly over one seeded track range.
+
+A Pareto gain is defined by player outcomes, not an artificial tie-break order:
+the finisher set and crashes must match, no driver's finish-move count may
+increase, and at least one driver's count must decrease. Creating a same-move
+tie is therefore correctly accepted rather than labelled a redistribution.
+"""
 from __future__ import annotations
 
 import argparse
@@ -94,13 +100,15 @@ def classify(baseline: dict[str, object], candidate: dict[str, object]) -> tuple
         return "safety_regression", deltas
     if len(cf) > len(bf) or len(cc) < len(bc):
         return "safety_gain", deltas
-    if set(cf) != set(bf) or candidate["order"] != baseline["order"]:
+    if set(cf) != set(bf):
         return "redistribution", deltas
     values = list(deltas.values())
     if all(delta <= 0 for delta in values) and any(delta < 0 for delta in values):
         return "pareto_faster", deltas
     if all(delta >= 0 for delta in values) and any(delta > 0 for delta in values):
         return "slower", deltas
+    if all(delta == 0 for delta in values):
+        return "redistribution", deltas
     if sum(values) < 0:
         return "aggregate_faster", deltas
     return "redistribution", deltas
