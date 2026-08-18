@@ -83,19 +83,21 @@ if __name__ == "__main__":
     ## Round 124: phase-consistent trap-L2 acceleration
 
     The broad trap-L2 field-acceleration experiment contained one real Pareto
-    pace gain but also several finish-order changes. Decision forensics exposed
-    a structural split: the gain occurs before the round's pack has partially
-    updated, while all same-corner counterexamples occur after at least two
-    rivals have already moved. AI1 may therefore consider a positive L1/L2
-    candidate only for the first two movers of the round and only through TTF
-    45. The established gain>=16, zero-uncertainty, unsealable-landing,
+    pace gain but also several adverse finish changes. Decision forensics
+    exposed a structural split: the gain occurs before the round's pack has
+    partially updated, while all same-corner counterexamples occur after at
+    least two rivals have already moved. AI1 may therefore consider a positive
+    L1/L2 candidate only for the first two movers of the round and only through
+    TTF 45. The established gain>=16, zero-uncertainty, unsealable-landing,
     homogeneous-field, eight-round strict mover/aggregate-field proof and all
     downstream danger vetoes remain unchanged. AI2 remains frozen.
 
     The exact {summary['pairs']}-pair differential recorded
     {counts.get('pareto_faster', 0)} Pareto-faster race(s), zero individual
-    slowdowns, zero safety regressions and zero field redistributions, for net
-    {summary['net_moves']} finisher moves. Changed races: {changed}.
+    slowdowns and zero safety regressions, for net {summary['net_moves']}
+    finisher moves. The changed finish order is solely the faster driver joining
+    an existing same-move tie; no other driver's finish count changes. Changed
+    races: {changed}.
 
     """)
     development = Path("AI_DEVELOPMENT.md")
@@ -105,24 +107,24 @@ if __name__ == "__main__":
         anchor = "## Highest-value next directions\n"
         if anchor not in text:
             raise SystemExit("AI_DEVELOPMENT anchor missing")
-        development.write_text(text.replace(anchor, section + anchor, 1))
+        development.write_text(text.replace(anchor, section + anchor, 1).rstrip() + "\n")
 
     memory = Path("racing-memory.md")
     marker = "ROUND 124 (phase-consistent trap-L2 acceleration):"
     text = memory.read_text()
     if marker not in text:
         note = textwrap.dedent(f"""
-
         {marker} the old trap-L2 experiment's clean gain is isolated by the
         round-phase boundary: positive L1/L2 field acceleration is AI1-only,
         restricted to the first two movers and TTF<=45, with the established
         high-energy and strict eight-round mover/field proof unchanged. Exact
         gate: {summary['pairs']} pairs, {counts.get('pareto_faster', 0)} Pareto
-        gain(s), zero individual slowdowns, safety regressions or
-        redistributions, net {summary['net_moves']} finisher moves. Changed
-        races: {changed}. AI2 remains frozen.
-        """)
-        memory.write_text(text.rstrip() + note + "\n")
+        gain(s), zero individual slowdowns or safety regressions, net
+        {summary['net_moves']} finisher moves. The only order change is the
+        improved driver joining an existing same-move tie. Changed races:
+        {changed}. AI2 remains frozen.
+        """).strip()
+        memory.write_text(text.rstrip() + "\n\n" + note + "\n")
 
     print(f"Round124Publish: wrote {TEST} and documented {len(events)} gain(s)")
     return 0
