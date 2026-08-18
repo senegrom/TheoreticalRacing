@@ -37,6 +37,12 @@ champion-play-everyone rollout frays at that depth). Residual set:
 hairpin s68 (accepted), zandvoort s115 (their round-108 target),
 zandvoort s195 (new, ultra-deep).
 
+RES=8 RE-MEASURED HONESTLY (post-fix, quiet box, interleaved 2x4
+heavy races): consistently ~5%% SLOWER than RES=4 (14.3s vs 13.5s both
+passes) -- the pre-fix "-5.8%%" was stale-jar garbage. SUB_RES stays 4;
+the working-tree 8 was reverted without ever being committed (though
+it rode along, behavior-free, in every r114 verification build).
+
 PROCESS: the silent-stale-jar failure mode found and neutralized --
 builds no-op when the harvest holds the jar lock (rm fails, set -eu
 aborts, and "cannot remove" matched no error grep); several probe
