@@ -1,0 +1,104 @@
+{
+  "bad": 0,
+  "candidate": "early_round_trap_l2",
+  "counts": {
+    "aggregate_faster": 0,
+    "identical": 3499,
+    "pareto_faster": 1,
+    "redistribution": 0,
+    "safety_gain": 0,
+    "safety_regression": 0,
+    "slower": 0
+  },
+  "events": [
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 81,
+          "2": 86,
+          "3": 82,
+          "4": 83,
+          "6": 87,
+          "7": 84,
+          "8": 85
+        },
+        "order": [
+          1,
+          3,
+          4,
+          7,
+          8,
+          2,
+          6
+        ],
+        "sum": 588
+      },
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 81,
+          "2": 85,
+          "3": 82,
+          "4": 83,
+          "6": 87,
+          "7": 84,
+          "8": 85
+        },
+        "order": [
+          1,
+          3,
+          4,
+          7,
+          2,
+          8,
+          6
+        ],
+        "sum": 587
+      },
+      "classification": "pareto_faster",
+      "deltas": {
+        "1": 0,
+        "2": -1,
+        "3": 0,
+        "4": 0,
+        "6": 0,
+        "7": 0,
+        "8": 0
+      },
+      "seed": 93,
+      "track": "silverstone"
+    }
+  ],
+  "net_moves": -1,
+  "pairs": 3500,
+  "runtime_ratios": {
+    "bigoval": 0.9239975057646042,
+    "chicane": 0.8364187327304167,
+    "circle": 0.43569539747842784,
+    "cog": 0.8512295002994626,
+    "coil": 0.9747345906610466,
+    "curve": 0.8525999753404936,
+    "gear": 0.9683097504061292,
+    "hairpin": 0.9032167475424457,
+    "hungaroring": 0.986142586906274,
+    "interlagos": 0.9852698232645233,
+    "lemans": 0.9528511434321553,
+    "monaco": 0.9861667154638765,
+    "monza": 0.9774388276341104,
+    "nurburgring": 0.9906410837137002,
+    "serpentine": 0.898430945943186,
+    "serpentine2": 0.9411353274431795,
+    "silverstone": 0.9797457175202484,
+    "slalom": 0.9704145390737894,
+    "spa": 0.9704509624362196,
+    "spielberg": 0.9372496261126927,
+    "spiral": 0.8905681094509298,
+    "sprint": 0.8421909270202134,
+    "the_long_loop": 0.9481733481084622,
+    "triangle": 0.8539593086749573,
+    "zandvoort": 0.9798371160637405,
+    "zigzag": 0.9892746119858863
+  },
+  "viable": true
+}
