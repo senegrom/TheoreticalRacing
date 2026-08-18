@@ -74,28 +74,26 @@ replace_once(
 )
 
 replace_once(
-    "\t\t\t\tchosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,\n"
-    "\t\t\t\t\t\tAI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n",
-    "\t\t\t\tchosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,\n"
-    "\t\t\t\t\t\tfieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n",
-    "chosen proof horizon",
-)
-
-replace_once(
-    "\t\t\tfinal int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,\n"
-    "\t\t\t\t\tAI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n",
-    "\t\t\tfinal int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,\n"
-    "\t\t\t\t\tfieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);\n",
-    "candidate proof horizon",
-)
-
-replace_once(
     "\t/** Round 106: recover a one-turn acceleration only in a bounded forward\n"
     "\t * pack when the same eight-round scorer world proves strict mover and\n",
     "\t/** Round 106: recover a one-turn acceleration only in a bounded forward\n"
     "\t * pack when the scorer world proves strict mover and\n",
     "method documentation",
 )
+
+# Only the guarded-field override may use the new horizon. Other scorer-field
+# proofs intentionally retain their established depths, so edit inside a
+# bounded method slice and assert the two expected calls there.
+method_start = source.index("\tprivate Direction guardedFieldPaceOverride(")
+method_end = source.index("\n\tprivate Direction privatePaceOverride(", method_start)
+method = source[method_start:method_end]
+old_horizon = "AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost"
+assert method.count(old_horizon) == 2, method.count(old_horizon)
+method = method.replace(
+    old_horizon,
+    "fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost",
+)
+source = source[:method_start] + method + source[method_end:]
 
 assert source.count("AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS") == 2
 assert source.count("sixAheadFrontier") == 4
