@@ -1,0 +1,14 @@
+{
+  "candidate": "speed9_strict_field",
+  "counts": {
+    "identical": 22,
+    "pareto_faster": 0,
+    "redistribution": 0,
+    "safety_gain": 0,
+    "safety_regression": 0,
+    "slower": 0
+  },
+  "events": [],
+  "net_moves": 0,
+  "pairs": 22
+}
