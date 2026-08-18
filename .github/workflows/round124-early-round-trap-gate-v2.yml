@@ -1,4 +1,4 @@
-name: Round 124 early-round trap-L2 exact gate v2
+name: Round 124 early-round trap-L2 final current-master gate
 
 on:
   push:
@@ -6,6 +6,9 @@ on:
       - agent/ai-racing-speed-124-early-round-trap
     paths:
       - .github/workflows/round124-early-round-trap-gate-v2.yml
+      - tracks/round124_apply.py
+      - tracks/round124_compare.py
+      - tracks/round124_publish.py
 
 permissions:
   contents: write
@@ -29,8 +32,8 @@ jobs:
         run: |
           git fetch origin master
           git rev-parse origin/master > round124-base-sha.txt
-          git worktree add /tmp/round124-gate-v2 origin/master
-          cd /tmp/round124-gate-v2
+          git worktree add /tmp/round124-final origin/master
+          cd /tmp/round124-final
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round124-baseline.jar"
           python "$GITHUB_WORKSPACE/tracks/round124_apply.py"
@@ -49,7 +52,7 @@ jobs:
           git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round124.patch"
       - uses: actions/upload-artifact@v4
         with:
-          name: round124-v2-build
+          name: round124-final-build
           path: |
             round124-baseline.jar
             round124-candidate.jar
@@ -104,9 +107,9 @@ jobs:
           python-version: '3.13'
       - uses: actions/download-artifact@v4
         with:
-          name: round124-v2-build
+          name: round124-final-build
           path: .
-      - name: Compare exact per-seed outcomes
+      - name: Compare exact per-driver outcomes
         env:
           TRACK: ${{ matrix.track }}
           END_SEED: ${{ matrix.end_seed }}
@@ -118,7 +121,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: round124-v2-result-${{ matrix.track }}
+          name: round124-final-result-${{ matrix.track }}
           path: round124-${{ matrix.track }}.json
           if-no-files-found: error
           retention-days: 30
@@ -137,7 +140,7 @@ jobs:
           python-version: '3.13'
       - uses: actions/download-artifact@v4
         with:
-          pattern: round124-v2-result-*
+          pattern: round124-final-result-*
           path: round124-results
           merge-multiple: true
       - name: Enforce per-driver no-slowdown policy
@@ -182,18 +185,18 @@ jobs:
           PY
       - uses: actions/upload-artifact@v4
         with:
-          name: round124-v2-summary
+          name: round124-final-summary
           path: round124-summary.json
           if-no-files-found: error
           retention-days: 30
       - name: Record exact gate result
         run: |
-          printf '%s\n' "$GITHUB_RUN_ID" > round124-v2-run-id.txt
+          printf '%s\n' "$GITHUB_RUN_ID" > round124-final-run-id.txt
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git pull --rebase origin agent/ai-racing-speed-124-early-round-trap
-          git add round124-summary.json round124-v2-run-id.txt
-          git commit -m 'Record Round 124 exact Pareto gate'
+          git add round124-summary.json round124-final-run-id.txt
+          git commit -m 'Record Round 124 current-master gate'
           git push origin HEAD:agent/ai-racing-speed-124-early-round-trap
 
   publish:
@@ -214,11 +217,11 @@ jobs:
           python-version: '3.13'
       - uses: actions/download-artifact@v4
         with:
-          name: round124-v2-build
+          name: round124-final-build
           path: .
       - uses: actions/download-artifact@v4
         with:
-          name: round124-v2-summary
+          name: round124-final-summary
           path: .
       - name: Bound active-race runtime overhead
         run: |
@@ -285,6 +288,12 @@ jobs:
           sh ./run_tests.sh
           sh ./build_main.sh
           python /tmp/round124_publish.py
+          python - <<'PY'
+          from pathlib import Path
+          for name in ('AI_DEVELOPMENT.md', 'racing-memory.md'):
+              path = Path(name)
+              path.write_text(path.read_text().rstrip() + '\n')
+          PY
           python tests/ai1_early_round_trap_regression.py
           python tests/headless_smoke.py
           python tests/golden_races.py
@@ -305,7 +314,7 @@ jobs:
           git rev-parse HEAD > round124-master-sha.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: round124-v2-promotion
+          name: round124-final-promotion
           path: |
             round124-summary.json
             round124-runtime.json
