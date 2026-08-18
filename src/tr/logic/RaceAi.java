@@ -1602,10 +1602,10 @@ final class RaceAi {
 	/** Round 106: recover a one-turn acceleration only in a bounded forward
 	 * pack when the same eight-round scorer world proves strict mover and
 	 * aggregate-field gains. Round 117 admits an exact-six-ahead high-energy
-	 * formation only with an adjacent prior candidate-velocity peer. Round 115
-	 * leaves the promoted gain>=16 rule otherwise intact;
-	 * AI1 alone may test gains 9..15 inside TTF 45 from an incumbent below the
-	 * speed-7 danger threshold, never from a scorer coast. */
+	 * formation only with an adjacent prior candidate-velocity peer. Round 124
+	 * additionally admits a positive L1/L2 candidate only for the first two
+	 * movers of an AI1 round inside TTF 45; the partial-round counterexamples
+	 * remain excluded. Round 115's moderate zero-trap frontier is unchanged. */
 	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
 			final int playerNum, final Direction chosen, final double[] trapByDir,
 			final double[] uncByDir, final int[] turnsByDir) {
@@ -1637,6 +1637,10 @@ final class RaceAi {
 		final boolean frontierMover = moverKind(playerNum) == Player.Kind.AI1;
 		final boolean sixAheadFrontier = frontierMover
 				&& rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD + 1;
+		final boolean earlyRoundTrapFrontier = frontierMover
+				&& game.subgamestate <= 1
+				&& chosenT <= AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF
+				&& rivalsAhead <= AI1_FIELD_ACCEL_MAX_AHEAD;
 		if (liveRivals < AI1_PRIVATE_FIELD_MIN_RIVALS
 				|| rivalsAhead < AI1_FIELD_ACCEL_MIN_AHEAD
 				|| rivalsAhead > AI1_FIELD_ACCEL_MAX_AHEAD && !sixAheadFrontier
@@ -1655,8 +1659,12 @@ final class RaceAi {
 		long bestField = Long.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
+			final double candidateTrap = trapByDir[d.ordinal()];
+			final boolean frontierTrapCandidate = earlyRoundTrapFrontier
+					&& candidateTrap > 0.0 && candidateTrap <= AI1_TRAP_L2;
 			if (d == chosen || d == Direction.NONE || turns == Integer.MAX_VALUE
-					|| turns + 1 != chosenT || trapByDir[d.ordinal()] != 0.0
+					|| turns + 1 != chosenT
+					|| candidateTrap != 0.0 && !frontierTrapCandidate
 					|| uncByDir[d.ordinal()] != 0.0)
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;

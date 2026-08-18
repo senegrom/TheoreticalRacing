@@ -2818,3 +2818,13 @@ the candidate velocity. Exact gate: 3500 pairs,
 safety-regression or redistribution outcomes, net
 -1 finisher moves. Coil s5/s22 are exact controls;
 Coil s86 is the target gain. AI2 remains frozen.
+
+ROUND 124 (phase-consistent trap-L2 acceleration): the old trap-L2 experiment's clean gain is isolated by the
+round-phase boundary: positive L1/L2 field acceleration is AI1-only,
+restricted to the first two movers and TTF<=45, with the established
+high-energy and strict eight-round mover/field proof unchanged. Exact
+gate: 3500 pairs, 1 Pareto
+gain(s), zero individual slowdowns or safety regressions, net
+-1 finisher moves. The only order change is the
+improved driver joining an existing same-move tie. Changed races:
+silverstone seed 93. AI2 remains frozen.

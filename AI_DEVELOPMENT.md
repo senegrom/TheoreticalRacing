@@ -388,6 +388,26 @@ slower races, zero safety regressions, zero field redistributions and a net
 -1 finisher moves. The changed races were
 coil seed 86.
 
+
+## Round 124: phase-consistent trap-L2 acceleration
+
+The broad trap-L2 field-acceleration experiment contained one real Pareto
+pace gain but also several adverse finish changes. Decision forensics
+exposed a structural split: the gain occurs before the round's pack has
+partially updated, while all same-corner counterexamples occur after at
+least two rivals have already moved. AI1 may therefore consider a positive
+L1/L2 candidate only for the first two movers of the round and only through
+TTF 45. The established gain>=16, zero-uncertainty, unsealable-landing,
+homogeneous-field, eight-round strict mover/aggregate-field proof and all
+downstream danger vetoes remain unchanged. AI2 remains frozen.
+
+The exact 3500-pair differential recorded
+1 Pareto-faster race(s), zero individual
+slowdowns and zero safety regressions, for net -1
+finisher moves. The changed finish order is solely the faster driver joining
+an existing same-move tie; no other driver's finish count changes. Changed
+races: silverstone seed 93.
+
 ## Highest-value next directions
 
 1. **Bottleneck-aware triggers** — detect narrow future cut sets or collapsing route width, then invoke expensive rollout based on topology instead of track-shaped heuristics.
