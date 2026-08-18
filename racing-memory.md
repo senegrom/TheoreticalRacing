@@ -6,6 +6,26 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 113 (local agent, REJECTED measured): mobility memoization
+
+The next JFR target after the rasters was the mobility projection pair
+(searchMinTurnsSoft3 / CountedSoft3, ~19%% of samples, 9-ary depth-4
+recursion, no memo where fmRec has one). An epoch-keyed
+HashMap<Long,*> memo (per-compute contexts invalidated by an epoch
+bump, no clearing hazards, nested-compute safe) was built and proven
+12/12 move-identical -- and measured 3.4%% SLOWER on a clean 3x3
+heavy-track A/B (r112 29.8s vs r113 30.8s): boxed-map probe/store
+churn exceeds the path-convergence savings at these depths. Reverted.
+If this is ever revisited, it needs a primitive-key open-addressed
+table, and the ceiling is small.
+
+Bench-harness traps recorded for the next profiler: jars resolve
+tracks against their own directory (a jar run from the scratchpad
+finds no tracks and exits in ~150ms -- timing noise that looks like a
+10x speedup), and --log /dev/null on Windows aborts the run the same
+way. Both produced garbage timings this round before being caught;
+always sanity-check race wall times (~1-6s) and log line counts.
+
 ## Round 112 (local agent): boundary-refined hybrid raster -- another -8%%
 
 Continuing the legality attack (post-r111 JFR: legality still 38%% of
