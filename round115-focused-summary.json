@@ -1,0 +1,889 @@
+{
+  "baseline_sha": "e7a15039ab4b17a863f57c84bf2dae8665ab340d",
+  "candidate": "round115_ai1_graduated_field_accel",
+  "counts": {
+    "identical": 12,
+    "pareto_faster": 2,
+    "redistribution": 1
+  },
+  "rows": [
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 60,
+          "3": 62,
+          "4": 62,
+          "5": 63,
+          "6": 63,
+          "7": 59
+        },
+        "order": [
+          1,
+          7,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "sum": 427
+      },
+      "baseline_kind": "AI2",
+      "baseline_seconds": 9.385867081,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 60,
+          "3": 62,
+          "4": 62,
+          "5": 63,
+          "6": 63,
+          "7": 59
+        },
+        "order": [
+          1,
+          7,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "sum": 427
+      },
+      "candidate_kind": "AI2",
+      "candidate_seconds": 2.2218418320000026,
+      "case_id": "coil-1-ai2",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.2367220644427963,
+      "seed": 1,
+      "track": "coil"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 60,
+          "3": 62,
+          "4": 62,
+          "5": 63,
+          "6": 63,
+          "7": 59
+        },
+        "order": [
+          1,
+          7,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "sum": 427
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 7.8070864200000045,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 60,
+          "3": 61,
+          "4": 62,
+          "5": 62,
+          "6": 63,
+          "7": 59
+        },
+        "order": [
+          1,
+          7,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "sum": 425
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 2.236130400999997,
+      "case_id": "coil-1",
+      "classification": "pareto_faster",
+      "deltas": {
+        "1": 0,
+        "2": 0,
+        "3": -1,
+        "4": 0,
+        "5": -1,
+        "6": 0,
+        "7": 0
+      },
+      "expectation": "pareto_faster",
+      "runtime_ratio": 0.2864231648917748,
+      "seed": 1,
+      "track": "coil"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 60,
+          "5": 62,
+          "6": 62,
+          "7": 63,
+          "8": 63
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sum": 427
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 8.267876541999996,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 60,
+          "5": 62,
+          "6": 62,
+          "7": 63,
+          "8": 63
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          6,
+          7,
+          8
+        ],
+        "sum": 427
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 1.762162702000012,
+      "case_id": "coil-106",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.21313364961951226,
+      "seed": 106,
+      "track": "coil"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 61,
+          "4": 61,
+          "5": 62,
+          "6": 62,
+          "7": 63
+        },
+        "order": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "sum": 426
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 13.256650077999993,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 58,
+          "2": 59,
+          "3": 61,
+          "4": 61,
+          "5": 62,
+          "6": 62,
+          "7": 62
+        },
+        "order": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "sum": 425
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 2.659423064000009,
+      "case_id": "coil-38",
+      "classification": "pareto_faster",
+      "deltas": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": 0,
+        "7": -1
+      },
+      "expectation": "pareto_faster",
+      "runtime_ratio": 0.2006104897053473,
+      "seed": 38,
+      "track": "coil"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 125,
+          "2": 127,
+          "3": 118,
+          "4": 121,
+          "5": 128,
+          "6": 122,
+          "8": 129
+        },
+        "order": [
+          3,
+          4,
+          6,
+          1,
+          2,
+          5,
+          8
+        ],
+        "sum": 870
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 9.970132125000006,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 125,
+          "2": 127,
+          "3": 118,
+          "4": 121,
+          "5": 128,
+          "6": 122,
+          "8": 129
+        },
+        "order": [
+          3,
+          4,
+          6,
+          1,
+          2,
+          5,
+          8
+        ],
+        "sum": 870
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.2150629639999977,
+      "case_id": "hungaroring-144",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.3224694441047837,
+      "seed": 144,
+      "track": "hungaroring"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 122,
+          "2": 123,
+          "3": 127,
+          "4": 124,
+          "5": 128,
+          "6": 129,
+          "8": 125
+        },
+        "order": [
+          1,
+          2,
+          4,
+          8,
+          3,
+          5,
+          6
+        ],
+        "sum": 878
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 9.795259618000003,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 122,
+          "2": 123,
+          "3": 127,
+          "4": 124,
+          "5": 128,
+          "6": 129,
+          "8": 125
+        },
+        "order": [
+          1,
+          2,
+          4,
+          8,
+          3,
+          5,
+          6
+        ],
+        "sum": 878
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.0173416189999998,
+      "case_id": "interlagos-40",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.3080410052077906,
+      "seed": 40,
+      "track": "interlagos"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 69,
+          "2": 70,
+          "4": 65,
+          "5": 71,
+          "6": 72,
+          "7": 74,
+          "8": 67
+        },
+        "order": [
+          4,
+          8,
+          1,
+          2,
+          5,
+          6,
+          7
+        ],
+        "sum": 488
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 7.50050275800001,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 69,
+          "2": 70,
+          "4": 65,
+          "5": 71,
+          "6": 72,
+          "7": 74,
+          "8": 67
+        },
+        "order": [
+          4,
+          8,
+          1,
+          2,
+          5,
+          6,
+          7
+        ],
+        "sum": 488
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 2.908334889999992,
+      "case_id": "lemans-4",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.3877519926111582,
+      "seed": 4,
+      "track": "lemans"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 85,
+          "2": 81,
+          "3": 86,
+          "4": 85,
+          "5": 87,
+          "6": 82,
+          "8": 83
+        },
+        "order": [
+          2,
+          6,
+          8,
+          1,
+          4,
+          3,
+          5
+        ],
+        "sum": 589
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 14.808902608000011,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 85,
+          "2": 81,
+          "3": 86,
+          "4": 85,
+          "5": 87,
+          "6": 82,
+          "8": 83
+        },
+        "order": [
+          2,
+          6,
+          8,
+          1,
+          4,
+          3,
+          5
+        ],
+        "sum": 589
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.0316483789999893,
+      "case_id": "silverstone-112",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.2047179631907528,
+      "seed": 112,
+      "track": "silverstone"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 84,
+          "2": 87,
+          "3": 86,
+          "4": 85,
+          "5": 81,
+          "7": 82,
+          "8": 84
+        },
+        "order": [
+          5,
+          7,
+          1,
+          8,
+          4,
+          3,
+          2
+        ],
+        "sum": 589
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 20.19135094500001,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 84,
+          "2": 87,
+          "3": 86,
+          "4": 85,
+          "5": 81,
+          "7": 82,
+          "8": 84
+        },
+        "order": [
+          5,
+          7,
+          1,
+          8,
+          4,
+          3,
+          2
+        ],
+        "sum": 589
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.98014760800001,
+      "case_id": "silverstone-120",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.19712141197692445,
+      "seed": 120,
+      "track": "silverstone"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 81,
+          "2": 82,
+          "3": 83,
+          "4": 85,
+          "5": 84,
+          "6": 86,
+          "7": 85
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          4,
+          7,
+          6
+        ],
+        "sum": 586
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 18.682294229999997,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 81,
+          "2": 82,
+          "3": 83,
+          "4": 85,
+          "5": 84,
+          "6": 85,
+          "8": 86
+        },
+        "order": [
+          1,
+          2,
+          3,
+          5,
+          4,
+          6,
+          8
+        ],
+        "sum": 586
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.828793769000015,
+      "case_id": "silverstone-78",
+      "classification": "redistribution",
+      "deltas": {
+        "1": 0,
+        "2": 0,
+        "3": 0,
+        "4": 0,
+        "5": 0,
+        "6": -1
+      },
+      "expectation": "safe",
+      "runtime_ratio": 0.20494237601995072,
+      "seed": 78,
+      "track": "silverstone"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "2": 78,
+          "3": 87,
+          "4": 80,
+          "5": 84,
+          "6": 81,
+          "7": 86,
+          "8": 83
+        },
+        "order": [
+          2,
+          4,
+          6,
+          8,
+          5,
+          7,
+          3
+        ],
+        "sum": 579
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 12.977318609999998,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "2": 78,
+          "3": 87,
+          "4": 80,
+          "5": 84,
+          "6": 81,
+          "7": 86,
+          "8": 83
+        },
+        "order": [
+          2,
+          4,
+          6,
+          8,
+          5,
+          7,
+          3
+        ],
+        "sum": 579
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 2.676858757000005,
+      "case_id": "spa-12",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.20627209961056858,
+      "seed": 12,
+      "track": "spa"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "2": 81,
+          "3": 87,
+          "4": 86,
+          "5": 84,
+          "6": 78,
+          "7": 85,
+          "8": 79
+        },
+        "order": [
+          6,
+          8,
+          2,
+          5,
+          7,
+          4,
+          3
+        ],
+        "sum": 580
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 15.954965434000002,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "2": 81,
+          "3": 87,
+          "4": 86,
+          "5": 84,
+          "6": 78,
+          "7": 85,
+          "8": 79
+        },
+        "order": [
+          6,
+          8,
+          2,
+          5,
+          7,
+          4,
+          3
+        ],
+        "sum": 580
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.370350690000002,
+      "case_id": "spa-31",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.21124149117977975,
+      "seed": 31,
+      "track": "spa"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "1": 78,
+          "2": 86,
+          "3": 79,
+          "5": 85,
+          "6": 80,
+          "7": 82,
+          "8": 83
+        },
+        "order": [
+          1,
+          3,
+          6,
+          7,
+          8,
+          5,
+          2
+        ],
+        "sum": 573
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 15.38446931499999,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "1": 78,
+          "2": 86,
+          "3": 79,
+          "5": 85,
+          "6": 80,
+          "7": 82,
+          "8": 83
+        },
+        "order": [
+          1,
+          3,
+          6,
+          7,
+          8,
+          5,
+          2
+        ],
+        "sum": 573
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.306483654999994,
+      "case_id": "spa-40",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.21492347817133634,
+      "seed": 40,
+      "track": "spa"
+    },
+    {
+      "baseline": {
+        "crashes": [],
+        "finishes": {
+          "2": 80,
+          "3": 87,
+          "4": 81,
+          "5": 85,
+          "6": 83,
+          "7": 87,
+          "8": 78
+        },
+        "order": [
+          8,
+          2,
+          4,
+          6,
+          5,
+          3,
+          7
+        ],
+        "sum": 581
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 14.899066982,
+      "candidate": {
+        "crashes": [],
+        "finishes": {
+          "2": 80,
+          "3": 87,
+          "4": 81,
+          "5": 85,
+          "6": 83,
+          "7": 87,
+          "8": 78
+        },
+        "order": [
+          8,
+          2,
+          4,
+          6,
+          5,
+          3,
+          7
+        ],
+        "sum": 581
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.4481407860000033,
+      "case_id": "spa-47",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.23143333674288485,
+      "seed": 47,
+      "track": "spa"
+    },
+    {
+      "baseline": {
+        "crashes": [
+          7
+        ],
+        "finishes": {
+          "1": 139,
+          "2": 140,
+          "3": 143,
+          "4": 141,
+          "5": 146,
+          "6": 144
+        },
+        "order": [
+          1,
+          2,
+          4,
+          3,
+          6,
+          5
+        ],
+        "sum": 853
+      },
+      "baseline_kind": "AI1",
+      "baseline_seconds": 8.092864023000004,
+      "candidate": {
+        "crashes": [
+          7
+        ],
+        "finishes": {
+          "1": 139,
+          "2": 140,
+          "3": 143,
+          "4": 141,
+          "5": 146,
+          "6": 144
+        },
+        "order": [
+          1,
+          2,
+          4,
+          3,
+          6,
+          5
+        ],
+        "sum": 853
+      },
+      "candidate_kind": "AI1",
+      "candidate_seconds": 3.322253988,
+      "case_id": "zandvoort-115",
+      "classification": "identical",
+      "deltas": {},
+      "expectation": "identical",
+      "runtime_ratio": 0.41051647211149467,
+      "seed": 115,
+      "track": "zandvoort"
+    }
+  ]
+}
