@@ -1,0 +1,176 @@
+name: Round 119 six-ahead moderate acceleration screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-119-six-ahead-moderate
+    paths:
+      - .github/workflows/round119-six-ahead-moderate-screen.yml
+      - tracks/round119_apply.py
+      - tracks/round119_compare.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact live-master baseline and candidate
+        run: |
+          git fetch origin master
+          git rev-parse origin/master > round119-base-sha.txt
+          test "$(cat round119-base-sha.txt)" = '1d0bf9fdd613abf0aaa56a7b8fc5739f94fc9660'
+          git worktree add /tmp/round119-work origin/master
+          cd /tmp/round119-work
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round119-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round119_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          test "$(grep -c 'Round 119: the synchronized six-ahead formation' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round119-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round119-build
+          path: |
+            round119-baseline.jar
+            round119-candidate.jar
+            round119-base-sha.txt
+          if-no-files-found: error
+          retention-days: 14
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        track:
+          - coil
+          - spa
+          - silverstone
+          - hungaroring
+          - interlagos
+          - lemans
+          - monza
+          - zandvoort
+          - nurburgring
+          - spielberg
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round119-build
+          path: .
+      - name: Compare exact seed outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+        run: |
+          python tracks/round119_compare.py \
+            --baseline round119-baseline.jar --candidate round119-candidate.jar \
+            --track "$TRACK" --start 1 --end 150 \
+            --out "round119-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round119-result-${{ matrix.track }}
+          path: round119-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round119-result-*
+          path: round119-results
+          merge-multiple: true
+      - name: Merge exact results
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = {
+              'baseline_sha': '1d0bf9fdd613abf0aaa56a7b8fc5739f94fc9660',
+              'candidate': 'synchronized_six_ahead_moderate',
+              'pairs': 0,
+              'counts': {},
+              'events': [],
+              'net_moves': 0,
+              'runtime_ratios': {},
+          }
+          for path in sorted(Path('round119-results').glob('*.json')):
+              data = json.loads(path.read_text())
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events'])
+          bad = sum(summary['counts'].get(key, 0)
+                    for key in ('slower', 'safety_regression', 'redistribution'))
+          summary['bad'] = bad
+          summary['promising'] = (
+              summary['pairs'] == 1500
+              and bad == 0
+              and summary['counts'].get('pareto_faster', 0) > 0
+          )
+          Path('round119-target-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          assert summary['pairs'] == 1500, summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round119-target-summary
+          path: round119-target-summary.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publish measured target screen
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round119-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-119-six-ahead-moderate
+          git add round119-target-summary.json round119-run-id.txt
+          git commit -m 'Record Round 119 target screen'
+          git push origin HEAD:agent/ai-racing-speed-119-six-ahead-moderate
