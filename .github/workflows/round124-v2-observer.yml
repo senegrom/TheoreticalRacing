@@ -1,0 +1,33 @@
+name: Observe Round 124 Pareto gate v2
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-124-early-round-trap
+    paths:
+      - .github/workflows/round124-v2-observer.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record latest v2 gate run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            'repos/${{ github.repository }}/actions/workflows/round124-early-round-trap-gate-v2.yml/runs?branch=agent%2Fai-racing-speed-124-early-round-trap&per_page=5' \
+            --jq '.workflow_runs[0] | {id,status,conclusion,head_sha,created_at,updated_at}' \
+            > round124-v2-status.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round124-v2-status.json
+          git commit -m 'Record Round 124 v2 gate status'
+          git push origin HEAD:"$GITHUB_REF_NAME"
