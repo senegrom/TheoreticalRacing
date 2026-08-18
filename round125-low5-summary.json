@@ -1,0 +1,30 @@
+{
+  "baseline_sha": "dc388abf3dde3c691be711c2d0ccd99e34e1c3aa",
+  "candidate": "moderate_field_accel_min_speed2_gain_5",
+  "counts": {
+    "aggregate_faster": 0,
+    "identical": 1800,
+    "pareto_faster": 0,
+    "redistribution": 0,
+    "safety_gain": 0,
+    "safety_regression": 0,
+    "slower": 0
+  },
+  "events": [],
+  "net_moves": 0,
+  "pairs": 1800,
+  "runtime_ratios": {
+    "coil": 0.9611429990625427,
+    "hungaroring": 1.0185505664895016,
+    "interlagos": 0.9627159887701484,
+    "lemans": 0.9608093609129025,
+    "monaco": 0.9341024656685696,
+    "monza": 0.9690285972432332,
+    "nurburgring": 0.9313840232765497,
+    "silverstone": 0.9335369069802792,
+    "spa": 0.9643749392818323,
+    "spielberg": 0.9456463395043961,
+    "the_long_loop": 0.9419614328624958,
+    "zandvoort": 0.9770073234978601
+  }
+}
