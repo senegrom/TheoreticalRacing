@@ -1,0 +1,71 @@
+name: Round 124 quick boundary probe
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-124-early-round-trap
+    paths:
+      - .github/workflows/round124-quick-probe.yml
+
+permissions:
+  contents: write
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact pair
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round124-quick origin/master
+          cd /tmp/round124-quick
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round124_apply.py"
+          test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/candidate.jar"
+      - name: Check gain and exclusions
+        run: |
+          mkdir round124-quick
+          python tracks/round124_compare.py --baseline baseline.jar --candidate candidate.jar \
+            --track silverstone --start 93 --end 93 --out round124-quick/gain.json
+          python tracks/round124_compare.py --baseline baseline.jar --candidate candidate.jar \
+            --track silverstone --start 17 --end 17 --out round124-quick/late-round.json
+          python tracks/round124_compare.py --baseline baseline.jar --candidate candidate.jar \
+            --track silverstone --start 29 --end 29 --out round124-quick/far-range.json
+          python tracks/round124_compare.py --baseline baseline.jar --candidate candidate.jar \
+            --track spa --start 32 --end 32 --out round124-quick/spa.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          rows = {p.stem: json.loads(p.read_text())
+                  for p in Path('round124-quick').glob('*.json')}
+          assert rows['gain']['counts']['pareto_faster'] == 1, rows
+          for key in ('late-round', 'far-range', 'spa'):
+              assert rows[key]['counts']['identical'] == 1, rows
+          output = {'passed': True, 'rows': rows}
+          Path('round124-quick-probe.json').write_text(
+              json.dumps(output, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(output, indent=2, sort_keys=True))
+          PY
+      - name: Publish probe
+        run: |
+          printf '%s\n' "$GITHUB_RUN_ID" > round124-quick-run-id.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-124-early-round-trap
+          git add round124-quick-probe.json round124-quick-run-id.txt
+          git commit -m 'Record Round 124 boundary probe'
+          git push origin HEAD:agent/ai-racing-speed-124-early-round-trap
