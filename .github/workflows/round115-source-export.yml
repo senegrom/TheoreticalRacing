@@ -1,0 +1,31 @@
+name: Round 115 live-source export
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-115-source-export
+    paths:
+      - .github/workflows/round115-source-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record exact source commit
+        run: |
+          git rev-parse HEAD > round115-source-sha.txt
+          tar --exclude=.git -czf round115-source.tar.gz .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round115-live-source
+          path: |
+            round115-source.tar.gz
+            round115-source-sha.txt
+          if-no-files-found: error
+          retention-days: 7
