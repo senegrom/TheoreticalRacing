@@ -1,0 +1,130 @@
+name: Round 111 Coil speed-nine diagnostic
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-111-speed9-simple
+    paths:
+      - .github/workflows/round111-coil-diagnostic.yml
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact baseline and diagnostic candidate
+        run: |
+          git fetch origin master
+          git worktree add /tmp/round111-coil-diag origin/master
+          cd /tmp/round111-coil-diag
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round109_apply_pace_variant.py" speed9
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/candidate.jar"
+      - name: Replay Coil seeds 1, 38 and 106 with diagnostics
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path('tracks/bench.properties').read_text()
+          text = re.sub(r'^(player[1-8]Kind)=.*$', r'\1=AI1', text, flags=re.M)
+          Path('AI1.properties').write_text(text)
+          PY
+          for seed in 1 38 106; do
+            java -Djava.awt.headless=true -jar baseline.jar --auto --track coil \
+              --props AI1.properties --log "coil-${seed}-baseline.log" --seed "$seed" \
+              > "coil-${seed}-baseline.stdout" 2> "coil-${seed}-baseline.stderr"
+            java -Djava.awt.headless=true -Dai.debug.djs=true -jar candidate.jar \
+              --auto --track coil --props AI1.properties \
+              --log "coil-${seed}-candidate.log" --seed "$seed" \
+              > "coil-${seed}-candidate.stdout" 2> "coil-${seed}-candidate.stderr"
+          done
+      - name: Extract first divergence and field-accel features
+        run: |
+          python - <<'PY'
+          import json, re
+          from pathlib import Path
+
+          move_re = re.compile(r'^(\d+) p(\d+) ')
+
+          def move_lines(path):
+              return [line for line in Path(path).read_text().splitlines()
+                      if move_re.match(line)]
+
+          def result(path):
+              moves = {}
+              finishes = {}
+              crashes = []
+              for line in Path(path).read_text().splitlines():
+                  match = move_re.match(line)
+                  if not match:
+                      continue
+                  player = int(match.group(2))
+                  moves[player] = moves.get(player, 0) + 1
+                  if 'FINISH' in line:
+                      finishes[player] = moves[player]
+                  elif 'CRASH' in line:
+                      crashes.append(player)
+              return {
+                  'finishes': finishes,
+                  'crashes': crashes,
+                  'sum': sum(finishes.values()),
+                  'order': [p for p, _ in sorted(finishes.items(),
+                            key=lambda item: (item[1], item[0]))],
+              }
+
+          rows = []
+          for seed in (1, 38, 106):
+              baseline = move_lines(f'coil-{seed}-baseline.log')
+              candidate = move_lines(f'coil-{seed}-candidate.log')
+              first = None
+              for index in range(max(len(baseline), len(candidate))):
+                  left = baseline[index] if index < len(baseline) else None
+                  right = candidate[index] if index < len(candidate) else None
+                  if left != right:
+                      first = {
+                          'index': index,
+                          'baseline': left,
+                          'candidate': right,
+                          'baseline_context': baseline[max(0, index-4):index+7],
+                          'candidate_context': candidate[max(0, index-4):index+7],
+                      }
+                      break
+              stderr = Path(f'coil-{seed}-candidate.stderr').read_text().splitlines()
+              rows.append({
+                  'track': 'coil',
+                  'seed': seed,
+                  'baseline_result': result(f'coil-{seed}-baseline.log'),
+                  'candidate_result': result(f'coil-{seed}-candidate.log'),
+                  'first_difference': first,
+                  'field_accel_events': [line for line in stderr
+                                         if 'AIDBG FIELD-ACCEL' in line],
+                  'danger_events': [line for line in stderr
+                                    if ('AIDBG DJS' in line or 'AIDBG ESC' in line)],
+              })
+          Path('round111-coil-diagnostic.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(rows, indent=2, sort_keys=True))
+          PY
+      - name: Commit diagnostic result
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase origin agent/ai-racing-speed-111-speed9-simple
+          git add round111-coil-diagnostic.json
+          git commit -m 'Record Coil speed-nine diagnostic'
+          git push origin HEAD:agent/ai-racing-speed-111-speed9-simple
