@@ -27,6 +27,16 @@ def replace_once(old: str, new: str, label: str) -> None:
     source = source.replace(old, new, 1)
 
 
+replace_once(
+    "\tprivate final static int\t\tAI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF\t= 45;"
+    "\t// round 115: short-range boundary for speed2 gains 9..15\n",
+    "\tprivate final static int\t\tAI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF\t= 45;"
+    "\t// round 115: short-range boundary for speed2 gains 9..15\n"
+    "\tprivate final static int\t\tAI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS\t= 8;"
+    "\t// round 117: synchronized six-ahead formations retain the established proof depth\n",
+    "six-ahead proof depth",
+)
+
 helper_anchor = (
     "\n\t/** Round 106: recover a one-turn acceleration only in a bounded forward\n"
 )
@@ -75,7 +85,9 @@ replace_once(
     "\t\t\treturn chosen;\n\n"
     "\t\tfinal int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;\n"
     "\t\tfinal int chosenX = pos[0] + chosenVx, chosenY = pos[1] + chosenVy;\n"
-    "\t\tfinal int chosenSpeed2 = speedSquared(chosenVx, chosenVy);\n",
+    "\t\tfinal int chosenSpeed2 = speedSquared(chosenVx, chosenVy);\n"
+    "\t\tfinal int fieldProofRounds = sixAheadFrontier\n"
+    "\t\t\t\t? AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS : AI1_STAGED_HORIZON;\n",
     "six-ahead admission",
 )
 
@@ -112,7 +124,23 @@ replace_once(
     "method documentation",
 )
 
+# Name the retained proof depth inside this method only. Both branches are
+# currently eight rounds, but the explicit class constant makes the policy
+# boundary independently testable without changing any other scorer proof.
+method_start = source.index("\tprivate Direction guardedFieldPaceOverride(")
+method_end = source.index("\n\tprivate Direction privatePaceOverride(", method_start)
+method = source[method_start:method_end]
+old_horizon = "AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost"
+assert method.count(old_horizon) == 2, method.count(old_horizon)
+method = method.replace(
+    old_horizon,
+    "fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost",
+)
+source = source[:method_start] + method + source[method_end:]
+
+assert source.count("AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS") == 2
 assert source.count("hasAdjacentPriorCandidateVelocityPeer") == 2
 assert source.count("sixAheadFrontier") == 4
+assert source.count("fieldProofRounds") == 3
 path.write_text(source)
 print("materialized Round 117 synchronized exact-six-ahead acceleration")
