@@ -1,0 +1,466 @@
+[
+  {
+    "baseline_result": {
+      "crashes": [],
+      "finishes": {
+        "2": 78,
+        "3": 87,
+        "4": 80,
+        "5": 84,
+        "6": 81,
+        "7": 86,
+        "8": 83
+      },
+      "order": [
+        2,
+        4,
+        6,
+        8,
+        5,
+        7,
+        3
+      ],
+      "sum": 579
+    },
+    "candidate_result": {
+      "crashes": [],
+      "finishes": {
+        "1": 89,
+        "2": 78,
+        "4": 80,
+        "5": 82,
+        "6": 84,
+        "7": 85,
+        "8": 86
+      },
+      "order": [
+        2,
+        4,
+        5,
+        6,
+        7,
+        8,
+        1
+      ],
+      "sum": 584
+    },
+    "danger_events": [
+      "AIDBG ESC p=5 pos=(38,10) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(38,9) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(39,12) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(99,146) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=50 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(94,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=46 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(93,154) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(96,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(96,150) chosen=NONE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(90,157) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=45 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(89,157) chosen=E dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(93,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=8 pos=(94,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(90,159) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=45 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=3 pos=(92,154) chosen=NONE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=48 tier=3 thread=0 snug=0"
+    ],
+    "field_accel_events": [
+      "AIDBG FIELD-ACCEL p=7 pos=(100,116) N -> W ttf 57 -> 56 ahead=5 progress=63 self 51 -> 50 field 349 -> 348"
+    ],
+    "first_difference": {
+      "baseline": "191 p7 AI1 N v(2,8)\u2192(2,7) (100,116)\u2192(102,123) ok",
+      "baseline_context": [
+        "187 p3 AI1 NE v(2,9)\u2192(3,8) (96,103)\u2192(99,111) ok",
+        "188 p4 AI1 N v(1,9)\u2192(1,8) (100,118)\u2192(101,126) ok",
+        "189 p5 AI1 W v(1,8)\u2192(0,8) (101,121)\u2192(101,129) ok",
+        "190 p6 AI1 W v(2,8)\u2192(1,8) (102,117)\u2192(103,125) ok",
+        "191 p7 AI1 N v(2,8)\u2192(2,7) (100,116)\u2192(102,123) ok",
+        "192 p8 AI1 NW v(2,9)\u2192(1,8) (100,113)\u2192(101,121) ok",
+        "193 p1 AI1 NW v(2,8)\u2192(1,7) (100,124)\u2192(101,131) ok",
+        "194 p2 AI1 NW v(-1,7)\u2192(-2,6) (101,139)\u2192(99,145) ok",
+        "195 p3 AI1 NW v(3,8)\u2192(2,7) (99,111)\u2192(101,118) ok",
+        "196 p4 AI1 NW v(1,8)\u2192(0,7) (101,126)\u2192(101,133) ok",
+        "197 p5 AI1 NW v(0,8)\u2192(-1,7) (101,129)\u2192(100,136) ok"
+      ],
+      "candidate": "191 p7 AI1 W v(2,8)\u2192(1,8) (100,116)\u2192(101,124) ok",
+      "candidate_context": [
+        "187 p3 AI1 NE v(2,9)\u2192(3,8) (96,103)\u2192(99,111) ok",
+        "188 p4 AI1 N v(1,9)\u2192(1,8) (100,118)\u2192(101,126) ok",
+        "189 p5 AI1 W v(1,8)\u2192(0,8) (101,121)\u2192(101,129) ok",
+        "190 p6 AI1 W v(2,8)\u2192(1,8) (102,117)\u2192(103,125) ok",
+        "191 p7 AI1 W v(2,8)\u2192(1,8) (100,116)\u2192(101,124) ok",
+        "192 p8 AI1 NW v(2,9)\u2192(1,8) (100,113)\u2192(101,121) ok",
+        "193 p1 AI1 NW v(2,8)\u2192(1,7) (100,124)\u2192(101,131) ok",
+        "194 p2 AI1 NW v(-1,7)\u2192(-2,6) (101,139)\u2192(99,145) ok",
+        "195 p3 AI1 NW v(3,8)\u2192(2,7) (99,111)\u2192(101,118) ok",
+        "196 p4 AI1 NW v(1,8)\u2192(0,7) (101,126)\u2192(101,133) ok",
+        "197 p5 AI1 NW v(0,8)\u2192(-1,7) (101,129)\u2192(100,136) ok"
+      ],
+      "index": 190
+    },
+    "seed": 12
+  },
+  {
+    "baseline_result": {
+      "crashes": [],
+      "finishes": {
+        "2": 81,
+        "3": 87,
+        "4": 86,
+        "5": 84,
+        "6": 78,
+        "7": 85,
+        "8": 79
+      },
+      "order": [
+        6,
+        8,
+        2,
+        5,
+        7,
+        4,
+        3
+      ],
+      "sum": 580
+    },
+    "candidate_result": {
+      "crashes": [],
+      "finishes": {
+        "1": 84,
+        "2": 81,
+        "4": 86,
+        "5": 86,
+        "6": 78,
+        "7": 82,
+        "8": 79
+      },
+      "order": [
+        6,
+        8,
+        2,
+        7,
+        1,
+        4,
+        5
+      ],
+      "sum": 576
+    },
+    "danger_events": [
+      "AIDBG ESC p=4 pos=(37,12) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(38,13) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=65 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(41,14) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=65 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(46,17) chosen=SW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=64 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(100,138) chosen=NE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=50 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(103,141) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=50 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(100,142) chosen=SW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=49 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(102,145) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=51 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(99,147) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=50 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(97,151) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=49 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(97,153) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(94,154) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(94,156) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(93,156) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(90,157) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=3 pos=(94,154) chosen=SW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(74,113) chosen=SW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=31 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=3 pos=(60,113) chosen=SE scorer-dies -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=-1 tier=3 thread=1 snug=1",
+      "AIDBG ESC p=3 pos=(58,116) chosen=SW scorer-dies -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=-1 tier=3 thread=1 snug=1"
+    ],
+    "field_accel_events": [
+      "AIDBG FIELD-ACCEL p=2 pos=(86,72) SW -> S ttf 61 -> 60 ahead=3 progress=33 self 55 -> 54 field 378 -> 377"
+    ],
+    "first_difference": {
+      "baseline": "146 p2 AI1 SW v(5,10)\u2192(4,11) (86,72)\u2192(90,83) ok",
+      "baseline_context": [
+        "142 p6 AI1 NW v(5,11)\u2192(4,10) (88,76)\u2192(92,86) ok",
+        "143 p7 AI1 S v(5,10)\u2192(5,11) (84,65)\u2192(89,76) ok",
+        "144 p8 AI1 N v(5,11)\u2192(5,10) (86,77)\u2192(91,87) ok",
+        "145 p1 AI1 SW v(6,9)\u2192(5,10) (76,53)\u2192(81,63) ok",
+        "146 p2 AI1 SW v(5,10)\u2192(4,11) (86,72)\u2192(90,83) ok",
+        "147 p3 AI1 NONE v(6,9)\u2192(6,9) (77,55)\u2192(83,64) ok",
+        "148 p4 AI1 S v(5,10)\u2192(5,11) (82,66)\u2192(87,77) ok",
+        "149 p5 AI1 SW v(5,10)\u2192(4,11) (87,71)\u2192(91,82) ok",
+        "150 p6 AI1 NONE v(4,10)\u2192(4,10) (92,86)\u2192(96,96) ok",
+        "151 p7 AI1 NW v(5,11)\u2192(4,10) (89,76)\u2192(93,86) ok",
+        "152 p8 AI1 W v(5,10)\u2192(4,10) (91,87)\u2192(95,97) ok"
+      ],
+      "candidate": "146 p2 AI1 S v(5,10)\u2192(5,11) (86,72)\u2192(91,83) ok",
+      "candidate_context": [
+        "142 p6 AI1 NW v(5,11)\u2192(4,10) (88,76)\u2192(92,86) ok",
+        "143 p7 AI1 S v(5,10)\u2192(5,11) (84,65)\u2192(89,76) ok",
+        "144 p8 AI1 N v(5,11)\u2192(5,10) (86,77)\u2192(91,87) ok",
+        "145 p1 AI1 SW v(6,9)\u2192(5,10) (76,53)\u2192(81,63) ok",
+        "146 p2 AI1 S v(5,10)\u2192(5,11) (86,72)\u2192(91,83) ok",
+        "147 p3 AI1 NONE v(6,9)\u2192(6,9) (77,55)\u2192(83,64) ok",
+        "148 p4 AI1 S v(5,10)\u2192(5,11) (82,66)\u2192(87,77) ok",
+        "149 p5 AI1 SW v(5,10)\u2192(4,11) (87,71)\u2192(91,82) ok",
+        "150 p6 AI1 NONE v(4,10)\u2192(4,10) (92,86)\u2192(96,96) ok",
+        "151 p7 AI1 NW v(5,11)\u2192(4,10) (89,76)\u2192(93,86) ok",
+        "152 p8 AI1 W v(5,10)\u2192(4,10) (91,87)\u2192(95,97) ok"
+      ],
+      "index": 145
+    },
+    "seed": 31
+  },
+  {
+    "baseline_result": {
+      "crashes": [],
+      "finishes": {
+        "1": 78,
+        "2": 86,
+        "3": 79,
+        "5": 85,
+        "6": 80,
+        "7": 82,
+        "8": 83
+      },
+      "order": [
+        1,
+        3,
+        6,
+        7,
+        8,
+        5,
+        2
+      ],
+      "sum": 573
+    },
+    "candidate_result": {
+      "crashes": [],
+      "finishes": {
+        "1": 78,
+        "2": 84,
+        "3": 79,
+        "4": 85,
+        "6": 80,
+        "7": 82,
+        "8": 86
+      },
+      "order": [
+        1,
+        3,
+        6,
+        7,
+        2,
+        4,
+        8
+      ],
+      "sum": 574
+    },
+    "danger_events": [
+      "AIDBG ESC p=8 pos=(35,11) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=2 pos=(40,13) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=2 v=65 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=3 pos=(39,14) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=65 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=8 pos=(39,13) chosen=S dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=65 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(99,145) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(100,145) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=49 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=8 pos=(100,146) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=49 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(97,150) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=8 pos=(98,150) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=49 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(94,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=46 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=8 pos=(95,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(90,157) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=45 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(94,156) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=46 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=8 pos=(91,157) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=8 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(94,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(92,154) chosen=NE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(90,158) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=45 tier=3 thread=0 snug=0"
+    ],
+    "field_accel_events": [
+      "AIDBG FIELD-ACCEL p=7 pos=(86,72) SW -> S ttf 61 -> 60 ahead=5 progress=59 self 55 -> 54 field 380 -> 379"
+    ],
+    "first_difference": {
+      "baseline": "151 p7 AI1 SW v(5,10)\u2192(4,11) (86,72)\u2192(90,83) ok",
+      "baseline_context": [
+        "147 p3 AI1 NW v(5,11)\u2192(4,10) (88,77)\u2192(92,87) ok",
+        "148 p4 AI1 SW v(5,8)\u2192(4,9) (80,54)\u2192(84,63) ok",
+        "149 p5 AI1 NW v(6,9)\u2192(5,8) (80,61)\u2192(85,69) ok",
+        "150 p6 AI1 S v(5,10)\u2192(5,11) (84,66)\u2192(89,77) ok",
+        "151 p7 AI1 SW v(5,10)\u2192(4,11) (86,72)\u2192(90,83) ok",
+        "152 p8 AI1 SW v(5,10)\u2192(4,11) (88,72)\u2192(92,83) ok",
+        "153 p1 AI1 NONE v(3,10)\u2192(3,10) (96,97)\u2192(99,107) ok",
+        "154 p2 AI1 NW v(5,10)\u2192(4,9) (92,86)\u2192(96,95) ok",
+        "155 p3 AI1 W v(4,10)\u2192(3,10) (92,87)\u2192(95,97) ok",
+        "156 p4 AI1 S v(4,9)\u2192(4,10) (84,63)\u2192(88,73) ok",
+        "157 p5 AI1 SW v(5,8)\u2192(4,9) (85,69)\u2192(89,78) ok"
+      ],
+      "candidate": "151 p7 AI1 S v(5,10)\u2192(5,11) (86,72)\u2192(91,83) ok",
+      "candidate_context": [
+        "147 p3 AI1 NW v(5,11)\u2192(4,10) (88,77)\u2192(92,87) ok",
+        "148 p4 AI1 SW v(5,8)\u2192(4,9) (80,54)\u2192(84,63) ok",
+        "149 p5 AI1 NW v(6,9)\u2192(5,8) (80,61)\u2192(85,69) ok",
+        "150 p6 AI1 S v(5,10)\u2192(5,11) (84,66)\u2192(89,77) ok",
+        "151 p7 AI1 S v(5,10)\u2192(5,11) (86,72)\u2192(91,83) ok",
+        "152 p8 AI1 SW v(5,10)\u2192(4,11) (88,72)\u2192(92,83) ok",
+        "153 p1 AI1 NONE v(3,10)\u2192(3,10) (96,97)\u2192(99,107) ok",
+        "154 p2 AI1 NW v(5,10)\u2192(4,9) (92,86)\u2192(96,95) ok",
+        "155 p3 AI1 W v(4,10)\u2192(3,10) (92,87)\u2192(95,97) ok",
+        "156 p4 AI1 S v(4,9)\u2192(4,10) (84,63)\u2192(88,73) ok",
+        "157 p5 AI1 SW v(5,8)\u2192(4,9) (85,69)\u2192(89,78) ok"
+      ],
+      "index": 150
+    },
+    "seed": 40
+  },
+  {
+    "baseline_result": {
+      "crashes": [],
+      "finishes": {
+        "2": 80,
+        "3": 87,
+        "4": 81,
+        "5": 85,
+        "6": 83,
+        "7": 87,
+        "8": 78
+      },
+      "order": [
+        8,
+        2,
+        4,
+        6,
+        5,
+        3,
+        7
+      ],
+      "sum": 581
+    },
+    "candidate_result": {
+      "crashes": [],
+      "finishes": {
+        "2": 80,
+        "3": 88,
+        "4": 81,
+        "5": 85,
+        "6": 83,
+        "7": 87,
+        "8": 78
+      },
+      "order": [
+        8,
+        2,
+        4,
+        6,
+        5,
+        7,
+        3
+      ],
+      "sum": 582
+    },
+    "danger_events": [
+      "AIDBG ESC p=2 pos=(37,11) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=2 v=67 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(35,11) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=6 pos=(37,12) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=6 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=1 pos=(39,11) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=1 v=66 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=3 pos=(38,10) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=67 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(36,12) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=65 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=4 pos=(40,15) chosen=SE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=4 v=64 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=1 pos=(100,144) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=1 v=50 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(97,150) chosen=SW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=49 tier=3 thread=0 snug=1",
+      "AIDBG ESC p=5 pos=(94,154) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=48 tier=3 thread=0 snug=1",
+      "AIDBG ESC p=7 pos=(97,150) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=5 pos=(90,157) chosen=N dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=5 v=47 tier=3 thread=0 snug=1",
+      "AIDBG ESC p=7 pos=(93,154) chosen=NE dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=46 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=1 pos=(91,155) chosen=W dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=1 v=48 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=3 pos=(93,155) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=3 v=47 tier=3 thread=0 snug=0",
+      "AIDBG ESC p=7 pos=(90,157) chosen=NW dense-pack -> scorer rollout",
+      "AIDBG ESC-AUDIT p=7 v=45 tier=3 thread=0 snug=0"
+    ],
+    "field_accel_events": [
+      "AIDBG FIELD-ACCEL p=1 pos=(101,126) N -> W ttf 56 -> 55 ahead=5 progress=58 self 51 -> 49 field 338 -> 337"
+    ],
+    "first_difference": {
+      "baseline": "201 p1 AI1 N v(1,7)\u2192(1,6) (101,126)\u2192(102,132) ok",
+      "baseline_context": [
+        "197 p5 AI1 NW v(0,8)\u2192(-1,7) (102,125)\u2192(101,132) ok",
+        "198 p6 AI1 NW v(1,7)\u2192(0,6) (102,131)\u2192(102,137) ok",
+        "199 p7 AI1 NONE v(2,8)\u2192(2,8) (100,109)\u2192(102,117) ok",
+        "200 p8 AI1 NW v(-1,7)\u2192(-2,6) (101,139)\u2192(99,145) ok",
+        "201 p1 AI1 N v(1,7)\u2192(1,6) (101,126)\u2192(102,132) ok",
+        "202 p2 AI1 N v(-1,6)\u2192(-1,5) (100,139)\u2192(99,144) ok",
+        "203 p3 AI1 W v(1,7)\u2192(0,7) (101,120)\u2192(101,127) ok",
+        "204 p4 AI1 E v(-1,6)\u2192(0,6) (100,135)\u2192(100,141) ok",
+        "205 p5 AI1 N v(-1,7)\u2192(-1,6) (101,132)\u2192(100,138) ok",
+        "206 p6 AI1 W v(0,6)\u2192(-1,6) (102,137)\u2192(101,143) ok",
+        "207 p7 AI1 NW v(2,8)\u2192(1,7) (102,117)\u2192(103,124) ok"
+      ],
+      "candidate": "201 p1 AI1 W v(1,7)\u2192(0,7) (101,126)\u2192(101,133) ok",
+      "candidate_context": [
+        "197 p5 AI1 NW v(0,8)\u2192(-1,7) (102,125)\u2192(101,132) ok",
+        "198 p6 AI1 NW v(1,7)\u2192(0,6) (102,131)\u2192(102,137) ok",
+        "199 p7 AI1 NONE v(2,8)\u2192(2,8) (100,109)\u2192(102,117) ok",
+        "200 p8 AI1 NW v(-1,7)\u2192(-2,6) (101,139)\u2192(99,145) ok",
+        "201 p1 AI1 W v(1,7)\u2192(0,7) (101,126)\u2192(101,133) ok",
+        "202 p2 AI1 N v(-1,6)\u2192(-1,5) (100,139)\u2192(99,144) ok",
+        "203 p3 AI1 W v(1,7)\u2192(0,7) (101,120)\u2192(101,127) ok",
+        "204 p4 AI1 E v(-1,6)\u2192(0,6) (100,135)\u2192(100,141) ok",
+        "205 p5 AI1 N v(-1,7)\u2192(-1,6) (101,132)\u2192(100,138) ok",
+        "206 p6 AI1 W v(0,6)\u2192(-1,6) (102,137)\u2192(101,143) ok",
+        "207 p7 AI1 NW v(2,8)\u2192(1,7) (102,117)\u2192(103,124) ok"
+      ],
+      "index": 200
+    },
+    "seed": 47
+  }
+]
