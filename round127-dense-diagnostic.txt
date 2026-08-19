@@ -8,67 +8,1468 @@ AIDBG RING p=6 land=(19,87) spdInf=3 span=6 minRing=3
 AIDBG turn-REAL p=6 pos=(19,87) vel=(1,-3) chosen=NE trap=0.0
 AIDBG RING p=6 land=(21,83) spdInf=4 span=10 minRing=3
 AIDBG ESC p=6 pos=(19,87) chosen=NE dense-pack -> scorer rollout
-AIDBG DENSE-FUNNEL p=4 pos=(24,76) chosen=NW minRing=3 run=28 rivals=7 -> scorer12
 AIDBG turn-REAL p=6 pos=(21,83) vel=(2,-4) chosen=N trap=0.0
 AIDBG RING p=6 land=(23,78) spdInf=5 span=15 minRing=3
 AIDBG ESC p=6 pos=(21,83) chosen=N dense-pack -> scorer rollout
-AIDBG DENSE-FUNNEL p=2 pos=(25,72) chosen=NE minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(24,75) chosen=NE minRing=3 run=28 rivals=7 -> scorer12
 AIDBG turn-REAL p=6 pos=(23,78) vel=(2,-5) chosen=NONE trap=0.0
 AIDBG RING p=6 land=(25,73) spdInf=5 span=15 minRing=3
 AIDBG ESC p=6 pos=(23,78) chosen=NONE funnel-risk -> scorer rollout
-AIDBG DENSE-FUNNEL p=3 pos=(27,72) chosen=NE minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(27,68) chosen=NE minRing=3 run=36 rivals=7 -> scorer12
 AIDBG turn-REAL p=6 pos=(25,73) vel=(2,-5) chosen=NE trap=0.0
 AIDBG RING p=6 land=(28,67) spdInf=6 span=21 minRing=3
 AIDBG ESC p=6 pos=(25,73) chosen=NE funnel-risk -> scorer rollout
-AIDBG DENSE-FUNNEL p=7 pos=(26,75) chosen=NE minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=8 pos=(26,76) chosen=NE minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=3 pos=(30,65) chosen=N minRing=3 run=36 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(31,60) chosen=NONE minRing=3 run=36 rivals=7 -> scorer12
 AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
-AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true finish=false
-AIDBG DENSE-FUNNEL p=6 pos=(28,67) chosen=NE minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=7 pos=(29,68) chosen=NW minRing=3 run=36 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=8 pos=(29,69) chosen=N minRing=3 run=36 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=3 pos=(33,57) chosen=NONE minRing=3 run=34 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(35,52) chosen=W minRing=3 run=29 rivals=7 -> scorer12
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
-AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true finish=false
-AIDBG DENSE-FUNNEL p=6 pos=(32,60) chosen=NW minRing=3 run=36 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=7 pos=(31,60) chosen=E minRing=3 run=36 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=8 pos=(32,61) chosen=NE minRing=3 run=37 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=2 pos=(39,41) chosen=S minRing=3 run=19 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=3 pos=(36,49) chosen=NONE minRing=3 run=26 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=4 pos=(40,37) chosen=SE minRing=3 run=16 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(38,44) chosen=S minRing=3 run=22 rivals=7 -> scorer12
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true finish=false
-AIDBG DENSE-FUNNEL p=6 pos=(35,52) chosen=N minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=7 pos=(34,52) chosen=S minRing=3 run=28 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=8 pos=(36,52) chosen=SW minRing=3 run=29 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=3 pos=(39,41) chosen=S minRing=3 run=19 rivals=7 -> scorer12
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true finish=false
-AIDBG DENSE-FUNNEL p=6 pos=(38,43) chosen=SE minRing=3 run=20 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=8 pos=(39,44) chosen=SW minRing=3 run=22 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=7 pos=(37,45) chosen=NONE minRing=3 run=23 rivals=7 -> scorer12
-AIDBG DENSE-FUNNEL p=8 pos=(39,44) chosen=SW minRing=3 run=22 rivals=7 -> scorer12
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true finish=false
-AIDBG DENSE-FUNNEL p=6 pos=(42,35) chosen=S minRing=3 run=13 rivals=7 -> scorer12
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true finish=false
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true finish=false
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true finish=false
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true finish=false
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
 AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true finish=false
-AIDBG DENSE-FUNNEL p=3 pos=(60,28) chosen=SE minRing=3 run=19 rivals=6 -> scorer12
-AIDBG DENSE-FUNNEL p=4 pos=(63,25) chosen=S minRing=3 run=22 rivals=6 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(61,28) chosen=SE minRing=3 run=19 rivals=6 -> scorer12
-AIDBG DENSE-FUNNEL p=5 pos=(60,35) chosen=W minRing=3 run=12 rivals=6 -> scorer12
-AIDBG DENSE-FUNNEL p=7 pos=(60,28) chosen=S minRing=3 run=19 rivals=6 -> scorer12
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(53,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(53,13) vel=(2,-4) chosen=SW trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(1,-3) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(25,73) vel=(2,-5) chosen=NE trap=0.0
+AIDBG RING p=6 land=(28,67) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(25,73) chosen=NE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(53,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(53,13) vel=(2,-4) chosen=SW trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(1,-3) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(53,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(53,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(55,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(55,10) vel=(2,-3) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(1,-2) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(58,7) vel=(2,-1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SW trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG turn-REAL p=6 pos=(52,13) vel=(1,-4) chosen=SE trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG ESC p=6 pos=(52,13) chosen=SE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(54,10) vel=(2,-3) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(58,7) vel=(2,-1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(53,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(53,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(55,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(55,10) vel=(2,-3) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(1,-2) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(58,7) vel=(2,-1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(53,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(53,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(55,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(55,10) vel=(2,-3) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(1,-2) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(58,7) vel=(2,-1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(60,7) vel=(2,0) chosen=NONE trap=0.0
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=5 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SW trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=SW dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(52,13) vel=(1,-4) chosen=SE trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(2,-3) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=SE trap=0.0
+AIDBG RING p=6 land=(59,7) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(59,7) vel=(3,-1) chosen=W trap=0.0
+AIDBG turn-REAL p=6 pos=(61,6) vel=(2,-1) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(62,6) vel=(1,0) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(51,17) spdInf=5 span=15 minRing=3
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(53,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(51,17) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(53,13) vel=(2,-4) chosen=SW trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(1,-3) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,44) vel=(3,-8) chosen=S trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(38,44) chosen=S slow=false spdInf=7 minRing=3 run=22 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(41,37) vel=(3,-7) chosen=S trap=0.0
+AIDBG RING p=6 land=(44,31) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(41,37) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(44,31) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(46,26) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(44,31) chosen=SW dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(46,26) vel=(2,-5) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(48,21) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(46,26) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(48,21) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(50,17) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(48,21) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(50,17) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(50,17) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(52,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(2,-3) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(58,7) vel=(2,-1) chosen=SE trap=0.0
+AIDBG RING p=6 land=(61,7) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(61,7) vel=(3,0) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=6 live=6 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,44) vel=(3,-8) chosen=S trap=0.0
+AIDBG DENSE-CHECK p=6 pos=(38,44) chosen=S slow=false spdInf=7 minRing=3 run=22 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(41,37) vel=(3,-7) chosen=S trap=0.0
+AIDBG RING p=6 land=(44,31) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(41,37) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(44,31) vel=(3,-6) chosen=SW trap=0.0
+AIDBG RING p=6 land=(46,26) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(44,31) chosen=SW dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(46,26) vel=(2,-5) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(48,21) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(46,26) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(48,21) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(50,17) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(48,21) chosen=S dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(50,17) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(50,17) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(52,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(2,-3) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(56,8) vel=(2,-2) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(58,7) vel=(2,-1) chosen=SE trap=0.0
+AIDBG RING p=6 land=(61,7) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(61,7) vel=(3,0) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
+AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
+AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
