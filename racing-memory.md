@@ -27,6 +27,51 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Harvest 25 (local agent): the serpentine2 vmax-11 commitment -- round-133 candidate, probe pending
+
+Slow-track mixed harvest (serpentine/serpentine2/spiral/cog; alternating
+s1-100 + front/reverse s1-50 = 800 races): ALL 10 crashes are
+serpentine2, three sites, and every site reproduces BYTE-IDENTICALLY
+across all three kind orderings (only the victim's kind label moves
+with the slot map) -- kind-invariant champion dooms; no other slow
+track crashes at all.
+
+Walks (reach_serpentine2.bin now in the session scratchpad; races are
+in harvest25/): all three victims commit at THE SAME CELL. Bottom
+straight, (75,112-114), vx=10: accelerating to vx=11 (E or SE) is a
+5-9-round oracle doom; every vx<=10 candidate survives to the finish
+(t=153-154). s35 m94 taken SE dies @r5; s6 m95 taken SE @r7; s40 m95
+taken E @r9. Physics: vx=11 braking distance overruns what the
+right-end hairpin absorbs ONCE TRAFFIC occupies the escape rows -- the
+static reach map says alive (a solo escape line exists), the joint
+world is dead.
+
+THE KILL SIGNAL EXISTS IN-ENGINE: at s35 m94 taken SE, scorer-8 at the
+certification cap is DEAD (V=-1, thread=3 snug=4 -- the thread audit
+lights up in the deep world) while smom-3/scorer-3 AND true-4/5/6-cap6
+all read alive (joint-rollout chaos blinds the true worlds again; the
+suppressed deep world beats them here). The smom-3 fire carries NO
+tell (tier=3 thread=0 snug=0): the only cheap arm is the velocity
+itself (max-axis >= 11 = VMAX-1; spd2 ~121-122).
+
+Round-133 design (pending ONE measurement): at fast fallback fires
+with max|v| >= 11, re-verdict with scorer-8-cap6 (the shipped
+AI1_DEEP_HORIZON world); on death take the standard ladder switch
+(survivors vx<=10 pass every world). The confirm must ride scorer-8
+ALONE -- true-4 reads the doomed line alive and a conjunction would
+veto the kill (r107-style single-world precedent). OPEN RISK, measure
+before arming: bigoval (and long straights on lemans/monza/spa) runs
+max|v| >= 11 legitimately for many turns -- need fires/race and the
+deep world's false-kill rate there. Probe ready:
+apply_probe133.py in the session scratchpad (FASTV11 stderr lines,
+print-only); run serpentine2 s6/s35/s40 mixed + bigoval/lemans/monza/
+spa canon, then decide.
+
+Numbering note: rounds 131/132 above are LOCAL rejected experiments;
+the other agent's concurrent Round 131 (point-containment cache) is a
+separate line.
+
+
 ## Round 132 (local agent, REJECTED measured): fmRec filter reorder + cache lesson
 
 Post-r130 re-profile (per the new law) put blockedContains at 216
