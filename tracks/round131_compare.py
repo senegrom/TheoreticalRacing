@@ -24,7 +24,7 @@ def write_props(path: Path, kind: str) -> None:
 
 
 def run_range(jar: Path, track: str, start: int, end: int, kind: str,
-              label: str, work: Path, reach_cache: Path) -> tuple[dict[int, Path], float]:
+              label: str, work: Path, reach_cache: Path) -> tuple[dict[int, bytes], float]:
     props = work / f"{label}.properties"
     pattern = work / f"{label}-{track}.log"
     write_props(props, kind)
@@ -41,12 +41,12 @@ def run_range(jar: Path, track: str, start: int, end: int, kind: str,
     if result.returncode:
         raise RuntimeError(f"{label} {track} failed: {result.stderr[-4000:]}")
     stem = pattern.with_suffix("")
-    rows: dict[int, Path] = {}
+    rows: dict[int, bytes] = {}
     for seed in range(start, end + 1):
         log = Path(f"{stem}_s{seed}{pattern.suffix}")
         if not log.is_file():
             raise FileNotFoundError(log)
-        rows[seed] = log
+        rows[seed] = log.read_bytes()
     return rows, elapsed
 
 
@@ -74,7 +74,7 @@ def main() -> int:
             args.kind, "candidate", work, reach_cache)
 
     mismatches = [seed for seed in range(args.start, args.end + 1)
-                  if baseline[seed].read_bytes() != candidate[seed].read_bytes()]
+                  if baseline[seed] != candidate[seed]]
     output = {
         "track": args.track,
         "start": args.start,
