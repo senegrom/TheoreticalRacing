@@ -8,7 +8,7 @@ on:
       - .github/workflows/round131-source-export.yml
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   export:
@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euxo pipefail
           parent=cf709da7288c740e5594cb0418ab8c910ca72051
-          test "$(git rev-parse HEAD^)" = "$parent"
+          git merge-base --is-ancestor "$parent" HEAD
           mkdir -p export
           git archive --format=tar.gz --output=export/round131-master-source.tar.gz "$parent"
           printf '%s\n' "$parent" > export/parent.sha
@@ -43,3 +43,23 @@ jobs:
           path: export/
           if-no-files-found: error
           retention-days: 14
+      - name: Publish run locator
+        if: always()
+        env:
+          RUN_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round131-export-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'status_at_locator': os.environ['RUN_STATUS'],
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round131-export-status.json
+          git commit -m "Round 131: record source export run" || exit 0
+          git push
