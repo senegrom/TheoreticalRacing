@@ -15,6 +15,13 @@ def percent_gain(ratio: float) -> str:
     return f"{(1.0 - ratio) * 100.0:.1f}%"
 
 
+def comparison(ratio: float) -> str:
+    delta = (1.0 - ratio) * 100.0
+    if delta >= 0:
+        return f"{delta:.1f}% faster"
+    return f"{-delta:.1f}% slower"
+
+
 def main() -> int:
     summary = json.loads(SUMMARY.read_text())
     runtime = json.loads(RUNTIME.read_text())
@@ -56,12 +63,12 @@ def main() -> int:
     the production checkout.
 
     Alternating warm batches against the already-faster Round 130 champion:
-    Zandvoort {percent_gain(rows['zandvoort']['ratio'])} faster,
-    Nürburgring {percent_gain(rows['nurburgring']['ratio'])} faster,
-    Monaco {percent_gain(rows['monaco']['ratio'])} faster,
-    Interlagos {percent_gain(rows['interlagos']['ratio'])} faster and
-    Sprint {percent_gain(rows['sprint']['ratio'])} faster. Across the five
-    weighted medians the candidate is {percent_gain(runtime['aggregate_ratio'])}
+    Zandvoort {comparison(rows['zandvoort']['ratio'])},
+    Nürburgring {comparison(rows['nurburgring']['ratio'])},
+    Monaco {comparison(rows['monaco']['ratio'])},
+    Interlagos {comparison(rows['interlagos']['ratio'])} and
+    Sprint {comparison(rows['sprint']['ratio'])}. Across the five weighted
+    medians the candidate is {percent_gain(runtime['aggregate_ratio'])}
     faster. A finish-line bounding-box shortcut was rejected separately after
     measuring slower; only the exact point cache shipped.
 
