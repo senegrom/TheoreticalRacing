@@ -55,7 +55,17 @@ ai1_fast_funnel_regression (mixed lemans s36+s45 crash-free, one seed
 per sibling). AI2 remains frozen (kind-gated out; all-AI2 races
 identical by construction).
 
-Residuals: zandvoort s223 (canon singleton, unwalked); hairpin s68
+Residuals: zandvoort s223 -- WALKED, and it is a second specimen of
+the round-127 deep-corridor family (gift for that branch): canon 8xAI1,
+p7 crashes m167 at (61,1) after the top-right corner sequence. Last
+avoidable m95 at (35,52) v(3,-9) spd2=90: the taken NONE dies at oracle
+round NINE (invisible to every shipped sim horizon); shedding one vy
+unit survives to the finish (SW v(2,-8)/S v(3,-8)/SE v(4,-8) all alive,
+t=116-117, sheds of 22/17/10 spd2 -- note a 10-unit shed suffices here
+vs z195's twelve). Structural context differs from the z195 gate (open
+corner entry, not a width-three funnel), so the round-127 brake likely
+needs its class widened or a sibling gate; the m95 board is in
+r129_z223.log (this scratchpad) via oracle_roll cand 95. hairpin s68
 (accepted place-neutral). CORRECTION for the z195 line: the earlier
 "ultra-deep, no survivor to m70" classification of zandvoort s195 was
 measured on a crashed walker (stale reach dump path) and is VOID; the
