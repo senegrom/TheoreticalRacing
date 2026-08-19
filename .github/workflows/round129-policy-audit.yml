@@ -1,0 +1,37 @@
+name: Round 129 frontier policy audit
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-129-frontier-promotion
+    paths:
+      - .github/workflows/round129-policy-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record AI1/AI2 policy boundary
+        run: |
+          {
+            echo '# optimalMoveAI2';
+            grep -n -A12 -B8 'private Direction optimalMoveAI2' src/tr/logic/RaceAi.java;
+            echo;
+            echo '# explicit AI1 kind gates';
+            grep -n -C3 'Player.Kind.AI1' src/tr/logic/RaceAi.java || true;
+            echo;
+            echo '# AI2 references';
+            grep -n -C3 'Player.Kind.AI2\|optimalMoveAI2' src/tr/logic/RaceAi.java || true;
+          } > round129-policy-audit.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
+          git add round129-policy-audit.txt
+          git commit -m 'Record Round 129 frontier policy audit'
+          git push origin HEAD:"$GITHUB_REF_NAME"
