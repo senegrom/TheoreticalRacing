@@ -7,7 +7,6 @@ on:
     paths:
       - .github/workflows/round127-dense-fast-funnel-target.yml
       - tracks/round127_apply_dense_funnel.py
-      - tracks/round127_apply_full_roster.py
       - tracks/round127_compare.py
 
 permissions:
@@ -39,10 +38,9 @@ jobs:
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round127-baseline.jar"
           python "$GITHUB_WORKSPACE/tracks/round127_apply_dense_funnel.py"
-          python "$GITHUB_WORKSPACE/tracks/round127_apply_full_roster.py"
           test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
-          test "$(grep -c 'AI1_DENSE_FAST_FUNNEL_ROUNDS' src/tr/logic/RaceAi.java)" = 3
-          test "$(grep -c 'fullScorerRoster' src/tr/logic/RaceAi.java)" = 3
+          test "$(grep -c 'AI1_DENSE_CORRIDOR_BRAKE_DROP' src/tr/logic/RaceAi.java)" = 2
+          test "$(grep -c 'AIDBG DENSE-BRAKE p=' src/tr/logic/RaceAi.java)" = 1
           git diff --check
           sh ./run_tests.sh
           sh ./build_main.sh
@@ -92,8 +90,8 @@ jobs:
             -jar round127-candidate.jar --auto --track zandvoort \
             --props tracks/bench.properties --log round127-z195-candidate.log --seed 195 \
             > round127-z195-candidate.stdout 2> round127-z195-candidate.stderr
-          grep -E 'AIDBG DENSE-TRUE p=6|AIDBG DENSE-TRUE SWITCH' \
-            round127-z195-candidate.stderr > round127-dense-funnel-events.txt
+          grep 'AIDBG DENSE-BRAKE p=6' round127-z195-candidate.stderr \
+            > round127-dense-funnel-events.txt
           test -s round127-dense-funnel-events.txt
       - name: Publish target result
         run: |
