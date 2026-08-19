@@ -7,7 +7,37 @@ on:
     paths:
       - .github/workflows/round135-post-point-profile.yml
 
+permissions:
+  contents: write
+
+concurrency:
+  group: round135-post-point-profile
+  cancel-in-progress: true
+
 jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish workflow run locator
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round135-profile-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'status_at_locator': 'started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round135-profile-status.json
+          git commit -m 'Round 135: record profile run' || exit 0
+          git push
+
   profile:
     runs-on: ubuntu-latest
     timeout-minutes: 90
