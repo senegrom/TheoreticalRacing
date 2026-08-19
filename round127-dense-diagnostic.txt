@@ -14,42 +14,290 @@ AIDBG ESC p=6 pos=(21,83) chosen=N dense-pack -> scorer rollout
 AIDBG turn-REAL p=6 pos=(23,78) vel=(2,-5) chosen=NONE trap=0.0
 AIDBG RING p=6 land=(25,73) spdInf=5 span=15 minRing=3
 AIDBG ESC p=6 pos=(23,78) chosen=NONE funnel-risk -> scorer rollout
-AIDBG DENSE-TRUE p=5 pos=(27,68) chosen=NE verdict=119 cap=2147483647
+AIDBG DENSE-BRAKE p=5 pos=(27,68) NE -> E ttf 129 -> 130 spd2 80 -> 65
 AIDBG turn-REAL p=6 pos=(25,73) vel=(2,-5) chosen=NE trap=0.0
 AIDBG RING p=6 land=(28,67) spdInf=6 span=21 minRing=3
 AIDBG ESC p=6 pos=(25,73) chosen=NE funnel-risk -> scorer rollout
-AIDBG DENSE-TRUE p=7 pos=(26,75) chosen=NE verdict=120 cap=2147483647
-AIDBG DENSE-TRUE p=8 pos=(26,76) chosen=NE verdict=120 cap=2147483647
-AIDBG DENSE-TRUE p=3 pos=(30,65) chosen=N verdict=119 cap=2147483647
-AIDBG DENSE-TRUE p=5 pos=(31,60) chosen=NONE verdict=118 cap=2147483647
-AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NE trap=0.0
-AIDBG DENSE-CHECK p=6 pos=(28,67) chosen=NE slow=false spdInf=7 minRing=3 run=28 pack=4 live=7 homogeneous=true armed=true
-AIDBG DENSE-TRUE p=6 pos=(28,67) chosen=NE verdict=119 cap=2147483647
-AIDBG DENSE-TRUE p=7 pos=(29,68) chosen=NW verdict=119 cap=2147483647
-AIDBG DENSE-TRUE p=8 pos=(29,69) chosen=N verdict=120 cap=2147483647
-AIDBG DENSE-TRUE p=3 pos=(33,57) chosen=NONE verdict=117 cap=2147483647
-AIDBG DENSE-TRUE p=5 pos=(35,52) chosen=W verdict=117 cap=2147483647
-AIDBG turn-REAL p=6 pos=(32,60) vel=(4,-7) chosen=NW trap=0.0
-AIDBG DENSE-CHECK p=6 pos=(32,60) chosen=NW slow=false spdInf=8 minRing=3 run=36 pack=4 live=7 homogeneous=true armed=true
-AIDBG DENSE-TRUE p=6 pos=(32,60) chosen=NW verdict=119 cap=2147483647
-AIDBG DENSE-TRUE p=7 pos=(31,60) chosen=E verdict=118 cap=2147483647
-AIDBG DENSE-TRUE p=8 pos=(32,61) chosen=NE verdict=119 cap=2147483647
-AIDBG DENSE-TRUE p=3 pos=(36,49) chosen=NONE verdict=116 cap=2147483647
-AIDBG DENSE-TRUE p=5 pos=(38,44) chosen=S verdict=116 cap=2147483647
-AIDBG turn-REAL p=6 pos=(35,52) vel=(3,-8) chosen=N trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(35,52) chosen=N slow=false spdInf=9 minRing=3 run=28 pack=6 live=7 homogeneous=true armed=false
-AIDBG DENSE-TRUE p=7 pos=(34,52) chosen=S verdict=118 cap=2147483647
-AIDBG turn-REAL p=6 pos=(38,43) vel=(3,-9) chosen=SE trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(38,43) chosen=SE slow=false spdInf=8 minRing=3 run=20 pack=7 live=7 homogeneous=true armed=false
-AIDBG turn-REAL p=6 pos=(42,35) vel=(4,-8) chosen=S trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(42,35) chosen=S slow=false spdInf=7 minRing=3 run=13 pack=7 live=7 homogeneous=true armed=false
-AIDBG turn-REAL p=6 pos=(46,28) vel=(4,-7) chosen=SW trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(46,28) chosen=SW slow=true spdInf=6 minRing=3 run=7 pack=7 live=7 homogeneous=true armed=false
-AIDBG turn-REAL p=6 pos=(49,22) vel=(3,-6) chosen=SW trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(49,22) chosen=SW slow=true spdInf=5 minRing=3 run=2 pack=7 live=7 homogeneous=true armed=false
-AIDBG turn-REAL p=6 pos=(51,17) vel=(2,-5) chosen=SE trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(51,17) chosen=SE slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
-AIDBG turn-REAL p=6 pos=(54,13) vel=(3,-4) chosen=W trap=0.5
-AIDBG DENSE-CHECK p=6 pos=(54,13) chosen=W slow=true spdInf=4 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
-AIDBG turn-REAL p=6 pos=(56,9) vel=(2,-4) chosen=SW trap=2.0
-AIDBG DENSE-CHECK p=6 pos=(56,9) chosen=SW slow=true spdInf=3 minRing=5 run=0 pack=7 live=7 homogeneous=true armed=false
+AIDBG DENSE-BRAKE p=7 pos=(26,75) NE -> E ttf 130 -> 131 spd2 58 -> 45
+AIDBG DENSE-BRAKE p=8 pos=(26,76) N -> NONE ttf 130 -> 131 spd2 53 -> 40
+AIDBG DENSE-BRAKE p=3 pos=(30,65) N -> NONE ttf 129 -> 129 spd2 73 -> 58
+AIDBG DENSE-BRAKE p=5 pos=(31,61) N -> NONE ttf 129 -> 129 spd2 80 -> 65
+AIDBG turn-REAL p=6 pos=(28,67) vel=(3,-6) chosen=NW trap=0.0
+AIDBG DENSE-BRAKE p=6 pos=(28,67) NW -> W ttf 129 -> 130 spd2 53 -> 40
+AIDBG DENSE-BRAKE p=7 pos=(29,69) N -> W ttf 130 -> 130 spd2 58 -> 40
+AIDBG DENSE-BRAKE p=5 pos=(35,54) NW -> W ttf 128 -> 128 spd2 73 -> 58
+AIDBG turn-REAL p=6 pos=(30,61) vel=(2,-6) chosen=NE trap=0.0
+AIDBG DENSE-BRAKE p=6 pos=(30,61) NE -> E ttf 129 -> 129 spd2 58 -> 45
+AIDBG DENSE-BRAKE p=3 pos=(36,50) NONE -> S ttf 127 -> 127 spd2 73 -> 58
+AIDBG DENSE-BRAKE p=5 pos=(38,47) NONE -> S ttf 127 -> 127 spd2 58 -> 45
+AIDBG turn-REAL p=6 pos=(33,55) vel=(3,-6) chosen=NE trap=0.0
+AIDBG DENSE-BRAKE p=6 pos=(33,55) NE -> E ttf 128 -> 128 spd2 65 -> 52
+AIDBG DENSE-BRAKE p=7 pos=(34,57) NW -> W ttf 128 -> 129 spd2 53 -> 40
+AIDBG DENSE-BRAKE p=8 pos=(31,58) NE -> E ttf 128 -> 129 spd2 58 -> 45
+AIDBG DENSE-BRAKE p=3 pos=(39,43) N -> NONE ttf 126 -> 127 spd2 73 -> 58
+AIDBG DENSE-BRAKE p=5 pos=(41,41) NW -> W ttf 126 -> 126 spd2 53 -> 40
+AIDBG turn-REAL p=6 pos=(37,49) vel=(4,-6) chosen=NW trap=0.0
+AIDBG DENSE-BRAKE p=6 pos=(37,49) NW -> W ttf 127 -> 128 spd2 58 -> 45
+AIDBG turn-REAL p=6 pos=(40,43) vel=(3,-6) chosen=NW trap=0.0
+AIDBG turn-REAL p=6 pos=(42,36) vel=(2,-7) chosen=S trap=0.0
+AIDBG RING p=6 land=(44,30) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(42,36) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(44,30) vel=(2,-6) chosen=S trap=0.0
+AIDBG RING p=6 land=(46,25) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(44,30) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(46,25) vel=(2,-5) chosen=S trap=0.0
+AIDBG RING p=6 land=(48,21) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(46,25) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(48,21) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(50,17) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(48,21) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(50,17) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(50,17) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(52,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(48,21) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(50,17) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(48,21) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(50,17) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(50,17) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(52,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(2,-3) chosen=SE trap=0.0
+AIDBG RING p=6 land=(57,8) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(50,17) vel=(2,-4) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(52,13) spdInf=4 span=10 minRing=5
+AIDBG ESC p=6 pos=(50,17) chosen=NONE dense-pack -> scorer rollout
+AIDBG turn-REAL p=6 pos=(52,13) vel=(2,-4) chosen=S trap=0.0
+AIDBG RING p=6 land=(54,10) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(54,10) vel=(2,-3) chosen=SE trap=0.0
+AIDBG RING p=6 land=(57,8) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(57,8) vel=(3,-2) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(59,7) vel=(2,-1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(61,7) vel=(2,0) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(63,8) vel=(2,1) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(64,10) vel=(1,2) chosen=SW trap=0.0
+AIDBG RING p=6 land=(64,13) spdInf=3 span=6 minRing=4
+AIDBG turn-REAL p=6 pos=(64,13) vel=(0,3) chosen=SW trap=0.0
+AIDBG RING p=6 land=(63,17) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(64,13) chosen=SW funnel-risk -> scorer rollout
+AIDBG DENSE-BRAKE p=4 pos=(63,25) S -> NONE ttf 112 -> 112 spd2 53 -> 40
+AIDBG DENSE-BRAKE p=5 pos=(60,28) SE -> E ttf 111 -> 112 spd2 50 -> 37
+AIDBG turn-REAL p=6 pos=(63,17) vel=(-1,4) chosen=S trap=0.0
+AIDBG RING p=6 land=(62,22) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(63,17) chosen=S funnel-risk -> scorer rollout
+AIDBG DENSE-BRAKE p=4 pos=(61,31) S -> NONE ttf 111 -> 111 spd2 53 -> 40
+AIDBG turn-REAL p=6 pos=(62,22) vel=(-1,5) chosen=SW trap=0.0
+AIDBG RING p=6 land=(60,28) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(62,22) chosen=SW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(60,28) vel=(-2,6) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(59,35) vel=(-1,7) chosen=N trap=0.0
+AIDBG RING p=6 land=(58,41) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(59,35) chosen=N funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(58,41) vel=(-1,6) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(57,47) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(58,41) chosen=NONE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(57,47) vel=(-1,6) chosen=N trap=0.0
+AIDBG RING p=6 land=(56,52) spdInf=5 span=15 minRing=4
+AIDBG turn-REAL p=6 pos=(56,52) vel=(-1,5) chosen=NW trap=0.0
+AIDBG RING p=6 land=(54,56) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(54,56) vel=(-2,4) chosen=W trap=0.0
+AIDBG RING p=6 land=(51,60) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(51,60) vel=(-3,4) chosen=NW trap=0.0
+AIDBG RING p=6 land=(47,63) spdInf=4 span=10 minRing=5
+AIDBG turn-REAL p=6 pos=(47,63) vel=(-4,3) chosen=N trap=0.5
+AIDBG turn-REAL p=6 pos=(43,65) vel=(-4,2) chosen=E trap=0.0
+AIDBG RING p=6 land=(40,67) spdInf=3 span=6 minRing=5
+AIDBG turn-REAL p=6 pos=(40,67) vel=(-3,2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(38,69) vel=(-2,2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(37,71) vel=(-1,2) chosen=N trap=0.0
+AIDBG turn-REAL p=6 pos=(36,72) vel=(-1,1) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(36,74) vel=(0,2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(37,76) vel=(1,2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(39,78) vel=(2,2) chosen=NE trap=0.0
+AIDBG RING p=6 land=(42,79) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(42,79) vel=(3,1) chosen=NE trap=0.0
+AIDBG RING p=6 land=(46,79) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(42,79) chosen=NE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(46,79) vel=(4,0) chosen=NE trap=0.0
+AIDBG RING p=6 land=(51,78) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(46,79) chosen=NE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(51,78) vel=(5,-1) chosen=NE trap=0.0
+AIDBG RING p=6 land=(57,76) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(51,78) chosen=NE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(57,76) vel=(6,-2) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(64,75) vel=(7,-1) chosen=NONE trap=0.0
+AIDBG turn-REAL p=6 pos=(71,74) vel=(7,-1) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(79,74) vel=(8,0) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(88,75) vel=(9,1) chosen=NE trap=0.5
+AIDBG turn-REAL p=6 pos=(98,75) vel=(10,0) chosen=W trap=2.0
+AIDBG turn-REAL p=6 pos=(107,75) vel=(9,0) chosen=NW trap=2.0
+AIDBG turn-REAL p=6 pos=(115,74) vel=(8,-1) chosen=NW trap=0.5
+AIDBG turn-REAL p=6 pos=(122,72) vel=(7,-2) chosen=NW trap=0.0
+AIDBG RING p=6 land=(128,69) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(122,72) chosen=NW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(128,69) vel=(6,-3) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(135,66) vel=(7,-3) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(142,64) vel=(7,-2) chosen=SW trap=0.0
+AIDBG RING p=6 land=(148,63) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(142,64) chosen=SW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(148,63) vel=(6,-1) chosen=S trap=0.0
+AIDBG RING p=6 land=(154,63) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(148,63) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(154,63) vel=(6,0) chosen=SE trap=0.5
+AIDBG turn-REAL p=6 pos=(161,64) vel=(7,1) chosen=SW trap=0.5
+AIDBG turn-REAL p=6 pos=(167,66) vel=(6,2) chosen=NW trap=0.5
+AIDBG turn-REAL p=6 pos=(172,67) vel=(5,1) chosen=SW trap=0.0
+AIDBG RING p=6 land=(176,69) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(176,69) vel=(4,2) chosen=SW trap=0.0
+AIDBG RING p=6 land=(179,72) spdInf=3 span=6 minRing=4
+AIDBG turn-REAL p=6 pos=(179,72) vel=(3,3) chosen=SW trap=0.0
+AIDBG RING p=6 land=(181,76) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(181,76) vel=(2,4) chosen=SW trap=0.0
+AIDBG RING p=6 land=(182,81) spdInf=5 span=15 minRing=4
+AIDBG ESC p=6 pos=(181,76) chosen=SW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(182,81) vel=(1,5) chosen=W trap=0.0
+AIDBG RING p=6 land=(182,86) spdInf=5 span=15 minRing=4
+AIDBG ESC p=6 pos=(182,81) chosen=W funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(182,86) vel=(0,5) chosen=W trap=0.0
+AIDBG RING p=6 land=(181,91) spdInf=5 span=15 minRing=4
+AIDBG turn-REAL p=6 pos=(181,91) vel=(-1,5) chosen=W trap=0.0
+AIDBG RING p=6 land=(179,96) spdInf=5 span=15 minRing=4
+AIDBG turn-REAL p=6 pos=(179,96) vel=(-2,5) chosen=SW trap=0.0
+AIDBG RING p=6 land=(176,102) spdInf=6 span=21 minRing=4
+AIDBG turn-REAL p=6 pos=(176,102) vel=(-3,6) chosen=W trap=0.0
+AIDBG turn-REAL p=6 pos=(172,108) vel=(-4,6) chosen=N trap=0.0
+AIDBG RING p=6 land=(168,113) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(172,108) chosen=N funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(168,113) vel=(-4,5) chosen=E trap=0.0
+AIDBG RING p=6 land=(165,118) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(168,113) chosen=E funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(165,118) vel=(-3,5) chosen=NW trap=0.0
+AIDBG RING p=6 land=(161,122) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(165,118) chosen=NW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(161,122) vel=(-4,4) chosen=NW trap=0.0
+AIDBG RING p=6 land=(156,125) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(161,122) chosen=NW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(156,125) vel=(-5,3) chosen=N trap=0.0
+AIDBG RING p=6 land=(151,127) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(156,125) chosen=N funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(151,127) vel=(-5,2) chosen=N trap=0.5
+AIDBG turn-REAL p=6 pos=(146,128) vel=(-5,1) chosen=N trap=0.5
+AIDBG turn-REAL p=6 pos=(141,128) vel=(-5,0) chosen=N trap=2.0
+AIDBG turn-REAL p=6 pos=(136,127) vel=(-5,-1) chosen=NE trap=2.0
+AIDBG turn-REAL p=6 pos=(132,125) vel=(-4,-2) chosen=NE trap=0.0
+AIDBG RING p=6 land=(129,122) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(129,122) vel=(-3,-3) chosen=E trap=0.0
+AIDBG RING p=6 land=(127,119) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(127,119) vel=(-2,-3) chosen=E trap=0.0
+AIDBG RING p=6 land=(126,116) spdInf=3 span=6 minRing=4
+AIDBG turn-REAL p=6 pos=(126,116) vel=(-1,-3) chosen=E trap=0.0
+AIDBG RING p=6 land=(126,113) spdInf=3 span=6 minRing=4
+AIDBG turn-REAL p=6 pos=(126,113) vel=(0,-3) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(127,111) vel=(1,-2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(129,109) vel=(2,-2) chosen=E trap=0.0
+AIDBG RING p=6 land=(132,107) spdInf=3 span=6 minRing=4
+AIDBG turn-REAL p=6 pos=(132,107) vel=(3,-2) chosen=E trap=0.0
+AIDBG RING p=6 land=(136,105) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(136,105) vel=(4,-2) chosen=SE trap=0.0
+AIDBG RING p=6 land=(141,104) spdInf=5 span=15 minRing=4
+AIDBG turn-REAL p=6 pos=(141,104) vel=(5,-1) chosen=NW trap=0.0
+AIDBG RING p=6 land=(145,102) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(145,102) vel=(4,-2) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(149,100) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(149,100) vel=(4,-2) chosen=SW trap=0.0
+AIDBG RING p=6 land=(152,99) spdInf=3 span=6 minRing=4
+AIDBG turn-REAL p=6 pos=(152,99) vel=(3,-1) chosen=W trap=0.0
+AIDBG turn-REAL p=6 pos=(154,98) vel=(2,-1) chosen=NONE trap=0.0
+AIDBG turn-REAL p=6 pos=(156,97) vel=(2,-1) chosen=NW trap=0.0
+AIDBG turn-REAL p=6 pos=(157,95) vel=(1,-2) chosen=W trap=0.0
+AIDBG turn-REAL p=6 pos=(157,93) vel=(0,-2) chosen=W trap=0.0
+AIDBG turn-REAL p=6 pos=(156,91) vel=(-1,-2) chosen=NW trap=0.0
+AIDBG RING p=6 land=(154,88) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(154,88) vel=(-2,-3) chosen=SW trap=0.0
+AIDBG RING p=6 land=(151,86) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(151,86) vel=(-3,-2) chosen=SW trap=0.0
+AIDBG RING p=6 land=(147,85) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(151,86) chosen=SW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(147,85) vel=(-4,-1) chosen=W trap=0.0
+AIDBG RING p=6 land=(142,84) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(147,85) chosen=W funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(142,84) vel=(-5,-1) chosen=W trap=0.0
+AIDBG RING p=6 land=(136,83) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(142,84) chosen=W funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(136,83) vel=(-6,-1) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(129,83) vel=(-7,0) chosen=SW trap=0.0
+AIDBG turn-REAL p=6 pos=(121,84) vel=(-8,1) chosen=W trap=0.0
+AIDBG turn-REAL p=6 pos=(112,85) vel=(-9,1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(103,87) vel=(-9,2) chosen=NONE trap=0.0
+AIDBG turn-REAL p=6 pos=(94,89) vel=(-9,2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(86,91) vel=(-8,2) chosen=E trap=0.0
+AIDBG turn-REAL p=6 pos=(79,93) vel=(-7,2) chosen=NONE trap=2.0
+AIDBG turn-REAL p=6 pos=(72,95) vel=(-7,2) chosen=E trap=2.0
+AIDBG turn-REAL p=6 pos=(66,97) vel=(-6,2) chosen=NE trap=0.5
+AIDBG turn-REAL p=6 pos=(61,98) vel=(-5,1) chosen=NE trap=0.0
+AIDBG RING p=6 land=(57,98) spdInf=4 span=10 minRing=3
+AIDBG turn-REAL p=6 pos=(57,98) vel=(-4,0) chosen=N trap=0.5
+AIDBG turn-REAL p=6 pos=(53,97) vel=(-4,-1) chosen=SE trap=0.0
+AIDBG RING p=6 land=(50,97) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(50,97) vel=(-3,0) chosen=SE trap=0.0
+AIDBG turn-REAL p=6 pos=(48,98) vel=(-2,1) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(46,100) vel=(-2,2) chosen=SE trap=0.0
+AIDBG RING p=6 land=(45,103) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(45,103) vel=(-1,3) chosen=SE trap=0.0
+AIDBG RING p=6 land=(45,107) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(45,103) chosen=SE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(45,107) vel=(0,4) chosen=SE trap=0.0
+AIDBG RING p=6 land=(46,112) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(45,107) chosen=SE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(46,112) vel=(1,5) chosen=S trap=0.0
+AIDBG RING p=6 land=(47,118) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(46,112) chosen=S funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(47,118) vel=(1,6) chosen=S trap=0.0
+AIDBG turn-REAL p=6 pos=(48,125) vel=(1,7) chosen=N trap=0.0
+AIDBG RING p=6 land=(49,131) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(48,125) chosen=N funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(49,131) vel=(1,6) chosen=NONE trap=0.0
+AIDBG RING p=6 land=(50,137) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(49,131) chosen=NONE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(50,137) vel=(1,6) chosen=W trap=2.0
+AIDBG turn-REAL p=6 pos=(50,143) vel=(0,6) chosen=NW trap=0.5
+AIDBG turn-REAL p=6 pos=(49,148) vel=(-1,5) chosen=NW trap=0.5
+AIDBG turn-REAL p=6 pos=(47,152) vel=(-2,4) chosen=NW trap=0.0
+AIDBG RING p=6 land=(44,155) spdInf=3 span=6 minRing=3
+AIDBG turn-REAL p=6 pos=(44,155) vel=(-3,3) chosen=NW trap=0.0
+AIDBG RING p=6 land=(40,157) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(44,155) chosen=NW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(40,157) vel=(-4,2) chosen=NW trap=0.0
+AIDBG RING p=6 land=(35,158) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(40,157) chosen=NW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(35,158) vel=(-5,1) chosen=NW trap=0.0
+AIDBG RING p=6 land=(29,158) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(35,158) chosen=NW funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(29,158) vel=(-6,0) chosen=NE trap=0.0
+AIDBG RING p=6 land=(24,157) spdInf=5 span=15 minRing=4
+AIDBG turn-REAL p=6 pos=(24,157) vel=(-5,-1) chosen=N trap=0.0
+AIDBG RING p=6 land=(19,155) spdInf=5 span=15 minRing=4
+AIDBG ESC p=6 pos=(24,157) chosen=N funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(19,155) vel=(-5,-2) chosen=NE trap=0.0
+AIDBG RING p=6 land=(15,152) spdInf=4 span=10 minRing=4
+AIDBG turn-REAL p=6 pos=(15,152) vel=(-4,-3) chosen=N trap=0.0
+AIDBG RING p=6 land=(11,148) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(15,152) chosen=N funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(11,148) vel=(-4,-4) chosen=E trap=0.0
+AIDBG RING p=6 land=(8,144) spdInf=4 span=10 minRing=3
+AIDBG ESC p=6 pos=(11,148) chosen=E funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(8,144) vel=(-3,-4) chosen=NE trap=0.0
+AIDBG RING p=6 land=(6,139) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(8,144) chosen=NE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(6,139) vel=(-2,-5) chosen=E trap=0.0
+AIDBG RING p=6 land=(5,134) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(6,139) chosen=E funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(5,134) vel=(-1,-5) chosen=E trap=0.0
+AIDBG RING p=6 land=(5,129) spdInf=5 span=15 minRing=3
+AIDBG ESC p=6 pos=(5,134) chosen=E funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(5,129) vel=(0,-5) chosen=NE trap=0.0
+AIDBG RING p=6 land=(6,123) spdInf=6 span=21 minRing=3
+AIDBG ESC p=6 pos=(5,129) chosen=NE funnel-risk -> scorer rollout
+AIDBG turn-REAL p=6 pos=(6,123) vel=(1,-6) chosen=NE trap=0.0
