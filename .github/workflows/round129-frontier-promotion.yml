@@ -1,0 +1,415 @@
+name: Round 129 measured frontier promotion
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-129-frontier-promotion
+    paths:
+      - .github/workflows/round129-frontier-promotion.yml
+      - tracks/round129_apply.py
+      - tracks/round129_compare.py
+      - tracks/round129_publish.py
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build exact current-master pair
+        run: |
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          test "$BASE" = 'd01c9fba0ac21ccea5ab47f2054f246ded2ca464'
+          printf '%s\n' "$BASE" > round129-base-sha.txt
+          git worktree add /tmp/round129-work "$BASE"
+          cd /tmp/round129-work
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round129-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round129_apply.py"
+          git diff --name-only | sort > /tmp/round129-changed.txt
+          printf '%s\n' \
+            'src/tr/logic/RaceAi.java' \
+            'tests/ai1_early_round_trap_regression.py' \
+            'tests/ai1_equal_speed_veto_regression.py' \
+            'tests/ai1_graduated_field_accel_regression.py' \
+            'tests/ai1_six_ahead_accel_regression.py' \
+            | sort > /tmp/round129-expected.txt
+          diff -u /tmp/round129-expected.txt /tmp/round129-changed.txt
+          test "$(grep -c 'final boolean frontierMover = true' src/tr/logic/RaceAi.java)" = 1
+          test "$(grep -c 'moverKind(playerNum) == Player.Kind.AI1' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java \
+            tests/ai1_early_round_trap_regression.py \
+            tests/ai1_equal_speed_veto_regression.py \
+            tests/ai1_graduated_field_accel_regression.py \
+            tests/ai1_six_ahead_accel_regression.py \
+            > "$GITHUB_WORKSPACE/round129.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round129-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round129-build
+          path: |
+            round129-baseline.jar
+            round129-candidate.jar
+            round129-base-sha.txt
+            round129.patch
+          if-no-files-found: error
+          retention-days: 30
+
+  target:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round129-build
+          path: .
+      - name: Prove promoted gains and controls
+        run: |
+          mkdir round129-targets
+          python tracks/round129_compare.py --baseline round129-baseline.jar --candidate round129-candidate.jar --track coil --start 1 --end 1 --out round129-targets/coil-1.json
+          python tracks/round129_compare.py --baseline round129-baseline.jar --candidate round129-candidate.jar --track coil --start 38 --end 38 --out round129-targets/coil-38.json
+          python tracks/round129_compare.py --baseline round129-baseline.jar --candidate round129-candidate.jar --track coil --start 86 --end 86 --out round129-targets/coil-86.json
+          python tracks/round129_compare.py --baseline round129-baseline.jar --candidate round129-candidate.jar --track silverstone --start 93 --end 93 --out round129-targets/silverstone-93.json
+          python tracks/round129_compare.py --baseline round129-baseline.jar --candidate round129-candidate.jar --track zandvoort --start 115 --end 115 --out round129-targets/zandvoort-115.json
+          python tracks/round129_compare.py --baseline round129-baseline.jar --candidate round129-candidate.jar --track coil --start 106 --end 106 --out round129-targets/coil-106.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          rows = {p.stem: json.loads(p.read_text())
+                  for p in Path('round129-targets').glob('*.json')}
+          for name in ('coil-1', 'coil-38', 'coil-86', 'silverstone-93'):
+              row = rows[name]
+              assert row['counts']['pareto_faster'] == 1 and len(row['events']) == 1, (name, row)
+          rescue = rows['zandvoort-115']
+          assert rescue['counts']['safety_gain'] == 1 and len(rescue['events']) == 1, rescue
+          control = rows['coil-106']
+          assert control['counts']['identical'] == 1 and not control['events'], control
+          Path('round129-target-summary.json').write_text(
+              json.dumps(rows, indent=2, sort_keys=True) + '\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round129-targets
+          path: round129-target-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  differential:
+    needs: [prepare, target]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 13
+      matrix:
+        include:
+          - { track: circle, end_seed: 150 }
+          - { track: triangle, end_seed: 150 }
+          - { track: curve, end_seed: 150 }
+          - { track: hairpin, end_seed: 150 }
+          - { track: chicane, end_seed: 150 }
+          - { track: sprint, end_seed: 150 }
+          - { track: bigoval, end_seed: 150 }
+          - { track: slalom, end_seed: 150 }
+          - { track: gear, end_seed: 150 }
+          - { track: coil, end_seed: 150 }
+          - { track: zigzag, end_seed: 150 }
+          - { track: the_long_loop, end_seed: 150 }
+          - { track: monaco, end_seed: 150 }
+          - { track: hungaroring, end_seed: 150 }
+          - { track: interlagos, end_seed: 150 }
+          - { track: lemans, end_seed: 150 }
+          - { track: spa, end_seed: 150 }
+          - { track: silverstone, end_seed: 150 }
+          - { track: monza, end_seed: 150 }
+          - { track: zandvoort, end_seed: 150 }
+          - { track: nurburgring, end_seed: 150 }
+          - { track: spielberg, end_seed: 150 }
+          - { track: serpentine, end_seed: 50 }
+          - { track: serpentine2, end_seed: 50 }
+          - { track: spiral, end_seed: 50 }
+          - { track: cog, end_seed: 50 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round129-build
+          path: .
+      - name: Compare exact all-AI2 outcomes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        run: |
+          python tracks/round129_compare.py \
+            --baseline round129-baseline.jar \
+            --candidate round129-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round129-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round129-result-${{ matrix.track }}
+          path: round129-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round129-result-*
+          path: round129-results
+          merge-multiple: true
+      - name: Enforce exact no-regression policy
+        id: gate
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          summary = {
+              'baseline_sha': 'd01c9fba0ac21ccea5ab47f2054f246ded2ca464',
+              'candidate': 'promoted_frontier_pace_and_equal_speed_veto',
+              'pairs': 0,
+              'counts': {},
+              'events': [],
+              'net_moves': 0,
+              'runtime_ratios': {},
+          }
+          for path in sorted(Path('round129-results').glob('*.json')):
+              data = json.loads(path.read_text())
+              summary['pairs'] += data['pairs']
+              summary['net_moves'] += data['net_moves']
+              summary['runtime_ratios'][data['track']] = data['runtime_ratio']
+              for key, value in data['counts'].items():
+                  summary['counts'][key] = summary['counts'].get(key, 0) + value
+              summary['events'].extend(
+                  {'track': data['track'], **event} for event in data['events'])
+          bad = sum(summary['counts'].get(key, 0) for key in
+                    ('aggregate_faster', 'slower', 'safety_regression', 'redistribution'))
+          by_case = {(event['track'], event['seed']): event['classification']
+                     for event in summary['events']}
+          expected_pace = {
+              ('coil', 1), ('coil', 38), ('coil', 86), ('silverstone', 93)
+          }
+          summary['bad'] = bad
+          summary['viable'] = (
+              summary['pairs'] == 3500
+              and bad == 0
+              and summary['counts'].get('pareto_faster', 0) >= 4
+              and summary['counts'].get('safety_gain', 0) >= 1
+              and all(by_case.get(case) == 'pareto_faster' for case in expected_pace)
+              and by_case.get(('zandvoort', 115)) == 'safety_gain'
+          )
+          Path('round129-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=' + ('true' if summary['viable'] else 'false'), file=out)
+          assert summary['viable'], summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round129-summary
+          path: round129-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, target, summarize]
+    if: needs.summarize.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round129-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round129-summary
+          path: .
+      - name: Verify evidence and immutable parent
+        run: |
+          python - <<'PY'
+          import json
+          summary = json.load(open('round129-summary.json'))
+          assert summary['candidate'] == 'promoted_frontier_pace_and_equal_speed_veto', summary
+          assert summary['pairs'] == 3500 and summary['bad'] == 0 and summary['viable'], summary
+          PY
+          EXPECTED=$(cat round129-base-sha.txt)
+          test "$EXPECTED" = 'd01c9fba0ac21ccea5ab47f2054f246ded2ca464'
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+      - name: Bound alternating warm runtime overhead
+        run: |
+          python - <<'PY'
+          import json, re, statistics, subprocess, tempfile, time
+          from pathlib import Path
+
+          root = Path.cwd()
+          source = root / 'tracks' / 'bench.properties'
+
+          def write_props(path):
+              lines = []
+              for line in source.read_text().splitlines():
+                  if re.match(r'^player[1-8]Kind=', line):
+                      line = line.split('=', 1)[0] + '=AI2'
+                  lines.append(line)
+              path.write_text('\n'.join(lines) + '\n')
+
+          def run(jar, track, seed):
+              with tempfile.TemporaryDirectory(prefix='round129-time-') as directory:
+                  tmp = Path(directory)
+                  props, log = tmp / 'bench.properties', tmp / 'race.log'
+                  write_props(props)
+                  started = time.perf_counter()
+                  result = subprocess.run([
+                      'java', '-Djava.awt.headless=true', '-jar', str(root / jar),
+                      '--auto', '--track', track, '--props', str(props),
+                      '--log', str(log), '--seed', str(seed),
+                  ], cwd=root, text=True, capture_output=True, timeout=1800)
+                  if result.returncode:
+                      raise SystemExit(result.stderr[-3000:])
+                  return time.perf_counter() - started
+
+          rows = []
+          for track, seed, limit in [
+              ('coil', 1, 1.75),
+              ('silverstone', 93, 1.75),
+              ('monaco', 9, 1.35),
+          ]:
+              run('round129-baseline.jar', track, seed)
+              run('round129-candidate.jar', track, seed)
+              baseline, candidate = [], []
+              for index in range(3):
+                  if index % 2:
+                      baseline.append(run('round129-baseline.jar', track, seed))
+                      candidate.append(run('round129-candidate.jar', track, seed))
+                  else:
+                      candidate.append(run('round129-candidate.jar', track, seed))
+                      baseline.append(run('round129-baseline.jar', track, seed))
+              ratio = statistics.median(candidate) / statistics.median(baseline)
+              row = {'track': track, 'seed': seed, 'ratio': ratio,
+                     'baseline': baseline, 'candidate': candidate, 'limit': limit}
+              rows.append(row)
+              assert ratio <= limit, row
+          Path('round129-runtime.json').write_text(json.dumps(rows, indent=2) + '\n')
+          print(json.dumps(rows, indent=2))
+          PY
+      - name: Materialize verified production commit
+        run: |
+          cp tracks/round129_apply.py /tmp/round129_apply.py
+          cp tracks/round129_publish.py /tmp/round129_publish.py
+          git checkout -B round129-production origin/master
+          python /tmp/round129_apply.py
+          git diff --name-only | sort > /tmp/round129-changed.txt
+          printf '%s\n' \
+            'src/tr/logic/RaceAi.java' \
+            'tests/ai1_early_round_trap_regression.py' \
+            'tests/ai1_equal_speed_veto_regression.py' \
+            'tests/ai1_graduated_field_accel_regression.py' \
+            'tests/ai1_six_ahead_accel_regression.py' \
+            | sort > /tmp/round129-expected.txt
+          diff -u /tmp/round129-expected.txt /tmp/round129-changed.txt
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          python /tmp/round129_publish.py
+          git diff --check
+          git diff --name-only | sort > /tmp/round129-final-changed.txt
+          printf '%s\n' \
+            'AI_DEVELOPMENT.md' \
+            'racing-memory.md' \
+            'src/tr/logic/RaceAi.java' \
+            'tests/ai1_early_round_trap_regression.py' \
+            'tests/ai1_equal_speed_veto_regression.py' \
+            'tests/ai1_graduated_field_accel_regression.py' \
+            'tests/ai1_six_ahead_accel_regression.py' \
+            | sort > /tmp/round129-final-expected.txt
+          diff -u /tmp/round129-final-expected.txt /tmp/round129-final-changed.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add AI_DEVELOPMENT.md racing-memory.md src/tr/logic/RaceAi.java \
+            tests/ai1_early_round_trap_regression.py \
+            tests/ai1_equal_speed_veto_regression.py \
+            tests/ai1_graduated_field_accel_regression.py \
+            tests/ai1_six_ahead_accel_regression.py
+          git commit -m 'Round 129: promote measured frontier pace to champion'
+          git push origin HEAD:master
+          LOCAL=$(git rev-parse HEAD)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$LOCAL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round129-promotion-evidence
+          path: |
+            round129-summary.json
+            round129-runtime.json
+            round129.patch
+          if-no-files-found: warn
+          retention-days: 30
