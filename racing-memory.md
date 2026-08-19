@@ -27,6 +27,26 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Round 128 PROMOTED (user-ordered): the fast finish-funnel confirm for both kinds
+
+The user ordered the mirror ("Promote 128"). One line: the fallback's
+fastSlow arm drops its moverKind gate. The harvest-24/25 block-ordering
+natural experiment had already proven the exact effect: byte-identical
+races crash iff the doomed slot lacks the leg.
+
+Gate: all five known frozen-side victims RESCUED (reverse-ordering
+lemans s36/43/45/46 and alternating s132 -- 0 crashes each); the three
+serpentine2 specimens byte-identical (the leg never fires there --
+they are round 133's); 15 pins PASS including golden all-AI2 (no
+golden race hits the gate); dual-order wall on mixed lemans s36-40:
++5.0% run second, +0.3% run first (~+1-3% true, on the ONE arming
+track, partly because rescued cars now race to the finish -- more
+moves computed is more racing, not overhead). Canon behavior
+elsewhere unchanged. NO kind-gated arms remain in the champion;
+homogeneous AI1 and AI2 fields are again move-identical by
+construction.
+
+
 ## Harvest 25 (local agent): the serpentine2 vmax-11 commitment -- round-133 candidate, probe pending
 
 Slow-track mixed harvest (serpentine/serpentine2/spiral/cog; alternating

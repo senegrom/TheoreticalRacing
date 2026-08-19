@@ -1109,10 +1109,14 @@ final class RaceAi {
 											+ pos[0] + "," + pos[1] + ") chosen=" + chosen
 											+ " -> scorerSelf world");
 							}
+							// User-ordered promotion: the round-128 fast finish-funnel
+							// confirm is champion policy for both smart driver kinds
+							// (the harvest-24/25 block orderings proved the identical
+							// races crash iff the doomed slot lacks the leg).
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
 									threadPack, threadPack || fastPairRisk, true, fastPairRisk,
-									!djSlow && moverKind(playerNum) == Player.Kind.AI1);
+									!djSlow);
 						}
 					}
 				} else {
@@ -3338,11 +3342,11 @@ final class RaceAi {
 	 * AI2 (CHAMPION MIRROR): Round 129 promotes the measured Round 115/117/124
 	 * field-acceleration frontier and Round 126's homogeneous false-target veto
 	 * to both smart driver kinds. The scorer remains one body by delegation.
-	 * Round 128's mixed fast-funnel confirm is deliberately still AI1-only: it
-	 * is a safety experiment, not part of this pace promotion, and mirroring it
-	 * broadly made mixed confirmation recursively expensive. Future frontier
-	 * work must keep this delegation and the promoted gates fixed until the next
-	 * independently measured promotion.
+	 * The Round-128 fast finish-funnel confirm is promoted too (user-ordered,
+	 * after the harvest-24/25 block orderings showed the identical races crash
+	 * exactly when the doomed slot lacks the leg). No kind-gated arms remain.
+	 * Future frontier work must keep this delegation and the promoted gates
+	 * fixed until the next independently measured promotion.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		return optimalMoveAI1(pos, vel, playerNum);
