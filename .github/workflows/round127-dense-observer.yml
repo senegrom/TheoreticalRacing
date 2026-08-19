@@ -32,4 +32,4 @@ jobs:
           git commit -m 'Record Round 127 dense-funnel status'
           git push origin HEAD:"$GITHUB_REF_NAME"
 
-# Refreshed for the explicit all-rival faithful-rollout target run.
+# Refreshed for the oracle-certified twelve-unit braking target run.
