@@ -27,6 +27,28 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Round 132 (local agent, REJECTED measured): fmRec filter reorder + cache lesson
+
+Post-r130 re-profile (per the new law) put blockedContains at 216
+self-time leaves (#3). Candidate fix: run reach.isAlive before the
+blocked-cell scan in fmRec (pure AND filters, outcome-identical --
+byte-identity verified, 0 mismatches). DUAL-ORDER wall A/B (the r131
+law, first use): order A side +6.9% slower, order B side -2.0% faster
+-- symmetric average ~+2% SLOWER. Rejected and reverted.
+
+Lesson: "one array read" is not cheap when the array is the
+reachability alive map (DRAM-latency misses); the <=21-entry blocked
+scan is cache-hot and CHEAPER. The original filter order was already
+optimal; leaf-sample counts do not order costs across cache classes.
+
+Coordination note: the other agent's concurrent Round 131 branch
+(point-containment cache, alternating warm gate -- they independently
+derived the order-bias discipline) owns the geometry frontier
+(Area.contains ~534 leaves); the local exact-geometry-engine idea is
+withdrawn in its favor. Local speed lane is parked at the measurement
+noise floor until that lands.
+
+
 ## Round 131 (local agent, REJECTED measured) + the second-arm throttle law
 
 Two identity-exact geometry short-circuits were built and byte-identity
