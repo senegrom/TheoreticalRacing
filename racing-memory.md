@@ -27,6 +27,42 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Round 130 (local agent, speed): primitive mobility transposition table -- -21% monaco wall
+
+Fresh JFR on the r129 champion (10 monaco races, self-time leaves):
+Area.contains (~537) is still the top leaf -- monaco's wall-hugging
+lines defeat the raster band, and RES-8 stays refuted -- but ~265 leaf
+samples sat in HashMap.getNode/putVal/resize under fmRec. The mobility
+memo was a fresh boxed HashMap<Long, Double> EVERY TURN (resize churn
+from capacity 16 upward each turn), and the per-ply blocked sets were
+HashSet<Long> whose contains() autoboxes, twice per candidate per node.
+The r113 lesson (adding a NEW memo where none existed lost 3.4%) does
+not apply to replacing the implementation of an EXISTING one.
+
+Replacement, semantics identical: one pooled open-addressing table per
+RaceAi (32768 slots; long keys, double values, int epoch stamps;
+multiply-shift hash; probe cap 32 with graceful skip-store). Each
+MobilitySearch takes a fresh epoch, so a hit needs epoch AND key --
+nested rival-model searches can never cross-hit, and every eviction or
+collision merely recomputes a deterministic value. Blocked cells became
+per-ply long[] arrays (<= 3 cells x 7 opponents, duplicates fine,
+linear scan -- at 21 entries scanning beats hashing).
+greedyStepBlockTop3 appends to the array and returns the new count.
+
+Gate: BYTE-IDENTITY of race logs master-vs-side across monaco s1-5,
+zandvoort s1-3, silverstone s1-2 canon and mixed lemans s36 -- 0
+mismatched logs in 11 races, provably behavior-neutral (evictions only
+recompute; values are deterministic per search). 15 pins PASS. Wall,
+interleaved per-seed A/B: monaco 10-seed 76.4s -> 60.7s (-20.6%);
+zandvoort 5-seed 25.6s -> 25.4s (-0.6%, flat; its mobility load is light). Never slower anywhere measured.
+
+Next speed frontier per the same profile: Area.contains exact fallback
+(~537 leaves) concentrated on wall-hugging monaco-class lines -- the
+raster band cannot prove those; any further win needs a different
+proof shape (e.g. per-cell nearest-boundary distance field), not more
+resolution (RES-8 refuted).
+
+
 ## Harvest 24 + post-129 recheck (local agent): the bottom-corner class and the STUCK boundary
 
 Harvest 24 (mixed alternating s101-200 + BLOCK orderings front/reverse

@@ -3856,10 +3856,11 @@ final class RaceAi {
 	private double fmRec(final int x, final int y, final int vx, final int vy,
 			final MobilitySearch search, final int ply) {
 		final long memoKey = mobilityMemoKey(x, y, vx, vy, ply);
-		final Double cached = search.memo.get(memoKey);
-		if (cached != null)
+		final double cached = fmMemoGet(memoKey, search.epoch);
+		if (cached == cached)
 			return cached;
-		final java.util.HashSet<Long> b = search.blocked.get(ply - 1);
+		final long[] b = search.blocked[ply - 1];
+		final int bc = search.blockedCount[ply - 1];
 		if (ply == search.depth) {
 			int cnt = 0;
 			for (final Direction d : DIRECTIONS) {
@@ -3871,13 +3872,13 @@ final class RaceAi {
 					cnt++;
 					continue;
 				}
-				if (b.contains(((long) nx << 32) | (ny & 0xffffffffL)))
+				if (blockedContains(b, bc, ((long) nx << 32) | (ny & 0xffffffffL)))
 					continue;
 				if (reach.isAlive(nx, ny, nvx, nvy))
 					cnt++;
 			}
 			final double result = cnt / 9.0;
-			search.memo.put(memoKey, result);
+			fmMemoPut(memoKey, search.epoch, result);
 			return result;
 		}
 		double best = 0.0;
@@ -3887,10 +3888,10 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny)) {
-				search.memo.put(memoKey, 1.0);
+				fmMemoPut(memoKey, search.epoch, 1.0);
 				return 1.0;
 			}
-			if (b.contains(((long) nx << 32) | (ny & 0xffffffffL)))
+			if (blockedContains(b, bc, ((long) nx << 32) | (ny & 0xffffffffL)))
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -3898,35 +3899,89 @@ final class RaceAi {
 			if (v > best) {
 				best = v;
 				if (best >= 1.0) {
-					search.memo.put(memoKey, 1.0);
+					fmMemoPut(memoKey, search.epoch, 1.0);
 					return 1.0;
 				}
 			}
 		}
-		search.memo.put(memoKey, best);
+		fmMemoPut(memoKey, search.epoch, best);
 		return best;
 	}
 
-	/** One immutable opponent projection plus a transposition table shared by
+	/** One immutable opponent projection plus a transposition epoch shared by
 	 *  every candidate root in one real turn. Candidate roots overlap heavily;
-	 *  rebuilding both structures for each root repeated the same search. */
+	 *  rebuilding the projection for each root repeated the same search. The
+	 *  memo itself is the pooled primitive table on RaceAi (round 130): a hit
+	 *  needs this search's epoch AND the key, so concurrent nested searches
+	 *  never cross-hit and evictions only recompute. Blocked cells are tiny
+	 *  per-ply arrays (<= 3 per opponent) -- linear scan, no boxing. */
 	private static final class MobilitySearch {
 		final int depth;
-		final java.util.List<java.util.HashSet<Long>> blocked;
-		final java.util.HashMap<Long, Double> memo = new java.util.HashMap<>();
+		final long[][] blocked;
+		final int[] blockedCount;
+		final int epoch;
 
-		MobilitySearch(final int depth, final java.util.List<java.util.HashSet<Long>> blocked) {
+		MobilitySearch(final int depth, final long[][] blocked, final int[] blockedCount,
+				final int epoch) {
 			this.depth = depth;
 			this.blocked = blocked;
+			this.blockedCount = blockedCount;
+			this.epoch = epoch;
 		}
+	}
+
+	/** Round 130: pooled open-addressing transposition table for {@link #fmRec}
+	 *  (long keys, double values, epoch validity). Replaces the per-turn boxed
+	 *  HashMap that dominated the mobility recursion's self time (JFR: getNode
+	 *  plus per-turn resize churn). Probe chains are capped; past the cap a
+	 *  store is skipped -- correctness never depends on a store landing. */
+	private static final int FM_MEMO_BITS = 15;
+	private static final int FM_MEMO_PROBE_CAP = 32;
+	private final long[] fmMemoKeys = new long[1 << FM_MEMO_BITS];
+	private final double[] fmMemoVals = new double[1 << FM_MEMO_BITS];
+	private final int[] fmMemoEpochs = new int[1 << FM_MEMO_BITS];
+	private int fmMemoEpoch;
+
+	private static int fmMemoSlot(final long key) {
+		return (int) (key * 0x9E3779B97F4A7C15L >>> 64 - FM_MEMO_BITS);
+	}
+
+	/** NaN = miss (stored values live in [0, 1]). */
+	private double fmMemoGet(final long key, final int epoch) {
+		int slot = fmMemoSlot(key);
+		for (int probe = 0; probe < FM_MEMO_PROBE_CAP && fmMemoEpochs[slot] == epoch; probe++) {
+			if (fmMemoKeys[slot] == key)
+				return fmMemoVals[slot];
+			slot = slot + 1 & (1 << FM_MEMO_BITS) - 1;
+		}
+		return Double.NaN;
+	}
+
+	private void fmMemoPut(final long key, final int epoch, final double value) {
+		int slot = fmMemoSlot(key);
+		for (int probe = 0; probe < FM_MEMO_PROBE_CAP; probe++) {
+			if (fmMemoEpochs[slot] != epoch || fmMemoKeys[slot] == key) {
+				fmMemoKeys[slot] = key;
+				fmMemoVals[slot] = value;
+				fmMemoEpochs[slot] = epoch;
+				return;
+			}
+			slot = slot + 1 & (1 << FM_MEMO_BITS) - 1;
+		}
+	}
+
+	private static boolean blockedContains(final long[] cells, final int count, final long cell) {
+		for (int i = 0; i < count; i++)
+			if (cells[i] == cell)
+				return true;
+		return false;
 	}
 
 	/** Build an N-ply opponent world once per AI turn. Opponents advance N
 	 *  greedy steps, blocking their top-3 min-turns cells at each ply. */
 	private MobilitySearch mobilitySearch(final int subjectNum, final boolean avoidOcc, final int depth) {
-		final java.util.List<java.util.HashSet<Long>> blocked = new java.util.ArrayList<>();
-		for (int k = 0; k < depth; k++)
-			blocked.add(new java.util.HashSet<>());
+		final long[][] blocked = new long[depth][3 * game.players.length];
+		final int[] blockedCount = new int[depth];
 		for (final Player opponent : game.players) {
 			if (opponent.getNumber() == subjectNum || opponent.isFinished())
 				continue;
@@ -3934,15 +3989,18 @@ final class RaceAi {
 			final int[] velocity = opponent.getVelocity();
 			int x = position[0], y = position[1], vx = velocity[0], vy = velocity[1];
 			for (int k = 0; k < depth; k++) {
-				if (!greedyStepBlockTop3(x, y, vx, vy, avoidOcc, blocked.get(k), mobilityMove))
+				final int nc = greedyStepBlockTop3(x, y, vx, vy, avoidOcc, blocked[k],
+						blockedCount[k], mobilityMove);
+				if (nc < 0)
 					break;
+				blockedCount[k] = nc;
 				x = mobilityMove[0];
 				y = mobilityMove[1];
 				vx = mobilityMove[2];
 				vy = mobilityMove[3];
 			}
 		}
-		return new MobilitySearch(depth, blocked);
+		return new MobilitySearch(depth, blocked, blockedCount, ++fmMemoEpoch);
 	}
 
 	/** N-ply escape headroom in a per-turn opponent world (see {@link #fmRec}). */
@@ -3961,9 +4019,11 @@ final class RaceAi {
 		return ((long) ply << 32) | (reach.aliveIdx(x, y, vx, vy) & 0xffffffffL);
 	}
 
-	/** Best greedy step; blocks the rival's up-to-3 lowest-turns cells. */
-	private boolean greedyStepBlockTop3(final int x, final int y, final int vx, final int vy,
-			final boolean avoidOcc, final java.util.HashSet<Long> block, final int[] out) {
+	/** Best greedy step; blocks the rival's up-to-3 lowest-turns cells by
+	 *  appending to the ply's cell array (duplicates fine -- the reader is a
+	 *  linear scan). Returns the new count, or -1 when no step exists. */
+	private int greedyStepBlockTop3(final int x, final int y, final int vx, final int vy,
+			final boolean avoidOcc, final long[] block, final int blockCount, final int[] out) {
 		int t1 = Integer.MAX_VALUE, t2 = Integer.MAX_VALUE, t3 = Integer.MAX_VALUE;
 		int x1 = 0, y1 = 0, vx1 = 0, vy1 = 0;
 		int x2 = 0, y2 = 0, x3 = 0, y3 = 0;
@@ -4005,13 +4065,14 @@ final class RaceAi {
 			}
 		}
 		if (t1 == Integer.MAX_VALUE)
-			return false;
-		block.add(((long) x1 << 32) | (y1 & 0xffffffffL));
+			return -1;
+		int count = blockCount;
+		block[count++] = ((long) x1 << 32) | (y1 & 0xffffffffL);
 		if (t2 != Integer.MAX_VALUE)
-			block.add(((long) x2 << 32) | (y2 & 0xffffffffL));
+			block[count++] = ((long) x2 << 32) | (y2 & 0xffffffffL);
 		if (t3 != Integer.MAX_VALUE)
-			block.add(((long) x3 << 32) | (y3 & 0xffffffffL));
-		return writeMove(out, x1, y1, vx1, vy1);
+			block[count++] = ((long) x3 << 32) | (y3 & 0xffffffffL);
+		return writeMove(out, x1, y1, vx1, vy1) ? count : -1;
 	}
 
 	/** Count certified braking descents from (x,y,vx,vy) down to targetSpeed
