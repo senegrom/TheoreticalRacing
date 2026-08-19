@@ -27,6 +27,57 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Harvest 24 + post-129 recheck (local agent): the bottom-corner class and the STUCK boundary
+
+Harvest 24 (mixed alternating s101-200 + BLOCK orderings front/reverse
+s1-50, all 22 tracks, 4400 races) and a full post-promotion recheck (16
+pins PASS on the r129 jar, every specimen re-verified there):
+
+- NATURAL EXPERIMENT: the four r128 funnel seeds under block orderings --
+  reverse (AI2 in slots 1-4) reproduces all four deaths byte-identically
+  with AI2 victims; front (AI1 there) has ZERO crashes. The r128 leg
+  rescues the identical race iff the victim is AI1: the kind gate proven
+  live. These AI2 deaths (plus ma_lemans s132 m562) die whenever r128 is
+  mirrored/promoted. ma_lemans s117's funnel death (p8 AI2) DISSOLVED
+  under the r129 pace arms -- one frozen-side kill gone for free.
+- NEW CLASS, bottom-corner train compression (the only fixable-side
+  kills found): lemans bottom corner (82-85,163-170), southbound
+  traffic turning W. s108 p7 AI1 m343 + p2 AI2 m346; s117 p5 AI1 m349.
+  Both AI1 deaths persist byte-identically on the r129 jar.
+- s108 p7 walked: last-avoidable m319 (84,154) v(1,4). INVERSION: the
+  taken N (brake to v(1,3)) dies @r3; NONE (HOLD v(1,4)) survives t=21,
+  NW/W also survive. Braking in front of the compressing rear queue
+  (p8 (85,156) v(1,3) directly behind) is what kills -- opposite
+  polarity to the funnel/corridor brakes.
+- THE HARD PART -- world matrix at m319 taken N: smom-3, scorer-3,
+  scorer-8-cap6, true-4/5/6-cap6 ALL alive (tier=3 thread=0 snug=1),
+  oracle dead @r3 via a hard wedge (m343 mask XXXXXXXXX). SIMTRACE
+  diagnosis: at sim r=1 the simulated p2 (84,155)v(2,5) goes STUCK and
+  the rear pressure evaporates, so every capped/uncapped true world is
+  effectively vacate-optimistic in dense queues. Extending horizons or
+  caps CANNOT see this class; the divergence is joint-rollout chaos +
+  STUCK-rival semantics. This is the third model-boundary family
+  (after z195 and s223/zandvoort-s115-mixed m167, which persists on
+  r129), now with a mechanism diagnosis.
+- s117 p5 walked: doomed >= 8 own-moves out (m293 (79,128) v(2,8) best
+  candidate dies @r7; m301/m309/m317/m325 all dead) -- a train-entry
+  doom on the approach straight, p7/p8 committed alongside. Commitment
+  depth varies by seed; the site+queue interaction is the invariant.
+- Class disposition: both remaining AI1 kills are oracle-only-visible
+  model-boundary dooms -- the round-127 oracle-certified structural
+  framework is the right tool, NOT another confirm leg (any in-engine
+  sim world diverges before the wedge). Walk boards live in
+  r130_ma_lemans_s108/s117.log (session scratchpad). Design note for
+  whoever picks it up: an in-engine bounded REAL-ROLL sim mode (exact
+  global move order, no rival cap, no vacate optimism, STUCK=crash)
+  would be the verification primitive this family needs; cost only
+  works at a surgical structural gate.
+
+Mixed crash surface after r128+r129, per 4400 harvest-24 races: 2 AI1
+deaths (both bottom-corner) + 3 frozen-side AI2 deaths (funnel class,
+die at next r128 mirror) + 1 AI2 zandvoort right-edge (m574, unwalked).
+
+
 ## Mixed h2h census (harvest-23, analysis): frontier -2.05/race over champion
 
 Alternating 4v4 across all 22 tracks x seeds 1-100 (pre-r128 jar, but
