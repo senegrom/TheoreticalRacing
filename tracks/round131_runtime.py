@@ -19,7 +19,7 @@ CASES = [
     ("nurburgring", 17, 19, 0.80),
     ("monaco", 14, 16, 0.95),
     ("interlagos", 45, 47, 1.05),
-    ("sprint", 1, 10, 1.05),
+    ("sprint", 1, 100, 1.02),
 ]
 
 
