@@ -27,6 +27,32 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Round 131 (local agent, REJECTED measured) + the second-arm throttle law
+
+Two identity-exact geometry short-circuits were built and byte-identity
+verified (0 mismatched logs in 11 races, twice): subcell-certified
+sample skipping in isMoveLegalGeometry (a nonzero sub-raster cell
+proves containment, skip both Area tests) and a finish-line bbox
+early-out in crossesFinish. Both REJECTED: no measurable win.
+
+THE MEASUREMENT LAW THIS BOUGHT: at Idle priority with turbo active,
+the SECOND arm of a per-seed interleaved A/B loses ~4-5% SYSTEMATICALLY
+(thermal/boost budget). Full r131 measured +13% slower run second;
+subcell-only +5.9% slower run second, then 3.3% FASTER run first --
+i.e. pure order bias, true delta ~0. Any pairwise wall A/B must now be
+run in BOTH orders (or alternate per seed); deltas inside +-5% in a
+single order are unfalsifiable. Round 130's -20.6% was measured with
+the win AGAINST the bias direction and stands (understated, if
+anything).
+
+Why no win despite 600+ Area.contains leaves attributing to
+isMoveLegalGeometry: that profile was taken on the PRE-r130 jar.
+Corollary law: RE-PROFILE after every landed speed round before
+picking the next target -- a landed round reshapes the flame graph.
+
+Working tree reverted; side.jar rebuilt in sync with master.
+
+
 ## Round 130 (local agent, speed): primitive mobility transposition table -- -21% monaco wall
 
 Fresh JFR on the r129 champion (10 monaco races, self-time leaves):
