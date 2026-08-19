@@ -7,6 +7,19 @@ continue from this file alone. Long-form history: see
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
 
+## Mixed h2h census (harvest-23, analysis): frontier -2.05/race over champion
+
+Alternating 4v4 across all 22 tracks x seeds 1-100 (pre-r128 jar, but
+crashes were 5/2200 so this is pace signal): AI1 place-sum 16.975 vs
+AI2 19.025 (even split 18.0) -- the frontier wins 21 of 22 tracks.
+Standouts: interlagos -3.66, coil -3.60, zandvoort -3.34, zigzag -3.04,
+the_long_loop -2.90. The ONLY non-win is monaco (+0.10, coin flip) --
+monaco is also the funnel-crowd outlier in the r128 rate data; a
+monaco-specific pace look is a candidate frontier. This is the first
+quantified frontier-vs-champion gap since the round-109 promotion and
+the running measure of what a next promotion would buy.
+
+
 ## Round 128 (local agent): the fast finish-funnel confirm leg -- the mixed dimension's crash surface
 
 Harvest-23 opened the MIXED 4v4 dimension (alternating kinds, odd=AI1,
