@@ -25,6 +25,7 @@ public final class CoreTests {
         testTrackListing();
         testBorderValidation();
         testEdgeLegalCache();
+        testPointContainmentCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
         testTrackDistanceOrdering();
@@ -269,6 +270,41 @@ public final class CoreTests {
         cache.put(0L, true);
         check(cache.get(0L) == RaceGame.EdgeLegalCache.TRUE, "edge cache update failed");
         check(cache.get(123456789L) == 0, "edge cache false hit");
+    }
+
+
+    private static void testPointContainmentCache() {
+        final RaceGame.PointContainmentCache cache = new RaceGame.PointContainmentCache(1);
+        check(cache.get(0L, 0L) == 0, "fresh point cache should miss");
+        cache.put(0L, 0L, false);
+        cache.put(0L, Long.MIN_VALUE, true);
+        cache.put(Long.MIN_VALUE, 0L, true);
+        check(cache.get(0L, 0L) == RaceGame.PointContainmentCache.FALSE,
+                "zero-pair false value was lost");
+        check(cache.get(0L, Long.MIN_VALUE) == RaceGame.PointContainmentCache.TRUE,
+                "point cache lost the y coordinate");
+        check(cache.get(Long.MIN_VALUE, 0L) == RaceGame.PointContainmentCache.TRUE,
+                "point cache lost the x coordinate");
+
+        for (int i = 1; i <= 10_000; i++) {
+            final long x = i * 0x9e3779b97f4a7c15L;
+            final long y = Long.rotateLeft(x ^ 0xd1b54a32d192ed03L, i & 63);
+            cache.put(x, y, (i & 1) == 0);
+        }
+        for (int i = 1; i <= 10_000; i++) {
+            final long x = i * 0x9e3779b97f4a7c15L;
+            final long y = Long.rotateLeft(x ^ 0xd1b54a32d192ed03L, i & 63);
+            final byte expected = (i & 1) == 0
+                    ? RaceGame.PointContainmentCache.TRUE : RaceGame.PointContainmentCache.FALSE;
+            check(cache.get(x, y) == expected, "point cache resize lost key pair " + i);
+        }
+        cache.put(0L, 0L, true);
+        check(cache.get(0L, 0L) == RaceGame.PointContainmentCache.TRUE,
+                "point cache update failed");
+        cache.clear();
+        check(cache.get(0L, 0L) == 0, "point cache clear retained a stale geometry verdict");
+        check(cache.get(Double.doubleToRawLongBits(-0.0), Double.doubleToRawLongBits(-0.0)) == 0,
+                "point cache merged distinct double bit patterns");
     }
 
     private static void testDistinctCoverMatching() {

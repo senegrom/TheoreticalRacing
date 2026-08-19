@@ -314,6 +314,7 @@ public final class RaceGame {
 	private int rasterH;
 
 	private void buildLegalRaster() {
+		pointContainmentCache.clear();
 		final int w = gameCols + 2;
 		rasterH = gameRows + 2;
 		final byte[] r = new byte[w * rasterH];
@@ -335,10 +336,13 @@ public final class RaceGame {
 	 *  track perimeter. Consulted only after the unit-cell walk fails. */
 	private static final int SUB_RES = 4;
 	private byte[] subRaster;
+	private int subW;
 	private int subH;
+	private final PointContainmentCache pointContainmentCache = new PointContainmentCache(1 << 18);
 
 	private void buildSubRaster(final byte[] unit, final int unitW) {
 		final int w = unitW * SUB_RES;
+		subW = w;
 		subH = rasterH * SUB_RES;
 		final byte[] r = new byte[w * subH];
 		final double sub = 1.0 / SUB_RES;
@@ -377,6 +381,33 @@ public final class RaceGame {
 		markSubPath(r, w, track.getLeft());
 		markSubPath(r, w, track.getRight());
 		subRaster = r;
+	}
+
+	/**
+	 * Reuse the conservative sub-raster for the exact legality scan's point
+	 * probes. A subcell whose interior bit is set was built from an
+	 * Area.contains(rect) proof (with a boundary-covering margin), so every
+	 * point in it is inside the track or start zone. Unproven cells retain the
+	 * exact Area.contains fallback; this helper can therefore only skip work,
+	 * never change a geometry verdict.
+	 */
+	private boolean containsTrackOrStart(final double x, final double y) {
+		final byte[] r = subRaster;
+		if (r != null) {
+			final int sx = (int) Math.floor(x * SUB_RES);
+			final int sy = (int) Math.floor(y * SUB_RES);
+			if (sx >= 0 && sy >= 0 && sx < subW && sy < subH
+					&& (r[sx * subH + sy] & 1) != 0)
+				return true;
+		}
+		final long xBits = Double.doubleToRawLongBits(x);
+		final long yBits = Double.doubleToRawLongBits(y);
+		final byte cached = pointContainmentCache.get(xBits, yBits);
+		if (cached != 0)
+			return cached == PointContainmentCache.TRUE;
+		final boolean inside = trackA.contains(x, y) || startZoneA.contains(x, y);
+		pointContainmentCache.put(xBits, yBits, inside);
+		return inside;
 	}
 
 	private void markSubPath(final byte[] r, final int w, final java.util.List<int[]> path) {
@@ -488,7 +519,7 @@ public final class RaceGame {
 	boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
 		if (fastLegal(x1, y1, x2, y2) || fastLegalSub(x1, y1, x2, y2))
 			return true;
-		if (!trackA.contains(x2, y2) && !startZoneA.contains(x2, y2))
+		if (!containsTrackOrStart(x2, y2))
 			return false;
 		final long dxi = (long) x2 - x1, dyi = (long) y2 - y1;
 		final int n = Math.max(2, (int) Math.min(Integer.MAX_VALUE, Math.ceil(Math.hypot(dxi, dyi) * 2)));
@@ -497,7 +528,7 @@ public final class RaceGame {
 		for (int j = 1; j < n; j++) {
 			final double cx = x1 + j * dx;
 			final double cy = y1 + j * dy;
-			if (!trackA.contains(cx, cy) && !startZoneA.contains(cx, cy))
+			if (!containsTrackOrStart(cx, cy))
 				return false;
 		}
 		final int[] from = {x1, y1 };
@@ -595,6 +626,96 @@ public final class RaceGame {
 				size++;
 			}
 		}
+	}
+
+	/** Primitive exact-double-pair to boolean cache for the residual legality
+	 * scan. Different edges repeatedly probe the same rational points; keeping
+	 * both coordinate bit patterns avoids the collision risk of compressing a
+	 * 128-bit identity into one key while retaining allocation-free lookup. */
+	static final class PointContainmentCache {
+		static final byte FALSE = 1;
+		static final byte TRUE = 2;
+
+		private long[] xKeys;
+		private long[] yKeys;
+		private int mask;
+		private int resizeAt;
+		private int size;
+		private byte[] states;
+
+		PointContainmentCache(final int initialCapacity) {
+			if (initialCapacity < 1 || initialCapacity > 1 << 30)
+				throw new IllegalArgumentException("invalid cache capacity");
+			int capacity = 4;
+			while (capacity < initialCapacity)
+				capacity <<= 1;
+			allocate(capacity);
+		}
+
+		byte get(final long xKey, final long yKey) {
+			int slot = (int) pointHash(xKey, yKey) & mask;
+			while (states[slot] != 0) {
+				if (xKeys[slot] == xKey && yKeys[slot] == yKey)
+					return states[slot];
+				slot = slot + 1 & mask;
+			}
+			return 0;
+		}
+
+		void clear() {
+			java.util.Arrays.fill(states, (byte) 0);
+			size = 0;
+		}
+
+		void put(final long xKey, final long yKey, final boolean value) {
+			if (size >= resizeAt)
+				grow();
+			int slot = (int) pointHash(xKey, yKey) & mask;
+			while (states[slot] != 0) {
+				if (xKeys[slot] == xKey && yKeys[slot] == yKey) {
+					states[slot] = value ? TRUE : FALSE;
+					return;
+				}
+				slot = slot + 1 & mask;
+			}
+			xKeys[slot] = xKey;
+			yKeys[slot] = yKey;
+			states[slot] = value ? TRUE : FALSE;
+			size++;
+		}
+
+		private void allocate(final int capacity) {
+			xKeys = new long[capacity];
+			yKeys = new long[capacity];
+			states = new byte[capacity];
+			mask = capacity - 1;
+			resizeAt = capacity - capacity / 3;
+		}
+
+		private void grow() {
+			if (xKeys.length == 1 << 30)
+				throw new IllegalStateException("point cache is too large");
+			final long[] oldX = xKeys;
+			final long[] oldY = yKeys;
+			final byte[] oldStates = states;
+			allocate(xKeys.length << 1);
+			size = 0;
+			for (int i = 0; i < oldStates.length; i++) {
+				if (oldStates[i] == 0)
+					continue;
+				int slot = (int) pointHash(oldX[i], oldY[i]) & mask;
+				while (states[slot] != 0)
+					slot = slot + 1 & mask;
+				xKeys[slot] = oldX[i];
+			yKeys[slot] = oldY[i];
+				states[slot] = oldStates[i];
+				size++;
+			}
+		}
+	}
+
+	private static long pointHash(final long xKey, final long yKey) {
+		return mixEdgeKey(xKey ^ Long.rotateLeft(yKey, 29));
 	}
 
 	/** Bijective SplitMix64 finalizer. Packed nearby endpoints have strongly

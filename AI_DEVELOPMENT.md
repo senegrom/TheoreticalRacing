@@ -8,6 +8,39 @@
 Shared geometry, reachability and simulation helpers may be cleaned up, but the two top-level scorers stay separate so an experiment cannot silently change its own benchmark.
 
 
+
+## Round 134: exact point-containment cache — 12.8% faster on the measured wall
+
+Round 130 removed boxed mobility-search overhead and left `Area.contains`
+as the dominant sampled leaf. Round 134 closes that independent geometry
+frontier. The residual exact line scan repeatedly asks whether the same
+rational point lies inside the fixed track; the cache stores only the
+unchanged exact AWT verdict.
+
+The legality path first reuses the existing conservative RES=4 sub-raster
+for points whose complete subcell was already proven interior. Unproven
+points fall back to `Area.contains`, with the result stored in an
+allocation-free open-addressed table keyed by both raw IEEE-754 coordinate
+bit patterns. Collisions require full two-key equality, resizing preserves
+every entry, and the table is cleared whenever track geometry is rebuilt.
+No geometry approximation or AI-policy rule changed.
+
+Exact gate: 3500 all-AI2 baseline/candidate race pairs across
+all 26 tracks, with **every complete race log byte-identical**. The full
+Java suite, headless smoke, golden corpus, homogeneous AI probe, tooling
+tests and every permanent AI regression pin passed on the JDK 25 candidate
+and again from the production checkout.
+
+Four-pair dual-order warm batches against the Round 130 champion measured:
+Zandvoort 14.9% faster,
+Nürburgring 38.3% faster,
+Monaco 12.0% faster,
+Interlagos 4.7% faster and
+Sprint 3.0% faster. Across the five weighted
+medians the candidate is 12.8%
+faster. Promotion required at least a five-percent aggregate win and no
+measured case more than five percent slower.
+
 ## Round 129 promoted: measured frontier pace for both driver kinds
 
 The harvest-23 alternating 4v4 census measured AI1 ahead of frozen AI2 on
