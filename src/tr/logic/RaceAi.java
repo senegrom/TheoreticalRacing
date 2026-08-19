@@ -280,6 +280,8 @@ final class RaceAi {
 	private final static int		AI1_TRUE_CONFIRM_MAXDEPTH	= 2;
 	private final static int		AI1_TRUE_CONFIRM_DEEP_ROUNDS	= 6;	// round 104: horizon for the deep-tier leg -- the zandvoort-s88 box seals at true round index 5
 	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
+	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
+	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -3125,7 +3127,27 @@ final class RaceAi {
 			final boolean legFastSlow = fastSlow && threadRounds != null
 					&& threadRounds[0] >= 2 && threadRounds[1] >= 2
 					&& chosenT <= AI1_FASTSLOW_TTF;
-			if ((legCorr || legSlow || legDeep || legPair || legFastSlow)
+			// Round 133: the vmax overspeed deep check -- every harvest-25
+			// slow-track crash is one serpentine2 commitment: accelerating to
+			// max-axis 11 on the bottom straight is a 5-9-round joint doom
+			// (the reach map holds a solo escape; traffic occupies it). The
+			// smom fire carries no tell and even the true confirm worlds read
+			// the doomed line alive; the deep suppressed world at the
+			// certification cap is the one shipped world that kills it, so
+			// the confirm rides it alone (r107 single-world precedent). Armed
+			// on ACCELERATION into the band at this depth for every entry
+			// path (the commitments route via the deep-pack escalation, not
+			// the fallback); measured zero false kills and wall-free.
+			// The doom needs a TRAIN: without a rival close behind or alongside
+			// there is nobody to seal the escape rows, and the deep world's
+			// pessimism false-killed a lone-runner line on 4-player lemans
+			// (golden lemans-s1-4p, outcome-identical but trajectory-diverged).
+			// The three commitments carry rivals at Chebyshev 1, 2 and 5.
+			final boolean legFastV = Math.max(Math.abs(cvx), Math.abs(cvy)) >= AI1_FASTV_MAX
+					&& Math.max(Math.abs(cvx), Math.abs(cvy)) > Math.max(Math.abs(vel[0]),
+							Math.abs(vel[1]))
+					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, AI1_FASTV_PACK_R) >= 1;
+			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV)
 					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
@@ -3138,6 +3160,10 @@ final class RaceAi {
 					if (legFastSlow) {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
+								confirmCap, null, null, null) < 0;
+					} else if (legFastV) {
+						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
+								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
 								confirmCap, null, null, null) < 0;
 					} else if (legPair && !legCorr && !legSlow && !legDeep) {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, rounds,

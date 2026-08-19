@@ -60,6 +60,53 @@ zero safety regressions, zero aggregate-only gains and zero finisher-set
 redistributions. The permanent Round 115/117/124/126 pins now require the
 promoted result from both AI1 and AI2.
 
+## Round 133 (local agent): the vmax overspeed deep check -- the slow-track surface cleared
+
+The harvest-25 class shipped. At the deepest dangerJointSearch, a chosen
+move that ACCELERATES into max-axis >= AI1_FASTV_MAX (11 = VMAX-1) is
+re-verdicted with the deep suppressed world (AI1_DEEP_HORIZON rounds at
+the certification cap) ALONE -- the r107 single-world precedent, because
+the true confirm worlds read the doomed line alive (joint-rollout chaos)
+while scorer-8-cap6 kills it (thread=3 snug=4 lights up only there). A
+kill takes the standard r105 slower-first ladder switch; the surviving
+vx<=10 siblings certify in both worlds.
+
+Probe forensics that shaped it: probe v1 at the round-59 fallback MISSED
+all three commitments -- their computes route through the round-65
+deep-pack escalation, so the leg lives at the deepest overload where
+every entry path converges. Cruise-at-11 fires are excluded by the
+acceleration condition (max-axis must increase this move). Probe v2:
+all three commitments fire there with deep8=DEAD; ZERO false kills in
+188 healthy fires (serpentine2 ~55/race, monza ~23, lemans/spa ~11,
+bigoval 0); pricing A/B with the deep check paid at EVERY armed fire:
+serpentine2 -0.2%, monza +-0.0% dual-order -- free.
+
+One measured false kill, accepted and bounded: the first gate run
+diverged golden lemans-s1-4p -- scorer-8's pessimism killed a
+SURVIVING two-car-train line (p2 (63,65) S to v(3,11)); the race
+converged to the IDENTICAL outcome (turns, places, zero crashes; only
+the trajectory hash moved). A Chebyshev-6 train gate (physical: the
+doom needs a rival to seal the escape rows; the commitments carry
+theirs at 1, 2, 5) was added but this fire also has near6=1 -- no
+cheap axis separates it (corridor width would, and is not cheaply
+available; chasing further gates is proxy overfit). Accepted per the
+promotion precedent: the fixture line for that one case regenerated;
+every other golden is byte-identical on the r133 champion.
+
+Gate: specimens s6/s35/s40 crash-free in ALL THREE kind orderings
+(9/9); serpentine2 mixed sweep s1-100 ZERO crashes (was 4);
+bigoval/monza/lemans/spa canon spot checks clean; 15 pins PASS. NEW
+pin ai1_vmax_deep_regression (mixed serpentine2 s6+s35, both victim
+slots). Applied post-promotion, so the leg serves both kinds from
+birth (the class was kind-invariant).
+
+Residual mixed surface after r128-promotion + r133: NOTHING known --
+every walked class is either fixed (funnel both kinds, vmax both
+kinds) or owned by the round-127 oracle framework (zandvoort
+deep-corridor: s195/s223/s115-mixed m167; lemans bottom-corner: s108
+p7+p2, s117 p5 -- model-boundary, STUCK-diagnosed).
+
+
 ## Round 128 PROMOTED (user-ordered): the fast finish-funnel confirm for both kinds
 
 The user ordered the mirror ("Promote 128"). One line: the fallback's
