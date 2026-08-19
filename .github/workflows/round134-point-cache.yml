@@ -1,0 +1,381 @@
+name: Round 134 exact point-containment cache
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-134-point-containment-cache
+    paths:
+      - .github/workflows/round134-point-cache.yml
+      - tracks/round134_apply.py
+      - tracks/round134_compare.py
+      - tracks/round134_runtime.py
+      - tracks/round134_publish.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: round134-point-containment-cache
+  cancel-in-progress: true
+
+jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Publish workflow run locator
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round134-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'status_at_locator': 'started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round134-status.json
+          git commit -m 'Round 134: record exact gate run' || exit 0
+          git push
+
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build immutable baseline and candidate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          printf '%s\n' "$BASE" > round134-base-sha.txt
+          git worktree add /tmp/round134-work "$BASE"
+          cd /tmp/round134-work
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round134-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round134_apply.py"
+          git diff --name-only | sort > /tmp/round134-changed.txt
+          printf '%s\n' \
+            'src/tr/logic/RaceGame.java' \
+            'tests/tr/logic/CoreTests.java' \
+            | sort > /tmp/round134-expected.txt
+          diff -u /tmp/round134-expected.txt /tmp/round134-changed.txt
+          test "$(grep -c 'final PointContainmentCache pointContainmentCache' src/tr/logic/RaceGame.java)" = 1
+          test "$(grep -c 'testPointContainmentCache()' tests/tr/logic/CoreTests.java)" = 2
+          git diff --check
+          git diff -- src/tr/logic/RaceGame.java tests/tr/logic/CoreTests.java \
+            > "$GITHUB_WORKSPACE/round134.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round134-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round134-build
+          path: |
+            round134-baseline.jar
+            round134-candidate.jar
+            round134-base-sha.txt
+            round134.patch
+          if-no-files-found: error
+          retention-days: 30
+
+  differential:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      max-parallel: 13
+      matrix:
+        track:
+          - circle
+          - triangle
+          - curve
+          - hairpin
+          - chicane
+          - sprint
+          - bigoval
+          - slalom
+          - gear
+          - coil
+          - zigzag
+          - the_long_loop
+          - monaco
+          - hungaroring
+          - interlagos
+          - lemans
+          - spa
+          - silverstone
+          - monza
+          - zandvoort
+          - nurburgring
+          - spielberg
+          - serpentine
+          - serpentine2
+          - spiral
+          - cog
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round134-build
+          path: .
+      - name: Require exact byte identity
+        env:
+          TRACK: ${{ matrix.track }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          case "$TRACK" in
+            serpentine|serpentine2|spiral|cog) END_SEED=50 ;;
+            *) END_SEED=150 ;;
+          esac
+          python tracks/round134_compare.py \
+            --baseline round134-baseline.jar \
+            --candidate round134-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round134-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round134-result-${{ matrix.track }}
+          path: round134-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: differential
+    runs-on: ubuntu-latest
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round134-build
+          path: round134-build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round134-result-*
+          path: round134-results
+          merge-multiple: true
+      - name: Enforce exact no-change policy
+        id: gate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp round134-build/round134-base-sha.txt .
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          rows = [json.loads(path.read_text())
+                  for path in sorted(Path('round134-results').glob('*.json'))]
+          summary = {
+              'baseline_sha': Path('round134-base-sha.txt').read_text().strip(),
+              'candidate': 'exact_point_containment_cache',
+              'tracks': len(rows),
+              'pairs': sum(row['pairs'] for row in rows),
+              'mismatches': sum(len(row['mismatches']) for row in rows),
+              'byte_identical_tracks': sum(1 for row in rows if row['identical']),
+              'runtime_ratios_from_exact_jobs': {
+                  row['track']: row['runtime_ratio'] for row in rows
+              },
+          }
+          summary['viable'] = (
+              summary['tracks'] == 26
+              and summary['pairs'] == 3500
+              and summary['mismatches'] == 0
+              and summary['byte_identical_tracks'] == 26
+          )
+          Path('round134-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=' + ('true' if summary['viable'] else 'false'), file=out)
+          assert summary['viable'], summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round134-summary
+          path: round134-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round134-build
+          path: .
+      - name: Measure four-pair dual-order warm speed
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python tracks/round134_runtime.py \
+            --baseline round134-baseline.jar \
+            --candidate round134-candidate.jar \
+            --pairs 4 --out round134-runtime.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round134-runtime
+          path: round134-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, summarize, runtime]
+    if: needs.summarize.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round134-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round134-summary
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round134-runtime
+          path: .
+      - name: Verify evidence and compatible parent
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          base = Path('round134-base-sha.txt').read_text().strip()
+          summary = json.load(open('round134-summary.json'))
+          runtime = json.load(open('round134-runtime.json'))
+          assert summary['baseline_sha'] == base, summary
+          assert summary['pairs'] == 3500 and summary['mismatches'] == 0 and summary['viable'], summary
+          assert runtime['viable'] and runtime['aggregate_ratio'] <= 0.95, runtime
+          assert all(row['ratio'] <= row['limit'] for row in runtime['cases']), runtime
+          PY
+          EXPECTED=$(cat round134-base-sha.txt)
+          git fetch origin master
+          CURRENT=$(git rev-parse origin/master)
+          if [ "$CURRENT" != "$EXPECTED" ]; then
+            git diff --quiet "$EXPECTED" "$CURRENT" -- \
+              src tests tracks build_main.sh run_tests.sh run_golden_tests.sh || {
+              echo 'Behavior-relevant master files changed during the gate.' >&2
+              exit 1
+            }
+          fi
+          printf '%s\n' "$CURRENT" > round134-production-parent.txt
+      - name: Materialize and replay production checkout
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tracks/round134_apply.py /tmp/round134_apply.py
+          cp tracks/round134_publish.py /tmp/round134_publish.py
+          CURRENT=$(cat round134-production-parent.txt)
+          git checkout -B round134-production "$CURRENT"
+          python /tmp/round134_apply.py
+          git diff --name-only | sort > /tmp/round134-changed.txt
+          printf '%s\n' \
+            'src/tr/logic/RaceGame.java' \
+            'tests/tr/logic/CoreTests.java' \
+            | sort > /tmp/round134-expected.txt
+          diff -u /tmp/round134-expected.txt /tmp/round134-changed.txt
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+          python /tmp/round134_publish.py
+          git diff --check
+          git diff --name-only | sort > /tmp/round134-final-changed.txt
+          printf '%s\n' \
+            'AI_DEVELOPMENT.md' \
+            'racing-memory.md' \
+            'src/tr/logic/RaceGame.java' \
+            'tests/tr/logic/CoreTests.java' \
+            | sort > /tmp/round134-final-expected.txt
+          diff -u /tmp/round134-final-expected.txt /tmp/round134-final-changed.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add AI_DEVELOPMENT.md racing-memory.md src/tr/logic/RaceGame.java tests/tr/logic/CoreTests.java
+          git commit -m 'Round 134: cache exact point containment'
+          git push origin HEAD:master
+          LOCAL=$(git rev-parse HEAD)
+          printf '%s\n' "$LOCAL" > round134-commit.txt
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$LOCAL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round134-promotion-evidence
+          path: |
+            round134-summary.json
+            round134-runtime.json
+            round134.patch
+            round134-base-sha.txt
+            round134-production-parent.txt
+            round134-commit.txt
+          if-no-files-found: warn
+          retention-days: 30
