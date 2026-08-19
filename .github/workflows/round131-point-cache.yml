@@ -16,7 +16,7 @@ permissions:
 
 concurrency:
   group: round131-point-containment-cache
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   ROUND131_BASE: cf709da7288c740e5594cb0418ab8c910ca72051
@@ -113,33 +113,33 @@ jobs:
       fail-fast: false
       max-parallel: 13
       matrix:
-        include:
-          - { track: circle, end_seed: 150 }
-          - { track: triangle, end_seed: 150 }
-          - { track: curve, end_seed: 150 }
-          - { track: hairpin, end_seed: 150 }
-          - { track: chicane, end_seed: 150 }
-          - { track: sprint, end_seed: 150 }
-          - { track: bigoval, end_seed: 150 }
-          - { track: slalom, end_seed: 150 }
-          - { track: gear, end_seed: 150 }
-          - { track: coil, end_seed: 150 }
-          - { track: zigzag, end_seed: 150 }
-          - { track: the_long_loop, end_seed: 150 }
-          - { track: monaco, end_sed: 150 }
-          - { track: hungaroring, end_seed: 150 }
-          - { track: interlagos, end_seed: 150 }
-          - { track: lemans, end_seed: 150 }
-          - { track: spa, end_seed: 150 }
-          - { track: silverstone, end_seed: 150 }
-          - { track: monza, end_seed: 150 }
-          - { track: zandvoort, end_sed: 150 }
-          - { track: nurburgring, end_seed: 150 }
-          - { track: spielberg, end_seed: 150 }
-          - { track: serpentine, end_seed: 50 }
-          - { track: serpentine2, end_sed: 50 }
-          - { track: spiral, end_seed: 50 }
-          - { track: cog, end_seed: 50 }
+        track:
+          - circle
+          - triangle
+          - curve
+          - hairpin
+          - chicane
+          - sprint
+          - bigoval
+          - slalom
+          - gear
+          - coil
+          - zigzag
+          - the_long_loop
+          - monaco
+          - hungaroring
+          - interlagos
+          - lemans
+          - spa
+          - silverstone
+          - monza
+          - zandvoort
+          - nurburgring
+          - spielberg
+          - serpentine
+          - serpentine2
+          - spiral
+          - cog
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-java@v5
@@ -156,10 +156,13 @@ jobs:
       - name: Require exact byte identity
         env:
           TRACK: ${{ matrix.track }}
-          END_SEED: ${{ matrix.end_seed }}
         shell: bash
         run: |
           set -euxo pipefail
+          case "$TRACK" in
+            serpentine|serpentine2|spiral|cog) END_SEED=50 ;;
+            *) END_SEED=150 ;;
+          esac
           python tracks/round131_compare.py \
             --baseline round131-baseline.jar \
             --candidate round131-candidate.jar \
