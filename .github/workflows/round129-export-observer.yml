@@ -1,0 +1,35 @@
+name: Observe Round 129 source export
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-129-frontier-promotion
+    paths:
+      - .github/workflows/round129-export-observer.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Record latest export run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sleep 15
+          gh api \
+            'repos/${{ github.repository }}/actions/workflows/round129-source-export.yml/runs?branch=agent%2Fai-racing-speed-129-frontier-promotion&per_page=5' \
+            --jq '.workflow_runs[0] | {id,status,conclusion,head_sha,created_at,updated_at}' \
+            > round129-export-status.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git pull --rebase --autostash origin "$GITHUB_REF_NAME"
+          git add round129-export-status.json
+          git commit -m 'Record Round 129 source export status'
+          git push origin HEAD:"$GITHUB_REF_NAME"
