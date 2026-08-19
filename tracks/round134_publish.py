@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Document Round 134 after exact identity and dual-order runtime gates pass."""
+# Relaunched after the shared fast-funnel promotion advanced master.
 from __future__ import annotations
 
 import json
