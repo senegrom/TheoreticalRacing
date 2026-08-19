@@ -138,7 +138,7 @@ dense = '''\t\t\t\t\t\t// Round 127 AI1 frontier: Zandvoort s195 is alive in eve
 source = source.replace(marker, "\t\t\t\t\t\t}\n" + dense
                         + "\t\t\t\t\t}\n\t\t\t\t\tif (!djSlow) {\n", 1)
 
-assert source.count("AI1_DENSE_FAST_FUNNEL_ROUNDS") == 4
+assert source.count("AI1_DENSE_FAST_FUNNEL_ROUNDS") == 3
 assert source.count("AIDBG DENSE-TRUE p=") == 1
 assert source.count("AIDBG DENSE-TRUE SWITCH") == 1
 assert source.count("private Direction optimalMoveAI2") == 1
