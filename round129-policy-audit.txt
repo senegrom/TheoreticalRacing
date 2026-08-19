@@ -1,0 +1,81 @@
+# optimalMoveAI2
+3340-	 * gate (round 108). Mirrored by DELEGATION: the champion is one body of
+3341-	 * code and the strict probe (tracks/ai_probe.py, 27 races move-identical
+3342-	 * all-AI1 vs all-AI2) is the mirror proof; every kind-sensitive gate in the
+3343-	 * shared machinery is mover-symmetric, so a homogeneous AI2 field behaves
+3344-	 * exactly as a homogeneous AI1 field. During the next experiment AI2 is
+3345-	 * again the frozen yardstick: frontier work happens in optimalMoveAI1 and
+3346-	 * must leave this delegation untouched until the next promotion.
+3347-	 */
+3348:	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
+3349-		return optimalMoveAI1(pos, vel, playerNum);
+3350-	}
+3351-
+3352-	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
+3353-	private final static double	AI2_PLATEAU_TIEBREAK	= 0.05;
+3354-
+3355-	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
+3356-		for (final int[] p : predicted) {
+3357-			if (p != null && p[0] == x && p[1] == y)
+3358-				return true;
+3359-		}
+3360-		return false;
+
+# explicit AI1 kind gates
+869-										// leave a faithful-rival-alive line for a faithful-rival-dead
+870-										// one. Reuse the bounded true-confirm model only for that
+871-										// transition; all ordinary ladder decisions remain unchanged.
+872:										if (moverKind(playerNum) == Player.Kind.AI1
+873-												&& poTByDir[chosen.ordinal()] == poTByDir[smomAlt.ordinal()]
+874-												&& Math.max(Math.abs(djvx), Math.abs(djvy))
+875-														== Math.max(Math.abs(avx), Math.abs(avy))
+--
+1111-							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+1112-									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
+1113-									threadPack, threadPack || fastPairRisk, true, fastPairRisk,
+1114:									!djSlow && moverKind(playerNum) == Player.Kind.AI1);
+1115-						}
+1116-					}
+1117-				} else {
+--
+1566-		for (final Player p : game.players)
+1567-			if (p.getNumber() == playerNum)
+1568-				return p.getKind();
+1569:		return Player.Kind.AI1;
+1570-	}
+1571-
+1572-	/** Whether every live rival uses the mover's policy kind. */
+--
+1667-					aheadProgress += (long) moverProgress - rivalProgress;
+1668-			}
+1669-		}
+1670:		final boolean frontierMover = moverKind(playerNum) == Player.Kind.AI1;
+1671-		final boolean sixAheadFrontier = frontierMover
+1672-				&& rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD + 1;
+1673-		final boolean earlyRoundTrapFrontier = frontierMover
+
+# AI2 references
+135-		final int[] pos = p.getPosition();
+136-		final int playerNum = p.getNumber();
+137-
+138:		if (p.getKind() == Player.Kind.AI2)
+139:			return optimalMoveAI2(pos, vel, playerNum);
+140-		return optimalMoveAI1(pos, vel, playerNum);
+141-	}
+142-
+--
+297-
+298-	/**
+299-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.9 standard.
+300:	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
+301-	 * applied here while AI2 stays frozen as the reference.
+302-	 */
+303-	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
+--
+3345-	 * again the frozen yardstick: frontier work happens in optimalMoveAI1 and
+3346-	 * must leave this delegation untouched until the next promotion.
+3347-	 */
+3348:	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
+3349-		return optimalMoveAI1(pos, vel, playerNum);
+3350-	}
+3351-
