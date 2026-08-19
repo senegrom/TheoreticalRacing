@@ -7,6 +7,61 @@ continue from this file alone. Long-form history: see
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
 
+## Round 128 (local agent): the fast finish-funnel confirm leg -- the mixed dimension's crash surface
+
+Harvest-23 opened the MIXED 4v4 dimension (alternating kinds, odd=AI1,
+seeds 1-100 x 22 tracks) plus fresh canon s201-250. Census: mixed produced
+5 crashes total -- FOUR one deterministic lemans class (AI1 victim dead at
+(6-7,74) in the terminal funnel; s36/s43/s46 byte-identical, s45 a sibling)
+plus the accepted hairpin s68 (AI2 slot, same delegated code); fresh canon
+produced ONE (zandvoort s223 p7 m167, new residual, unwalked). The lemans
+class IS the entire unaccepted mixed crash surface.
+
+Forensics (probe + oracle, all re-verified on the post-126 master): the
+victims commit FAST fires that the smom-3 world reads alive while true-4
+at the certification cap kills them; the commitments carry the legSlow
+thread tell (thread=2 snug=2), which no fast leg audits. s36-class
+commitment: (14,105) NW, tier=1, sim-ttf 7. s45 sibling: (11,97) N,
+tier=3, sim-ttf 6 (oracle: the taken N dies @r3, braking survives; at
+m536 all nine candidates are dead -- m529 is the last avoidable). The
+bare signature on fast fires runs 21/race on monaco -- too hot to arm.
+The separator is the SIM'S OWN HORIZON: every non-class signature fire
+measured ttf 14+ (monaco/zandvoort mid-race, hungaroring start crowds at
+96-98); the class sits at 6-7, inside the finish approach.
+
+The leg (AI1-only, kind-gated): 16th param fastSlow on the deepest
+dangerJointSearch (the 15-arg form becomes a delegating wrapper, every
+other caller untouched), armed !djSlow && moverKind==AI1 from the
+round-59 fallback. It extends the audit to fast fires (free: the chosen
+verdict sim already runs; tier/thread/snug ride along) and arms on
+thread>=2 && snug>=2 && chosenT <= AI1_FASTSLOW_TTF(10), firing the
+DIRECT true-rival confirm at AI1_TRUE_CONFIRM_ROUNDS and the
+certification cap: the scorer screen is BLIND on this class (scorer-3
+reads both doomed lines alive), so there is no cheap pre-screen. A kill
+takes the established r105 slower-first ladder-certified switch path.
+NO tier axis: the t4 probe audit measured ZERO false kills across every
+signature fire on monaco/mxmonaco/hungaroring (~200 fires, all healthy
+crowds true-4-alive, both class siblings DEAD) -- the tier<=1
+refinement only cost the s45 coverage.
+
+Gate: all 14 pins PASS (13 ai1 + golden all-AI2 byte-identity);
+specimens 4/4 crash-free; mixed lemans s1-100 sweep 0 crashes (was 4;
+all 100 logs full-length). Every rescue is place-neutral: the saved car
+survives to the end and is auto-placed eighth exactly where it used to
+crash to eighth (survival-only, parity places -- the DJS shape). Wall:
+zandvoort A/B 10s=10s; monaco interleaved 10-seed A/B 46.6s vs 47.0s
+(+0.7%, inside per-seed noise). NEW pin
+ai1_fast_funnel_regression (mixed lemans s36+s45 crash-free, one seed
+per sibling). AI2 remains frozen (kind-gated out; all-AI2 races
+identical by construction).
+
+Residuals: zandvoort s223 (canon singleton, unwalked); hairpin s68
+(accepted place-neutral). CORRECTION for the z195 line: the earlier
+"ultra-deep, no survivor to m70" classification of zandvoort s195 was
+measured on a crashed walker (stale reach dump path) and is VOID; the
+round-127 branch's fresh oracle forensics supersede it.
+
+
 ## Round 126: equal-speed false-target veto
 
 Ported and re-certified the unfinished Zandvoort s115 mechanism on the

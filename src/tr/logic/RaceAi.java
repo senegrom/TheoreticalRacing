@@ -279,6 +279,7 @@ final class RaceAi {
 	private int					trueConfirmDepth;
 	private final static int		AI1_TRUE_CONFIRM_MAXDEPTH	= 2;
 	private final static int		AI1_TRUE_CONFIRM_DEEP_ROUNDS	= 6;	// round 104: horizon for the deep-tier leg -- the zandvoort-s88 box seals at true round index 5
+	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -1109,7 +1110,8 @@ final class RaceAi {
 							}
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
-									threadPack, threadPack || fastPairRisk, true, fastPairRisk);
+									threadPack, threadPack || fastPairRisk, true, fastPairRisk,
+									!djSlow && moverKind(playerNum) == Player.Kind.AI1);
 						}
 					}
 				} else {
@@ -3044,18 +3046,29 @@ final class RaceAi {
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
 			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm,
 			final boolean corrLeg, final boolean pairRisk) {
+		return dangerJointSearch(pos, vel, playerNum, chosen, simFinishVanish, exactSelf, exactRivals,
+				scorerRivals, rounds, scorerCap, scorerSelf, threadCheck, trueConfirm, corrLeg,
+				pairRisk, false);
+	}
+
+	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
+			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
+			final boolean scorerSelf, final boolean threadCheck, final boolean trueConfirm,
+			final boolean corrLeg, final boolean pairRisk, final boolean fastSlow) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
 		if (game.crossesFinish(pos[0], pos[1], cx, cy))
 			return chosen;
-		final boolean audit = threadCheck || trueConfirm;
+		final boolean audit = threadCheck || trueConfirm || fastSlow;
 		final int[] threadRounds = audit ? new int[2] : null;
 		final int[] finalTier = audit ? rolloutWorkspace().finalTier : null;
 		if (finalTier != null)
 			finalTier[0] = 3;
 		boolean trueDead = false;
-		if (simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf, exactRivals, scorerRivals,
-				scorerSelf, scorerCap, finalTier, null, threadRounds) >= 0) {
+		final int chosenT = simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, scorerSelf, scorerCap, finalTier, null, threadRounds);
+		if (chosenT >= 0) {
 			// Round 99: fragile alive verdict in pack traffic -> confirm the
 			// chosen with two rounds of FULL-FIDELITY rivals. The suppressed
 			// world's blind spot is the rivals' own pace arms (zandvoort s32:
@@ -3090,7 +3103,22 @@ final class RaceAi {
 			// silverstone-s167 m157 and keep its survivor), verification the
 			// standard true-rival confirm.
 			final boolean legPair = trueConfirm && pairRisk;
-			if ((legCorr || legSlow || legDeep || legPair)
+			// Round 128: the fast FINISH-FUNNEL leg -- mixed-lemans kills at
+			// one commitment per crash seed: a fast landing into the terminal
+			// funnel where the field compresses onto the finish. Signature =
+			// the slow-pack thread tell (thread>=2, snug>=2) PLUS a sim
+			// horizon already inside the finish approach (chosen final ttf <=
+			// AI1_FASTSLOW_TTF; monaco mid-race crowds sit at ttf 14+, so the
+			// horizon bounds arming to ~5/race there and ~0 elsewhere). The
+			// scorer screen is blind here (scorer-3 alive on the doomed line),
+			// so the confirm is the direct true-rival check at the
+			// certification cap -- audited at ZERO false kills across every
+			// signature fire on monaco/mxmonaco/hungaroring, killing exactly
+			// the class commitments (both the tier=1 and tier=3 siblings).
+			final boolean legFastSlow = fastSlow && threadRounds != null
+					&& threadRounds[0] >= 2 && threadRounds[1] >= 2
+					&& chosenT <= AI1_FASTSLOW_TTF;
+			if ((legCorr || legSlow || legDeep || legPair || legFastSlow)
 					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
@@ -3100,7 +3128,11 @@ final class RaceAi {
 					// vacates the kill cell) and true-DEAD at cap 6, matching
 					// the offline all-champion roll and the real race.
 					final int confirmCap = Math.max(scorerCap, AI1_DEEP_CERT_RIVALS);
-					if (legPair && !legCorr && !legSlow && !legDeep) {
+					if (legFastSlow) {
+						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_TRUE_CONFIRM_ROUNDS,
+								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, true,
+								confirmCap, null, null, null) < 0;
+					} else if (legPair && !legCorr && !legSlow && !legDeep) {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, rounds,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
 								AI1_SCORER_MAXRIVALS, null, null, null) < 0
