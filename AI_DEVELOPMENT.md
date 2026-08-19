@@ -7,6 +7,26 @@
 
 Shared geometry, reachability and simulation helpers may be cleaned up, but the two top-level scorers stay separate so an experiment cannot silently change its own benchmark.
 
+
+## Round 129 promoted: measured frontier pace for both driver kinds
+
+The harvest-23 alternating 4v4 census measured AI1 ahead of frozen AI2 on
+21 of 22 tracks, with a 2.05-place-sum advantage per race. Round 129
+promotes the already separately certified Round 115 moderate-energy,
+Round 117 synchronized six-ahead and Round 124 phase-consistent trap
+acceleration arms to AI2 as well. Round 126's homogeneous equal-speed
+false-target veto is promoted with them, repairing Zandvoort seed 115 for
+both kinds. The Round 128 mixed finish-funnel confirm remains AI1-only: it
+is a safety frontier, not a pace arm, and a broad mirror was prohibitively
+expensive in mixed recursive confirmation.
+
+Exact gate: 3500 all-AI2 baseline/candidate pairs,
+4 Pareto-faster race(s),
+1 safety gain(s), zero individual slowdowns,
+zero safety regressions, zero aggregate-only gains and zero finisher-set
+redistributions. The permanent Round 115/117/124/126 pins now require the
+promoted result from both AI1 and AI2.
+
 ## Fast development loop
 
 ```bash

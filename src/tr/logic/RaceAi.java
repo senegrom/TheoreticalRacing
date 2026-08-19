@@ -869,8 +869,9 @@ final class RaceAi {
 										// leave a faithful-rival-alive line for a faithful-rival-dead
 										// one. Reuse the bounded true-confirm model only for that
 										// transition; all ordinary ladder decisions remain unchanged.
-										if (moverKind(playerNum) == Player.Kind.AI1
-												&& poTByDir[chosen.ordinal()] == poTByDir[smomAlt.ordinal()]
+										// Round 129 promotion: the Round-126 false-target veto is now
+										// champion policy for both smart driver kinds.
+										if (poTByDir[chosen.ordinal()] == poTByDir[smomAlt.ordinal()]
 												&& Math.max(Math.abs(djvx), Math.abs(djvy))
 														== Math.max(Math.abs(avx), Math.abs(avy))
 												&& trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
@@ -1667,7 +1668,9 @@ final class RaceAi {
 					aheadProgress += (long) moverProgress - rivalProgress;
 			}
 		}
-		final boolean frontierMover = moverKind(playerNum) == Player.Kind.AI1;
+		// Round 129 promotion: Rounds 115, 117 and 124 cleared the
+		// frontier census; both smart driver kinds use the certified pace arms.
+		final boolean frontierMover = true;
 		final boolean sixAheadFrontier = frontierMover
 				&& rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD + 1;
 		final boolean earlyRoundTrapFrontier = frontierMover
@@ -3332,18 +3335,14 @@ final class RaceAi {
 	}
 
 	/**
-	 * AI2 (CHAMPION MIRROR): promoted at Round 109 to the Round-108 champion --
-	 * the full frontier stack through the true-rival confirm family (rounds
-	 * 98-107: thread-fragility audit, bounded certification-cap confirms with
-	 * three fragility legs and cost ladders, slower-first ladder targets, the
-	 * ESC-route direct true-rival confirm) plus the profiled smoke proximity
-	 * gate (round 108). Mirrored by DELEGATION: the champion is one body of
-	 * code and the strict probe (tracks/ai_probe.py, 27 races move-identical
-	 * all-AI1 vs all-AI2) is the mirror proof; every kind-sensitive gate in the
-	 * shared machinery is mover-symmetric, so a homogeneous AI2 field behaves
-	 * exactly as a homogeneous AI1 field. During the next experiment AI2 is
-	 * again the frozen yardstick: frontier work happens in optimalMoveAI1 and
-	 * must leave this delegation untouched until the next promotion.
+	 * AI2 (CHAMPION MIRROR): Round 129 promotes the measured Round 115/117/124
+	 * field-acceleration frontier and Round 126's homogeneous false-target veto
+	 * to both smart driver kinds. The scorer remains one body by delegation.
+	 * Round 128's mixed fast-funnel confirm is deliberately still AI1-only: it
+	 * is a safety experiment, not part of this pace promotion, and mirroring it
+	 * broadly made mixed confirmation recursively expensive. Future frontier
+	 * work must keep this delegation and the promoted gates fixed until the next
+	 * independently measured promotion.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		return optimalMoveAI1(pos, vel, playerNum);

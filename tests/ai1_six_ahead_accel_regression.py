@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin Round 117's AI1-only synchronized six-ahead acceleration."""
+"""Pin Round 117's synchronized six-ahead acceleration after promotion."""
 from pathlib import Path
 import sys
 import tempfile
@@ -8,7 +8,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
-EXPECTED = {'AI1': {5: (7, 0, [58, 59, 60, 61, 62, 62, 62]), 22: (7, 0, [58, 59, 60, 61, 61, 62, 63]), 86: (7, 0, [58, 59, 61, 61, 62, 62, 62])}, 'AI2': {5: (7, 0, [58, 59, 60, 61, 62, 62, 62]), 22: (7, 0, [58, 59, 60, 61, 61, 62, 63]), 86: (7, 0, [58, 59, 61, 61, 62, 62, 63])}}
+PROMOTED = {
+    5: (7, 0, [58, 59, 60, 61, 62, 62, 62]),
+    22: (7, 0, [58, 59, 60, 61, 61, 62, 63]),
+    86: (7, 0, [58, 59, 61, 61, 62, 62, 62]),
+}
+LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
+EXPECTED = {kind: PROMOTED for kind in ("AI1", "AI2")}
 
 
 def main() -> int:
@@ -23,16 +29,16 @@ def main() -> int:
             for seed in (5, 22, 86):
                 actual[kind][seed] = bench_ai.run_track("coil", timeout=1200, seed=seed)
     if actual != EXPECTED:
-        raise SystemExit(f"Round-117 regression: {actual}, expected {EXPECTED}")
-    for seed in (5, 22):
-        if actual["AI1"][seed] != actual["AI2"][seed]:
-            raise SystemExit(f"Round-117 control changed on seed {seed}: {actual}")
-    ai1, ai2 = actual["AI1"][86], actual["AI2"][86]
-    if ai1[0:2] != ai2[0:2] or any(a > b for a, b in zip(ai1[2], ai2[2])):
-        raise SystemExit(f"Round-117 Pareto contract lost: {actual}")
-    if sum(ai1[2]) >= sum(ai2[2]):
-        raise SystemExit(f"Round-117 pace gain lost: {actual}")
-    print("AI1SixAheadAccelRegression: OK (Coil s86 faster; s5/s22 and AI2 frozen)")
+        raise SystemExit(f"Round-117 promoted regression: {actual}, expected {EXPECTED}")
+    if actual["AI1"] != actual["AI2"]:
+        raise SystemExit(f"Round-117 promotion is not mirrored: {actual}")
+    result = actual["AI1"][86]
+    if result[:2] != LEGACY_CHAMPION_86[:2] or any(
+            a > b for a, b in zip(result[2], LEGACY_CHAMPION_86[2])):
+        raise SystemExit(f"Round-117 Pareto contract lost: {result}, {LEGACY_CHAMPION_86}")
+    if sum(result[2]) >= sum(LEGACY_CHAMPION_86[2]):
+        raise SystemExit(f"Round-117 pace gain lost: {result}, {LEGACY_CHAMPION_86}")
+    print("AI1SixAheadAccelRegression: OK (Coil s86 promoted; s5/s22 controls pinned)")
     return 0
 
 
