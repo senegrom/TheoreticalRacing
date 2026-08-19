@@ -7,7 +7,6 @@ on:
     paths:
       - .github/workflows/round127-dense-fast-funnel-diagnostic.yml
       - tracks/round127_apply_dense_funnel.py
-      - tracks/round127_apply_full_roster.py
 
 permissions:
   contents: write
@@ -15,7 +14,7 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v5
         with:
@@ -35,23 +34,21 @@ jobs:
           git worktree add /tmp/round127-diagnostic "$BASE"
           cd /tmp/round127-diagnostic
           python "$GITHUB_WORKSPACE/tracks/round127_apply_dense_funnel.py"
-          python "$GITHUB_WORKSPACE/tracks/round127_apply_full_roster.py"
           test "$(git diff --name-only)" = 'src/tr/logic/RaceAi.java'
-          test "$(grep -c 'fullScorerRoster' src/tr/logic/RaceAi.java)" = 3
+          test "$(grep -c 'AI1_DENSE_CORRIDOR_BRAKE_DROP' src/tr/logic/RaceAi.java)" = 2
           git diff --check
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round127-diagnostic.jar"
-      - name: Trace Zandvoort seed 195 faithful-roster verdict
+      - name: Trace Zandvoort seed 195 oracle-brake decision
         run: |
           java -Djava.awt.headless=true -Dai.debug.player=6 -Dai.debug.djs=true \
             -jar round127-diagnostic.jar --auto --track zandvoort \
             --props tracks/bench.properties --log round127-diagnostic-z195.log --seed 195 \
             > round127-diagnostic-z195.stdout 2> round127-diagnostic-z195.stderr
-          grep -E 'AIDBG DENSE-CHECK|AIDBG DENSE-TRUE|AIDBG turn-REAL p=6|AIDBG RING p=6|AIDBG ESC p=6' \
+          grep -E 'AIDBG DENSE-BRAKE|AIDBG turn-REAL p=6|AIDBG RING p=6|AIDBG ESC p=6' \
             round127-diagnostic-z195.stderr > round127-dense-diagnostic.txt
           test -s round127-dense-diagnostic.txt
-          grep -E 'AIDBG DENSE-TRUE p=6|AIDBG DENSE-TRUE SWITCH' \
-            round127-dense-diagnostic.txt || true
+          grep 'AIDBG DENSE-BRAKE p=6' round127-dense-diagnostic.txt || true
           grep -E '# results|FINISH|CRASH' round127-diagnostic-z195.log | tail -n 30
       - name: Record diagnostic result
         run: |
@@ -60,7 +57,7 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git pull --rebase --autostash origin "$GITHUB_REF_NAME"
           git add round127-dense-diagnostic.txt round127-diagnostic-run-id.txt
-          git commit -m 'Record Round 127 full-roster diagnostic'
+          git commit -m 'Record Round 127 oracle-brake diagnostic'
           git push origin HEAD:"$GITHUB_REF_NAME"
       - uses: actions/upload-artifact@v4
         if: always()
