@@ -1,0 +1,47 @@
+name: Round 129 source export
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-129-frontier-promotion
+    paths:
+      - .github/workflows/round129-source-export.yml
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Verify and build exact live tip
+        run: |
+          test "$(git rev-parse HEAD^)" = 'd01c9fba0ac21ccea5ab47f2054f246ded2ca464'
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            python "$test"
+          done
+          python -m compileall -q tracks tests
+          git archive --format=tar.gz --output=round129-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round129-source-export
+          path: |
+            round129-source.tar.gz
+            theoreticRacing.jar
+          if-no-files-found: error
+          retention-days: 14
