@@ -62,7 +62,7 @@ jobs:
           cd /tmp/round164-screen
           sh ./build_main.sh
           cp theoreticRacing.jar "$GITHUB_WORKSPACE/round164-baseline.jar"
-          python "$GITHUB_WORKSPACE/tracks/round164_apply.py"
+          python "$GITHUB_WORKSPACE/tracks/round164_apply_fixed.py"
           git diff --name-only | sort > /tmp/round164-changed.txt
           printf '%s\n' src/tr/logic/RaceAi.java | sort > /tmp/round164-expected.txt
           diff -u /tmp/round164-expected.txt /tmp/round164-changed.txt
