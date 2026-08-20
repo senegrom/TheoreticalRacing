@@ -1,0 +1,403 @@
+name: Round 157 shared progress-map gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-157-shared-distance-map
+    paths:
+      - .github/workflows/round157-shared-distance-map.yml
+      - tracks/round157_apply.py
+      - tracks/round157_compare.py
+      - tracks/round157_publish.py
+      - tracks/round157_runtime.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: round157-shared-distance-map
+  cancel-in-progress: true
+
+jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Record gate run id
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round157-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'state': 'started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- round157-status.json
+          git commit -m 'Round 157: record shared-map gate run' || exit 0
+          git push
+
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build immutable baseline and exact candidate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          printf '%s\n' "$BASE" > round157-base-sha.txt
+          git worktree add /tmp/round157-gate "$BASE"
+          cd /tmp/round157-gate
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round157-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round157_apply.py"
+          git diff --name-only | sort > /tmp/round157-changed.txt
+          printf '%s\n' \
+            src/tr/logic/Reachability.java \
+            tests/tr/logic/CoreTests.java \
+            | sort > /tmp/round157-expected.txt
+          diff -u /tmp/round157-expected.txt /tmp/round157-changed.txt
+          test "$(grep -c 'final DistanceMaps cached = findDistanceMaps' src/tr/logic/Reachability.java)" = 1
+          test "$(grep -c 'private static void testSharedDistanceMaps()' tests/tr/logic/CoreTests.java)" = 1
+          git diff --check
+          git diff -- \
+            src/tr/logic/Reachability.java \
+            tests/tr/logic/CoreTests.java \
+            > "$GITHUB_WORKSPACE/round157.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round157-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do python "$test"; done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round157-build
+          path: |
+            round157-baseline.jar
+            round157-candidate.jar
+            round157-base-sha.txt
+            round157.patch
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 420
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round157-build
+          path: .
+      - name: Measure seven-pair dual-order warm batch speed
+        id: gate
+        shell: bash
+        run: |
+          set +e
+          python tracks/round157_runtime.py \
+            --baseline round157-baseline.jar \
+            --candidate round157-candidate.jar \
+            --pairs 7 --aggregate-limit 0.98 --case-limit 1.05 \
+            --out round157-runtime.json
+          RC=$?
+          set -e
+          test -s round157-runtime.json
+          python - <<'PY'
+          import json, os
+          result = json.load(open('round157-runtime.json'))
+          viable = bool(result.get('viable'))
+          print(json.dumps(result, indent=2, sort_keys=True))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=' + ('true' if viable else 'false'), file=out)
+          assert all(row['byte_identical'] for row in result['cases']), result
+          PY
+          if [ "$RC" -ne 0 ]; then
+            echo 'Round 157 did not clear the runtime threshold; exhaustive gate will be skipped.'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round157-runtime
+          path: round157-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  differential:
+    needs: [prepare, runtime]
+    if: needs.runtime.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      max-parallel: 13
+      matrix:
+        track:
+          - circle
+          - triangle
+          - curve
+          - hairpin
+          - chicane
+          - sprint
+          - bigoval
+          - slalom
+          - gear
+          - coil
+          - zigzag
+          - the_long_loop
+          - monaco
+          - hungaroring
+          - interlagos
+          - lemans
+          - spa
+          - silverstone
+          - monza
+          - zandvoort
+          - nurburgring
+          - spielberg
+          - serpentine
+          - serpentine2
+          - spiral
+          - cog
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round157-build
+          path: .
+      - name: Require exact byte identity
+        env:
+          TRACK: ${{ matrix.track }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          case "$TRACK" in
+            serpentine|serpentine2|spiral|cog) END_SEED=50 ;;
+            *) END_SEED=150 ;;
+          esac
+          python tracks/round157_compare.py \
+            --baseline round157-baseline.jar \
+            --candidate round157-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round157-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round157-result-${{ matrix.track }}
+          path: round157-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: [runtime, differential]
+    if: needs.runtime.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round157-build
+          path: round157-build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round157-result-*
+          path: round157-results
+          merge-multiple: true
+      - name: Enforce exact no-change policy
+        id: gate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp round157-build/round157-base-sha.txt .
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          rows = [
+              json.loads(path.read_text())
+              for path in sorted(Path('round157-results').glob('*.json'))
+          ]
+          summary = {
+              'baseline_sha': Path('round157-base-sha.txt').read_text().strip(),
+              'candidate': 'shared_distance_maps',
+              'tracks': len(rows),
+              'pairs': sum(row['pairs'] for row in rows),
+              'mismatches': sum(len(row['mismatches']) for row in rows),
+              'byte_identical_tracks': sum(1 for row in rows if row['identical']),
+              'runtime_ratios_from_exact_jobs': {
+                  row['track']: row['runtime_ratio'] for row in rows
+              },
+          }
+          summary['viable'] = (
+              summary['tracks'] == 26
+              and summary['pairs'] == 3500
+              and summary['mismatches'] == 0
+              and summary['byte_identical_tracks'] == 26
+          )
+          Path('round157-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=' + ('true' if summary['viable'] else 'false'), file=out)
+          assert summary['viable'], summary
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round157-summary
+          path: round157-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, runtime, summarize]
+    if: needs.runtime.outputs.viable == 'true' && needs.summarize.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round157-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round157-summary
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round157-runtime
+          path: .
+      - name: Verify evidence and immutable parent
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          base = Path('round157-base-sha.txt').read_text().strip()
+          summary = json.load(open('round157-summary.json'))
+          runtime = json.load(open('round157-runtime.json'))
+          assert summary['baseline_sha'] == base, summary
+          assert summary['candidate'] == 'shared_distance_maps', summary
+          assert summary['pairs'] == 3500 and summary['mismatches'] == 0, summary
+          assert summary['byte_identical_tracks'] == 26 and summary['viable'], summary
+          assert runtime['aggregate_ratio'] <= 0.98 and runtime['viable'], runtime
+          assert all(
+              row['ratio'] <= 1.05 and row['byte_identical']
+              for row in runtime['cases']
+          ), runtime
+          PY
+          EXPECTED=$(cat round157-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+      - name: Materialize and replay clean production checkout
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tracks/round157_apply.py /tmp/round157_apply.py
+          cp tracks/round157_publish.py /tmp/round157_publish.py
+          BASE=$(cat round157-base-sha.txt)
+          git checkout -B round157-production "$BASE"
+          python /tmp/round157_apply.py
+          git diff --name-only | sort > /tmp/round157-changed.txt
+          printf '%s\n' \
+            src/tr/logic/Reachability.java \
+            tests/tr/logic/CoreTests.java \
+            | sort > /tmp/round157-expected.txt
+          diff -u /tmp/round157-expected.txt /tmp/round157-changed.txt
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do python "$test"; done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+          python /tmp/round157_publish.py
+          git diff --check
+          git diff --name-only | sort > /tmp/round157-final-changed.txt
+          printf '%s\n' \
+            AI_DEVELOPMENT.md \
+            racing-memory.md \
+            src/tr/logic/Reachability.java \
+            tests/tr/logic/CoreTests.java \
+            | sort > /tmp/round157-final-expected.txt
+          diff -u /tmp/round157-final-expected.txt /tmp/round157-final-changed.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            AI_DEVELOPMENT.md \
+            racing-memory.md \
+            src/tr/logic/Reachability.java \
+            tests/tr/logic/CoreTests.java
+          git commit -m 'Round 157: share immutable progress maps across batches'
+          git push origin HEAD:master
+          LOCAL=$(git rev-parse HEAD)
+          printf '%s\n' "$LOCAL" > round157-commit.txt
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$LOCAL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round157-promotion-evidence
+          path: |
+            round157-summary.json
+            round157-runtime.json
+            round157.patch
+            round157-base-sha.txt
+            round157-commit.txt
+          if-no-files-found: warn
+          retention-days: 30
