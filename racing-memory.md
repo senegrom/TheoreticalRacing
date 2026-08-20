@@ -14,6 +14,41 @@ continue from this file alone. Long-form history: see
 
 
 
+## Round 161 (local agent): a confirmed switch must never fall back to an UNCERTIFIED target
+
+Harvest 26 (fresh mixed s201-300, all 26 tracks, 3 crashes/2600 -- the
+lowest rate ever) delivered spielberg s252, and its walk exposed a
+FRAMEWORK BUG latent since the round-99/105 ladder: in the trueDead
+switch path, when EVERY candidate fails the true-rival certification
+(`confirmed == null`), the old code silently returned the cheap-world
+`best` anyway. At s252 m159 (49,81) v(-8,-11): the champion correctly
+chose E -- the ORACLE-TRUE SURVIVOR -- the cheap world false-killed E,
+certification rightly rejected the doomed NE as true-DIES, and the
+fallthrough switched into NE regardless: trading no crash for a crash.
+The fix is one line (`best = confirmed;` unconditionally): no certified
+escape means KEEP THE CHOSEN, exactly what the round-102 comment always
+claimed the code did.
+
+Also folded in: the round-93 fastFragile healthy-tier path no longer
+swallows acceleration-into-band fires before they reach the round-133
+vmax leg (fastVAccel falls through to the fallback) -- a correctness
+completion of r133 discovered in the same forensic chain.
+
+Gate (on the round-160 master): spielberg s252 rescued (0 crashes, was
+1); serpentine2 s6/s35/s40 stay clean; 16 pins PASS including golden
+(the no-certified-target path fires in no golden race) and both class
+pins. The fix touches no hot path (a rare-branch outcome only).
+
+Remaining harvest-26 residuals: lemans s216 -- NEW slow two-car-squeeze
+class, fully walked (last-avoidable m89 (19,15) v(3,-3), taken S dies
+@r3, SW survives; fire signature tier=2 thread=1 snug=2 sits BELOW
+every leg threshold, two-car train below the deep-pack gate; scorer-5
+AND true-4 at cap 6 both kill it, so the standard conjunction works
+once armed: candidate arm = slow fire + thread>=1 + snug>=2 + tier<=2
++ rival within Cheb 3, rate probe pending). lemans s264 = another
+bottom-corner-family sighting for the round-127 pile.
+
+
 ## Round 160: direct blocked-cell bitsets for mobility search — 6.5% faster on the measured batch wall
 
 The four-ply mobility search repeatedly tested candidate landings

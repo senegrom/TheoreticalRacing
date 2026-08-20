@@ -1041,7 +1041,17 @@ final class RaceAi {
 						final int fastFragileRivals = fastL2
 								? countRivalsWithinCheb(ffx, ffy, playerNum, AI1_SCORER_NEAR) : 0;
 						// Three-or-more nearby rivals already have the deep-pack machinery.
-						if (fastFragileRivals > 0 && fastFragileRivals < AI1_DEEP_PACK) {
+						// Round 133 fix: an acceleration into the top speed band must
+						// reach the vmax deep check in the fallback -- the round-93
+						// healthy-tier path used to swallow it without any joint
+						// search (spielberg s252 m159: fastFragile tier>=2 kept a
+						// scorer-8-dead 11->12 commitment).
+						final boolean fastVAccel = Math.max(Math.abs(djvx), Math.abs(djvy)) >= AI1_FASTV_MAX
+								&& Math.max(Math.abs(djvx), Math.abs(djvy)) > Math.max(
+										Math.abs(vel[0]), Math.abs(vel[1]))
+								&& countRivalsWithinCheb(pos[0], pos[1], playerNum,
+										AI1_FASTV_PACK_R) >= 1;
+						if (!fastVAccel && fastFragileRivals > 0 && fastFragileRivals < AI1_DEEP_PACK) {
 							final int[] ft = rolloutWorkspace().finalTier;
 							ft[0] = 3;
 							final int fastVerdict = simOutcome(ffx, ffy, djvx, djvy, playerNum,
@@ -3357,8 +3367,13 @@ final class RaceAi {
 				else
 					rejected[cand.ordinal()] = true;
 			}
-			if (confirmed != null)
-				best = confirmed;
+			// A confirm-capable search must never hand the race to an
+			// UNCERTIFIED escape: when every candidate fails the true-rival
+			// certification, keep the chosen (spielberg s252 m159: the cheap
+			// world false-killed the true survivor E, certification correctly
+			// rejected the doomed NE as true-DIES, and the old fallthrough
+			// switched into NE anyway -- trading no crash for a crash).
+			best = confirmed;
 		}
 		if (dbg)
 			System.err.println("AIDBG DJS  -> " + (best != null ? "SWITCH " + best + " simT=" + bestT
