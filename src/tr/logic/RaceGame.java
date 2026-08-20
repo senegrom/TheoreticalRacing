@@ -539,9 +539,21 @@ public final class RaceGame {
 	/** Primitive cache for geometry edges. Reachability owns it while building;
 	 *  AI callers wait for that build, so the table has the same single-writer
 	 *  lifecycle as the former HashMap without Long/Boolean/node allocation. */
+	private DenseEdgeLegalCache denseEdgeLegalCache;
 	private final EdgeLegalCache	edgeLegalCache		= new EdgeLegalCache(1 << 16);
 
 	boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
+		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
+		final int denseIndex = dense == null ? -1 : dense.index(x1, y1, x2, y2);
+		if (denseIndex >= 0) {
+			final byte cached = dense.states[denseIndex];
+			if (cached != 0)
+				return cached == DenseEdgeLegalCache.TRUE;
+			final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
+			dense.states[denseIndex] = legal ? DenseEdgeLegalCache.TRUE
+					: DenseEdgeLegalCache.FALSE;
+			return legal;
+		}
 		final long packed = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32
 				| ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
 		final long key = mixEdgeKey(packed);
@@ -551,6 +563,44 @@ public final class RaceGame {
 		final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
 		edgeLegalCache.put(key, legal);
 		return legal;
+	}
+
+	/** Direct byte cache for in-grid, bounded-delta edges. */
+	static final class DenseEdgeLegalCache {
+		static final byte FALSE = 1;
+		static final byte TRUE = 2;
+		private static final int DELTA_SPAN = 2 * AI_MAX_SPEED + 1;
+		private static final int DELTAS = DELTA_SPAN * DELTA_SPAN;
+
+		final int width;
+		final int height;
+		final byte[] states;
+
+		private DenseEdgeLegalCache(final int width, final int height,
+				final int entries) {
+			this.width = width;
+			this.height = height;
+			states = new byte[entries];
+		}
+
+		static DenseEdgeLegalCache create(final int width, final int height,
+				final long maxEntries) {
+			final long entries = (long) width * height * DELTAS;
+			if (width <= 0 || height <= 0 || entries <= 0 || entries > maxEntries
+					|| entries > Integer.MAX_VALUE)
+				return null;
+			return new DenseEdgeLegalCache(width, height, (int) entries);
+		}
+
+		int index(final int x1, final int y1, final int x2, final int y2) {
+			final int dx = x2 - x1, dy = y2 - y1;
+			if (x1 < 0 || y1 < 0 || x1 >= width || y1 >= height
+					|| dx < -AI_MAX_SPEED || dx > AI_MAX_SPEED
+					|| dy < -AI_MAX_SPEED || dy > AI_MAX_SPEED)
+				return -1;
+			return ((x1 * height + y1) * DELTA_SPAN + dx + AI_MAX_SPEED)
+					* DELTA_SPAN + dy + AI_MAX_SPEED;
+		}
 	}
 
 	/** Open-addressed long-to-boolean map. A separate state byte means every
@@ -1054,6 +1104,8 @@ public final class RaceGame {
 		p.closePath();
 		startZoneA = TrackGeometry.getToleranceExpandedShape(p);
 		trackA = TrackGeometry.getToleranceExpandedShape(TrackGeometry.newPrefilledPath(track.getLeft(), track.getRight()));
+		denseEdgeLegalCache = DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1,
+				64L << 20);
 		buildLegalRaster();
 		rui.finishTrack();
 		reach.computeDistMap();

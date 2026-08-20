@@ -9,6 +9,36 @@ Shared geometry, reachability and simulation helpers may be cleaned up, but the 
 
 
 
+
+## Round 150: direct in-grid edge legality cache — 5.4% faster on the measured wall
+
+The post-Round-134 profile left the open-addressed geometry-edge cache
+among the largest hot leaves. Every production AI edge is identified by
+an integer origin and a bounded velocity delta in `[-12,12]^2`; Round
+150 stores that finite in-grid domain in a direct byte table. A lookup
+now needs one index calculation and one byte read instead of packing,
+mixing and walking an open-addressed probe chain.
+
+The table is capped at 64 MiB. Unusually large user tracks and every
+out-of-domain query retain the existing exact hash cache. The direct key
+is collision-free over its admitted domain, and the stored verdict is
+still produced by the unchanged exact geometry predicate. AI policy,
+reachability, finish logic and race ordering are untouched.
+
+Exact gate: 3500 all-AI2 baseline/candidate race pairs
+across all 26 tracks, with every complete race log byte-identical. The
+full Java suite, headless smoke, golden corpus, homogeneous AI probe,
+tooling tests and every permanent AI regression pin passed on the JDK
+25 candidate and again from a clean production checkout.
+
+Five-pair dual-order warm batches measured Monaco
+3.3% faster, Nürburgring
+0.6% slower, Zandvoort
+8.8% faster, Interlagos
+6.1% faster, and Sprint
+7.6% faster. The weighted median aggregate is
+5.4% faster; no measured case regressed.
+
 ## Round 134: exact point-containment cache — 12.8% faster on the measured wall
 
 Round 130 removed boxed mobility-search overhead and left `Area.contains`

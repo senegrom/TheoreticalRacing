@@ -25,6 +25,7 @@ public final class CoreTests {
         testTrackListing();
         testBorderValidation();
         testEdgeLegalCache();
+        testDenseEdgeLegalCache();
         testPointContainmentCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
@@ -272,6 +273,27 @@ public final class CoreTests {
         check(cache.get(123456789L) == 0, "edge cache false hit");
     }
 
+
+    private static void testDenseEdgeLegalCache() {
+        final RaceGame.DenseEdgeLegalCache cache = RaceGame.DenseEdgeLegalCache.create(3, 4, 10_000);
+        check(cache != null, "small dense edge cache was rejected");
+        final int zero = cache.index(0, 0, 0, 0);
+        final int max = cache.index(2, 3, 14, -9);
+        final int min = cache.index(2, 3, -10, 15);
+        check(zero >= 0 && max >= 0 && min >= 0, "bounded dense edge was rejected");
+        check(zero != max && max != min && zero != min, "dense edge indices collided");
+        cache.states[zero] = RaceGame.DenseEdgeLegalCache.FALSE;
+        cache.states[max] = RaceGame.DenseEdgeLegalCache.TRUE;
+        check(cache.states[zero] == RaceGame.DenseEdgeLegalCache.FALSE,
+                "dense false verdict was lost");
+        check(cache.states[max] == RaceGame.DenseEdgeLegalCache.TRUE,
+                "dense true verdict was lost");
+        check(cache.index(-1, 0, 0, 0) == -1, "negative origin entered dense cache");
+        check(cache.index(3, 0, 3, 0) == -1, "wide origin entered dense cache");
+        check(cache.index(0, 0, 13, 0) == -1, "overspeed delta entered dense cache");
+        check(RaceGame.DenseEdgeLegalCache.create(500, 500, 1_000) == null,
+                "dense cache ignored its memory cap");
+    }
 
     private static void testPointContainmentCache() {
         final RaceGame.PointContainmentCache cache = new RaceGame.PointContainmentCache(1);
