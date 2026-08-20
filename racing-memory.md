@@ -12,6 +12,35 @@ continue from this file alone. Long-form history: see
 
 
 
+
+## Round 158: share immutable legality rasters across auto batches — 6.3% faster on the measured batch wall
+
+The conservative unit-cell and RES=4 legality rasters are immutable,
+exact products of track geometry, yet every seed in an auto batch
+rebuilt both arrays. Round 158 adopts one exact raster pair for every
+subsequent `RaceGame` carrying the same geometry cache key.
+
+The access-ordered pool is capped at 64 MiB of byte arrays. Interactive
+games retain private rasters. Concurrent first builders may duplicate
+work, but publication retains one complete exact pair; the arrays are
+never modified after publication. AI policy, exact fallback geometry,
+reachability products and race ordering are untouched.
+
+Exact gate: 3500 all-AI2 baseline/candidate race pairs
+across all 26 tracks, with every complete race log byte-identical. The
+full Java suite, headless smoke, golden corpus, homogeneous AI probe,
+tooling tests and every permanent AI regression pin passed on the JDK
+25 candidate and again from a clean production checkout.
+
+Five-pair dual-order warm batches measured Monaco
+9.5% faster, Nürburgring
+2.0% faster, Zandvoort
+10.9% faster, Interlagos
+2.7% faster, and Sprint
+0.3% slower. The weighted median aggregate is
+6.3% faster; no measured case crossed the five-percent
+regression limit.
+
 ## Round 157: share immutable progress maps across auto batches — 2.7% faster on the measured batch wall
 
 The distance-to-finish BFS and its derived progress-ring widths are

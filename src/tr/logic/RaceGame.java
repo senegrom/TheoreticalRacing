@@ -313,10 +313,97 @@ public final class RaceGame {
 	private byte[] legalRaster;
 	private int rasterH;
 
+	/** Immutable exact raster pairs shared only by auto games carrying the same
+	 * geometry key. One entry is one byte, so the access-ordered pool is capped
+	 * at 64 MiB plus small object overhead. */
+	private static final long RASTER_MEMO_MAX_BYTES = 64L << 20;
+	private static final java.util.LinkedHashMap<String, RasterMaps> RASTER_MEMO =
+			new java.util.LinkedHashMap<>(16, 0.75f, true);
+	private static long rasterMemoBytes;
+
+	static final class RasterMaps {
+		final byte[] unit;
+		final byte[] sub;
+		final int unitW;
+		final int unitH;
+		final int subW;
+		final int subH;
+		final long byteCount;
+
+		RasterMaps(final byte[] unit, final int unitW, final int unitH,
+				final byte[] sub, final int subW, final int subH) {
+			if (unit == null || sub == null || unitW <= 0 || unitH <= 0
+					|| subW != unitW * SUB_RES || subH != unitH * SUB_RES
+					|| (long) unitW * unitH != unit.length
+					|| (long) subW * subH != sub.length)
+				throw new IllegalArgumentException("invalid legality rasters");
+			this.unit = unit;
+			this.sub = sub;
+			this.unitW = unitW;
+			this.unitH = unitH;
+			this.subW = subW;
+			this.subH = subH;
+			byteCount = (long) unit.length + sub.length;
+		}
+	}
+
+	static synchronized RasterMaps findRasterMaps(final String key,
+			final int unitW, final int unitH) {
+		if (key == null)
+			return null;
+		final RasterMaps maps = RASTER_MEMO.get(key);
+		return maps != null && maps.unitW == unitW && maps.unitH == unitH
+				? maps : null;
+	}
+
+	static synchronized RasterMaps publishRasterMaps(final String key,
+			final byte[] unit, final int unitW, final int unitH,
+			final byte[] sub, final int subW, final int subH,
+			final long maxBytes) {
+		final RasterMaps created = new RasterMaps(unit, unitW, unitH,
+				sub, subW, subH);
+		if (key == null || maxBytes < 1 || created.byteCount > maxBytes)
+			return created;
+		final RasterMaps existing = RASTER_MEMO.get(key);
+		if (existing != null && existing.unitW == unitW && existing.unitH == unitH)
+			return existing;
+		if (existing != null) {
+			RASTER_MEMO.remove(key);
+			rasterMemoBytes -= existing.byteCount;
+		}
+		while (!RASTER_MEMO.isEmpty()
+				&& rasterMemoBytes + created.byteCount > maxBytes) {
+			final java.util.Iterator<java.util.Map.Entry<String, RasterMaps>> it =
+					RASTER_MEMO.entrySet().iterator();
+			final RasterMaps evicted = it.next().getValue();
+			it.remove();
+			rasterMemoBytes -= evicted.byteCount;
+		}
+		RASTER_MEMO.put(key, created);
+		rasterMemoBytes += created.byteCount;
+		return created;
+	}
+
+	static synchronized void clearRasterMemoForTests() {
+		RASTER_MEMO.clear();
+		rasterMemoBytes = 0;
+	}
+
 	private void buildLegalRaster() {
 		pointContainmentCache.clear();
 		final int w = gameCols + 2;
-		rasterH = gameRows + 2;
+		final int h = gameRows + 2;
+		final String memoKey = autoMode ? reach.geometryCacheKey() : null;
+		final RasterMaps cached = findRasterMaps(memoKey, w, h);
+		if (cached != null) {
+			legalRaster = cached.unit;
+			rasterH = cached.unitH;
+			subRaster = cached.sub;
+			subW = cached.subW;
+			subH = cached.subH;
+			return;
+		}
+		rasterH = h;
 		final byte[] r = new byte[w * rasterH];
 		for (int cx = 0; cx < w; cx++)
 			for (int cy = 0; cy < rasterH; cy++) {
@@ -328,6 +415,15 @@ public final class RaceGame {
 		markPath(r, w, track.getRight());
 		legalRaster = r;
 		buildSubRaster(r, w);
+		if (memoKey != null) {
+			final RasterMaps shared = publishRasterMaps(memoKey, legalRaster,
+					w, rasterH, subRaster, subW, subH, RASTER_MEMO_MAX_BYTES);
+			legalRaster = shared.unit;
+			rasterH = shared.unitH;
+			subRaster = shared.sub;
+			subW = shared.subW;
+			subH = shared.subH;
+		}
 	}
 
 	/** Round 112: RES=4 sub-raster refined only where the unit raster cannot

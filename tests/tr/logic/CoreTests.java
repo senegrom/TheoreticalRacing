@@ -27,6 +27,7 @@ public final class CoreTests {
         testEdgeLegalCache();
         testDenseEdgeLegalCache();
         testSharedDenseEdgeLegalCache();
+        testSharedRasterMaps();
         testPointContainmentCache();
         testSharedDistanceMaps();
         testEndgameMemoKey();
@@ -327,6 +328,42 @@ public final class CoreTests {
         check(RaceGame.DenseEdgeLegalCache.shared(
                 "core-test-private", 3, 4, 10_000, 1_000) != oversized,
                 "table larger than the pool cap was retained globally");
+    }
+
+    private static void testSharedRasterMaps() {
+        RaceGame.clearRasterMemoForTests();
+        final byte[] unitA = new byte[4];
+        final byte[] subA = new byte[64];
+        final RaceGame.RasterMaps first = RaceGame.publishRasterMaps(
+                "core-raster-a", unitA, 2, 2, subA, 8, 8, 100);
+        check(RaceGame.findRasterMaps("core-raster-a", 2, 2) == first,
+                "shared legality rasters were not retained");
+        check(first.unit == unitA && first.sub == subA,
+                "shared legality rasters copied or replaced exact arrays");
+
+        final RaceGame.RasterMaps duplicate = RaceGame.publishRasterMaps(
+                "core-raster-a", new byte[4], 2, 2, new byte[64], 8, 8, 100);
+        check(duplicate == first, "same geometry replaced compatible legality rasters");
+
+        final RaceGame.RasterMaps second = RaceGame.publishRasterMaps(
+                "core-raster-b", new byte[1], 1, 1, new byte[16], 4, 4, 80);
+        check(second != null && RaceGame.findRasterMaps("core-raster-b", 1, 1) == second,
+                "second legality raster pair was not retained");
+        check(RaceGame.findRasterMaps("core-raster-a", 2, 2) == null,
+                "legality-raster LRU cap did not evict the eldest entry");
+
+        final RaceGame.RasterMaps replacement = RaceGame.publishRasterMaps(
+                "core-raster-b", new byte[2], 2, 1, new byte[32], 8, 4, 100);
+        check(replacement != second
+                        && RaceGame.findRasterMaps("core-raster-b", 2, 1) == replacement,
+                "dimension change retained incompatible legality rasters");
+
+        final RaceGame.RasterMaps oversized = RaceGame.publishRasterMaps(
+                "core-raster-private", new byte[1], 1, 1, new byte[16], 4, 4, 10);
+        check(oversized != null, "oversized legality rasters lost their private fallback");
+        check(RaceGame.findRasterMaps("core-raster-private", 1, 1) == null,
+                "legality rasters larger than the cap were retained globally");
+        RaceGame.clearRasterMemoForTests();
     }
 
     private static void testPointContainmentCache() {
