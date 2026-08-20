@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Document Round 134 after exact identity and dual-order runtime gates pass."""
-# Relaunched after the shared fast-funnel promotion advanced master.
+# Relaunched after the shared fast-funnel and vmax-deep promotions advanced master.
 from __future__ import annotations
 
 import json
@@ -67,7 +67,7 @@ def main() -> int:
     tests and every permanent AI regression pin passed on the JDK 25 candidate
     and again from the production checkout.
 
-    Four-pair dual-order warm batches against the Round 130 champion measured:
+    Four-pair dual-order warm batches against the current champion measured:
     Zandvoort {comparison(rows['zandvoort']['ratio'])},
     Nürburgring {comparison(rows['nurburgring']['ratio'])},
     Monaco {comparison(rows['monaco']['ratio'])},
