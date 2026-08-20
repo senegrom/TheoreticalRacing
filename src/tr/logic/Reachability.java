@@ -742,6 +742,7 @@ final class Reachability {
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
 			} finally {
+				game.clearPointContainmentCacheForCurrentThread();
 				reachabilityReady = true;
 			}
 		}, "reachability-compute");

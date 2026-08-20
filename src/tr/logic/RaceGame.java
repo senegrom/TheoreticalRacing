@@ -265,6 +265,7 @@ public final class RaceGame {
 	private boolean checkFinished() {
 		if (finishedLast + finishedFirst >= players.length - (players.length == 1 ? 0 : 1)) {
 			gamestate = GameState.FINISHED;
+			clearPointContainmentCacheForCurrentThread();
 			rui.setVelVector(null, -1);
 			rui.setPrePath(null);
 
@@ -390,7 +391,7 @@ public final class RaceGame {
 	}
 
 	private void buildLegalRaster() {
-		pointContainmentCache.clear();
+		clearPointContainmentCacheForCurrentThread();
 		final int w = gameCols + 2;
 		final int h = gameRows + 2;
 		final String memoKey = autoMode ? reach.geometryCacheKey() : null;
@@ -434,7 +435,12 @@ public final class RaceGame {
 	private byte[] subRaster;
 	private int subW;
 	private int subH;
-	private final PointContainmentCache pointContainmentCache = new PointContainmentCache(1 << 18);
+	private final ThreadLocal<PointContainmentCache> pointContainmentCaches =
+			ThreadLocal.withInitial(() -> new PointContainmentCache(1 << 18));
+
+	void clearPointContainmentCacheForCurrentThread() {
+		pointContainmentCaches.remove();
+	}
 
 	private void buildSubRaster(final byte[] unit, final int unitW) {
 		final int w = unitW * SUB_RES;
@@ -498,11 +504,12 @@ public final class RaceGame {
 		}
 		final long xBits = Double.doubleToRawLongBits(x);
 		final long yBits = Double.doubleToRawLongBits(y);
-		final byte cached = pointContainmentCache.get(xBits, yBits);
+		final PointContainmentCache pointCache = pointContainmentCaches.get();
+		final byte cached = pointCache.get(xBits, yBits);
 		if (cached != 0)
 			return cached == PointContainmentCache.TRUE;
 		final boolean inside = trackA.contains(x, y) || startZoneA.contains(x, y);
-		pointContainmentCache.put(xBits, yBits, inside);
+		pointCache.put(xBits, yBits, inside);
 		return inside;
 	}
 
@@ -636,7 +643,16 @@ public final class RaceGame {
 	 *  AI callers wait for that build, so the table has the same single-writer
 	 *  lifecycle as the former HashMap without Long/Boolean/node allocation. */
 	private DenseEdgeLegalCache denseEdgeLegalCache;
-	private final EdgeLegalCache	edgeLegalCache		= new EdgeLegalCache(1 << 16);
+	private EdgeLegalCache edgeLegalCache;
+
+	private EdgeLegalCache fallbackEdgeLegalCache() {
+		EdgeLegalCache cache = edgeLegalCache;
+		if (cache == null) {
+			cache = new EdgeLegalCache(1 << 16);
+			edgeLegalCache = cache;
+		}
+		return cache;
+	}
 
 	boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
 		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
@@ -653,11 +669,12 @@ public final class RaceGame {
 		final long packed = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32
 				| ((long) x2 & 0xFFFF) << 16 | (long) y2 & 0xFFFF;
 		final long key = mixEdgeKey(packed);
-		final byte cached = edgeLegalCache.get(key);
+		final EdgeLegalCache fallback = fallbackEdgeLegalCache();
+		final byte cached = fallback.get(key);
 		if (cached != 0)
 			return cached == EdgeLegalCache.TRUE;
 		final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
-		edgeLegalCache.put(key, legal);
+		fallback.put(key, legal);
 		return legal;
 	}
 

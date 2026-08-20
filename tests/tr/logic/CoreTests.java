@@ -29,6 +29,7 @@ public final class CoreTests {
         testSharedDenseEdgeLegalCache();
         testSharedRasterMaps();
         testPointContainmentCache();
+        testGeometryCacheThreadIsolation();
         testSharedDistanceMaps();
         testEndgameMemoKey();
         testDistinctCoverMatching();
@@ -401,6 +402,62 @@ public final class CoreTests {
                 "point cache merged distinct double bit patterns");
     }
 
+    @SuppressWarnings("unchecked")
+    private static void testGeometryCacheThreadIsolation() {
+        try {
+            final RaceGame game = new RaceGame(new java.util.Properties());
+            final java.lang.reflect.Field pointField =
+                    RaceGame.class.getDeclaredField("pointContainmentCaches");
+            pointField.setAccessible(true);
+            final ThreadLocal<RaceGame.PointContainmentCache> caches =
+                    (ThreadLocal<RaceGame.PointContainmentCache>) pointField.get(game);
+            final RaceGame.PointContainmentCache mainCache = caches.get();
+            mainCache.put(11L, 22L, true);
+
+            final java.util.concurrent.atomic.AtomicReference<RaceGame.PointContainmentCache>
+                    workerCache = new java.util.concurrent.atomic.AtomicReference<>();
+            final java.util.concurrent.atomic.AtomicReference<Throwable> failure =
+                    new java.util.concurrent.atomic.AtomicReference<>();
+            final Thread worker = new Thread(() -> {
+                try {
+                    final RaceGame.PointContainmentCache cache = caches.get();
+                    workerCache.set(cache);
+                    cache.put(11L, 22L, false);
+                    check(cache.get(11L, 22L) == RaceGame.PointContainmentCache.FALSE,
+                            "worker point cache lost its private verdict");
+                } catch (final Throwable t) {
+                    failure.set(t);
+                } finally {
+                    game.clearPointContainmentCacheForCurrentThread();
+                }
+            }, "point-cache-isolation-test");
+            worker.start();
+            worker.join(10_000);
+            check(!worker.isAlive(), "point-cache isolation worker hung");
+            check(failure.get() == null, "point-cache isolation worker failed: " + failure.get());
+            check(workerCache.get() != mainCache, "point cache was shared across threads");
+            check(mainCache.get(11L, 22L) == RaceGame.PointContainmentCache.TRUE,
+                    "worker write corrupted the main-thread point cache");
+
+            game.clearPointContainmentCacheForCurrentThread();
+            check(caches.get() != mainCache, "point-cache cleanup retained the old table");
+            game.clearPointContainmentCacheForCurrentThread();
+
+            final java.lang.reflect.Field edgeField =
+                    RaceGame.class.getDeclaredField("edgeLegalCache");
+            edgeField.setAccessible(true);
+            check(edgeField.get(game) == null, "fallback edge cache should be lazy");
+            final java.lang.reflect.Method fallback =
+                    RaceGame.class.getDeclaredMethod("fallbackEdgeLegalCache");
+            fallback.setAccessible(true);
+            final Object first = fallback.invoke(game);
+            check(first != null && first == fallback.invoke(game),
+                    "fallback edge cache was not retained after lazy creation");
+        } catch (final ReflectiveOperationException | InterruptedException e) {
+            throw new AssertionError("geometry-cache isolation test failed", e);
+        }
+    }
+
     private static void testSharedDistanceMaps() {
         Reachability.clearDistanceMemoForTests();
         final int[][] distance = new int[][]{{0, 1}, {2, 3}};
@@ -448,11 +505,16 @@ public final class CoreTests {
     }
 
     private static void testRaceAiStateIsolation() {
-        for (final java.lang.reflect.Field field : RaceAi.class.getDeclaredFields()) {
+        checkAiStateIsolation(RaceAi.class);
+        checkAiStateIsolation(RaceAiPrivateLane.class);
+    }
+
+    private static void checkAiStateIsolation(final Class<?> type) {
+        for (final java.lang.reflect.Field field : type.getDeclaredFields()) {
             final int modifiers = field.getModifiers();
             check(!java.lang.reflect.Modifier.isStatic(modifiers)
                     || java.lang.reflect.Modifier.isFinal(modifiers),
-                    "RaceAi mutable state must be instance-scoped: " + field.getName());
+                    type.getSimpleName() + " mutable state must be instance-scoped: " + field.getName());
         }
     }
 

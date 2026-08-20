@@ -1,11 +1,53 @@
 # AI development and promotion
 
-`RaceAi` intentionally keeps two complete move-selection bodies:
+`RaceAi` currently uses one promoted champion body: AI2 delegates to AI1.
+Candidate experiments must therefore be explicitly gated to `Player.Kind.AI1`
+until they clear the exact differential, while AI2 supplies the unchanged
+comparison control. Promotion removes that kind gate so both smart driver kinds
+receive the same certified winner.
 
-- **AI1** is the experimental frontier.
-- **AI2** is the frozen champion and independent comparison standard.
+## Round 168 candidate: direct occupancy maps and thread-owned geometry caches
 
-Shared geometry, reachability and simulation helpers may be cleaned up, but the two top-level scorers stay separate so an experiment cannot silently change its own benchmark.
+Two exact search hot paths repeatedly scanned the same player arrays. The
+candidate builds a touched-cell byte map once for the two-round ahead test and
+once for each mobility projection, then answers in-grid occupancy queries with
+a direct lookup. Duplicate-cell ordering, outside-grid fallbacks, current-player
+exemptions and every move-selection rule remain unchanged.
+
+The geometry fallback cache is now lazy and thread-owned. This fixes the race
+between background reachability construction and an interactive move on the
+event thread, while avoiding roughly 4.8 MiB of eager point/edge cache storage
+for the common dense-cache path. Worker and event-thread values are explicitly
+released at their lifecycle boundaries.
+
+The upstream Round-168 screen compared 186 alternating timing races and kept
+every complete log byte-identical; its aggregate median was 6.45% faster. The
+rebuilt local candidate then matched the pulled Round-160 baseline byte-for-byte
+on 78 races across all 26 tracks: 546 finishers, zero crashes and 37,739 summed
+finisher moves on each side. Five-pair alternating local timing measured Sprint
+10.9%, Monaco 3.4%, Zandvoort 6.5%, Nurburgring 2.9% and Interlagos 4.0% faster.
+The summed median fell from 38.91 s to 36.51 s, a 6.16% improvement, with no
+slower median case. Java/core/UI tests, all 13 goldens, tooling and all 15
+permanent AI regression pins pass. This is a computation-speed improvement;
+racing moves and outcomes are intentionally identical.
+
+## Structural cleanup: private-lane proof module
+
+The bounded adversarial private-lane certificate now lives in
+`RaceAiPrivateLane`. One session owns the rival rectangles, lazy exact fallback,
+primitive cache/frontiers and shared fail-closed node budget for a complete
+candidate loop. `RaceAi` retains the policy gates and candidate ordering, but
+calls intention-revealing approximate and exact certificate methods instead of
+carrying the proof engine internally. This removes 346 lines (7.94%) from the
+main class without introducing mutable static scratch state.
+
+The pre-split and modularized JARs produced byte-identical complete logs for all
+26 tracks at seeds 1-3: 78/78 pairs, 546 finishers, zero crashes and 43,255 move
+lines. Java/core/UI tests, all 13 goldens, tooling and all 15 permanent AI pins
+pass. Five-pair alternating timing was also output-identical: the modularized
+build was 1.18% faster in aggregate; its only slower median case was Interlagos
+at 2.17%, below the five-percent refactor limit. This is responsibility
+separation only; no move-selection rule or racing outcome changed.
 
 
 
@@ -200,29 +242,24 @@ promotes the already separately certified Round 115 moderate-energy,
 Round 117 synchronized six-ahead and Round 124 phase-consistent trap
 acceleration arms to AI2 as well. Round 126's homogeneous equal-speed
 false-target veto is promoted with them, repairing Zandvoort seed 115 for
-both kinds. The Round 128 mixed finish-funnel confirm remains AI1-only: it
-is a safety frontier, not a pace arm, and a broad mirror was prohibitively
-expensive in mixed recursive confirmation.
+both kinds. A later promotion also mirrored the Round 128 mixed finish-funnel
+confirm, so the current champion is identical for both smart driver kinds.
 
 Exact gate: 3500 all-AI2 baseline/candidate pairs,
 4 Pareto-faster race(s),
-1 safety gain(s), zero individual slowdowns,
+1 safety gain(s), zero individual slowdowns in the four pace races,
 zero safety regressions, zero aggregate-only gains and zero finisher-set
-redistributions. The permanent Round 115/117/124/126 pins now require the
-promoted result from both AI1 and AI2.
+redistributions. In the safety-gain race one existing finisher is one move
+slower while a previously crashed racer finishes; no race is classified slower.
+The permanent Round 115/117/124/126 pins now require the promoted result from
+both AI1 and AI2.
 
 ## Fast development loop
 
 ```bash
 sh ./run_tests.sh
 sh ./run_golden_tests.sh
-python3 tests/ai1_pace_regression.py
-python3 tests/ai1_mixed_safety_regression.py
-python3 tests/ai1_field_neutral_regression.py
-python3 tests/ai1_staged_pace_regression.py
-python3 tests/ai1_energy_pace_regression.py
-python3 tests/ai1_cross_model_pace_regression.py
-python3 tests/ai1_finish_frontier_regression.py
+for test in tests/ai1_*_regression.py; do python3 "$test"; done
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
@@ -245,7 +282,7 @@ Reach dumps named `tracks/reach_*.bin` are ignored by Git. The shared `forensics
 - **`board_at.py`** — reconstructs a board at a log move and classifies candidates quickly. The oracle mask remains authoritative for geometry.
 - **`policy_matrix.py`** — evaluates cheap simulated policies against known crash sites before Java implementation.
 - **`crash_scan.py`** — summarizes crashed players and final speeds.
-- **`extract_baseline.py`** — builds `BENCH_BASELINE` caches so candidate benchmarks can skip the frozen AI2 column. Rebuild caches after every promotion.
+- **`extract_baseline.py`** — builds `BENCH_BASELINE` caches so candidate benchmarks can skip the champion AI2 control column. Rebuild caches after every promotion.
 - **`bench_iso.py`** — isolated all-AI battery runner, including 4-car and 2-car modes that `bench_ai.py` does not expose as all-AI comparisons. It always starts from canonical `tracks/bench.properties` (or explicit `RACING_PROPS`) and uses process-unique temp files, so concurrent checkouts cannot corrupt each other's evidence.
 
 `racing-memory.md` keeps the detailed historical campaign record; this file only documents the current workflow.

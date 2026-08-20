@@ -12,6 +12,7 @@ import java.util.BitSet;
 final class RaceAi {
 	private final RaceGame game;
 	private final Reachability reach;
+	private final RaceAiPrivateLane privateLane;
 	/** Cached because the compiler-generated values() method clones on every call. */
 	private static final Direction[] DIRECTIONS = Direction.values();
 	/** Scratch storage is instance-owned: one RaceAi drives one single-threaded game. */
@@ -24,6 +25,9 @@ final class RaceAi {
 	private final int[] mobilityMove = new int[4];
 	private MobilitySearch outerMobilityWorkspace;
 	private MobilitySearch nestedMobilityWorkspace;
+	private byte[] liveOccupancy;
+	private int[] liveOccupancyTouched;
+	private int liveOccupancyTouchedCount;
 	private final long[] rolloutFieldCost = new long[1];
 	/** Outer candidate scores stay live while scorer-rival rollouts invoke a
 	 *  recursion-guarded nested scorer, so those two levels need disjoint rows. */
@@ -56,8 +60,11 @@ final class RaceAi {
 		final int[][] round1Velocity;
 		final int[][] round2Velocity;
 		final int[] candidatePosition = new int[2];
+		final byte[] aheadOccupancy;
+		final int[] aheadTouched;
+		int aheadTouchedCount;
 
-		TwoRoundWorkspace(final int players) {
+		TwoRoundWorkspace(final int players, final int cells) {
 			current = new int[players][];
 			world1 = new int[players][];
 			blocked = new int[players][];
@@ -66,6 +73,8 @@ final class RaceAi {
 			round2Position = new int[players][2];
 			round1Velocity = new int[players][2];
 			round2Velocity = new int[players][2];
+			aheadOccupancy = new byte[cells];
+			aheadTouched = new int[players];
 		}
 	}
 
@@ -120,6 +129,7 @@ final class RaceAi {
 	RaceAi(final RaceGame game) {
 		this.game = game;
 		this.reach = game.reach;
+		privateLane = new RaceAiPrivateLane(game);
 	}
 
 	private CandidateWorkspace candidateWorkspace() {
@@ -128,8 +138,8 @@ final class RaceAi {
 		return workspace;
 	}
 
-	/** Dispatches to AI1 or AI2. AI2 stays unchanged while a new AI1 experiment
-	 *  is measured, then receives the exact proven winner at promotion. */
+	/** Dispatches by kind. The promoted AI2 entry delegates to the champion AI1
+	 * body; experiments must add an explicit AI1 kind gate to preserve a control. */
 	Direction computeAiMove() {
 		reach.ensureReachabilityReady();
 		final Player p = game.players[game.subgamestate];
@@ -423,8 +433,10 @@ final class RaceAi {
 			// a car behind me trades race position for nothing).
 			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY);
 			final int[][] world = worlds.world1;
+			final byte[] aheadOccupancy = buildAheadOccupancy(worlds.current,
+					reach.distAt(pos[0], pos[1]));
 			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictedSteps, playerNum, worlds.world1, worlds.current, reach.distAt(pos[0], pos[1]));
+					predictedSteps, playerNum, worlds.world1, aheadOccupancy);
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -1244,342 +1256,6 @@ final class RaceAi {
 		return fallback;
 	}
 
-	/** Occupancy oracle used by the private-lane pace proof. */
-	private interface RivalOccupancy {
-		boolean mayOccupy(int ply, int x, int y);
-	}
-
-	/** Kinematic over-approximation of every cell any live rival can occupy
-	 *  after each of its next moves. Per axis, after {@code ply} moves the
-	 *  acceleration contribution is bounded by +/-ply*(ply+1)/2. Geometry,
-	 *  velocity caps, finishes and collisions are intentionally ignored, making
-	 *  each rectangle a superset of the rival's real reachable cells. A cell
-	 *  outside every rectangle is therefore physically unreachable under any
-	 *  rival policy. */
-	private static final class RivalReach implements RivalOccupancy {
-		final int[][] minX;
-		final int[][] maxX;
-		final int[][] minY;
-		final int[][] maxY;
-		final int rivals;
-
-		RivalReach(final int horizon, final int rivals) {
-			minX = new int[horizon + 1][rivals];
-			maxX = new int[horizon + 1][rivals];
-			minY = new int[horizon + 1][rivals];
-			maxY = new int[horizon + 1][rivals];
-			this.rivals = rivals;
-		}
-
-		@Override
-		public boolean mayOccupy(final int ply, final int x, final int y) {
-			for (int rival = 0; rival < rivals; rival++) {
-				if (x >= minX[ply][rival] && x <= maxX[ply][rival]
-						&& y >= minY[ply][rival] && y <= maxY[ply][rival])
-					return true;
-			}
-			return false;
-		}
-	}
-
-	private RivalReach rivalReach(final int playerNum, final int horizon) {
-		int rivalCount = 0;
-		for (final Player p : game.players)
-			if (p.getNumber() != playerNum && !p.isFinished())
-				rivalCount++;
-		final RivalReach result = new RivalReach(horizon, rivalCount);
-		int rival = 0;
-		for (final Player p : game.players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pp = p.getPosition();
-			final int[] pv = p.getVelocity();
-			for (int ply = 1; ply <= horizon; ply++) {
-				final int accelerationReach = ply * (ply + 1) / 2;
-				final long projectedX = (long) pp[0] + (long) ply * pv[0];
-				final long projectedY = (long) pp[1] + (long) ply * pv[1];
-				result.minX[ply][rival] = saturatingInt(projectedX - accelerationReach);
-				result.maxX[ply][rival] = saturatingInt(projectedX + accelerationReach);
-				result.minY[ply][rival] = saturatingInt(projectedY - accelerationReach);
-				result.maxY[ply][rival] = saturatingInt(projectedY + accelerationReach);
-			}
-			rival++;
-		}
-		return result;
-	}
-
-	/** Tiny primitive int-to-byte map for targeted occupancy answers. Unlike a
-	 *  board-sized array, its cost scales with the handful of cells the bounded
-	 *  certificate actually asks about. */
-	private static final class IntByteCache {
-		private int[] keys = new int[128];
-		private byte[] values = new byte[128];
-		private int size;
-
-		byte get(final int key) {
-			int slot = IntFrontier.mix(key) & (keys.length - 1);
-			final int stored = key + 1;
-			while (keys[slot] != 0) {
-				if (keys[slot] == stored)
-					return values[slot];
-				slot = slot + 1 & (keys.length - 1);
-			}
-			return 0;
-		}
-
-		void put(final int key, final byte value) {
-			if ((size + 1) * 2 >= keys.length)
-				rehash(keys.length << 1);
-			int slot = IntFrontier.mix(key) & (keys.length - 1);
-			final int stored = key + 1;
-			while (keys[slot] != 0) {
-				if (keys[slot] == stored) {
-					values[slot] = value;
-					return;
-				}
-				slot = slot + 1 & (keys.length - 1);
-			}
-			keys[slot] = stored;
-			values[slot] = value;
-			size++;
-		}
-
-		private void rehash(final int capacity) {
-			final int[] oldKeys = keys;
-			final byte[] oldValues = values;
-			keys = new int[capacity];
-			values = new byte[capacity];
-			size = 0;
-			for (int i = 0; i < oldKeys.length; i++)
-				if (oldKeys[i] != 0)
-					put(oldKeys[i] - 1, oldValues[i]);
-		}
-	}
-
-	/** Small primitive set/list used by the bounded targeted occupancy search.
-	 *  The exact fallback explores at most a few thousand states, so avoiding
-	 *  boxed Integer nodes keeps its fail-closed budget cheap and predictable. */
-	private static final class IntFrontier {
-		private int[] values = new int[64];
-		private int[] table = new int[128];
-		private int size;
-
-		void clear() {
-			java.util.Arrays.fill(table, 0);
-			size = 0;
-		}
-
-		int size() {
-			return size;
-		}
-
-		int get(final int index) {
-			return values[index];
-		}
-
-		void add(final int value) {
-			if ((size + 1) * 2 >= table.length)
-				rehash(table.length << 1);
-			int slot = mix(value) & (table.length - 1);
-			final int stored = value + 1;
-			while (table[slot] != 0) {
-				if (table[slot] == stored)
-					return;
-				slot = slot + 1 & (table.length - 1);
-			}
-			table[slot] = stored;
-			if (size == values.length)
-				values = java.util.Arrays.copyOf(values, values.length << 1);
-			values[size++] = value;
-		}
-
-		private void rehash(final int capacity) {
-			table = new int[capacity];
-			for (int i = 0; i < size; i++) {
-				final int value = values[i];
-				int slot = mix(value) & (capacity - 1);
-				while (table[slot] != 0)
-					slot = slot + 1 & (capacity - 1);
-				table[slot] = value + 1;
-			}
-		}
-
-		static int mix(final int value) {
-			int mixed = value * 0x9E3779B9;
-			mixed ^= mixed >>> 16;
-			return mixed;
-		}
-	}
-
-	/** Geometry-clipped targeted fallback for rectangular false positives.
-	 *  For each queried cell it expands every speed-valid, geometry-valid rival
-	 *  acceleration sequence that can still kinematically reach that cell.
-	 *  Collisions are deliberately ignored, which can only add rival paths.
-	 *  Exhausting the shared node budget reports "may occupy", so the proof
-	 *  remains conservative and the runtime cost is hard-bounded per real move. */
-	private final class ExactRivalReach implements RivalOccupancy {
-		private final RivalReach rectangle;
-		private final int[] starts;
-		private final int span;
-		private final int vmax;
-		private final int height;
-		private final int width;
-		private final int cells;
-		private final IntByteCache cache = new IntByteCache();
-		private IntFrontier current = new IntFrontier();
-		private IntFrontier next = new IntFrontier();
-		private int nodesLeft = AI1_PRIVATE_EXACT_NODES;
-
-		ExactRivalReach(final int playerNum, final RivalReach rectangle) {
-			this.rectangle = rectangle;
-			span = reach.aliveSpan;
-			vmax = reach.aliveVMAX;
-			height = reach.aliveH;
-			width = reach.aliveW;
-			cells = width * height;
-			starts = new int[rectangle.rivals];
-			int index = 0;
-			for (final Player p : game.players) {
-				if (p.getNumber() == playerNum || p.isFinished())
-					continue;
-				final int[] position = p.getPosition();
-				final int[] velocity = p.getVelocity();
-				starts[index++] = reach.aliveIdx(position[0], position[1], velocity[0], velocity[1]);
-			}
-		}
-
-		@Override
-		public boolean mayOccupy(final int ply, final int targetX, final int targetY) {
-			if (!rectangle.mayOccupy(ply, targetX, targetY))
-				return false;
-			if (targetX < 0 || targetX >= width || targetY < 0 || targetY >= height)
-				return false;
-			final int key = ply * cells + targetX * height + targetY;
-			final byte cached = cache.get(key);
-			if (cached != 0)
-				return cached == 2;
-			final boolean occupied = search(ply, targetX, targetY);
-			cache.put(key, (byte) (occupied ? 2 : 1));
-			return occupied;
-		}
-
-		private boolean search(final int ply, final int targetX, final int targetY) {
-			if (nodesLeft <= 0)
-				return true;
-			current.clear();
-			next.clear();
-			for (final int packed : starts)
-				if (packedEnvelopeContains(packed, ply, targetX, targetY))
-					current.add(packed);
-			for (int step = 1; step <= ply && current.size() != 0; step++) {
-				next.clear();
-				final int remaining = ply - step;
-				for (int i = 0; i < current.size(); i++) {
-					if (--nodesLeft < 0)
-						return true;
-					int state = current.get(i);
-					final int vy = state % span - vmax;
-					state /= span;
-					final int vx = state % span - vmax;
-					state /= span;
-					final int y = state % height;
-					final int x = state / height;
-					for (final Direction d : DIRECTIONS) {
-						final int nvx = vx + d.dx, nvy = vy + d.dy;
-						if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-							continue;
-						final int nx = x + nvx, ny = y + nvy;
-						if (game.crossesFinish(x, y, nx, ny))
-							continue; // finished rivals disappear from the live board
-						if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
-							continue;
-						if (remaining == 0) {
-							if (nx == targetX && ny == targetY)
-								return true;
-						} else if (envelopeContains(nx, ny, nvx, nvy, remaining, targetX, targetY)) {
-							next.add(reach.aliveIdx(nx, ny, nvx, nvy));
-						}
-					}
-				}
-				final IntFrontier swap = current;
-				current = next;
-				next = swap;
-			}
-			return false;
-		}
-
-		private boolean packedEnvelopeContains(final int packed, final int steps,
-				final int targetX, final int targetY) {
-			int state = packed;
-			final int vy = state % span - vmax;
-			state /= span;
-			final int vx = state % span - vmax;
-			state /= span;
-			final int y = state % height;
-			final int x = state / height;
-			return envelopeContains(x, y, vx, vy, steps, targetX, targetY);
-		}
-
-		private boolean envelopeContains(final int x, final int y, final int vx, final int vy,
-				final int steps, final int targetX, final int targetY) {
-			final int accelerationReach = steps * (steps + 1) / 2;
-			return Math.abs((long) targetX - ((long) x + (long) steps * vx)) <= accelerationReach
-					&& Math.abs((long) targetY - ((long) y + (long) steps * vy)) <= accelerationReach;
-		}
-	}
-
-	/** Count distinct private, alive one-move exits; crossing the finish is terminal success. */
-	private int countPrivateEscapes(final int x, final int y, final int vx, final int vy,
-			final RivalOccupancy rivals, final int rivalPly, final int requiredEscapes) {
-		int count = 0;
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
-				return requiredEscapes;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			if (rivals.mayOccupy(rivalPly, nx, ny))
-				continue;
-			if (reach.isAlive(nx, ny, nvx, nvy) && ++count >= requiredEscapes)
-				return requiredEscapes;
-		}
-		return count;
-	}
-
-	private boolean privatePaceCertificate(final int x, final int y, final int vx, final int vy,
-			final int turns, final RivalOccupancy rivals, final int ply, final int horizon,
-			final int requiredEscapes) {
-		if (countPrivateEscapes(x, y, vx, vy, rivals, ply + 1, requiredEscapes) >= requiredEscapes)
-			return true;
-		if (ply >= horizon)
-			return false;
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
-				return true;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			if (rivals.mayOccupy(ply + 1, nx, ny))
-				continue;
-			if (!reach.isAlive(nx, ny, nvx, nvy))
-				continue;
-			final int nextTurns = reach.turnsToFinish(nx, ny, nvx, nvy);
-			if (nextTurns >= turns)
-				continue; // stay on an empty-track-optimal racing line
-			if (privatePaceCertificate(nx, ny, nvx, nvy, nextTurns, rivals, ply + 1, horizon,
-					requiredEscapes))
-				return true;
-		}
-		return false;
-	}
-
-
 	/** The mover's own kind, for self-play (kind-homogeneity) gates. */
 	private Player.Kind moverKind(final int playerNum) {
 		for (final Player p : game.players)
@@ -1791,8 +1467,7 @@ final class RaceAi {
 			return chosen;
 		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
 				- uncByDir[chosen.ordinal()];
-		RivalReach rectangles = null;
-		ExactRivalReach exact = null;
+		RaceAiPrivateLane.ProofSession privateProof = null;
 		// Promotion semantics (round 83 mirror): "self-play" means kind
 		// homogeneity with the MOVER, not AI1-ness -- an all-AI2 field of the
 		// promoted body is exactly as homogeneous as an all-AI1 one.
@@ -1827,13 +1502,12 @@ final class RaceAi {
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (sealable(nx, ny, nvx, nvy, playerNum))
 				continue;
-			if (rectangles == null)
-				rectangles = rivalReach(playerNum, AI1_PRIVATE_EXACT_HORIZON + 1);
-			boolean certified = privatePaceCertificate(nx, ny, nvx, nvy, turns, rectangles, 0,
+			if (privateProof == null)
+				privateProof = privateLane.begin(playerNum, AI1_PRIVATE_EXACT_HORIZON + 1,
+						AI1_PRIVATE_EXACT_NODES);
+			boolean certified = privateProof.certifiesApproximate(nx, ny, nvx, nvy, turns,
 					AI1_PRIVATE_BASE_HORIZON, AI1_PRIVATE_BASE_ESCAPES);
 			if (!certified) {
-				if (exact == null)
-					exact = new ExactRivalReach(playerNum, rectangles);
 				// The narrower two-exit proof is safe only when every live rival uses
 				// the same frontier policy. In mixed fields, one car's acceleration
 				// can perturb a frozen-policy rival and create a delayed crash for a
@@ -1843,7 +1517,7 @@ final class RaceAi {
 				final int requiredEscapes = speedSquared(nvx, nvy) < AI1_DJS_SPD2
 						|| moderateHomogeneousFast
 						? AI1_PRIVATE_EXACT_ESCAPES : AI1_PRIVATE_BASE_ESCAPES;
-				certified = privatePaceCertificate(nx, ny, nvx, nvy, turns, exact, 0,
+				certified = privateProof.certifiesExact(nx, ny, nvx, nvy, turns,
 						AI1_PRIVATE_EXACT_HORIZON, requiredEscapes);
 			}
 			if (!certified)
@@ -1959,8 +1633,7 @@ final class RaceAi {
 		long chosenField = Long.MAX_VALUE;
 		Direction best = null;
 		double bestRestDelta = Double.MAX_VALUE;
-		RivalReach energyRectangles = null;
-		ExactRivalReach energyExact = null;
+		RaceAiPrivateLane.ProofSession energyProof = null;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
 			if (turns == Integer.MAX_VALUE || chosenT - turns != 1
@@ -1983,13 +1656,12 @@ final class RaceAi {
 			if (highEnergy) {
 				if (rivalsAhead < 4)
 					continue;
-				if (energyRectangles == null) {
-					energyRectangles = rivalReach(playerNum, AI1_PRIVATE_EXACT_HORIZON + 1);
-					energyExact = new ExactRivalReach(playerNum, energyRectangles);
-				}
+				if (energyProof == null)
+					energyProof = privateLane.begin(playerNum, AI1_PRIVATE_EXACT_HORIZON + 1,
+							AI1_PRIVATE_EXACT_NODES);
 				final int requiredEscapes = unc <= AI1_PRIVATE_EXACT_UNC_MAX
 						? AI1_PRIVATE_EXACT_ESCAPES : AI1_PRIVATE_BASE_ESCAPES;
-				if (!privatePaceCertificate(nx, ny, nvx, nvy, turns, energyExact, 0,
+				if (!energyProof.certifiesExact(nx, ny, nvx, nvy, turns,
 						AI1_PRIVATE_EXACT_HORIZON, requiredEscapes))
 					continue;
 			}
@@ -2176,7 +1848,8 @@ final class RaceAi {
 	private TwoRoundWorkspace twoRoundWorkspace() {
 		final int players = game.players.length;
 		if (twoRoundWorkspace == null || twoRoundWorkspace.current.length != players)
-			twoRoundWorkspace = new TwoRoundWorkspace(players);
+			twoRoundWorkspace = new TwoRoundWorkspace(players,
+					(game.gameCols + 1) * (game.gameRows + 1));
 		return twoRoundWorkspace;
 	}
 
@@ -2254,33 +1927,51 @@ final class RaceAi {
 		}
 	}
 
-	/** Is cell (x,y) occupied in the simulated occupancy by a rival currently
-	 *  strictly AHEAD of me on track ({@code myDist} from {@link #distAt})?
-	 *  Chaser bodies are deliberately not priced: a detour ceded two rounds out
-	 *  to a car behind me surrenders race position for nothing. */
-	private boolean occupiedByAheadRival(final int x, final int y, final int[][] occupancy, final int myDist) {
+	/** Build the exact first-occupant ahead verdict once for this candidate.
+	 * Byte 1 means the first simulated occupant is not ahead; byte 2 means it
+	 * is ahead. Duplicate simulated cells therefore retain the original loop's
+	 * first-match semantics. */
+	private byte[] buildAheadOccupancy(final int[][] occupancy, final int myDist) {
+		final TwoRoundWorkspace workspace = twoRoundWorkspace();
+		final byte[] direct = workspace.aheadOccupancy;
+		for (int i = 0; i < workspace.aheadTouchedCount; i++)
+			direct[workspace.aheadTouched[i]] = 0;
+		workspace.aheadTouchedCount = 0;
+		final int h = game.gameRows + 1;
 		for (int i = 0; i < occupancy.length; i++) {
 			final int[] cell = occupancy[i];
-			if (cell != null && cell[0] == x && cell[1] == y) {
-				final int[] rivalPos = game.players[i].getPosition();
-				return reach.distAt(rivalPos[0], rivalPos[1]) < myDist;
-			}
+			if (cell == null || cell[0] < 0 || cell[1] < 0
+					|| cell[0] > game.gameCols || cell[1] > game.gameRows)
+				continue;
+			final int index = cell[0] * h + cell[1];
+			if (direct[index] != 0)
+				continue;
+			final int[] rivalPos = game.players[i].getPosition();
+			direct[index] = reach.distAt(rivalPos[0], rivalPos[1]) < myDist
+					? (byte) 2 : (byte) 1;
+			workspace.aheadTouched[workspace.aheadTouchedCount++] = index;
 		}
-		return false;
+		return direct;
+	}
+
+	private boolean occupiedByAheadRival(final int x, final int y,
+			final byte[] occupancy) {
+		if (x < 0 || y < 0 || x > game.gameCols || y > game.gameRows)
+			return false;
+		return occupancy[x * (game.gameRows + 1) + y] == 2;
 	}
 
 	/** The champion's soft-priced depth-2 search (both AI bodies). Each of my
 	 *  next TWO moves is searched explicitly: a {@code stepIdx == 0} landing on a
 	 *  round-1 sim body is priced (+3.0, the conflict weight) rather than
 	 *  hard-skipped, and a {@code stepIdx == 1} landing is priced only when the
-	 *  round-2 body ({@code occupancy2}) belongs to a rival currently AHEAD of me
-	 *  on track ({@code myDist} = distAt of my CURRENT cell), via
+	 *  round-2 body (the round-two occupancy map) belongs to a rival currently AHEAD of me
+	 *  on track (the mover's current progress), via
 	 *  {@link #occupiedByAheadRival} instead of {@link #cellOccupiedByPrediction}.
-	 *  A chaser's body is left unpriced; {@code myDist} threads unchanged through
+	 *  A chaser's body is left unpriced; the precomputed verdict map threads unchanged through
 	 *  the recursion. Geometry stays hard; a finish crossing escapes pricing. */
 	private double searchMinTurnsSoft3(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final int[][] occupancy2,
-			final int myDist) {
+			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final byte[] aheadOccupancy) {
 		if (levels == 0) {
 			final int t = reach.turnsToFinish(x, y, vx, vy);
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
@@ -2302,11 +1993,11 @@ final class RaceAi {
 			} else {
 				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
 					continue;
-				if (stepIdx == 1 && occupancy2 != null && occupiedByAheadRival(nx, ny, occupancy2, myDist))
+				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
 					price = AI1_PLY2_PRICE;
 			}
 			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
-					occupancy, occupancy2, myDist);
+					occupancy, aheadOccupancy);
 			if (sub == Double.MAX_VALUE)
 				continue;
 			if (1.0 + price + sub < best)
@@ -2320,12 +2011,11 @@ final class RaceAi {
 	 *  rivals AHEAD of me are priced), recursing into
 	 *  {@link #searchMinTurnsSoft3}, and additionally reporting the plateau
 	 *  width (how many follow-ups achieve the minimum) for the robustness
-	 *  tie-break. {@code myDist} is threaded from the caller (distAt of my
-	 *  CURRENT cell). Prices stay exact small constants, so the plateau compare
+	 *  tie-break. The ahead-occupancy verdict map is built once by the caller. Prices stay exact small constants, so the plateau compare
 	 *  remains an exact {@code ==}. */
 	private double[] searchMinTurnsCountedSoft3(final int x, final int y, final int vx, final int vy, final int levels,
 			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy,
-			final int[][] occupancy2, final int myDist) {
+			final byte[] aheadOccupancy) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
 		for (final Direction d : DIRECTIONS) {
@@ -2344,11 +2034,11 @@ final class RaceAi {
 			} else {
 				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
 					continue;
-				if (stepIdx == 1 && occupancy2 != null && occupiedByAheadRival(nx, ny, occupancy2, myDist))
+				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
 					price = AI1_PLY2_PRICE;
 			}
 			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
-					occupancy, occupancy2, myDist);
+					occupancy, aheadOccupancy);
 			if (sub == Double.MAX_VALUE)
 				continue;
 			final double total = 1.0 + price + sub;
@@ -2448,14 +2138,6 @@ final class RaceAi {
 	static boolean useTrackDistanceForStagedLaunch(final int vx, final int vy,
 			final boolean inStartZone) {
 		return inStartZone && vx == 0 && vy == 0;
-	}
-
-	private static int saturatingInt(final long value) {
-		if (value < Integer.MIN_VALUE)
-			return Integer.MIN_VALUE;
-		if (value > Integer.MAX_VALUE)
-			return Integer.MAX_VALUE;
-		return (int) value;
 	}
 
 	private static boolean squareExceeds(final long value, final long limit) {
@@ -3568,16 +3250,42 @@ final class RaceAi {
 		return count;
 	}
 
-	/** True iff a live player other than the one at (sx,sy) occupies (nx,ny). */
-	private boolean cellOccupiedByLive(final int nx, final int ny, final int sx, final int sy) {
+	/** Rebuild the exact live-cell set once per mobility projection. Only cells
+	 * touched by the preceding projection are cleared. */
+	private void refreshLiveOccupancy() {
+		final int cells = (game.gameCols + 1) * (game.gameRows + 1);
+		if (liveOccupancy == null || liveOccupancy.length != cells) {
+			liveOccupancy = new byte[cells];
+			liveOccupancyTouched = new int[game.players.length];
+			liveOccupancyTouchedCount = 0;
+		} else {
+			for (int i = 0; i < liveOccupancyTouchedCount; i++)
+				liveOccupancy[liveOccupancyTouched[i]] = 0;
+			liveOccupancyTouchedCount = 0;
+		}
+		final int h = game.gameRows + 1;
 		for (final Player p : game.players) {
 			if (p.isFinished())
 				continue;
 			final int[] pp = p.getPosition();
-			if (pp[0] == nx && pp[1] == ny && !(pp[0] == sx && pp[1] == sy))
-				return true;
+			if (pp[0] < 0 || pp[1] < 0 || pp[0] > game.gameCols
+					|| pp[1] > game.gameRows)
+				continue;
+			final int index = pp[0] * h + pp[1];
+			if (liveOccupancy[index] != 0)
+				continue;
+			liveOccupancy[index] = 1;
+			liveOccupancyTouched[liveOccupancyTouchedCount++] = index;
 		}
-		return false;
+	}
+
+	/** True iff a live player other than the one at (sx,sy) occupies (nx,ny). */
+	private boolean cellOccupiedByLive(final int nx, final int ny, final int sx, final int sy) {
+		if (nx == sx && ny == sy)
+			return false;
+		if (nx < 0 || ny < 0 || nx > game.gameCols || ny > game.gameRows)
+			return false;
+		return liveOccupancy[nx * (game.gameRows + 1) + ny] != 0;
 	}
 
 	/** Number of rivals still racing (not finished, not crashed). */
@@ -4072,6 +3780,7 @@ final class RaceAi {
 	/** Build an N-ply opponent world once per AI turn. Opponents advance N
 	 *  greedy steps, blocking their top-3 min-turns cells at each ply. */
 	private MobilitySearch mobilitySearch(final int subjectNum, final boolean avoidOcc, final int depth) {
+		refreshLiveOccupancy();
 		final boolean nested = inScorerSim || trueConfirmDepth != 0 || simDepth != 0;
 		MobilitySearch search = nested ? nestedMobilityWorkspace : outerMobilityWorkspace;
 		final int gridW = game.gameCols + 1, gridH = game.gameRows + 1;
