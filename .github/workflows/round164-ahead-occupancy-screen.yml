@@ -1,0 +1,110 @@
+name: Round 164 direct ahead-occupancy screen
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-164-ahead-occupancy-map
+    paths:
+      - .github/workflows/round164-ahead-occupancy-screen.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: round164-direct-ahead-occupancy-screen
+  cancel-in-progress: true
+
+jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Record screen run id
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round164-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'state': 'screen-started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- round164-status.json
+          git commit -m 'Round 164: record ahead-occupancy screen run' || exit 0
+          git push
+
+  screen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 420
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build live-master baseline and exact candidate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          printf '%s\n' "$BASE" > round164-base-sha.txt
+          git worktree add /tmp/round164-screen "$BASE"
+          cd /tmp/round164-screen
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round164-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round164_apply.py"
+          git diff --name-only | sort > /tmp/round164-changed.txt
+          printf '%s\n' src/tr/logic/RaceAi.java | sort > /tmp/round164-expected.txt
+          diff -u /tmp/round164-expected.txt /tmp/round164-changed.txt
+          test "$(grep -Fc 'final byte[] aheadOccupancy = buildAheadOccupancy' src/tr/logic/RaceAi.java)" = 1
+          test "$(grep -Fc 'occupiedByAheadRival(nx, ny, aheadOccupancy)' src/tr/logic/RaceAi.java)" = 2
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round164-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do python "$test"; done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+      - name: Measure seven-pair dual-order warm speed
+        shell: bash
+        run: |
+          set +e
+          python tracks/round164_runtime.py \
+            --baseline round164-baseline.jar \
+            --candidate round164-candidate.jar \
+            --pairs 7 --aggregate-limit 0.95 --case-limit 1.05 \
+            --out round164-runtime.json
+          RC=$?
+          set -e
+          test -s round164-runtime.json
+          python - <<'PY'
+          import json
+          result = json.load(open('round164-runtime.json'))
+          assert all(row['byte_identical'] for row in result['cases']), result
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+          if [ "$RC" -ne 0 ]; then
+            echo 'Round 164 did not clear the five-percent aggregate threshold.'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round164-ahead-occupancy-screen
+          path: |
+            round164-base-sha.txt
+            round164-runtime.json
+          if-no-files-found: warn
+          retention-days: 30
