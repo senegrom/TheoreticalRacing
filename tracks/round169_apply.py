@@ -47,6 +47,18 @@ new = """\tprivate void searchMinTurnsCountedSoft3(final int x, final int y, fin
 assert source.count(old) == 1, source.count(old)
 source = source.replace(old, new, 1)
 
+old = """\t\t\tif (game.crossesFinish(x, y, nx, ny))
+\t\t\t\treturn new double[]{1, 9 };
+"""
+new = """\t\t\tif (game.crossesFinish(x, y, nx, ny)) {
+\t\t\t\tresult[0] = 1;
+\t\t\t\tresult[1] = 9;
+\t\t\t\treturn;
+\t\t\t}
+"""
+assert source.count(old) == 1, source.count(old)
+source = source.replace(old, new, 1)
+
 old = """\t\treturn new double[]{best, countAtMin };
 \t}
 """
@@ -58,5 +70,6 @@ assert source.count(old) == 1, source.count(old)
 source = source.replace(old, new, 1)
 assert source.count("candidateWorkspace.countedResult") == 1
 assert "return new double[]{best, countAtMin" not in source
+assert "return new double[]{1, 9" not in source
 race.write_text(source)
 print("materialized workspace-owned counted search result")
