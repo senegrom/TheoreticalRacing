@@ -72,6 +72,78 @@ final class Reachability {
 	private Thread reachabilityThread;
 	int[][] distToFinish;
 
+	/** Exact immutable progress-map pairs shared only by auto games carrying
+	 * the same geometry cache key. The cap counts int entries (4 bytes each),
+	 * so the 8M-entry pool retains at most roughly 32 MiB plus row overhead. */
+	private static final long DISTANCE_MEMO_MAX_INTS = 8L << 20;
+	private static final java.util.LinkedHashMap<String, DistanceMaps> DISTANCE_MEMO =
+			new java.util.LinkedHashMap<>(16, 0.75f, true);
+	private static long distanceMemoInts;
+
+	static final class DistanceMaps {
+		final int[][] distance;
+		final int[] ringWidth;
+		final int width;
+		final int height;
+		final long intCount;
+
+		DistanceMaps(final int[][] distance, final int[] ringWidth) {
+			if (distance == null || distance.length == 0 || distance[0] == null
+					|| ringWidth == null)
+				throw new IllegalArgumentException("invalid distance maps");
+			width = distance.length;
+			height = distance[0].length;
+			if (height == 0)
+				throw new IllegalArgumentException("empty distance-map row");
+			for (final int[] column : distance)
+				if (column == null || column.length != height)
+					throw new IllegalArgumentException("ragged distance map");
+			this.distance = distance;
+			this.ringWidth = ringWidth;
+			intCount = (long) width * height + ringWidth.length;
+		}
+	}
+
+	static synchronized DistanceMaps findDistanceMaps(final String key,
+			final int width, final int height) {
+		if (key == null)
+			return null;
+		final DistanceMaps maps = DISTANCE_MEMO.get(key);
+		return maps != null && maps.width == width && maps.height == height
+				? maps : null;
+	}
+
+	static synchronized DistanceMaps publishDistanceMaps(final String key,
+			final int[][] distance, final int[] ringWidth, final long maxInts) {
+		final DistanceMaps created = new DistanceMaps(distance, ringWidth);
+		if (key == null || maxInts < 1 || created.intCount > maxInts)
+			return created;
+		final DistanceMaps existing = DISTANCE_MEMO.get(key);
+		if (existing != null && existing.width == created.width
+				&& existing.height == created.height)
+			return existing;
+		if (existing != null) {
+			DISTANCE_MEMO.remove(key);
+			distanceMemoInts -= existing.intCount;
+		}
+		while (!DISTANCE_MEMO.isEmpty()
+				&& distanceMemoInts + created.intCount > maxInts) {
+			final java.util.Iterator<java.util.Map.Entry<String, DistanceMaps>> it =
+					DISTANCE_MEMO.entrySet().iterator();
+			final DistanceMaps evicted = it.next().getValue();
+			it.remove();
+			distanceMemoInts -= evicted.intCount;
+		}
+		DISTANCE_MEMO.put(key, created);
+		distanceMemoInts += created.intCount;
+		return created;
+	}
+
+	static synchronized void clearDistanceMemoForTests() {
+		DISTANCE_MEMO.clear();
+		distanceMemoInts = 0;
+	}
+
 	BitSet	aliveStates;
 	int[]	turnsArr;
 	int		aliveW, aliveH, aliveVMAX, aliveSpan;
@@ -480,6 +552,13 @@ final class Reachability {
 	void computeDistMap() {
 		final int w = game.gameCols + 1;
 		final int h = game.gameRows + 1;
+		final String memoKey = game.autoMode ? geometryCacheKey() : null;
+		final DistanceMaps cached = findDistanceMaps(memoKey, w, h);
+		if (cached != null) {
+			distToFinish = cached.distance;
+			ringWidth = cached.ringWidth;
+			return;
+		}
 		distToFinish = new int[w][h];
 		for (final int[] col : distToFinish)
 			Arrays.fill(col, Integer.MAX_VALUE);
@@ -521,6 +600,12 @@ final class Reachability {
 				}
 		}
 		buildRingWidths(w, h);
+		if (memoKey != null) {
+			final DistanceMaps shared = publishDistanceMaps(memoKey, distToFinish,
+					ringWidth, DISTANCE_MEMO_MAX_INTS);
+			distToFinish = shared.distance;
+			ringWidth = shared.ringWidth;
+		}
 	}
 
 	/** Round 83: per-progress-ring corridor widths. ringWidth[d] counts the

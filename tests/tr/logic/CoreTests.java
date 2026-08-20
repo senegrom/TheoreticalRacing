@@ -28,6 +28,7 @@ public final class CoreTests {
         testDenseEdgeLegalCache();
         testSharedDenseEdgeLegalCache();
         testPointContainmentCache();
+        testSharedDistanceMaps();
         testEndgameMemoKey();
         testDistinctCoverMatching();
         testTrackDistanceOrdering();
@@ -360,6 +361,42 @@ public final class CoreTests {
         check(cache.get(0L, 0L) == 0, "point cache clear retained a stale geometry verdict");
         check(cache.get(Double.doubleToRawLongBits(-0.0), Double.doubleToRawLongBits(-0.0)) == 0,
                 "point cache merged distinct double bit patterns");
+    }
+
+    private static void testSharedDistanceMaps() {
+        Reachability.clearDistanceMemoForTests();
+        final int[][] distance = new int[][]{{0, 1}, {2, 3}};
+        final int[] rings = new int[]{1, 2};
+        final Reachability.DistanceMaps first = Reachability.publishDistanceMaps(
+                "core-distance-a", distance, rings, 10);
+        check(Reachability.findDistanceMaps("core-distance-a", 2, 2) == first,
+                "shared distance map was not retained");
+        check(first.distance == distance && first.ringWidth == rings,
+                "shared distance map copied or replaced exact arrays");
+
+        final Reachability.DistanceMaps duplicate = Reachability.publishDistanceMaps(
+                "core-distance-a", new int[][]{{9, 9}, {9, 9}}, new int[]{9}, 10);
+        check(duplicate == first, "same geometry replaced a compatible distance map");
+
+        final Reachability.DistanceMaps second = Reachability.publishDistanceMaps(
+                "core-distance-b", new int[][]{{4, 5}}, new int[]{2}, 8);
+        check(second != null && Reachability.findDistanceMaps("core-distance-b", 1, 2) == second,
+                "second distance map was not retained");
+        check(Reachability.findDistanceMaps("core-distance-a", 2, 2) == null,
+                "distance-map LRU cap did not evict the eldest entry");
+
+        final Reachability.DistanceMaps replacement = Reachability.publishDistanceMaps(
+                "core-distance-b", new int[][]{{1}, {2}, {3}}, new int[]{3}, 10);
+        check(replacement != second
+                        && Reachability.findDistanceMaps("core-distance-b", 3, 1) == replacement,
+                "dimension change retained an incompatible distance map");
+
+        final Reachability.DistanceMaps oversized = Reachability.publishDistanceMaps(
+                "core-distance-private", new int[][]{{1, 2}, {3, 4}}, new int[]{1, 2}, 5);
+        check(oversized != null, "oversized distance map lost its private fallback");
+        check(Reachability.findDistanceMaps("core-distance-private", 2, 2) == null,
+                "distance map larger than the cap was retained globally");
+        Reachability.clearDistanceMemoForTests();
     }
 
     private static void testDistinctCoverMatching() {

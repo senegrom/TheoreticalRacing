@@ -11,6 +11,36 @@ continue from this file alone. Long-form history: see
 
 
 
+
+## Round 157: share immutable progress maps across auto batches — 2.7% faster on the measured batch wall
+
+The distance-to-finish BFS and its derived progress-ring widths are
+immutable functions of track geometry, yet every seed in an auto batch
+rebuilt them before racing. Round 157 adopts one exact pair for every
+subsequent `RaceGame` carrying the same geometry cache key.
+
+The access-ordered pool is capped at eight million integer entries
+(roughly 32 MiB plus row overhead). Interactive games remain private.
+Concurrent first builders may duplicate work, but publication retains
+one exact pair; no array is modified after publication. AI policy,
+reachability products, geometry verdicts and race ordering are
+untouched.
+
+Exact gate: 3500 all-AI2 baseline/candidate race pairs
+across all 26 tracks, with every complete race log byte-identical. The
+full Java suite, headless smoke, golden corpus, homogeneous AI probe,
+tooling tests and every permanent AI regression pin passed on the JDK
+25 candidate and again from a clean production checkout.
+
+Seven-pair dual-order warm batches measured Monaco
+2.8% faster, Nürburgring
+0.2% faster, Zandvoort
+5.2% faster, Interlagos
+2.0% faster, and Sprint
+0.5% faster. The weighted median aggregate is
+2.7% faster; no measured case crossed the five-percent
+regression limit.
+
 ## Round 156: share exact dense edge caches across auto batches — 20.1% faster on the measured batch wall
 
 Round 150 replaced hashed geometry-edge lookups with a collision-free
