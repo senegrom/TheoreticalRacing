@@ -32,6 +32,7 @@ public final class CoreTests {
         testSharedDistanceMaps();
         testEndgameMemoKey();
         testDistinctCoverMatching();
+        testDirectBlockedLookup();
         testTrackDistanceOrdering();
         testRaceAiStateIsolation();
         testReachabilityFailurePropagation();
@@ -616,6 +617,24 @@ public final class CoreTests {
         game.clickedUndo();
         check(game.track.getLeft().isEmpty() && game.track.getRight().isEmpty(),
                 "undo on an empty border changed track state");
+    }
+
+    private static void testDirectBlockedLookup() {
+        final int width = 4, height = 5;
+        final long inside = ((long) 2 << 32) | 3L;
+        final long outside = ((long) -1 << 32) | 7L;
+        final long[] cells = new long[]{inside, outside};
+        final long[] direct = new long[(width * height + 63) >>> 6];
+        final int index = 2 * height + 3;
+        direct[index >>> 6] |= 1L << (index & 63);
+        check(RaceAi.blockedContains(cells, 2, direct, width, height, 2, 3),
+                "direct blocked-cell lookup missed an in-grid member");
+        check(!RaceAi.blockedContains(cells, 2, direct, width, height, 1, 3),
+                "direct blocked-cell lookup produced an in-grid false hit");
+        check(RaceAi.blockedContains(cells, 2, direct, width, height, -1, 7),
+                "blocked-cell outside-grid fallback missed a member");
+        check(!RaceAi.blockedContains(cells, 2, direct, width, height, -1, 8),
+                "blocked-cell outside-grid fallback produced a false hit");
     }
 
     private static void testTrackDistanceOrdering() {

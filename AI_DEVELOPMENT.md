@@ -13,6 +13,36 @@ Shared geometry, reachability and simulation helpers may be cleaned up, but the 
 
 
 
+
+## Round 160: direct blocked-cell bitsets for mobility search — 6.5% faster on the measured batch wall
+
+The four-ply mobility search repeatedly tested candidate landings
+against the same small predicted blocked-cell sets. Round 160 keeps the
+exact 64-bit cell lists for the outside-grid fallback, while adding one
+collision-free in-grid bitset per ply. Ordinary membership tests become
+a direct word-and-bit probe instead of a linear scan.
+
+Outer and nested mobility searches retain separate reusable primitive
+workspaces. Resetting clears only words touched by the preceding
+projection. Every bit is derived from the original exact cell list;
+lookup semantics, memo epochs, rollout policy and selected moves are
+unchanged.
+
+Exact gate: 3500 all-AI2 baseline/candidate race pairs
+across all 26 tracks, with every complete race log byte-identical. The
+full Java suite, headless smoke, golden corpus, homogeneous AI probe,
+tooling tests and every permanent AI regression pin passed on the JDK
+25 candidate and again from a clean production checkout.
+
+Seven-pair dual-order warm batches measured Monaco
+8.4% faster, Nürburgring
+4.9% faster, Zandvoort
+5.4% faster, Interlagos
+2.1% faster, and Sprint
+7.1% faster. The weighted median aggregate is
+6.5% faster; no measured case crossed the five-percent
+regression limit.
+
 ## Round 158: share immutable legality rasters across auto batches — 6.3% faster on the measured batch wall
 
 The conservative unit-cell and RES=4 legality rasters are immutable,

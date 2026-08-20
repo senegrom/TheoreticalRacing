@@ -22,6 +22,8 @@ final class RaceAi {
 	private final int[] sealCover = new int[DIRECTIONS.length];
 	private final int[] sealMatch = new int[Integer.SIZE];
 	private final int[] mobilityMove = new int[4];
+	private MobilitySearch outerMobilityWorkspace;
+	private MobilitySearch nestedMobilityWorkspace;
 	private final long[] rolloutFieldCost = new long[1];
 	/** Outer candidate scores stay live while scorer-rival rollouts invoke a
 	 *  recursion-guarded nested scorer, so those two levels need disjoint rows. */
@@ -3891,6 +3893,7 @@ final class RaceAi {
 			return cached;
 		final long[] b = search.blocked[ply - 1];
 		final int bc = search.blockedCount[ply - 1];
+		final long[] direct = search.blockedBits[ply - 1];
 		if (ply == search.depth) {
 			int cnt = 0;
 			for (final Direction d : DIRECTIONS) {
@@ -3902,7 +3905,7 @@ final class RaceAi {
 					cnt++;
 					continue;
 				}
-				if (blockedContains(b, bc, ((long) nx << 32) | (ny & 0xffffffffL)))
+				if (blockedContains(b, bc, direct, search.gridW, search.gridH, nx, ny))
 					continue;
 				if (reach.isAlive(nx, ny, nvx, nvy))
 					cnt++;
@@ -3921,7 +3924,7 @@ final class RaceAi {
 				fmMemoPut(memoKey, search.epoch, 1.0);
 				return 1.0;
 			}
-			if (blockedContains(b, bc, ((long) nx << 32) | (ny & 0xffffffffL)))
+			if (blockedContains(b, bc, direct, search.gridW, search.gridH, nx, ny))
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -3946,17 +3949,54 @@ final class RaceAi {
 	 *  never cross-hit and evictions only recompute. Blocked cells are tiny
 	 *  per-ply arrays (<= 3 per opponent) -- linear scan, no boxing. */
 	private static final class MobilitySearch {
-		final int depth;
+		int depth;
 		final long[][] blocked;
 		final int[] blockedCount;
-		final int epoch;
+		final long[][] blockedBits;
+		final int[][] touchedWords;
+		final int[] touchedCount;
+		final int gridW;
+		final int gridH;
+		int epoch;
 
-		MobilitySearch(final int depth, final long[][] blocked, final int[] blockedCount,
-				final int epoch) {
-			this.depth = depth;
-			this.blocked = blocked;
-			this.blockedCount = blockedCount;
-			this.epoch = epoch;
+		MobilitySearch(final int depth, final int players, final int gridW,
+				final int gridH) {
+			this.gridW = gridW;
+			this.gridH = gridH;
+			blocked = new long[depth][3 * players];
+			blockedCount = new int[depth];
+			final int words = (gridW * gridH + Long.SIZE - 1) >>> 6;
+			blockedBits = new long[depth][words];
+			touchedWords = new int[depth][3 * players];
+			touchedCount = new int[depth];
+		}
+
+		void reset(final int newDepth, final int newEpoch) {
+			for (int ply = 0; ply < blockedBits.length; ply++) {
+				for (int i = 0; i < touchedCount[ply]; i++)
+					blockedBits[ply][touchedWords[ply][i]] = 0L;
+				touchedCount[ply] = 0;
+				blockedCount[ply] = 0;
+			}
+			depth = newDepth;
+			epoch = newEpoch;
+		}
+
+		void indexBlockedCells() {
+			for (int ply = 0; ply < depth; ply++) {
+				final long[] bits = blockedBits[ply];
+				for (int i = 0; i < blockedCount[ply]; i++) {
+					final long cell = blocked[ply][i];
+					final int x = (int) (cell >> 32), y = (int) cell;
+					if (x < 0 || y < 0 || x >= gridW || y >= gridH)
+						continue;
+					final int index = x * gridH + y;
+					final int word = index >>> 6;
+					if (bits[word] == 0L)
+						touchedWords[ply][touchedCount[ply]++] = word;
+					bits[word] |= 1L << (index & 63);
+				}
+			}
 		}
 	}
 
@@ -4000,7 +4040,14 @@ final class RaceAi {
 		}
 	}
 
-	private static boolean blockedContains(final long[] cells, final int count, final long cell) {
+	static boolean blockedContains(final long[] cells, final int count,
+			final long[] direct, final int gridW, final int gridH,
+			final int x, final int y) {
+		if (x >= 0 && y >= 0 && x < gridW && y < gridH) {
+			final int index = x * gridH + y;
+			return (direct[index >>> 6] & 1L << (index & 63)) != 0;
+		}
+		final long cell = ((long) x << 32) | (y & 0xffffffffL);
 		for (int i = 0; i < count; i++)
 			if (cells[i] == cell)
 				return true;
@@ -4010,8 +4057,21 @@ final class RaceAi {
 	/** Build an N-ply opponent world once per AI turn. Opponents advance N
 	 *  greedy steps, blocking their top-3 min-turns cells at each ply. */
 	private MobilitySearch mobilitySearch(final int subjectNum, final boolean avoidOcc, final int depth) {
-		final long[][] blocked = new long[depth][3 * game.players.length];
-		final int[] blockedCount = new int[depth];
+		final boolean nested = inScorerSim || trueConfirmDepth != 0 || simDepth != 0;
+		MobilitySearch search = nested ? nestedMobilityWorkspace : outerMobilityWorkspace;
+		final int gridW = game.gameCols + 1, gridH = game.gameRows + 1;
+		if (search == null || search.blocked.length != depth
+				|| search.blocked[0].length != 3 * game.players.length
+				|| search.gridW != gridW || search.gridH != gridH) {
+			search = new MobilitySearch(depth, game.players.length, gridW, gridH);
+			if (nested)
+				nestedMobilityWorkspace = search;
+			else
+				outerMobilityWorkspace = search;
+		}
+		search.reset(depth, ++fmMemoEpoch);
+		final long[][] blocked = search.blocked;
+		final int[] blockedCount = search.blockedCount;
 		for (final Player opponent : game.players) {
 			if (opponent.getNumber() == subjectNum || opponent.isFinished())
 				continue;
@@ -4030,7 +4090,8 @@ final class RaceAi {
 				vy = mobilityMove[3];
 			}
 		}
-		return new MobilitySearch(depth, blocked, blockedCount, ++fmMemoEpoch);
+		search.indexBlockedCells();
+		return search;
 	}
 
 	/** N-ply escape headroom in a per-turn opponent world (see {@link #fmRec}). */
