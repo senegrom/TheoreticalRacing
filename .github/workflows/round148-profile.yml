@@ -1,0 +1,98 @@
+name: Round 148 post-cache JFR profile
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-148-profile
+    paths:
+      - .github/workflows/round148-profile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Record run id
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round148-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'state': 'started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round148-status.json
+          git commit -m 'Round 148: record profile run' || exit 0
+          git push
+
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { track: monaco, seeds: '1-20' }
+          - { track: zandvoort, seeds: '31-40' }
+          - { track: sprint, seeds: '1-150' }
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build current master
+        shell: bash
+        run: |
+          git fetch origin master
+          git checkout --detach origin/master
+          sh ./run_tests.sh
+          sh ./build_main.sh
+      - name: Record JFR profile
+        shell: bash
+        env:
+          TRACK: ${{ matrix.track }}
+          SEEDS: ${{ matrix.seeds }}
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          lines=[]
+          for line in Path('tracks/bench.properties').read_text().splitlines():
+              if re.match(r'^player[1-8]Kind=', line):
+                  line=line.split('=',1)[0]+'=AI2'
+              lines.append(line)
+          Path('round148.properties').write_text('\n'.join(lines)+'\n')
+          PY
+          mkdir -p round148-cache
+          RACING_REACH_CACHE="$PWD/round148-cache" \
+          java -Djava.awt.headless=true \
+            -XX:StartFlightRecording="filename=round148-${TRACK}.jfr,settings=profile,dumponexit=true" \
+            -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props round148.properties --log "round148-${TRACK}.log" --seed "$SEEDS"
+          jfr summary "round148-${TRACK}.jfr" > "round148-${TRACK}-summary.txt"
+          jfr view hot-methods "round148-${TRACK}.jfr" > "round148-${TRACK}-hot-methods.txt" || true
+          jfr view allocation-by-site "round148-${TRACK}.jfr" > "round148-${TRACK}-allocations.txt" || true
+          jfr print --events jdk.ExecutionSample "round148-${TRACK}.jfr" > "round148-${TRACK}-samples.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round148-profile-${{ matrix.track }}
+          path: |
+            round148-${{ matrix.track }}.jfr
+            round148-${{ matrix.track }}-summary.txt
+            round148-${{ matrix.track }}-hot-methods.txt
+            round148-${{ matrix.track }}-allocations.txt
+            round148-${{ matrix.track }}-samples.txt
+          if-no-files-found: error
+          retention-days: 30
