@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Materialize adaptive geometry-cache sizing.
+"""Materialize adaptive cold-build versus warm-race geometry caches.
 
-Batch races create a fresh RaceGame per seed but adopt the immutable reachability
-memo after the first seed. Eagerly allocating the cold-build 2^18 point table
-and 2^16 edge table on every warm race wastes roughly five MiB per seed. Start
-both exact caches small, then reserve the historical capacities only on the
-actual cold reverse-BFS path. Growth and reserve rehash with full key equality,
-so behavior is unchanged.
+Batch racing creates a fresh RaceGame for every seed but adopts immutable
+reachability products after the first seed. The historical 2^18 point table and
+2^16 edge table are therefore needed only when a real cold reverse BFS runs.
+Warm memo/cache-hit races start with compact exact tables. Immediately before a
+cold BFS, both still-empty tables reserve the historical capacities; no entry
+migration or semantic change is involved.
 """
 from pathlib import Path
 
@@ -23,127 +23,87 @@ new = "\tprivate final EdgeLegalCache\tedgeLegalCache\t\t= new EdgeLegalCache(1 
 assert source.count(old) == 1, source.count(old)
 source = source.replace(old, new, 1)
 
-old = """\t\tprivate void grow() {
-\t\t\tif (keys.length == 1 << 30)
-\t\t\t\tthrow new IllegalStateException("geometry cache is too large");
-\t\t\tfinal long[] oldKeys = keys;
-\t\t\tfinal byte[] oldStates = states;
-\t\t\tallocate(keys.length << 1);
-\t\t\tsize = 0;
-\t\t\tfor (int i = 0; i < oldStates.length; i++) {
-\t\t\t\tif (oldStates[i] == 0)
-\t\t\t\t\tcontinue;
-\t\t\t\tint slot = (int) oldKeys[i] & mask;
-\t\t\t\twhile (states[slot] != 0)
-\t\t\t\t\tslot = slot + 1 & mask;
-\t\t\t\tkeys[slot] = oldKeys[i];
-\t\t\t\tstates[slot] = oldStates[i];
-\t\t\t\tsize++;
-\t\t\t}
+edge_anchor = """\t\tEdgeLegalCache(final int initialCapacity) {
+\t\t\tif (initialCapacity < 1 || initialCapacity > 1 << 30)
+\t\t\t\tthrow new IllegalArgumentException("invalid cache capacity");
+\t\t\tint capacity = 4;
+\t\t\twhile (capacity < initialCapacity)
+\t\t\t\tcapacity <<= 1;
+\t\t\tallocate(capacity);
 \t\t}
+
+\t\tbyte get(final long key) {
 """
-new = """\t\tvoid ensureCapacity(final int minimumCapacity) {
+edge_new = """\t\tEdgeLegalCache(final int initialCapacity) {
+\t\t\tif (initialCapacity < 1 || initialCapacity > 1 << 30)
+\t\t\t\tthrow new IllegalArgumentException("invalid cache capacity");
+\t\t\tint capacity = 4;
+\t\t\twhile (capacity < initialCapacity)
+\t\t\t\tcapacity <<= 1;
+\t\t\tallocate(capacity);
+\t\t}
+
+\t\tvoid reserveEmpty(final int minimumCapacity) {
+\t\t\tif (size != 0)
+\t\t\t\tthrow new IllegalStateException("edge cache reserve after use");
 \t\t\tif (minimumCapacity < 1 || minimumCapacity > 1 << 30)
 \t\t\t\tthrow new IllegalArgumentException("invalid cache capacity");
 \t\t\tint capacity = 4;
 \t\t\twhile (capacity < minimumCapacity)
 \t\t\t\tcapacity <<= 1;
 \t\t\tif (capacity > keys.length)
-\t\t\t\trehash(capacity);
+\t\t\t\tallocate(capacity);
 \t\t}
 
-\t\tprivate void grow() {
-\t\t\tif (keys.length == 1 << 30)
-\t\t\t\tthrow new IllegalStateException("geometry cache is too large");
-\t\t\trehash(keys.length << 1);
-\t\t}
+\t\tbyte get(final long key) {
+"""
+assert source.count(edge_anchor) == 1, source.count(edge_anchor)
+source = source.replace(edge_anchor, edge_new, 1)
 
-\t\tprivate void rehash(final int capacity) {
-\t\t\tfinal long[] oldKeys = keys;
-\t\t\tfinal byte[] oldStates = states;
+point_anchor = """\t\tPointContainmentCache(final int initialCapacity) {
+\t\t\tif (initialCapacity < 1 || initialCapacity > 1 << 30)
+\t\t\t\tthrow new IllegalArgumentException("invalid cache capacity");
+\t\t\tint capacity = 4;
+\t\t\twhile (capacity < initialCapacity)
+\t\t\t\tcapacity <<= 1;
 \t\t\tallocate(capacity);
-\t\t\tsize = 0;
-\t\t\tfor (int i = 0; i < oldStates.length; i++) {
-\t\t\t\tif (oldStates[i] == 0)
-\t\t\t\t\tcontinue;
-\t\t\t\tint slot = (int) oldKeys[i] & mask;
-\t\t\t\twhile (states[slot] != 0)
-\t\t\t\t\tslot = slot + 1 & mask;
-\t\t\t\tkeys[slot] = oldKeys[i];
-\t\t\t\tstates[slot] = oldStates[i];
-\t\t\t\tsize++;
-\t\t\t}
 \t\t}
-"""
-assert source.count(old) == 1, source.count(old)
-source = source.replace(old, new, 1)
 
-old = """\t\tprivate void grow() {
-\t\t\tif (xKeys.length == 1 << 30)
-\t\t\t\tthrow new IllegalStateException("point cache is too large");
-\t\t\tfinal long[] oldX = xKeys;
-\t\t\tfinal long[] oldY = yKeys;
-\t\t\tfinal byte[] oldStates = states;
-\t\t\tallocate(xKeys.length << 1);
-\t\t\tsize = 0;
-\t\t\tfor (int i = 0; i < oldStates.length; i++) {
-\t\t\t\tif (oldStates[i] == 0)
-\t\t\t\t\tcontinue;
-\t\t\t\tint slot = (int) pointHash(oldX[i], oldY[i]) & mask;
-\t\t\t\twhile (states[slot] != 0)
-\t\t\t\t\tslot = slot + 1 & mask;
-\t\t\t\txKeys[slot] = oldX[i];
-\t\t\t\tyKeys[slot] = oldY[i];
-\t\t\t\tstates[slot] = oldStates[i];
-\t\t\t\tsize++;
-\t\t\t}
-\t\t}
+\t\tbyte get(final long xKey, final long yKey) {
 """
-new = """\t\tvoid ensureCapacity(final int minimumCapacity) {
+point_new = """\t\tPointContainmentCache(final int initialCapacity) {
+\t\t\tif (initialCapacity < 1 || initialCapacity > 1 << 30)
+\t\t\t\tthrow new IllegalArgumentException("invalid cache capacity");
+\t\t\tint capacity = 4;
+\t\t\twhile (capacity < initialCapacity)
+\t\t\t\tcapacity <<= 1;
+\t\t\tallocate(capacity);
+\t\t}
+
+\t\tvoid reserveEmpty(final int minimumCapacity) {
+\t\t\tif (size != 0)
+\t\t\t\tthrow new IllegalStateException("point cache reserve after use");
 \t\t\tif (minimumCapacity < 1 || minimumCapacity > 1 << 30)
 \t\t\t\tthrow new IllegalArgumentException("invalid cache capacity");
 \t\t\tint capacity = 4;
 \t\t\twhile (capacity < minimumCapacity)
 \t\t\t\tcapacity <<= 1;
 \t\t\tif (capacity > xKeys.length)
-\t\t\t\trehash(capacity);
+\t\t\t\tallocate(capacity);
 \t\t}
 
-\t\tprivate void grow() {
-\t\t\tif (xKeys.length == 1 << 30)
-\t\t\t\tthrow new IllegalStateException("point cache is too large");
-\t\t\trehash(xKeys.length << 1);
-\t\t}
-
-\t\tprivate void rehash(final int capacity) {
-\t\t\tfinal long[] oldX = xKeys;
-\t\t\tfinal long[] oldY = yKeys;
-\t\t\tfinal byte[] oldStates = states;
-\t\t\tallocate(capacity);
-\t\t\tsize = 0;
-\t\t\tfor (int i = 0; i < oldStates.length; i++) {
-\t\t\t\tif (oldStates[i] == 0)
-\t\t\t\t\tcontinue;
-\t\t\t\tint slot = (int) pointHash(oldX[i], oldY[i]) & mask;
-\t\t\t\twhile (states[slot] != 0)
-\t\t\t\t\tslot = slot + 1 & mask;
-\t\t\t\txKeys[slot] = oldX[i];
-\t\t\t\tyKeys[slot] = oldY[i];
-\t\t\t\tstates[slot] = oldStates[i];
-\t\t\t\tsize++;
-\t\t\t}
-\t\t}
+\t\tbyte get(final long xKey, final long yKey) {
 """
-assert source.count(old) == 1, source.count(old)
-source = source.replace(old, new, 1)
+assert source.count(point_anchor) == 1, source.count(point_anchor)
+source = source.replace(point_anchor, point_new, 1)
 
 anchor = """\tfinal Reachability reach = new Reachability(this);
 """
 method = """\t/** Reserve the proven cold-build capacities only when the reverse BFS
 \t * actually runs. Memo/cache-hit races retain compact warm tables. */
 \tvoid prepareGeometryCachesForReachability() {
-\t\tedgeLegalCache.ensureCapacity(1 << 16);
-\t\tpointContainmentCache.ensureCapacity(1 << 18);
+\t\tedgeLegalCache.reserveEmpty(1 << 16);
+\t\tpointContainmentCache.reserveEmpty(1 << 18);
 \t}
 
 \tfinal Reachability reach = new Reachability(this);
@@ -173,31 +133,21 @@ reach.write_text(text.replace(old, new, 1))
 
 core = Path("tests/tr/logic/CoreTests.java")
 tests = core.read_text()
-old = """        cache.put(0L, true);
-        check(cache.get(0L) == RaceGame.EdgeLegalCache.TRUE, "edge cache update failed");
-        check(cache.get(123456789L) == 0, "edge cache false hit");
+old = """        final RaceGame.EdgeLegalCache cache = new RaceGame.EdgeLegalCache(1);
+        check(cache.get(0L) == 0, "fresh edge cache should miss");
 """
-new = """        cache.put(0L, true);
-        check(cache.get(0L) == RaceGame.EdgeLegalCache.TRUE, "edge cache update failed");
-        cache.ensureCapacity(1 << 16);
-        check(cache.get(0L) == RaceGame.EdgeLegalCache.TRUE,
-                "edge cache reserve lost an existing verdict");
-        check(cache.get(123456789L) == 0, "edge cache false hit");
+new = """        final RaceGame.EdgeLegalCache cache = new RaceGame.EdgeLegalCache(1);
+        cache.reserveEmpty(1 << 10);
+        check(cache.get(0L) == 0, "fresh edge cache should miss");
 """
 assert tests.count(old) == 1, tests.count(old)
 tests = tests.replace(old, new, 1)
-old = """        cache.put(0L, 0L, true);
-        check(cache.get(0L, 0L) == RaceGame.PointContainmentCache.TRUE,
-                "point cache update failed");
-        cache.clear();
+old = """        final RaceGame.PointContainmentCache cache = new RaceGame.PointContainmentCache(1);
+        check(cache.get(0L, 0L) == 0, "fresh point cache should miss");
 """
-new = """        cache.put(0L, 0L, true);
-        check(cache.get(0L, 0L) == RaceGame.PointContainmentCache.TRUE,
-                "point cache update failed");
-        cache.ensureCapacity(1 << 16);
-        check(cache.get(0L, 0L) == RaceGame.PointContainmentCache.TRUE,
-                "point cache reserve lost an existing verdict");
-        cache.clear();
+new = """        final RaceGame.PointContainmentCache cache = new RaceGame.PointContainmentCache(1);
+        cache.reserveEmpty(1 << 10);
+        check(cache.get(0L, 0L) == 0, "fresh point cache should miss");
 """
 assert tests.count(old) == 1, tests.count(old)
 tests = tests.replace(old, new, 1)
