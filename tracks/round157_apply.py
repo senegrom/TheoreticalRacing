@@ -169,7 +169,7 @@ method = """    private static void testSharedDistanceMaps() {
         check(duplicate == first, "same geometry replaced a compatible distance map");
 
         final Reachability.DistanceMaps second = Reachability.publishDistanceMaps(
-                "core-distance-b", new int[][]{{4, 5}}, new int[]{2}, 10);
+                "core-distance-b", new int[][]{{4, 5}}, new int[]{2}, 8);
         check(second != null && Reachability.findDistanceMaps("core-distance-b", 1, 2) == second,
                 "second distance map was not retained");
         check(Reachability.findDistanceMaps("core-distance-a", 2, 2) == null,
