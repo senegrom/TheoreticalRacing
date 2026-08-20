@@ -26,6 +26,7 @@ public final class CoreTests {
         testBorderValidation();
         testEdgeLegalCache();
         testDenseEdgeLegalCache();
+        testSharedDenseEdgeLegalCache();
         testPointContainmentCache();
         testEndgameMemoKey();
         testDistinctCoverMatching();
@@ -293,6 +294,38 @@ public final class CoreTests {
         check(cache.index(0, 0, 13, 0) == -1, "overspeed delta entered dense cache");
         check(RaceGame.DenseEdgeLegalCache.create(500, 500, 1_000) == null,
                 "dense cache ignored its memory cap");
+    }
+
+    private static void testSharedDenseEdgeLegalCache() {
+        final RaceGame.DenseEdgeLegalCache first = RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-track", 3, 4, 10_000, 20_000);
+        final RaceGame.DenseEdgeLegalCache second = RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-track", 3, 4, 10_000, 20_000);
+        check(first != null && first == second, "shared dense edge cache was not reused");
+
+        final int zero = first.index(0, 0, 0, 0);
+        final int max = first.index(2, 3, 14, -9);
+        first.states[zero] = RaceGame.DenseEdgeLegalCache.FALSE;
+        first.states[max] = RaceGame.DenseEdgeLegalCache.TRUE;
+        check(second.states[zero] == RaceGame.DenseEdgeLegalCache.FALSE,
+                "shared dense false verdict was lost");
+        check(second.states[max] == RaceGame.DenseEdgeLegalCache.TRUE,
+                "shared dense true verdict was lost");
+
+        final RaceGame.DenseEdgeLegalCache replacement = RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-track", 4, 4, 10_000, 20_000);
+        check(replacement != null && replacement != first,
+                "dimension change retained an incompatible shared table");
+        check(RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-track", 4, 4, 10_000, 20_000) == replacement,
+                "replacement shared table was not reused");
+
+        final RaceGame.DenseEdgeLegalCache oversized = RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-private", 3, 4, 10_000, 1_000);
+        check(oversized != null, "oversized shared request lost its private fallback");
+        check(RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-private", 3, 4, 10_000, 1_000) != oversized,
+                "table larger than the pool cap was retained globally");
     }
 
     private static void testPointContainmentCache() {

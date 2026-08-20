@@ -10,6 +10,38 @@ Shared geometry, reachability and simulation helpers may be cleaned up, but the 
 
 
 
+
+## Round 156: share exact dense edge caches across auto batches — 20.1% faster on the measured batch wall
+
+Round 150 replaced hashed geometry-edge lookups with a collision-free
+direct byte table, but each seed in an auto batch still allocated and
+repopulated the same immutable table. Round 156 shares that exact table
+between consecutive `RaceGame` instances carrying the same geometry
+cache key.
+
+The shared store is an access-ordered LRU capped at 128 MiB, while the
+existing per-track 64 MiB admission cap remains unchanged. Interactive
+games retain private tables. Every nonzero entry still comes from the
+unchanged exact geometry predicate; duplicate concurrent byte writes are
+idempotent, and a stale zero can only trigger an exact recomputation.
+AI policy, finish logic, reachability products and race ordering are
+untouched.
+
+Exact gate: 3500 all-AI2 baseline/candidate race pairs
+across all 26 tracks, with every complete race log byte-identical. The
+full Java suite, headless smoke, golden corpus, homogeneous AI probe,
+tooling tests and every permanent AI regression pin passed on the JDK
+25 candidate and again from a clean production checkout.
+
+Five-pair dual-order warm batches measured Monaco
+23.7% faster, Nürburgring
+12.6% faster, Zandvoort
+30.6% faster, Interlagos
+13.7% faster, and Sprint
+2.8% faster. The weighted median aggregate is
+20.1% faster; no measured case regressed by more than the
+five-percent fail-closed limit.
+
 ## Round 150: direct in-grid edge legality cache — 5.4% faster on the measured wall
 
 The post-Round-134 profile left the open-addressed geometry-edge cache

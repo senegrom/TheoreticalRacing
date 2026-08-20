@@ -736,6 +736,12 @@ final class Reachability {
 		}
 	}
 
+	/** Stable geometry identity shared with the disk/memo reachability cache. */
+	String geometryCacheKey() {
+		final Path path = reachCachePath();
+		return path == null ? null : path.toString();
+	}
+
 	/** Load turns + legal-alive from the geometry-keyed cache and re-derive
 	 *  the sweeps. Any validation or IO failure returns false and leaves the
 	 *  compute path to run from scratch. */

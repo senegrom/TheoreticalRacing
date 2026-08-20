@@ -571,6 +571,9 @@ public final class RaceGame {
 		static final byte TRUE = 2;
 		private static final int DELTA_SPAN = 2 * AI_MAX_SPEED + 1;
 		private static final int DELTAS = DELTA_SPAN * DELTA_SPAN;
+		private static final java.util.LinkedHashMap<String, DenseEdgeLegalCache> SHARED =
+				new java.util.LinkedHashMap<>(16, 0.75f, true);
+		private static long sharedEntries;
 
 		final int width;
 		final int height;
@@ -590,6 +593,37 @@ public final class RaceGame {
 					|| entries > Integer.MAX_VALUE)
 				return null;
 			return new DenseEdgeLegalCache(width, height, (int) entries);
+		}
+
+		/** Reuse an exact table for the same immutable track geometry. The pool
+		 * is access-ordered and measured in byte-table entries (one byte each).
+		 * A table larger than the pool cap remains a private exact table. */
+		static synchronized DenseEdgeLegalCache shared(final String key,
+				final int width, final int height, final long maxEntries,
+				final long maxPoolEntries) {
+			if (key == null)
+				return create(width, height, maxEntries);
+			final DenseEdgeLegalCache existing = SHARED.get(key);
+			if (existing != null && existing.width == width && existing.height == height)
+				return existing;
+			if (existing != null) {
+				SHARED.remove(key);
+				sharedEntries -= existing.states.length;
+			}
+			final DenseEdgeLegalCache created = create(width, height, maxEntries);
+			if (created == null || created.states.length > maxPoolEntries)
+				return created;
+			while (!SHARED.isEmpty()
+					&& sharedEntries + created.states.length > maxPoolEntries) {
+				final java.util.Iterator<java.util.Map.Entry<String, DenseEdgeLegalCache>> it =
+						SHARED.entrySet().iterator();
+				final DenseEdgeLegalCache evicted = it.next().getValue();
+				it.remove();
+				sharedEntries -= evicted.states.length;
+			}
+			SHARED.put(key, created);
+			sharedEntries += created.states.length;
+			return created;
 		}
 
 		int index(final int x1, final int y1, final int x2, final int y2) {
@@ -1104,8 +1138,11 @@ public final class RaceGame {
 		p.closePath();
 		startZoneA = TrackGeometry.getToleranceExpandedShape(p);
 		trackA = TrackGeometry.getToleranceExpandedShape(TrackGeometry.newPrefilledPath(track.getLeft(), track.getRight()));
-		denseEdgeLegalCache = DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1,
-				64L << 20);
+		final String denseKey = autoMode ? reach.geometryCacheKey() : null;
+		denseEdgeLegalCache = denseKey == null
+				? DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1, 64L << 20)
+				: DenseEdgeLegalCache.shared(denseKey, gameCols + 1, gameRows + 1,
+						64L << 20, 128L << 20);
 		buildLegalRaster();
 		rui.finishTrack();
 		reach.computeDistMap();
