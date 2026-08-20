@@ -125,6 +125,7 @@ reach.write_text(text.replace(anchor, method, 1))
 
 core = Path("tests/tr/logic/CoreTests.java")
 tests = core.read_text()
+assert "private static void testSharedDenseEdgeLegalCache()" not in tests
 old_call = """        testEdgeLegalCache();
         testDenseEdgeLegalCache();
         testPointContainmentCache();
@@ -174,7 +175,6 @@ test_method = """    private static void testSharedDenseEdgeLegalCache() {
     private static void testPointContainmentCache() {
 """
 assert tests.count(test_anchor) == 1, tests.count(test_anchor)
-assert "testSharedDenseEdgeLegalCache" not in tests
 tests = tests.replace(test_anchor, test_method, 1)
 core.write_text(tests)
 
