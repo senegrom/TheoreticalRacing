@@ -2,7 +2,7 @@
 """Materialize a direct live-cell map for mobility projections.
 
 mobilitySearch repeatedly asks whether a successor cell is occupied by a live
-player other than the projected source cell.  The live board is fixed for the
+player other than the projected source cell. The live board is fixed for the
 lifetime of one mobility projection, including nested scorer projections, so
 refresh one touched-cell byte raster at mobilitySearch entry and replace every
 per-successor player scan with a direct lookup.
@@ -13,9 +13,13 @@ race = Path("src/tr/logic/RaceAi.java")
 source = race.read_text()
 
 old = """\tprivate final int[] mobilityMove = new int[4];
+\tprivate MobilitySearch outerMobilityWorkspace;
+\tprivate MobilitySearch nestedMobilityWorkspace;
 \tprivate final long[] rolloutFieldCost = new long[1];
 """
 new = """\tprivate final int[] mobilityMove = new int[4];
+\tprivate MobilitySearch outerMobilityWorkspace;
+\tprivate MobilitySearch nestedMobilityWorkspace;
 \tprivate byte[] liveOccupancy;
 \tprivate int[] liveOccupancyTouched;
 \tprivate int liveOccupancyTouchedCount;
@@ -25,11 +29,11 @@ assert source.count(old) == 1, source.count(old)
 source = source.replace(old, new, 1)
 
 old = """\tprivate MobilitySearch mobilitySearch(final int subjectNum, final boolean avoidOcc, final int depth) {
-\t\tfinal long[][] blocked = new long[depth][3 * game.players.length];
+\t\tfinal boolean nested = inScorerSim || trueConfirmDepth != 0 || simDepth != 0;
 """
 new = """\tprivate MobilitySearch mobilitySearch(final int subjectNum, final boolean avoidOcc, final int depth) {
 \t\trefreshLiveOccupancy();
-\t\tfinal long[][] blocked = new long[depth][3 * game.players.length];
+\t\tfinal boolean nested = inScorerSim || trueConfirmDepth != 0 || simDepth != 0;
 """
 assert source.count(old) == 1, source.count(old)
 source = source.replace(old, new, 1)
