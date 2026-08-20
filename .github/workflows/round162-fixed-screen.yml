@@ -69,8 +69,8 @@ jobs:
             tests/tr/logic/CoreTests.java \
             | sort > /tmp/round162-expected.txt
           diff -u /tmp/round162-expected.txt /tmp/round162-changed.txt
-          test "$(grep -c 'PointContainmentCache.shared(' src/tr/logic/RaceGame.java)" = 1
-          test "$(grep -c 'private static void testSharedPointContainmentCache()' tests/tr/logic/CoreTests.java)" = 1
+          test "$(grep -Fc 'PointContainmentCache.shared(' src/tr/logic/RaceGame.java)" = 1
+          test "$(grep -Fc 'private static void testSharedPointContainmentCache()' tests/tr/logic/CoreTests.java)" = 1
           git diff --check
           sh ./run_tests.sh
           sh ./build_main.sh
