@@ -48,6 +48,18 @@ hairpin, lemans corners, silverstone straight-end), where every
 in-engine world diverges from the oracle before the seal. The
 oracle-certified structural approach is the answer; walks and world
 matrices for all specimens are in this scratchpad's harvest27 logs.
+## Harvest 28 census (local agent): the frontier holds steady
+
+Mixed s401-500, 22 tracks: 9/2200 (0.4%, same as h27), ALL of it the
+established model-boundary structural family -- serpentine2 hairpin x4
+(s408/s424/s431 byte-similar at the (120,117) s35-site, s418 at the
+s40-site), lemans bottom-corner x2 (s420/s495), zandvoort deep-corridor
+(s456 at the s223 region), plus two new tracks joining the same
+morphology: interlagos s412 ((13,26) braking doom, left edge) and
+silverstone s454 (second sighting). No new confirm-fixable classes;
+every shipped arm again shows zero recurrences. The steady-state
+residual is uniformly the oracle-only joint-rollout family.
+
 
 ## Random circuits (local agent): the geometry fuzzing axis
 
