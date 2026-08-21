@@ -6,6 +6,45 @@ until they clear the exact differential, while AI2 supplies the unchanged
 comparison control. Promotion removes that kind gate so both smart driver kinds
 receive the same certified winner.
 
+## Round 169 promoted: bounded exact-private score slack
+
+Round 169 permits both mirrored smart-driver kinds to take one separately
+ranked private-lane runner-up. It may concede at most 0.25 in the score
+remainder after trap and uncertainty, but must recover exactly one reachability
+turn from a non-coasting incumbent at TTF 46-90. The candidate acceleration
+must remain directionally aligned, use exact L2 trap and zero uncertainty, stay
+below speed-squared 49, preserve current speed-squared while exceeding the
+incumbent landing speed, land unsealable, pass the fail-closed four-round,
+two-exit exact-private certificate, and prove strict mover progress with
+non-worsening aggregate field cost in the eight-round, six-rival scorer world.
+A kind-homogeneous starting roster is required. The runner-up cannot displace
+an existing private-lane winner, and all downstream guards retain final
+authority.
+
+At Hungaroring seed 12, global move 370 changes player 2 from `W` to `SW`.
+Both policies retain the same seven finisher identities and order with zero
+crashes. Player 6 finishes in 127 moves instead of 128; every other driver's
+logged move count is unchanged, yielding one fewer logged player-turn without
+claiming an earlier finishing round or a global average gain. Nine permanent
+veto fixtures preserve the known false-positive boundaries: Le Mans s2, Spa
+s1, Hungaroring s40, Interlagos s47, Monza s30, Monaco s35, Zandvoort s34,
+Monza s145, and Serpentine s38.
+
+The external promotion gate compared the frozen `04D9DFEC...` champion with
+the frozen `F536762B...` mirrored final, all-AI2, across all 22 default tracks
+at seeds 1-150 plus all four slow tracks at seeds 1-50. Of 3,500 complete
+behavior logs, 3,499 are exact and the sole divergence is the strict
+Hungaroring s12 gain above: no slower driver, redistribution, finisher-identity
+change, or safety regression. A separate post-mirror differential matched
+AI1 and AI2 exactly on 350/350 default/slow races. Java/core/UI tests, all 13
+goldens, tooling, and all 16 permanent AI regression pins pass.
+
+The pre-mirror runtime check used eight warmups followed by 32 alternating-order
+pairs across Hungaroring seeds 12 and 13 (64 timed executions). Seed 12's
+trimmed candidate/control ratios were 0.9568 wall and 0.9513 CPU; exact-control
+seed 13 measured 0.9831 wall and 0.9905 CPU. Behavior hashes remained stable,
+and neither measured case showed a computation-time regression.
+
 ## Round 168 candidate: direct occupancy maps and thread-owned geometry caches
 
 Two exact search hot paths repeatedly scanned the same player arrays. The

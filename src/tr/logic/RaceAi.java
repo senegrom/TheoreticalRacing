@@ -317,6 +317,9 @@ final class RaceAi {
 	private final static int		AI1_PRIVATE_EXACT_ESCAPES	= 2;	// clipped slow or homogeneous moderate-risk lines may use two exits
 	private final static double	AI1_PRIVATE_EXACT_UNC_MAX	= 15.0;	// round 77: homogeneous fast lines above this retain three exits
 	private final static int		AI1_PRIVATE_EXACT_NODES	= 512;	// per-turn exact-search budget; exhaustion fails closed
+	private final static double	AI1_PRIVATE_FRONTIER_REST_SLACK	= 0.25;	// round 169: bounded exact-private/scorer-field frontier
+	private final static int		AI1_PRIVATE_FRONTIER_MIN_TTF	= 46;	// incumbent phase; the candidate is exactly one turn faster
+	private final static int		AI1_PRIVATE_FRONTIER_MAX_TTF	= 90;	// keep the eight-round field proof in medium range
 	private final static int		AI1_PRIVATE_FIELD_MIN_RIVALS	= 5;	// round 78: compare field effects only in compressed large fields
 	private final static int		AI1_PRIVATE_CONVOY_RADIUS_V	= 2;	// round 79: look two mover-velocity spans along a nearly collinear train
 	private final static int		AI1_PRIVATE_CONVOY_HALF_WIDTH	= 4;	// maximum perpendicular distance from the mover's velocity ray
@@ -371,9 +374,9 @@ final class RaceAi {
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
 
 	/**
-	 * AI1 (EXPERIMENTAL FRONTIER): forked verbatim from the AI2.9 standard.
-	 * Identical to {@link #optimalMoveAI2} at fork time; improvements are
-	 * applied here while AI2 stays frozen as the reference.
+	 * Promoted smart-driver policy. AI2 delegates here so both smart kinds run
+	 * the same certified champion; candidate experiments must add an explicit
+	 * kind gate until their differential evidence is complete.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		// Endgame seal (frontier, per "force the last rival to crash = win"): with
@@ -1533,10 +1536,19 @@ final class RaceAi {
 		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
 				- uncByDir[chosen.ordinal()];
 		RaceAiPrivateLane.ProofSession privateProof = null;
+		RaceAiPrivateLane.ProofSession slackProof = null;
 		// Promotion semantics (round 83 mirror): "self-play" means kind
 		// homogeneity with the MOVER, not AI1-ness -- an all-AI2 field of the
 		// promoted body is exactly as homogeneous as an all-AI1 one.
 		final Player.Kind moverKind = moverKind(playerNum);
+		final int slackChosenVx = vel[0] + chosen.dx;
+		final int slackChosenVy = vel[1] + chosen.dy;
+		final int slackChosenSpeed2 = speedSquared(slackChosenVx, slackChosenVy);
+		final int slackCurrentSpeed2 = speedSquared(vel[0], vel[1]);
+		final boolean slackFrontier = chosenT >= AI1_PRIVATE_FRONTIER_MIN_TTF
+				&& chosenT <= AI1_PRIVATE_FRONTIER_MAX_TTF
+				&& chosen != Direction.NONE
+				&& kindHomogeneousRoster(playerNum);
 		boolean homogeneousFrontier = true;
 		for (final Player p : game.players) {
 			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != moverKind) {
@@ -1545,7 +1557,14 @@ final class RaceAi {
 			}
 		}
 		Direction best = null;
+		Direction slackBest = null;
 		int bestT = chosenT;
+		int slackChosenFinal = Integer.MIN_VALUE;
+		long slackChosenField = Long.MAX_VALUE;
+		int slackBestFinal = Integer.MAX_VALUE;
+		long slackBestField = Long.MAX_VALUE;
+		double slackBestScore = Double.MAX_VALUE;
+		double slackBestRestDelta = Double.MAX_VALUE;
 		double bestTrap = Double.MAX_VALUE;
 		double bestUnc = Double.MAX_VALUE;
 		double bestScore = Double.MAX_VALUE;
@@ -1561,8 +1580,69 @@ final class RaceAi {
 			if (trap == 0.0 && unc == 0.0)
 				continue;
 			final double rest = scoreNSByDir[d.ordinal()] - trap - unc;
-			if (rest > chosenRest + 1e-9)
+			if (rest > chosenRest + 1e-9) {
+				final double restDelta = rest - chosenRest;
+				// Frontier experiment: a tiny non-trap score concession may recover
+				// exactly one map turn only for a kind-homogeneous starting roster. Keep this
+				// candidate separate so it cannot displace an existing private-lane
+				// winner. Keep the eight-round field proof in its established
+				// non-overlapping medium-range phase; both moves must be non-coasting,
+				// and the low-energy candidate must preserve current energy while
+				// improving on and remaining aligned with the chosen acceleration. It
+				// must otherwise be exact-L2 with zero uncertainty and unsealable,
+				// exact-private with two exits, and strictly better for the mover while
+				// non-worsening for the field in the longer eight-round scorer world.
+				if (slackFrontier && restDelta <= AI1_PRIVATE_FRONTIER_REST_SLACK + 1e-9
+						&& turns + 1 == chosenT && d != Direction.NONE
+						&& chosen.dx * d.dx + chosen.dy * d.dy > 0
+						&& trap == AI1_TRAP_L2 && unc == 0.0) {
+					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+					final int speed2 = speedSquared(nvx, nvy);
+					if (speed2 < AI1_DJS_SPD2 && speed2 >= slackCurrentSpeed2
+							&& speed2 > slackChosenSpeed2
+							&& !sealable(nx, ny, nvx, nvy, playerNum)) {
+						if (slackProof == null)
+							slackProof = privateLane.begin(playerNum,
+									AI1_PRIVATE_EXACT_HORIZON + 1, AI1_PRIVATE_EXACT_NODES);
+						if (slackProof.certifiesExact(nx, ny, nvx, nvy, turns,
+								AI1_PRIVATE_EXACT_HORIZON, AI1_PRIVATE_EXACT_ESCAPES)) {
+							if (slackChosenFinal == Integer.MIN_VALUE) {
+								slackChosenFinal = scorerFieldOutcome(pos[0] + slackChosenVx,
+										pos[1] + slackChosenVy, slackChosenVx, slackChosenVy, playerNum,
+										AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS,
+										rolloutFieldCost);
+								slackChosenField = rolloutFieldCost[0];
+							}
+							if (slackChosenFinal >= 0
+									&& slackChosenFinal != Integer.MAX_VALUE
+									&& slackChosenField < ROLLOUT_FAILURE_COST) {
+								final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy,
+										playerNum, AI1_STAGED_HORIZON,
+										AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+								final long candidateField = rolloutFieldCost[0];
+								final double score = scoreByDir[d.ordinal()];
+								if (candidateFinal >= 0 && candidateFinal != Integer.MAX_VALUE
+										&& candidateFinal < slackChosenFinal
+										&& candidateField <= slackChosenField
+										&& candidateField < ROLLOUT_FAILURE_COST
+										&& (slackBest == null || candidateFinal < slackBestFinal
+												|| candidateFinal == slackBestFinal
+														&& (candidateField < slackBestField
+																|| candidateField == slackBestField
+																		&& score < slackBestScore))) {
+									slackBest = d;
+									slackBestFinal = candidateFinal;
+									slackBestField = candidateField;
+									slackBestScore = score;
+									slackBestRestDelta = restDelta;
+								}
+							}
+						}
+					}
+				}
 				continue;
+			}
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (sealable(nx, ny, nvx, nvy, playerNum))
@@ -1598,8 +1678,17 @@ final class RaceAi {
 				bestScore = score;
 			}
 		}
-		if (best == null)
-			return chosen;
+		if (best == null) {
+			if (slackBest != null && AI_DEBUG_DJS)
+				System.err.println("AIDBG PRIVATE-SLACK p=" + playerNum + " pos=(" + pos[0]
+						+ "," + pos[1] + ") " + chosen + " -> " + slackBest + " ttf "
+						+ chosenT + " -> " + turnsByDir[slackBest.ordinal()] + " self "
+						+ slackChosenFinal + " -> " + slackBestFinal + " field "
+						+ slackChosenField + " -> " + slackBestField + " trap "
+						+ AI1_TRAP_L2 + " unc 0.0 restDelta "
+						+ slackBestRestDelta);
+			return slackBest != null ? slackBest : chosen;
+		}
 		final int bestVx = vel[0] + best.dx, bestVy = vel[1] + best.dy;
 		final int bestX = pos[0] + bestVx, bestY = pos[1] + bestVy;
 		// Cross-model check once, after the adversarial certificate has ranked all
