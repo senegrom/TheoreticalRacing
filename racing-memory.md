@@ -5,6 +5,27 @@ Written 2026-07-21 at the end of the round-40 session (session id
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
+## rand3 class walked (local agent): the geometry axis's first doom is model-boundary at the FINISH
+
+The 4/50 rand3 class (byte-identical, both kinds, m483-489): entry
+overspeed into the pre-finish right corner. Last avoidable m448
+(109,130) v(9,0): taken N (hold 9) dies @r4; shedding one unit
+(NW/W/SW at 8) FINISHES @r5-6. World matrix at the commitment: EVERY
+world reads the taken as FINISHING -- smom-3 V=3 (tier=0 thread=2
+snug=2), scorer-5/8-cap6 V=0-1, true-4-cap6 V=2 -- while reality
+wedges it one move short of the line. The r128 funnel leg DID arm
+(thread 2, snug 2, ttf 3) and its true-4 confirm honestly answered
+"finishes": the true world itself diverges at this corner (modeled
+rivals clear it differently than reality). A fourth model-boundary
+variant -- the FINISH-corner wedge -- and the first on generated
+geometry: prime test material for the oracle-certified line. rand2's
+two specimens ((8,13)/(21,11), fast leftward) censused, unwalked.
+
+Axis verdict after one harvest: random circuits surface novel
+structural dooms immediately and cheaply; the residual family is the
+same oracle-only shape everywhere, now reproducible on demand by
+track-seed.
+
 
 ## Round 176 promoted: faithful-rival finish-sprint confirmation
 
