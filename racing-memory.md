@@ -3451,3 +3451,5 @@ gain(s), zero individual slowdowns or safety regressions, net
 -1 finisher moves. The only order change is the
 improved driver joining an existing same-move tie. Changed races:
 silverstone seed 93. AI2 remains frozen.
+
+ROUND 171 (direct projected-occupancy maps): exact touched-cell counts replace repeated linear scans of projected opponent positions. The 26-track gate was byte-identical over 3500 races; alternating runtime ratio 0.881500 (11.85% faster).

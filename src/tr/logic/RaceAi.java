@@ -50,6 +50,58 @@ final class RaceAi {
 		}
 	}
 
+	/** Exact touched-cell occupancy counts for one projected board. Counts,
+	 * rather than booleans, preserve duplicate-cell semantics while allowing
+	 * O(1) successor tests and O(1) mover removal/reinsertion. */
+	private static final class CellOccupancy {
+		final byte[] counts;
+		final int[] touched;
+		final int width;
+		final int height;
+		int touchedCount;
+
+		CellOccupancy(final int width, final int height) {
+			this.width = width;
+			this.height = height;
+			counts = new byte[width * height];
+			touched = new int[width * height];
+		}
+
+		void clear() {
+			for (int i = 0; i < touchedCount; i++)
+				counts[touched[i]] = 0;
+			touchedCount = 0;
+		}
+
+		void rebuild(final int[][] cells) {
+			clear();
+			for (final int[] cell : cells)
+				if (cell != null)
+					add(cell[0], cell[1]);
+		}
+
+		void add(final int x, final int y) {
+			if (x < 0 || y < 0 || x >= width || y >= height)
+				return;
+			final int index = x * height + y;
+			if (counts[index]++ == 0)
+				touched[touchedCount++] = index;
+		}
+
+		void remove(final int x, final int y) {
+			if (x < 0 || y < 0 || x >= width || y >= height)
+				return;
+			final int index = x * height + y;
+			if (counts[index] != 0)
+				counts[index]--;
+		}
+
+		boolean contains(final int x, final int y) {
+			return x >= 0 && y >= 0 && x < width && y < height
+					&& counts[x * height + y] != 0;
+		}
+	}
+
 	private static final class TwoRoundWorkspace {
 		final int[][] current;
 		final int[][] world1;
@@ -62,9 +114,11 @@ final class RaceAi {
 		final int[] candidatePosition = new int[2];
 		final byte[] aheadOccupancy;
 		final int[] aheadTouched;
+		final CellOccupancy blockedOccupancy;
+		final CellOccupancy world1Occupancy;
 		int aheadTouchedCount;
 
-		TwoRoundWorkspace(final int players, final int cells) {
+		TwoRoundWorkspace(final int players, final int width, final int height) {
 			current = new int[players][];
 			world1 = new int[players][];
 			blocked = new int[players][];
@@ -73,18 +127,25 @@ final class RaceAi {
 			round2Position = new int[players][2];
 			round1Velocity = new int[players][2];
 			round2Velocity = new int[players][2];
-			aheadOccupancy = new byte[cells];
+			aheadOccupancy = new byte[width * height];
 			aheadTouched = new int[players];
+			blockedOccupancy = new CellOccupancy(width, height);
+			world1Occupancy = new CellOccupancy(width, height);
 		}
 	}
 
 	private static final class PredictionWorkspace {
 		final int[][][] result;
 		final int[][][] cells;
+		final CellOccupancy[] occupancy;
 
-		PredictionWorkspace(final int steps, final int players) {
+		PredictionWorkspace(final int steps, final int players,
+				final int width, final int height) {
 			result = new int[steps][players][];
 			cells = new int[steps][players][2];
+			occupancy = new CellOccupancy[steps];
+			for (int step = 0; step < steps; step++)
+				occupancy[step] = new CellOccupancy(width, height);
 		}
 	}
 
@@ -365,6 +426,9 @@ final class RaceAi {
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
 		final int[][] predicted = predictedSteps[0];
+		for (int step = 0; step < predictedSteps.length; step++)
+			predictionWorkspace.occupancy[step].rebuild(predictedSteps[step]);
+		final CellOccupancy predictedOccupancy = predictionWorkspace.occupancy[0];
 		// In-traffic ply-2 foresight RESTORED (fore2): the v4/v5 pack gate that
 		// disabled the ply-2 price whenever any rival sat within squared
 		// distance 36 is GONE -- the round-2 world (worlds[1]) is now priced on
@@ -436,7 +500,7 @@ final class RaceAi {
 			final byte[] aheadOccupancy = buildAheadOccupancy(worlds.current,
 					reach.distAt(pos[0], pos[1]));
 			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictedSteps, playerNum, worlds.world1, aheadOccupancy);
+					predictionWorkspace.occupancy, playerNum, worlds.world1Occupancy, aheadOccupancy);
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -450,8 +514,9 @@ final class RaceAi {
 			// count -- so max() with the frozen count keeps the optimism and
 			// discards the pessimism, never more cautious than the crash-free
 			// frozen standard.
-			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy, playerNum, predicted),
-					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, world));
+			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy,
+					playerNum, predictedOccupancy),
+					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, worlds.world1Occupancy));
 			double trapPenalty = d2SafeCount == 0 ? 50.0
 					: d2SafeCount == 1 ? AI1_TRAP_L1
 							: d2SafeCount == 2 ? AI1_TRAP_L2
@@ -479,13 +544,13 @@ final class RaceAi {
 			if (speed > AI1_BRAKE_SPEED) {
 				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
 				// is sheddable on the empty track -- waive the penalty entirely.
-				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, false) >= 2)
+				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predictedOccupancy, null, false) >= 2)
 					speedCap = 0.0;
 				// Trap surcharge, graded by certified escape count: zero roomy
 				// escapes is a genuine trap; a single knife-edge escape is
 				// survivable and only worth a mild detour.
 				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)) {
-					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predicted, null, true);
+					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predictedOccupancy, null, true);
 					if (proofs < 2)
 						uncertified = (speed - AI1_BRAKE_SPEED) * (proofs == 0 ? 2.5 : 1.0);
 				}
@@ -1799,7 +1864,8 @@ final class RaceAi {
 	/** {@link #pureMinTurnsMove} against a simulated occupancy instead of the
 	 *  live player positions: used by {@link #simulateRound}. occupied[i] is
 	 *  the current simulated cell of player i+1 (null = ignore). */
-	private Direction pureMinTurnsMoveSim(final int[] pos, final int[] vel, final int[][] occupied) {
+	private Direction pureMinTurnsMoveSim(final int[] pos, final int[] vel,
+			final CellOccupancy occupied) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
 		Direction bestLegal = null;
@@ -1823,7 +1889,7 @@ final class RaceAi {
 				}
 				continue;
 			}
-			if (cellOccupiedByPrediction(newX, newY, occupied))
+			if (occupied.contains(newX, newY))
 				continue;
 			if (sc < bestLegalScore) {
 				bestLegalScore = sc;
@@ -1849,7 +1915,7 @@ final class RaceAi {
 		final int players = game.players.length;
 		if (twoRoundWorkspace == null || twoRoundWorkspace.current.length != players)
 			twoRoundWorkspace = new TwoRoundWorkspace(players,
-					(game.gameCols + 1) * (game.gameRows + 1));
+					game.gameCols + 1, game.gameRows + 1);
 		return twoRoundWorkspace;
 	}
 
@@ -1874,13 +1940,16 @@ final class RaceAi {
 		workspace.candidatePosition[0] = candX;
 		workspace.candidatePosition[1] = candY;
 		workspace.blocked[playerNum - 1] = workspace.candidatePosition;
+		workspace.blockedOccupancy.rebuild(workspace.blocked);
 		simulateRoundPass(playerNum, current, simulatedVelocity, workspace.blocked,
-				workspace.round1Position, workspace.round1Velocity);
+				workspace.blockedOccupancy, workspace.round1Position, workspace.round1Velocity);
 		current[playerNum - 1] = null;
 		System.arraycopy(current, 0, workspace.world1, 0, current.length);
+		workspace.world1Occupancy.rebuild(workspace.world1);
 		workspace.blocked[playerNum - 1] = null;
+		workspace.blockedOccupancy.remove(candX, candY);
 		simulateRoundPass(playerNum, current, simulatedVelocity, workspace.blocked,
-				workspace.round2Position, workspace.round2Velocity);
+				workspace.blockedOccupancy, workspace.round2Position, workspace.round2Velocity);
 		current[playerNum - 1] = null;
 		return workspace;
 	}
@@ -1891,6 +1960,7 @@ final class RaceAi {
 	 *  original stay-put semantics exactly. */
 	private void simulateRoundPass(final int playerNum, final int[][] occupancy,
 			final int[][] simulatedVelocity, final int[][] blocked,
+			final CellOccupancy blockedOccupancy,
 			final int[][] nextPosition, final int[][] nextVelocity) {
 		for (int pass = 0; pass < 2; pass++) {
 			for (final Player p : game.players) {
@@ -1900,8 +1970,9 @@ final class RaceAi {
 				final int idx = p.getNumber() - 1;
 				final int[] current = occupancy[idx];
 				blocked[idx] = null;
+				blockedOccupancy.remove(current[0], current[1]);
 				final int[] velocity = simulatedVelocity[idx];
-				final Direction direction = pureMinTurnsMoveSim(current, velocity, blocked);
+				final Direction direction = pureMinTurnsMoveSim(current, velocity, blockedOccupancy);
 				int nx = current[0];
 				int ny = current[1];
 				if (direction != null) {
@@ -1909,7 +1980,7 @@ final class RaceAi {
 					final int nvy = velocity[1] + direction.dy;
 					if (!RaceGame.aiVelocityOutOfRange(nvx, nvy)
 							&& game.isMoveLegalGeometryCached(current[0], current[1], current[0] + nvx, current[1] + nvy)
-							&& !cellOccupiedByPrediction(current[0] + nvx, current[1] + nvy, blocked)) {
+							&& !blockedOccupancy.contains(current[0] + nvx, current[1] + nvy)) {
 						nx = current[0] + nvx;
 						ny = current[1] + nvy;
 						final int[] velocityOut = nextVelocity[idx];
@@ -1923,6 +1994,7 @@ final class RaceAi {
 				positionOut[1] = ny;
 				occupancy[idx] = positionOut;
 				blocked[idx] = positionOut;
+				blockedOccupancy.add(nx, ny);
 			}
 		}
 	}
@@ -1967,11 +2039,12 @@ final class RaceAi {
 	 *  hard-skipped, and a {@code stepIdx == 1} landing is priced only when the
 	 *  round-2 body (the round-two occupancy map) belongs to a rival currently AHEAD of me
 	 *  on track (the mover's current progress), via
-	 *  {@link #occupiedByAheadRival} instead of {@link #cellOccupiedByPrediction}.
+	 *  {@link #occupiedByAheadRival} instead of {@link CellOccupancy#contains}.
 	 *  A chaser's body is left unpriced; the precomputed verdict map threads unchanged through
 	 *  the recursion. Geometry stays hard; a finish crossing escapes pricing. */
 	private double searchMinTurnsSoft3(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final int[][][] predictedSteps, final int playerNum, final int[][] occupancy, final byte[] aheadOccupancy) {
+			final CellOccupancy[] predictedSteps, final int playerNum,
+			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
 		if (levels == 0) {
 			final int t = reach.turnsToFinish(x, y, vx, vy);
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
@@ -1988,10 +2061,10 @@ final class RaceAi {
 				continue;
 			double price = 0.0;
 			if (stepIdx == 0) {
-				if (cellOccupiedByPrediction(nx, ny, occupancy))
+				if (occupancy.contains(nx, ny))
 					price = 3.0;
 			} else {
-				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+				if (stepIdx < predictedSteps.length && predictedSteps[stepIdx].contains(nx, ny))
 					continue;
 				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
 					price = AI1_PLY2_PRICE;
@@ -2014,8 +2087,8 @@ final class RaceAi {
 	 *  tie-break. The ahead-occupancy verdict map is built once by the caller. Prices stay exact small constants, so the plateau compare
 	 *  remains an exact {@code ==}. */
 	private double[] searchMinTurnsCountedSoft3(final int x, final int y, final int vx, final int vy, final int levels,
-			final int stepIdx, final int[][][] predictedSteps, final int playerNum, final int[][] occupancy,
-			final byte[] aheadOccupancy) {
+			final int stepIdx, final CellOccupancy[] predictedSteps, final int playerNum,
+			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
 		for (final Direction d : DIRECTIONS) {
@@ -2029,10 +2102,10 @@ final class RaceAi {
 				continue;
 			double price = 0.0;
 			if (stepIdx == 0) {
-				if (cellOccupiedByPrediction(nx, ny, occupancy))
+				if (occupancy.contains(nx, ny))
 					price = 3.0;
 			} else {
-				if (stepIdx < predictedSteps.length && cellOccupiedByPrediction(nx, ny, predictedSteps[stepIdx]))
+				if (stepIdx < predictedSteps.length && predictedSteps[stepIdx].contains(nx, ny))
 					continue;
 				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
 					price = AI1_PLY2_PRICE;
@@ -2063,7 +2136,7 @@ final class RaceAi {
 	 * opponents (current cells as conservative fallback where unmoved).
 	 */
 	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy,
-			final int[][] occupancy) {
+			final CellOccupancy occupancy) {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
@@ -2076,7 +2149,7 @@ final class RaceAi {
 				return 9;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
-			if (cellOccupiedByPrediction(nx, ny, occupancy))
+			if (occupancy.contains(nx, ny))
 				continue;
 			if (reach.isAlive(nx, ny, nvx, nvy))
 				count++;
@@ -2094,7 +2167,8 @@ final class RaceAi {
 		final int projectionSteps = Math.max(1, steps);
 		if (predictionWorkspace == null || predictionWorkspace.result.length != projectionSteps
 				|| predictionWorkspace.result[0].length != game.players.length)
-			predictionWorkspace = new PredictionWorkspace(projectionSteps, game.players.length);
+			predictionWorkspace = new PredictionWorkspace(projectionSteps, game.players.length,
+					game.gameCols + 1, game.gameRows + 1);
 		for (final int[][] step : predictionWorkspace.result)
 			java.util.Arrays.fill(step, null);
 		for (final Player player : game.players) {
@@ -3080,14 +3154,6 @@ final class RaceAi {
 	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
 	private final static double	AI2_PLATEAU_TIEBREAK	= 0.05;
 
-	private boolean cellOccupiedByPrediction(final int x, final int y, final int[][] predicted) {
-		for (final int[] p : predicted) {
-			if (p != null && p[0] == x && p[1] == y)
-				return true;
-		}
-		return false;
-	}
-
 	private int countRivalsWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
 		int count = 0;
 		for (final Player p : game.players) {
@@ -3194,8 +3260,8 @@ final class RaceAi {
 	 * to be occupied by an opponent's next move. Approximates the number of
 	 * still-viable continuations after one opponent reaction.
 	 */
-	private int countFutureSafeSuccessors(final int x, final int y, final int vx, final int vy, final int playerNum,
-			final int[][] predicted) {
+	private int countFutureSafeSuccessors(final int x, final int y, final int vx, final int vy,
+			final int playerNum, final CellOccupancy predicted) {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
@@ -3210,7 +3276,7 @@ final class RaceAi {
 				continue;
 			if (game.isCrashingPlayer(nx, ny, playerNum))
 				continue;
-			if (cellOccupiedByPrediction(nx, ny, predicted))
+			if (predicted.contains(nx, ny))
 				continue;
 			if (reach.isAlive(nx, ny, nvx, nvy))
 				count++;
@@ -3898,8 +3964,9 @@ final class RaceAi {
 	 *  resulting speed (ties: Direction order) is written to it. Stops counting
 	 *  at 2 (only "< 2" vs ">= 2" matters).
 	 */
-	private int countBrakeProofs(final int x, final int y, final int vx, final int vy, final double targetSpeed,
-			final int[][] predicted, final int[] bestBrake, final boolean requireRoomy) {
+	private int countBrakeProofs(final int x, final int y, final int vx, final int vy,
+			final double targetSpeed, final CellOccupancy predicted,
+			final int[] bestBrake, final boolean requireRoomy) {
 		int proofs = 0;
 		double bestSpeed = Double.MAX_VALUE;
 		final double speed = Math.hypot(vx, vy);
@@ -3917,7 +3984,7 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(bx, by, bvx, bvy))
 				continue;
-			if (cellOccupiedByPrediction(bx, by, predicted))
+			if (predicted.contains(bx, by))
 				continue;
 			if (requireRoomy && !isRoomy(bx, by, bvx, bvy, 1))
 				continue;

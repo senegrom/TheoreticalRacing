@@ -564,6 +564,19 @@ in both columns and one net AI1 move faster (both print 104.16). This clears
 the AI1 frontier gate; AI2 remains frozen until an explicit mirror,
 golden-fixture review and post-promotion self-tie battery.
 
+## Round 171: direct projected-occupancy maps
+
+The remaining opponent-world occupancy tests used linear scans through the
+projected player rows inside recursive successor scoring and two-round
+simulation. Round 171 replaces those scans with exact touched-cell count maps.
+Counts retain duplicate-cell semantics, while mover removal and reinsertion
+keep the changing simulated board exact without clearing the whole grid.
+
+The promotion gate compared 3,500 paired races across all 26 tracks and found
+zero byte differences. Seven-pair alternating timing measured an aggregate
+candidate/baseline ratio of 0.881500 (11.85% lower wall time). The
+per-case ratios were: sprint 0.8500x, monaco 0.8934x, zandvoort 0.8715x, nurburgring 0.9157x, interlagos 0.9247x.
+
 ## Current champion and frontier baseline
 
 The rounds-79-to-96 stack plus the round-83 funnel guards are promoted, so AI1 and AI2 are identical again. The champion races roughly a full move per finisher faster than its Round-78 predecessor with a strictly better crash ledger; Round 91 saves one proven Silverstone seed-15 move, Round 93 removes the symmetric mixed Le Mans seed-7 crashes, Round 94 extends the dual-model finish sprint through TTF 20, Round 95 retains one scorer-fast line that a topology proxy false-kills, and Round 96 certifies one synchronized TTF-21 formation gain. The pre-Round-91 composition battery swept never-worse on every stage (770/0 across all 8-car bands at -0.95 to -0.99 with zero slower tracks, mixed-field places won crash-free, 4-car repaired and -0.64, 1v1 -0.30, slow exact). The final mirrored body is move-identical across the strict probe. Self-play pace gates key on kind-homogeneity with the mover rather than AI1-ness. The champion retains the earlier bounded safety proofs:
