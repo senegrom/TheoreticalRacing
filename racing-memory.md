@@ -49,6 +49,28 @@ in-engine world diverges from the oracle before the seal. The
 oracle-certified structural approach is the answer; walks and world
 matrices for all specimens are in this scratchpad's harvest27 logs.
 
+## Random circuits (local agent): the geometry fuzzing axis
+
+build_synthetic.py gains `random` (user-prompted): sample points, convex
+hull, random inward midpoint displacement (real corners, chicanes,
+straights of varying length), Chaikin-smooth until every discrete turn
+radius clears minr (measured on a step-spaced RESAMPLE each pass -- raw
+Chaikin points sit sub-unit apart where discrete circumradius reads huge
+on near-collinear triples and silently accepts arbitrarily sharp elbows;
+that measurement bug was the whole initial acceptance failure), uniform
+resample, reject on centerline self-intersection or necks closer than
+1.8*minr with an arc-aware index guard (a hairpin's own far side sits at
+diametric distance 2*minr and must not self-reject). Deterministic per
+track-seed; grid-seed remains the traffic axis. Usage:
+  build_synthetic.py random tracks/randN.track RandN 150 150 12 seed=N minr=8
+
+rand1-rand6 committed (corridors 6.7-9.8 cells, one naturally short
+loop). All six race clean full grids -- and rand3 produced a crash
+specimen within its first three seeds (s1 m484, p8 W at (144,117) ->
+(148,114)): novel geometry surfaces novel dooms immediately, which is
+the point. Seeds randomize traffic on fixed sites; random tracks
+randomize the SITES.
+
 
 ## Round 174 (local agent): the two-car squeeze escalation -- harvest-26 closed
 

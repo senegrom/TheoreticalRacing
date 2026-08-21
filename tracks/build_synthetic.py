@@ -12,7 +12,7 @@ Closed patterns (cog) are cut at a start/finish point into two open borders with
 tiny S/F gap, like the F1 circuits.
 
 Usage: build_synthetic.py <pattern> <output.track> <name> <gridX> <gridY> [width]
-  pattern: serpentine | spiral | cog
+  pattern: serpentine | spiral | cog | random (seed=N for a new circuit)
 """
 
 import math
@@ -113,11 +113,138 @@ def gen_slalom(waves=3, length=230.0, amp=24.0, step=6.0):
     return c, False
 
 
+
+def gen_random(seed=1, npts=12, box=240.0, disp=0.55, minr=17.0, step=6.0, passes=8):
+    """A MEANINGFUL random closed circuit, not a noisy corridor: sample points,
+    take their convex hull (a plausible outer loop), pull each edge midpoint a
+    random fraction toward the centroid (real corners, chicanes and straights of
+    varying length), then Chaikin-smooth until every discrete turn radius clears
+    minr -- the same radius-above-half-width invariant the designed patterns
+    guarantee, so the inner offset border never pinches. Uniformly resampled;
+    candidate loops whose centerline self-intersects or whose non-adjacent
+    sections pass closer than 2*minr (a neck the offset borders would merge
+    across) are rejected and the next derived seed is tried. Deterministic per
+    seed: the track-seed is a second fuzzing axis alongside the start-grid seed.
+    Pass minr >= width/2 + 3 for the chosen width."""
+    import random
+
+    def hull(ps):
+        ps = sorted(set(ps))
+        def half(seq):
+            h = []
+            for q in seq:
+                while len(h) >= 2 and ((h[-1][0]-h[-2][0])*(q[1]-h[-2][1])
+                                       - (h[-1][1]-h[-2][1])*(q[0]-h[-2][0])) <= 0:
+                    h.pop()
+                h.append(q)
+            return h
+        lo, hi = half(ps), half(reversed(ps))
+        return lo[:-1] + hi[:-1]
+
+    def circumradius(a, b, c):
+        area2 = abs((b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]))
+        if area2 < 1e-9:
+            return float('inf')
+        return (math.hypot(b[0]-a[0], b[1]-a[1]) * math.hypot(c[0]-b[0], c[1]-b[1])
+                * math.hypot(a[0]-c[0], a[1]-c[1])) / (2.0 * area2)
+
+    def chaikin(loop):
+        out = []
+        m = len(loop)
+        for i in range(m):
+            a, b = loop[i], loop[(i+1) % m]
+            out.append((0.75*a[0]+0.25*b[0], 0.75*a[1]+0.25*b[1]))
+            out.append((0.25*a[0]+0.75*b[0], 0.25*a[1]+0.75*b[1]))
+        return out
+
+    def resample(loop, d):
+        pts = []
+        m = len(loop)
+        carry = 0.0
+        for i in range(m):
+            a, b = loop[i], loop[(i+1) % m]
+            seg = math.hypot(b[0]-a[0], b[1]-a[1])
+            pos = carry
+            while pos < seg:
+                f = pos / seg
+                pts.append((a[0]+f*(b[0]-a[0]), a[1]+f*(b[1]-a[1])))
+                pos += d
+            carry = pos - seg
+        return pts
+
+    def seg_intersect(p1, p2, p3, p4):
+        def cr(o, a, b):
+            return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
+        d1, d2 = cr(p3, p4, p1), cr(p3, p4, p2)
+        d3, d4 = cr(p1, p2, p3), cr(p1, p2, p4)
+        return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
+
+    for attempt in range(64):
+        rng = random.Random(seed * 1000 + attempt)
+        pts = [(rng.uniform(0, box), rng.uniform(0, box)) for _ in range(npts)]
+        h = hull(pts)
+        if len(h) < 5:
+            continue
+        cx = sum(q[0] for q in h) / len(h)
+        cy = sum(q[1] for q in h) / len(h)
+        loop = []
+        for i in range(len(h)):
+            a, b = h[i], h[(i+1) % len(h)]
+            loop.append(a)
+            mx, my = (a[0]+b[0])/2.0, (a[1]+b[1])/2.0
+            f = rng.uniform(0.0, disp)
+            loop.append((mx + f*(cx-mx), my + f*(cy-my)))
+        # Measure curvature on a step-spaced RESAMPLE each pass: raw Chaikin
+        # points sit sub-unit apart, where the discrete circumradius of
+        # near-collinear triples reads huge regardless of the curve's true
+        # radius -- checking them directly accepts arbitrarily sharp elbows.
+        c = None
+        for _ in range(passes):
+            loop = chaikin(loop)
+            rc = resample(loop, step)
+            m = len(rc)
+            if m >= 24 and min(circumradius(rc[(i-1) % m], rc[i], rc[(i+1) % m])
+                               for i in range(m)) >= minr:
+                c = rc
+                break
+        if c is None:
+            continue
+        m = len(c)
+        bad = False
+        for i in range(m):
+            for j in range(i+1, m):
+                if abs(i-j) <= 3 or (i == 0 and j >= m-3):
+                    continue
+                if seg_intersect(c[i], c[(i+1) % m], c[j], c[(j+1) % m]):
+                    bad = True
+                    break
+                dx = c[i][0]-c[j][0]
+                dy = c[i][1]-c[j][1]
+                # Neck bound: offset borders (w/2 ~ minr-3 each side) merge
+                # when non-adjacent centerline sections pass closer than about
+                # the corridor width; 1.8*minr leaves legitimate hairpins
+                # (diametric distance 2*minr at the tightest radius) alone.
+                # The index guard skips everything within a half-circle's arc
+                # at the minimum radius, so a U-turn never tests against its
+                # own far side.
+                guard = max(6, int(3.5 * minr / step))
+                if abs(i-j) > guard and m-abs(i-j) > guard and dx*dx+dy*dy < (1.8*minr)**2:
+                    bad = True
+                    break
+            if bad:
+                break
+        if bad:
+            continue
+        return c, True
+    raise SystemExit(f"gen_random: no valid loop after 64 attempts (seed {seed})")
+
+
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
     'slalom': gen_slalom,
     'cog': gen_cog,
+    'random': gen_random,
 }
 
 
