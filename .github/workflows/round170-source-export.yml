@@ -1,0 +1,50 @@
+name: Round 170 current-master source export
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-170-source-export
+    paths:
+      - .github/workflows/round170-source-export.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify and package exact master
+        shell: bash
+        run: |
+          git fetch origin master
+          git checkout --detach 594bb51d0311509e1757e99ac19862ce25c941a9
+          test "$(git rev-parse HEAD)" = '594bb51d0311509e1757e99ac19862ce25c941a9'
+          git archive --format=tar.gz --output=theoretical-racing-master-594bb51.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round170-current-master-source
+          path: theoretical-racing-master-594bb51.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record export run
+        shell: bash
+        run: |
+          git checkout agent/ai-racing-speed-170-source-export
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round170-export-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'master_sha': '594bb51d0311509e1757e99ac19862ce25c941a9',
+              'state': 'complete',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round170-export-status.json
+          git commit -m 'Round 170: record source export' || exit 0
+          git push
