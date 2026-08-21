@@ -169,6 +169,25 @@ oracle-certified structural approach is the answer; walks and world
 matrices for all specimens are in this scratchpad's harvest27 logs.
 
 
+## Harvest 29 (geometry axis) census + the rand5 lesson
+
+First geometry harvest (rand1-6 mixed s1-50): rand2 = 2 crashes,
+rand3 = 4/50 (8%, funnel-class density on a two-day-old track!),
+rand1/4/6 clean. rand5 exposed TWO infrastructure facts: its original
+seed-3 geometry was a degenerate DART (S/F cut let cars finish in ~14
+turns without lapping -- the build_synthetic warning made real), and
+mixed grid-seed 4 on it produced a NEVER-FINISHING race: auto mode has
+NO turn cap, so a pathological track+grid combination hangs solo runs
+and OOM-kills batches (the harvest lost rand5 s4-50 that way). rand5
+regenerated from track-seed 7 and validated full-length (canon 3 +
+mixed 10, no hangs); the old reproducer lives in git history at
+7a99bcf for whoever adds an auto-mode turn cap (a harness-robustness
+fix worth doing). LESSON for the axis: every generated track needs a
+behavioral validation pass (races full-length under a timeout) before
+joining a harvest -- geometry checks alone cannot prove S/F sanity.
+rand2/rand3 specimens under forensics next.
+
+
 ## Round 174 (local agent): the two-car squeeze escalation -- harvest-26 closed
 
 Lemans s216 (the last open harvest-26 AI1 class) is a slow TWO-car
