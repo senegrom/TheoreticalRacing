@@ -26,9 +26,16 @@ families the shipped arms do not cover:
   own rate study: vmax accel + train + scorer-8-alive-but-thread>=5 =>
   robust slower-switch. Otherwise this family belongs to the
   oracle-certified brake line.
-- lemans s314: an s216-SIBLING at the same top-corner site ((27,11),
-  fatal NW to (30,9)) with a different approach velocity (v(4,-1)) --
-  the r174 squeeze arm does not cover its route; unwalked.
+- lemans s314: an s216-SIBLING at the same top-corner site, WALKED:
+  last-avoidable m89 (12,21) v(3,-4), taken E dies @r4, braking
+  survives (t=50). OPPOSITE world polarity to s216-m81: scorer-5/8 at
+  the certification cap ALIVE, true-4-cap6 DEAD (s216-m81 was
+  cert-scorer-dead / true-alive). Signature thread=2 snug=2 tier=2 at
+  scorer-5 -- the legSlow shape, again below the >=3 pack gate. The
+  unified round-175 question: two-car squeezes need an arm below the
+  pack gates whose confirm covers BOTH polarities (an either-world
+  kill needs its own false-kill rate study; the conjunction provably
+  under-kills one sibling each way).
 - lemans s394/s397: bottom-corner family sightings (open pile).
 - silverstone s367: NEW site, p6 fatal NE at (94,100)->(94,108) (fast
   vertical straight-end); unwalked.
