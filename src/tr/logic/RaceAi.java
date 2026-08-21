@@ -1300,12 +1300,29 @@ final class RaceAi {
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true, false, AI1_SCORER_MAXRIVALS,
 									null, null, smokeThread) < 0;
+					// Round 162: a slow landing with a rival at Chebyshev 2 whose
+					// cheap worlds read alive is the two-car squeeze tell; the
+					// cap-3 world is blind (the constraining bodies rank beyond
+					// nearest-3), so one extra check runs the certification cap.
+					// Armed from EITHER route: a run smoke carrying the threaded-
+					// and-snug audit, or the dense-pack path (lemans-s216 m81/m89
+					// route there in the bunched early field, where the cap-3 ESC
+					// keeps the doomed line). Single-world kill: true-4 reads the
+					// m81 sibling alive, so a conjunction would under-kill.
+					boolean squeezeRisk = false;
+					if (!smokeDies && !game.crossesFinish(pos[0], pos[1], scx, scy)
+							&& countRivalsWithinCheb(scx, scy, playerNum, 2) >= 1
+							&& (denseSlowPack || smokeRequired && smokeThread[0] >= 1
+									&& smokeThread[1] >= 2))
+						squeezeRisk = simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
+								true, true, true, true, false, AI1_DEEP_CERT_RIVALS,
+								null, null, null) < 0;
 					if (AI_DEBUG_DJS && smokeRequired && (smokeThread[0] > 0 || smokeThread[1] > 1))
 						System.err.println("AIDBG SMOKETHREAD p=" + playerNum + " pos=(" + pos[0]
 								+ "," + pos[1] + ") chosen=" + chosen + " dies=" + smokeDies
 								+ " thread=" + smokeThread[0] + " snug=" + smokeThread[1] + "/"
 								+ (AI1_DJS_SLOW_ROUNDS - 1));
-					if (denseSlowPack || smokeDies || funnelRisk) {
+					if (denseSlowPack || smokeDies || funnelRisk || squeezeRisk) {
 						if (AI_DEBUG_DJS) {
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
 									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack"
@@ -1322,7 +1339,8 @@ final class RaceAi {
 						}
 						chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
 								true, funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS,
-								funnelRisk ? AI1_DEEP_CERT_RIVALS : AI1_SCORER_MAXRIVALS, true,
+								funnelRisk || squeezeRisk ? AI1_DEEP_CERT_RIVALS
+									: AI1_SCORER_MAXRIVALS, true,
 								false, true, false, false);
 					}
 				}

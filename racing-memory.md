@@ -5,6 +5,44 @@ Written 2026-07-21 at the end of the round-40 session (session id
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
+## Round 174 (local agent): the two-car squeeze escalation -- harvest-26 closed
+
+Lemans s216 (the last open harvest-26 AI1 class) is a slow TWO-car
+squeeze the framework structurally excluded three ways: (1) the fire is
+trap-0 slow, and the r108 smoke gate needs >= 2 rivals within Chebyshev
+3 (profiled on kills with >= 4) -- a two-car train never qualifies;
+(2) in the bunched early field the fire routes through the dense-pack
+ESC instead, whose cap-3 world reads the doomed line ALIVE (the
+constraining bodies rank beyond the nearest-3 set: scorer-5 cap 3
+alive, certification cap DEAD); (3) even the true-4 confirm reads the
+m81 sibling alive, so any conjunction under-kills. Oracle: m89 (19,15)
+v(3,-3) taken S dies @r3 with a one-unit-slower survivor; m81 taken W
+dies @r4 (both averted by the fix, verified move-by-move in debug).
+
+The fix, armed from EITHER route: a slow landing with a rival within
+Chebyshev 2 whose smoke comes back alive-but-threaded (thread >= 1 &&
+snug >= 2, audit already collected), OR the dense-pack route directly
+(no smoke data there), pays ONE certification-cap scorer-5 check; a
+kill escalates exactly like funnelRisk -- the cert-cap world sees the
+death, so the standard verdict + r161-certified ladder switch runs
+unchanged. A smokeNear widening (admit every Cheb-2 slow fire to the
+smoke) was tried and REVERTED measured: ~+30% wall on train-heavy
+mixed lemans, and unnecessary -- the specimen commitments route
+through the dense path. No tier axis (drifts 2->3 between rounds 4
+and 5 at m89 -- the r128 lesson holds).
+
+Gate (re-run on the r169/171 master): s216 rescued; s252 +
+serpentine2 s6/s35/s40 stay clean; fresh lemans mixed sweep s201-300 =
+2 crashes, BOTH the open bottom-corner family (s264, plus NEW SIGHTING
+s220 which drifted into that site on the current master BEFORE this
+round -- byte-identical with and without it; the family fix absorbs
+both); 16 pins PASS incl. golden and the new upstream private-slack
+pin. Wall: dual-order lemans/monaco mixed inconclusive under the
+restarted agents' ambient load (single-run swings +-30%; symmetric
+averages +4-8%); structurally the arm pays one cert-cap scorer-5 per
+dense-route Chebyshev-2 slow fire and zero elsewhere (probe: 0
+signature fires on five canon tracks).
+
 
 ## Round 169 promoted: bounded exact-private score slack
 
