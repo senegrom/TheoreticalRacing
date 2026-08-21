@@ -280,7 +280,7 @@ final class RaceAi {
 	 *  map takes over. */
 	private final static int		AI1_DEEP_LOOKAHEAD	= 2;
 
-	/** AI1 frontier only: soft price for landing, at the second explicit search
+	/** Shared champion frontier: soft price for landing, at the second explicit search
 	 *  ply (stepIdx 1), on a round-2-simulated body -- applied in OPEN RUNNING
 	 *  only (v4): with any rival within squared distance 36 of my current cell
 	 *  the price is disabled for the move (occupancy2 = null), because a
@@ -345,9 +345,10 @@ final class RaceAi {
 	private final static int		AI1_FIELD_ACCEL_MIN_AHEAD	= 2;	// require a real forward pack
 	private final static int		AI1_FIELD_ACCEL_MAX_AHEAD	= 5;	// bounded proof excludes full-tail six-ahead cases
 	private final static int		AI1_FIELD_ACCEL_MAX_TTF	= 90;	// keep the 8-round proof in the medium-range race phase
-	private final static int		AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN	= 9;	// round 115 frontier: moderate acceleration floor for AI1 only
+	private final static int		AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN	= 9;	// round 115 frontier: moderate acceleration floor
 	private final static int		AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF	= 45;	// round 115: short-range boundary for speed2 gains 9..15
 	private final static int		AI1_FIELD_ACCEL_SIX_AHEAD_ROUNDS	= 8;	// round 117: synchronized six-ahead formations retain the established proof depth
+	private final static int		AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2	= 49;	// round 175: cross the high-speed threshold with a bounded gain
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
@@ -405,7 +406,7 @@ final class RaceAi {
 					return sd;
 			}
 		}
-		// Endgame solver (round 43, lever 5, AI1 only): 1v1 exact paranoid
+		// Endgame solver (round 43, lever 5, shared champion): 1v1 exact paranoid
 		// minimax near the finish. Acts ONLY on proven wins (I finish first or
 		// the rival is forced to crash under its best defense) -- the deep
 		// generalization of the 1-ply seal above; unproven values fall through
@@ -1300,7 +1301,7 @@ final class RaceAi {
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true, false, AI1_SCORER_MAXRIVALS,
 									null, null, smokeThread) < 0;
-					// Round 162: a slow landing with a rival at Chebyshev 2 whose
+					// Round 174: a slow landing with a rival at Chebyshev 2 whose
 					// cheap worlds read alive is the two-car squeeze tell; the
 					// cap-3 world is blind (the constraining bodies rank beyond
 					// nearest-3), so one extra check runs the certification cap.
@@ -1324,15 +1325,17 @@ final class RaceAi {
 								+ (AI1_DJS_SLOW_ROUNDS - 1));
 					if (denseSlowPack || smokeDies || funnelRisk || squeezeRisk) {
 						if (AI_DEBUG_DJS) {
+							final boolean deepCert = funnelRisk || squeezeRisk;
 							System.err.println("AIDBG ESC p=" + playerNum + " pos=(" + pos[0] + ","
 									+ pos[1] + ") chosen=" + chosen + (denseSlowPack ? " dense-pack"
-											: smokeDies ? " scorer-dies" : " funnel-risk")
+											: smokeDies ? " scorer-dies"
+													: funnelRisk ? " funnel-risk" : " squeeze-risk")
 									+ " -> scorer rollout");
 							final int[] eft = { 3 };
 							final int[] etr = { 0, 0 };
 							final int ev = simOutcome(scx, scy, scvx, scvy, playerNum,
 									funnelRisk ? AI1_DEEP_HORIZON : AI1_DJS_SLOW_ROUNDS, true, true,
-									true, true, false, funnelRisk ? AI1_DEEP_CERT_RIVALS
+									true, true, false, deepCert ? AI1_DEEP_CERT_RIVALS
 											: AI1_SCORER_MAXRIVALS, eft, null, etr);
 							System.err.println("AIDBG ESC-AUDIT p=" + playerNum + " v=" + ev
 									+ " tier=" + eft[0] + " thread=" + etr[0] + " snug=" + etr[1]);
@@ -1428,8 +1431,9 @@ final class RaceAi {
 	 * aggregate-field gains. Round 117 admits an exact-six-ahead high-energy
 	 * formation only with an adjacent prior candidate-velocity peer. Round 124
 	 * additionally admits a positive L1/L2 candidate only for the first two
-	 * movers of an AI1 round inside TTF 45; the partial-round counterexamples
-	 * remain excluded. Round 115's moderate zero-trap frontier is unchanged. */
+	 * movers inside TTF 45; the partial-round counterexamples remain excluded.
+	 * Round 175 admits a bounded moderate-gain six-ahead move only when it
+	 * crosses into the high-speed band. */
 	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
 			final int playerNum, final Direction chosen, final double[] trapByDir,
 			final double[] uncByDir, final int[] turnsByDir) {
@@ -1463,6 +1467,7 @@ final class RaceAi {
 		final boolean frontierMover = true;
 		final boolean sixAheadFrontier = frontierMover
 				&& rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD + 1;
+		final boolean sixAheadHighSpeedModerateFrontier = sixAheadFrontier;
 		final boolean earlyRoundTrapFrontier = frontierMover
 				&& game.subgamestate <= 1
 				&& chosenT <= AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF
@@ -1501,17 +1506,25 @@ final class RaceAi {
 					&& chosenSpeed2 < AI1_DJS_SPD2
 					&& chosenT <= AI1_FIELD_ACCEL_FRONTIER_LOW_GAIN_MAX_TTF
 					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN;
+			final boolean sixAheadHighSpeedModerateGain = sixAheadHighSpeedModerateFrontier
+					&& chosen != Direction.NONE
+					&& chosenSpeed2 < AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
+					&& speed2 >= AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
+					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN
+					&& speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN;
 			if (speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
-					&& !frontierModerateGain)
+					&& !frontierModerateGain && !sixAheadHighSpeedModerateGain)
 				continue;
-			// The new six-ahead class is the established high-energy arm only;
-			// Round 115's moderate 9..15 frontier remains capped at five ahead.
-			if (sixAheadFrontier && speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN)
+			// Six-ahead moderate acceleration is limited to Round 175's bounded
+			// transition into the high-speed band; the broad class stays excluded.
+			if (sixAheadFrontier && speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
+					&& !sixAheadHighSpeedModerateGain)
 				continue;
 			if (turns <= AI1_FINISH_EXTENDED_TTF && speed2 < AI1_DJS_SPD2)
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-			if (sixAheadFrontier && !hasAdjacentPriorCandidateVelocityPeer(
+			if (sixAheadFrontier && !sixAheadHighSpeedModerateGain
+					&& !hasAdjacentPriorCandidateVelocityPeer(
 					nx, ny, nvx, nvy, playerNum))
 				continue;
 			final int candidateInf = Math.max(Math.abs(nvx), Math.abs(nvy));
@@ -1946,7 +1959,7 @@ final class RaceAi {
 		return count;
 	}
 
-	/** AI1 frontier only (queueBox v3 long-range trigger): count STALLED
+	/** Shared champion frontier (queueBox v3 long-range trigger): count STALLED
 	 *  rivals (|v| <= 2.5, the {@link #countStalledRivalsAhead} threshold)
 	 *  at-or-ahead of (x,y) in track progress within {@code reachCells}
 	 *  euclidean cells -- my stopping distance, so unlike the near trigger
@@ -2414,7 +2427,7 @@ final class RaceAi {
 		return count;
 	}
 
-	/** Round 51 (AI1 only): MY move inside the joint rollout. The real me is the
+	/** Round 51 (shared champion): MY move inside the joint rollout. The real me is the
 	 *  full scorer, whose trap ladder refuses landings with <= 2 safe
 	 *  successors -- so a greedy sim-self drives into boxes the real me would
 	 *  never enter and simOutcome reports a FALSE death ("zandvoort s7 is
@@ -2607,7 +2620,7 @@ final class RaceAi {
 	 *  me this round). Returns my turnsToFinish after {@code rounds} full
 	 *  rounds, or -1 if I end up boxed (no legal alive move at one of my
 	 *  slots). No mutation of live players[] -- deterministic, cannot
-	 *  livelock. AI1 only (round 40 danger joint search). */
+	 *  livelock. Shared champion logic (round 40 danger joint search). */
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals) {
@@ -2890,7 +2903,7 @@ final class RaceAi {
 		return myFinished ? 0 : reach.turnsToFinish(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
 	}
 
-	/** Danger joint search (round 40, AI1 only): if the chosen landing DIES in
+	/** Danger joint search (round 40, shared champion): if the chosen landing DIES in
 	 *  the joint rollout, switch to the surviving candidate with the best
 	 *  sim-final turnsToFinish; keep the chosen move in every other case. */
 	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
@@ -3255,14 +3268,13 @@ final class RaceAi {
 	}
 
 	/**
-	 * AI2 (CHAMPION MIRROR): Round 129 promotes the measured Round 115/117/124
-	 * field-acceleration frontier and Round 126's homogeneous false-target veto
-	 * to both smart driver kinds. The scorer remains one body by delegation.
-	 * The Round-128 fast finish-funnel confirm is promoted too (user-ordered,
-	 * after the harvest-24/25 block orderings showed the identical races crash
-	 * exactly when the doomed slot lacks the leg). No kind-gated arms remain.
-	 * Future frontier work must keep this delegation and the promoted gates
-	 * fixed until the next independently measured promotion.
+	 * AI2 (CHAMPION MIRROR): Round 129 established one scorer body by delegation
+	 * after promoting the measured Round 115/117/124 field-acceleration frontier
+	 * and Round 126's homogeneous false-target veto. Later promoted gates remain
+	 * in that shared body, including Round 169's exact-private slack, Round 174's
+	 * squeeze check and Round 175's bounded high-speed six-ahead acceleration.
+	 * No kind-gated arms remain. Future experiments must explicitly gate AI1
+	 * until their own independently measured promotion.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		return optimalMoveAI1(pos, vel, playerNum);
@@ -3563,7 +3575,7 @@ final class RaceAi {
 	private java.util.HashMap<Long, Boolean>	egMemo;
 	private int									egNodes;
 
-	/** Lever 5 (round 43, AI1 only): 1v1 exact endgame solver. When the sole
+	/** Lever 5 (round 43, shared champion): 1v1 exact endgame solver. When the sole
 	 *  live rival and I are both within {@link #AI1_EG_ETA} turns of the
 	 *  finish, run a boolean paranoid minimax over the joint state (strict
 	 *  me/rival alternation -- exact for two live movers regardless of index

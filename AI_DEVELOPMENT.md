@@ -6,6 +6,61 @@ until they clear the exact differential, while AI2 supplies the unchanged
 comparison control. Promotion removes that kind gate so both smart driver kinds
 receive the same certified winner.
 
+## Round 175 promoted: bounded high-speed six-ahead acceleration
+
+Round 175 adds one narrow frontier to `guardedFieldPaceOverride`. With exactly
+six rivals ahead, a non-coasting incumbent below speed-squared 49 may yield to
+an alternative at or above 49 only when the gain is 9-15 and the reachability
+estimate improves by exactly one turn. The existing homogeneous-roster,
+zero-trap, zero-uncertainty, finish-phase, funnel and seal gates remain
+authoritative. The established eight-round, six-rival scorer world must also
+prove strict improvement for both the mover and aggregate field cost.
+
+At Spa seed 83, global move 201 changes player 1 from `N`, landing at
+`(102,132)` with velocity `(1,6)`, to `W`, landing at `(101,133)` with velocity
+`(0,7)`. The reachability estimate improves 56 to 55 and the scorer comparison
+improves mover cost 51 to 50 and field cost 340 to 338. Both races retain the
+same seven finisher identities and order (`p3,p4,p5,p6,p7,p8,p1`) with zero
+crashes. Players 8 and 1 each finish in one fewer move, no finisher is slower,
+and the nonfinishing player 2 also logs one fewer move. This is a strict
+per-driver pace gain, not a claim of an earlier finishing round or a global
+average improvement.
+
+The rejected broad six-ahead arm exposed the separating boundaries. Spa s27
+reached speed-squared 146 with a gain of 49 and redistributed the order while
+slowing one driver; Spa s57 gained 14 but reached only speed-squared 40 and
+changed finisher identity/order. Requiring a candidate at or above 49 with a
+gain of 9-15 retains Spa s83 (49, gain 12) while excluding both. Permanent
+fixtures also pin Spa s12/s31/s40/s47, Coil s5/s22 and Silverstone s78 to their
+complete champion trajectories.
+
+Before mirroring, frozen candidate `7C446F1D...` was compared move-for-move
+against the champion on 1,420 unique races across 20 tracks. Of those, 1,419
+complete normalized logs were exact and Spa s83 was the sole divergence. Every
+race retained seven finishers and zero crashes; the changed race had no slower
+driver, redistribution, identity change or safety regression. The mirrored
+`255C5234...` build passes Java/core/UI tests, all 13 goldens, tooling and all
+17 permanent AI regression pins.
+
+The external promotion gate compared frozen pre-Round-175 champion
+`3C4C4CCE...` with frozen mirrored final `255C5234...`, all-AI2, across all 22
+default tracks at seeds 1-150 plus all four slow tracks at seeds 1-50. Of 3,500
+complete behavior logs, 3,499 are exact and Spa s83 is the sole divergence,
+with the strict per-driver result above. A separate post-mirror differential
+matched AI1 and AI2 on 350/350 default/slow races. Twenty-six mixed-field
+baseline/final comparisons preserved both grid orderings of the known
+Round-174 and Harvest-27 safety controls exactly; another 18 did the same for
+all nine new Harvest-28 specimens. Round 175 is therefore
+mirrored into the shared champion body.
+
+A final alternating runtime sanity check used two balanced warmup pairs and 16
+timed pairs each for Spa s83 and exact-control Spa s31. Child-process CPU is the
+primary signal because an unrelated Harvest-29 job remained active. The
+12.5%-trimmed paired final/baseline ratios were 1.0249 at the changed target and
+1.0086 at the exact control; every control aggregate/order stratum stayed below
+1.016. Wall time was order-sensitive under contention. This establishes no
+repeatable 5% control regression, not a computation-speed improvement.
+
 ## Round 169 promoted: bounded exact-private score slack
 
 Round 169 permits both mirrored smart-driver kinds to take one separately

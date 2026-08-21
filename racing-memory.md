@@ -4,7 +4,91 @@ Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
-(auto-memory, ~2000 lines, every round's laws and rejections).## Harvest 27 census (local agent): fresh seeds resample the model-boundary frontier
+(auto-memory, ~2000 lines, every round's laws and rejections).
+
+## Round 175 promoted: high-speed moderate six-ahead pace
+
+TARGET: Spa s83 m201, p1 at `(101,126)` with `v(1,7)`. The incumbent
+`N` lands at `(102,132) v(1,6)` (speed2 37); the candidate `W` lands at
+`(101,133) v(0,7)` (speed2 49). It is exactly one TTF faster (56->55),
+six rivals are ahead with progress 40, and the eight-round scorer improves
+self 51->50 and field 340->338. The complete race keeps finisher order
+`p3,p4,p5,p6,p7,p8,p1` with zero crashes. Players 8 and 1 each take one
+fewer finisher move, no driver is slower, and nonfinisher p2 also logs one
+fewer move.
+
+SEPARATOR: the historical broad exception also fired Spa s27 at candidate
+speed2 146 / gain 49, causing order redistribution and a one-move slowdown,
+and Spa s57 at speed2 40 / gain 14, causing a finisher swap and order
+regression. Candidate speed2 >= 49 together with gain 9..15 is the clean
+separator; s83 is 49/+12. Prior candidate-velocity peers, seal and funnel do
+not separate these specimens: all three have zero qualifying prior peers, are
+unsealable and are outside funnel risk.
+
+POLICY: exactly six rivals ahead; incumbent non-`NONE` below speed2 49;
+candidate at or above 49 with gain 9..15 and one lower TTF. All established
+homogeneous-roster, zero-trap/uncertainty, finish, funnel, seal and strict
+self/field scorer conditions remain. Pre-mirror experiments gate AI1; a
+promotion mirrors the exact rule through the shared scorer body. The kind gate
+was removed after the differential passed, so both smart-driver kinds now use
+the same bounded arm.
+
+EVIDENCE SO FAR: frozen pre-mirror JAR `7C446F1D...` covered 1,420 unique
+races across 20 tracks: 1,419 complete normalized logs exact plus sole strict
+Spa s83. All races had seven finishers/zero crashes; there was no slower,
+redistribution, identity or safety case. Mirrored JAR `255C5234...` passes
+Java/core/UI, 13 goldens, tooling and all 17 permanent AI pins. FINAL STATUS:
+PROMOTED. Frozen baseline `3C4C4CCE...` versus mirrored final `255C5234...`,
+all-AI2, covered the full 22 default x s1-150 plus four slow x s1-50 corpus:
+3,499/3,500 complete behavior logs exact, sole divergence Spa s83 strict as
+above. Post-mirror AI1/AI2 identity was 350/350 exact. Twenty-six mixed 4v4
+baseline/final pairs covering the Round-174/Harvest-27 high-seed controls in
+both grid orders were exact; 18 more covered all nine Harvest-28 specimens in
+both grid orders, also exactly.
+
+RUNTIME SANITY: two balanced warmup pairs plus 16 alternating timed pairs at
+Spa s83 and exact-control s31. Process-CPU trimmed paired final/baseline ratios
+were 1.0249 target and 1.0086 control; all control aggregate/order strata were
+below 1.016. Wall was contention-sensitive with Harvest29 active. Claim only
+no repeatable 5% control regression, not a compute-speed win.
+
+## Harvest 28 census (local agent): the frontier holds steady
+
+Mixed s401-500, 22 tracks, on the pre-Round175 Round174 champion: 9/2200
+(0.4%, same as h27), ALL of it the established model-boundary structural
+family -- serpentine2 hairpin x4 (s408/s424/s431 byte-similar at the
+(120,117) s35-site, s418 at the s40-site), lemans bottom-corner x2
+(s420/s495), zandvoort deep-corridor (s456 at the s223 region), plus two new
+tracks joining the same morphology: interlagos s412 ((13,26) braking doom,
+left edge) and silverstone s454 (second sighting). No new confirm-fixable
+classes; every arm shipped through Round174 again shows zero recurrences. The
+steady-state residual is uniformly the oracle-only joint-rollout family.
+
+
+## Random circuits (local agent): the geometry fuzzing axis
+
+build_synthetic.py gains `random` (user-prompted): sample points, convex hull,
+random inward midpoint displacement (real corners, chicanes, straights of
+varying length), Chaikin-smooth until every discrete turn radius clears minr
+(measured on a step-spaced RESAMPLE each pass -- raw Chaikin points sit
+sub-unit apart where discrete circumradius reads huge on near-collinear
+triples and silently accepts arbitrarily sharp elbows; that measurement bug
+was the whole initial acceptance failure), uniform resample, reject on
+centerline self-intersection or necks closer than 1.8*minr with an arc-aware
+index guard (a hairpin's own far side sits at diametric distance 2*minr and
+must not self-reject). Deterministic per track-seed; grid-seed remains the
+traffic axis. Usage:
+  build_synthetic.py random tracks/randN.track RandN 150 150 12 seed=N minr=8
+
+rand1-rand6 were committed and first evaluated on the pre-Round175 Round174
+champion (corridors 6.7-9.8 cells, one naturally short loop). All six race
+clean full grids -- and rand3 produced a crash specimen within its first three
+seeds (s1 m484, p8 W at (144,117) -> (148,114)): novel geometry surfaces novel
+dooms immediately, which is the point. Seeds randomize traffic on fixed sites;
+random tracks randomize the SITES. This is a separate fuzzing axis, not
+Round175 promotion evidence.
+
+## Harvest 27 census (local agent): fresh seeds resample the model-boundary frontier
 
 Mixed s301-400, all 22 tracks, on the round-174 champion: 9 crashes /
 2200 (0.4%). NOT a regression -- a pre-169 bisect build reproduces the
@@ -32,7 +116,7 @@ families the shipped arms do not cover:
   the certification cap ALIVE, true-4-cap6 DEAD (s216-m81 was
   cert-scorer-dead / true-alive). Signature thread=2 snug=2 tier=2 at
   scorer-5 -- the legSlow shape, again below the >=3 pack gate. The
-  unified round-175 question: two-car squeezes need an arm below the
+  unified Harvest-27 safety question: two-car squeezes need an arm below the
   pack gates whose confirm covers BOTH polarities (an either-world
   kill needs its own false-kill rate study; the conjunction provably
   under-kills one sibling each way).
@@ -40,48 +124,14 @@ families the shipped arms do not cover:
 - silverstone s367: NEW site, p6 fatal NE at (94,100)->(94,108) (fast
   vertical straight-end); unwalked.
 
-Standing surface after rounds 128-174: every fixed class HOLDS on
+Standing crash/safety surface after rounds 128-174: every fixed class HOLDS on
 fresh seeds (funnel 0, vmax-accel commitments 0 where the deep world
-sees them, squeeze 0); the open frontier is now clearly ONE thing --
+sees them, squeeze 0); the open crash/safety frontier is now clearly ONE thing --
 joint-rollout model-boundary dooms at structural sites (serpentine2
 hairpin, lemans corners, silverstone straight-end), where every
 in-engine world diverges from the oracle before the seal. The
 oracle-certified structural approach is the answer; walks and world
 matrices for all specimens are in this scratchpad's harvest27 logs.
-## Harvest 28 census (local agent): the frontier holds steady
-
-Mixed s401-500, 22 tracks: 9/2200 (0.4%, same as h27), ALL of it the
-established model-boundary structural family -- serpentine2 hairpin x4
-(s408/s424/s431 byte-similar at the (120,117) s35-site, s418 at the
-s40-site), lemans bottom-corner x2 (s420/s495), zandvoort deep-corridor
-(s456 at the s223 region), plus two new tracks joining the same
-morphology: interlagos s412 ((13,26) braking doom, left edge) and
-silverstone s454 (second sighting). No new confirm-fixable classes;
-every shipped arm again shows zero recurrences. The steady-state
-residual is uniformly the oracle-only joint-rollout family.
-
-
-## Random circuits (local agent): the geometry fuzzing axis
-
-build_synthetic.py gains `random` (user-prompted): sample points, convex
-hull, random inward midpoint displacement (real corners, chicanes,
-straights of varying length), Chaikin-smooth until every discrete turn
-radius clears minr (measured on a step-spaced RESAMPLE each pass -- raw
-Chaikin points sit sub-unit apart where discrete circumradius reads huge
-on near-collinear triples and silently accepts arbitrarily sharp elbows;
-that measurement bug was the whole initial acceptance failure), uniform
-resample, reject on centerline self-intersection or necks closer than
-1.8*minr with an arc-aware index guard (a hairpin's own far side sits at
-diametric distance 2*minr and must not self-reject). Deterministic per
-track-seed; grid-seed remains the traffic axis. Usage:
-  build_synthetic.py random tracks/randN.track RandN 150 150 12 seed=N minr=8
-
-rand1-rand6 committed (corridors 6.7-9.8 cells, one naturally short
-loop). All six race clean full grids -- and rand3 produced a crash
-specimen within its first three seeds (s1 m484, p8 W at (144,117) ->
-(148,114)): novel geometry surfaces novel dooms immediately, which is
-the point. Seeds randomize traffic on fixed sites; random tracks
-randomize the SITES.
 
 
 ## Round 174 (local agent): the two-car squeeze escalation -- harvest-26 closed
