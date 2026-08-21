@@ -1,0 +1,106 @@
+name: Round 170 current-master JFR profile
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-170-current-master-profile
+    paths:
+      - .github/workflows/round170-current-master-profile.yml
+
+permissions:
+  contents: write
+
+jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Record profile run id
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round170-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'profiled_master': '594bb51d0311509e1757e99ac19862ce25c941a9',
+              'state': 'started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round170-status.json
+          git commit -m 'Round 170: record profile run' || exit 0
+          git push
+
+  profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { track: sprint, seeds: '1-150' }
+          - { track: monaco, seeds: '1-20' }
+          - { track: zandvoort, seeds: '31-40' }
+          - { track: nurburgring, seeds: '17-19' }
+          - { track: interlagos, seeds: '45-47' }
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build exact current master
+        shell: bash
+        run: |
+          git fetch origin master
+          git checkout --detach 594bb51d0311509e1757e99ac19862ce25c941a9
+          test "$(git rev-parse HEAD)" = '594bb51d0311509e1757e99ac19862ce25c941a9'
+          sh ./run_tests.sh
+          sh ./build_main.sh
+      - name: Record JFR profile
+        shell: bash
+        env:
+          TRACK: ${{ matrix.track }}
+          SEEDS: ${{ matrix.seeds }}
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          lines = []
+          for line in Path('tracks/bench.properties').read_text().splitlines():
+              if re.match(r'^player[1-8]Kind=', line):
+                  line = line.split('=', 1)[0] + '=AI2'
+              lines.append(line)
+          Path('round170.properties').write_text('\n'.join(lines) + '\n')
+          PY
+          mkdir -p round170-cache
+          RACING_REACH_CACHE="$PWD/round170-cache" \
+          java -Djava.awt.headless=true \
+            -XX:StartFlightRecording="filename=round170-${TRACK}.jfr,settings=profile,dumponexit=true" \
+            -jar theoreticRacing.jar --auto --track "$TRACK" \
+            --props round170.properties --log "round170-${TRACK}.log" --seed "$SEEDS"
+          jfr summary "round170-${TRACK}.jfr" > "round170-${TRACK}-summary.txt"
+          jfr view hot-methods "round170-${TRACK}.jfr" > "round170-${TRACK}-hot-methods.txt" || true
+          jfr view allocation-by-site "round170-${TRACK}.jfr" > "round170-${TRACK}-allocations.txt" || true
+          jfr view gc-pauses "round170-${TRACK}.jfr" > "round170-${TRACK}-gc-pauses.txt" || true
+          jfr print --events jdk.ExecutionSample "round170-${TRACK}.jfr" > "round170-${TRACK}-samples.txt"
+          jfr print --events jdk.ObjectAllocationSample "round170-${TRACK}.jfr" > "round170-${TRACK}-allocation-samples.txt" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round170-profile-${{ matrix.track }}
+          path: |
+            round170-${{ matrix.track }}.jfr
+            round170-${{ matrix.track }}-summary.txt
+            round170-${{ matrix.track }}-hot-methods.txt
+            round170-${{ matrix.track }}-allocations.txt
+            round170-${{ matrix.track }}-gc-pauses.txt
+            round170-${{ matrix.track }}-samples.txt
+            round170-${{ matrix.track }}-allocation-samples.txt
+          if-no-files-found: error
+          retention-days: 30
