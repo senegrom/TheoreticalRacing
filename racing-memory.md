@@ -4,7 +4,40 @@ Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
-(auto-memory, ~2000 lines, every round's laws and rejections).
+(auto-memory, ~2000 lines, every round's laws and rejections).## Harvest 30 census (local agent): the hold-overspeed arm gap -- next round candidate
+
+Full geometry set (16 random circuits x mixed s1-50, 800 races): 13
+crashes / 1.6% -- 4x the designed-track steady state, as a fresh-site
+axis should be. rand3's known finish-corner class x4; new-rand5's own
+kind-invariant pair (s40/s47, NE at (11,61)); rand12 x2 leftward
+straight-ends; rand2 s21; and the headline: FOUR crashes on THREE
+different geometries (rand16 s31/s43, rand20 s2, rand2 s13) sharing
+the byte-identical fatal transition N at v(-4,2)->(-4,1) -- a
+cross-track velocity signature.
+
+rand16 s31 walked: the shared signature is only the death throes; the
+commitment is m96 (81,14) v(-10,0), taken NONE (HOLD max-axis 10 down
+the leftward straight) dies @round 7; every one-unit deviation in
+EITHER axis survives to the finish (t=32-34). The s223/s252 hold-
+overspeed morphology -- but UNLIKE those, this one is NOT model-
+boundary: scorer-8-cap6 AND true-6-cap6 both KILL the taken (V=-1,
+thread=2 snug=4). An ARM GAP, not a model gap: the r133 leg requires
+acceleration INTO max-axis >= 11, so a hold at 10 never arms, and no
+other fast leg audits it (ttf 32, no pair, no thread tell at 3
+rounds).
+
+NEXT ROUND CANDIDATE (design banked): the fast hold-overspeed funnel
+check -- !djSlow && max-axis >= 10 (hold or accel) && the round-83
+STATIC funnel signal evaluated over the braking span (distance-map
+narrowing ahead: map-only, cheap, no rollout) => the scorer-8-cap6
+re-verdict, kill => standard ladder. Rate-measure the static-signal
+admission on straights before arming (cruise-at-10 fires are constant
+there; the funnel signal must carry the selectivity). If it measures
+surgical, this arm likely also covers s223/s252-class commitments
+whose deep worlds see the death on their boards, and shrinks the
+model-boundary pile to the truly oracle-only remainder.
+
+
 ## rand3 class walked (local agent): the geometry axis's first doom is model-boundary at the FINISH
 
 The 4/50 rand3 class (byte-identical, both kinds, m483-489): entry
