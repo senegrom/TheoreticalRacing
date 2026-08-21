@@ -34,6 +34,7 @@ public final class CoreTests {
         testEndgameMemoKey();
         testDistinctCoverMatching();
         testDirectBlockedLookup();
+        testCellOccupancyReuse();
         testTrackDistanceOrdering();
         testRaceAiStateIsolation();
         testReachabilityFailurePropagation();
@@ -697,6 +698,31 @@ public final class CoreTests {
                 "blocked-cell outside-grid fallback missed a member");
         check(!RaceAi.blockedContains(cells, 2, direct, width, height, -1, 8),
                 "blocked-cell outside-grid fallback produced a false hit");
+    }
+
+    private static void testCellOccupancyReuse() {
+        final RaceAi.CellOccupancy occupancy = new RaceAi.CellOccupancy(3, 3);
+        for (int x = 0; x < 3; x++)
+            for (int y = 0; y < 3; y++)
+                occupancy.add(x, y);
+        occupancy.remove(0, 0);
+        check(!occupancy.contains(0, 0), "removed projected cell stayed occupied");
+        occupancy.add(0, 0);
+        check(occupancy.contains(0, 0), "re-added projected cell disappeared");
+        occupancy.clear();
+        for (int x = 0; x < 3; x++)
+            for (int y = 0; y < 3; y++)
+                check(!occupancy.contains(x, y), "projected occupancy clear left stale state");
+
+        occupancy.add(1, 1);
+        occupancy.add(1, 1);
+        occupancy.remove(1, 1);
+        check(occupancy.contains(1, 1), "duplicate projected occupancy lost its count");
+        occupancy.remove(1, 1);
+        check(!occupancy.contains(1, 1), "projected occupancy count did not reach zero");
+        occupancy.add(1, 1);
+        occupancy.clear();
+        check(!occupancy.contains(1, 1), "re-added projected cell survived the next clear");
     }
 
     private static void testTrackDistanceOrdering() {

@@ -35,9 +35,12 @@ the frozen `F536762B...` mirrored final, all-AI2, across all 22 default tracks
 at seeds 1-150 plus all four slow tracks at seeds 1-50. Of 3,500 complete
 behavior logs, 3,499 are exact and the sole divergence is the strict
 Hungaroring s12 gain above: no slower driver, redistribution, finisher-identity
-change, or safety regression. A separate post-mirror differential matched
-AI1 and AI2 exactly on 350/350 default/slow races. Java/core/UI tests, all 13
-goldens, tooling, and all 16 permanent AI regression pins pass.
+change, or safety regression. After composing Round 171 and its small-grid
+hardening, the frozen Round-169 `F536762B...` build and integrated `9AA796B...`
+build matched on all 3,500 complete behavior logs. A separate post-mirror
+differential matched AI1 and AI2 exactly on 350/350 default/slow races.
+Java/core/UI tests, all 13 goldens, tooling, and all 16 permanent AI regression
+pins pass.
 
 The pre-mirror runtime check used eight warmups followed by 32 alternating-order
 pairs across Hungaroring seeds 12 and 13 (64 timed executions). Seed 12's
@@ -3492,3 +3495,4 @@ improved driver joining an existing same-move tie. Changed races:
 silverstone seed 93. AI2 remains frozen.
 
 ROUND 171 (direct projected-occupancy maps): exact touched-cell counts replace repeated linear scans of projected opponent positions. The 26-track gate was byte-identical over 3500 races; alternating runtime ratio 0.881500 (11.85% faster).
+Integration hardening records touched-cell membership for the whole clear epoch, preventing remove/re-add cycles from overflowing the touched buffer on supported tiny grids; CoreTests pins a full 3x3 board.

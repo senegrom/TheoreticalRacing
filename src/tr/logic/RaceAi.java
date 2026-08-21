@@ -53,9 +53,10 @@ final class RaceAi {
 	/** Exact touched-cell occupancy counts for one projected board. Counts,
 	 * rather than booleans, preserve duplicate-cell semantics while allowing
 	 * O(1) successor tests and O(1) mover removal/reinsertion. */
-	private static final class CellOccupancy {
+	static final class CellOccupancy {
 		final byte[] counts;
 		final int[] touched;
+		final long[] recorded;	// cells already listed in touched during this clear epoch
 		final int width;
 		final int height;
 		int touchedCount;
@@ -65,11 +66,15 @@ final class RaceAi {
 			this.height = height;
 			counts = new byte[width * height];
 			touched = new int[width * height];
+			recorded = new long[(width * height + 63) >>> 6];
 		}
 
 		void clear() {
-			for (int i = 0; i < touchedCount; i++)
-				counts[touched[i]] = 0;
+			for (int i = 0; i < touchedCount; i++) {
+				final int index = touched[i];
+				counts[index] = 0;
+				recorded[index >>> 6] &= ~(1L << (index & 63));
+			}
 			touchedCount = 0;
 		}
 
@@ -84,8 +89,15 @@ final class RaceAi {
 			if (x < 0 || y < 0 || x >= width || y >= height)
 				return;
 			final int index = x * height + y;
-			if (counts[index]++ == 0)
-				touched[touchedCount++] = index;
+			if (counts[index] == 0) {
+				final int word = index >>> 6;
+				final long mask = 1L << (index & 63);
+				if ((recorded[word] & mask) == 0) {
+					recorded[word] |= mask;
+					touched[touchedCount++] = index;
+				}
+			}
+			counts[index]++;
 		}
 
 		void remove(final int x, final int y) {
@@ -428,7 +440,6 @@ final class RaceAi {
 			if (speedSquared(pv[0], pv[1]) >= AI1_VACATE_SPEED2)
 				predictedSteps[0][p.getNumber() - 1] = null;
 		}
-		final int[][] predicted = predictedSteps[0];
 		for (int step = 0; step < predictedSteps.length; step++)
 			predictionWorkspace.occupancy[step].rebuild(predictedSteps[step]);
 		final CellOccupancy predictedOccupancy = predictionWorkspace.occupancy[0];
@@ -499,7 +510,6 @@ final class RaceAi {
 			// chaser's body is left unpriced (ceding a line two rounds out to
 			// a car behind me trades race position for nothing).
 			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY);
-			final int[][] world = worlds.world1;
 			final byte[] aheadOccupancy = buildAheadOccupancy(worlds.current,
 					reach.distAt(pos[0], pos[1]));
 			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
@@ -1950,9 +1960,9 @@ final class RaceAi {
 		return count;
 	}
 
-	/** {@link #pureMinTurnsMove} against a simulated occupancy instead of the
-	 *  live player positions: used by {@link #simulateRound}. occupied[i] is
-	 *  the current simulated cell of player i+1 (null = ignore). */
+	/** {@link #pureMinTurnsMove} against an exact counted simulated occupancy
+	 *  instead of the live player positions; used by
+	 *  {@link #simulateRoundPass}. */
 	private Direction pureMinTurnsMoveSim(final int[] pos, final int[] vel,
 			final CellOccupancy occupied) {
 		Direction best = null;

@@ -35,9 +35,12 @@ the frozen `F536762B...` mirrored final, all-AI2, across all 22 default tracks
 at seeds 1-150 plus all four slow tracks at seeds 1-50. Of 3,500 complete
 behavior logs, 3,499 are exact and the sole divergence is the strict
 Hungaroring s12 gain above: no slower driver, redistribution, finisher-identity
-change, or safety regression. A separate post-mirror differential matched
-AI1 and AI2 exactly on 350/350 default/slow races. Java/core/UI tests, all 13
-goldens, tooling, and all 16 permanent AI regression pins pass.
+change, or safety regression. After composing Round 171 and its small-grid
+hardening, the frozen Round-169 `F536762B...` build and integrated `9AA796B...`
+build matched on all 3,500 complete behavior logs. A separate post-mirror
+differential matched AI1 and AI2 exactly on 350/350 default/slow races.
+Java/core/UI tests, all 13 goldens, tooling, and all 16 permanent AI regression
+pins pass.
 
 The pre-mirror runtime check used eight warmups followed by 32 alternating-order
 pairs across Hungaroring seeds 12 and 13 (64 timed executions). Seed 12's
@@ -610,6 +613,9 @@ projected player rows inside recursive successor scoring and two-round
 simulation. Round 171 replaces those scans with exact touched-cell count maps.
 Counts retain duplicate-cell semantics, while mover removal and reinsertion
 keep the changing simulated board exact without clearing the whole grid.
+Per-clear membership bits ensure that removing and re-adding a cell cannot
+append its touched index twice; a 3x3 full-grid regression pins the supported
+small-grid boundary.
 
 The promotion gate compared 3,500 paired races across all 26 tracks and found
 zero byte differences. Seven-pair alternating timing measured an aggregate
