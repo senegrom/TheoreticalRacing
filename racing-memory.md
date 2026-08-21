@@ -6,6 +6,41 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 176 promoted: faithful-rival finish-sprint confirmation
+
+TARGET: Rand3 s1 m448, p8 at `(109,130)` with `v(9,0)`. The Round-75
+sprint override takes map-faster `N` to `(118,129) v(9,-1)`; its two proxy
+worlds finish, but faithful rivals occupy the only continuation and p8 crashes
+after 61 logged moves. The incumbent `NW` lands at `(117,129) v(8,-1)` and
+finishes in 62 moves.
+
+POLICY: after both existing finish certificates pass, confirm only a live-rival
+candidate whose trap is exactly L1 and whose map TTF is at least five. Run the
+five-round true-rival world at the six-rival cap; a death keeps the incumbent.
+The rule is a veto, not a new ranking arm. It is disjoint from the exact-L2
+Round-96 finish extension and the TTF-55 Round-175 Spa acceleration.
+
+FOCUSED CURRENT-BASE RESULT: frozen Round-175 `255C5234...` has six finishers
+and one p8 crash; frozen candidate `F2E8E2E8...` has seven finishers and zero
+crashes. Players 1-7 have identical complete move counts. The six legacy
+finishers keep their identity/order/moves, and p8 newly finishes at 62. The
+mirrored full-trajectory digest is `31de7f6e...`; both AI1 and AI2 take `NW`.
+A permanent regression pins that exact rescue. FINAL STATUS: PROMOTED. Frozen
+current champion `255C5234...` versus mirrored final `F2E8E2E8...`, all-AI2,
+covered 22 default x s1-150, four slow x s1-50, and six random x s1-3: 3,517
+of 3,518 complete behavior logs were exact, with sole Rand3 s1 safety gain and
+no slower, redistribution, trajectory-only, tradeoff or safety-regression
+case. Both mixed 4v4 grid orders reproduce the rescue without collateral
+changes. Post-mirror AI1/AI2 identity was 350/350 exact. Java/core/UI, smoke,
+13 goldens, tooling and all 18 permanent AI pins pass.
+
+RUNTIME SANITY: two balanced warmup pairs plus 12 alternating timed pairs at
+Rand3 s1 and exact-control s2. Process-CPU trimmed paired final/champion ratios
+were 1.0073 target and 0.9969 control; wall ratios were 1.0020 and 1.0041.
+Behavior digests stayed fixed and no aggregate or order stratum reached a 5%
+regression. Claim only no material computation-cost regression, not a pace
+gain.
+
 ## Round 175 promoted: high-speed moderate six-ahead pace
 
 TARGET: Spa s83 m201, p1 at `(101,126)` with `v(1,7)`. The incumbent

@@ -321,6 +321,7 @@ final class RaceAi {
 	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
+	private final static int		AI1_FINISH_TRUE_CONFIRM_ROUNDS	= 5;	// round 176: faithful-rival veto for one-successor sprint lines
 	private final static int		AI1_FINISH_HOMOGENEOUS_TTF	= 20;	// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting
 	private final static int		AI1_FINISH_EXTENDED_TTF	= 30;	// round 96: one-turn, non-coasting homogeneous extension of the full finish proof
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
@@ -823,6 +824,25 @@ final class RaceAi {
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
 							AI1_DEEP_CERT_RIVALS, null) != 0)
 						continue;
+					// Round 176: a one-successor sprint can pass both proxy worlds
+					// while faithful rivals occupy its only continuation one round
+					// later. Confirm only that narrow, traffic-dependent class;
+					// wider sprint lines retain the established cheaper certificate.
+					if (t >= AI1_FINISH_TRUE_CONFIRM_ROUNDS
+							&& trapByDir[d.ordinal()] >= AI1_TRAP_L1
+							&& liveRivalsRemaining(playerNum) > 0) {
+						if (trueConfirmDepth >= AI1_TRUE_CONFIRM_MAXDEPTH)
+							continue;
+						trueConfirmDepth++;
+						try {
+							if (simOutcome(nx, ny, nvx, nvy, playerNum,
+									AI1_FINISH_TRUE_CONFIRM_ROUNDS, true, true, true, true,
+									false, true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0)
+								continue;
+						} finally {
+							trueConfirmDepth--;
+						}
+					}
 					if (extendedFrontier) {
 						final int frontierCvx = vel[0] + chosen.dx, frontierCvy = vel[1] + chosen.dy;
 						final int chosenFinal = scorerFieldOutcome(pos[0] + frontierCvx,

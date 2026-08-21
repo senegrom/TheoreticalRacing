@@ -6,6 +6,54 @@ until they clear the exact differential, while AI2 supplies the unchanged
 comparison control. Promotion removes that kind gate so both smart driver kinds
 receive the same certified winner.
 
+## Round 176 promoted: faithful-rival finish-sprint confirmation
+
+Round 176 adds one bounded survival veto to the promoted Round-75 finish
+sprint. The established empty-map and scorer-rival worlds still have to reach
+the flag at the map lower bound first. An exact-L1 candidate with map TTF at
+least five and a live rival is then checked in a five-round faithful-rival,
+six-rival-cap world. A reported death rejects only that candidate and retains
+the incumbent; this check is a death veto, not a new proof of finishing at the
+lower bound. The existing sprint ordering, finish proof and downstream DJS
+remain authoritative. Because the outer sprint gate already caps trap at L1,
+the new lower bound selects exactly L1; it does not touch the exact-L2 extended
+finish frontier or Round 175's TTF-55 field acceleration.
+
+Rand3 seed 1 exposes the boundary at global move 448. Legacy player 8 changes
+from `NW`, landing at `(117,129)` with velocity `(8,-1)`, to the map-faster `N`,
+landing at `(118,129)` with velocity `(9,-1)`. Both proxy worlds accept `N`,
+but faithful rivals occupy its only continuation and player 8 crashes after 61
+logged moves. The new veto retains `NW`; player 8 finishes in 62 moves. Players
+1-7 keep exactly the same complete move counts, the six legacy finishers keep
+the same identities/order/move counts, and the result improves from six
+finishers plus one crash to seven finishers with zero crashes. This is a safety
+gain, not a pace claim.
+
+On the current Round-175 base, the external promotion gate compared frozen
+champion `255C5234...` with frozen candidate `F2E8E2E8...`, all-AI2, across all
+22 default tracks at seeds 1-150, all four slow tracks at seeds 1-50, and all
+six random tracks at seeds 1-3. Of 3,518 complete behavior logs, 3,517 are
+exact and Rand3 s1 is the sole divergence, with the safety gain above. There is
+no slower driver, redistribution, trajectory-only change, safety tradeoff or
+safety regression. Both alternating mixed 4v4 grid orders reproduce the same
+rescue without collateral changes. A separate post-mirror differential matched
+AI1 and AI2 on 350/350 default/slow races.
+
+The permanent regression runs both smart-driver kinds and pins the full
+normalized trajectory digest `31de7f6e...`, the move-448 `NW` decision, every
+driver move count, finisher identity/order, and zero crashes. The mirrored
+candidate passes Java/core/UI tests, headless smoke, all 13 goldens, tooling,
+and all 18 permanent AI regression pins. Round 176 is therefore mirrored into
+the shared champion body.
+
+The final runtime sanity check used two balanced warmup pairs followed by 12
+alternating timed pairs each for Rand3 s1 and exact-control Rand3 s2. The
+12.5%-trimmed paired final/champion ratios were 1.0073 CPU and 1.0020 wall at
+the changed target, and 0.9969 CPU and 1.0041 wall at the exact control. Every
+execution retained its pinned behavior digest; the AB/BA strata exposed no
+repeatable 5% regression. This is computation-cost evidence only, not a racing
+pace gain.
+
 ## Round 175 promoted: bounded high-speed six-ahead acceleration
 
 Round 175 adds one narrow frontier to `guardedFieldPaceOverride`. With exactly
