@@ -4,7 +4,45 @@ Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
-(auto-memory, ~2000 lines, every round's laws and rejections).
+(auto-memory, ~2000 lines, every round's laws and rejections).## Harvest 27 census (local agent): fresh seeds resample the model-boundary frontier
+
+Mixed s301-400, all 22 tracks, on the round-174 champion: 9 crashes /
+2200 (0.4%). NOT a regression -- a pre-169 bisect build reproduces the
+serpentine2 class byte-for-byte; fresh seeds are sampling the residual
+families the shipped arms do not cover:
+
+- serpentine2 right-end hairpin, FIVE new specimens: s326/s344/s354/
+  s394 (byte-similar, victim p6, fatal S at (131,111)->(136,111)) plus
+  s367 (p5 at (146,108)->(148,104), the s40 site). s326 walked: the
+  commitment is the EXACT r133 class shape -- m102 (75,113) v(10,0)
+  taken E to v(11,0), dies @r7, every vx<=10 candidate survives, p8 at
+  Chebyshev 3 (the train gate passes). The r133 leg ARMED and its
+  confirm correctly reported what the world says: scorer-8/10/12-cap6
+  AND true-6-cap6 all read the taken ALIVE on this board (V=155-160)
+  while the oracle kills @r7 -- the suppressed worlds' traffic diverges
+  here, unlike the harvest-25 boards. MODEL BOUNDARY for the verdict --
+  but the AUDIT is loud: scorer-8 thread=5/7 snug=6/7 (one notch below
+  the r98 all-threaded robust trigger). Possible future arm, needs its
+  own rate study: vmax accel + train + scorer-8-alive-but-thread>=5 =>
+  robust slower-switch. Otherwise this family belongs to the
+  oracle-certified brake line.
+- lemans s314: an s216-SIBLING at the same top-corner site ((27,11),
+  fatal NW to (30,9)) with a different approach velocity (v(4,-1)) --
+  the r174 squeeze arm does not cover its route; unwalked.
+- lemans s394/s397: bottom-corner family sightings (open pile).
+- silverstone s367: NEW site, p6 fatal NE at (94,100)->(94,108) (fast
+  vertical straight-end); unwalked.
+
+Standing surface after rounds 128-174: every fixed class HOLDS on
+fresh seeds (funnel 0, vmax-accel commitments 0 where the deep world
+sees them, squeeze 0); the open frontier is now clearly ONE thing --
+joint-rollout model-boundary dooms at structural sites (serpentine2
+hairpin, lemans corners, silverstone straight-end), where every
+in-engine world diverges from the oracle before the seal. The
+oracle-certified structural approach is the answer; walks and world
+matrices for all specimens are in this scratchpad's harvest27 logs.
+
+
 ## Round 174 (local agent): the two-car squeeze escalation -- harvest-26 closed
 
 Lemans s216 (the last open harvest-26 AI1 class) is a slow TWO-car
