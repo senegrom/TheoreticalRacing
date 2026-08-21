@@ -1,0 +1,52 @@
+name: Round 176 current-master source export
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-176-source-export
+    paths:
+      - .github/workflows/round176-source-export.yml
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Verify and package exact master
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = '7a99bcf60fd72f6da271eabf4dbbd8cad8f0e12f'
+          git checkout --detach 7a99bcf60fd72f6da271eabf4dbbd8cad8f0e12f
+          test "$(git rev-parse HEAD)" = '7a99bcf60fd72f6da271eabf4dbbd8cad8f0e12f'
+          git archive --format=tar.gz --output=theoretical-racing-master-7a99bcf.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round176-current-master-source
+          path: theoretical-racing-master-7a99bcf.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+      - name: Record export run
+        shell: bash
+        run: |
+          git checkout agent/ai-racing-speed-176-source-export
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round176-export-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'master_sha': '7a99bcf60fd72f6da271eabf4dbbd8cad8f0e12f',
+              'state': 'complete',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round176-export-status.json
+          git commit -m 'Round 176: record source export' || exit 0
+          git push
