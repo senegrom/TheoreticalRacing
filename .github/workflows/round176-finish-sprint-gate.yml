@@ -1,0 +1,400 @@
+name: Round 176 finish-sprint true-confirm gate
+
+on:
+  push:
+    branches:
+      - agent/ai-racing-speed-176-finish-sprint-true-confirm
+    paths:
+      - .github/workflows/round176-finish-sprint-gate.yml
+      - tracks/round176_apply.py
+      - tracks/round176_compare.py
+      - tracks/round176_runtime.py
+      - tracks/round176_publish.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: round176-finish-sprint-gate
+  cancel-in-progress: true
+
+jobs:
+  locator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Record exhaustive run id
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path('round176-status.json').write_text(json.dumps({
+              'id': int(os.environ['GITHUB_RUN_ID']),
+              'head_sha': os.environ['GITHUB_SHA'],
+              'state': 'started',
+          }, sort_keys=True) + '\n')
+          PY
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add round176-status.json
+          git commit -m 'Round 176: record exhaustive gate run' || exit 0
+          git push
+
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build immutable live-master pair
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git fetch origin master
+          BASE=$(git rev-parse origin/master)
+          printf '%s\n' "$BASE" > round176-base-sha.txt
+          git worktree add /tmp/round176-gate "$BASE"
+          cd /tmp/round176-gate
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round176-baseline.jar"
+          python "$GITHUB_WORKSPACE/tracks/round176_apply.py"
+          git diff --name-only | sort > /tmp/round176-changed.txt
+          printf '%s\n' src/tr/logic/RaceAi.java > /tmp/round176-expected.txt
+          diff -u /tmp/round176-expected.txt /tmp/round176-changed.txt
+          test "$(grep -Fc 'AI1_FINISH_TRUE_CONFIRM_ROUNDS' src/tr/logic/RaceAi.java)" = 3
+          test "$(grep -Fc '// Round 176: a one-successor sprint' src/tr/logic/RaceAi.java)" = 1
+          git diff --check
+          git diff -- src/tr/logic/RaceAi.java > "$GITHUB_WORKSPACE/round176.patch"
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          cp theoreticRacing.jar "$GITHUB_WORKSPACE/round176-candidate.jar"
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python "$test"
+          done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round176-build
+          path: |
+            round176-baseline.jar
+            round176-candidate.jar
+            round176-base-sha.txt
+            round176.patch
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round176-build
+          path: .
+      - name: Measure five-pair alternating warm overhead
+        id: gate
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python tracks/round176_runtime.py \
+            --baseline round176-baseline.jar \
+            --candidate round176-candidate.jar \
+            --pairs 5 --aggregate-limit 1.12 --case-limit 1.25 \
+            --out round176-runtime.json
+          python - <<'PY'
+          import json, os
+          data = json.load(open('round176-runtime.json'))
+          assert data['viable'], data
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=true', file=out)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round176-runtime
+          path: round176-runtime.json
+          if-no-files-found: error
+          retention-days: 30
+
+  differential:
+    needs: [prepare, runtime]
+    if: needs.runtime.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 14
+      matrix:
+        include:
+          - { track: circle, end_seed: 150 }
+          - { track: triangle, end_seed: 150 }
+          - { track: curve, end_seed: 150 }
+          - { track: hairpin, end_seed: 150 }
+          - { track: chicane, end_seed: 150 }
+          - { track: sprint, end_seed: 150 }
+          - { track: bigoval, end_seed: 150 }
+          - { track: slalom, end_seed: 150 }
+          - { track: gear, end_seed: 150 }
+          - { track: coil, end_seed: 150 }
+          - { track: zigzag, end_seed: 150 }
+          - { track: the_long_loop, end_seed: 150 }
+          - { track: monaco, end_seed: 150 }
+          - { track: hungaroring, end_seed: 150 }
+          - { track: interlagos, end_seed: 150 }
+          - { track: lemans, end_seed: 150 }
+          - { track: spa, end_seed: 150 }
+          - { track: silverstone, end_seed: 150 }
+          - { track: monza, end_seed: 150 }
+          - { track: zandvoort, end_seed: 150 }
+          - { track: nurburgring, end_seed: 150 }
+          - { track: spielberg, end_seed: 150 }
+          - { track: serpentine, end_seed: 50 }
+          - { track: serpentine2, end_seed: 50 }
+          - { track: spiral, end_seed: 50 }
+          - { track: cog, end_seed: 50 }
+          - { track: rand1, end_seed: 3 }
+          - { track: rand2, end_seed: 3 }
+          - { track: rand3, end_seed: 3 }
+          - { track: rand4, end_seed: 3 }
+          - { track: rand5, end_seed: 3 }
+          - { track: rand6, end_seed: 3 }
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round176-build
+          path: .
+      - name: Compare exact per-driver outcomes and bytes
+        env:
+          TRACK: ${{ matrix.track }}
+          END_SEED: ${{ matrix.end_seed }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python tracks/round176_compare.py \
+            --baseline round176-baseline.jar \
+            --candidate round176-candidate.jar \
+            --track "$TRACK" --start 1 --end "$END_SEED" \
+            --out "round176-${TRACK}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round176-result-${{ matrix.track }}
+          path: round176-${{ matrix.track }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  summarize:
+    needs: [runtime, differential]
+    if: needs.runtime.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      viable: ${{ steps.gate.outputs.viable }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round176-build
+          path: round176-build
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: round176-result-*
+          path: round176-results
+          merge-multiple: true
+      - name: Require one safety gain and no other trajectory change
+        id: gate
+        shell: bash
+        run: |
+          cp round176-build/round176-base-sha.txt .
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          rows = [json.loads(path.read_text())
+                  for path in sorted(Path('round176-results').glob('*.json'))]
+          keys = ('identical', 'faster', 'slower', 'safety_gain', 'safety_tradeoff',
+                  'safety_regression', 'redistribution', 'trajectory_change')
+          counts = {key: sum(row['counts'].get(key, 0) for row in rows) for key in keys}
+          events = [dict(track=row['track'], **event)
+                    for row in rows for event in row['events']]
+          summary = {
+              'baseline_sha': Path('round176-base-sha.txt').read_text().strip(),
+              'candidate': 'finish_sprint_true_confirm',
+              'tracks': len(rows),
+              'pairs': sum(row['pairs'] for row in rows),
+              'counts': counts,
+              'events': events,
+          }
+          bad = sum(counts[key] for key in
+                    ('slower', 'safety_tradeoff', 'safety_regression',
+                     'redistribution', 'trajectory_change'))
+          target = [(event['track'], event['seed'], event['classification'])
+                    for event in events]
+          summary['viable'] = (
+              summary['tracks'] == 32
+              and summary['pairs'] == 3518
+              and bad == 0
+              and counts['safety_gain'] == 1
+              and counts['faster'] == 0
+              and counts['identical'] == 3517
+              and target == [('rand3', 1, 'safety_gain')]
+          )
+          Path('round176-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n'
+          )
+          print(json.dumps(summary, indent=2, sort_keys=True))
+          assert summary['viable'], summary
+          event = events[0]
+          assert event['baseline']['crashes'] == [8], event
+          assert event['candidate']['crashes'] == [], event
+          assert event['slower'] == {}, event
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              print('viable=true', file=out)
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: round176-summary
+          path: round176-summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+  publish:
+    needs: [prepare, runtime, summarize]
+    if: needs.runtime.outputs.viable == 'true' && needs.summarize.outputs.viable == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: round176-build
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round176-runtime
+          path: .
+      - uses: actions/download-artifact@v4
+        with:
+          name: round176-summary
+          path: .
+      - name: Verify immutable evidence parent
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          base = Path('round176-base-sha.txt').read_text().strip()
+          summary = json.load(open('round176-summary.json'))
+          runtime = json.load(open('round176-runtime.json'))
+          assert summary['baseline_sha'] == base and summary['viable'], summary
+          assert summary['pairs'] == 3518 and summary['tracks'] == 32, summary
+          assert runtime['viable'], runtime
+          PY
+          EXPECTED=$(cat round176-base-sha.txt)
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$EXPECTED"
+      - name: Materialize, replay and push production commit
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cp tracks/round176_apply.py /tmp/round176_apply.py
+          cp tracks/round176_publish.py /tmp/round176_publish.py
+          BASE=$(cat round176-base-sha.txt)
+          git checkout -B round176-production "$BASE"
+          python /tmp/round176_apply.py
+          git diff --name-only | sort > /tmp/round176-changed.txt
+          printf '%s\n' src/tr/logic/RaceAi.java > /tmp/round176-expected.txt
+          diff -u /tmp/round176-expected.txt /tmp/round176-changed.txt
+          git diff --check
+          sh ./run_tests.sh
+          sh ./build_main.sh
+          python /tmp/round176_publish.py
+          python tests/ai1_finish_sprint_true_confirm_regression.py
+          python tests/headless_smoke.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python "$test"
+          done
+          python tracks/ai_probe.py
+          PYTHONPATH=. python tests/test_tooling.py
+          python -m compileall -q tracks tests
+          git diff --check
+          git diff --name-only | sort > /tmp/round176-final-changed.txt
+          printf '%s\n' \
+            AI_DEVELOPMENT.md \
+            racing-memory.md \
+            src/tr/logic/RaceAi.java \
+            tests/ai1_finish_sprint_true_confirm_regression.py \
+            | sort > /tmp/round176-final-expected.txt
+          diff -u /tmp/round176-final-expected.txt /tmp/round176-final-changed.txt
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            AI_DEVELOPMENT.md \
+            racing-memory.md \
+            src/tr/logic/RaceAi.java \
+            tests/ai1_finish_sprint_true_confirm_regression.py
+          git commit -m 'Round 176: confirm one-successor finish sprints'
+          git push origin HEAD:master
+          LOCAL=$(git rev-parse HEAD)
+          printf '%s\n' "$LOCAL" > round176-commit.txt
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$LOCAL"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round176-promotion-evidence
+          path: |
+            round176-summary.json
+            round176-runtime.json
+            round176.patch
+            round176-base-sha.txt
+            round176-commit.txt
+          if-no-files-found: warn
+          retention-days: 30
