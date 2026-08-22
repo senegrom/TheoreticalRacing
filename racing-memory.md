@@ -37,6 +37,40 @@ surgical, this arm likely also covers s223/s252-class commitments
 whose deep worlds see the death on their boards, and shrinks the
 model-boundary pile to the truly oracle-only remainder.
 
+## Round 175 (local agent, PARKED verified -- awaiting one calm wall window)
+
+The hold-overspeed cheap-world check, fully built and verified; only the
+wall pricing is outstanding because the machine became unmeasurable
+(co-agent load spiking 2-3x mid-run). Complete state in the session
+scratchpad as r175_final.patch (94 lines, applies to master 4a2d7ff+).
+
+The finished shape, each element probe-measured:
+- ARM (at the deepest overload): chosen max-axis EXACTLY 10, or 9 while
+  leaving 10, with a rival within Chebyshev 3 of the mover. Three
+  discriminators refuted on the way: the round-83 funnel signal (width-
+  based; these corridors never pinch below ring 8), the alive-projection
+  horizon (aliveRun 0-1 is the commonest HEALTHY state at speed), and
+  the certification-cap deep world (~1% false-DEADs on serpentine2
+  holds). The 11-12 band was excluded after the round-93 mixed-safety
+  pin caught one false kill there (mixed-front lemans s7 m246, a
+  surviving braking line) -- that regime stays with the r133 leg.
+- CONFIRM: the CHEAPEST world (scorer, 5 rounds, cap 3 -- the smoke
+  shape) kills every reachable commitment and measured ZERO false DEADs
+  in 1459 probed fires on eight tracks; its serpentine2 false positives
+  at cap 6 vanish at cap 3.
+- COST: a pooled per-compute verdict memo (epoch bumped at computeAiMove
+  entry; board-sound by construction) collapsed nested duplicate fires;
+  measured in the one calm window: monza +3.7%, serpentine2 +12% BEFORE
+  the Chebyshev-3 tightening (which structurally halves the flood).
+- VERIFIED: rand16 s31+s43 and rand2 s13 rescued (3 of the 4 harvest-30
+  cross-track family; rand20 stays model-boundary on the oracle pile);
+  17/17 pins incl. the round-93 canary restored byte-identical;
+  serpentine2/monza spots clean; rand16 sweep 0/50 (was 2), rand2 1/50
+  (the unclaimed s21 slower-shape specimen, correctly untouched).
+
+To ship: apply r175_final.patch, one dual-order serpentine2+monza wall
+in a quiet window (bar: <=5%), then the standard ledger+commit.
+
 
 ## rand3 class walked (local agent): the geometry axis's first doom is model-boundary at the FINISH
 
