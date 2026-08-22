@@ -12,7 +12,7 @@ Closed patterns (cog) are cut at a start/finish point into two open borders with
 tiny S/F gap, like the F1 circuits.
 
 Usage: build_synthetic.py <pattern> <output.track> <name> <gridX> <gridY> [width]
-  pattern: serpentine | spiral | cog | random (seed=N for a new circuit)
+  pattern: serpentine | spiral | cog | random | weave | lobes (seed=N per circuit)
 """
 
 import math
@@ -239,12 +239,219 @@ def gen_random(seed=1, npts=12, box=240.0, disp=0.55, minr=17.0, step=6.0, passe
     raise SystemExit(f"gen_random: no valid loop after 64 attempts (seed {seed})")
 
 
+
+# ---------------------------------------------- shared random-family helpers
+
+def _circumradius(a, b, c):
+    area2 = abs((b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]))
+    if area2 < 1e-9:
+        return float('inf')
+    return (math.hypot(b[0]-a[0], b[1]-a[1]) * math.hypot(c[0]-b[0], c[1]-b[1])
+            * math.hypot(a[0]-c[0], a[1]-c[1])) / (2.0 * area2)
+
+
+def _chaikin(loop):
+    out = []
+    m = len(loop)
+    for i in range(m):
+        a, b = loop[i], loop[(i+1) % m]
+        out.append((0.75*a[0]+0.25*b[0], 0.75*a[1]+0.25*b[1]))
+        out.append((0.25*a[0]+0.75*b[0], 0.25*a[1]+0.75*b[1]))
+    return out
+
+
+def _resample(loop, d):
+    pts = []
+    m = len(loop)
+    carry = 0.0
+    for i in range(m):
+        a, b = loop[i], loop[(i+1) % m]
+        seg = math.hypot(b[0]-a[0], b[1]-a[1])
+        pos = carry
+        while pos < seg:
+            f = pos / seg
+            pts.append((a[0]+f*(b[0]-a[0]), a[1]+f*(b[1]-a[1])))
+            pos += d
+        carry = pos - seg
+    return pts
+
+
+def _seg_intersect(p1, p2, p3, p4):
+    def cr(o, a, b):
+        return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
+    d1, d2 = cr(p3, p4, p1), cr(p3, p4, p2)
+    d3, d4 = cr(p1, p2, p3), cr(p1, p2, p4)
+    return ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0))
+
+
+def _finish_loop(loop, minr, step, passes, neck_factor=1.8):
+    """Smooth until a step-spaced resample clears minr everywhere, then
+    reject on centerline self-intersection or non-adjacent necks. Returns
+    the finished centerline or None."""
+    c = None
+    for _ in range(passes):
+        loop = _chaikin(loop)
+        rc = _resample(loop, step)
+        m = len(rc)
+        if m >= 24 and min(_circumradius(rc[(i-1) % m], rc[i], rc[(i+1) % m])
+                           for i in range(m)) >= minr:
+            c = rc
+            break
+    if c is None:
+        return None
+    m = len(c)
+    guard = max(6, int(3.5 * minr / step))
+    for i in range(m):
+        for j in range(i+1, m):
+            if abs(i-j) <= 3 or (i == 0 and j >= m-3):
+                continue
+            if _seg_intersect(c[i], c[(i+1) % m], c[j], c[(j+1) % m]):
+                return None
+            dx = c[i][0]-c[j][0]
+            dy = c[i][1]-c[j][1]
+            if abs(i-j) > guard and m-abs(i-j) > guard \
+                    and dx*dx+dy*dy < (neck_factor*minr)**2:
+                return None
+    return c
+
+
+def gen_weave(seed=1, cols=4, rows=3, minr=8.0, step=6.0, passes=6):
+    """The outline of a random spanning tree on a cols x rows grid: a
+    closed loop that genuinely WEAVES -- serpentine passages, U-turns and
+    parallel corridors at controlled spacing (see module docstring for the
+    pitch/inset guarantee). Deterministic per seed; rejected candidates
+    try derived seeds."""
+    import random
+    # Sizing system (all three constraints bind): sampled OUTER arcs at
+    # radius `inset` survive Chaikin at ~0.9x, so inset = 1.15*minr; INNER
+    # corner arcs need radius rin = 1.35*minr and occupy (inset+rin) of leg
+    # on each side, and a wall-tip wrap puts two of them on one pitch, so
+    # pitch = 2*(inset+rin) = 5*minr; opposite sides of an edge then sit
+    # 2*inset = 2.3*minr apart and adjacent corridors pitch-2*inset =
+    # 2.7*minr -- both above the 1.8*minr merge bound.
+    inset = 1.25 * minr
+    rin = 1.35 * minr
+    pitch = 5.2 * minr
+    for attempt in range(64):
+        rng = random.Random(seed * 1000 + attempt)
+        nodes = [(c, r) for c in range(cols) for r in range(rows)]
+        adj = {n: [] for n in nodes}
+        start = rng.choice(nodes)
+        seen = {start}
+        stack = [start]
+        while stack:
+            c, r = stack[-1]
+            nbrs = [(c+dc, r+dr) for dc, dr in ((1, 0), (-1, 0), (0, 1), (0, -1))
+                    if (c+dc, r+dr) in adj and (c+dc, r+dr) not in seen]
+            if not nbrs:
+                stack.pop()
+                continue
+            nxt = rng.choice(nbrs)
+            adj[(c, r)].append(nxt)
+            adj[nxt].append((c, r))
+            seen.add(nxt)
+            stack.append(nxt)
+
+        def ang(u, v):
+            return math.atan2(v[1]-u[1], v[0]-u[0])
+
+        # contour walk over directed half-edges: from (u,v) continue with
+        # the next neighbor of v clockwise from u -- traces the outline.
+        first = min(nodes, key=lambda n: (n[1], n[0]))
+        v0 = max(adj[first], key=lambda w: ang(first, w))
+        walk = []
+        u, v = first, v0
+        for _ in range(8 * cols * rows):
+            walk.append((u, v))
+            back = ang(v, u)
+            nxt = min(adj[v], key=lambda w: (ang(v, w) - back) % (2*math.pi)
+                      if (ang(v, w) - back) % (2*math.pi) > 1e-9 else 2*math.pi)
+            u, v = v, nxt
+            if (u, v) == (first, v0):
+                break
+        # Proper offset-polyline emission (right-hand offset): per half-edge
+        # a midpoint at +inset; at each junction, OUTER corners (left turns
+        # and leaf U-turns) get arc points swept CCW from the incoming to
+        # the outgoing right-normal, INNER corners (right turns) get the
+        # single miter point v + (n1+n2)*inset/(1+d1.d2). One-sided arcs
+        # zigzag against the midpoints and floor the curvature (measured).
+        loop = []
+        nwalk = len(walk)
+        for idx, (a, b) in enumerate(walk):
+            mx = (a[0] + b[0]) / 2.0 * pitch
+            my = (a[1] + b[1]) / 2.0 * pitch
+            d1x, d1y = unit(b[0]-a[0], b[1]-a[1])
+            n1x, n1y = d1y, -d1x
+            loop.append((mx + n1x*inset, my + n1y*inset))
+            nb = walk[(idx + 1) % nwalk][1]
+            d2x, d2y = unit(nb[0]-b[0], nb[1]-b[1])
+            n2x, n2y = d2y, -d2x
+            cross = d1x*d2y - d1y*d2x
+            dot = d1x*d2x + d1y*d2y
+            vx, vy = b[0]*pitch, b[1]*pitch
+            if cross > 1e-9 or (abs(cross) <= 1e-9 and dot < 0):
+                a1 = math.atan2(n1y, n1x)
+                sweep = (math.atan2(n2y, n2x) - a1) % (2*math.pi)
+                narc = max(2, int(sweep / (math.pi / 8)))
+                for k in range(1, narc + 1):
+                    th = a1 + sweep * k / (narc + 1)
+                    loop.append((vx + inset*math.cos(th), vy + inset*math.sin(th)))
+            elif cross < -1e-9:
+                # Inner corners: a miter point stays a corner and Chaikin
+                # rounds any corner to ~0.6x its local support (measured ~5
+                # at the tongue corners) -- emit a genuine three-point inner
+                # arc instead: center on the bisector at distance
+                # (inset+rin)/(1+d1.d2) along (n1+n2), tangent radius rin.
+                denom = 1.0 + dot
+                if denom > 1e-6:
+                    cxr = vx + (n1x+n2x)*(inset+rin)/denom
+                    cyr = vy + (n1y+n2y)*(inset+rin)/denom
+                    bx, by = unit(n1x+n2x, n1y+n2y)
+                    loop.append((cxr - n1x*rin, cyr - n1y*rin))
+                    loop.append((cxr - bx*rin, cyr - by*rin))
+                    loop.append((cxr - n2x*rin, cyr - n2y*rin))
+        c = _finish_loop(loop, minr, step, passes)
+        if c is not None:
+            return c, True
+    raise SystemExit(f"gen_weave: no valid loop after 64 attempts (seed {seed})")
+
+
+def gen_lobes(seed=1, minr=8.0, step=6.0, passes=6):
+    """Radial-harmonic loop r(theta) = R(1 + sum a_k cos(k theta + phi)).
+    A dominant k=2 is an hourglass/peanut, k=3 a trefoil, k=5 a gear;
+    the harmonic mix is drawn per seed with amplitudes capped so the
+    waist clears the neck bound. Deterministic per seed."""
+    import random
+    for attempt in range(64):
+        rng = random.Random(seed * 1000 + attempt)
+        R = 110.0
+        ks = rng.choice([(2,), (2, 3), (3,), (2, 5), (3, 5), (2, 4)])
+        amps = {}
+        budget = rng.uniform(0.28, 0.42)
+        for idx, k in enumerate(ks):
+            a = budget * (0.72 if idx == 0 else 0.28) / max(1, len(ks) - 1 if idx else 1)
+            amps[k] = a * rng.uniform(0.8, 1.0)
+        phis = {k: rng.uniform(0, 2*math.pi) for k in ks}
+        n = 180
+        loop = []
+        for i in range(n):
+            th = 2*math.pi*i/n
+            r = R * (1.0 + sum(amps[k]*math.cos(k*th + phis[k]) for k in ks))
+            loop.append((r*math.cos(th), r*math.sin(th)))
+        c = _finish_loop(loop, minr, step, passes, neck_factor=2.0)
+        if c is not None:
+            return c, True
+    raise SystemExit(f"gen_lobes: no valid loop after 64 attempts (seed {seed})")
+
+
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
     'slalom': gen_slalom,
     'cog': gen_cog,
     'random': gen_random,
+    'weave': gen_weave,
+    'lobes': gen_lobes,
 }
 
 
