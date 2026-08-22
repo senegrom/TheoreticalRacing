@@ -36,6 +36,36 @@ there; the funnel signal must carry the selectivity). If it measures
 surgical, this arm likely also covers s223/s252-class commitments
 whose deep worlds see the death on their boards, and shrinks the
 model-boundary pile to the truly oracle-only remainder.
+## Weave and lobe families (local agent, user-prompted): the geometry axis learns topology
+
+The hull family is topology-bound -- a convex skeleton yields rounded
+blobs however hard the midpoints are displaced. Two new skeletons:
+
+- WEAVE: the contour of a random spanning tree on a coarse grid -- a
+  tree's outline is always a single closed loop, and it genuinely
+  weaves: serpentine passages, U-turn fingers, parallel corridors at
+  guaranteed spacing. The construction fought back instructively:
+  per-half-edge endpoint pairs cusp at inner elbows (scale-independent
+  step/sqrt2 curvature floor), bare midpoints under-support U-turns
+  (Chaikin contracts a 2-point U to a third of the inset), miter
+  points stay corners (~5 radius floor), and first-cut inner arcs
+  collided pairwise at wall-tip wraps. The shipped emission: right-
+  offset midpoints + sampled outer arcs (pi/8 density) + three-point
+  inner arcs, under a sizing system where all three constraints bind
+  (inset 1.25*minr from outer-arc contraction ~0.9x, rin 1.35*minr,
+  pitch 2*(inset+rin) from tip-wrap adjacency; spacings 2.3-2.7*minr
+  vs the 1.8*minr merge bound). Debugged VISUALLY -- the matplotlib
+  render of tree + control loop + smoothed loop found in one look what
+  four blind convention flips could not.
+- LOBES: radial harmonics r(theta) = R(1 + sum a_k cos(k theta+phi)),
+  dominant k=2 an hourglass, k=3 a trefoil, k=5 a gear; amplitudes
+  capped at the neck bound.
+
+weave1-8 and lobe1-6 all pass behavioral validation (weaves race
+~600-move serpentine laps). Fleet: 30 random circuits across three
+skeleton families; the Random Circuit Atlas artifact shows all of
+them. Next: harvest the new families mixed s1-50.
+
 
 ## Round 175 (local agent, SHIPPED): the hold-overspeed cheap-world check
 
