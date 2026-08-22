@@ -1,10 +1,113 @@
 # AI development and promotion
 
 `RaceAi` currently uses one promoted champion body: AI2 delegates to AI1.
-Candidate experiments must therefore be explicitly gated to `Player.Kind.AI1`
-until they clear the exact differential, while AI2 supplies the unchanged
-comparison control. Promotion removes that kind gate so both smart driver kinds
-receive the same certified winner.
+Candidate experiments are compared with a frozen copy of the previous champion
+before promotion, then checked for exact AI1/AI2 identity. A candidate remains
+explicitly unpromoted until that differential, its permanent regression and the
+full promotion battery all pass.
+
+## Round 177 pending final runtime: componentwise-confirmed uncertain field pace
+
+Round 177 revisits the one useful residue from the historical Round-109
+`speed9_unc25` sweep without reopening that broad surface. Exactly five rivals
+must be ahead of a non-coasting incumbent at map TTF 46-60, and the mover must
+be one of the last three in the current round. Both incumbent and alternative
+land below speed-squared 49; the alternative must be exactly one map turn
+faster, not reduce the mover's current energy, gain 9-15 speed-squared, have
+zero trap and carry only mild positive uncertainty (`0 < unc <= 1.0`).
+All established homogeneous-roster, live-field, progress, finish-energy,
+funnel, seal and downstream danger gates remain authoritative.
+
+The standard eight-round scorer proof still ranks alternatives first and must
+show strict mover and aggregate-field improvements. At most one uncertain
+winner then pays for a second proof pair. In that pair every rival live in the
+real position runs its unsuppressed champion, without a distance filter or
+rival cap. The alternative must again strictly improve the mover and aggregate
+field; it must also strictly improve the sum of projected personal costs while
+making no individual rival worse. A rival's cost is its simulated move slots
+plus terminal TTF, or the failure sentinel if it dies or becomes unreachable.
+Nested confirmations use distinct rollout workspaces and restore all candidate
+arrays before normal decision processing resumes.
+
+The eight-round faithful pair initially imposed a repeatable target-only CPU
+cost. The final implementation keeps the proof unchanged and accelerates only
+nested scorers. It builds one two-round opponent projection with the proof
+mover absent; when a scorer candidate does not occupy any selected first-round
+landing, that projection is exactly reusable. A landing hit falls back to the
+original candidate-conditioned simulation. The ordinary top-level scorer never
+uses this cache. This is an execution optimization, not a relaxed certificate.
+
+RUNTIME STATUS: PENDING. The exact new-base gate compares control
+`FB3082BC89EAB74FAE7CB597A6CACA517CFCAED5393F3691A46AD8CEA0751142`
+with composed final
+`DE4AB7759B5EEE8C4FF89A962AD20109515748FEBC133F421761FBF0B297A639`
+at Le Mans s29 and exact control s93, using balanced AB/BA order with pinned
+behavior and vectors. The predeclared protocol uses two warmup pairs and 16
+timed pairs per case initially; only s29 extends by 48 pairs if any required
+target CPU metric is not strictly below `1.05`. No runtime result or
+computation-cost pass is claimed until terminal readback. The earlier
+`F2E8...`/`8EEA...` measurements and 168-execution result belong to a
+superseded artifact pair and must not be carried forward.
+
+At Le Mans seed 29, behavior index 97 / global move 88, player 8 changes from
+`W`, landing at `(20,15) v(2,-2)`, to `N`, landing at `(21,14) v(3,-3)`.
+Map TTF improves 58 to 57 with seven live rivals, five ahead, progress 39,
+speed-squared `13 -> 8/18`, gain 10, zero trap and uncertainty
+`0.6066017177982119`. The established scorer proof improves self `52 -> 51`
+and field `353 -> 352`. The full faithful proof independently improves self
+`52 -> 51`, field `352 -> 351`, and projected rival cost `401 -> 400`; all
+seven rivals are non-worse and player 2 alone improves `60 -> 59`.
+
+The complete race keeps seven finishers, zero crashes and order
+`p1,p3,p6,p5,p7,p8,p2`. Finisher moves improve from
+`[65,67,69,71,73,74,76]` to `[65,67,69,71,72,73,75]`. Complete logged moves
+show p2, p4, p7 and p8 each using one fewer move and every other driver equal;
+p4 is the unchanged nonfinisher, so the finisher gain is three moves and the
+all-driver logged gain is four.
+
+Le Mans seed 14 is the nearest historical false positive. Its uncertainty 2.5
+already exceeds the new bound. A diagnostic widened proof also rejects it:
+self `52 -> 52`, field `354 -> 355`, projected rival cost `405 -> 406`, with
+p1 two moves worse despite p5 improving by one. Silverstone s78 and Spa
+s12/s31/s40/s47 retain their complete champion trajectories as additional
+historical redistribution/slowdown controls.
+
+The last-three-movers boundary was added after an otherwise certified p1
+candidate at Le Mans seed 93 changed 125 trajectory lines without improving
+any result or move count. Player 1 acts at subgame 0 and is now excluded;
+target p8 acts at subgame 7. Le Mans seed 87 remains inside the late-round
+surface but fails the componentwise proof because p2 worsens `58 -> 59` while
+p8 improves `59 -> 58`. The permanent regression requires that exact rejected
+vector as well as the complete champion trajectories for s93 and the older
+retention controls.
+
+FINAL STATUS: CORRECTNESS GATES COMPLETE; EXACT NEW-BASE RUNTIME AND
+PUBLICATION PENDING. Frozen new-base control
+`FB3082BC89EAB74FAE7CB597A6CACA517CFCAED5393F3691A46AD8CEA0751142`;
+composed final artifact
+`DE4AB7759B5EEE8C4FF89A962AD20109515748FEBC133F421761FBF0B297A639`;
+final `src/tr/logic/RaceAi.java` SHA-256
+`1AE319BB250F9A09DB381B4B44219EE4B9656E54410B6EAA3A48BD4BB4B29579`.
+
+The exact new-base all-AI2 differential covers 4,065 complete current-track
+races: 4,064 are exact and Le Mans s29 is the sole strict pace divergence,
+changing `W` to `N` with the pinned outcome, digest and accepted vector. There
+is no slower driver, redistribution, identity change, crash change,
+trajectory-only change or other fork. The entire external debug-vector census
+is exactly two: L29 componentwise=true/accepted=true and L87
+componentwise=false/accepted=false; L93 is exact and emits no vector.
+
+Post-mirror AI1/AI2 identity is 350/350 exact across the 22 default and four
+slow tracks. Both canonical mixed 4v4 orderings are raw-log exact on all 44
+Harvest-27/28 controls. The three-case composition canary is 3/3 raw- and
+normalized-log exact, with zero stderr and zero vectors. The fresh direct-JDK26
+local readback passed all 26 gates: 42 `.track` definitions and all 59 regular
+track payload files were pinned, TrackData/Core/Main passed, and Python 3.14
+headless smoke, all 13 goldens, 14 tooling tests, compileall and all 19
+permanent AI regressions passed. Independent read-only static diff review found
+no release blocker; it does not replace the dynamic evidence. This is one
+bounded measured pace candidate, not a global pace, safety or compute-speed
+guarantee.
 
 ## Round 176 promoted: faithful-rival finish-sprint confirmation
 

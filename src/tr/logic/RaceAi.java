@@ -17,6 +17,10 @@ final class RaceAi {
 	private static final Direction[] DIRECTIONS = Direction.values();
 	/** Scratch storage is instance-owned: one RaceAi drives one single-threaded game. */
 	private TwoRoundWorkspace twoRoundWorkspace;
+	/** Nested-scorer reference world. A scorer's candidate landing is the sole
+	 *  varying blocker in the first projected opponent round, so candidates that
+	 *  do not hit any reference landing can reuse both projected rounds exactly. */
+	private TwoRoundWorkspace nestedScorerTwoRoundReferenceWorkspace;
 	private PredictionWorkspace predictionWorkspace;
 	private RolloutWorkspace rolloutWorkspace;
 	private final int[] sealEscapes = new int[DIRECTIONS.length * 2];
@@ -48,6 +52,28 @@ final class RaceAi {
 			java.util.Arrays.fill(scoreByDirection, Double.MAX_VALUE);
 			java.util.Arrays.fill(uncertaintyByDirection, 0.0);
 		}
+
+		void copyFrom(final CandidateWorkspace source) {
+			System.arraycopy(source.trapByDirection, 0, trapByDirection, 0, DIRECTIONS.length);
+			System.arraycopy(source.scoreWithoutSpread, 0, scoreWithoutSpread, 0,
+					DIRECTIONS.length);
+			System.arraycopy(source.turnsByDirection, 0, turnsByDirection, 0, DIRECTIONS.length);
+			System.arraycopy(source.scoreByDirection, 0, scoreByDirection, 0, DIRECTIONS.length);
+			System.arraycopy(source.uncertaintyByDirection, 0, uncertaintyByDirection, 0,
+					DIRECTIONS.length);
+		}
+	}
+
+	/** One candidate-row snapshot per permitted faithful-confirm nesting level. */
+	private final CandidateWorkspace[] trueConfirmCandidateSnapshots =
+			newTrueConfirmCandidateSnapshots();
+
+	private static CandidateWorkspace[] newTrueConfirmCandidateSnapshots() {
+		final CandidateWorkspace[] snapshots =
+				new CandidateWorkspace[AI1_TRUE_CONFIRM_MAXDEPTH];
+		for (int i = 0; i < snapshots.length; i++)
+			snapshots[i] = new CandidateWorkspace();
+		return snapshots;
 	}
 
 	/** Exact touched-cell occupancy counts for one projected board. Counts,
@@ -117,13 +143,11 @@ final class RaceAi {
 	private static final class TwoRoundWorkspace {
 		final int[][] current;
 		final int[][] world1;
-		final int[][] blocked;
 		final int[][] simulatedVelocity;
 		final int[][] round1Position;
 		final int[][] round2Position;
 		final int[][] round1Velocity;
 		final int[][] round2Velocity;
-		final int[] candidatePosition = new int[2];
 		final byte[] aheadOccupancy;
 		final int[] aheadTouched;
 		final CellOccupancy blockedOccupancy;
@@ -133,7 +157,6 @@ final class RaceAi {
 		TwoRoundWorkspace(final int players, final int width, final int height) {
 			current = new int[players][];
 			world1 = new int[players][];
-			blocked = new int[players][];
 			simulatedVelocity = new int[players][];
 			round1Position = new int[players][2];
 			round2Position = new int[players][2];
@@ -184,6 +207,10 @@ final class RaceAi {
 		final int[] vy;
 		final boolean[] alive;
 		final boolean[] scorerSet;
+		final int[] projectedMoves;
+		final boolean[] faithfulOriginallyLiveRival;
+		final long[] faithfulChosenRivalCost;
+		final long[] faithfulCandidateRivalCost;
 		final int[] move = new int[4];
 		final int[] finalTier = new int[1];
 		final ScorerWorkspace scorer;
@@ -195,6 +222,10 @@ final class RaceAi {
 			vy = new int[players];
 			alive = new boolean[players];
 			scorerSet = new boolean[players];
+			projectedMoves = new int[players];
+			faithfulOriginallyLiveRival = new boolean[players];
+			faithfulChosenRivalCost = new long[players];
+			faithfulCandidateRivalCost = new long[players];
 			scorer = new ScorerWorkspace(players);
 		}
 	}
@@ -348,6 +379,10 @@ final class RaceAi {
 	private final static int		AI1_STAGED_MIN_TURNS	= 35;	// leave the existing finish sprint in charge near the line
 	private final static int		AI1_STAGED_MAX_SPEED2_GAIN	= 9;	// at most one |v|=4->5 axis of extra energy vs the scorer
 	private final static int		AI1_FIELD_ACCEL_MIN_SPEED2_GAIN	= 16;	// round 106: decisive one-turn energy gain
+	private final static int		AI1_FIELD_UNCERTAIN_MIN_TTF	= 46;	// round 177: exact medium-range band
+	private final static int		AI1_FIELD_UNCERTAIN_MAX_TTF	= 60;
+	private final static int		AI1_FIELD_UNCERTAIN_LAST_MOVERS	= 3;	// avoid early partial-round trajectory drift
+	private final static double	AI1_FIELD_UNCERTAIN_MAX	= 1.0;	// mild positive uncertainty only
 	private final static int		AI1_FIELD_ACCEL_MIN_AHEAD	= 2;	// require a real forward pack
 	private final static int		AI1_FIELD_ACCEL_MAX_AHEAD	= 5;	// bounded proof excludes full-tail six-ahead cases
 	private final static int		AI1_FIELD_ACCEL_MAX_TTF	= 90;	// keep the 8-round proof in the medium-range race phase
@@ -357,10 +392,13 @@ final class RaceAi {
 	private final static int		AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2	= 49;	// round 175: cross the high-speed threshold with a bounded gain
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
-	 *  -Dai.debug.djs DJS-death events for ALL players. Both off by default. */
+	 *  -Dai.debug.djs DJS-death events for all players; -Dai.debug.fieldVector
+	 *  only the bounded field proof. All are off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
 	private final static boolean	AI_DEBUG_COMP	= Boolean.getBoolean("ai.debug.comp");
+	private final static boolean	AI_DEBUG_FIELD_VECTOR	=
+			Boolean.getBoolean("ai.debug.fieldVector");
 	/** True while this game instance computes a rollout move with the real
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
@@ -373,6 +411,7 @@ final class RaceAi {
 	 *  up). One nested level is allowed; depth 2 blocks (cost recursion). */
 	private int					trueConfirmDepth;
 	private final static int		AI1_TRUE_CONFIRM_MAXDEPTH	= 2;
+	private final static long	ROLLOUT_NOT_LIVE_COST	= -1L;
 	private final static int		AI1_TRUE_CONFIRM_DEEP_ROUNDS	= 6;	// round 104: horizon for the deep-tier leg -- the zandvoort-s88 box seals at true round index 5
 	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
 	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
@@ -451,6 +490,14 @@ final class RaceAi {
 		for (int step = 0; step < predictedSteps.length; step++)
 			predictionWorkspace.occupancy[step].rebuild(predictedSteps[step]);
 		final CellOccupancy predictedOccupancy = predictionWorkspace.occupancy[0];
+		// Exact nested-scorer fast path. With the mover absent, record the
+		// reference first-round landings once. If a candidate landing is not one
+		// of those cells, adding it as a blocker cannot change the first mover;
+		// inductively no later mover changes either, and round two (where the
+		// blocker is removed) is therefore identical. Any hit falls back to the
+		// original candidate-conditioned simulation.
+		final TwoRoundWorkspace twoRoundReference = trueConfirmDepth > 0 || inScorerSim
+				? prepareTwoRoundReference(playerNum) : null;
 		// In-traffic ply-2 foresight RESTORED (fore2): the v4/v5 pack gate that
 		// disabled the ply-2 price whenever any rival sat within squared
 		// distance 36 is GONE -- the round-2 world (worlds[1]) is now priced on
@@ -517,7 +564,8 @@ final class RaceAi {
 			// AHEAD of me on track (myDist = distAt of my CURRENT cell); a
 			// chaser's body is left unpriced (ceding a line two rounds out to
 			// a car behind me trades race position for nothing).
-			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY);
+			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY,
+					twoRoundReference);
 			final byte[] aheadOccupancy = buildAheadOccupancy(worlds.current,
 					reach.distAt(pos[0], pos[1]));
 			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
@@ -1459,7 +1507,9 @@ final class RaceAi {
 	 * additionally admits a positive L1/L2 candidate only for the first two
 	 * movers inside TTF 45; the partial-round counterexamples remain excluded.
 	 * Round 175 admits a bounded moderate-gain six-ahead move only when it
-	 * crosses into the high-speed band. */
+	 * crosses into the high-speed band. Round 177 admits one five-ahead,
+	 * low-energy, mildly uncertain winner from one of the round's last three
+	 * movers only after a full-field componentwise faithful confirmation. */
 	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
 			final int playerNum, final Direction chosen, final double[] trapByDir,
 			final double[] uncByDir, final int[] turnsByDir) {
@@ -1514,15 +1564,20 @@ final class RaceAi {
 		Direction best = null;
 		int bestFinal = Integer.MAX_VALUE;
 		long bestField = Long.MAX_VALUE;
+		Direction uncertainBest = null;
+		int uncertainBestFinal = Integer.MAX_VALUE;
+		long uncertainBestField = Long.MAX_VALUE;
+		int uncertainBestX = 0, uncertainBestY = 0;
+		int uncertainBestVx = 0, uncertainBestVy = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
 			final double candidateTrap = trapByDir[d.ordinal()];
+			final double candidateUnc = uncByDir[d.ordinal()];
 			final boolean frontierTrapCandidate = earlyRoundTrapFrontier
 					&& candidateTrap > 0.0 && candidateTrap <= AI1_TRAP_L2;
 			if (d == chosen || d == Direction.NONE || turns == Integer.MAX_VALUE
 					|| turns + 1 != chosenT
-					|| candidateTrap != 0.0 && !frontierTrapCandidate
-					|| uncByDir[d.ordinal()] != 0.0)
+					|| candidateTrap != 0.0 && !frontierTrapCandidate)
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int speed2 = speedSquared(nvx, nvy);
@@ -1538,8 +1593,22 @@ final class RaceAi {
 					&& speed2 >= AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
 					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN
 					&& speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN;
+			final boolean boundedUncertainModerateGain = rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD
+					&& chosen != Direction.NONE && candidateTrap == 0.0
+					&& game.subgamestate >= game.players.length - AI1_FIELD_UNCERTAIN_LAST_MOVERS
+					&& chosenT >= AI1_FIELD_UNCERTAIN_MIN_TTF
+					&& chosenT <= AI1_FIELD_UNCERTAIN_MAX_TTF
+					&& chosenSpeed2 < AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
+					&& speed2 < AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
+					&& speed2 >= speedSquared(vel[0], vel[1])
+					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN
+					&& speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
+					&& candidateUnc > 0.0 && candidateUnc <= AI1_FIELD_UNCERTAIN_MAX;
+			if (candidateUnc != 0.0 && !boundedUncertainModerateGain)
+				continue;
 			if (speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
-					&& !frontierModerateGain && !sixAheadHighSpeedModerateGain)
+					&& !frontierModerateGain && !sixAheadHighSpeedModerateGain
+					&& !boundedUncertainModerateGain)
 				continue;
 			// Six-ahead moderate acceleration is limited to Round 175's bounded
 			// transition into the high-speed band; the broad class stays excluded.
@@ -1578,11 +1647,34 @@ final class RaceAi {
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal
 					|| candidateField >= chosenField)
 				continue;
-			if (best == null || candidateFinal < bestFinal
+			if (boundedUncertainModerateGain) {
+				if (uncertainBest == null || candidateFinal < uncertainBestFinal
+						|| candidateFinal == uncertainBestFinal
+								&& candidateField < uncertainBestField) {
+					uncertainBest = d;
+					uncertainBestFinal = candidateFinal;
+					uncertainBestField = candidateField;
+					uncertainBestX = nx;
+					uncertainBestY = ny;
+					uncertainBestVx = nvx;
+					uncertainBestVy = nvy;
+				}
+			} else if (best == null || candidateFinal < bestFinal
 					|| candidateFinal == bestFinal && candidateField < bestField) {
 				best = d;
 				bestFinal = candidateFinal;
 				bestField = candidateField;
+			}
+		}
+		if (uncertainBest != null && (best == null || uncertainBestFinal < bestFinal
+				|| uncertainBestFinal == bestFinal && uncertainBestField < bestField)) {
+			final boolean faithfulImproves = faithfulFieldPaceImproves(chosenX, chosenY,
+					chosenVx, chosenVy, uncertainBestX, uncertainBestY,
+					uncertainBestVx, uncertainBestVy, playerNum, fieldProofRounds);
+			if (faithfulImproves) {
+				best = uncertainBest;
+				bestFinal = uncertainBestFinal;
+				bestField = uncertainBestField;
 			}
 		}
 		if (best != null && AI_DEBUG_DJS)
@@ -1592,6 +1684,92 @@ final class RaceAi {
 					+ " progress=" + aheadProgress + " self " + chosenFinal + " -> "
 					+ bestFinal + " field " + chosenField + " -> " + bestField);
 		return best != null ? best : chosen;
+	}
+
+	/** Round 177 vector proof for the bounded positive-uncertainty arm. The
+	 * suppressed scorer proof ranks candidates first, so this expensive pair is
+	 * run at most once per move. Every rival that is live in the real position
+	 * runs its unsuppressed scorer, with no radius or cap filter. Besides strict
+	 * self and aggregate-field improvements, no rival may have a worse projected
+	 * personal cost (simulated move slots plus terminal TTF). */
+	private boolean faithfulFieldPaceImproves(final int chosenX, final int chosenY,
+			final int chosenVx, final int chosenVy, final int candidateX,
+			final int candidateY, final int candidateVx, final int candidateVy,
+			final int playerNum, final int rounds) {
+		if (trueConfirmDepth >= trueConfirmCandidateSnapshots.length)
+			return false;
+		final int players = game.players.length;
+		final RolloutWorkspace proofWorkspace = rolloutWorkspace();
+		final boolean[] originallyLiveRival = proofWorkspace.faithfulOriginallyLiveRival;
+		final long[] chosenRivalCost = proofWorkspace.faithfulChosenRivalCost;
+		final long[] candidateRivalCost = proofWorkspace.faithfulCandidateRivalCost;
+		for (int i = 0; i < players; i++) {
+			final Player player = game.players[i];
+			originallyLiveRival[i] = player.getNumber() != playerNum && !player.isFinished();
+		}
+		final CandidateWorkspace snapshot = trueConfirmCandidateSnapshots[trueConfirmDepth];
+		snapshot.copyFrom(outerCandidates);
+		trueConfirmDepth++;
+		try {
+			final int chosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy,
+					playerNum, rounds, true, true, true, true, true, true, players,
+					null, rolloutFieldCost, null, true, chosenRivalCost);
+			final long chosenField = rolloutFieldCost[0];
+			final int candidateFinal = simOutcome(candidateX, candidateY,
+					candidateVx, candidateVy, playerNum, rounds,
+					true, true, true, true, true, true, players,
+					null, rolloutFieldCost, null, true, candidateRivalCost);
+			final long candidateField = rolloutFieldCost[0];
+			long chosenProjectedField = 0L, candidateProjectedField = 0L;
+			boolean componentwiseNonWorse = true;
+			for (int i = 0; i < players; i++) {
+				if (!originallyLiveRival[i])
+					continue;
+				if (chosenRivalCost[i] < 0L || candidateRivalCost[i] < 0L
+						|| candidateRivalCost[i] > chosenRivalCost[i])
+					componentwiseNonWorse = false;
+				chosenProjectedField += chosenRivalCost[i];
+				candidateProjectedField += candidateRivalCost[i];
+			}
+			final boolean accepted = chosenFinal >= 0 && candidateFinal >= 0
+					&& candidateFinal < chosenFinal
+					&& chosenField < ROLLOUT_FAILURE_COST && candidateField < chosenField
+					&& componentwiseNonWorse
+					&& candidateProjectedField < chosenProjectedField;
+			if (AI_DEBUG_DJS || AI_DEBUG_FIELD_VECTOR) {
+				System.err.println("AIDBG FIELD-VECTOR p=" + playerNum + " chosen=("
+						+ chosenX + "," + chosenY + ")v(" + chosenVx + "," + chosenVy
+						+ ") candidate=(" + candidateX + "," + candidateY + ")v("
+						+ candidateVx + "," + candidateVy + ") rounds=" + rounds
+						+ " self=" + chosenFinal + "->" + candidateFinal
+						+ " field=" + chosenField + "->" + candidateField
+						+ " projected=" + chosenProjectedField + "->"
+						+ candidateProjectedField + " componentwise="
+						+ componentwiseNonWorse + " accepted=" + accepted
+						+ " chosenRivals=" + projectedRivalVector(chosenRivalCost,
+								originallyLiveRival)
+						+ " candidateRivals=" + projectedRivalVector(candidateRivalCost,
+								originallyLiveRival));
+			}
+			return accepted;
+		} finally {
+			trueConfirmDepth--;
+			outerCandidates.copyFrom(snapshot);
+		}
+	}
+
+	private String projectedRivalVector(final long[] costs, final boolean[] included) {
+		final StringBuilder result = new StringBuilder("{");
+		boolean first = true;
+		for (int i = 0; i < costs.length; i++) {
+			if (!included[i])
+				continue;
+			if (!first)
+				result.append(',');
+			first = false;
+			result.append('p').append(game.players[i].getNumber()).append('=').append(costs[i]);
+		}
+		return result.append('}').toString();
 	}
 
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
@@ -2026,8 +2204,6 @@ final class RaceAi {
 		int bestTurns = Integer.MAX_VALUE;
 		Direction bestLegal = null;
 		double bestLegalScore = Double.MAX_VALUE;
-		Direction fallback = Direction.NONE;
-		double fallbackScore = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
@@ -2037,16 +2213,11 @@ final class RaceAi {
 			final int newY = pos[1] + newVy;
 			if (game.crossesFinish(pos[0], pos[1], newX, newY))
 				return d;
-			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
-				if (sc < fallbackScore) {
-					fallbackScore = sc;
-					fallback = d;
-				}
+			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY))
 				continue;
-			}
 			if (occupied.contains(newX, newY))
 				continue;
+			final double sc = reach.scorePos(newX, newY, newVx, newVy);
 			if (sc < bestLegalScore) {
 				bestLegalScore = sc;
 				bestLegal = d;
@@ -2061,7 +2232,7 @@ final class RaceAi {
 			return best;
 		if (bestLegal != null)
 			return bestLegal;
-		return fallback;
+		return null;
 	}
 
 	/** Reusable two-round opponent projection. The reference arrays and every
@@ -2075,16 +2246,43 @@ final class RaceAi {
 		return twoRoundWorkspace;
 	}
 
+	private TwoRoundWorkspace nestedScorerTwoRoundReferenceWorkspace() {
+		final int players = game.players.length;
+		if (nestedScorerTwoRoundReferenceWorkspace == null
+				|| nestedScorerTwoRoundReferenceWorkspace.current.length != players)
+			nestedScorerTwoRoundReferenceWorkspace = new TwoRoundWorkspace(players,
+					game.gameCols + 1, game.gameRows + 1);
+		return nestedScorerTwoRoundReferenceWorkspace;
+	}
+
+	/** Build the no-mover reference used only inside a nested scorer. */
+	private TwoRoundWorkspace prepareTwoRoundReference(final int playerNum) {
+		return simulateTwoRounds(nestedScorerTwoRoundReferenceWorkspace(), playerNum,
+				0, 0, false);
+	}
+
+	/** Reuse is exact unless the candidate blocks a landing selected in the
+	 *  no-mover first round. A hit takes the unchanged conditioned path. */
+	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX,
+			final int candY, final TwoRoundWorkspace reference) {
+		if (reference != null && !reference.world1Occupancy.contains(candX, candY))
+			return reference;
+		return simulateTwoRounds(playerNum, candX, candY);
+	}
+
 	/** Simulate two complete opponent rounds in actual turn order, conditioned
 	 *  on my candidate landing. {@code world1} contains the cells for my next
 	 *  move and {@code current} the cells for the move after that. */
 	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY) {
-		final TwoRoundWorkspace workspace = twoRoundWorkspace();
+		return simulateTwoRounds(twoRoundWorkspace(), playerNum, candX, candY, true);
+	}
+
+	private TwoRoundWorkspace simulateTwoRounds(final TwoRoundWorkspace workspace,
+			final int playerNum, final int candX, final int candY,
+			final boolean blockCandidate) {
 		final int[][] current = workspace.current;
 		final int[][] simulatedVelocity = workspace.simulatedVelocity;
 		java.util.Arrays.fill(current, null);
-		java.util.Arrays.fill(workspace.world1, null);
-		java.util.Arrays.fill(simulatedVelocity, null);
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
@@ -2092,21 +2290,17 @@ final class RaceAi {
 			current[idx] = p.getPosition();
 			simulatedVelocity[idx] = p.getVelocity();
 		}
-		System.arraycopy(current, 0, workspace.blocked, 0, current.length);
-		workspace.candidatePosition[0] = candX;
-		workspace.candidatePosition[1] = candY;
-		workspace.blocked[playerNum - 1] = workspace.candidatePosition;
-		workspace.blockedOccupancy.rebuild(workspace.blocked);
-		simulateRoundPass(playerNum, current, simulatedVelocity, workspace.blocked,
+		workspace.blockedOccupancy.rebuild(current);
+		if (blockCandidate)
+			workspace.blockedOccupancy.add(candX, candY);
+		simulateRoundPass(playerNum, current, simulatedVelocity,
 				workspace.blockedOccupancy, workspace.round1Position, workspace.round1Velocity);
-		current[playerNum - 1] = null;
 		System.arraycopy(current, 0, workspace.world1, 0, current.length);
 		workspace.world1Occupancy.rebuild(workspace.world1);
-		workspace.blocked[playerNum - 1] = null;
-		workspace.blockedOccupancy.remove(candX, candY);
-		simulateRoundPass(playerNum, current, simulatedVelocity, workspace.blocked,
+		if (blockCandidate)
+			workspace.blockedOccupancy.remove(candX, candY);
+		simulateRoundPass(playerNum, current, simulatedVelocity,
 				workspace.blockedOccupancy, workspace.round2Position, workspace.round2Velocity);
-		current[playerNum - 1] = null;
 		return workspace;
 	}
 
@@ -2115,8 +2309,7 @@ final class RaceAi {
 	 *  a velocity row is replaced only when the move is legal, matching the
 	 *  original stay-put semantics exactly. */
 	private void simulateRoundPass(final int playerNum, final int[][] occupancy,
-			final int[][] simulatedVelocity, final int[][] blocked,
-			final CellOccupancy blockedOccupancy,
+			final int[][] simulatedVelocity, final CellOccupancy blockedOccupancy,
 			final int[][] nextPosition, final int[][] nextVelocity) {
 		for (int pass = 0; pass < 2; pass++) {
 			for (final Player p : game.players) {
@@ -2125,7 +2318,6 @@ final class RaceAi {
 					continue;
 				final int idx = p.getNumber() - 1;
 				final int[] current = occupancy[idx];
-				blocked[idx] = null;
 				blockedOccupancy.remove(current[0], current[1]);
 				final int[] velocity = simulatedVelocity[idx];
 				final Direction direction = pureMinTurnsMoveSim(current, velocity, blockedOccupancy);
@@ -2149,7 +2341,6 @@ final class RaceAi {
 				positionOut[0] = nx;
 				positionOut[1] = ny;
 				occupancy[idx] = positionOut;
-				blocked[idx] = positionOut;
 				blockedOccupancy.add(nx, ny);
 			}
 		}
@@ -2744,11 +2935,29 @@ final class RaceAi {
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
 			final long[] outFieldCost, final int[] outThreadRounds) {
+		return simOutcome(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish,
+				exactSelf, exactRivals, scorerRivals, scorerSelf, trueRivals, scorerCap,
+				outFinalTier, outFieldCost, outThreadRounds, false, null);
+	}
+
+	/** allScorerRivals bypasses both the normal cap and distance filter. The
+	 * optional rival-cost vector is indexed by game.players and contains -1 for
+	 * the mover/already-finished drivers, 0+ personal projected moves for a live
+	 * rival, or ROLLOUT_FAILURE_COST for a failed/unreachable rival. Callers that
+	 * request the vector also request field cost so a mover finish does not end
+	 * the rollout before rival costs are complete. */
+	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
+			final long[] outFieldCost, final int[] outThreadRounds,
+			final boolean allScorerRivals, final long[] outRivalCost) {
 		simDepth++;
 		try {
 			return simOutcomeCore(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish,
 					exactSelf, exactRivals, scorerRivals, scorerSelf, trueRivals, scorerCap,
-					outFinalTier, outFieldCost, outThreadRounds);
+					outFinalTier, outFieldCost, outThreadRounds, allScorerRivals,
+					outRivalCost);
 		} finally {
 			simDepth--;
 		}
@@ -2758,7 +2967,8 @@ final class RaceAi {
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
-			final long[] outFieldCost, final int[] outThreadRounds) {
+			final long[] outFieldCost, final int[] outThreadRounds,
+			final boolean allScorerRivals, final long[] outRivalCost) {
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -2766,8 +2976,15 @@ final class RaceAi {
 		final int[] vy = workspace.vy;
 		final boolean[] alive = workspace.alive;
 		final boolean[] scorerSet = workspace.scorerSet;
+		final int[] projectedMoves = workspace.projectedMoves;
 		final int[] move = workspace.move;
 		java.util.Arrays.fill(scorerSet, false);
+		if (outRivalCost != null) {
+			if (outRivalCost.length < game.players.length)
+				throw new IllegalArgumentException("rival-cost vector shorter than roster");
+			java.util.Arrays.fill(outRivalCost, ROLLOUT_NOT_LIVE_COST);
+			java.util.Arrays.fill(projectedMoves, 0);
+		}
 		if (outFieldCost != null)
 			outFieldCost[0] = 0L;
 		long failedRivalCost = 0L;
@@ -2789,11 +3006,19 @@ final class RaceAi {
 		py[myIdx] = myY;
 		vx[myIdx] = myVx;
 		vy[myIdx] = myVy;
+		if (outRivalCost != null)
+			for (int i = 0; i < game.players.length; i++)
+				if (i != myIdx && alive[i])
+					outRivalCost[i] = ROLLOUT_FAILURE_COST;
 		// Round 59: slow-class fires roll the nearest rivals with their REAL
 		// scorer (recursion-guarded); the rest keep the smom proxy.
 		// Membership is fixed at rollout start: the nearest
 		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR.
-		if (scorerRivals) {
+		if (scorerRivals && allScorerRivals) {
+			for (int i = 0; i < game.players.length; i++)
+				if (i != myIdx && alive[i])
+					scorerSet[i] = true;
+		} else if (scorerRivals) {
 			// Round 102: for TRUE-RIVAL confirms only, the membership radius
 			// scales with MY speed -- monza s80 commits at spd-inf 10 toward a
 			// braking car 11 cells downstream; a fixed Chebyshev-10 net can
@@ -2836,6 +3061,8 @@ final class RaceAi {
 			for (int i = from; i < game.players.length; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
+				if (outRivalCost != null && i != myIdx)
+					projectedMoves[i]++;
 				if (i == myIdx && outThreadRounds != null) {
 					int viable = 0;
 					for (final Direction d : DIRECTIONS) {
@@ -2894,7 +3121,8 @@ final class RaceAi {
 						if (outFieldCost == null)
 							return 0;
 						myFinished = true;
-					}
+					} else if (outRivalCost != null)
+						outRivalCost[i] = projectedMoves[i];
 					continue;
 				}
 				if (!moved) {
@@ -2911,15 +3139,21 @@ final class RaceAi {
 				vy[i] = move[3];
 			}
 		}
-		if (outFieldCost != null) {
+		if (outFieldCost != null || outRivalCost != null) {
 			long fieldCost = failedRivalCost;
 			for (int i = 0; i < game.players.length; i++) {
 				if (i == myIdx || !alive[i])
 					continue;
 				final int turns = reach.turnsToFinish(px[i], py[i], vx[i], vy[i]);
-				fieldCost += turns == Integer.MAX_VALUE ? ROLLOUT_FAILURE_COST : turns;
+				final long terminalCost = turns == Integer.MAX_VALUE
+						? ROLLOUT_FAILURE_COST : turns;
+				fieldCost += terminalCost;
+				if (outRivalCost != null)
+					outRivalCost[i] = terminalCost == ROLLOUT_FAILURE_COST
+							? ROLLOUT_FAILURE_COST : projectedMoves[i] + terminalCost;
 			}
-			outFieldCost[0] = fieldCost;
+			if (outFieldCost != null)
+				outFieldCost[0] = fieldCost;
 		}
 		// Round 65: a surviving-but-fragile final (tier <= 1) is the
 		// escalation signal for the 5-7-round doom class.

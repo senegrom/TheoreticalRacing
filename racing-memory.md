@@ -4,7 +4,9 @@ Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
-(auto-memory, ~2000 lines, every round's laws and rejections).## Harvest 30 census (local agent): the hold-overspeed arm gap -- next round candidate
+(auto-memory, ~2000 lines, every round's laws and rejections).
+
+## Harvest 30 census (local agent): the hold-overspeed arm gap -- next round candidate
 
 Full geometry set (16 random circuits x mixed s1-50, 800 races): 13
 crashes / 1.6% -- 4x the designed-track steady state, as a fresh-site
@@ -98,6 +100,120 @@ structural dooms immediately and cheaply; the residual family is the
 same oracle-only shape everywhere, now reproducible on demand by
 track-seed.
 
+
+## Round 177 pending final runtime: componentwise-confirmed uncertain field pace
+
+FINAL STATUS: CORRECTNESS GATES COMPLETE; EXACT NEW-BASE RUNTIME AND
+PUBLICATION PENDING. Frozen new-base control
+`FB3082BC89EAB74FAE7CB597A6CACA517CFCAED5393F3691A46AD8CEA0751142`;
+composed final artifact
+`DE4AB7759B5EEE8C4FF89A962AD20109515748FEBC133F421761FBF0B297A639`;
+final `RaceAi.java` SHA-256
+`1AE319BB250F9A09DB381B4B44219EE4B9656E54410B6EAA3A48BD4BB4B29579`.
+Historical pre-strengthening prototype `774B06FB...` and componentwise
+prototype `0154F47B...` remain evidence ancestry, not production artifacts.
+
+TARGET: Le Mans s29, behavior index 97 / global move 88, subgame 7, p8 at
+`(18,17)` with `v(3,-2)`. Champion `W` lands `(20,15) v(2,-2)`; candidate
+`N` lands `(21,14) v(3,-3)`. Gate state: map TTF `58 -> 57`; live 7,
+ahead 5, progress 39; speed2 current/chosen/candidate `13/8/18`, gain 10;
+trap 0; uncertainty `0.6066017177982119`; ring width 3. Standard suppressed
+proof: self `52 -> 51`, field `353 -> 352`. Full faithful proof: self
+`52 -> 51`, field `352 -> 351`, projected rivals `401 -> 400`; every live
+rival runs the unsuppressed champion and is componentwise non-worse, with p2
+alone improving `60 -> 59`.
+
+TARGET RESULT: both races have seven finishers, zero crashes and order
+`p1,p3,p6,p5,p7,p8,p2`. Finisher moves improve from
+`[65,67,69,71,73,74,76]` to `[65,67,69,71,72,73,75]`. Complete moves are
+champion `{1:65,2:76,3:67,4:75,5:71,6:69,7:73,8:74}` and candidate
+`{1:65,2:75,3:67,4:74,5:71,6:69,7:72,8:73}`. Thus p2/p4/p7/p8 are each
+-1 and nobody is slower; p4 remains the nonfinisher, so count the strict pace
+gain as three finisher moves, not four.
+
+POLICY: exactly five rivals ahead; one of the last three movers in the current
+round; homogeneous starting roster; at least five live rivals; positive ahead
+progress; non-`NONE` incumbent TTF 46-60; chosen and candidate speed2 both
+below 49; candidate exactly one TTF faster,
+nondecelerating from current energy, gain 9..15, trap zero and
+`0 < unc <= 1.0`. Existing finish-energy, funnel, seal and downstream DJS
+authority remain. The established eight-round suppressed proof ranks all
+candidates. Standard zero-uncertainty winners keep priority on ties. At most
+one strictly better uncertain winner receives the expensive proof pair; a veto
+falls back to the standard winner or incumbent.
+
+VECTOR PROOF: every rival live at the real position becomes an unfiltered,
+unsuppressed scorer rival. Require strict mover improvement, no modeled rival
+failure in the chosen world, strict legacy aggregate-field improvement,
+strict projected-personal aggregate improvement and componentwise non-worsening
+for each rival. Personal cost is simulated move slots consumed plus terminal
+TTF; a finisher stores slots consumed and failed/unreachable uses the failure
+sentinel. Recursion-swapped rollout workspaces own all proof buffers, while a
+depth-sized snapshot restores all five live candidate arrays in `finally`.
+
+EXACT COST CONTROL: nested suppressed/faithful scorers build one no-mover
+two-round opponent reference. If a candidate cell is absent from every selected
+first-round landing, adding that sole blocker cannot change the deterministic
+first round; after the blocker is removed, round two is identical as well. The
+cached world is reused only in that no-hit case, while hits take the original
+conditioned path. Ordinary top-level scoring remains on the old path. This
+preserves the full eight-round/all-live-rival proof and changes only execution
+cost.
+
+RUNTIME STATUS: PENDING. The exact new-base gate compares control
+`FB3082BC89EAB74FAE7CB597A6CACA517CFCAED5393F3691A46AD8CEA0751142`
+with composed final
+`DE4AB7759B5EEE8C4FF89A962AD20109515748FEBC133F421761FBF0B297A639`
+at Le Mans s29 and exact control s93, using balanced AB/BA order with pinned
+behavior and vectors. The predeclared protocol uses two warmup pairs and 16
+timed pairs per case initially; only s29 extends by 48 pairs if any required
+target CPU metric is not strictly below `1.05`. No runtime result or
+computation-cost pass is claimed until terminal readback. The earlier
+`F2E8...`/`8EEA...` measurements and 168-execution result belong to a
+superseded artifact pair and must not be carried forward.
+
+NEAREST VETO: Le Mans s14 has TTF `58 -> 57`, five ahead, speed2
+`13/10/25`, gain 15, trap 0 and uncertainty 2.5, so the final outer bound
+already rejects it. A widened diagnostic also proves why it is unsafe: self
+`52 -> 52`, field `354 -> 355`, projected rivals `405 -> 406`; p1 worsens
+`60 -> 62` while p5 improves `60 -> 59`. Silverstone s78 and Spa
+s12/s31/s40/s47 are the remaining historical redistribution/slowdown controls
+and stay on their complete champion trajectories.
+
+PARTIAL-ROUND SEPARATOR: an earlier full-field prototype also accepted Le Mans
+s93 p1 at subgame 0. It changed 125 normalized trajectory lines but left every
+result, finisher, crash and per-driver move count identical. Restricting the
+arm to the last three movers excludes that trajectory-only change while
+retaining s29 p8 at subgame 7. Le Mans s87 p7 at subgame 6 reaches the proof
+and is rejected componentwise: p2 worsens `58 -> 59` while p8 improves
+`59 -> 58`; self, legacy field and projected aggregate all tie. This exact
+veto is now a permanent debug-vector fixture rather than an inferred control.
+
+EXTERNAL EVIDENCE: frozen new-base control `FB3082BC...` versus composed final
+`DE4AB775...`, all-AI2. The rebased canonical inventory is 22 default tracks
+at s1-150, four slow tracks at
+s1-50, and all 16 current random tracks at s1-3: 3,548 unique races. Of those,
+3,547 are exact and Le Mans s29 is the sole divergence, with the strict result
+above. Regenerated Rand5 and the ten newly added random tracks were extended
+through s50. Replacing the obsolete three old-Rand5 rows yields 4,065 unique
+current-track races overall: 4,064 exact plus sole L29 strict. There is no
+slower driver, redistribution, identity change, crash change, trajectory-only
+change or other fork. The entire external FIELD-VECTOR census is exactly two
+lines: L29 componentwise=true/accepted=true and L87
+componentwise=false/accepted=false.
+
+FINAL GATES: AI1/AI2 post-mirror identity is 350/350 exact over the 22 default
+and four slow tracks. The Harvest-27/28 mixed corpus is 44/44 raw-log exact in
+both canonical 4v4 orders. The three-case composition canary is 3/3 raw- and
+normalized-log exact, with zero stderr and zero vectors. The fresh direct-JDK26
+local readback passed 26/26 gates: 42 `.track` definitions and all 59 regular
+track payload files were pinned, TrackData/Core/Main passed, and Python 3.14
+headless smoke, all 13 goldens, 14 tooling tests, compileall and all 19
+permanent AI pins passed. Independent read-only static diff review found no
+release blocker; it is not a substitute for dynamic evidence. NONCLAIMS: this
+is one bounded measured pace candidate, not a global pace, safety or
+compute-speed guarantee. Remote CI, CodeQL and promotion-workflow results are
+publication readbacks, not substitutes for these local gates.
 
 ## Round 176 promoted: faithful-rival finish-sprint confirmation
 
