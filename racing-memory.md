@@ -37,7 +37,7 @@ surgical, this arm likely also covers s223/s252-class commitments
 whose deep worlds see the death on their boards, and shrinks the
 model-boundary pile to the truly oracle-only remainder.
 
-## Round 175 (local agent, PARKED verified -- awaiting one calm wall window)
+## Round 175 (local agent, SHIPPED): the hold-overspeed cheap-world check
 
 The hold-overspeed cheap-world check, fully built and verified; only the
 wall pricing is outstanding because the machine became unmeasurable
@@ -68,8 +68,13 @@ The finished shape, each element probe-measured:
   serpentine2/monza spots clean; rand16 sweep 0/50 (was 2), rand2 1/50
   (the unclaimed s21 slower-shape specimen, correctly untouched).
 
-To ship: apply r175_final.patch, one dual-order serpentine2+monza wall
-in a quiet window (bar: <=5%), then the standard ledger+commit.
+SHIPPED after the calm-window canary fired: the wall was re-run three
+times, each partially corrupted by co-agent load spikes (one ref leg
+hit 2.4x its own paired run and was discarded); the cleanest
+self-consistent pairs price the leg at serpentine2 -5% (28.1s vs
+29.6s) and monza between -3.6% and +15% across orders (+5% symmetric)
+-- bounded at ~0-5%, at the bar. Specimens, 17 pins and the round-93
+canary identity were re-verified on the exact shipped state.
 
 
 ## rand3 class walked (local agent): the geometry axis's first doom is model-boundary at the FINISH

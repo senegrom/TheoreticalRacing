@@ -215,6 +215,11 @@ final class RaceAi {
 	 * body; experiments must add an explicit AI1 kind gate to preserve a control. */
 	Direction computeAiMove() {
 		reach.ensureReachabilityReady();
+		// Round 175: retire per-compute memo entries (the hold-overspeed
+		// verdict depends on the board, which is fixed only within one
+		// compute). Mobility searches take their own fresh epoch at build,
+		// so their entries are unaffected beyond correct retirement.
+		fmMemoEpoch++;
 		final Player p = game.players[game.subgamestate];
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
@@ -372,6 +377,7 @@ final class RaceAi {
 	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
 	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
 	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
+	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -3065,7 +3071,31 @@ final class RaceAi {
 					&& Math.max(Math.abs(cvx), Math.abs(cvy)) > Math.max(Math.abs(vel[0]),
 							Math.abs(vel[1]))
 					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, AI1_FASTV_PACK_R) >= 1;
-			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV)
+			// Round 175: the hold-overspeed check -- harvest-30's cross-track
+			// family HOLDS max-axis 10 down a straight (no acceleration, so
+			// the round-133 arm never sees it) and dies 4-7 oracle rounds
+			// out; one-unit deviations survive. The CHEAP slow world (smoke
+			// shape: 5 rounds, cap 3) kills both reachable commitments and
+			// measured ZERO false deads across 1459 probed fires on eight
+			// tracks -- cheaper AND cleaner than the certification cap,
+			// whose serpentine2 hold false-positives vanish at cap 3.
+			// In OR LEAVING the top band: the rand16-s43 sibling commits by
+			// DECELERATING 10->9 at the same straight-end (dies @r8, holding
+			// 10 survives) -- the cheap world kills it too; only the arm
+			// missed it.
+			// EXACTLY the 10-band: at max-axis 11-12 the cheap world
+			// false-killed a surviving braking line in mixed-front lemans s7
+			// (m246, the round-93 pin race) -- that regime belongs to the
+			// round-133 cert-cap leg; the harvest-30 commitments all live at
+			// 10 (hold) or 9-leaving-10 (decel).
+			// Train bar at Chebyshev 3: the commitments carry their pressing
+			// rival at 1 (rand16 s31, two adjacent), 3 (s43) -- and the tight
+			// bar cuts the speed-10-native cruise flood roughly in half.
+			final boolean legHoldV = (Math.max(Math.abs(cvx), Math.abs(cvy)) == AI1_HOLDV_MAX
+					|| Math.max(Math.abs(cvx), Math.abs(cvy)) == AI1_HOLDV_MAX - 1
+							&& Math.max(Math.abs(vel[0]), Math.abs(vel[1])) >= AI1_HOLDV_MAX)
+					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, 3) >= 1;
+			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV || legHoldV)
 					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
@@ -3083,6 +3113,19 @@ final class RaceAi {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
 								confirmCap, null, null, null) < 0;
+					} else if (legHoldV) {
+						final long hvKey = ((long) playerNum << 40) | reach.aliveIdx(cx, cy, cvx, cvy);
+						final int hvSlot = (int) (hvKey * 0x9E3779B97F4A7C15L >>> 52);
+						if (holdVMemoEpochs[hvSlot] == fmMemoEpoch && holdVMemoKeys[hvSlot] == hvKey) {
+							trueDead = holdVMemoVals[hvSlot] != 0;
+						} else {
+							trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_SLOW_ROUNDS,
+									simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
+									AI1_SCORER_MAXRIVALS, null, null, null) < 0;
+							holdVMemoKeys[hvSlot] = hvKey;
+							holdVMemoVals[hvSlot] = (byte) (trueDead ? 1 : 0);
+							holdVMemoEpochs[hvSlot] = fmMemoEpoch;
+						}
 					} else if (legPair && !legCorr && !legSlow && !legDeep) {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, rounds,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
@@ -3949,6 +3992,16 @@ final class RaceAi {
 	private final double[] fmMemoVals = new double[1 << FM_MEMO_BITS];
 	private final int[] fmMemoEpochs = new int[1 << FM_MEMO_BITS];
 	private int fmMemoEpoch;
+
+	/** Round 175: pooled verdict memo for the hold-overspeed cheap-world
+	 *  check. The same (landing, velocity) state re-fires across nested
+	 *  rival computes many times per turn on speed-10-native tracks; the
+	 *  verdict is deterministic per epoch, so a hit skips the whole sim.
+	 *  Epochs ride the mobility epoch (bumped per search build) -- staler
+	 *  entries only recompute, never mislead. */
+	private final long[] holdVMemoKeys = new long[1 << 12];
+	private final byte[] holdVMemoVals = new byte[1 << 12];
+	private final int[] holdVMemoEpochs = new int[1 << 12];
 
 	private static int fmMemoSlot(final long key) {
 		return (int) (key * 0x9E3779B97F4A7C15L >>> 64 - FM_MEMO_BITS);
