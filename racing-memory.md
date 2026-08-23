@@ -6,6 +6,40 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Harvest 33 census (local agent): hybrid12's wall-hug funnel trap, 8 instances at one site
+
+The hybrid sweep (9 circuits x mixed s1-50, 450 races) came back at 12
+crashes -- but ELEVEN sit on hybrid12 alone (22% of its races; the
+other eight circuits: 1 crash in 400, steady state). Site A, 8 races
+(s5..s43): byte-near-identical death at (8,88-89) v(-1,5|6)->(0,5),
+landing (8,93-94), always place 7/8, late race, BOTH kinds (AI1 and
+AI2 specimens) -- kind-invariant, shared-model. Site B, 3 races:
+(9-16,110-116) NW into the bottom-left corner. Plus one hybrid9
+single at (86,43) v(0,-5).
+
+Site A anatomy (walked from logs + track geometry, no probes yet):
+hybrid12's left border runs AXIS-ALIGNED at x=8 for y in [76,90],
+then turns left through (8,90)->(6,94)->(3,101). Riding the wall
+line is LEGAL (tolerance-expanded Area, collinear overlap does not
+cross), but from (8,88) with v(-1,5) every successor is fatal:
+vx -2/-1 exits through the wall, vx 0 rides the collinear line
+ACROSS the turning vertex at (8,90) -- segmentCrossesPath counts the
+endpoint touch as a cross -- and vx +1 is unreachable from vx=-1.
+Referee and AI share one predicate (isMoveLegalGeometry via the
+shared caches), so this is NOT a raster divergence: the AI entered a
+1-move-deep all-dead pocket. The commitment is upstream at (9,83):
+the chooser swerved v(-1,5) ONTO the wall line with leftward
+velocity while the funnel queue (p7 holding (9,88), 5-6 cars
+compressing into the bottom-left corner) blocked the clean line --
+the STUCK-rival queue-compression signature, amplified by geometry
+that gives wall-hugging an axis-aligned invitation.
+
+Walk queue: site A specimen ma_hybrid12_s13 (p3 m251) first -- probe
+the (9,83) choice: if the deep worlds read a survivor there (queue
+evaporates in sim), it joins the model-boundary pile; if a cheap
+world kills the swerve, it is an arm gap and a round candidate. Site
+B and the hybrid9 single after.
+
 ## Hybrid family (local agent, user-prompted): hull flow plus a weave comb
 
 The user asked for tracks that mix the random and weave characters --
