@@ -3141,7 +3141,12 @@ final class RaceAi {
 								final int h11 = simOutcome(cx, cy, cvx, cvy, playerNum,
 										AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
 										true, scorerSelf, false, confirmCap, null, null, h11Tr);
-								trueDead = h11 >= 0 && h11Tr[0] >= 4
+								// Round 177: the s8 verdict is ignored entirely (both
+								// worlds false-kill the round-93 pin fire, thread=1);
+								// the THREAD level is the separator -- pin 1, the
+								// lobe5 siblings 3 and 4, canon 279x0/3x1 -- so the
+								// true-4 verdict runs at thread >= 2.
+								trueDead = h11Tr[0] >= 2
 										&& simOutcome(cx, cy, cvx, cvy, playerNum,
 												AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish,
 												exactSelf, exactRivals, true, scorerSelf, true,

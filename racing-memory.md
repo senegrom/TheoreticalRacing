@@ -64,6 +64,30 @@ wall unmeasurable-to-favorable under co-agent load (monza side faster
 both orders; serpentine2 cleanest pair -15%) -- structurally the leg
 adds one memoized s8 audit per band fire and zero true-4s on canon.
 
+## Round 177 (local agent): the hold-band thread gate recalibrated
+
+Harvest 32 (weave/lobe s51-150, 4/1400) returned two lobe5 siblings
+(s118/s147) dying at the round-176 site from the IDENTICAL hold state
+((11,76) v(2,11) NONE) on different boards -- and the probe explained
+the miss precisely: on s118's board scorer-8 is DEAD with thread=3,
+so the r176 alive-gate declined a correct verdict, while on the
+round-93 pin fire BOTH worlds false-kill (true-4 dead there too --
+verified) at thread=1. No verdict-based shape can stand; the THREAD
+level is the one axis separating every measured case: pin 1, siblings
+3 and 4, canon 279x thread=0 / 3x thread=1 in 282 band fires.
+
+The recalibration: the s8 verdict is ignored entirely (pure audit
+source); the true-4 verdict runs at thread >= 2. Still zero true-4
+runs on canon by the measured distribution; the pin fire (thread 1)
+is excluded by construction.
+
+Gate: all three lobe5 siblings rescued, lobe5 sweep s51-150 0/100
+(was 2), 17/17 pins with the pin race byte-identical, canon spots
+clean. Fresh rand2 seeds surfaced three specimens for the walk queue:
+another s21-class instance (byte-identical move), a new
+v(-4,2)-family instance at (7,13), and a new vertical site at
+(10,111); lobe2 s111/s132 also queued. None touch shipped fixes.
+
 
 ## Weave and lobe families (local agent, user-prompted): the geometry axis learns topology
 
