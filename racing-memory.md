@@ -6,6 +6,47 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## hybrid12 site A walked (local agent): a twin-branch funnel ridge, model-boundary in every world
+
+Full probe walk of ma_hybrid12_s13 p3 (the 8-instance site). Root
+masks and world verdicts at every decision from freedom to death:
+
+- m203 (29,49) v(-5,7): free board (8 of 9 map-alive).
+- m211 (23,56) v(-6,7) -> E: ALIVE everywhere (s5c3 V=62, true-6
+  V=61). Last all-world-alive board.
+- m219 (18,63) v(-5,7): the map narrows to twin options (NE/E, rest
+  map-dead). WORLD SPLIT, but not by option: s5c3 kills BOTH (V=-1),
+  true-6 holds BOTH alive (V=60). No separator.
+- m227 (14,70) v(-4,7): twin options again; every world kills both.
+- m235 (11,77) v(-3,7): taken (9,83) is map-ALIVE (the alive-map sees
+  the needle thread: land exactly ON the corner vertex (8,90) with
+  v(-1,7), then straight down), but every sim world kills every
+  candidate. The thread is then closed by p4's body at m243 (root B).
+- m243: all candidates map-dead or body-blocked (mask XXDXXDXXB);
+  m251: all nine geometry-illegal (XXXXXXXXX) -- the referee kill is
+  the collinear ride across the border vertex; the landed state
+  (8,93) v(0,5) probes V=58 alive, so the death is purely the swept
+  edge, which the AI's shared predicate also rejects (root D/X --
+  no raster divergence, confirmed end to end).
+
+VERDICT: model-boundary, oracle pile. From m219 on there is NO
+board/world pair that separates chosen from alternative: the cheap
+worlds go pessimistic-dead on BOTH twin branches 3 rounds early, the
+faithful worlds stay optimistic-alive on both until the pocket seals
+-- every sim diverges from the real queue evolution, in opposite
+directions by world class. A confirm leg anywhere on the ridge either
+kills both candidates (no certified switch, r161 keeps chosen) or
+fires nothing. The rescue would need real-order queue semantics, not
+another world.
+
+The geometry's role: the axis-aligned left-wall band (x=8, y 76-90)
+plus the (8,90) turn vertex make wall-hugging legal-but-terminal, so
+queue compression converts to death at 22%/race. hybrid12 stays in
+the fleet as the standing stress fixture for any future queue-
+semantics round -- it manufactures the STUCK-rival doom class at 30x
+the designed-track rate. Site B (3 races, bottom-left corner gate)
+and the hybrid9 single remain unwalked in the queue behind it.
+
 ## Harvest 33 census (local agent): hybrid12's wall-hug funnel trap, 8 instances at one site
 
 The hybrid sweep (9 circuits x mixed s1-50, 450 races) came back at 12
