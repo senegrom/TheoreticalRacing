@@ -6,6 +6,34 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## hybrid12 site B walked (local agent): same funnel, second pocket, same verdict
+
+Site B (3 races, bottom-left) is the CONTINUATION of the site-A
+funnel: ma_hybrid12_s19 p7 rode the exact escape line site A's victim
+could not reach -- (11,77)->(9,84)->(8,92), threading the wall band
+in flight -- but arrived carrying vy=8, and the bottom wall at y~115
+leaves no shed room (1/turn: 92+7+6+5+4 overshoots any east turn).
+Both walked specimens pass (11,77) at vy 7-8; the survivor class
+(p8-s13) passes at vy<=6. Max-axis at commitment is 7-8 -- below
+every shipped fast-leg band, the moderate-speed funnel morphology.
+
+Verdicts: p7 is map-FORCED from m239 on (one alive option, then
+all-dead boards; the alive-map itself reads (8,92) v(-1,8) DEAD).
+At m231 (vy 7->8, the accel-into commitment) and at m223 both
+map-alive options -- INCLUDING the cool NE shed-to-vy-6 branch that
+reality's survivors ride -- probe V=-1 in scorer-5-cap3 AND
+true-6-cap6. The sims kill the whole funnel indiscriminately at this
+depth while reality's queue lets cool entries live: queue-divergence
+pessimism, no separating board/world pair anywhere. Sites A and B
+are ONE family: the hybrid12 left-funnel queue, model-boundary,
+oracle pile.
+
+Harvest-33 walk sweep closed: the remaining specimen (hybrid9 s44,
+m104, (86,43) v(0,-5), single instance) is an AI2 baseline crash --
+noted, unwalked, per the frozen-baseline convention. Open walk queue
+reverts to the pre-hybrid five (rand2 s21-class seeds, the v(-4,2)
+family instance, the rand2 vertical site, lobe2 s111/s132).
+
 ## hybrid12 site A walked (local agent): a twin-branch funnel ridge, model-boundary in every world
 
 Full probe walk of ma_hybrid12_s13 p3 (the 8-instance site). Root
