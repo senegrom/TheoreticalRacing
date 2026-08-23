@@ -4,7 +4,45 @@ Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
-(auto-memory, ~2000 lines, every round's laws and rejections).## Harvest 30 census (local agent): the hold-overspeed arm gap -- next round candidate
+(auto-memory, ~2000 lines, every round's laws and rejections).
+
+## Hybrid family (local agent, user-prompted): hull flow plus a weave comb
+
+The user asked for tracks that mix the random and weave characters --
+"a bit of both". gen_hybrid grafts a serpentine comb into a hull
+circuit: random points -> convex hull -> the LONGEST full hull edge is
+reserved (no midpoint displacement -- displaced half-edges are ~50-80
+units, too short for a comb) and replaced by 2-3 outward fingers built
+with the weave family's corner mathematics; every other edge gets the
+usual random inward midpoint displacement, then the shared
+_finish_loop discipline accepts or rejects.
+
+Comb construction (all lengths in control units, minr=8): finger
+half-width fw=1.25*minr, base inner-arc radius rin=1.35*minr,
+wall-to-wall finger gap 3.2*minr (adjacent base arcs each consume rin
+of baseline -- 2.2*minr overlapped and knotted), end margin rin+minr,
+depth 3-5*minr per finger. Tips are sampled semicircles (pi/8) tangent
+to the walls at bl+n*depth exactly; the base corners are perpendicular,
+and for EITHER loop winding the turn-side normals are (n,-u) entering
+and (u,n) leaving -- the first cut passed both sign-flipped and every
+seed knotted. Debug discipline that found all three bugs in one pass:
+render the control loop + Chaikin overlay to PNG before touching the
+rejection loop (the weave lesson, reapplied).
+
+Validation: 12 seeds -> 9 circuits (hybrid1-4,6,7,9,10,12), three
+dart-rejected (48-85 move races; files deleted by the gate). Survivor
+races run 690-877 moves, corridor 5.0-6.3 cells, scale 0.56-0.71 --
+the same envelope as the weave and random families. Harvest 33 (mixed
+fields, grid-seeds 1-50 per circuit, 450 races) queued over the nine.
+
+Also this window: the branch sweep the user ordered -- 34 remote
+branches with zero unique commits deleted; codex/faster-racing-ai HELD
+(carries their unmerged componentwise-field-pace round, 851 insertions,
+round-number collision with local 177 to reconcile at merge); local
+backup-full-history (74 unique) and the worktree branch (31 unique)
+kept per the no-extra-commits criterion.
+
+## Harvest 30 census (local agent): the hold-overspeed arm gap -- next round candidate
 
 Full geometry set (16 random circuits x mixed s1-50, 800 races): 13
 crashes / 1.6% -- 4x the designed-track steady state, as a fresh-site
@@ -35,7 +73,9 @@ admission on straights before arming (cruise-at-10 fires are constant
 there; the funnel signal must carry the selectivity). If it measures
 surgical, this arm likely also covers s223/s252-class commitments
 whose deep worlds see the death on their boards, and shrinks the
-model-boundary pile to the truly oracle-only remainder.## Round 176 (local agent): the 11-12 hold band closes the speed-arm seam
+model-boundary pile to the truly oracle-only remainder.
+
+## Round 176 (local agent): the 11-12 hold band closes the speed-arm seam
 
 Harvest 31 -- the weave/lobe families' first sweep -- came back at ONE
 crash in 700 races (the champion generalizes to brand-new topology),

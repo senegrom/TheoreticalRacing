@@ -12,7 +12,7 @@ Closed patterns (cog) are cut at a start/finish point into two open borders with
 tiny S/F gap, like the F1 circuits.
 
 Usage: build_synthetic.py <pattern> <output.track> <name> <gridX> <gridY> [width]
-  pattern: serpentine | spiral | cog | random | weave | lobes (seed=N per circuit)
+  pattern: serpentine | spiral | cog | random | weave | lobes | hybrid (seed=N per circuit)
 """
 
 import math
@@ -444,6 +444,116 @@ def gen_lobes(seed=1, minr=8.0, step=6.0, passes=6):
     raise SystemExit(f"gen_lobes: no valid loop after 64 attempts (seed {seed})")
 
 
+
+def _inner_arc(vx, vy, n1x, n1y, n2x, n2y, dot, inset, rin):
+    """Three points rounding an inner corner at node (vx,vy): center on the
+    bisector at (inset+rin)/(1+dot) along (n1+n2), tangent radius rin."""
+    denom = 1.0 + dot
+    if denom <= 1e-6:
+        return []
+    cxr = vx + (n1x+n2x)*(inset+rin)/denom
+    cyr = vy + (n1y+n2y)*(inset+rin)/denom
+    bx, by = unit(n1x+n2x, n1y+n2y)
+    return [(cxr - n1x*rin, cyr - n1y*rin),
+            (cxr - bx*rin, cyr - by*rin),
+            (cxr - n2x*rin, cyr - n2y*rin)]
+
+
+def gen_hybrid(seed=1, npts=10, box=240.0, disp=0.4, minr=8.0, step=6.0,
+               passes=8):
+    """Hull flow plus one serpentine comb: the displaced hull loop's longest
+    edge is replaced by 2-3 outward fingers (half-width 1.25*minr, spacing
+    2.2*minr between finger walls, sampled semicircle tips, three-point
+    inner arcs at the bases). Deterministic per seed."""
+    import random
+
+    def hull(ps):
+        ps = sorted(set(ps))
+        def half(seq):
+            h = []
+            for q in seq:
+                while len(h) >= 2 and ((h[-1][0]-h[-2][0])*(q[1]-h[-2][1])
+                                       - (h[-1][1]-h[-2][1])*(q[0]-h[-2][0])) <= 0:
+                    h.pop()
+                h.append(q)
+            return h
+        lo, hi = half(ps), half(reversed(ps))
+        return lo[:-1] + hi[:-1]
+
+    fw = 1.25 * minr
+    rin = 1.35 * minr
+    # adjacent fingers' base arcs each consume rin of baseline, so the
+    # wall-to-wall gap must clear 2*rin with margin
+    gap = 3.2 * minr
+    for attempt in range(96):
+        rng = random.Random(seed * 1000 + attempt)
+        pts = [(rng.uniform(0, box), rng.uniform(0, box)) for _ in range(npts)]
+        h = hull(pts)
+        if len(h) < 5:
+            continue
+        cx = sum(q[0] for q in h) / len(h)
+        cy = sum(q[1] for q in h) / len(h)
+        # graft the comb into the longest full hull edge (its midpoint stays
+        # undisplaced -- displaced half-edges are too short for a comb);
+        # every other edge gets the random inward midpoint displacement
+        hn = len(h)
+        eh = max(range(hn), key=lambda i: math.hypot(h[(i+1) % hn][0]-h[i][0],
+                                                     h[(i+1) % hn][1]-h[i][1]))
+        loop = []
+        ei = -1
+        for i in range(hn):
+            a, b = h[i], h[(i+1) % hn]
+            loop.append(a)
+            if i == eh:
+                ei = len(loop) - 1
+                continue
+            mx, my = (a[0]+b[0])/2.0, (a[1]+b[1])/2.0
+            f = rng.uniform(0.0, disp)
+            loop.append((mx + f*(cx-mx), my + f*(cy-my)))
+        A, B = h[eh], h[(eh+1) % hn]
+        ex, ey = B[0]-A[0], B[1]-A[1]
+        elen = math.hypot(ex, ey)
+        ux, uy = ex/elen, ey/elen
+        # outward normal: away from the centroid
+        nx, ny = -uy, ux
+        mx, my = (A[0]+B[0])/2.0, (A[1]+B[1])/2.0
+        if (mx-cx)*nx + (my-cy)*ny < 0:
+            nx, ny = -nx, -ny
+        end = rin + minr    # baseline the base arcs eat, plus margin
+        nf = rng.choice((2, 3))
+        span = nf*2*fw + (nf-1)*gap
+        if span > elen - 2*end:
+            nf = 2
+            span = nf*2*fw + (nf-1)*gap
+            if span > elen - 2*end:
+                continue
+        depth = rng.uniform(3.0, 5.0) * minr
+        s0 = (elen - span) / 2.0
+        comb = []
+        for k in range(nf):
+            sl = s0 + k*(2*fw+gap)
+            sr = sl + 2*fw
+            blx, bly = A[0]+ux*sl, A[1]+uy*sl        # base left
+            brx, bry = A[0]+ux*sr, A[1]+uy*sr        # base right
+            tcx, tcy = A[0]+ux*(sl+fw)+nx*depth, A[1]+uy*(sl+fw)+ny*depth
+            # base corners are perpendicular; turn-side normals are (n,-u)
+            # entering and (u,n) leaving, for either loop winding
+            comb += _inner_arc(blx, bly, nx, ny, -ux, -uy, 0.0, 0.0, rin)
+            comb.append((blx+nx*depth, bly+ny*depth))   # tangent to tip circle
+            # sampled semicircle tip around (tcx,tcy), radius fw, from -u side to +u side
+            a1 = math.atan2(-uy, -ux)
+            for j in range(1, 8):
+                th = a1 + math.pi * j / 8.0 * (1 if (ux*ny-uy*nx) < 0 else -1)
+                comb.append((tcx + fw*math.cos(th), tcy + fw*math.sin(th)))
+            comb.append((brx+nx*depth, bry+ny*depth))
+            comb += _inner_arc(brx, bry, ux, uy, nx, ny, 0.0, 0.0, rin)
+        loop = loop[:ei+1] + comb + loop[ei+1:]
+        c = _finish_loop(loop, minr, step, passes)
+        if c is not None:
+            return c, True
+    raise SystemExit(f"gen_hybrid: no valid loop after 96 attempts (seed {seed})")
+
+
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
@@ -452,6 +562,7 @@ GENERATORS = {
     'random': gen_random,
     'weave': gen_weave,
     'lobes': gen_lobes,
+    'hybrid': gen_hybrid,
 }
 
 
