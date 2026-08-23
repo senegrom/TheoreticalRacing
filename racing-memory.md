@@ -35,7 +35,36 @@ admission on straights before arming (cruise-at-10 fires are constant
 there; the funnel signal must carry the selectivity). If it measures
 surgical, this arm likely also covers s223/s252-class commitments
 whose deep worlds see the death on their boards, and shrinks the
-model-boundary pile to the truly oracle-only remainder.
+model-boundary pile to the truly oracle-only remainder.## Round 176 (local agent): the 11-12 hold band closes the speed-arm seam
+
+Harvest 31 -- the weave/lobe families' first sweep -- came back at ONE
+crash in 700 races (the champion generalizes to brand-new topology),
+and that one specimen sat exactly in the seam between the shipped
+speed arms: lobe5 s35 HOLDS max-axis 11 (m267, dies @r4, braking to 10
+survives with the finish 9 turns away) -- above r175's 10-band, below
+r133's accel-into trigger, nearest rival at Chebyshev 11 so no train
+bar applies.
+
+Probe-measured leg, every axis empirical: scorer worlds read the
+commitment alive but the scorer-8 AUDIT is loud (thread 4/7, snug
+6/7) and true-4-cap6 kills it. scorer-8 gets NO verdict role -- its
+single band DEAD verdict sits in the round-93 pin race, which
+survives it (the same false kill that excluded 11-12 from r175); it
+serves as the audit source only. The leg: max-axis 11-12 not
+increased -> s8-cap6 audit -> alive-with-thread>=4 -> true-4 verdict
+alone -> standard ladder. The thread gate measured perfectly
+selective: ZERO escalations in 282 canon band fires
+(monza 100 / serpentine2 176 / spa 6 / bigoval 0). Decisions ride the
+shared per-compute verdict memo (band-disjoint keys from r175's leg).
+
+Gate: lobe5 s35 rescued and its sweep 0/50 (was 1); rand2 at its
+known s21 residual; serpentine2/monza spots clean; 17/17 pins with
+the round-93 canary race verified byte-identical on the exact build;
+wall unmeasurable-to-favorable under co-agent load (monza side faster
+both orders; serpentine2 cleanest pair -15%) -- structurally the leg
+adds one memoized s8 audit per band fire and zero true-4s on canon.
+
+
 ## Weave and lobe families (local agent, user-prompted): the geometry axis learns topology
 
 The hull family is topology-bound -- a convex skeleton yields rounded

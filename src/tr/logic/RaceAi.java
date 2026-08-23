@@ -3095,7 +3095,19 @@ final class RaceAi {
 					|| Math.max(Math.abs(cvx), Math.abs(cvy)) == AI1_HOLDV_MAX - 1
 							&& Math.max(Math.abs(vel[0]), Math.abs(vel[1])) >= AI1_HOLDV_MAX)
 					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, 3) >= 1;
-			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV || legHoldV)
+			// Round 176: the 11-12 HOLD band (accel stays with the round-133
+			// leg). lobe5-s35 holds 11 and dies @r4 with every scorer world
+			// alive -- but the scorer-8 audit is loud (thread 4/7) and the
+			// true world kills. Audit-only s8: its one band DEAD verdict
+			// sits in the round-93 pin race, which survives it, so only
+			// alive-with-thread>=4 escalates to the true-4 verdict; probe:
+			// zero escalations in 282 canon band fires. No train bar -- the
+			// lobe5 rival is 11 away; the thread tell is the selectivity.
+			final boolean legHold11 = Math.max(Math.abs(cvx), Math.abs(cvy)) >= AI1_FASTV_MAX
+					&& Math.max(Math.abs(cvx), Math.abs(cvy)) <= Math.max(Math.abs(vel[0]),
+							Math.abs(vel[1]));
+			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV || legHoldV
+					|| legHold11)
 					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
@@ -3113,15 +3125,28 @@ final class RaceAi {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
 								confirmCap, null, null, null) < 0;
-					} else if (legHoldV) {
+					} else if (legHoldV || legHold11) {
 						final long hvKey = ((long) playerNum << 40) | reach.aliveIdx(cx, cy, cvx, cvy);
 						final int hvSlot = (int) (hvKey * 0x9E3779B97F4A7C15L >>> 52);
 						if (holdVMemoEpochs[hvSlot] == fmMemoEpoch && holdVMemoKeys[hvSlot] == hvKey) {
 							trueDead = holdVMemoVals[hvSlot] != 0;
 						} else {
-							trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
-									AI1_SCORER_MAXRIVALS, null, null, null) < 0;
+							if (legHoldV) {
+								trueDead = simOutcome(cx, cy, cvx, cvy, playerNum,
+										AI1_DJS_SLOW_ROUNDS, simFinishVanish, exactSelf,
+										exactRivals, true, scorerSelf, false,
+										AI1_SCORER_MAXRIVALS, null, null, null) < 0;
+							} else {
+								final int[] h11Tr = { 0, 0 };
+								final int h11 = simOutcome(cx, cy, cvx, cvy, playerNum,
+										AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
+										true, scorerSelf, false, confirmCap, null, null, h11Tr);
+								trueDead = h11 >= 0 && h11Tr[0] >= 4
+										&& simOutcome(cx, cy, cvx, cvy, playerNum,
+												AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish,
+												exactSelf, exactRivals, true, scorerSelf, true,
+												confirmCap, null, null, null) < 0;
+							}
 							holdVMemoKeys[hvSlot] = hvKey;
 							holdVMemoVals[hvSlot] = (byte) (trueDead ? 1 : 0);
 							holdVMemoEpochs[hvSlot] = fmMemoEpoch;
