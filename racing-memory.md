@@ -6,6 +6,46 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Queue family oracle-walked end to end (local agent): the commitment is where every world is blind
+
+The hybrid12-s13 archetype (site A) rolled through the offline oracle
+(real order, real occupancy, all eight champions -- reach_hybrid12.bin
+dumped, cand at every walked board):
+
+- m235, m227, m219, m211: EVERY candidate dies under perfect fidelity
+  (best lines die @r2-8). The in-game walk's earlier reading inverts:
+  the cheap worlds' m219 kills were CORRECT and true-6's alive was
+  optimistic drift -- but it never mattered, because no alternative
+  survived at any of these boards. Switching cannot rescue here.
+- m203 IS the oracle commitment: SIX of eight candidates survive to
+  the finish (hold, E, N, NE, S, SE all alive t=57) and p3 chose W --
+  one of the only two dying options (dies @r6). Every shipped world
+  reads that W as strongly ALIVE (s5c3 V=63, s8c6 V=60 snug=7,
+  true-6 V=62): the real queue diverges from every affordable rival
+  model within six rounds, exactly in tight quarters (the loud snug
+  is the only tell).
+
+ORACLE-PROVEN root cause for the whole queue family: the doom commits
+on a board where every world is blind, and by the time any world sees
+death there is nothing to switch to. Two engineering axes remain,
+both banked for round 181:
+(a) an EXACT-ORDER, UNCAPPED confirm world -- the true world already
+    pays most of the cost (champion rivals); the delta is real
+    subgamestate order, no rival cap, and real body timing. Measure
+    whether ordered-true-6 kills the m203 W on the archetype board
+    (offline first, via a query-sim variant), then cost the arm:
+    admission would need the snug tell (snug >= 6-7 at s8) since
+    speed/succ do not fire at max-axis 7 on a wide board.
+(b) formation-stage pacing: keep the TAIL of a compressing train from
+    entering the funnel at all -- a train-compression signal
+    (multiple same-direction rivals ahead within the braking span)
+    braking one notch early, while options still exist. Cheaper, but
+    touches racing pace, so it needs the full pace-regression battery.
+
+Harvest 35's site C (top wall) and the rand2 corner jam presumably
+share this anatomy; their oracle walks are queued behind the round-181
+measurement.
+
 ## Harvest 35 census (local agent): fresh windows all clean except the stress fixture
 
 Fresh grid-seed territory under rounds 178-180 (weave/lobe s1-50 --
