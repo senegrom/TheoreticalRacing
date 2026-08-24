@@ -6,6 +6,34 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Harvest 35 census (local agent): fresh windows all clean except the stress fixture
+
+Fresh grid-seed territory under rounds 178-180 (weave/lobe s1-50 --
+their first-ever low windows -- and hybrid s51-100; 1150 races):
+8 crash races / 0.70%, and ALL EIGHT are hybrid12. Every other
+circuit's fresh window is CLEAN: the weave and lobe families' second
+seed axis, and all eight other hybrids, produce zero crashes -- the
+r175-180 arms generalize across seed territory, not just at their
+walked sites.
+
+hybrid12's eight: sites A (s68/s70/s85) and B (s78/s80/s88) as
+classified, plus a NEW site C -- a kind-invariant pair (s76 AI1, s91
+AI2) at the TOP wall, (68-70,5) v(-4..-5,-2) dying at (64-66,2),
+max-axis 4-5, m127-128, place 8. Walked s76: the map thread seals at
+m111 (three bodies close the top corridor, taken is map-DEAD with
+everything else blocked); the one choice-ful board (m103) has twin
+alive options IDENTICAL in every world (both s8-DEAD and true-6-DEAD)
+-- the no-separator queue-jam signature, third instance on this
+geometry. Model-boundary, oracle pile, site C joins the family.
+
+The fixture now manufactures the queue-divergence doom class at
+three distinct corners of one track (left band, bottom gate, top
+wall) at ~16-22% per 50-seed window while the other 38 circuits sit
+at zero -- exactly what it is kept for. The frontier's open surface
+is unchanged: the queue families (all one root cause: real-order
+occupancy under compression, which no sim world models), rand13-s4's
+economics-blocked admission class, and rand20-s2's old family.
+
 ## Round 180 (local agent, SHIPPED): ridge floor 8 + accels, and the AI1 kind gate the goldens enforced
 
 Two changes, and the second is the round's real lesson.
