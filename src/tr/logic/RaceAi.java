@@ -377,6 +377,10 @@ final class RaceAi {
 	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
 	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
 	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
+	private final static int		AI1_RIDGE_MIN_SPD	= 9;	// round 178: max-axis floor for the thin-ridge hold check -- the lobe2-s111 commitment holds 10 onto a one-lane alive ridge with no train rival and a ring-wide waist
+	private final static int		AI1_RIDGE_MAX_SUCC	= 2;	// round 178: alive-successor ceiling at the chosen landing (referee-mask mirror); canon census 2/9/2/0 admissions per race, lobe2 116
+	private final static int		AI1_RIDGE_THREAD	= 4;	// round 178: s8-audit thread level that escalates to the true-6 verdict -- canon 0 escalations, lobe2 13 with DEAD only on the real doom line
+	private final static int		AI1_RIDGE_TRUE_ROUNDS	= 6;	// round 178: the ridge doom lands 6 rounds out -- true-4 reads the m363 commitment alive (V=7), true-6 kills it
 	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
@@ -950,6 +954,66 @@ final class RaceAi {
 							if (funnelChoice != chosen) {
 								chosen = funnelChoice;
 								deepHandled = true;
+							}
+						}
+						// Round 178: the thin-ridge hold check. Holding 9-10 onto
+						// a one-lane alive ridge (<= 2 alive successors at the
+						// landing) -- lobe2-s111's single thread is closed by a
+						// body 40 cells downstream; no train rival for the
+						// round-175 bar, ring-wide waist for the round-83 funnel,
+						// dense field for the guard above. s8-cap6 audits (never
+						// a verdict: every admitted census fire reads s8-alive);
+						// DEAD-or-loud escalates to the true-6 verdict (true-4
+						// reads the doom alive -- it lands 6 rounds out). Switch
+						// only to a certified quiet-alive alternative; none =>
+						// keep chosen (round-161 semantics). Canon census: 2/9/2/0
+						// admissions, zero escalations, zero kills.
+						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
+								&& fSpdInf < AI1_FASTV_MAX
+								&& fSpdInf <= Math.max(Math.abs(vel[0]), Math.abs(vel[1]))
+								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
+								&& ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC) {
+							final int[] rgTr = { 0, 0 };
+							final int rg8 = simOutcome(fCx, fCy, djvx, djvy, playerNum,
+									AI1_DEEP_HORIZON, true, true, true, true, false, false,
+									AI1_DEEP_CERT_RIVALS, null, null, rgTr);
+							if ((rg8 < 0 || rgTr[0] >= AI1_RIDGE_THREAD)
+									&& simOutcome(fCx, fCy, djvx, djvy, playerNum,
+											AI1_RIDGE_TRUE_ROUNDS, true, true, true, true, false,
+											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0) {
+								Direction ridgeBest = null;
+								int ridgeTurns = Integer.MAX_VALUE;
+								for (final Direction rd : DIRECTIONS) {
+									if (rd == chosen)
+										continue;
+									final int rvx = vel[0] + rd.dx, rvy = vel[1] + rd.dy;
+									if (RaceGame.aiVelocityOutOfRange(rvx, rvy))
+										continue;
+									final int rx = pos[0] + rvx, ry = pos[1] + rvy;
+									if (game.crossesFinish(pos[0], pos[1], rx, ry)) {
+										ridgeBest = rd;
+										break;
+									}
+									if (!game.isMoveLegalGeometryCached(pos[0], pos[1], rx, ry)
+											|| game.isCrashingPlayer(rx, ry, playerNum)
+											|| !reach.isAlive(rx, ry, rvx, rvy))
+										continue;
+									final int[] cTr = { 0, 0 };
+									if (simOutcome(rx, ry, rvx, rvy, playerNum, AI1_DEEP_HORIZON,
+											true, true, true, true, false, false,
+											AI1_DEEP_CERT_RIVALS, null, null, cTr) < 0
+											|| cTr[0] >= AI1_RIDGE_THREAD)
+										continue;
+									final int rTurns = reach.turnsToFinish(rx, ry, rvx, rvy);
+									if (rTurns < ridgeTurns) {
+										ridgeTurns = rTurns;
+										ridgeBest = rd;
+									}
+								}
+								if (ridgeBest != null) {
+									chosen = ridgeBest;
+									deepHandled = true;
+								}
 							}
 						}
 					}
@@ -3375,6 +3439,22 @@ final class RaceAi {
 
 	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
 	private final static double	AI2_PLATEAU_TIEBREAK	= 0.05;
+
+	/** Round 178: alive successors of a landing state, mirroring the referee
+	 *  mask -- finish-crossing or (edge-legal AND map-alive). Map-only. */
+	private int ridgeSuccAlive(final int x, final int y, final int vx, final int vy) {
+		int succ = 0;
+		for (final Direction sd : DIRECTIONS) {
+			final int svx = vx + sd.dx, svy = vy + sd.dy;
+			if (RaceGame.aiVelocityOutOfRange(svx, svy))
+				continue;
+			final int sx = x + svx, sy = y + svy;
+			if (game.crossesFinish(x, y, sx, sy)
+					|| game.isMoveLegalGeometryCached(x, y, sx, sy) && reach.isAlive(sx, sy, svx, svy))
+				succ++;
+		}
+		return succ;
+	}
 
 	private int countRivalsWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
 		int count = 0;

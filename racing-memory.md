@@ -6,6 +6,50 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 178 (local agent, SHIPPED): the thin-ridge hold check
+
+The lobe2-s111 walk (harvest 32's pair) found the first rescuable
+specimen in five walks: a HOLD of max-axis 10 onto a one-lane
+alive-map ridge whose single thread a rival body closes 40 cells
+downstream. Invisible to every shipped arm by measurement: no rival
+within Chebyshev 3 (r175's bar), minRing=7 run=0 (r83's funnel signal
+-- the lobe2 waist is ring-wide; the doom is the RIDGE), liveRivals=7
+(r83's deep guard is capped at 4). At the commitment the worlds
+finally separate: taken hold-10 is s8-alive-LOUD (V=3, thread=4) and
+TRUE-SIX dead (true-4 reads it alive -- the death lands 6 rounds
+out); the brake alternative is quiet-alive everywhere (V=4-8,
+thread=0).
+
+The check (root guard beside the r83 funnel guard -- v1 lesson: a
+confirm-chain leg is never reached for rival-less fast fires; that
+routing hole IS the arm gap): hold/decel at max-axis 9-10 whose
+chosen landing has <= 2 alive successors (referee-mask mirror,
+map-only) => s8-cap6 AUDIT (never a verdict; every admitted census
+fire reads s8-alive) => DEAD-or-thread>=4 escalates to the true-6
+verdict => switch only to a certified quiet-alive alternative
+(root-legal, map-alive, s8 quiet-alive, best turnsToFinish); none
+certifies => keep chosen (r161 semantics). Worlds ship the exact
+probe-measured flag bundle (scorerRivals, proxy self).
+
+Probe census (probe178a/b/c, all replays byte-identical): canon
+admissions monza 2 / serpentine2 9 / spa 2 / bigoval 0 per race with
+ZERO escalations and ZERO kills; lobe2 116 admissions, 13
+escalations, DEAD only on the actual doom line (m363 + its forced
+sequel). Gate: lobe2 s101-150 sweep 0 crashes (was 2 -- s111 AND the
+unwalked s132 both rescued); hybrid12 sweep byte-stable (same 11
+races / 12 crash lines -- every stress-fixture escalation ends in
+keep-chosen); rand16 sweep 0 (r175 intact); serpentine2/monza spots
+0; 17/17 pins PASS; dual-order wall neutral (serpentine2 +1.7%,
+monza -3.7%, both inside the +-5% noise law -- consistent with zero
+canon escalations). New pin tests/ai1_thin_ridge_regression.py
+(lobe2 s111+s132 mixed, crashes==0), verified against side and
+rebuilt main jars.
+
+Open after this round: the hybrid12 funnel family stays model-
+boundary (its ridge fires escalate and keep-chosen -- the verdict
+worlds cannot separate its twin branches); walk queue continues with
+the rand2 specimens.
+
 ## hybrid12 site B walked (local agent): same funnel, second pocket, same verdict
 
 Site B (3 races, bottom-left) is the CONTINUATION of the site-A
