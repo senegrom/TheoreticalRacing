@@ -6,6 +6,40 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 181 CLOSED (local agent): the queue family is beyond affordable detection -- the architecture's floor, by exhaustive measurement
+
+Bend-ahead, the last cheap candidate, measured offline (centerline
+heading change over the lookahead): at the m203 commitment the
+braking-span bend (40deg) is indistinguishable from the survivable
+top straight (39deg) -- the gate is still beyond the span -- and at
+doubled span the SURVIVABLE boards read MORE bend (151-174deg vs
+132deg; the straight's lookahead includes the busy top-left complex).
+Fourth strike.
+
+FORMAL CLOSURE. The queue-family commitment (oracle-proven at m203:
+six survivors exist, the champion picks one of two deaths) carries no
+signature in ANY measured affordable channel:
+- worlds: s5c3 / s8c6 / true-4/6/8, capped and uncapped, and
+  exact-order-with-cheap-policy all read the fatal choice alive;
+  only oracle-grade (full champion per rival, unbounded recursion)
+  sees it, which cannot be paid in-game.
+- static tells: train density, ring capacity, deceleration wave,
+  and corner-severity-ahead all fail to separate the commitment
+  from healthy racing (each was measured on the archetype race and
+  canon before rejection).
+
+The doom is a joint-future property manufactured by the champions'
+own recursive braking arms; the information does not exist in the
+present state at affordable cost. The family (hybrid12 sites A/B/C,
+rand2 corner jam, and morphological kin) stays on the oracle pile as
+the stress fixture's permanent load. The frontier's residual crash
+rate on generated geometry (~0.7%, entirely the fixture plus
+classified baseline/oracle singles) is the CURRENT ARCHITECTURE'S
+FLOOR. Breaking it requires a mechanism outside today's invariance
+principles -- per-track danger priors, offline-labeled sectors, or
+learned queue models -- which is a user-level design decision, not a
+round.
+
 ## Round 181 probe round 2 (local agent): the wave tell fails -- no present-state signature exists yet
 
 The deceleration-differential (braking wave) tell censused on the
