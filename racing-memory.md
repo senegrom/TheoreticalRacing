@@ -6,6 +6,29 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 181 probe round 2 (local agent): the wave tell fails -- no present-state signature exists yet
+
+The deceleration-differential (braking wave) tell censused on the
+archetype: at the fatal m203 commitment the wave has NOT formed
+(leaders still at 6-8, differential 1) -- it only appears at
+m243/m251, boards the oracle already proved hopeless -- and it
+FALSE-fires on the survivable top straight (m~120s, wave=1 from
+transient speed spread). Third strike: density (V0), capacity (V1),
+and speed field (V2) all fail to separate the doomed funnel approach
+from healthy racing at the commitment.
+
+The distinguishing information at m203 lives in the JOINT FUTURE
+(the funnel's corner will brake the leaders 2-4 rounds later), which
+only oracle-grade rollouts see. One cheap candidate remains untested:
+CORNER SEVERITY AHEAD -- the corridor's total heading change over the
+braking span, computable map-side from the distance-field direction
+(the left funnel terminates in the ~90-degree bottom-left gate; the
+top straight sweeps gently). Banked as the next probe: fire = >= 3
+aligned ahead AND bendAhead >= threshold; must separate m195-211 from
+the top straight and hold a low canon false rate. If bend also fails,
+the family is formally beyond static+affordable detection and stays
+on the oracle pile as the fixture's permanent load.
+
 ## Round 181 formation-tell probe (local agent): density and capacity do NOT separate -- the wave hypothesis is next
 
 Probe181 censused two candidate compression tells at every AI1 root
