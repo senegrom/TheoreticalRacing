@@ -6,6 +6,16 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Harvest 37 census (local agent): fractal v2 perfectly clean
+
+The inward-bending wave (fractal14/17/18/20/21 x mixed s1-50, 250
+races): ZERO crashes. The v2 geometry's wider effective corridors
+(inward structures do not stretch the bounding box) and the wave's
+draw of no left-descent funnels leave nothing for the campaign.
+Fleet steady state: the residual remains exactly the two fixtures
+(hybrid12, fractal8) plus classified singles -- 51 of 53 generated
+circuits clean or fully rescued.
+
 ## fractal v2 (local agent, user-prompted): inward space-filling bends
 
 The user asked the fractal family to bend partially INWARD to fill
