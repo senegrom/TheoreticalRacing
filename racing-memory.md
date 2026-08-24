@@ -6,6 +6,33 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 181 formation-tell probe (local agent): density and capacity do NOT separate -- the wave hypothesis is next
+
+Probe181 censused two candidate compression tells at every AI1 root
+compute (replays byte-identical):
+
+- TELL V0, train density (>= 3 aligned rivals ahead within the
+  braking span, nearest projected gap < spdInf): 60-113 fires per
+  canon race -- hopeless as an arm; healthy trains live in this
+  regime constantly.
+- TELL V1, ring oversubscription (ahead-count vs minRingWidthAhead):
+  NO separation on the archetype itself. p3's SURVIVABLE top-straight
+  train (m~120s: ahead=6, ring=6-7, gaps 1.4-3.9) is signature-
+  identical to the FATAL left-funnel approach (m195-235: ahead=4-6,
+  ring=6-7, gaps 2.2-3.8). Six cars through a width-7 ring was fine
+  on the straight; four through width-6 was fatal at the funnel. The
+  present density/capacity of the train does not carry the doom.
+
+What distinguishes the two in the raw data is the LEADERS' behavior:
+on the top straight the whole train holds 7-8; into the funnel the
+leaders shed to 5-6 while the tail still carries 7 -- the braking
+wave that the oracle walk proved is manufactured by the champions'
+own confirm arms. NEXT PROBE (banked): the deceleration-differential
+tell -- ahead >= 3 aligned AND nearest-ahead max-axis <= my chosen
+max-axis - 2 (the wave has reached the car in front but not me).
+Census it on the archetype (must fire m195-211, must NOT fire on the
+top straight) and canon (false-fire rate = pace cost) before any arm.
+
 ## Round 181 measurement (local agent): no affordable world sees the queue commitment -- confirm axis CLOSED
 
 The m203 archetype board (hybrid12-s13, oracle: taken W dies @r6 while
