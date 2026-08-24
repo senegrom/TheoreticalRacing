@@ -6,6 +6,33 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Harvest 36 census (local agent): the fractal family's first sweep -- a second stress fixture
+
+The nine new circuits (hybrid wave 3 + fractal family) x mixed s1-50,
+450 races: 7 crash races. Seven of nine circuits CLEAN
+(hybrid15/17/20, fractal1/3/4/10 -- zero crashes each).
+
+fractal8 carries 6 of the 7 (12%/window): a byte-identical
+KIND-INVARIANT quartet at (11,60) v(-3,6)->(-2,6) (s20/s44 AI1,
+s37/s41 AI2) on the left-side descent, plus two bottom-left corner
+deaths (s12 AI1, s17 AI2). Walked s20: twin-choice boards to m361,
+then the single alive option BODY-BLOCKED at m369 -- and the m361
+twins probe IDENTICALLY dead in scorer-8 and true-6. The r181-closed
+queue-family signature exactly; fractal8's geometry reproduces the
+hybrid12 morphology (a long left vertical into a bottom gate -- the
+same construction DNA whenever the hull lands that way). fractal8
+joins hybrid12 as the fleet's SECOND queue-doom stress fixture;
+oracle pile per the round-181 closure.
+
+hybrid14-s19 (single, p7 AI1, top-right vertical): every mask from
+m119 on is dead/blocked -- the doom precedes the window, same
+family kin. Oracle pile.
+
+Frontier state unchanged: every new-track crash is the proven-floor
+queue class. The generated-fleet residual stays concentrated in the
+two fixtures while 46 of 48 generated circuits run clean or
+fully-rescued.
+
 ## Hybrid wave 3 + the fractal family (local agent, user-prompted): serpentines at two scales
 
 The user asked for more hybrids and a FRACTAL variant -- big
