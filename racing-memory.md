@@ -6,6 +6,26 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Solo pace-optimum census (local agent, user-prompted): the agents ARE the optimum
+
+The user asked how far the agents sit from the speed optimum. For a
+solo car the reachability map's turnsToFinish from the standing start
+is a TIGHT bound (the BFS path realizes it on an empty track), so it
+is directly measurable. Twelve tracks (canon four, lemans, zandvoort,
+and six generated including both fixtures and the twisty fractal17),
+solo seed-1 races, both kinds:
+
+  AI1 = AI2 = map optimum, EXACTLY, on all twelve (1116 total turns
+  = the theoretical minimum; per-track gaps all +0.0%).
+
+Solo pace is at the floor by construction -- the min-turns descent IS
+the policy backbone -- and the census confirms the entire safety
+architecture (every confirm leg, guard, and ladder through round 180)
+costs ZERO solo turns: the arms fire only on genuinely doomed lines.
+The remaining optimality frontier is traffic, where a single-agent
+optimum is ill-defined and pace is measured relatively (the h2h
+place-sum batteries; the co-agent pipeline's field-pace work).
+
 ## Harvest 37 census (local agent): fractal v2 perfectly clean
 
 The inward-bending wave (fractal14/17/18/20/21 x mixed s1-50, 250
