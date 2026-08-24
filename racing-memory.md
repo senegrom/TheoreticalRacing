@@ -6,6 +6,40 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Hybrid wave 3 + the fractal family (local agent, user-prompted): serpentines at two scales
+
+The user asked for more hybrids and a FRACTAL variant -- big
+serpentines with smaller serpentines breaking out -- then a full
+atlas.
+
+Hybrid wave 3: seeds 13-20 -> 4 validated (hybrid14/15/17/20,
+717-840-move races), 4 darts gate-deleted. The hybrid family is 13
+circuits.
+
+gen_fractal: a hull loop whose LONGEST edge grows one big antlered
+finger -- a wide finger (tip edge sized to carry a two-sub mini-comb:
+FW derived from sub span + fillet margins) of depth 6.5*minr whose
+tip sprouts two hybrid-scale sub-fingers (fw 1.25*minr, depth
+3*minr) -- plus a plain two-finger comb on the second-longest edge
+when it fits. Two new shared helpers: _corner_arc (the GENERIC
+fillet: turn side from the cross sign, turn-side normals into the
+_inner_arc formula -- verified to reproduce the shipped hybrid
+base-corner pairs, and it handles the antler's OUTER corners the
+hand-derived pairs never covered) and _comb_fingers (finger emission
+shared by hybrid-style combs at any scale). Numeric check: antler
+protrusion measures exactly big+sub+tip = 86 control units.
+
+Yield: 11 seeds -> 8 built (2 infeasible: no hull edge long enough
+for the antler) -> 5 validated (fractal1/3/4/8/10, 706-929-move
+races; 2 darts, 1 hang-timeout gate-deleted). Scales 0.52-0.64,
+corridor 4.1-5.4 cells -- the aggressive end of the fleet envelope.
+
+Fleet: 26 designed + 48 generated (16 hull, 8 weave, 6 lobes, 13
+hybrid, 5 fractal) = 74 circuits. Full atlas published as a fresh
+artifact (the prior one was deleted user-side). Mixed harvest over
+the new tracks (hybrid 13-20 wave + fractal family) queued as
+harvest 36.
+
 ## Round 181 CLOSED (local agent): the queue family is beyond affordable detection -- the architecture's floor, by exhaustive measurement
 
 Bend-ahead, the last cheap candidate, measured offline (centerline

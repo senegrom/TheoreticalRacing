@@ -12,7 +12,7 @@ Closed patterns (cog) are cut at a start/finish point into two open borders with
 tiny S/F gap, like the F1 circuits.
 
 Usage: build_synthetic.py <pattern> <output.track> <name> <gridX> <gridY> [width]
-  pattern: serpentine | spiral | cog | random | weave | lobes | hybrid (seed=N per circuit)
+  pattern: serpentine | spiral | cog | random | weave | lobes | hybrid | fractal (seed=N per circuit)
 """
 
 import math
@@ -554,6 +554,158 @@ def gen_hybrid(seed=1, npts=10, box=240.0, disp=0.4, minr=8.0, step=6.0,
     raise SystemExit(f"gen_hybrid: no valid loop after 96 attempts (seed {seed})")
 
 
+
+def _corner_arc(vx, vy, d1x, d1y, d2x, d2y, rin):
+    """Generic corner fillet at (vx,vy) from direction d1 to d2 (unit
+    vectors): turn side from the cross sign, turn-side normals fed to the
+    _inner_arc formula. Reproduces the hybrid base-corner pairs."""
+    cross = d1x*d2y - d1y*d2x
+    if cross > 0:
+        m1x, m1y = -d1y, d1x
+        m2x, m2y = -d2y, d2x
+    else:
+        m1x, m1y = d1y, -d1x
+        m2x, m2y = d2y, -d2x
+    return _inner_arc(vx, vy, m1x, m1y, m2x, m2y, m1x*m2x + m1y*m2y, 0.0, rin)
+
+
+def _comb_fingers(ax, ay, ux, uy, nx, ny, positions, fw, depth, rin):
+    """Finger emission shared by the hybrid and fractal combs: for each
+    (sl, sr) span along the edge from (ax,ay), an outward finger with
+    corner fillets and a sampled semicircle tip."""
+    pts = []
+    for sl, sr in positions:
+        blx, bly = ax + ux*sl, ay + uy*sl
+        brx, bry = ax + ux*sr, ay + uy*sr
+        tcx, tcy = ax + ux*(sl+fw) + nx*depth, ay + uy*(sl+fw) + ny*depth
+        pts += _corner_arc(blx, bly, ux, uy, nx, ny, rin)
+        pts.append((blx + nx*depth, bly + ny*depth))
+        a1 = math.atan2(-uy, -ux)
+        step = 1 if (ux*ny - uy*nx) < 0 else -1
+        for j in range(1, 8):
+            th = a1 + math.pi * j / 8.0 * step
+            pts.append((tcx + fw*math.cos(th), tcy + fw*math.sin(th)))
+        pts.append((brx + nx*depth, bry + ny*depth))
+        pts += _corner_arc(brx, bry, -nx, -ny, ux, uy, rin)
+    return pts
+
+
+def _fractal_control(rng, npts, box, disp, minr):
+    """One attempt at the fractal control loop, or None if infeasible."""
+
+    def hull(ps):
+        ps = sorted(set(ps))
+        def half(seq):
+            h = []
+            for q in seq:
+                while len(h) >= 2 and ((h[-1][0]-h[-2][0])*(q[1]-h[-2][1])
+                                       - (h[-1][1]-h[-2][1])*(q[0]-h[-2][0])) <= 0:
+                    h.pop()
+                h.append(q)
+            return h
+        lo, hi = half(ps), half(reversed(ps))
+        return lo[:-1] + hi[:-1]
+
+    fw_s = 1.25 * minr      # sub-finger half-width
+    rin_s = 1.35 * minr     # sub base fillet
+    rin = 1.35 * minr       # big-finger fillets
+    sub_gap = 3.2 * minr    # wall-to-wall between sub-fingers
+    sub_depth = 3.0 * minr
+    big_depth = 6.5 * minr
+    plain_fw = 1.25 * minr
+    plain_gap = 3.2 * minr
+    plain_end = rin_s + minr
+
+    pts = [(rng.uniform(0, box), rng.uniform(0, box)) for _ in range(npts)]
+    h = hull(pts)
+    if len(h) < 5:
+        return None
+    hn = len(h)
+    cx = sum(q[0] for q in h) / hn
+    cy = sum(q[1] for q in h) / hn
+    order = sorted(range(hn), key=lambda i: -math.hypot(h[(i+1) % hn][0]-h[i][0],
+                                                        h[(i+1) % hn][1]-h[i][1]))
+    e_big, e_plain = order[0], order[1]
+
+    def edge_frame(ei):
+        A, B = h[ei], h[(ei+1) % hn]
+        ex, ey = B[0]-A[0], B[1]-A[1]
+        elen = math.hypot(ex, ey)
+        ux, uy = ex/elen, ey/elen
+        nx, ny = -uy, ux
+        mx, my = (A[0]+B[0])/2.0, (A[1]+B[1])/2.0
+        if (mx-cx)*nx + (my-cy)*ny < 0:
+            nx, ny = -nx, -ny
+        return A, elen, ux, uy, nx, ny
+
+    # the antlered finger: tip edge must fit the two-sub comb
+    A, elen, ux, uy, nx, ny = edge_frame(e_big)
+    sub_span = 2*(2*fw_s) + sub_gap
+    FW = (sub_span + 2*(rin + rin_s + 0.25*minr)) / 2.0
+    need = 2*FW + 2*(rin + minr)
+    if elen < need:
+        return None
+    s0 = (elen - 2*FW) / 2.0
+    blx, bly = A[0] + ux*s0, A[1] + uy*s0
+    brx, bry = A[0] + ux*(s0 + 2*FW), A[1] + uy*(s0 + 2*FW)
+    tlx, tly = blx + nx*big_depth, bly + ny*big_depth
+    antler = []
+    antler += _corner_arc(blx, bly, ux, uy, nx, ny, rin)
+    antler += _corner_arc(tlx, tly, nx, ny, ux, uy, rin)
+    tip0 = rin + rin_s + 0.25*minr
+    sub_positions = [(tip0, tip0 + 2*fw_s),
+                     (tip0 + 2*fw_s + sub_gap, tip0 + 4*fw_s + sub_gap)]
+    antler += _comb_fingers(tlx, tly, ux, uy, nx, ny, sub_positions,
+                            fw_s, sub_depth, rin_s)
+    trx, try_ = brx + nx*big_depth, bry + ny*big_depth
+    antler += _corner_arc(trx, try_, ux, uy, -nx, -ny, rin)
+    antler += _corner_arc(brx, bry, -nx, -ny, ux, uy, rin)
+
+    # optional plain two-finger comb on the second-longest edge
+    A2, elen2, ux2, uy2, nx2, ny2 = edge_frame(e_plain)
+    plain = None
+    span2 = 2*(2*plain_fw) + plain_gap
+    if elen2 >= span2 + 2*plain_end:
+        p0 = (elen2 - span2) / 2.0
+        plain_positions = [(p0, p0 + 2*plain_fw),
+                           (p0 + 2*plain_fw + plain_gap, p0 + 4*plain_fw + plain_gap)]
+        plain = _comb_fingers(A2[0], A2[1], ux2, uy2, nx2, ny2, plain_positions,
+                              plain_fw, rng.uniform(3.0, 4.0) * minr, rin_s)
+
+    loop = []
+    for i in range(hn):
+        a, b = h[i], h[(i+1) % hn]
+        loop.append(a)
+        if i == e_big:
+            loop += antler
+            continue
+        if i == e_plain and plain is not None:
+            loop += plain
+            continue
+        mx, my = (a[0]+b[0])/2.0, (a[1]+b[1])/2.0
+        f = rng.uniform(0.0, disp)
+        loop.append((mx + f*(cx-mx), my + f*(cy-my)))
+    return loop
+
+
+def gen_fractal(seed=1, npts=8, box=200.0, disp=0.35, minr=8.0, step=6.0,
+                passes=8):
+    """Serpentines at two scales: one big antlered finger (its tip sprouts
+    two small serpentine fingers) on the longest hull edge, a plain
+    two-finger comb on the second-longest when it fits. Deterministic per
+    seed."""
+    import random
+    for attempt in range(160):
+        rng = random.Random(seed * 1000 + attempt)
+        loop = _fractal_control(rng, npts, box, disp, minr)
+        if loop is None:
+            continue
+        c = _finish_loop(loop, minr, step, passes)
+        if c is not None:
+            return c, True
+    raise SystemExit(f"gen_fractal: no valid loop after 160 attempts (seed {seed})")
+
+
 GENERATORS = {
     'serpentine': gen_serpentine,
     'spiral': gen_spiral,
@@ -563,6 +715,7 @@ GENERATORS = {
     'weave': gen_weave,
     'lobes': gen_lobes,
     'hybrid': gen_hybrid,
+    'fractal': gen_fractal,
 }
 
 
