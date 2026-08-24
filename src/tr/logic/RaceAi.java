@@ -377,7 +377,7 @@ final class RaceAi {
 	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
 	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
 	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
-	private final static int		AI1_RIDGE_MIN_SPD	= 9;	// round 178: max-axis floor for the thin-ridge hold check -- the lobe2-s111 commitment holds 10 onto a one-lane alive ridge with no train rival and a ring-wide waist
+	private final static int		AI1_RIDGE_MIN_SPD	= 8;	// round 178: max-axis floor for the thin-ridge check (lobe2-s111 holds 10 onto a one-lane ridge); round 180: floor 8 -- rand5-s40 accelerates into 8 on the same morphology, and the widened admission costs canon +10 audits per four races
 	private final static int		AI1_RIDGE_MAX_SUCC	= 2;	// round 178: alive-successor ceiling at the chosen landing (referee-mask mirror); canon census 2/9/2/0 admissions per race, lobe2 116
 	private final static int		AI1_RIDGE_THREAD	= 4;	// round 178: s8-audit thread level that escalates to the true-6 verdict -- canon 0 escalations, lobe2 13 with DEAD only on the real doom line
 	private final static int		AI1_RIDGE_TRUE_ROUNDS	= 6;	// round 178: the ridge doom lands 6 rounds out -- true-4 reads the m363 commitment alive (V=7), true-6 kills it
@@ -968,9 +968,15 @@ final class RaceAi {
 						// only to a certified quiet-alive alternative; none =>
 						// keep chosen (round-161 semantics). Canon census: 2/9/2/0
 						// admissions, zero escalations, zero kills.
-						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
+						// Round 180: accels admitted too (rand5-s40 commits by
+						// accelerating onto the ridge; 11+ stays with round 133),
+						// and the EXPLICIT AI1 KIND GATE the promoted-delegation
+						// doctrine requires -- goldens are all-AI2 fields, and the
+						// widened band fired inside interlagos-s10 through the
+						// delegated champion body before the gate existed.
+						if (!deepHandled && moverKind(playerNum) == Player.Kind.AI1
+								&& fSpdInf >= AI1_RIDGE_MIN_SPD
 								&& fSpdInf < AI1_FASTV_MAX
-								&& fSpdInf <= Math.max(Math.abs(vel[0]), Math.abs(vel[1]))
 								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
 								&& ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC) {
 							final int[] rgTr = { 0, 0 };

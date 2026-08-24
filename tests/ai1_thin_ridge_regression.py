@@ -8,9 +8,11 @@ rival within Chebyshev 3, ring-wide waist, dense field -- invisible to
 the round-175 bar, the round-83 funnel signal, and the round-83 deep
 guard alike. The root check audits scorer-8 (never a verdict), escalates
 DEAD-or-loud (thread >= 4) fires to the true-6 verdict, and switches
-only to a certified quiet-alive alternative. Seeds 111 and 132 carry
-the commitment in different slots; both races must now run crash-free
-under the alternating mixed field.
+only to a certified quiet-alive alternative -- gated to AI1 movers per
+the promoted-delegation doctrine (round 180). Seeds 111 and 132 carry
+the commitment in different slots: s111's crasher is AI1 (rescued);
+s132's is AI2, whose frozen-baseline crash is expected and pinned as
+such. AI1 must be crash-free in both races.
 """
 
 from pathlib import Path
@@ -31,18 +33,26 @@ def main() -> int:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
         bench_ai.set_kinds(["AI1", "AI2"] * 4)
+        expected_ai2 = {111: 0, 132: 1}
         for seed in (111, 132):
             result = bench_ai.run_track_h2h("lobe2", timeout=600, seed=seed)
             if result is None:
                 raise SystemExit(f"mixed lobe2 seed-{seed} race failed or produced no log")
-            for kind in ("AI1", "AI2"):
-                place_sum, finishers, crashes = result[kind]
-                if crashes != 0:
-                    raise SystemExit(
-                        "Round-178 thin-ridge regression: "
-                        f"seed {seed} {kind} place_sum={place_sum}, "
-                        f"finishers={finishers}, crashes={crashes}"
-                    )
+            place_sum, finishers, crashes = result["AI1"]
+            if crashes != 0:
+                raise SystemExit(
+                    "Round-178 thin-ridge regression: "
+                    f"seed {seed} AI1 place_sum={place_sum}, "
+                    f"finishers={finishers}, crashes={crashes}"
+                )
+            place_sum, finishers, crashes = result["AI2"]
+            if crashes != expected_ai2[seed]:
+                raise SystemExit(
+                    "Round-178 thin-ridge regression (AI2 baseline drift): "
+                    f"seed {seed} AI2 place_sum={place_sum}, "
+                    f"finishers={finishers}, crashes={crashes}, "
+                    f"expected {expected_ai2[seed]}"
+                )
     print("AI1 thin-ridge pins hold (mixed lobe2 seeds 111 and 132)")
     return 0
 

@@ -6,6 +6,48 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 180 (local agent, SHIPPED): ridge floor 8 + accels, and the AI1 kind gate the goldens enforced
+
+Two changes, and the second is the round's real lesson.
+
+WIDENING: harvest 34's frontier residue is a max-axis-8 tail.
+rand5-s40 m243 commits by ACCELERATING vy 7->8 onto a succ<=2 thread
+-- taken s8-DEAD and true-6-DEAD, the shed-to-6 alternative pristine
+(V=23/25, thread=0) -- blocked from the r178 rescue on both admission
+axes. Probe180 census: floor 8 + any-direction at succ<=2 costs canon
+6/13/4/0 audits per race (+10 per four races over r178). rand13-s4
+(hold-10, succ=3 whose WIDEST continuation is also 3) stays OPEN --
+no pure-map separator, and succ<=3 admission costs 25-60x for a
+1/1950 class.
+
+THE GOLDEN CATCH: the ungated widening broke two golden races --
+and goldens are ALL-AI2 fields. The promoted AI2 entry delegates to
+the champion AI1 body, so an ungated experiment reaches AI2: rounds
+178/179 carried this exposure silently (their bands never fired a
+switch in pinned races), and the width finally tripped it inside
+interlagos-s10 (outcome change: one driver two places worse). The
+guard now carries the doctrine's explicit AI1 kind gate
+(moverKind == AI1). Consequences, all measured: goldens
+byte-restore; rand5-s47's and lobe2-s132's earlier "rescues" REVERT
+-- both were the ungated guard acting on AI2 drivers, unauthorized
+frozen-baseline changes now undone -- and both reclassify as
+AI2-baseline crashes (they clear if these rounds are ever promoted).
+The thin-ridge pin now asserts AI1 crash-free at both lobe2 seeds
+and pins s132's AI2 baseline crash explicitly.
+
+Gate: rand5 sweep 1 (exactly the s47 AI2 baseline; s40 AI1 rescued),
+canon byte-identical x4, hybrid12 12 lines byte-stable, lobe2 sweep
+1 (the s132 AI2 baseline; s111 AI1 rescue holds), rand2 s51-150 = 2
+(knowns), 18/18 pins after the s132 amendment, dual-order wall
+within the noise law (both-order averages +1.9%/+2.8% with canon
+decisions byte-identical -- no mechanism for real cost).
+
+Frontier surface after this round: AI1 crashes on the fleet are the
+two model-boundary queue families (hybrid12 funnel, rand2 corner
+jam), rand13-s4's open admission-width class, and rand20-s2's old
+oracle-pile family. Every other known AI1 site is rescued and
+pinned.
+
 ## Harvest 34 census (local agent): the full fleet under rounds 178+179 -- 0.97%
 
 First steady-state sweep of all 39 generated circuits with both new
