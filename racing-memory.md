@@ -6,6 +6,36 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Head-to-head census (local agent, user-prompted): the slot gradient, and what promotion would buy
+
+Which kind is better? 3800 mixed races (harvests 34-37) say AI1 by
+half a place (mean 3.78 vs 4.24, 21% vs 7% wins) -- but the by-player
+table exposes a MASSIVE grid-slot gradient (p1 mean 1.97 -> p8 5.63,
+~0.5 places per slot) that is roughly symmetric across kind
+boundaries. Kinds alternate with slot parity in mixed_h2h, so the
+aggregate gap is mostly the odd-slots-vs-even-slots average of a
+positional gradient, not policy. (Also recorded: the race-ends-at-
+seven-finishers rule leaves the last straggler's place unlogged,
+biasing tail slots' recorded means low.)
+
+The code fact that settles it: optimalMoveAI2 IS optimalMoveAI1 --
+one shared body, and the only kind-divergent line in the codebase is
+round 180's explicit AI1 gate on the thin-ridge check. So AI1 = AI2
+plus rounds 178-180, which by measurement rescue three sites (lobe2-
+s111, rand2-s94, rand5-s40; AI2 still crashes at the s47/s132
+mirrors) at zero pace cost (canon byte-identical, wall neutral, solo
+map-optimal).
+
+RECOMMENDATION (awaiting the user's explicit word, per the frozen-
+baseline law): promote rounds 178-180 into AI2 -- pure safety upside,
+provably free. Promotion mechanics when ordered: lift the ridge
+check's kind gate, re-baseline the golden fixtures (their hashes
+change legitimately -- golden_races.py --update), and flip the
+thin-ridge pin's s132/s47 AI2-baseline expectations to crash-free.
+Grid-slot fairness note for future h2h reads: compare adjacent-slot
+pairs or average parity-swapped orientations; never the raw kind
+aggregate.
+
 ## Solo pace-optimum census (local agent, user-prompted): the agents ARE the optimum
 
 The user asked how far the agents sit from the speed optimum. For a
