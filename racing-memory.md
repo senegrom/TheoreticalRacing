@@ -6,6 +6,38 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Harvest 34 census (local agent): the full fleet under rounds 178+179 -- 0.97%
+
+First steady-state sweep of all 39 generated circuits with both new
+arms in (mixed s1-50, 1950 races): 19 crash races / 20 lines =
+0.97%, down from the 1.6% harvest-30 steady state. 34 of 39 circuits
+CLEAN, including every previously rescued site (lobe2, rand16,
+rand2-s94, serpentine2 classes hold at scale).
+
+Already-classified (14 races): the hybrid12 funnel family x11
+(byte-stable to the seed -- the stress fixture measures exactly its
+known model boundary), hybrid9-s44 (AI2 baseline), rand2-s21 (AI2 at
+the corner-jam site), rand20-s2 (the old v(-4,2) oracle-pile
+family).
+
+Frontier-relevant remainder (walk queue):
+- rand5 s40/s47 -- the KNOWN kind-invariant pair from harvest 30,
+  still open: byte-near-identical commitments at (11,61)
+  v(-3,8)->(-2,7) (one AI1, one AI2), max-axis 8 decel down the left
+  vertical. Below the round-178 band.
+- rand13 s4 -- NEW site on a previously clean track: p7 AI1 at
+  (59,15) v(-8,2)->(-7,1), max-axis 8 decel along the top straight.
+- rand12 s31/s33 -- both AI2 baseline singles (the frontier may
+  already cover s31's max-9 site via round 178; the baseline cannot
+  arm it). Noted per the frozen-baseline convention.
+
+The shape of the residue: every remaining frontier specimen is a
+max-axis 8 decel -- one notch below AI1_RIDGE_MIN_SPD=9. Whether the
+band extends to 8 is a cost question (8-fires are far more common;
+the succ<=2 gate distribution at 8 must be censused before any arm),
+and the hybrid12 family already proves parts of the 7-8 regime are
+model-boundary regardless.
+
 ## Round 179 (local agent, SHIPPED): loud-alive fallback certification + the walk queue cleared
 
 The post-178 rand2 re-census (both windows, 150 races) reproduced
