@@ -6,6 +6,34 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 181 measurement (local agent): no affordable world sees the queue commitment -- confirm axis CLOSED
+
+The m203 archetype board (hybrid12-s13, oracle: taken W dies @r6 while
+six siblings survive) probed against every candidate world upgrade:
+
+- true-6-cap7 and true-8-cap7 (uncapped champion rivals): W alive
+  (V=62/60). The rival CAP is not the divergence.
+- exact-order + cheap rival policy (offline ordered roll via the
+  referee masks, min-turns rivals): W ALIVE. Order alone is not the
+  divergence either -- cheap rivals do not reproduce the compression.
+
+The compression that seals the trap is created by the real champions'
+OWN braking arms (their confirm switches produce the braking waves).
+In-sim rivals cannot run those arms at full recursion depth
+(trueConfirmDepth bounds), and cheap rivals do not brake at all -- so
+every affordable world under-models the queue exactly where it kills.
+Only oracle-grade fidelity (full champion per rival, unbounded
+recursion) sees the m203 doom, and that cannot be paid in-game.
+
+AXIS (a) CLOSED BY MEASUREMENT. The queue family's only viable fix is
+axis (b), formation-stage pacing: a train-compression tell (several
+same-direction rivals ahead within the braking span) that sheds one
+notch of pace at the TAIL while options still exist -- m203's oracle
+survivors include plain holds and one-notch sheds, so the pacing
+surface is provably sufficient there. This is a racing-pace change:
+it needs the full pace battery (place-sum regressions, h2h neutrality)
+on top of the crash gates, and is banked as the round-181 DESIGN.
+
 ## Queue family oracle-walked end to end (local agent): the commitment is where every world is blind
 
 The hybrid12-s13 archetype (site A) rolled through the offline oracle
