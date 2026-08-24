@@ -627,6 +627,24 @@ def _fractal_control(rng, npts, box, disp, minr):
                                                         h[(i+1) % hn][1]-h[i][1]))
     e_big, e_plain = order[0], order[1]
 
+    def interior_clear(mx, my, dx, dy, skip_i):
+        """Distance from (mx,my) along (dx,dy) to the nearest other hull
+        edge -- the room an inward structure has before the far wall."""
+        best = 1e9
+        for j in range(hn):
+            if j == skip_i:
+                continue
+            p1, p2 = h[j], h[(j+1) % hn]
+            rx, ry = p2[0]-p1[0], p2[1]-p1[1]
+            den = dx*ry - dy*rx
+            if abs(den) < 1e-9:
+                continue
+            ti = ((p1[0]-mx)*ry - (p1[1]-my)*rx) / den
+            si = ((p1[0]-mx)*dy - (p1[1]-my)*dx) / den
+            if ti > 0 and 0 <= si <= 1 and ti < best:
+                best = ti
+        return best
+
     def edge_frame(ei):
         A, B = h[ei], h[(ei+1) % hn]
         ex, ey = B[0]-A[0], B[1]-A[1]
@@ -645,6 +663,15 @@ def _fractal_control(rng, npts, box, disp, minr):
     need = 2*FW + 2*(rin + minr)
     if elen < need:
         return None
+    # v2 space filling: the antler may point INTO the interior when the
+    # far wall leaves room for the full protrusion plus corridor clearance
+    antler_prot = big_depth + sub_depth + fw_s
+    antler_in = False
+    if rng.random() < 0.5:
+        amx, amy = A[0] + ux*elen/2.0, A[1] + uy*elen/2.0
+        if interior_clear(amx, amy, -nx, -ny, e_big) >= antler_prot + 4*minr:
+            nx, ny = -nx, -ny
+            antler_in = True
     s0 = (elen - 2*FW) / 2.0
     blx, bly = A[0] + ux*s0, A[1] + uy*s0
     brx, bry = A[0] + ux*(s0 + 2*FW), A[1] + uy*(s0 + 2*FW)
@@ -661,16 +688,22 @@ def _fractal_control(rng, npts, box, disp, minr):
     antler += _corner_arc(trx, try_, ux, uy, -nx, -ny, rin)
     antler += _corner_arc(brx, bry, -nx, -ny, ux, uy, rin)
 
-    # optional plain two-finger comb on the second-longest edge
+    # optional plain two-finger comb on the second-longest edge; it too may
+    # bend inward (skipped when the antler already fills the interior)
     A2, elen2, ux2, uy2, nx2, ny2 = edge_frame(e_plain)
     plain = None
     span2 = 2*(2*plain_fw) + plain_gap
     if elen2 >= span2 + 2*plain_end:
+        pdepth = rng.uniform(3.0, 4.0) * minr
+        if not antler_in and rng.random() < 0.7:
+            pmx, pmy = A2[0] + ux2*elen2/2.0, A2[1] + uy2*elen2/2.0
+            if interior_clear(pmx, pmy, -nx2, -ny2, e_plain) >= pdepth + plain_fw + 4*minr:
+                nx2, ny2 = -nx2, -ny2
         p0 = (elen2 - span2) / 2.0
         plain_positions = [(p0, p0 + 2*plain_fw),
                            (p0 + 2*plain_fw + plain_gap, p0 + 4*plain_fw + plain_gap)]
         plain = _comb_fingers(A2[0], A2[1], ux2, uy2, nx2, ny2, plain_positions,
-                              plain_fw, rng.uniform(3.0, 4.0) * minr, rin_s)
+                              plain_fw, pdepth, rin_s)
 
     loop = []
     for i in range(hn):
@@ -688,7 +721,7 @@ def _fractal_control(rng, npts, box, disp, minr):
     return loop
 
 
-def gen_fractal(seed=1, npts=8, box=200.0, disp=0.35, minr=8.0, step=6.0,
+def gen_fractal(seed=1, npts=8, box=200.0, disp=0.45, minr=8.0, step=6.0,
                 passes=8):
     """Serpentines at two scales: one big antlered finger (its tip sprouts
     two small serpentine fingers) on the longest hull edge, a plain

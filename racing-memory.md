@@ -6,6 +6,28 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## fractal v2 (local agent, user-prompted): inward space-filling bends
+
+The user asked the fractal family to bend partially INWARD to fill
+its interior. gen_fractal v2: the antler may point into the hull
+interior (probability 0.5) when a ray-cast from its edge midpoint
+confirms the far wall leaves protrusion + 4*minr of room; failing
+that, the plain comb may flip inward (0.7) under the same clearance
+test; and plain-edge midpoint displacement deepens 0.35 -> 0.45.
+Committed fractal1-10 stay as generated (fractal8 remains the
+fixture); v2 shapes new seeds.
+
+Two free wins measured: inward protrusions do not grow the bounding
+box, so scales IMPROVED (0.57-0.69 vs v1's 0.52-0.64 -- wider
+effective corridors), and the invaded interiors make the longest
+races of any family (892-1019 moves). Yield: seeds 13-22 -> 5 built
+(the inward clearance test plus deeper displacement raise control
+rejection as expected) -> ALL FIVE validated, zero darts
+(fractal14/17/18/20/21). fractal17 and 21 carry deep inward antlers;
+18 stays outward-style -- the coin flips keep the family varied.
+
+Fleet: 79 circuits (53 generated). Harvest 37 over the five queued.
+
 ## Harvest 36 census (local agent): the fractal family's first sweep -- a second stress fixture
 
 The nine new circuits (hybrid wave 3 + fractal family) x mixed s1-50,
