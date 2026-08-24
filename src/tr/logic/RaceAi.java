@@ -983,6 +983,12 @@ final class RaceAi {
 											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0) {
 								Direction ridgeBest = null;
 								int ridgeTurns = Integer.MAX_VALUE;
+								// Round 179: loud-alive fallback tier -- rand2-s94's
+								// only alive alternative reads thread=4 (one notch
+								// over the quiet bar) while the chosen is DOUBLE-dead;
+								// any s8-alive target dominates a certain death.
+								Direction ridgeLoud = null;
+								int ridgeLoudTurns = Integer.MAX_VALUE;
 								for (final Direction rd : DIRECTIONS) {
 									if (rd == chosen)
 										continue;
@@ -1001,15 +1007,23 @@ final class RaceAi {
 									final int[] cTr = { 0, 0 };
 									if (simOutcome(rx, ry, rvx, rvy, playerNum, AI1_DEEP_HORIZON,
 											true, true, true, true, false, false,
-											AI1_DEEP_CERT_RIVALS, null, null, cTr) < 0
-											|| cTr[0] >= AI1_RIDGE_THREAD)
+											AI1_DEEP_CERT_RIVALS, null, null, cTr) < 0)
 										continue;
 									final int rTurns = reach.turnsToFinish(rx, ry, rvx, rvy);
+									if (cTr[0] >= AI1_RIDGE_THREAD) {
+										if (rTurns < ridgeLoudTurns) {
+											ridgeLoudTurns = rTurns;
+											ridgeLoud = rd;
+										}
+										continue;
+									}
 									if (rTurns < ridgeTurns) {
 										ridgeTurns = rTurns;
 										ridgeBest = rd;
 									}
 								}
+								if (ridgeBest == null)
+									ridgeBest = ridgeLoud;
 								if (ridgeBest != null) {
 									chosen = ridgeBest;
 									deepHandled = true;

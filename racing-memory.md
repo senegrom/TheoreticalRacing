@@ -6,6 +6,48 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 179 (local agent, SHIPPED): loud-alive fallback certification + the walk queue cleared
+
+The post-178 rand2 re-census (both windows, 150 races) reproduced
+exactly the four known open specimens -- no new sites, no regression.
+Walking them on current-jar races:
+
+rand2-s94 (the vertical site, p1): builds max-axis 11 down the left
+vertical (lone runner -- the r133 train bar correctly excludes it),
+then decel 11->10 at m249 lands on a succ=1 ridge INSIDE the r178
+band. The r178 kill fires (taken s8-DEAD and true-6-DEAD) but the
+only alive alternative reads s8 V=23 with thread=4 -- one notch over
+the quiet certification bar -- so nothing certified and the doomed
+chosen was kept. ROUND 179: tiered certification. Quiet targets
+(thread < 4) keep absolute priority; a LOUD s8-alive target is used
+only as fallback -- against a chosen that is dead in BOTH the audit
+and the verdict world, any alive target dominates a certain death.
+The rescue holds: p1 threads the corner needle (the loud NONE hold)
+and the race runs crash-free. Canon exposure unchanged by
+construction (the ladder only runs on a true-6 kill; canon census
+had zero).
+
+rand2 s21/s124 (the top-left corner site, one AI2 + one AI1
+instance): max-axis 5 decel into a corner QUEUE JAM -- masks show
+single-thread boards with heavy body-blocking from m111, the thread
+closing at m135 (map-dead + bodies). The one choice-ful board (m119)
+has twin options identical in every world (both s8-DEAD and
+true-6-DEAD) -- the hybrid12-site-A no-separator signature. Model-
+boundary, oracle pile, queue-jam family.
+
+rand2-s142 ((7,13) v(-4,2), p6): AI2 baseline single -- noted per
+the frozen-baseline convention, not walked.
+
+The walk queue is EMPTY for the first time since harvest 30: every
+open specimen is now rescued (lobe2 pair r178, rand2-s94 r179),
+classified model-boundary (hybrid12 funnel family, rand2 corner jam
+-- both the queue-divergence class awaiting real-order queue
+semantics), or noted as baseline. Gate: rand2 windows 1+2 (s94
+rescued, s21/s124/s142 remain -- two model-boundary, one baseline),
+canon byte-identity, hybrid12 stress fixture re-measured under the
+loud tier, lobe2 sweep, 18 pins (thin-ridge added), dual-order wall
+pair.
+
 ## Round 178 (local agent, SHIPPED): the thin-ridge hold check
 
 The lobe2-s111 walk (harvest 32's pair) found the first rescuable
