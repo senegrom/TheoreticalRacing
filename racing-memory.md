@@ -6,6 +6,48 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Merge: codex/faster-racing-ai at e0fe4d4 (user-ordered, fast-forward)
+
+Master was a strict ancestor (their branch carried a fresh merge of our
+round 184), so the merge is a clean fast-forward. What arrived, beyond
+their own ledger entries above/below: their Round 177 (componentwise
+uncertain-field pace, Le Mans s29) and Round 185 (width-three ridge
+rescue, rand13-s4), plus three compute commits -- successor-mask reuse
+in the main chooser, deferred min-turns fallback scoring, and a
+race-safety fix to OUR round-182 dense edge cache: the two-plane
+known/legal bitsets can tear between unsynchronised sharers (reader
+sees known without legal => manufactured ILLEGAL); their 2-bit
+atomic-verdict packing (UNKNOWN/ILLEGAL/LEGAL in one int element) can
+only lose a verdict, never invent one. Legitimate catch.
+
+Local verification on the merged jar: build clean; all 20 ai1 pins +
+goldens PASS (their bounded-uncertain-field pin included; goldens
+needed NO re-baseline -- the all-AI2 default fields are untouched).
+Wall-track identity premerge-vs-merged: monza s1-3 and serpentine2
+s1-2 byte-identical; serpentine2 s3 forks at m104 -- p8 (AI2) at
+v(10,0) picks NW over NONE, the round-185 width-three signature --
+cascading to a different finish order and +3 moves. Their zero-diff
+census was all-AI2 default rosters; mixed 4v4 fields legitimately
+expose the new arms elsewhere. User-authorized behavior change.
+
+INSTALL-DIR LAW (bit us tonight, silently): TrackIO.locateInstallDir()
+resolves tracks/, user.properties and logs NEXT TO THE JAR (code-source
+dir), not the cwd. A jar copied into bare scratch lists ZERO tracks and
+exits 0 with no race and no log -- and `> /dev/null 2>&1` wall scripts
+would ship garbage cells without noticing. block_wall.sh's
+$S/ref182.jar had exactly this hole; defused live (runner un-killable,
+mid-run script un-editable) by copying tracks/ beside it and
+pre-warming its reach caches. Every future bench script must verify
+each run produced its log/finishers instead of discarding all output.
+The pending consolidated wall stays VALID post-merge and upgrades to
+pre-182 vs post-merge-compute (monza pure 3/3; serpentine2 s3 carries
+the fork caveat).
+
+Remote sweep with the merge: rounds-179-181-unpublished-work is a
+design-note tombstone (their rounds 179-181 never existed as code --
+nothing to merge); no agent/* branch postdates harvest 37; two stale
+DRAFT PRs (#2 round-82, #9 round-103) flagged for closing, not touched.
+
 ## Round 185 (local agent, SHIPPED): selective width-three ridge rescue
 
 rand13-s4 exposed a residual rescuable ridge case. At move 95, p7 at
