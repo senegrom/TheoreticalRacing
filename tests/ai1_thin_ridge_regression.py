@@ -8,11 +8,10 @@ rival within Chebyshev 3, ring-wide waist, dense field -- invisible to
 the round-175 bar, the round-83 funnel signal, and the round-83 deep
 guard alike. The root check audits scorer-8 (never a verdict), escalates
 DEAD-or-loud (thread >= 4) fires to the true-6 verdict, and switches
-only to a certified quiet-alive alternative -- gated to AI1 movers per
-the promoted-delegation doctrine (round 180). Seeds 111 and 132 carry
-the commitment in different slots: s111's crasher is AI1 (rescued);
-s132's is AI2, whose frozen-baseline crash is expected and pinned as
-such. AI1 must be crash-free in both races.
+only to a certified quiet-alive alternative. Rounds 178-180 were
+promoted into AI2 on the user's order, so BOTH kinds run the ridge
+check and both lobe2 races (seeds 111 and 132, whose crashers are AI1
+and AI2 respectively) must run crash-free.
 """
 
 from pathlib import Path
@@ -33,7 +32,7 @@ def main() -> int:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
         bench_ai.set_kinds(["AI1", "AI2"] * 4)
-        expected_ai2 = {111: 0, 132: 1}
+        expected_ai2 = {111: 0, 132: 0}
         for seed in (111, 132):
             result = bench_ai.run_track_h2h("lobe2", timeout=600, seed=seed)
             if result is None:

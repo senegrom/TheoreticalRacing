@@ -6,6 +6,29 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Rounds 178-180 promoted (user-ordered): the thin-ridge check is the baseline
+
+The user ordered the promotion. Mechanics executed exactly as banked:
+the ridge check's AI1 kind gate is lifted (both kinds run rounds
+178-180; optimalMoveAI2 already delegates to the shared body, so once
+again NO kind-gated arms remain), the golden fixtures were
+re-baselined to the promoted behavior (5 entries changed --
+nurburgring-s19 and interlagos-s10 among them, the two the gate
+originally caught), and the thin-ridge pin now expects BOTH lobe2
+races crash-free (s132's AI2 crasher is rescued by promotion, as the
+pre-gate battery had already measured).
+
+Gates on the promoted main jar: lobe2 s111/s132 and rand5 s40/s47
+all zero crashes (both kinds rescued at every ridge site), 18/18
+pins PASS including the re-baselined goldens. The wall and canon
+evidence carries over from the original ungated round-180 battery,
+which measured this exact configuration: canon byte-identical,
+rand2/hybrid12 fixtures stable, dual-order wall neutral.
+
+Repo cleanup alongside: stale A/B reference jars (base/bisect171/
+prof/ref/side), two old JVM crash dumps, and python caches removed
+from the working tree; tracked tree was already clean.
+
 ## Head-to-head census (local agent, user-prompted): the slot gradient, and what promotion would buy
 
 Which kind is better? 3800 mixed races (harvests 34-37) say AI1 by

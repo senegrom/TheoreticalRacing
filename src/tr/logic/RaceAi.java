@@ -969,13 +969,12 @@ final class RaceAi {
 						// keep chosen (round-161 semantics). Canon census: 2/9/2/0
 						// admissions, zero escalations, zero kills.
 						// Round 180: accels admitted too (rand5-s40 commits by
-						// accelerating onto the ridge; 11+ stays with round 133),
-						// and the EXPLICIT AI1 KIND GATE the promoted-delegation
-						// doctrine requires -- goldens are all-AI2 fields, and the
-						// widened band fired inside interlagos-s10 through the
-						// delegated champion body before the gate existed.
-						if (!deepHandled && moverKind(playerNum) == Player.Kind.AI1
-								&& fSpdInf >= AI1_RIDGE_MIN_SPD
+						// accelerating onto the ridge; 11+ stays with round 133).
+						// User-ordered promotion: rounds 178-180 are the baseline
+						// now -- the AI1 kind gate is lifted, both kinds run the
+						// ridge check, and the golden fixtures were re-baselined
+						// to the promoted behavior. No kind-gated arms remain.
+						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
 								&& fSpdInf < AI1_FASTV_MAX
 								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
 								&& ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC) {

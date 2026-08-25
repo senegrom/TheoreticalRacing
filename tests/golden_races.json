@@ -172,7 +172,7 @@
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "a475821ab6334a58fe428efdaa081f61ff668aa71cea02766fc8af3ca531105e",
+      "sha256": "2962a7fa343520d5a97f5eaaef6e3e4f8298f03dba36ae6a4bd2df658a2c8591",
       "summary": {
         "turns": 750,
         "finishes": 7,
@@ -194,9 +194,9 @@
       "track": "interlagos",
       "seed": 10,
       "players": 8,
-      "sha256": "673c82b6fb5a393acb5133f55cbd888146fad6a13b2776674ab1dd3d775eccb5",
+      "sha256": "49c5461992308a1a92b006f4e0f453573d0d2ccd8f06db0c70eb90c771dc2ce8",
       "summary": {
-        "turns": 1012,
+        "turns": 1011,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -205,9 +205,9 @@
           "E",
           "F",
           "G",
-          "B",
           "H",
-          "C"
+          "C",
+          "B"
         ]
       }
     },
