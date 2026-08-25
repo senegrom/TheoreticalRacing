@@ -37,6 +37,7 @@ public final class CoreTests {
         testCellOccupancyReuse();
         testTrackDistanceOrdering();
         testRaceAiStateIsolation();
+        testExactRidgePlateauHold();
         testReachabilityFailurePropagation();
         testReachabilityVelocityBounds();
         testReachabilityCacheIO();
@@ -56,6 +57,15 @@ public final class CoreTests {
         for (int i = 0; i < values.length; i++)
             check(Direction.fromIndex(i) == values[i], "direction index round-trip failed at " + i);
         check("-".equals(Direction.NONE.label()), "NONE label should be '-' ");
+    }
+
+    private static void testExactRidgePlateauHold() {
+        check(!RaceAi.isExactRidgePlateauHold(11, 10, 10, 10),
+                "braking 11->10 must not count as a speed-10 hold");
+        check(RaceAi.isExactRidgePlateauHold(10, 10, 9, 10),
+                "unchanged y=10 must count as a speed-10 hold");
+        check(RaceAi.isExactRidgePlateauHold(-10, 0, -10, 1),
+                "signed target ridge hold was rejected");
     }
 
     private static void testPlayerKinds() {

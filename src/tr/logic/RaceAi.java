@@ -1046,8 +1046,7 @@ final class RaceAi {
 								&& (ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC
 										|| fSpdInf == AI1_RIDGE_PLATEAU_SPD
 										&& trapByDir[chosen.ordinal()] == 0.0
-										&& (Math.abs(vel[0]) == fSpdInf && djvx == vel[0]
-												|| Math.abs(vel[1]) == fSpdInf && djvy == vel[1])
+										&& isExactRidgePlateauHold(vel[0], vel[1], djvx, djvy)
 										&& ridgeWidthThreePlateau(fCx, fCy, djvx, djvy))) {
 							final int[] rgTr = { 0, 0 };
 							final int rg8 = simOutcome(fCx, fCy, djvx, djvy, playerNum,
@@ -3775,6 +3774,17 @@ final class RaceAi {
 			succ++;
 		}
 		return succ == AI1_RIDGE_PLATEAU_SUCC && childWidths == 0b1110;
+	}
+
+	/** True only when a move enters the calibrated width-three class by holding
+	 *  an already-maximal signed speed-10 component exactly unchanged. */
+	static boolean isExactRidgePlateauHold(final int vx, final int vy,
+			final int nvx, final int nvy) {
+		final int nextMax = Math.max(Math.abs(nvx), Math.abs(nvy));
+		return nextMax == AI1_RIDGE_PLATEAU_SPD
+				&& Math.max(Math.abs(vx), Math.abs(vy)) == nextMax
+				&& (Math.abs(vx) == nextMax && nvx == vx
+						|| Math.abs(vy) == nextMax && nvy == vy);
 	}
 
 	/** Round 183: per-state successor mask -- bits 16-24 velocity-in-range,
