@@ -639,9 +639,9 @@ public final class RaceGame {
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
 	}
 
-	/** Primitive cache for geometry edges. Reachability owns it while building;
-	 *  AI callers wait for that build, so the table has the same single-writer
-	 *  lifecycle as the former HashMap without Long/Boolean/node allocation. */
+	/** Primitive cache for geometry edges. Reachability is the dominant writer,
+	 *  but auto-mode games with identical geometry share the table, so its
+	 *  representation must also tolerate unsynchronised concurrent writers. */
 	private DenseEdgeLegalCache denseEdgeLegalCache;
 	private EdgeLegalCache edgeLegalCache;
 
@@ -658,14 +658,13 @@ public final class RaceGame {
 		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
 		final int denseIndex = dense == null ? -1 : dense.index(x1, y1, x2, y2);
 		if (denseIndex >= 0) {
-			final int word = denseIndex >>> 6;
-			final long bit = 1L << denseIndex;
-			if ((dense.known[word] & bit) != 0)
-				return (dense.legal[word] & bit) != 0;
+			final int cached = dense.get(denseIndex);
+			if (cached == DenseEdgeLegalCache.LEGAL)
+				return true;
+			if (cached == DenseEdgeLegalCache.ILLEGAL)
+				return false;
 			final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
-			if (legal)
-				dense.legal[word] |= bit;
-			dense.known[word] |= bit;
+			dense.put(denseIndex, legal);
 			return legal;
 		}
 		final long packed = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32
@@ -681,12 +680,16 @@ public final class RaceGame {
 	}
 
 	/** Direct cache for in-grid, bounded-delta edges. Round 182: packed as
-	 *  two bitsets (known + legal, 2 bits per edge) instead of one byte per
+	 *  two-bit verdict states instead of one byte per
 	 *  edge -- the 14MB byte table made nearly every sim lookup a DRAM miss
 	 *  (33.7%% of all samples); at 3.6MB the table is L3-resident. Same
-	 *  predicate, same fill order, same benign write races (a lost
-	 *  known-bit recomputes later): decisions are byte-identical. */
+	 *  predicate and fill order. Plain int array-element loads and stores are
+	 *  tear-free; a stale concurrent update can only erase a verdict to UNKNOWN,
+	 *  causing benign recomputation instead of manufacturing a false result. */
 	static final class DenseEdgeLegalCache {
+		static final int UNKNOWN = 0;
+		static final int ILLEGAL = 1;
+		static final int LEGAL = 2;
 		private static final int DELTA_SPAN = 2 * AI_MAX_SPEED + 1;
 		private static final int DELTAS = DELTA_SPAN * DELTA_SPAN;
 		private static final java.util.LinkedHashMap<String, DenseEdgeLegalCache> SHARED =
@@ -696,16 +699,26 @@ public final class RaceGame {
 		final int width;
 		final int height;
 		final int entries;
-		final long[] known;
-		final long[] legal;
+		final int[] states;
 
 		private DenseEdgeLegalCache(final int width, final int height,
 				final int entries) {
 			this.width = width;
 			this.height = height;
 			this.entries = entries;
-			known = new long[(entries + 63) >>> 6];
-			legal = new long[(entries + 63) >>> 6];
+			states = new int[(entries + 15) >>> 4];
+		}
+
+		int get(final int index) {
+			final int shift = (index & 15) << 1;
+			return states[index >>> 4] >>> shift & 3;
+		}
+
+		void put(final int index, final boolean legal) {
+			final int shift = (index & 15) << 1;
+			final int mask = 3 << shift;
+			final int word = index >>> 4;
+			states[word] = states[word] & ~mask | (legal ? LEGAL : ILLEGAL) << shift;
 		}
 
 		static DenseEdgeLegalCache create(final int width, final int height,
