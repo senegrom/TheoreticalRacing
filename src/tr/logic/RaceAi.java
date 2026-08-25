@@ -269,34 +269,26 @@ final class RaceAi {
 			final int playerNum) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
-		Direction bestLegal = null;
-		double bestLegalScore = Double.MAX_VALUE;
-		Direction fallback = Direction.NONE;
-		double fallbackScore = Double.MAX_VALUE;
+		int fallbackLegalMask = 0;
+		int fallbackIllegalMask = 0;
 		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
+			final int bit = 1 << d.ordinal();
 			final int newVx = vx + d.dx;
 			final int newVy = vy + d.dy;
-			if ((sm & 1 << 16 + d.ordinal()) == 0)
+			if ((sm & bit << 16) == 0)
 				continue;
 			final int newX = x + newVx;
 			final int newY = y + newVy;
 			if (game.crossesFinish(x, y, newX, newY))
 				return d;
-			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if ((sm & 1 << d.ordinal()) == 0) {
-				if (sc < fallbackScore) {
-					fallbackScore = sc;
-					fallback = d;
-				}
+			if ((sm & bit) == 0) {
+				fallbackIllegalMask |= bit;
 				continue;
 			}
 			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
-			if (sc < bestLegalScore) {
-				bestLegalScore = sc;
-				bestLegal = d;
-			}
+			fallbackLegalMask |= bit;
 			final int turns = reach.turnsToFinish(newX, newY, newVx, newVy);
 			if (turns < bestTurns) {
 				bestTurns = turns;
@@ -305,9 +297,39 @@ final class RaceAi {
 		}
 		if (best != null)
 			return best;
-		if (bestLegal != null)
-			return bestLegal;
-		return fallback;
+		return scoreMinTurnsFallback(x, y, vx, vy,
+				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
+	}
+
+	/** Score-only terminal tier shared by the live, smart, and simulated
+	 *  min-turns choosers. Candidate masks capture the original pass so nested
+	 *  simulations cannot make the fallback re-read occupancy or legality. */
+	private Direction scoreMinTurnsFallback(final int x, final int y,
+			final int vx, final int vy, final int legalMask,
+			final int illegalMask, final Direction emptyFallback) {
+		Direction bestLegal = null;
+		double bestLegalScore = Double.MAX_VALUE;
+		Direction fallback = emptyFallback;
+		double fallbackScore = Double.MAX_VALUE;
+		final int candidateMask = legalMask | illegalMask;
+		for (final Direction d : DIRECTIONS) {
+			final int bit = 1 << d.ordinal();
+			if ((candidateMask & bit) == 0)
+				continue;
+			final int newVx = vx + d.dx;
+			final int newVy = vy + d.dy;
+			final double sc = reach.scorePos(x + newVx, y + newVy, newVx, newVy);
+			if ((legalMask & bit) != 0) {
+				if (sc < bestLegalScore) {
+					bestLegalScore = sc;
+					bestLegal = d;
+				}
+			} else if (sc < fallbackScore) {
+				fallbackScore = sc;
+				fallback = d;
+			}
+		}
+		return bestLegal != null ? bestLegal : fallback;
 	}
 
 	/** Explicit search depth for the soft depth-2 search
@@ -526,35 +548,27 @@ final class RaceAi {
 		MobilitySearch paceMobility = null;
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
-		Direction bestLegal = null;
-		double bestLegalScore = Double.MAX_VALUE;
-		Direction fallback = Direction.NONE;
-		double fallbackScore = Double.MAX_VALUE;
+		int fallbackLegalMask = 0;
+		int fallbackIllegalMask = 0;
 		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
 
 		for (final Direction d : DIRECTIONS) {
+			final int bit = 1 << d.ordinal();
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if ((sm & 1 << (16 + d.ordinal())) == 0)
+			if ((sm & bit << 16) == 0)
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
 			if (game.crossesFinish(pos[0], pos[1], newX, newY))
 				return d;
-			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if ((sm & 1 << d.ordinal()) == 0) {
-				if (sc < fallbackScore) {
-					fallbackScore = sc;
-					fallback = d;
-				}
+			if ((sm & bit) == 0) {
+				fallbackIllegalMask |= bit;
 				continue;
 			}
 			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
-			if (sc < bestLegalScore) {
-				bestLegalScore = sc;
-				bestLegal = d;
-			}
+			fallbackLegalMask |= bit;
 			final int ownTurns = reach.turnsToFinish(newX, newY, newVx, newVy);
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
@@ -1509,9 +1523,8 @@ final class RaceAi {
 			}
 			return chosen;
 		}
-		if (bestLegal != null)
-			return bestLegal;
-		return fallback;
+		return scoreMinTurnsFallback(pos[0], pos[1], vel[0], vel[1],
+				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
 	}
 
 	/** The mover's own kind, for self-play (kind-homogeneity) gates. */
@@ -2287,27 +2300,23 @@ final class RaceAi {
 			final CellOccupancy occupied) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
-		Direction bestLegal = null;
-		double bestLegalScore = Double.MAX_VALUE;
+		int fallbackLegalMask = 0;
 		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
 		for (final Direction d : DIRECTIONS) {
+			final int bit = 1 << d.ordinal();
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if ((sm & 1 << 16 + d.ordinal()) == 0)
+			if ((sm & bit << 16) == 0)
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
 			if (game.crossesFinish(pos[0], pos[1], newX, newY))
 				return d;
-			if ((sm & 1 << d.ordinal()) == 0)
+			if ((sm & bit) == 0)
 				continue;
 			if (occupied.contains(newX, newY))
 				continue;
-			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (sc < bestLegalScore) {
-				bestLegalScore = sc;
-				bestLegal = d;
-			}
+			fallbackLegalMask |= bit;
 			final int turns = reach.turnsToFinish(newX, newY, newVx, newVy);
 			if (turns < bestTurns) {
 				bestTurns = turns;
@@ -2316,9 +2325,8 @@ final class RaceAi {
 		}
 		if (best != null)
 			return best;
-		if (bestLegal != null)
-			return bestLegal;
-		return null;
+		return scoreMinTurnsFallback(pos[0], pos[1], vel[0], vel[1],
+				fallbackLegalMask, 0, null);
 	}
 
 	/** Reusable two-round opponent projection. The reference arrays and every
