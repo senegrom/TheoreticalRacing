@@ -12,6 +12,12 @@ only to a certified quiet-alive alternative. Rounds 178-180 were
 promoted into AI2 on the user's order, so BOTH kinds run the ridge
 check and both lobe2 races (seeds 111 and 132, whose crashers are AI1
 and AI2 respectively) must run crash-free.
+
+Round 185 selectively extends that audit to a trap-zero, signed speed-10
+hold whose three alive exits narrow to child widths exactly 1/2/3. On
+rand13 seed 4, player 7's old S line crashes three turns later; the
+scorer certificate instead selects SE, which finishes third. Both smart
+kinds must take that same promoted rescue.
 """
 
 from pathlib import Path
@@ -52,7 +58,34 @@ def main() -> int:
                     f"finishers={finishers}, crashes={crashes}, "
                     f"expected {expected_ai2[seed]}"
                 )
-    print("AI1 thin-ridge pins hold (mixed lobe2 seeds 111 and 132)")
+
+        for target_kind, kinds in (
+            ("AI1", ["AI1", "AI2"] * 4),
+            ("AI2", ["AI2", "AI1"] * 4),
+        ):
+            bench_ai.set_kinds(kinds)
+            result = bench_ai.run_track_h2h("rand13", timeout=600, seed=4)
+            if result != {"AI1": (18, 4, 0), "AI2": (18, 4, 0)}:
+                raise SystemExit(
+                    "Round-185 width-three ridge regression: "
+                    f"p7={target_kind}, result={result}"
+                )
+            with open(bench_ai.LOG, encoding="utf-8") as log_file:
+                lines = log_file.read().splitlines()
+            if not any(line.startswith(f"95 p7 {target_kind} SE ") for line in lines):
+                raise SystemExit(
+                    "Round-185 width-three ridge regression did not take the pinned "
+                    f"SE rescue for p7={target_kind}"
+                )
+            if not any(
+                line.startswith(f"532 p7 {target_kind} ") and "FINISH place=3" in line
+                for line in lines
+            ):
+                raise SystemExit(
+                    "Round-185 width-three ridge regression did not finish p7 third "
+                    f"for kind {target_kind}"
+                )
+    print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4 both kinds)")
     return 0
 
 

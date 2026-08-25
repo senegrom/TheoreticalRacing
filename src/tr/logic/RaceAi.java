@@ -441,6 +441,8 @@ final class RaceAi {
 	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
 	private final static int		AI1_RIDGE_MIN_SPD	= 8;	// round 178: max-axis floor for the thin-ridge check (lobe2-s111 holds 10 onto a one-lane ridge); round 180: floor 8 -- rand5-s40 accelerates into 8 on the same morphology, and the widened admission costs canon +10 audits per four races
 	private final static int		AI1_RIDGE_MAX_SUCC	= 2;	// round 178: alive-successor ceiling at the chosen landing (referee-mask mirror); canon census 2/9/2/0 admissions per race, lobe2 116
+	private final static int		AI1_RIDGE_PLATEAU_SPD	= 10;	// round 185: exact max-axis hold speed for the selective width-three plateau extension (rand13-s4); a broad <=3 admission is prohibitively noisy
+	private final static int		AI1_RIDGE_PLATEAU_SUCC	= 3;	// round 185: chosen landing has width 3 and its alive child fan is exactly widths 1/2/3 before paying for the scorer audit
 	private final static int		AI1_RIDGE_THREAD	= 4;	// round 178: s8-audit thread level that escalates to the true-6 verdict -- canon 0 escalations, lobe2 13 with DEAD only on the real doom line
 	private final static int		AI1_RIDGE_TRUE_ROUNDS	= 6;	// round 178: the ridge doom lands 6 rounds out -- true-4 reads the m363 commitment alive (V=7), true-6 kills it
 	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
@@ -1041,7 +1043,12 @@ final class RaceAi {
 						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
 								&& fSpdInf < AI1_FASTV_MAX
 								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
-								&& ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC) {
+								&& (ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC
+										|| fSpdInf == AI1_RIDGE_PLATEAU_SPD
+										&& trapByDir[chosen.ordinal()] == 0.0
+										&& (Math.abs(vel[0]) == fSpdInf && djvx == vel[0]
+												|| Math.abs(vel[1]) == fSpdInf && djvy == vel[1])
+										&& ridgeWidthThreePlateau(fCx, fCy, djvx, djvy))) {
 							final int[] rgTr = { 0, 0 };
 							final int rg8 = simOutcome(fCx, fCy, djvx, djvy, playerNum,
 									AI1_DEEP_HORIZON, true, true, true, true, false, false,
@@ -1050,8 +1057,13 @@ final class RaceAi {
 									&& simOutcome(fCx, fCy, djvx, djvy, playerNum,
 											AI1_RIDGE_TRUE_ROUNDS, true, true, true, true, false,
 											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0) {
+								final boolean ridgePlateau =
+										ridgeSuccAlive(fCx, fCy, djvx, djvy) > AI1_RIDGE_MAX_SUCC;
 								Direction ridgeBest = null;
 								int ridgeTurns = Integer.MAX_VALUE;
+								int ridgeRank = Integer.MAX_VALUE;
+								int ridgeThread = Integer.MAX_VALUE;
+								int ridgeSpeed2 = -1;
 								// Round 179: loud-alive fallback tier -- rand2-s94's
 								// only alive alternative reads thread=4 (one notch
 								// over the quiet bar) while the chosen is DOUBLE-dead;
@@ -1086,8 +1098,19 @@ final class RaceAi {
 										}
 										continue;
 									}
-									if (rTurns < ridgeTurns) {
+									final int rRank = rTurns + cTr[0];
+									final int rSpeed2 = speedSquared(rvx, rvy);
+									// Round 185: on the width-three extension, price each
+									// threaded rollout round as one map turn; equal ranks prefer
+									// the less-threaded line, then the established momentum tie.
+									if (!ridgePlateau && rTurns < ridgeTurns
+											|| ridgePlateau && (rRank < ridgeRank
+													|| rRank == ridgeRank && (cTr[0] < ridgeThread
+															|| cTr[0] == ridgeThread && rSpeed2 > ridgeSpeed2))) {
 										ridgeTurns = rTurns;
+										ridgeRank = rRank;
+										ridgeThread = cTr[0];
+										ridgeSpeed2 = rSpeed2;
 										ridgeBest = rd;
 									}
 								}
@@ -3724,6 +3747,34 @@ final class RaceAi {
 				succ++;
 		}
 		return succ;
+	}
+
+	/** Round 185: selective extension of the thin-ridge trigger. Exactly three
+	 *  map-alive exits must remain, none may finish immediately, and their child
+	 *  widths must be exactly 1/2/3. This admits the rand13-s4 speed-10 narrowing
+	 *  fan while rejecting 100/113 broader width-three matches in its 50-seed
+	 *  census and every match in the canonical golden corpus. */
+	private boolean ridgeWidthThreePlateau(final int x, final int y, final int vx, final int vy) {
+		int succ = 0;
+		int childWidths = 0;
+		final int mask = succMask(x, y, vx, vy);
+		for (final Direction d : DIRECTIONS) {
+			final int bit = 1 << d.ordinal();
+			if ((mask & (bit << 16)) == 0)
+				continue;
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			final int nx = x + nvx, ny = y + nvy;
+			if (game.crossesFinish(x, y, nx, ny))
+				return false;
+			if ((mask & bit) == 0 || !reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			final int childSucc = ridgeSuccAlive(nx, ny, nvx, nvy);
+			if (childSucc > AI1_RIDGE_PLATEAU_SUCC)
+				return false;
+			childWidths |= 1 << childSucc;
+			succ++;
+		}
+		return succ == AI1_RIDGE_PLATEAU_SUCC && childWidths == 0b1110;
 	}
 
 	/** Round 183: per-state successor mask -- bits 16-24 velocity-in-range,
