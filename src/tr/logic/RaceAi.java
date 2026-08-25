@@ -273,17 +273,18 @@ final class RaceAi {
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vx + d.dx;
 			final int newVy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int newX = x + newVx;
 			final int newY = y + newVy;
 			if (game.crossesFinish(x, y, newX, newY))
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (!game.isMoveLegalGeometryCached(x, y, newX, newY)) {
+			if ((sm & 1 << d.ordinal()) == 0) {
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
@@ -416,6 +417,10 @@ final class RaceAi {
 	private final static int		AI1_FASTSLOW_TTF	= 10;	// round 128: sim-final ttf ceiling for the fast finish-funnel leg -- the mixed-lemans class commitments sim to 6-7; every non-class fire measured 14+ (monaco/zandvoort mid-race crowds)
 	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
 	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
+	private final static int		AI1_RIDGE_MIN_SPD	= 8;	// round 178: max-axis floor for the thin-ridge check (lobe2-s111 holds 10 onto a one-lane ridge); round 180: floor 8 -- rand5-s40 accelerates into 8 on the same morphology, and the widened admission costs canon +10 audits per four races
+	private final static int		AI1_RIDGE_MAX_SUCC	= 2;	// round 178: alive-successor ceiling at the chosen landing (referee-mask mirror); canon census 2/9/2/0 admissions per race, lobe2 116
+	private final static int		AI1_RIDGE_THREAD	= 4;	// round 178: s8-audit thread level that escalates to the true-6 verdict -- canon 0 escalations, lobe2 13 with DEAD only on the real doom line
+	private final static int		AI1_RIDGE_TRUE_ROUNDS	= 6;	// round 178: the ridge doom lands 6 rounds out -- true-4 reads the m363 commitment alive (V=7), true-6 kills it
 	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
@@ -998,6 +1003,85 @@ final class RaceAi {
 							if (funnelChoice != chosen) {
 								chosen = funnelChoice;
 								deepHandled = true;
+							}
+						}
+						// Round 178: the thin-ridge hold check. Holding 9-10 onto
+						// a one-lane alive ridge (<= 2 alive successors at the
+						// landing) -- lobe2-s111's single thread is closed by a
+						// body 40 cells downstream; no train rival for the
+						// round-175 bar, ring-wide waist for the round-83 funnel,
+						// dense field for the guard above. s8-cap6 audits (never
+						// a verdict: every admitted census fire reads s8-alive);
+						// DEAD-or-loud escalates to the true-6 verdict (true-4
+						// reads the doom alive -- it lands 6 rounds out). Switch
+						// only to a certified quiet-alive alternative; none =>
+						// keep chosen (round-161 semantics). Canon census: 2/9/2/0
+						// admissions, zero escalations, zero kills.
+						// Round 180: accels admitted too (rand5-s40 commits by
+						// accelerating onto the ridge; 11+ stays with round 133).
+						// User-ordered promotion: rounds 178-180 are the baseline
+						// now -- the AI1 kind gate is lifted, both kinds run the
+						// ridge check, and the golden fixtures were re-baselined
+						// to the promoted behavior. No kind-gated arms remain.
+						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
+								&& fSpdInf < AI1_FASTV_MAX
+								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
+								&& ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC) {
+							final int[] rgTr = { 0, 0 };
+							final int rg8 = simOutcome(fCx, fCy, djvx, djvy, playerNum,
+									AI1_DEEP_HORIZON, true, true, true, true, false, false,
+									AI1_DEEP_CERT_RIVALS, null, null, rgTr);
+							if ((rg8 < 0 || rgTr[0] >= AI1_RIDGE_THREAD)
+									&& simOutcome(fCx, fCy, djvx, djvy, playerNum,
+											AI1_RIDGE_TRUE_ROUNDS, true, true, true, true, false,
+											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0) {
+								Direction ridgeBest = null;
+								int ridgeTurns = Integer.MAX_VALUE;
+								// Round 179: loud-alive fallback tier -- rand2-s94's
+								// only alive alternative reads thread=4 (one notch
+								// over the quiet bar) while the chosen is DOUBLE-dead;
+								// any s8-alive target dominates a certain death.
+								Direction ridgeLoud = null;
+								int ridgeLoudTurns = Integer.MAX_VALUE;
+								for (final Direction rd : DIRECTIONS) {
+									if (rd == chosen)
+										continue;
+									final int rvx = vel[0] + rd.dx, rvy = vel[1] + rd.dy;
+									if (RaceGame.aiVelocityOutOfRange(rvx, rvy))
+										continue;
+									final int rx = pos[0] + rvx, ry = pos[1] + rvy;
+									if (game.crossesFinish(pos[0], pos[1], rx, ry)) {
+										ridgeBest = rd;
+										break;
+									}
+									if (!game.isMoveLegalGeometryCached(pos[0], pos[1], rx, ry)
+											|| game.isCrashingPlayer(rx, ry, playerNum)
+											|| !reach.isAlive(rx, ry, rvx, rvy))
+										continue;
+									final int[] cTr = { 0, 0 };
+									if (simOutcome(rx, ry, rvx, rvy, playerNum, AI1_DEEP_HORIZON,
+											true, true, true, true, false, false,
+											AI1_DEEP_CERT_RIVALS, null, null, cTr) < 0)
+										continue;
+									final int rTurns = reach.turnsToFinish(rx, ry, rvx, rvy);
+									if (cTr[0] >= AI1_RIDGE_THREAD) {
+										if (rTurns < ridgeLoudTurns) {
+											ridgeLoudTurns = rTurns;
+											ridgeLoud = rd;
+										}
+										continue;
+									}
+									if (rTurns < ridgeTurns) {
+										ridgeTurns = rTurns;
+										ridgeBest = rd;
+									}
+								}
+								if (ridgeBest == null)
+									ridgeBest = ridgeLoud;
+								if (ridgeBest != null) {
+									chosen = ridgeBest;
+									deepHandled = true;
+								}
 							}
 						}
 					}
@@ -2204,16 +2288,17 @@ final class RaceAi {
 		int bestTurns = Integer.MAX_VALUE;
 		Direction bestLegal = null;
 		double bestLegalScore = Double.MAX_VALUE;
+		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
 			if (game.crossesFinish(pos[0], pos[1], newX, newY))
 				return d;
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupied.contains(newX, newY))
 				continue;
@@ -2397,14 +2482,15 @@ final class RaceAi {
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
 		}
 		double best = Double.MAX_VALUE;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 1;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			double price = 0.0;
 			if (stepIdx == 0) {
@@ -2438,14 +2524,15 @@ final class RaceAi {
 			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return new double[]{1, 9 };
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			double price = 0.0;
 			if (stepIdx == 0) {
@@ -2485,16 +2572,17 @@ final class RaceAi {
 	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy,
 			final CellOccupancy occupancy) {
 		int count = 0;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 9;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupancy.contains(nx, ny))
 				continue;
@@ -2627,14 +2715,15 @@ final class RaceAi {
 	private int safeSuccessorsOverState(final int x, final int y, final int cvx, final int cvy, final int self,
 			final int[] px, final int[] py, final boolean[] alive) {
 		int count = 0;
+		final int sm = succMask(x, y, cvx, cvy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 3;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -2659,14 +2748,15 @@ final class RaceAi {
 		int bestTier = -1, bestT = Integer.MAX_VALUE;
 		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
 		boolean found = false;
+		final int sm = succMask(x, y, cvx, cvy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return writeMove(out, nx, ny, nvx, nvy);
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -2701,14 +2791,15 @@ final class RaceAi {
 		int bestSpd2 = -1;
 		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
 		boolean found = false;
+		final int sm = succMask(x, y, cvx, cvy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return writeMove(out, nx, ny, nvx, nvy);
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -3329,7 +3420,19 @@ final class RaceAi {
 					|| Math.max(Math.abs(cvx), Math.abs(cvy)) == AI1_HOLDV_MAX - 1
 							&& Math.max(Math.abs(vel[0]), Math.abs(vel[1])) >= AI1_HOLDV_MAX)
 					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, 3) >= 1;
-			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV || legHoldV)
+			// Round 176: the 11-12 HOLD band (accel stays with the round-133
+			// leg). lobe5-s35 holds 11 and dies @r4 with every scorer world
+			// alive -- but the scorer-8 audit is loud (thread 4/7) and the
+			// true world kills. Audit-only s8: its one band DEAD verdict
+			// sits in the round-93 pin race, which survives it, so only
+			// alive-with-thread>=4 escalates to the true-4 verdict; probe:
+			// zero escalations in 282 canon band fires. No train bar -- the
+			// lobe5 rival is 11 away; the thread tell is the selectivity.
+			final boolean legHold11 = Math.max(Math.abs(cvx), Math.abs(cvy)) >= AI1_FASTV_MAX
+					&& Math.max(Math.abs(cvx), Math.abs(cvy)) <= Math.max(Math.abs(vel[0]),
+							Math.abs(vel[1]));
+			if ((legCorr || legSlow || legDeep || legPair || legFastSlow || legFastV || legHoldV
+					|| legHold11)
 					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
@@ -3347,15 +3450,33 @@ final class RaceAi {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
 								confirmCap, null, null, null) < 0;
-					} else if (legHoldV) {
+					} else if (legHoldV || legHold11) {
 						final long hvKey = ((long) playerNum << 40) | reach.aliveIdx(cx, cy, cvx, cvy);
 						final int hvSlot = (int) (hvKey * 0x9E3779B97F4A7C15L >>> 52);
 						if (holdVMemoEpochs[hvSlot] == fmMemoEpoch && holdVMemoKeys[hvSlot] == hvKey) {
 							trueDead = holdVMemoVals[hvSlot] != 0;
 						} else {
-							trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DJS_SLOW_ROUNDS,
-									simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
-									AI1_SCORER_MAXRIVALS, null, null, null) < 0;
+							if (legHoldV) {
+								trueDead = simOutcome(cx, cy, cvx, cvy, playerNum,
+										AI1_DJS_SLOW_ROUNDS, simFinishVanish, exactSelf,
+										exactRivals, true, scorerSelf, false,
+										AI1_SCORER_MAXRIVALS, null, null, null) < 0;
+							} else {
+								final int[] h11Tr = { 0, 0 };
+								final int h11 = simOutcome(cx, cy, cvx, cvy, playerNum,
+										AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
+										true, scorerSelf, false, confirmCap, null, null, h11Tr);
+								// Round 177: the s8 verdict is ignored entirely (both
+								// worlds false-kill the round-93 pin fire, thread=1);
+								// the THREAD level is the separator -- pin 1, the
+								// lobe5 siblings 3 and 4, canon 279x0/3x1 -- so the
+								// true-4 verdict runs at thread >= 2.
+								trueDead = h11Tr[0] >= 2
+										&& simOutcome(cx, cy, cvx, cvy, playerNum,
+												AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish,
+												exactSelf, exactRivals, true, scorerSelf, true,
+												confirmCap, null, null, null) < 0;
+							}
 							holdVMemoKeys[hvSlot] = hvKey;
 							holdVMemoVals[hvSlot] = (byte) (trueDead ? 1 : 0);
 							holdVMemoEpochs[hvSlot] = fmMemoEpoch;
@@ -3580,6 +3701,69 @@ final class RaceAi {
 	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;
 	private final static double	AI2_PLATEAU_TIEBREAK	= 0.05;
 
+	/** Round 178: alive successors of a landing state, mirroring the referee
+	 *  mask -- finish-crossing or (edge-legal AND map-alive). Map-only. */
+	private int ridgeSuccAlive(final int x, final int y, final int vx, final int vy) {
+		int succ = 0;
+		for (final Direction sd : DIRECTIONS) {
+			final int svx = vx + sd.dx, svy = vy + sd.dy;
+			if (RaceGame.aiVelocityOutOfRange(svx, svy))
+				continue;
+			final int sx = x + svx, sy = y + svy;
+			if (game.crossesFinish(x, y, sx, sy)
+					|| game.isMoveLegalGeometryCached(x, y, sx, sy) && reach.isAlive(sx, sy, svx, svy))
+				succ++;
+		}
+		return succ;
+	}
+
+	/** Round 183: per-state successor mask -- bits 16-24 velocity-in-range,
+	 *  bits 0-8 in-range AND geometry-legal, per Direction ordinal. Geometry
+	 *  is immutable per track, so cached entries never invalidate; the
+	 *  direct-mapped table (full-key verify) resets on reach change. One
+	 *  probe replaces the nine range checks and nine edge-legality calls of
+	 *  every candidate enumeration (49.5%% of all samples pre-round). */
+	private int succMask(final int x, final int y, final int vx, final int vy) {
+		final int max = RaceGame.AI_MAX_SPEED;
+		if (x < 0 || y < 0 || x > game.gameCols || y > game.gameRows
+				|| vx < -max || vx > max || vy < -max || vy > max)
+			return succMaskCompute(x, y, vx, vy);
+		if (smReach != reach) {
+			if (smKeys == null) {
+				smKeys = new int[1 << 18];
+				smVals = new int[1 << 18];
+			}
+			java.util.Arrays.fill(smKeys, -1);
+			smReach = reach;
+		}
+		final int span = 2 * max + 1;
+		final int key = ((x * (game.gameRows + 1) + y) * span + vx + max) * span + vy + max;
+		final int slot = key * 0x9E3779B1 >>> 14;
+		if (smKeys[slot] == key)
+			return smVals[slot];
+		final int mask = succMaskCompute(x, y, vx, vy);
+		smKeys[slot] = key;
+		smVals[slot] = mask;
+		return mask;
+	}
+
+	private int succMaskCompute(final int x, final int y, final int vx, final int vy) {
+		int mask = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			mask |= 1 << 16 + d.ordinal();
+			if (game.isMoveLegalGeometryCached(x, y, x + nvx, y + nvy))
+				mask |= 1 << d.ordinal();
+		}
+		return mask;
+	}
+
+	private Reachability smReach;
+	private int[] smKeys;
+	private int[] smVals;
+
 	private int countRivalsWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
 		int count = 0;
 		for (final Player p : game.players) {
@@ -3689,16 +3873,17 @@ final class RaceAi {
 	private int countFutureSafeSuccessors(final int x, final int y, final int vx, final int vy,
 			final int playerNum, final CellOccupancy predicted) {
 		int count = 0;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 9;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (game.isCrashingPlayer(nx, ny, playerNum))
 				continue;

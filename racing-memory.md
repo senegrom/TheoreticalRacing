@@ -6,6 +6,689 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Rounds 182+183 (local agent, SHIPPED): the compute-speed axis reopens -- successor masks
+
+The user asked for faster COMPUTE (not faster racing). Fresh JFR
+profile on the promoted jar (serpentine2 mixed s1-3,
+settings=profile): isMoveLegalGeometryCached is 33.7%% SELF time --
+top method by 3.4x -- and the caller histogram puts 141 of 285
+samples (49.5%% of all compute) inside it, called from the
+9-candidate enumeration loops (pureMinTurnsMoveSim 37.6%%,
+searchMinTurnsSoft3 31.9%%, safeSuccessorsOverState 12.1%%,
+successor counters ~8%%).
+
+ROUND 182 -- bitset-packed dense edge cache (2 bits/edge, 3.56MB vs
+14.25MB): byte-identical on 7 tracks, wall FLAT (both-order averages
+-0.1%%/+0.2%%). The negative result is the finding: the cost is call
+FREQUENCY, not per-call DRAM latency (the hot cell set was already
+cache-resident). Kept for the 4x memory (4x more tracks fit the
+shared pool).
+
+ROUND 183 -- succMask(x,y,vx,vy): one int, two 9-bit planes
+(velocity-in-range / in-range-and-geometry-legal per Direction
+ordinal), direct-mapped 2^18 cache with full-key verify. Geometry is
+immutable per track so entries never invalidate (table resets on
+reach change). Nine hot enumeration loops converted (the two
+pureMinTurns variants keep the range/illegal distinction for their
+fallback tracking; the seven skip-pattern methods use the combined
+plane) -- one probe replaces 9 range checks + 9 edge-legality calls
+per visited state. Candidate filtering is bit-for-bit the original
+predicate chain.
+
+Gates: byte-identical on all 7 identity tracks (serpentine2 s1-3
+against the pre-round logs; monza/spa/bigoval/lobe2/hybrid12/
+fractal17 s7), 18/18 pins including goldens, dual-order wall
+CONSISTENTLY faster in all four order-cells: serpentine2 -1.4%%,
+monza -3.2%% (both-order averages). Modest but real -- the r157-160
+era shipped at this scale. Next profile target: the residual is
+reach.turnsToFinish/scorePos per-candidate lookups (the alive-map
+DRAM class) now that the legality complex is collapsed.
+
+## Rounds 178-180 promoted (user-ordered): the thin-ridge check is the baseline
+
+The user ordered the promotion. Mechanics executed exactly as banked:
+the ridge check's AI1 kind gate is lifted (both kinds run rounds
+178-180; optimalMoveAI2 already delegates to the shared body, so once
+again NO kind-gated arms remain), the golden fixtures were
+re-baselined to the promoted behavior (5 entries changed --
+nurburgring-s19 and interlagos-s10 among them, the two the gate
+originally caught), and the thin-ridge pin now expects BOTH lobe2
+races crash-free (s132's AI2 crasher is rescued by promotion, as the
+pre-gate battery had already measured).
+
+Gates on the promoted main jar: lobe2 s111/s132 and rand5 s40/s47
+all zero crashes (both kinds rescued at every ridge site), 18/18
+pins PASS including the re-baselined goldens. The wall and canon
+evidence carries over from the original ungated round-180 battery,
+which measured this exact configuration: canon byte-identical,
+rand2/hybrid12 fixtures stable, dual-order wall neutral.
+
+Repo cleanup alongside: stale A/B reference jars (base/bisect171/
+prof/ref/side), two old JVM crash dumps, and python caches removed
+from the working tree; tracked tree was already clean.
+
+## Head-to-head census (local agent, user-prompted): the slot gradient, and what promotion would buy
+
+Which kind is better? 3800 mixed races (harvests 34-37) say AI1 by
+half a place (mean 3.78 vs 4.24, 21% vs 7% wins) -- but the by-player
+table exposes a MASSIVE grid-slot gradient (p1 mean 1.97 -> p8 5.63,
+~0.5 places per slot) that is roughly symmetric across kind
+boundaries. Kinds alternate with slot parity in mixed_h2h, so the
+aggregate gap is mostly the odd-slots-vs-even-slots average of a
+positional gradient, not policy. (Also recorded: the race-ends-at-
+seven-finishers rule leaves the last straggler's place unlogged,
+biasing tail slots' recorded means low.)
+
+The code fact that settles it: optimalMoveAI2 IS optimalMoveAI1 --
+one shared body, and the only kind-divergent line in the codebase is
+round 180's explicit AI1 gate on the thin-ridge check. So AI1 = AI2
+plus rounds 178-180, which by measurement rescue three sites (lobe2-
+s111, rand2-s94, rand5-s40; AI2 still crashes at the s47/s132
+mirrors) at zero pace cost (canon byte-identical, wall neutral, solo
+map-optimal).
+
+RECOMMENDATION (awaiting the user's explicit word, per the frozen-
+baseline law): promote rounds 178-180 into AI2 -- pure safety upside,
+provably free. Promotion mechanics when ordered: lift the ridge
+check's kind gate, re-baseline the golden fixtures (their hashes
+change legitimately -- golden_races.py --update), and flip the
+thin-ridge pin's s132/s47 AI2-baseline expectations to crash-free.
+Grid-slot fairness note for future h2h reads: compare adjacent-slot
+pairs or average parity-swapped orientations; never the raw kind
+aggregate.
+
+## Solo pace-optimum census (local agent, user-prompted): the agents ARE the optimum
+
+The user asked how far the agents sit from the speed optimum. For a
+solo car the reachability map's turnsToFinish from the standing start
+is a TIGHT bound (the BFS path realizes it on an empty track), so it
+is directly measurable. Twelve tracks (canon four, lemans, zandvoort,
+and six generated including both fixtures and the twisty fractal17),
+solo seed-1 races, both kinds:
+
+  AI1 = AI2 = map optimum, EXACTLY, on all twelve (1116 total turns
+  = the theoretical minimum; per-track gaps all +0.0%).
+
+Solo pace is at the floor by construction -- the min-turns descent IS
+the policy backbone -- and the census confirms the entire safety
+architecture (every confirm leg, guard, and ladder through round 180)
+costs ZERO solo turns: the arms fire only on genuinely doomed lines.
+The remaining optimality frontier is traffic, where a single-agent
+optimum is ill-defined and pace is measured relatively (the h2h
+place-sum batteries; the co-agent pipeline's field-pace work).
+
+## Harvest 37 census (local agent): fractal v2 perfectly clean
+
+The inward-bending wave (fractal14/17/18/20/21 x mixed s1-50, 250
+races): ZERO crashes. The v2 geometry's wider effective corridors
+(inward structures do not stretch the bounding box) and the wave's
+draw of no left-descent funnels leave nothing for the campaign.
+Fleet steady state: the residual remains exactly the two fixtures
+(hybrid12, fractal8) plus classified singles -- 51 of 53 generated
+circuits clean or fully rescued.
+
+## fractal v2 (local agent, user-prompted): inward space-filling bends
+
+The user asked the fractal family to bend partially INWARD to fill
+its interior. gen_fractal v2: the antler may point into the hull
+interior (probability 0.5) when a ray-cast from its edge midpoint
+confirms the far wall leaves protrusion + 4*minr of room; failing
+that, the plain comb may flip inward (0.7) under the same clearance
+test; and plain-edge midpoint displacement deepens 0.35 -> 0.45.
+Committed fractal1-10 stay as generated (fractal8 remains the
+fixture); v2 shapes new seeds.
+
+Two free wins measured: inward protrusions do not grow the bounding
+box, so scales IMPROVED (0.57-0.69 vs v1's 0.52-0.64 -- wider
+effective corridors), and the invaded interiors make the longest
+races of any family (892-1019 moves). Yield: seeds 13-22 -> 5 built
+(the inward clearance test plus deeper displacement raise control
+rejection as expected) -> ALL FIVE validated, zero darts
+(fractal14/17/18/20/21). fractal17 and 21 carry deep inward antlers;
+18 stays outward-style -- the coin flips keep the family varied.
+
+Fleet: 79 circuits (53 generated). Harvest 37 over the five queued.
+
+## Harvest 36 census (local agent): the fractal family's first sweep -- a second stress fixture
+
+The nine new circuits (hybrid wave 3 + fractal family) x mixed s1-50,
+450 races: 7 crash races. Seven of nine circuits CLEAN
+(hybrid15/17/20, fractal1/3/4/10 -- zero crashes each).
+
+fractal8 carries 6 of the 7 (12%/window): a byte-identical
+KIND-INVARIANT quartet at (11,60) v(-3,6)->(-2,6) (s20/s44 AI1,
+s37/s41 AI2) on the left-side descent, plus two bottom-left corner
+deaths (s12 AI1, s17 AI2). Walked s20: twin-choice boards to m361,
+then the single alive option BODY-BLOCKED at m369 -- and the m361
+twins probe IDENTICALLY dead in scorer-8 and true-6. The r181-closed
+queue-family signature exactly; fractal8's geometry reproduces the
+hybrid12 morphology (a long left vertical into a bottom gate -- the
+same construction DNA whenever the hull lands that way). fractal8
+joins hybrid12 as the fleet's SECOND queue-doom stress fixture;
+oracle pile per the round-181 closure.
+
+hybrid14-s19 (single, p7 AI1, top-right vertical): every mask from
+m119 on is dead/blocked -- the doom precedes the window, same
+family kin. Oracle pile.
+
+Frontier state unchanged: every new-track crash is the proven-floor
+queue class. The generated-fleet residual stays concentrated in the
+two fixtures while 46 of 48 generated circuits run clean or
+fully-rescued.
+
+## Hybrid wave 3 + the fractal family (local agent, user-prompted): serpentines at two scales
+
+The user asked for more hybrids and a FRACTAL variant -- big
+serpentines with smaller serpentines breaking out -- then a full
+atlas.
+
+Hybrid wave 3: seeds 13-20 -> 4 validated (hybrid14/15/17/20,
+717-840-move races), 4 darts gate-deleted. The hybrid family is 13
+circuits.
+
+gen_fractal: a hull loop whose LONGEST edge grows one big antlered
+finger -- a wide finger (tip edge sized to carry a two-sub mini-comb:
+FW derived from sub span + fillet margins) of depth 6.5*minr whose
+tip sprouts two hybrid-scale sub-fingers (fw 1.25*minr, depth
+3*minr) -- plus a plain two-finger comb on the second-longest edge
+when it fits. Two new shared helpers: _corner_arc (the GENERIC
+fillet: turn side from the cross sign, turn-side normals into the
+_inner_arc formula -- verified to reproduce the shipped hybrid
+base-corner pairs, and it handles the antler's OUTER corners the
+hand-derived pairs never covered) and _comb_fingers (finger emission
+shared by hybrid-style combs at any scale). Numeric check: antler
+protrusion measures exactly big+sub+tip = 86 control units.
+
+Yield: 11 seeds -> 8 built (2 infeasible: no hull edge long enough
+for the antler) -> 5 validated (fractal1/3/4/8/10, 706-929-move
+races; 2 darts, 1 hang-timeout gate-deleted). Scales 0.52-0.64,
+corridor 4.1-5.4 cells -- the aggressive end of the fleet envelope.
+
+Fleet: 26 designed + 48 generated (16 hull, 8 weave, 6 lobes, 13
+hybrid, 5 fractal) = 74 circuits. Full atlas published as a fresh
+artifact (the prior one was deleted user-side). Mixed harvest over
+the new tracks (hybrid 13-20 wave + fractal family) queued as
+harvest 36.
+
+## Round 181 CLOSED (local agent): the queue family is beyond affordable detection -- the architecture's floor, by exhaustive measurement
+
+Bend-ahead, the last cheap candidate, measured offline (centerline
+heading change over the lookahead): at the m203 commitment the
+braking-span bend (40deg) is indistinguishable from the survivable
+top straight (39deg) -- the gate is still beyond the span -- and at
+doubled span the SURVIVABLE boards read MORE bend (151-174deg vs
+132deg; the straight's lookahead includes the busy top-left complex).
+Fourth strike.
+
+FORMAL CLOSURE. The queue-family commitment (oracle-proven at m203:
+six survivors exist, the champion picks one of two deaths) carries no
+signature in ANY measured affordable channel:
+- worlds: s5c3 / s8c6 / true-4/6/8, capped and uncapped, and
+  exact-order-with-cheap-policy all read the fatal choice alive;
+  only oracle-grade (full champion per rival, unbounded recursion)
+  sees it, which cannot be paid in-game.
+- static tells: train density, ring capacity, deceleration wave,
+  and corner-severity-ahead all fail to separate the commitment
+  from healthy racing (each was measured on the archetype race and
+  canon before rejection).
+
+The doom is a joint-future property manufactured by the champions'
+own recursive braking arms; the information does not exist in the
+present state at affordable cost. The family (hybrid12 sites A/B/C,
+rand2 corner jam, and morphological kin) stays on the oracle pile as
+the stress fixture's permanent load. The frontier's residual crash
+rate on generated geometry (~0.7%, entirely the fixture plus
+classified baseline/oracle singles) is the CURRENT ARCHITECTURE'S
+FLOOR. Breaking it requires a mechanism outside today's invariance
+principles -- per-track danger priors, offline-labeled sectors, or
+learned queue models -- which is a user-level design decision, not a
+round.
+
+## Round 181 probe round 2 (local agent): the wave tell fails -- no present-state signature exists yet
+
+The deceleration-differential (braking wave) tell censused on the
+archetype: at the fatal m203 commitment the wave has NOT formed
+(leaders still at 6-8, differential 1) -- it only appears at
+m243/m251, boards the oracle already proved hopeless -- and it
+FALSE-fires on the survivable top straight (m~120s, wave=1 from
+transient speed spread). Third strike: density (V0), capacity (V1),
+and speed field (V2) all fail to separate the doomed funnel approach
+from healthy racing at the commitment.
+
+The distinguishing information at m203 lives in the JOINT FUTURE
+(the funnel's corner will brake the leaders 2-4 rounds later), which
+only oracle-grade rollouts see. One cheap candidate remains untested:
+CORNER SEVERITY AHEAD -- the corridor's total heading change over the
+braking span, computable map-side from the distance-field direction
+(the left funnel terminates in the ~90-degree bottom-left gate; the
+top straight sweeps gently). Banked as the next probe: fire = >= 3
+aligned ahead AND bendAhead >= threshold; must separate m195-211 from
+the top straight and hold a low canon false rate. If bend also fails,
+the family is formally beyond static+affordable detection and stays
+on the oracle pile as the fixture's permanent load.
+
+## Round 181 formation-tell probe (local agent): density and capacity do NOT separate -- the wave hypothesis is next
+
+Probe181 censused two candidate compression tells at every AI1 root
+compute (replays byte-identical):
+
+- TELL V0, train density (>= 3 aligned rivals ahead within the
+  braking span, nearest projected gap < spdInf): 60-113 fires per
+  canon race -- hopeless as an arm; healthy trains live in this
+  regime constantly.
+- TELL V1, ring oversubscription (ahead-count vs minRingWidthAhead):
+  NO separation on the archetype itself. p3's SURVIVABLE top-straight
+  train (m~120s: ahead=6, ring=6-7, gaps 1.4-3.9) is signature-
+  identical to the FATAL left-funnel approach (m195-235: ahead=4-6,
+  ring=6-7, gaps 2.2-3.8). Six cars through a width-7 ring was fine
+  on the straight; four through width-6 was fatal at the funnel. The
+  present density/capacity of the train does not carry the doom.
+
+What distinguishes the two in the raw data is the LEADERS' behavior:
+on the top straight the whole train holds 7-8; into the funnel the
+leaders shed to 5-6 while the tail still carries 7 -- the braking
+wave that the oracle walk proved is manufactured by the champions'
+own confirm arms. NEXT PROBE (banked): the deceleration-differential
+tell -- ahead >= 3 aligned AND nearest-ahead max-axis <= my chosen
+max-axis - 2 (the wave has reached the car in front but not me).
+Census it on the archetype (must fire m195-211, must NOT fire on the
+top straight) and canon (false-fire rate = pace cost) before any arm.
+
+## Round 181 measurement (local agent): no affordable world sees the queue commitment -- confirm axis CLOSED
+
+The m203 archetype board (hybrid12-s13, oracle: taken W dies @r6 while
+six siblings survive) probed against every candidate world upgrade:
+
+- true-6-cap7 and true-8-cap7 (uncapped champion rivals): W alive
+  (V=62/60). The rival CAP is not the divergence.
+- exact-order + cheap rival policy (offline ordered roll via the
+  referee masks, min-turns rivals): W ALIVE. Order alone is not the
+  divergence either -- cheap rivals do not reproduce the compression.
+
+The compression that seals the trap is created by the real champions'
+OWN braking arms (their confirm switches produce the braking waves).
+In-sim rivals cannot run those arms at full recursion depth
+(trueConfirmDepth bounds), and cheap rivals do not brake at all -- so
+every affordable world under-models the queue exactly where it kills.
+Only oracle-grade fidelity (full champion per rival, unbounded
+recursion) sees the m203 doom, and that cannot be paid in-game.
+
+AXIS (a) CLOSED BY MEASUREMENT. The queue family's only viable fix is
+axis (b), formation-stage pacing: a train-compression tell (several
+same-direction rivals ahead within the braking span) that sheds one
+notch of pace at the TAIL while options still exist -- m203's oracle
+survivors include plain holds and one-notch sheds, so the pacing
+surface is provably sufficient there. This is a racing-pace change:
+it needs the full pace battery (place-sum regressions, h2h neutrality)
+on top of the crash gates, and is banked as the round-181 DESIGN.
+
+## Queue family oracle-walked end to end (local agent): the commitment is where every world is blind
+
+The hybrid12-s13 archetype (site A) rolled through the offline oracle
+(real order, real occupancy, all eight champions -- reach_hybrid12.bin
+dumped, cand at every walked board):
+
+- m235, m227, m219, m211: EVERY candidate dies under perfect fidelity
+  (best lines die @r2-8). The in-game walk's earlier reading inverts:
+  the cheap worlds' m219 kills were CORRECT and true-6's alive was
+  optimistic drift -- but it never mattered, because no alternative
+  survived at any of these boards. Switching cannot rescue here.
+- m203 IS the oracle commitment: SIX of eight candidates survive to
+  the finish (hold, E, N, NE, S, SE all alive t=57) and p3 chose W --
+  one of the only two dying options (dies @r6). Every shipped world
+  reads that W as strongly ALIVE (s5c3 V=63, s8c6 V=60 snug=7,
+  true-6 V=62): the real queue diverges from every affordable rival
+  model within six rounds, exactly in tight quarters (the loud snug
+  is the only tell).
+
+ORACLE-PROVEN root cause for the whole queue family: the doom commits
+on a board where every world is blind, and by the time any world sees
+death there is nothing to switch to. Two engineering axes remain,
+both banked for round 181:
+(a) an EXACT-ORDER, UNCAPPED confirm world -- the true world already
+    pays most of the cost (champion rivals); the delta is real
+    subgamestate order, no rival cap, and real body timing. Measure
+    whether ordered-true-6 kills the m203 W on the archetype board
+    (offline first, via a query-sim variant), then cost the arm:
+    admission would need the snug tell (snug >= 6-7 at s8) since
+    speed/succ do not fire at max-axis 7 on a wide board.
+(b) formation-stage pacing: keep the TAIL of a compressing train from
+    entering the funnel at all -- a train-compression signal
+    (multiple same-direction rivals ahead within the braking span)
+    braking one notch early, while options still exist. Cheaper, but
+    touches racing pace, so it needs the full pace-regression battery.
+
+Harvest 35's site C (top wall) and the rand2 corner jam presumably
+share this anatomy; their oracle walks are queued behind the round-181
+measurement.
+
+## Harvest 35 census (local agent): fresh windows all clean except the stress fixture
+
+Fresh grid-seed territory under rounds 178-180 (weave/lobe s1-50 --
+their first-ever low windows -- and hybrid s51-100; 1150 races):
+8 crash races / 0.70%, and ALL EIGHT are hybrid12. Every other
+circuit's fresh window is CLEAN: the weave and lobe families' second
+seed axis, and all eight other hybrids, produce zero crashes -- the
+r175-180 arms generalize across seed territory, not just at their
+walked sites.
+
+hybrid12's eight: sites A (s68/s70/s85) and B (s78/s80/s88) as
+classified, plus a NEW site C -- a kind-invariant pair (s76 AI1, s91
+AI2) at the TOP wall, (68-70,5) v(-4..-5,-2) dying at (64-66,2),
+max-axis 4-5, m127-128, place 8. Walked s76: the map thread seals at
+m111 (three bodies close the top corridor, taken is map-DEAD with
+everything else blocked); the one choice-ful board (m103) has twin
+alive options IDENTICAL in every world (both s8-DEAD and true-6-DEAD)
+-- the no-separator queue-jam signature, third instance on this
+geometry. Model-boundary, oracle pile, site C joins the family.
+
+The fixture now manufactures the queue-divergence doom class at
+three distinct corners of one track (left band, bottom gate, top
+wall) at ~16-22% per 50-seed window while the other 38 circuits sit
+at zero -- exactly what it is kept for. The frontier's open surface
+is unchanged: the queue families (all one root cause: real-order
+occupancy under compression, which no sim world models), rand13-s4's
+economics-blocked admission class, and rand20-s2's old family.
+
+## Round 180 (local agent, SHIPPED): ridge floor 8 + accels, and the AI1 kind gate the goldens enforced
+
+Two changes, and the second is the round's real lesson.
+
+WIDENING: harvest 34's frontier residue is a max-axis-8 tail.
+rand5-s40 m243 commits by ACCELERATING vy 7->8 onto a succ<=2 thread
+-- taken s8-DEAD and true-6-DEAD, the shed-to-6 alternative pristine
+(V=23/25, thread=0) -- blocked from the r178 rescue on both admission
+axes. Probe180 census: floor 8 + any-direction at succ<=2 costs canon
+6/13/4/0 audits per race (+10 per four races over r178). rand13-s4
+(hold-10, succ=3 whose WIDEST continuation is also 3) stays OPEN --
+no pure-map separator, and succ<=3 admission costs 25-60x for a
+1/1950 class.
+
+THE GOLDEN CATCH: the ungated widening broke two golden races --
+and goldens are ALL-AI2 fields. The promoted AI2 entry delegates to
+the champion AI1 body, so an ungated experiment reaches AI2: rounds
+178/179 carried this exposure silently (their bands never fired a
+switch in pinned races), and the width finally tripped it inside
+interlagos-s10 (outcome change: one driver two places worse). The
+guard now carries the doctrine's explicit AI1 kind gate
+(moverKind == AI1). Consequences, all measured: goldens
+byte-restore; rand5-s47's and lobe2-s132's earlier "rescues" REVERT
+-- both were the ungated guard acting on AI2 drivers, unauthorized
+frozen-baseline changes now undone -- and both reclassify as
+AI2-baseline crashes (they clear if these rounds are ever promoted).
+The thin-ridge pin now asserts AI1 crash-free at both lobe2 seeds
+and pins s132's AI2 baseline crash explicitly.
+
+Gate: rand5 sweep 1 (exactly the s47 AI2 baseline; s40 AI1 rescued),
+canon byte-identical x4, hybrid12 12 lines byte-stable, lobe2 sweep
+1 (the s132 AI2 baseline; s111 AI1 rescue holds), rand2 s51-150 = 2
+(knowns), 18/18 pins after the s132 amendment, dual-order wall
+within the noise law (both-order averages +1.9%/+2.8% with canon
+decisions byte-identical -- no mechanism for real cost).
+
+Frontier surface after this round: AI1 crashes on the fleet are the
+two model-boundary queue families (hybrid12 funnel, rand2 corner
+jam), rand13-s4's open admission-width class, and rand20-s2's old
+oracle-pile family. Every other known AI1 site is rescued and
+pinned.
+
+## Harvest 34 census (local agent): the full fleet under rounds 178+179 -- 0.97%
+
+First steady-state sweep of all 39 generated circuits with both new
+arms in (mixed s1-50, 1950 races): 19 crash races / 20 lines =
+0.97%, down from the 1.6% harvest-30 steady state. 34 of 39 circuits
+CLEAN, including every previously rescued site (lobe2, rand16,
+rand2-s94, serpentine2 classes hold at scale).
+
+Already-classified (14 races): the hybrid12 funnel family x11
+(byte-stable to the seed -- the stress fixture measures exactly its
+known model boundary), hybrid9-s44 (AI2 baseline), rand2-s21 (AI2 at
+the corner-jam site), rand20-s2 (the old v(-4,2) oracle-pile
+family).
+
+Frontier-relevant remainder (walk queue):
+- rand5 s40/s47 -- the KNOWN kind-invariant pair from harvest 30,
+  still open: byte-near-identical commitments at (11,61)
+  v(-3,8)->(-2,7) (one AI1, one AI2), max-axis 8 decel down the left
+  vertical. Below the round-178 band.
+- rand13 s4 -- NEW site on a previously clean track: p7 AI1 at
+  (59,15) v(-8,2)->(-7,1), max-axis 8 decel along the top straight.
+- rand12 s31/s33 -- both AI2 baseline singles (the frontier may
+  already cover s31's max-9 site via round 178; the baseline cannot
+  arm it). Noted per the frozen-baseline convention.
+
+The shape of the residue: every remaining frontier specimen is a
+max-axis 8 decel -- one notch below AI1_RIDGE_MIN_SPD=9. Whether the
+band extends to 8 is a cost question (8-fires are far more common;
+the succ<=2 gate distribution at 8 must be censused before any arm),
+and the hybrid12 family already proves parts of the 7-8 regime are
+model-boundary regardless.
+
+## Round 179 (local agent, SHIPPED): loud-alive fallback certification + the walk queue cleared
+
+The post-178 rand2 re-census (both windows, 150 races) reproduced
+exactly the four known open specimens -- no new sites, no regression.
+Walking them on current-jar races:
+
+rand2-s94 (the vertical site, p1): builds max-axis 11 down the left
+vertical (lone runner -- the r133 train bar correctly excludes it),
+then decel 11->10 at m249 lands on a succ=1 ridge INSIDE the r178
+band. The r178 kill fires (taken s8-DEAD and true-6-DEAD) but the
+only alive alternative reads s8 V=23 with thread=4 -- one notch over
+the quiet certification bar -- so nothing certified and the doomed
+chosen was kept. ROUND 179: tiered certification. Quiet targets
+(thread < 4) keep absolute priority; a LOUD s8-alive target is used
+only as fallback -- against a chosen that is dead in BOTH the audit
+and the verdict world, any alive target dominates a certain death.
+The rescue holds: p1 threads the corner needle (the loud NONE hold)
+and the race runs crash-free. Canon exposure unchanged by
+construction (the ladder only runs on a true-6 kill; canon census
+had zero).
+
+rand2 s21/s124 (the top-left corner site, one AI2 + one AI1
+instance): max-axis 5 decel into a corner QUEUE JAM -- masks show
+single-thread boards with heavy body-blocking from m111, the thread
+closing at m135 (map-dead + bodies). The one choice-ful board (m119)
+has twin options identical in every world (both s8-DEAD and
+true-6-DEAD) -- the hybrid12-site-A no-separator signature. Model-
+boundary, oracle pile, queue-jam family.
+
+rand2-s142 ((7,13) v(-4,2), p6): AI2 baseline single -- noted per
+the frozen-baseline convention, not walked.
+
+The walk queue is EMPTY for the first time since harvest 30: every
+open specimen is now rescued (lobe2 pair r178, rand2-s94 r179),
+classified model-boundary (hybrid12 funnel family, rand2 corner jam
+-- both the queue-divergence class awaiting real-order queue
+semantics), or noted as baseline. Gate: rand2 windows 1+2 (s94
+rescued, s21/s124/s142 remain -- two model-boundary, one baseline),
+canon byte-identity, hybrid12 stress fixture re-measured under the
+loud tier, lobe2 sweep, 18 pins (thin-ridge added), dual-order wall
+pair.
+
+## Round 178 (local agent, SHIPPED): the thin-ridge hold check
+
+The lobe2-s111 walk (harvest 32's pair) found the first rescuable
+specimen in five walks: a HOLD of max-axis 10 onto a one-lane
+alive-map ridge whose single thread a rival body closes 40 cells
+downstream. Invisible to every shipped arm by measurement: no rival
+within Chebyshev 3 (r175's bar), minRing=7 run=0 (r83's funnel signal
+-- the lobe2 waist is ring-wide; the doom is the RIDGE), liveRivals=7
+(r83's deep guard is capped at 4). At the commitment the worlds
+finally separate: taken hold-10 is s8-alive-LOUD (V=3, thread=4) and
+TRUE-SIX dead (true-4 reads it alive -- the death lands 6 rounds
+out); the brake alternative is quiet-alive everywhere (V=4-8,
+thread=0).
+
+The check (root guard beside the r83 funnel guard -- v1 lesson: a
+confirm-chain leg is never reached for rival-less fast fires; that
+routing hole IS the arm gap): hold/decel at max-axis 9-10 whose
+chosen landing has <= 2 alive successors (referee-mask mirror,
+map-only) => s8-cap6 AUDIT (never a verdict; every admitted census
+fire reads s8-alive) => DEAD-or-thread>=4 escalates to the true-6
+verdict => switch only to a certified quiet-alive alternative
+(root-legal, map-alive, s8 quiet-alive, best turnsToFinish); none
+certifies => keep chosen (r161 semantics). Worlds ship the exact
+probe-measured flag bundle (scorerRivals, proxy self).
+
+Probe census (probe178a/b/c, all replays byte-identical): canon
+admissions monza 2 / serpentine2 9 / spa 2 / bigoval 0 per race with
+ZERO escalations and ZERO kills; lobe2 116 admissions, 13
+escalations, DEAD only on the actual doom line (m363 + its forced
+sequel). Gate: lobe2 s101-150 sweep 0 crashes (was 2 -- s111 AND the
+unwalked s132 both rescued); hybrid12 sweep byte-stable (same 11
+races / 12 crash lines -- every stress-fixture escalation ends in
+keep-chosen); rand16 sweep 0 (r175 intact); serpentine2/monza spots
+0; 17/17 pins PASS; dual-order wall neutral (serpentine2 +1.7%,
+monza -3.7%, both inside the +-5% noise law -- consistent with zero
+canon escalations). New pin tests/ai1_thin_ridge_regression.py
+(lobe2 s111+s132 mixed, crashes==0), verified against side and
+rebuilt main jars.
+
+Open after this round: the hybrid12 funnel family stays model-
+boundary (its ridge fires escalate and keep-chosen -- the verdict
+worlds cannot separate its twin branches); walk queue continues with
+the rand2 specimens.
+
+## hybrid12 site B walked (local agent): same funnel, second pocket, same verdict
+
+Site B (3 races, bottom-left) is the CONTINUATION of the site-A
+funnel: ma_hybrid12_s19 p7 rode the exact escape line site A's victim
+could not reach -- (11,77)->(9,84)->(8,92), threading the wall band
+in flight -- but arrived carrying vy=8, and the bottom wall at y~115
+leaves no shed room (1/turn: 92+7+6+5+4 overshoots any east turn).
+Both walked specimens pass (11,77) at vy 7-8; the survivor class
+(p8-s13) passes at vy<=6. Max-axis at commitment is 7-8 -- below
+every shipped fast-leg band, the moderate-speed funnel morphology.
+
+Verdicts: p7 is map-FORCED from m239 on (one alive option, then
+all-dead boards; the alive-map itself reads (8,92) v(-1,8) DEAD).
+At m231 (vy 7->8, the accel-into commitment) and at m223 both
+map-alive options -- INCLUDING the cool NE shed-to-vy-6 branch that
+reality's survivors ride -- probe V=-1 in scorer-5-cap3 AND
+true-6-cap6. The sims kill the whole funnel indiscriminately at this
+depth while reality's queue lets cool entries live: queue-divergence
+pessimism, no separating board/world pair anywhere. Sites A and B
+are ONE family: the hybrid12 left-funnel queue, model-boundary,
+oracle pile.
+
+Harvest-33 walk sweep closed: the remaining specimen (hybrid9 s44,
+m104, (86,43) v(0,-5), single instance) is an AI2 baseline crash --
+noted, unwalked, per the frozen-baseline convention. Open walk queue
+reverts to the pre-hybrid five (rand2 s21-class seeds, the v(-4,2)
+family instance, the rand2 vertical site, lobe2 s111/s132).
+
+## hybrid12 site A walked (local agent): a twin-branch funnel ridge, model-boundary in every world
+
+Full probe walk of ma_hybrid12_s13 p3 (the 8-instance site). Root
+masks and world verdicts at every decision from freedom to death:
+
+- m203 (29,49) v(-5,7): free board (8 of 9 map-alive).
+- m211 (23,56) v(-6,7) -> E: ALIVE everywhere (s5c3 V=62, true-6
+  V=61). Last all-world-alive board.
+- m219 (18,63) v(-5,7): the map narrows to twin options (NE/E, rest
+  map-dead). WORLD SPLIT, but not by option: s5c3 kills BOTH (V=-1),
+  true-6 holds BOTH alive (V=60). No separator.
+- m227 (14,70) v(-4,7): twin options again; every world kills both.
+- m235 (11,77) v(-3,7): taken (9,83) is map-ALIVE (the alive-map sees
+  the needle thread: land exactly ON the corner vertex (8,90) with
+  v(-1,7), then straight down), but every sim world kills every
+  candidate. The thread is then closed by p4's body at m243 (root B).
+- m243: all candidates map-dead or body-blocked (mask XXDXXDXXB);
+  m251: all nine geometry-illegal (XXXXXXXXX) -- the referee kill is
+  the collinear ride across the border vertex; the landed state
+  (8,93) v(0,5) probes V=58 alive, so the death is purely the swept
+  edge, which the AI's shared predicate also rejects (root D/X --
+  no raster divergence, confirmed end to end).
+
+VERDICT: model-boundary, oracle pile. From m219 on there is NO
+board/world pair that separates chosen from alternative: the cheap
+worlds go pessimistic-dead on BOTH twin branches 3 rounds early, the
+faithful worlds stay optimistic-alive on both until the pocket seals
+-- every sim diverges from the real queue evolution, in opposite
+directions by world class. A confirm leg anywhere on the ridge either
+kills both candidates (no certified switch, r161 keeps chosen) or
+fires nothing. The rescue would need real-order queue semantics, not
+another world.
+
+The geometry's role: the axis-aligned left-wall band (x=8, y 76-90)
+plus the (8,90) turn vertex make wall-hugging legal-but-terminal, so
+queue compression converts to death at 22%/race. hybrid12 stays in
+the fleet as the standing stress fixture for any future queue-
+semantics round -- it manufactures the STUCK-rival doom class at 30x
+the designed-track rate. Site B (3 races, bottom-left corner gate)
+and the hybrid9 single remain unwalked in the queue behind it.
+
+## Harvest 33 census (local agent): hybrid12's wall-hug funnel trap, 8 instances at one site
+
+The hybrid sweep (9 circuits x mixed s1-50, 450 races) came back at 12
+crashes -- but ELEVEN sit on hybrid12 alone (22% of its races; the
+other eight circuits: 1 crash in 400, steady state). Site A, 8 races
+(s5..s43): byte-near-identical death at (8,88-89) v(-1,5|6)->(0,5),
+landing (8,93-94), always place 7/8, late race, BOTH kinds (AI1 and
+AI2 specimens) -- kind-invariant, shared-model. Site B, 3 races:
+(9-16,110-116) NW into the bottom-left corner. Plus one hybrid9
+single at (86,43) v(0,-5).
+
+Site A anatomy (walked from logs + track geometry, no probes yet):
+hybrid12's left border runs AXIS-ALIGNED at x=8 for y in [76,90],
+then turns left through (8,90)->(6,94)->(3,101). Riding the wall
+line is LEGAL (tolerance-expanded Area, collinear overlap does not
+cross), but from (8,88) with v(-1,5) every successor is fatal:
+vx -2/-1 exits through the wall, vx 0 rides the collinear line
+ACROSS the turning vertex at (8,90) -- segmentCrossesPath counts the
+endpoint touch as a cross -- and vx +1 is unreachable from vx=-1.
+Referee and AI share one predicate (isMoveLegalGeometry via the
+shared caches), so this is NOT a raster divergence: the AI entered a
+1-move-deep all-dead pocket. The commitment is upstream at (9,83):
+the chooser swerved v(-1,5) ONTO the wall line with leftward
+velocity while the funnel queue (p7 holding (9,88), 5-6 cars
+compressing into the bottom-left corner) blocked the clean line --
+the STUCK-rival queue-compression signature, amplified by geometry
+that gives wall-hugging an axis-aligned invitation.
+
+Walk queue: site A specimen ma_hybrid12_s13 (p3 m251) first -- probe
+the (9,83) choice: if the deep worlds read a survivor there (queue
+evaporates in sim), it joins the model-boundary pile; if a cheap
+world kills the swerve, it is an arm gap and a round candidate. Site
+B and the hybrid9 single after.
+
+## Hybrid family (local agent, user-prompted): hull flow plus a weave comb
+
+The user asked for tracks that mix the random and weave characters --
+"a bit of both". gen_hybrid grafts a serpentine comb into a hull
+circuit: random points -> convex hull -> the LONGEST full hull edge is
+reserved (no midpoint displacement -- displaced half-edges are ~50-80
+units, too short for a comb) and replaced by 2-3 outward fingers built
+with the weave family's corner mathematics; every other edge gets the
+usual random inward midpoint displacement, then the shared
+_finish_loop discipline accepts or rejects.
+
+Comb construction (all lengths in control units, minr=8): finger
+half-width fw=1.25*minr, base inner-arc radius rin=1.35*minr,
+wall-to-wall finger gap 3.2*minr (adjacent base arcs each consume rin
+of baseline -- 2.2*minr overlapped and knotted), end margin rin+minr,
+depth 3-5*minr per finger. Tips are sampled semicircles (pi/8) tangent
+to the walls at bl+n*depth exactly; the base corners are perpendicular,
+and for EITHER loop winding the turn-side normals are (n,-u) entering
+and (u,n) leaving -- the first cut passed both sign-flipped and every
+seed knotted. Debug discipline that found all three bugs in one pass:
+render the control loop + Chaikin overlay to PNG before touching the
+rejection loop (the weave lesson, reapplied).
+
+Validation: 12 seeds -> 9 circuits (hybrid1-4,6,7,9,10,12), three
+dart-rejected (48-85 move races; files deleted by the gate). Survivor
+races run 690-877 moves, corridor 5.0-6.3 cells, scale 0.56-0.71 --
+the same envelope as the weave and random families. Harvest 33 (mixed
+fields, grid-seeds 1-50 per circuit, 450 races) queued over the nine.
+
+Also this window: the branch sweep the user ordered -- 34 remote
+branches with zero unique commits deleted; codex/faster-racing-ai HELD
+(carries their unmerged componentwise-field-pace round, 851 insertions,
+round-number collision with local 177 to reconcile at merge); local
+backup-full-history (74 unique) and the worktree branch (31 unique)
+kept per the no-extra-commits criterion.
+
 ## Harvest 30 census (local agent): the hold-overspeed arm gap -- next round candidate
 
 Full geometry set (16 random circuits x mixed s1-50, 800 races): 13
@@ -38,6 +721,91 @@ there; the funnel signal must carry the selectivity). If it measures
 surgical, this arm likely also covers s223/s252-class commitments
 whose deep worlds see the death on their boards, and shrinks the
 model-boundary pile to the truly oracle-only remainder.
+
+## Round 176 (local agent): the 11-12 hold band closes the speed-arm seam
+
+Harvest 31 -- the weave/lobe families' first sweep -- came back at ONE
+crash in 700 races (the champion generalizes to brand-new topology),
+and that one specimen sat exactly in the seam between the shipped
+speed arms: lobe5 s35 HOLDS max-axis 11 (m267, dies @r4, braking to 10
+survives with the finish 9 turns away) -- above r175's 10-band, below
+r133's accel-into trigger, nearest rival at Chebyshev 11 so no train
+bar applies.
+
+Probe-measured leg, every axis empirical: scorer worlds read the
+commitment alive but the scorer-8 AUDIT is loud (thread 4/7, snug
+6/7) and true-4-cap6 kills it. scorer-8 gets NO verdict role -- its
+single band DEAD verdict sits in the round-93 pin race, which
+survives it (the same false kill that excluded 11-12 from r175); it
+serves as the audit source only. The leg: max-axis 11-12 not
+increased -> s8-cap6 audit -> alive-with-thread>=4 -> true-4 verdict
+alone -> standard ladder. The thread gate measured perfectly
+selective: ZERO escalations in 282 canon band fires
+(monza 100 / serpentine2 176 / spa 6 / bigoval 0). Decisions ride the
+shared per-compute verdict memo (band-disjoint keys from r175's leg).
+
+Gate: lobe5 s35 rescued and its sweep 0/50 (was 1); rand2 at its
+known s21 residual; serpentine2/monza spots clean; 17/17 pins with
+the round-93 canary race verified byte-identical on the exact build;
+wall unmeasurable-to-favorable under co-agent load (monza side faster
+both orders; serpentine2 cleanest pair -15%) -- structurally the leg
+adds one memoized s8 audit per band fire and zero true-4s on canon.
+
+## Round 177 (local agent): the hold-band thread gate recalibrated
+
+Harvest 32 (weave/lobe s51-150, 4/1400) returned two lobe5 siblings
+(s118/s147) dying at the round-176 site from the IDENTICAL hold state
+((11,76) v(2,11) NONE) on different boards -- and the probe explained
+the miss precisely: on s118's board scorer-8 is DEAD with thread=3,
+so the r176 alive-gate declined a correct verdict, while on the
+round-93 pin fire BOTH worlds false-kill (true-4 dead there too --
+verified) at thread=1. No verdict-based shape can stand; the THREAD
+level is the one axis separating every measured case: pin 1, siblings
+3 and 4, canon 279x thread=0 / 3x thread=1 in 282 band fires.
+
+The recalibration: the s8 verdict is ignored entirely (pure audit
+source); the true-4 verdict runs at thread >= 2. Still zero true-4
+runs on canon by the measured distribution; the pin fire (thread 1)
+is excluded by construction.
+
+Gate: all three lobe5 siblings rescued, lobe5 sweep s51-150 0/100
+(was 2), 17/17 pins with the pin race byte-identical, canon spots
+clean. Fresh rand2 seeds surfaced three specimens for the walk queue:
+another s21-class instance (byte-identical move), a new
+v(-4,2)-family instance at (7,13), and a new vertical site at
+(10,111); lobe2 s111/s132 also queued. None touch shipped fixes.
+
+
+## Weave and lobe families (local agent, user-prompted): the geometry axis learns topology
+
+The hull family is topology-bound -- a convex skeleton yields rounded
+blobs however hard the midpoints are displaced. Two new skeletons:
+
+- WEAVE: the contour of a random spanning tree on a coarse grid -- a
+  tree's outline is always a single closed loop, and it genuinely
+  weaves: serpentine passages, U-turn fingers, parallel corridors at
+  guaranteed spacing. The construction fought back instructively:
+  per-half-edge endpoint pairs cusp at inner elbows (scale-independent
+  step/sqrt2 curvature floor), bare midpoints under-support U-turns
+  (Chaikin contracts a 2-point U to a third of the inset), miter
+  points stay corners (~5 radius floor), and first-cut inner arcs
+  collided pairwise at wall-tip wraps. The shipped emission: right-
+  offset midpoints + sampled outer arcs (pi/8 density) + three-point
+  inner arcs, under a sizing system where all three constraints bind
+  (inset 1.25*minr from outer-arc contraction ~0.9x, rin 1.35*minr,
+  pitch 2*(inset+rin) from tip-wrap adjacency; spacings 2.3-2.7*minr
+  vs the 1.8*minr merge bound). Debugged VISUALLY -- the matplotlib
+  render of tree + control loop + smoothed loop found in one look what
+  four blind convention flips could not.
+- LOBES: radial harmonics r(theta) = R(1 + sum a_k cos(k theta+phi)),
+  dominant k=2 an hourglass, k=3 a trefoil, k=5 a gear; amplitudes
+  capped at the neck bound.
+
+weave1-8 and lobe1-6 all pass behavioral validation (weaves race
+~600-move serpentine laps). Fleet: 30 random circuits across three
+skeleton families; the Random Circuit Atlas artifact shows all of
+them. Next: harvest the new families mixed s1-50.
+
 
 ## Round 175 (local agent, SHIPPED): the hold-overspeed cheap-world check
 

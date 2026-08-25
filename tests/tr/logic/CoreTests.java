@@ -288,11 +288,18 @@ public final class CoreTests {
         final int min = cache.index(2, 3, -10, 15);
         check(zero >= 0 && max >= 0 && min >= 0, "bounded dense edge was rejected");
         check(zero != max && max != min && zero != min, "dense edge indices collided");
-        cache.states[zero] = RaceGame.DenseEdgeLegalCache.FALSE;
-        cache.states[max] = RaceGame.DenseEdgeLegalCache.TRUE;
-        check(cache.states[zero] == RaceGame.DenseEdgeLegalCache.FALSE,
+        final int zeroWord = zero >>> 6;
+        final long zeroBit = 1L << zero;
+        final int maxWord = max >>> 6;
+        final long maxBit = 1L << max;
+        cache.known[zeroWord] |= zeroBit;
+        cache.known[maxWord] |= maxBit;
+        cache.legal[maxWord] |= maxBit;
+        check((cache.known[zeroWord] & zeroBit) != 0
+                && (cache.legal[zeroWord] & zeroBit) == 0,
                 "dense false verdict was lost");
-        check(cache.states[max] == RaceGame.DenseEdgeLegalCache.TRUE,
+        check((cache.known[maxWord] & maxBit) != 0
+                && (cache.legal[maxWord] & maxBit) != 0,
                 "dense true verdict was lost");
         check(cache.index(-1, 0, 0, 0) == -1, "negative origin entered dense cache");
         check(cache.index(3, 0, 3, 0) == -1, "wide origin entered dense cache");
@@ -310,11 +317,18 @@ public final class CoreTests {
 
         final int zero = first.index(0, 0, 0, 0);
         final int max = first.index(2, 3, 14, -9);
-        first.states[zero] = RaceGame.DenseEdgeLegalCache.FALSE;
-        first.states[max] = RaceGame.DenseEdgeLegalCache.TRUE;
-        check(second.states[zero] == RaceGame.DenseEdgeLegalCache.FALSE,
+        final int zeroWord = zero >>> 6;
+        final long zeroBit = 1L << zero;
+        final int maxWord = max >>> 6;
+        final long maxBit = 1L << max;
+        first.known[zeroWord] |= zeroBit;
+        first.known[maxWord] |= maxBit;
+        first.legal[maxWord] |= maxBit;
+        check((second.known[zeroWord] & zeroBit) != 0
+                && (second.legal[zeroWord] & zeroBit) == 0,
                 "shared dense false verdict was lost");
-        check(second.states[max] == RaceGame.DenseEdgeLegalCache.TRUE,
+        check((second.known[maxWord] & maxBit) != 0
+                && (second.legal[maxWord] & maxBit) != 0,
                 "shared dense true verdict was lost");
 
         final RaceGame.DenseEdgeLegalCache replacement = RaceGame.DenseEdgeLegalCache.shared(
