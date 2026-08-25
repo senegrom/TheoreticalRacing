@@ -6,6 +6,53 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 185 (local agent, SHIPPED): selective width-three ridge rescue
+
+rand13-s4 exposed a residual rescuable ridge case. At move 95, p7 at
+`(86,10) v(-10,0)` chose S, landed `(76,11) v(-10,1)`, and later
+crashed/place 8. The certified SE alternative lands `(77,11) v(-9,1)`
+and finishes place 3 in 67 own turns. The old landing has three
+map-alive exits, so the shipped `succ<=2` ridge guard could not inspect
+it; a broad `succ<=3` admission was measured prohibitively noisy.
+
+Round 185 adds only the calibrated width-three class: landing and
+current max-axis speed exactly 10, trap exactly zero, at least one
+signed maximal component held unchanged, exactly three geometry-legal
+and map-alive exits, no immediate finish, and child widths exactly
+`{1,2,3}`. The existing scorer-8 audit and true-6 verdict remain the
+authority. Certified survivors rank by `turnsToFinish + thread`, then
+lower thread, then higher speed squared. A pre-push review caught that
+`(11,10)->(10,10)` could masquerade as a hold; the production-wired
+`isExactRidgePlateauHold` boundary helper now rejects it while preserving
+the actual `(-10,0)->(-10,1)` hold and the alternate held-axis case.
+
+Frozen default-orientation rand13 s1-50 changed seed 4 only: explicit
+finishers `349 -> 350`, crashes `1 -> 0`, and p7 moved from crash/place 8
+to finish/place 3. Among common finishers only p8 changed, by +1 turn.
+The parity-swapped target pin proves the same rescue for both smart kinds
+and pins `AI1=(18,4,0)`, `AI2=(18,4,0)`.
+
+The non-target refresh compared 600 matched races per jar (1,200 logs),
+both alternating orientations, against frozen e856: zero trajectory or
+outcome differences. Both sides recorded 4,160 explicit finishes, 40
+crashes, and 345,646 turns. Final suite: run_tests 79 tracks plus
+CoreTests/MainTests, smoke 1/1, goldens 13/13, AI pins 20/20, compileall,
+zero failures.
+
+Final promotion matrix on behavior HEAD `536b911` / jar
+`8EC607C67B0F8F9B15A2A5DC300BA19FE4846A6BE8453B6E7FF132BA09490361`:
+all six default/parity commands exited 0. Across default seeds 1-15,
+each kind recorded 2,310 finishes and zero crashes; the three windows
+tied exactly at mean moves 62.699, 62.638, and 62.677. Parity-swapped
+h2h tied at mean place 4.500 in all three windows with zero crashes; all
+132 track-window comparisons were exact self-ties. The five additional
+field checks also tied with zero crashes: 4p place 2.500, 1v1 place
+1.500, isolated 4-car `f330/mv61.091`, isolated 2-car `f110/mv60.336`,
+and slow tracks `f140/mv104.164`, per kind.
+
+Upstream Round 184 (`b292d7e`, single-load successor masks) was merged
+before the final behavior freeze and all post-merge validation.
+
 ## Round 184 (local agent, SHIPPED): single-load successor-mask probe
 
 Post-183 re-profile: succMask itself became the top method (19.2%%).
