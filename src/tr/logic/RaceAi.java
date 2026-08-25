@@ -530,18 +530,19 @@ final class RaceAi {
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
+		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
 
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
+			if ((sm & 1 << (16 + d.ordinal())) == 0)
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
 			if (game.crossesFinish(pos[0], pos[1], newX, newY))
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+			if ((sm & 1 << d.ordinal()) == 0) {
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
