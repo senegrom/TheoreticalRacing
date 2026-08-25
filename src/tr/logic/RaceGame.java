@@ -658,12 +658,14 @@ public final class RaceGame {
 		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
 		final int denseIndex = dense == null ? -1 : dense.index(x1, y1, x2, y2);
 		if (denseIndex >= 0) {
-			final byte cached = dense.states[denseIndex];
-			if (cached != 0)
-				return cached == DenseEdgeLegalCache.TRUE;
+			final int word = denseIndex >>> 6;
+			final long bit = 1L << denseIndex;
+			if ((dense.known[word] & bit) != 0)
+				return (dense.legal[word] & bit) != 0;
 			final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
-			dense.states[denseIndex] = legal ? DenseEdgeLegalCache.TRUE
-					: DenseEdgeLegalCache.FALSE;
+			if (legal)
+				dense.legal[word] |= bit;
+			dense.known[word] |= bit;
 			return legal;
 		}
 		final long packed = ((long) x1 & 0xFFFF) << 48 | ((long) y1 & 0xFFFF) << 32
@@ -678,10 +680,13 @@ public final class RaceGame {
 		return legal;
 	}
 
-	/** Direct byte cache for in-grid, bounded-delta edges. */
+	/** Direct cache for in-grid, bounded-delta edges. Round 182: packed as
+	 *  two bitsets (known + legal, 2 bits per edge) instead of one byte per
+	 *  edge -- the 14MB byte table made nearly every sim lookup a DRAM miss
+	 *  (33.7%% of all samples); at 3.6MB the table is L3-resident. Same
+	 *  predicate, same fill order, same benign write races (a lost
+	 *  known-bit recomputes later): decisions are byte-identical. */
 	static final class DenseEdgeLegalCache {
-		static final byte FALSE = 1;
-		static final byte TRUE = 2;
 		private static final int DELTA_SPAN = 2 * AI_MAX_SPEED + 1;
 		private static final int DELTAS = DELTA_SPAN * DELTA_SPAN;
 		private static final java.util.LinkedHashMap<String, DenseEdgeLegalCache> SHARED =
@@ -690,13 +695,17 @@ public final class RaceGame {
 
 		final int width;
 		final int height;
-		final byte[] states;
+		final int entries;
+		final long[] known;
+		final long[] legal;
 
 		private DenseEdgeLegalCache(final int width, final int height,
 				final int entries) {
 			this.width = width;
 			this.height = height;
-			states = new byte[entries];
+			this.entries = entries;
+			known = new long[(entries + 63) >>> 6];
+			legal = new long[(entries + 63) >>> 6];
 		}
 
 		static DenseEdgeLegalCache create(final int width, final int height,
@@ -709,8 +718,8 @@ public final class RaceGame {
 		}
 
 		/** Reuse an exact table for the same immutable track geometry. The pool
-		 * is access-ordered and measured in byte-table entries (one byte each).
-		 * A table larger than the pool cap remains a private exact table. */
+		 * is access-ordered and measured in EDGE ENTRIES (2 bits each since
+		 * round 182). A table larger than the pool cap remains private. */
 		static synchronized DenseEdgeLegalCache shared(final String key,
 				final int width, final int height, final long maxEntries,
 				final long maxPoolEntries) {
@@ -721,21 +730,21 @@ public final class RaceGame {
 				return existing;
 			if (existing != null) {
 				SHARED.remove(key);
-				sharedEntries -= existing.states.length;
+				sharedEntries -= existing.entries;
 			}
 			final DenseEdgeLegalCache created = create(width, height, maxEntries);
-			if (created == null || created.states.length > maxPoolEntries)
+			if (created == null || created.entries > maxPoolEntries)
 				return created;
 			while (!SHARED.isEmpty()
-					&& sharedEntries + created.states.length > maxPoolEntries) {
+					&& sharedEntries + created.entries > maxPoolEntries) {
 				final java.util.Iterator<java.util.Map.Entry<String, DenseEdgeLegalCache>> it =
 						SHARED.entrySet().iterator();
 				final DenseEdgeLegalCache evicted = it.next().getValue();
 				it.remove();
-				sharedEntries -= evicted.states.length;
+				sharedEntries -= evicted.entries;
 			}
 			SHARED.put(key, created);
-			sharedEntries += created.states.length;
+			sharedEntries += created.entries;
 			return created;
 		}
 

@@ -242,17 +242,18 @@ final class RaceAi {
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vx + d.dx;
 			final int newVy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int newX = x + newVx;
 			final int newY = y + newVy;
 			if (game.crossesFinish(x, y, newX, newY))
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (!game.isMoveLegalGeometryCached(x, y, newX, newY)) {
+			if ((sm & 1 << d.ordinal()) == 0) {
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
@@ -2111,17 +2112,18 @@ final class RaceAi {
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = Direction.NONE;
 		double fallbackScore = Double.MAX_VALUE;
+		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
 		for (final Direction d : DIRECTIONS) {
 			final int newVx = vel[0] + d.dx;
 			final int newVy = vel[1] + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(newVx, newVy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
 			if (game.crossesFinish(pos[0], pos[1], newX, newY))
 				return d;
 			final double sc = reach.scorePos(newX, newY, newVx, newVy);
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], newX, newY)) {
+			if ((sm & 1 << d.ordinal()) == 0) {
 				if (sc < fallbackScore) {
 					fallbackScore = sc;
 					fallback = d;
@@ -2289,14 +2291,15 @@ final class RaceAi {
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
 		}
 		double best = Double.MAX_VALUE;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 1;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			double price = 0.0;
 			if (stepIdx == 0) {
@@ -2330,14 +2333,15 @@ final class RaceAi {
 			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return new double[]{1, 9 };
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			double price = 0.0;
 			if (stepIdx == 0) {
@@ -2377,16 +2381,17 @@ final class RaceAi {
 	private int countFutureSafeSuccessorsTimed(final int x, final int y, final int vx, final int vy,
 			final CellOccupancy occupancy) {
 		int count = 0;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 9;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupancy.contains(nx, ny))
 				continue;
@@ -2519,14 +2524,15 @@ final class RaceAi {
 	private int safeSuccessorsOverState(final int x, final int y, final int cvx, final int cvy, final int self,
 			final int[] px, final int[] py, final boolean[] alive) {
 		int count = 0;
+		final int sm = succMask(x, y, cvx, cvy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 3;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -2551,14 +2557,15 @@ final class RaceAi {
 		int bestTier = -1, bestT = Integer.MAX_VALUE;
 		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
 		boolean found = false;
+		final int sm = succMask(x, y, cvx, cvy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return writeMove(out, nx, ny, nvx, nvy);
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -2593,14 +2600,15 @@ final class RaceAi {
 		int bestSpd2 = -1;
 		int bestX = 0, bestY = 0, bestVx = 0, bestVy = 0;
 		boolean found = false;
+		final int sm = succMask(x, y, cvx, cvy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = cvx + d.dx, nvy = cvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return writeMove(out, nx, ny, nvx, nvy);
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -3475,6 +3483,53 @@ final class RaceAi {
 		return succ;
 	}
 
+	/** Round 183: per-state successor mask -- bits 16-24 velocity-in-range,
+	 *  bits 0-8 in-range AND geometry-legal, per Direction ordinal. Geometry
+	 *  is immutable per track, so cached entries never invalidate; the
+	 *  direct-mapped table (full-key verify) resets on reach change. One
+	 *  probe replaces the nine range checks and nine edge-legality calls of
+	 *  every candidate enumeration (49.5%% of all samples pre-round). */
+	private int succMask(final int x, final int y, final int vx, final int vy) {
+		final int max = RaceGame.AI_MAX_SPEED;
+		if (x < 0 || y < 0 || x > game.gameCols || y > game.gameRows
+				|| vx < -max || vx > max || vy < -max || vy > max)
+			return succMaskCompute(x, y, vx, vy);
+		if (smReach != reach) {
+			if (smKeys == null) {
+				smKeys = new int[1 << 18];
+				smVals = new int[1 << 18];
+			}
+			java.util.Arrays.fill(smKeys, -1);
+			smReach = reach;
+		}
+		final int span = 2 * max + 1;
+		final int key = ((x * (game.gameRows + 1) + y) * span + vx + max) * span + vy + max;
+		final int slot = key * 0x9E3779B1 >>> 14;
+		if (smKeys[slot] == key)
+			return smVals[slot];
+		final int mask = succMaskCompute(x, y, vx, vy);
+		smKeys[slot] = key;
+		smVals[slot] = mask;
+		return mask;
+	}
+
+	private int succMaskCompute(final int x, final int y, final int vx, final int vy) {
+		int mask = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			mask |= 1 << 16 + d.ordinal();
+			if (game.isMoveLegalGeometryCached(x, y, x + nvx, y + nvy))
+				mask |= 1 << d.ordinal();
+		}
+		return mask;
+	}
+
+	private Reachability smReach;
+	private int[] smKeys;
+	private int[] smVals;
+
 	private int countRivalsWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
 		int count = 0;
 		for (final Player p : game.players) {
@@ -3584,16 +3639,17 @@ final class RaceAi {
 	private int countFutureSafeSuccessors(final int x, final int y, final int vx, final int vy,
 			final int playerNum, final CellOccupancy predicted) {
 		int count = 0;
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
 			if (game.crossesFinish(x, y, nx, ny))
 				return 9;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (game.isCrashingPlayer(nx, ny, playerNum))
 				continue;

@@ -6,6 +6,44 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Rounds 182+183 (local agent, SHIPPED): the compute-speed axis reopens -- successor masks
+
+The user asked for faster COMPUTE (not faster racing). Fresh JFR
+profile on the promoted jar (serpentine2 mixed s1-3,
+settings=profile): isMoveLegalGeometryCached is 33.7%% SELF time --
+top method by 3.4x -- and the caller histogram puts 141 of 285
+samples (49.5%% of all compute) inside it, called from the
+9-candidate enumeration loops (pureMinTurnsMoveSim 37.6%%,
+searchMinTurnsSoft3 31.9%%, safeSuccessorsOverState 12.1%%,
+successor counters ~8%%).
+
+ROUND 182 -- bitset-packed dense edge cache (2 bits/edge, 3.56MB vs
+14.25MB): byte-identical on 7 tracks, wall FLAT (both-order averages
+-0.1%%/+0.2%%). The negative result is the finding: the cost is call
+FREQUENCY, not per-call DRAM latency (the hot cell set was already
+cache-resident). Kept for the 4x memory (4x more tracks fit the
+shared pool).
+
+ROUND 183 -- succMask(x,y,vx,vy): one int, two 9-bit planes
+(velocity-in-range / in-range-and-geometry-legal per Direction
+ordinal), direct-mapped 2^18 cache with full-key verify. Geometry is
+immutable per track so entries never invalidate (table resets on
+reach change). Nine hot enumeration loops converted (the two
+pureMinTurns variants keep the range/illegal distinction for their
+fallback tracking; the seven skip-pattern methods use the combined
+plane) -- one probe replaces 9 range checks + 9 edge-legality calls
+per visited state. Candidate filtering is bit-for-bit the original
+predicate chain.
+
+Gates: byte-identical on all 7 identity tracks (serpentine2 s1-3
+against the pre-round logs; monza/spa/bigoval/lobe2/hybrid12/
+fractal17 s7), 18/18 pins including goldens, dual-order wall
+CONSISTENTLY faster in all four order-cells: serpentine2 -1.4%%,
+monza -3.2%% (both-order averages). Modest but real -- the r157-160
+era shipped at this scale. Next profile target: the residual is
+reach.turnsToFinish/scorePos per-candidate lookups (the alive-map
+DRAM class) now that the legality complex is collapsed.
+
 ## Rounds 178-180 promoted (user-ordered): the thin-ridge check is the baseline
 
 The user ordered the promotion. Mechanics executed exactly as banked:
