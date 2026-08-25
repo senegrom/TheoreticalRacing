@@ -3789,22 +3789,24 @@ final class RaceAi {
 				|| vx < -max || vx > max || vy < -max || vy > max)
 			return succMaskCompute(x, y, vx, vy);
 		if (smReach != reach) {
-			if (smKeys == null) {
-				smKeys = new int[1 << 18];
-				smVals = new int[1 << 18];
-			}
-			java.util.Arrays.fill(smKeys, -1);
+			if (smTab == null)
+				smTab = new long[1 << 18];
+			java.util.Arrays.fill(smTab, -1L);
 			smReach = reach;
 		}
 		final int span = 2 * max + 1;
-		final int key = ((x * (game.gameRows + 1) + y) * span + vx + max) * span + vy + max;
+		final int vkey = (vx + max) * span + vy + max;
+		final int key = (x * (game.gameRows + 1) + y) * (span * span) + vkey;
 		final int slot = key * 0x9E3779B1 >>> 14;
-		if (smKeys[slot] == key)
-			return smVals[slot];
-		final int mask = succMaskCompute(x, y, vx, vy);
-		smKeys[slot] = key;
-		smVals[slot] = mask;
-		return mask;
+		final long entry = smTab[slot];
+		// round 184: one interleaved slot (key<<32 | 9-bit legal plane); the
+		// velocity-range plane is position-independent and read from the
+		// static table instead of being stored per state
+		if ((int) (entry >>> 32) == key)
+			return RANGE9[vkey] | (int) entry;
+		final int legal = succMaskLegal(x, y, vx, vy);
+		smTab[slot] = (long) key << 32 | legal;
+		return RANGE9[vkey] | legal;
 	}
 
 	private int succMaskCompute(final int x, final int y, final int vx, final int vy) {
@@ -3820,9 +3822,39 @@ final class RaceAi {
 		return mask;
 	}
 
+	/** The 9-bit legal plane only (range-plane bits come from RANGE9). */
+	private int succMaskLegal(final int x, final int y, final int vx, final int vy) {
+		int mask = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			if (game.isMoveLegalGeometryCached(x, y, x + nvx, y + nvy))
+				mask |= 1 << d.ordinal();
+		}
+		return mask;
+	}
+
+	/** Round 184: the velocity-range plane (bits 16-24) per packed (vx,vy). */
+	private static final int[] RANGE9 = buildRange9();
+
+	private static int[] buildRange9() {
+		final int max = RaceGame.AI_MAX_SPEED;
+		final int span = 2 * max + 1;
+		final int[] table = new int[span * span];
+		for (int vx = -max; vx <= max; vx++)
+			for (int vy = -max; vy <= max; vy++) {
+				int mask = 0;
+				for (final Direction d : DIRECTIONS)
+					if (!RaceGame.aiVelocityOutOfRange(vx + d.dx, vy + d.dy))
+						mask |= 1 << 16 + d.ordinal();
+				table[(vx + max) * span + vy + max] = mask;
+			}
+		return table;
+	}
+
 	private Reachability smReach;
-	private int[] smKeys;
-	private int[] smVals;
+	private long[] smTab;
 
 	private int countRivalsWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
 		int count = 0;
