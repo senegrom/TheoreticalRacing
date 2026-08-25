@@ -6,6 +6,30 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 184 (local agent, SHIPPED): single-load successor-mask probe
+
+Post-183 re-profile: succMask itself became the top method (19.2%%).
+Two mechanical reductions, byte-identical by construction: the
+velocity-range plane depends only on (vx,vy) and now comes from a
+625-entry static table (RANGE9) instead of being recomputed and
+stored per state, and the probe slot interleaves key and 9-bit legal
+plane in ONE long (one cache-line load per probe instead of two
+array reads).
+
+Gates: byte-identical on six identity tracks, 18/18 pins including
+goldens. WALL CAVEAT, recorded honestly: the machine carried an
+external 100%% load through the whole measurement window (the
+calm-window waiter timed out after 80 minutes), so the dual-order
+wall could not resolve at its usual precision -- two independent
+runs show no regression (monza -2.9%%/-2.1%%, serpentine2 within
+noise; one 2x-outlier cell discarded), and the change is
+structurally strictly-less-work per probe. Shipped on identity +
+structure + no-regression; the NEXT clean-window wall should re-read
+182-184 as one block.
+
+Next profile target unchanged: reach.turnsToFinish/scorePos
+per-candidate alive-map lookups.
+
 ## Rounds 182+183 (local agent, SHIPPED): the compute-speed axis reopens -- successor masks
 
 The user asked for faster COMPUTE (not faster racing). Fresh JFR
