@@ -6,6 +6,44 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Branch sweep 2026-08-26 (user-ordered): archive octopus, then delete all but master
+
+Census before deletion: 137 branches (135 remote + 2 local-only), 1
+merged (codex/faster-racing-ai, in master since e0fe4d4), 136 unmerged.
+Every unmerged tip is preserved as a parent of one octopus commit
+(7786cc65, empty tree, 136 parents) pushed as tag
+archive/branches-2026-08-26; BRANCH_ARCHIVE.md on master is the index.
+Branches then deleted remote+local; stale draft PRs #2/#9 closed.
+
+Knowledge distilled from the rounds that had no ledger line (verified
+against master history -- none of these ever landed):
+- r116-125 pace block (negatives between promoted r117 and ledgered
+  r124/126): deep high-speed accel screen (116), high-speed 12-round
+  gate (116, not promoted), seven-ahead census (118), low-seven screen
+  + six-ahead-moderate gate (119, vetoed at final), low-speed TTF-60
+  (120), per-rival Pareto (121), trap-L2 Pareto + diagnostic (122/123),
+  low-five census (125).
+- r135-173 unledgered compute screens of the r150-161 cache era, all
+  covered collectively by the standing-surface entry (rounds 128-174):
+  finish-intersection/side variants (135/151/153/167/172), blocked
+  Bloom/hash + mobility workspaces (136-139/144), outside-raster (140),
+  forward-first finish (141), primitive boundary (142), finish-edge
+  cache (143), combined candidates (145), magnitude cache (147),
+  Path2D containment (149), adaptive sizing (152/173), shared
+  dense/point screens (155/162), geometry residuals (163), occupancy
+  maps (164/165), JFR profile snapshots (148/159/166/170), source
+  exports. The promoted survivors of that era (150, 156-161, 168-171,
+  176) have their own entries and their code is master.
+- PYRACE (unique, local-only backup-full-history, tip 95d9059, now in
+  the archive tag): a complete learned-AI prototype from 2026-07 --
+  headless Python racing engine, behaviour-cloning transformer policy
+  imitating AI2.9, stoppability filter ("fixes the clone -- it drives
+  now"), turnsToFinish feature exported via a Java --dump-reach hook,
+  and an RL self-play loop (value head + REINFORCE warm-started from
+  BC). A future learned-AI runway; nothing of it is in master.
+- Pre-rewrite AI/track history (AI1.x/AI2.x champion swaps, F1 track
+  direction/S-F corrections) preserved on the same two local tips.
+
 ## Merge: codex/faster-racing-ai at e0fe4d4 (user-ordered, fast-forward)
 
 Master was a strict ancestor (their branch carried a fresh merge of our
