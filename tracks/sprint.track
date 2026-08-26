@@ -1,6 +1,0 @@
-# Theoretical Racing track file
-name=Sprint
-gameX=40
-gameY=23
-trackLeft=5,20;3,13;5,3;35,3;37,13;35,20
-trackRight=12,20;10,13;12,8;28,8;30,13;28,20

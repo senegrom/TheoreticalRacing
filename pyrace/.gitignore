@@ -1,6 +1,0 @@
-__pycache__/
-*.pyc
-_log_*.log
-*.pt
-*.ckpt
-data/
