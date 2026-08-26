@@ -8,6 +8,14 @@ commit with 136 parents, tagged on origin:
     tag: archive/branches-2026-08-26  (octopus 7786cc65)
     recover a branch: git fetch origin --tags && git checkout <sha>
 
+A concurrent cleanup (the other pipeline) deleted most branches while
+this sweep ran and re-recorded two tips past the first octopus; the
+final eight tips live at deletion time are anchored by a second tag:
+
+    tag: archive/branches-2026-08-26.2  (octopus f98c9061)
+    r173-adaptive-point-cache d94836b, r176-finish-sprint eb8dd2c,
+    plus six unchanged tips also present in the first octopus.
+
 Knowledge disposition: the promoted rounds are in master; every round
 is censused in racing-memory.md (the 2026-08-26 sweep entry covers the
 screen-only rounds). Notable unique content preserved only here: the
