@@ -6,6 +6,25 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Consolidated 182-185 block wall, attempt 1: DISCARDED (starvation)
+
+The 4h calm-waiter never saw a quiet second (calm streak 0 after 720
+checks) and the fallback measured at Idle priority under the external
+100%% job. The cells are scheduler noise, not compute: the same monza
+jar pair read 108922/89834ms in one order and 17928/18359ms in the
+other -- a 6x cross-order swing on identical work. Discarded under the
+dual-order law; the per-round walls (182 flat, 183 -1.4%%/-3.2%%, 184
+no-regression) remain the compute evidence.
+
+Attempt 2 armed with two rule upgrades: calm is REQUIRED (12h budget,
+no loaded fallback -- a wall that cannot get calm writes NO-CALM and
+does not race), and every race is verified to have produced its log
+before its cell counts (install-dir law -- a jar without tracks/ beside
+it exits 0 having raced nothing). Post-merge the wall reads pre-182 vs
+current master: monza is a pure compute cell (3/3 seeds byte-identical
+across the merge), serpentine2 carries the s3 round-185 fork caveat
+(+3 moves, ~0.2%% work delta).
+
 ## Branch sweep 2026-08-26 (user-ordered): archive octopus, then delete all but master
 
 Census before deletion: 137 branches (135 remote + 2 local-only), 1
