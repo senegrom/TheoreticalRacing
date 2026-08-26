@@ -1,6 +1,0 @@
-# Theoretical Racing track file
-name=Chicane
-gameX=86
-gameY=21
-trackLeft=3,13;18,3;38,11;58,3;73,13;83,13
-trackRight=3,18;18,8;38,15;58,8;73,18;83,18
