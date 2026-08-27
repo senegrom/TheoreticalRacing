@@ -458,6 +458,7 @@ final class RaceAi {
 	private final static int		AI1_RIDGE_PLATEAU_SUCC	= 3;	// round 185: chosen landing has width 3 and its alive child fan is exactly widths 1/2/3 before paying for the scorer audit
 	private final static int		AI1_RIDGE_THREAD	= 4;	// round 178: s8-audit thread level that escalates to the true-6 verdict -- canon 0 escalations, lobe2 13 with DEAD only on the real doom line
 	private final static int		AI1_RIDGE_TRUE_ROUNDS	= 6;	// round 178: the ridge doom lands 6 rounds out -- true-4 reads the m363 commitment alive (V=7), true-6 kills it
+	private final static int		AI1_RIDGE_VMAX_TRUE_ROUNDS	= 7;	// exact axial speed-11 width-one holds can fail one round beyond the shared ridge horizon
 	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
@@ -486,6 +487,14 @@ final class RaceAi {
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
 		final int sealRivals = liveRivalsRemaining(playerNum);
+		// Candidate: crossing now permanently secures this place, so it dominates
+		// every seal that forgoes the finish to crash a later mover.
+		if (moverKind(playerNum) == Player.Kind.AI1 && sealRivals >= 1
+				&& sealRivals <= AI1_SEAL_MAXRIVALS) {
+			final Direction finish = immediateFinishMove(pos, vel);
+			if (finish != null)
+				return finish;
+		}
 		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS) {
 			final int ri = decisiveRival(playerNum);
 			if (ri > game.subgamestate && rivalEscapes(ri, -1, -1, playerNum) >= 1) {
@@ -1057,14 +1066,20 @@ final class RaceAi {
 						// admissions, zero escalations, zero kills.
 						// Round 180: accels admitted too (rand5-s40 commits by
 						// accelerating onto the ridge; 11+ stays with round 133).
-						// User-ordered promotion: rounds 178-180 are the baseline
-						// now -- the AI1 kind gate is lifted, both kinds run the
-						// ridge check, and the golden fixtures were re-baselined
-						// to the promoted behavior. No kind-gated arms remain.
-						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
-								&& fSpdInf < AI1_FASTV_MAX
+						// User-ordered promotion: rounds 178-180 are the baseline;
+						// both kinds run those established ridge bands. The exact
+						// axial-vmax extension remains AI1-only while evaluated.
+						final boolean axialVmaxHold = moverKind(playerNum) == Player.Kind.AI1
+								&& isExactAxialVmaxHold(vel[0], vel[1], djvx, djvy);
+						final int ridgeSucc = !deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
+								&& (fSpdInf < AI1_FASTV_MAX || axialVmaxHold)
 								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
-								&& (ridgeSuccAlive(fCx, fCy, djvx, djvy) <= AI1_RIDGE_MAX_SUCC
+								? ridgeSuccAlive(fCx, fCy, djvx, djvy) : Integer.MAX_VALUE;
+						final boolean axialVmaxRidge = axialVmaxHold && ridgeSucc == 1;
+						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
+								&& (fSpdInf < AI1_FASTV_MAX || axialVmaxRidge)
+								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
+								&& (ridgeSucc <= AI1_RIDGE_MAX_SUCC
 										|| fSpdInf == AI1_RIDGE_PLATEAU_SPD
 										&& trapByDir[chosen.ordinal()] == 0.0
 										&& isExactRidgePlateauHold(vel[0], vel[1], djvx, djvy)
@@ -1075,10 +1090,11 @@ final class RaceAi {
 									AI1_DEEP_CERT_RIVALS, null, null, rgTr);
 							if ((rg8 < 0 || rgTr[0] >= AI1_RIDGE_THREAD)
 									&& simOutcome(fCx, fCy, djvx, djvy, playerNum,
-											AI1_RIDGE_TRUE_ROUNDS, true, true, true, true, false,
+											axialVmaxRidge ? AI1_RIDGE_VMAX_TRUE_ROUNDS
+													: AI1_RIDGE_TRUE_ROUNDS,
+											true, true, true, true, false,
 											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0) {
-								final boolean ridgePlateau =
-										ridgeSuccAlive(fCx, fCy, djvx, djvy) > AI1_RIDGE_MAX_SUCC;
+								final boolean ridgePlateau = ridgeSucc > AI1_RIDGE_MAX_SUCC;
 								Direction ridgeBest = null;
 								int ridgeTurns = Integer.MAX_VALUE;
 								int ridgeRank = Integer.MAX_VALUE;
@@ -1578,8 +1594,7 @@ final class RaceAi {
 			final CandidateWorkspace candidates) {
 		if (moverKind(playerNum) != Player.Kind.AI1 || inFinishDenialConfirm
 				|| trueConfirmDepth >= trueConfirmCandidateSnapshots.length
-				|| game.subgamestate != game.players.length - 1
-				|| !kindHomogeneousRoster(playerNum))
+				|| game.subgamestate != game.players.length - 1)
 			return chosen;
 		final double[] trapByDir = candidates.trapByDirection;
 		final double[] uncByDir = candidates.uncertaintyByDirection;
@@ -3946,6 +3961,15 @@ final class RaceAi {
 						|| Math.abs(vy) == nextMax && nvy == vy);
 	}
 
+	/** True only when the chosen landing is exactly axial speed 11 and holds
+	 *  the already-maximal signed component unchanged. */
+	static boolean isExactAxialVmaxHold(final int vx, final int vy,
+			final int nvx, final int nvy) {
+		return Math.max(Math.abs(vx), Math.abs(vy)) == AI1_FASTV_MAX
+				&& (Math.abs(nvx) == AI1_FASTV_MAX && nvy == 0 && nvx == vx
+						|| Math.abs(nvy) == AI1_FASTV_MAX && nvx == 0 && nvy == vy);
+	}
+
 	/** Round 183: per-state successor mask -- bits 16-24 velocity-in-range,
 	 *  bits 0-8 in-range AND geometry-legal, per Direction ordinal. Geometry
 	 *  is immutable per track, so cached entries never invalidate; the
@@ -4288,6 +4312,20 @@ final class RaceAi {
 				n++;
 		}
 		return n;
+	}
+
+	/** Finish precedence mirrors the main candidate scan: a velocity-range-valid
+	 * crossing wins before ordinary geometry or body legality is considered. */
+	private Direction immediateFinishMove(final int[] pos, final int[] vel) {
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			if (game.crossesFinish(pos[0], pos[1], nx, ny))
+				return d;
+		}
+		return null;
 	}
 
 	/** A safe move of mine (alive, non-crashing, not self-sealable) that leaves

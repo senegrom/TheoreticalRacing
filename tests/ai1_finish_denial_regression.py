@@ -75,6 +75,27 @@ def normalized_sha256(text: str) -> str:
     return hashlib.sha256("\n".join(normalized_lines(text)).encode("utf-8")).hexdigest()
 
 
+def logged_kinds(text: str, nplayers: int) -> list[str]:
+    kinds: list[str | None] = [None] * nplayers
+    for line in text.splitlines():
+        match = re.match(r"^\d+ p(\d+) (AI1|AI2) ", line)
+        if match is None:
+            continue
+        player = int(match.group(1))
+        kind = match.group(2)
+        if player < 1 or player > nplayers:
+            raise SystemExit(f"finish-denial log has out-of-range player p{player}")
+        previous = kinds[player - 1]
+        if previous is not None and previous != kind:
+            raise SystemExit(
+                f"finish-denial p{player} changed kind in one race: {previous} -> {kind}"
+            )
+        kinds[player - 1] = kind
+    if any(kind is None for kind in kinds):
+        raise SystemExit(f"finish-denial log is missing player kinds: {kinds}")
+    return [kind for kind in kinds if kind is not None]
+
+
 def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
@@ -94,6 +115,24 @@ def main() -> int:
                 raise SystemExit(f"finish-denial hairpin seed-68 {kind} log missing")
             summaries[kind] = summary
             logs[kind] = log_path.read_text(encoding="utf-8")
+
+        mixed_rosters = {
+            "MIXED_AI2_LAST": ["AI1"] * 4 + ["AI2"] * 4,
+            "MIXED_AI1_LAST": ["AI2"] * 4 + ["AI1"] * 4,
+        }
+        for label, kinds in mixed_rosters.items():
+            bench_ai.set_kinds(kinds)
+            summary = bench_ai.run_track(TARGET[0], timeout=1200, seed=TARGET[1])
+            if summary is None:
+                raise SystemExit(f"finish-denial hairpin seed-68 {label} race failed")
+            summaries[label] = summary
+            log = Path(bench_ai.LOG).read_text(encoding="utf-8")
+            actual_kinds = logged_kinds(log, len(kinds))
+            if actual_kinds != kinds:
+                raise SystemExit(
+                    f"finish-denial {label} roster changed: {actual_kinds}, expected {kinds}"
+                )
+            logs[label] = log
 
     control_finishers, control_crashes, control_moves = race_events(logs["AI2"])
     if summaries["AI2"] != CONTROL:
@@ -139,9 +178,34 @@ def main() -> int:
     if rescued_moves[5] != CONTROL_MOVES[5] - 1:
         raise SystemExit("finish-denial rescue lost the expected earlier-race cutoff for p5")
 
+    mixed_expectations = (
+        ("MIXED_AI2_LAST", CONTROL, CONTROL_FINISHERS, CONTROL_CRASHES,
+         CONTROL_MOVES, CONTROL_DECISION, CONTROL_SHA256),
+        ("MIXED_AI1_LAST", RESCUED, RESCUED_FINISHERS, [],
+         RESCUED_MOVES, RESCUED_DECISION, RESCUED_SHA256),
+    )
+    for label, summary, finishers, crashes, moves, decision, digest in mixed_expectations:
+        actual_finishers, actual_crashes, actual_moves = race_events(logs[label])
+        if summaries[label] != summary:
+            raise SystemExit(f"finish-denial {label} summary changed: {summaries[label]}")
+        if (actual_finishers != finishers or actual_crashes != crashes
+                or actual_moves != moves):
+            raise SystemExit(
+                f"finish-denial {label} events changed: finishers={actual_finishers}, "
+                f"crashes={actual_crashes}, moves={actual_moves}"
+            )
+        if decision not in logs[label].splitlines():
+            raise SystemExit(f"finish-denial {label} decision missing: {decision}")
+        actual_digest = normalized_sha256(logs[label])
+        if actual_digest != digest:
+            raise SystemExit(
+                f"finish-denial {label} trajectory changed: {actual_digest}, expected {digest}"
+            )
+
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68 p8 crash-to-sixth rescue; AI2 control exact)"
+        "(hairpin s68 p8 crash-to-sixth rescue in homogeneous and mixed fields; "
+        "AI2 control exact)"
     )
     return 0
 
