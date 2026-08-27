@@ -381,6 +381,13 @@ final class RaceAi {
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
 	private final static int		AI1_FINISH_TRUE_CONFIRM_ROUNDS	= 5;	// round 176: faithful-rival veto for one-successor sprint lines
+	private final static int		AI1_FINISH_DENIAL_ROUNDS	= 8;	// bounded faithful horizon for a contested finish pocket
+	private final static int		AI1_FINISH_DENIAL_RIVALS	= 2;	// nearest full-fidelity rivals suffice for the measured denial class
+	private final static int		AI1_FINISH_DENIAL_MAX_TTF	= 5;	// only the final one-turn map-gain commitment
+	private final static int		AI1_FINISH_DENIAL_MIN_SPEED2	= 64;	// high-energy approach that can overrun a closing pocket
+	private final static int		AI1_FINISH_DENIAL_MIN_BRAKE2	= 16;	// require a materially lower-energy escape
+	private final static int		AI1_FINISH_DENIAL_NEAR_RIVALS	= 4;	// compact finish pack, not open-line racing
+	private final static int		AI1_FINISH_DENIAL_ALIGNED_RIVALS	= 2;	// similarly moving bodies ahead can close the lane
 	private final static int		AI1_FINISH_HOMOGENEOUS_TTF	= 20;	// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting
 	private final static int		AI1_FINISH_EXTENDED_TTF	= 30;	// round 96: one-turn, non-coasting homogeneous extension of the full finish proof
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
@@ -419,6 +426,10 @@ final class RaceAi {
 	 *  only the bounded field proof. All are off by default. */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
+	private final static boolean	AI_DEBUG_FINISH_DENIAL	=
+			Boolean.getBoolean("ai.debug.finishDenial");
+	private final static int		AI_DEBUG_FINISH_DENIAL_RIVAL_CAP	=
+			Integer.getInteger("ai.debug.finishDenialRivalCap", AI1_FINISH_DENIAL_RIVALS);
 	private final static boolean	AI_DEBUG_COMP	= Boolean.getBoolean("ai.debug.comp");
 	private final static boolean	AI_DEBUG_FIELD_VECTOR	=
 			Boolean.getBoolean("ai.debug.fieldVector");
@@ -426,6 +437,8 @@ final class RaceAi {
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
 	private boolean				inScorerSim;
+	/** Instance-scoped recursion guard for the rare finish-denial proof. */
+	private boolean				inFinishDenialConfirm;
 	/** Round 99 latch, round 103 DEPTH: a binary latch stripped the confirm
 	 *  from every in-confirm rival -- and since round 99 the confirm IS part
 	 *  of champion behavior, so latched rivals diverged from real ones by
@@ -942,6 +955,14 @@ final class RaceAi {
 					chosen = sprint;
 				}
 			}
+			// A high-energy one-turn finish approach can be denied by a leader
+			// braking into the pocket after every cheap world has declared the
+			// line safe. Pay for a faithful confirm only on the measured compact,
+			// aligned, last-slot class. Normal DJS retains final veto authority.
+			if (!inScorerSim)
+				chosen = finishDenialOverride(pos, vel, playerNum, chosen,
+						candidateWorkspace);
+
 			// Danger joint search (round 40): in flagged states (the landing's
 			// trap ladder >= 0.5, i.e. <= 2 safe successors) roll the joint game
 			// 3 rounds forward on a detached greedy board. STRICTLY asymmetric:
@@ -1547,6 +1568,144 @@ final class RaceAi {
 		}
 		return scoreMinTurnsFallback(pos[0], pos[1], vel[0], vel[1],
 				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
+	}
+
+	/** Certificate for a high-energy line that a rival can close at the flag.
+	 * The incumbent must die under faithful policies; an escape must survive
+	 * both the deep scorer world and the same faithful world. */
+	private Direction finishDenialOverride(final int[] pos, final int[] vel,
+			final int playerNum, final Direction chosen,
+			final CandidateWorkspace candidates) {
+		if (moverKind(playerNum) != Player.Kind.AI1 || inFinishDenialConfirm
+				|| trueConfirmDepth >= trueConfirmCandidateSnapshots.length
+				|| game.subgamestate != game.players.length - 1
+				|| !kindHomogeneousRoster(playerNum))
+			return chosen;
+		final double[] trapByDir = candidates.trapByDirection;
+		final double[] uncByDir = candidates.uncertaintyByDirection;
+		final int[] turnsByDir = candidates.turnsByDirection;
+		final int chosenT = turnsByDir[chosen.ordinal()];
+		if (chosenT < 0 || chosenT > AI1_FINISH_DENIAL_MAX_TTF
+				|| reach.turnsToFinish(pos[0], pos[1], vel[0], vel[1]) != chosenT + 1)
+			return chosen;
+		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
+		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
+		if (game.crossesFinish(pos[0], pos[1], cx, cy))
+			return chosen;
+		final int chosenSpeed2 = speedSquared(cvx, cvy);
+		if (chosenSpeed2 < AI1_FINISH_DENIAL_MIN_SPEED2
+				|| countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) == 0
+				|| countRivalsWithinCheb(cx, cy, playerNum, AI1_SCORER_NEAR)
+						< AI1_FINISH_DENIAL_NEAR_RIVALS)
+			return chosen;
+		int alignedAhead = 0;
+		for (final Player p : game.players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pp = p.getPosition();
+			if (Math.abs(pp[0] - cx) > AI1_SCORER_NEAR
+					|| Math.abs(pp[1] - cy) > AI1_SCORER_NEAR
+					|| (long) (pp[0] - cx) * cvx + (long) (pp[1] - cy) * cvy <= 0L)
+				continue;
+			final int[] pv = p.getVelocity();
+			if (Math.abs(pv[0] - cvx) <= 2 && Math.abs(pv[1] - cvy) <= 2)
+				alignedAhead++;
+		}
+		if (alignedAhead < AI1_FINISH_DENIAL_ALIGNED_RIVALS)
+			return chosen;
+
+		int brakeMask = 0;
+		for (final Direction d : DIRECTIONS) {
+			if (d == chosen || turnsByDir[d.ordinal()] > chosenT + 1
+					|| trapByDir[d.ordinal()] > AI1_TRAP_L1
+					|| uncByDir[d.ordinal()] > uncByDir[chosen.ordinal()])
+				continue;
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			if (chosenSpeed2 - speedSquared(nvx, nvy) >= AI1_FINISH_DENIAL_MIN_BRAKE2)
+				brakeMask |= 1 << d.ordinal();
+		}
+		if (brakeMask == 0)
+			return chosen;
+
+		final int faithfulCap = AI_DEBUG_FINISH_DENIAL
+				? Math.max(1, Math.min(game.players.length,
+						AI_DEBUG_FINISH_DENIAL_RIVAL_CAP))
+				: AI1_FINISH_DENIAL_RIVALS;
+		final CandidateWorkspace snapshot =
+				trueConfirmCandidateSnapshots[trueConfirmDepth];
+		snapshot.copyFrom(candidates);
+		inFinishDenialConfirm = true;
+		trueConfirmDepth++;
+		try {
+			final int chosenFinal = faithfulFinishDenialOutcome(cx, cy, cvx, cvy,
+					playerNum, faithfulCap);
+			if (chosenFinal >= 0) {
+				if (AI_DEBUG_FINISH_DENIAL)
+					System.err.println("AIDBG FINISH-DENIAL cap=" + faithfulCap
+							+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+							+ ") chosen=" + chosen + " keep sim=" + chosenFinal);
+				return chosen;
+			}
+			Direction best = null;
+			int bestFinal = Integer.MAX_VALUE;
+			int bestSpeed2 = Integer.MAX_VALUE;
+			int bestT = Integer.MAX_VALUE;
+			for (final Direction d : DIRECTIONS) {
+				if ((brakeMask & 1 << d.ordinal()) == 0)
+					continue;
+				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+					continue;
+				final int speed2 = speedSquared(nvx, nvy);
+				if (chosenSpeed2 - speed2 < AI1_FINISH_DENIAL_MIN_BRAKE2)
+					continue;
+				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+				final int t = reach.turnsToFinish(nx, ny, nvx, nvy);
+				if (game.crossesFinish(pos[0], pos[1], nx, ny))
+					return d;
+				if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
+						|| game.isCrashingPlayer(nx, ny, playerNum)
+						|| !reach.isAlive(nx, ny, nvx, nvy))
+					continue;
+				final int scorerFinal = simOutcome(nx, ny, nvx, nvy, playerNum,
+						AI1_FINISH_DENIAL_ROUNDS, true, true, true, true, true,
+						AI1_DEEP_CERT_RIVALS, null);
+				final int candidateFinal = scorerFinal < 0 ? -1
+						: faithfulFinishDenialOutcome(nx, ny, nvx, nvy,
+								playerNum, faithfulCap);
+				if (AI_DEBUG_FINISH_DENIAL || AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
+					System.err.println("AIDBG FINISH-DENIAL cap=" + faithfulCap
+							+ " alt=" + d + " t=" + t + " speed2=" + speed2
+							+ " scorer=" + scorerFinal + " faithful=" + candidateFinal);
+				if (candidateFinal < 0)
+					continue;
+				if (candidateFinal < bestFinal
+						|| candidateFinal == bestFinal && speed2 < bestSpeed2
+						|| candidateFinal == bestFinal && speed2 == bestSpeed2 && t < bestT) {
+					best = d;
+					bestFinal = candidateFinal;
+					bestSpeed2 = speed2;
+					bestT = t;
+				}
+			}
+			if (AI_DEBUG_FINISH_DENIAL || AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
+				System.err.println("AIDBG FINISH-DENIAL cap=" + faithfulCap
+						+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+						+ ") chosen=" + chosen + " dies -> "
+						+ (best == null ? "keep (no survivor)" : "switch " + best
+								+ " sim=" + bestFinal + " speed2=" + bestSpeed2));
+			return best != null ? best : chosen;
+		} finally {
+			trueConfirmDepth--;
+			inFinishDenialConfirm = false;
+			candidates.copyFrom(snapshot);
+		}
+	}
+
+	private int faithfulFinishDenialOutcome(final int x, final int y, final int vx,
+			final int vy, final int playerNum, final int faithfulCap) {
+		return simOutcome(x, y, vx, vy, playerNum, AI1_FINISH_DENIAL_ROUNDS,
+				true, true, true, true, true, true, faithfulCap, null, null, null);
 	}
 
 	/** The mover's own kind, for self-play (kind-homogeneity) gates. */
