@@ -6,6 +6,32 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 189 (local agent, SHIPPED): persistent dense edge-legality cache
+
+The wall-4 profile's residual: with in-memory caching collapsed, every
+PROCESS still pays full AWT geometry (Area.contains point containment +
+checkIntersect segment sweeps, ~22%% of samples) once per novel edge to
+FILL its empty table -- the r182 cache amortizes revisits, not process
+starts. Round 189 persists the geometry-keyed 2-bit verdict table
+beside the reach cache as <key>.edges (0.4-5MB per track): CRC-checked
+best-effort load at pool creation, dirty-flagged atomic save at
+auto-race end. Tables grow monotonically across processes (a save
+includes everything loaded plus this race's new verdicts); all writers
+hold identical verdicts so last-writer-wins is benign; any header/size/
+CRC mismatch silently leaves the table empty. Interactive (non-auto)
+games have no geometry key and are untouched.
+
+Gates: byte-identity cold AND warm on serpentine2 s1/s3, monza s7,
+hairpin s68, rand3 s103 (the warm runs verified to actually load the
+written files); 25/25 battery (23 pins + goldens, no re-baseline +
+Core/Main/TrackData); dual-order warm wall vs pre-189, priority-
+separated, fleet verified Idle: serpentine2 -19.2%%, monza -13.0%%
+both-order means, ALL FOUR cells sign-consistent. Biggest compute round
+since the confirm framework opened the speed axis.
+
+Next per the re-profile law: fresh JFR on the shipped jar to find the
+post-189 residual before opening round 190.
+
 ## Consolidated block wall, attempt 4 (priority-separated): MEASURED -- the 182-188 compute block is a real win
 
 Method: fleet verified all-Idle (0 non-idle emu_c), wall javas at
