@@ -6,6 +6,51 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Merge: codex/finish-denial-safety at d339a5b (rounds 186-188 by our count)
+
+The other agent pushed two bare commits with no ledger entry (mid-flight
+by their standards); investigated, verified, merged fast-forward,
+documented here on their behalf. Three arms, ALL correctly AI1-gated --
+the post-promotion experiment protocol -- and their pins byte-freeze the
+AI2 control logs by SHA256, so the frozen-baseline law is enforced by
+the tests themselves:
+
+- FINISH-DENIAL OVERRIDE (hairpin s68): last-mover, chosen TTF<=5 with
+  a real one-turn map gain, speed2>=64, >=1 rival adjacent, >=4 near the
+  landing, >=2 aligned ahead => faithful 2-rival 8-round confirm of the
+  chosen landing; if it dies, switch to a braking escape (>=16 speed2
+  lower) that survives BOTH the deep scorer world and the same faithful
+  world. p8 crash -> finish place 7; field 6f/1c -> 7f/0c.
+- AXIAL-VMAX RIDGE EXTENSION (rand3 s103): exact axial speed-11
+  width-ONE holds admitted to the r178 ridge check (previously excluded
+  by fSpdInf < 11) with a 7-round true verdict (the doom lands one round
+  past the shared horizon). p8's hold-11 death at m490 -> finish place 7.
+- IMMEDIATE-FINISH PRECEDENCE: before the endgame seal, a
+  velocity-range-valid crossing wins outright -- crossing permanently
+  secures the place and dominates any seal that forgoes it (oracle-board
+  pin on sprint, 2/3/4-player boards).
+
+Local verification: -Werror build clean; their 3 pins + thin-ridge +
+finish-sprint + mixed-safety + goldens (NO re-baseline -- AI2 fields
+untouched) + Core/Main/TrackData all PASS on the branch tree; the
+remaining 17 pins re-run on merged master (recorded in the merge-commit
+window). Two more canon crashes eliminated; the campaign's crash ledger
+keeps shrinking through the narrow-certificate pattern.
+
+MEASUREMENT-LAW AMENDMENT (priority separation): the machine has run a
+six-process emu_c fleet at Idle class near-24/7 for days; a load<30%
+calm gate can NEVER pass, and an Idle-priority wall competes in the SAME
+class as the fleet -- round-robin starvation produced the discarded
+attempt-1 cells (6x cross-order swing). Amendment: when the only
+competing load is verified Idle-class, a wall may run its javas at
+BelowNormal -- strictly preempting the fleet (near-calm timing) while
+still yielding to all Normal interactive work. Gate becomes: verify
+every competing compute process is Idle-class before racing; record the
+deviation. Cache/bandwidth pollution from the fleet remains a recorded
+caveat. Attempt 4 runs under this amendment (wall + fresh JFR profile;
+trajectory-identity re-classification of wall cells first, since rounds
+185-188 fork some mixed-roster seeds).
+
 ## Consolidated 182-185 block wall, attempt 1: DISCARDED (starvation)
 
 The 4h calm-waiter never saw a quiet second (calm streak 0 after 720
