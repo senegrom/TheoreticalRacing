@@ -290,6 +290,8 @@ public final class RaceGame {
 			gameFrame.setUndoEnabled(false);
 			gameFrame.setDirectionsEnabled(false);
 			gameFrame.repaint();
+			if (denseEdgeLegalCache != null)
+				denseEdgeLegalCache.saveIfDirty();
 			if (autoMode) {
 				final Runnable hook = autoRaceEndHook;
 				autoRaceEndHook = null;
@@ -685,7 +687,9 @@ public final class RaceGame {
 	 *  (33.7%% of all samples); at 3.6MB the table is L3-resident. Same
 	 *  predicate and fill order. Plain int array-element loads and stores are
 	 *  tear-free; a stale concurrent update can only erase a verdict to UNKNOWN,
-	 *  causing benign recomputation instead of manufacturing a false result. */
+	 *  causing benign recomputation instead of manufacturing a false result.
+ *  Round 189: geometry-keyed tables persist beside the reach cache, so
+ *  later processes load verdicts instead of re-running AWT geometry. */
 	static final class DenseEdgeLegalCache {
 		static final int UNKNOWN = 0;
 		static final int ILLEGAL = 1;
@@ -700,6 +704,8 @@ public final class RaceGame {
 		final int height;
 		final int entries;
 		final int[] states;
+		private java.nio.file.Path persistPath;
+		private boolean dirty;
 
 		private DenseEdgeLegalCache(final int width, final int height,
 				final int entries) {
@@ -719,6 +725,7 @@ public final class RaceGame {
 			final int mask = 3 << shift;
 			final int word = index >>> 4;
 			states[word] = states[word] & ~mask | (legal ? LEGAL : ILLEGAL) << shift;
+			dirty = true;
 		}
 
 		static DenseEdgeLegalCache create(final int width, final int height,
@@ -746,7 +753,11 @@ public final class RaceGame {
 				sharedEntries -= existing.entries;
 			}
 			final DenseEdgeLegalCache created = create(width, height, maxEntries);
-			if (created == null || created.entries > maxPoolEntries)
+			if (created == null)
+				return null;
+			created.persistPath = java.nio.file.Path.of(key + ".edges");
+			created.tryLoadPersisted();
+			if (created.entries > maxPoolEntries)
 				return created;
 			while (!SHARED.isEmpty()
 					&& sharedEntries + created.entries > maxPoolEntries) {
@@ -759,6 +770,52 @@ public final class RaceGame {
 			SHARED.put(key, created);
 			sharedEntries += created.entries;
 			return created;
+		}
+
+		/** Round 189: load the persisted verdict table (<geometry-key>.edges).
+		 *  Verdicts are identical whether computed or loaded; any size, header
+		 *  or CRC mismatch silently leaves the table empty. */
+		private void tryLoadPersisted() {
+			if (persistPath == null)
+				return;
+			try {
+				final byte[] raw = java.nio.file.Files.readAllBytes(persistPath);
+				if (raw.length != 16 + 4 * states.length + 4)
+					return;
+				final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
+				if (buf.getInt() != 0x45443139 || buf.getInt() != width
+						|| buf.getInt() != height || buf.getInt() != entries)
+					return;
+				final java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+				crc.update(raw, 16, 4 * states.length);
+				if ((int) crc.getValue()
+						!= java.nio.ByteBuffer.wrap(raw, raw.length - 4, 4).getInt())
+					return;
+				buf.asIntBuffer().get(states, 0, states.length);
+			} catch (final IOException e) {
+				// best effort: an unreadable file only costs the re-fill
+			}
+		}
+
+		/** Best-effort atomic save; a failure only costs the next process its
+		 *  re-fill. Concurrent savers publish whole tables via rename, and all
+		 *  writers hold identical verdicts, so last-writer-wins is benign. */
+		void saveIfDirty() {
+			if (persistPath == null || !dirty)
+				return;
+			dirty = false;
+			final byte[] raw = new byte[16 + 4 * states.length + 4];
+			final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
+			buf.putInt(0x45443139).putInt(width).putInt(height).putInt(entries);
+			buf.asIntBuffer().put(states, 0, states.length);
+			final java.util.zip.CRC32 crc = new java.util.zip.CRC32();
+			crc.update(raw, 16, 4 * states.length);
+			java.nio.ByteBuffer.wrap(raw, raw.length - 4, 4).putInt((int) crc.getValue());
+			try {
+				TrackIO.writeAtomically(persistPath, out -> out.write(raw));
+			} catch (final IOException e) {
+				System.err.println("[edges] cache write failed: " + e);
+			}
 		}
 
 		int index(final int x1, final int y1, final int x2, final int y2) {
