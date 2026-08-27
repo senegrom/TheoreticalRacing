@@ -6,6 +6,43 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Consolidated block wall, attempt 4 (priority-separated): MEASURED -- the 182-188 compute block is a real win
+
+Method: fleet verified all-Idle (0 non-idle emu_c), wall javas at
+BelowNormal -- strict class preemption gave near-calm cells after four
+days when the load<30% gate could never pass. Ref = pre-182 promoted
+baseline (fb96a11); new = post-merge master (a0aee72 content).
+
+Cell identity first: monza s1-3 and serpentine2 s1-2 byte-IDENT across
+the whole 182-188 span; serpentine2 s3 FORKS (the round-185 ridge line;
+rounds 186-188 fork no additional wall seed).
+
+Timed cells (mixed_h2h, 3 seeds per cell, both orders):
+- monza (3/3 IDENT): ref 8628/10770ms vs new 7528/8876ms -- both-order
+  mean -15.4%%, sign-consistent in both orders. Identical work,
+  genuinely faster.
+- serpentine2 with the fork included read +6.7%%; the IDENT-only
+  follow-up (seeds 1-2, two reps, both orders) reads -6.2%% (3/4 cells
+  favor new). The apparent slowdown was the forked s3 race's different,
+  longer line -- not a per-move regression.
+Verdict: the consolidated 182+183+184+codex-compute block lands roughly
+-6%% (serpentine2) to -15%% (monza). Caveats recorded: fleet cache/
+bandwidth pollution under class separation; individual cells swing
++/-10%% at these short durations; magnitudes imprecise, sign solid.
+
+Fresh 3-seed JFR profile (prof4_s1-3) on the merged jar: succMask fell
+19.2%% -> ~7%% (r184 + codex reuse worked) and
+isMoveLegalGeometryCached 33.7%% -> ~2%%. NEW top per-move cost, all
+three seeds agreeing: the geometry containment complex --
+TrackGeometry.checkIntersect (9-15%%, #1 everywhere) +
+java.awt.geom.Area.contains (8-11%%) + sun.awt Crossings/Curve
+(~6%%) -- roughly a quarter of all samples. Round 189 target.
+History note: the other pipeline's point-containment cache screens
+(131/134/162/173) were negative when edge legality still dominated;
+with that collapsed, the complex is exposed -- their archived
+materializers (archive tag) are the starting corpus. Reachability
+derive frames in s1/s2 are cold-start noise, not per-move cost.
+
 ## Merge: codex/finish-denial-safety at d339a5b (rounds 186-188 by our count)
 
 The other agent pushed two bare commits with no ledger entry (mid-flight
