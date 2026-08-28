@@ -297,6 +297,7 @@ final class Reachability {
 		derivePrecomputes(legalAlive);
 		final long tDerive = System.nanoTime();
 		writeReachabilityCache(legalAlive);
+		saveDerived();
 		final long tCache = System.nanoTime();
 		if (game.autoMode)
 			System.out.printf(
@@ -322,6 +323,123 @@ final class Reachability {
 		minShed2 = shed;
 		minShed2Roomy = shedRoomy;
 		certSq = cert;
+	}
+
+	/** Round 190: the derive outputs are pure functions of the cached
+	 *  (turns, legalAlive) state, so they persist beside the reach cache as
+	 *  <key>.derived -- deflated (the mostly-255/empty regions compress far
+	 *  below the raw ~3.2 bytes/state), CRC-checked over the inflated
+	 *  payload. Any mismatch falls back to a fresh derive. */
+	private Path derivedCachePath() {
+		final Path base = reachCachePath();
+		return base == null ? null : Path.of(base + ".derived");
+	}
+
+	private boolean tryLoadDerived() {
+		final Path path = derivedCachePath();
+		if (path == null || !Files.isRegularFile(path))
+			return false;
+		final int total = turnsArr.length;
+		try {
+			final byte[] file = Files.readAllBytes(path);
+			if (file.length < 16)
+				return false;
+			final java.nio.ByteBuffer head = java.nio.ByteBuffer.wrap(file);
+			if (head.getInt() != 0x44524956 || head.getInt() != total)
+				return false;
+			final int rawLen = head.getInt();
+			final int crc = head.getInt();
+			if (rawLen < 8 || rawLen > 3L * total + (total >> 2) + 64)
+				return false;
+			final byte[] raw = new byte[rawLen];
+			final java.util.zip.Inflater inf = new java.util.zip.Inflater();
+			inf.setInput(file, 16, file.length - 16);
+			final int got = inf.inflate(raw);
+			final boolean whole = inf.finished();
+			inf.end();
+			if (got != rawLen || !whole)
+				return false;
+			final java.util.zip.CRC32 c = new java.util.zip.CRC32();
+			c.update(raw, 0, rawLen);
+			if ((int) c.getValue() != crc)
+				return false;
+			final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
+			final int n0 = buf.getInt();
+			if (n0 < 0 || n0 > (total >> 6) + 1)
+				return false;
+			final long[] r0 = new long[n0];
+			for (int i = 0; i < n0; i++)
+				r0[i] = buf.getLong();
+			final int n1 = buf.getInt();
+			if (n1 < 0 || n1 > (total >> 6) + 1)
+				return false;
+			final long[] r1 = new long[n1];
+			for (int i = 0; i < n1; i++)
+				r1[i] = buf.getLong();
+			if (buf.remaining() != 3 * total)
+				return false;
+			final byte[] shed = new byte[total];
+			buf.get(shed);
+			final byte[] shedRoomy = new byte[total];
+			buf.get(shedRoomy);
+			final byte[] cert = new byte[total];
+			buf.get(cert);
+			roomy0 = BitSet.valueOf(r0);
+			roomy1 = BitSet.valueOf(r1);
+			minShed2 = shed;
+			minShed2Roomy = shedRoomy;
+			certSq = cert;
+			return true;
+		} catch (final IOException | java.nio.BufferUnderflowException
+				| java.util.zip.DataFormatException e) {
+			return false;
+		}
+	}
+
+	/** Best-effort atomic save; a failure only costs the next process its
+	 *  re-derive. */
+	private void saveDerived() {
+		final Path path = derivedCachePath();
+		if (path == null || minShed2 == null)
+			return;
+		final int total = minShed2.length;
+		final long[] r0 = roomy0.toLongArray();
+		final long[] r1 = roomy1.toLongArray();
+		final int rawLen = 4 + 8 * r0.length + 4 + 8 * r1.length + 3 * total;
+		final byte[] raw = new byte[rawLen];
+		final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
+		buf.putInt(r0.length);
+		for (final long w : r0)
+			buf.putLong(w);
+		buf.putInt(r1.length);
+		for (final long w : r1)
+			buf.putLong(w);
+		buf.put(minShed2).put(minShed2Roomy).put(certSq);
+		final java.util.zip.CRC32 c = new java.util.zip.CRC32();
+		c.update(raw, 0, rawLen);
+		final java.util.zip.Deflater def = new java.util.zip.Deflater(1);
+		def.setInput(raw);
+		def.finish();
+		final byte[] out = new byte[rawLen + 64];
+		int outLen = 0;
+		while (!def.finished() && outLen < out.length)
+			outLen += def.deflate(out, outLen, out.length - outLen);
+		final boolean fit = def.finished();
+		def.end();
+		if (!fit)
+			return; // would not shrink: skip rather than grow the format
+		final int len = outLen;
+		final byte[] head = new byte[16];
+		java.nio.ByteBuffer.wrap(head).putInt(0x44524956).putInt(total)
+				.putInt(rawLen).putInt((int) c.getValue());
+		try {
+			TrackIO.writeAtomically(path, o -> {
+				o.write(head);
+				o.write(out, 0, len);
+			});
+		} catch (final IOException e) {
+			System.err.println("[reachability] derived cache write failed: " + e);
+		}
 	}
 
 	/** Sweep helper for {@link #computeReachability}: per-alive-state bitmask
@@ -874,7 +992,10 @@ final class Reachability {
 		turnsArr = turns;
 		aliveStates = alive;
 		final long tLoad = System.nanoTime();
-		derivePrecomputes(legalAlive);
+		if (!tryLoadDerived()) {
+			derivePrecomputes(legalAlive);
+			saveDerived();
+		}
 		final long tDerive = System.nanoTime();
 		if (game.autoMode)
 			System.out.printf("[reachability] cache-hit load=%.0fms derive=%.0fms total=%.0fms alive=%d%n",
