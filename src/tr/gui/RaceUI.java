@@ -27,6 +27,7 @@ public final class RaceUI {
 	private final static Color	colBackgrd			= Color.WHITE;
 	private final static Color	colBackgrdForb		= new Color(255, 245, 245);
 	private final static Color	colCheckpoint		= new Color(205, 205, 205);
+	private final static Color	colClosure			= new Color(60, 100, 245);
 	private final static Color	colFinish			= Color.BLACK;
 	private final static Color	colGrid				= Color.GRAY;
 	private final static Color	colStartZFill		= new Color(220, 255, 220);
@@ -50,6 +51,7 @@ public final class RaceUI {
 
 	private int[]				finishLine;	// 4-element pixel coords [x1,y1,x2,y2]
 	private int[][]				checkpoints;	// light-grey gate lines, same coords
+	private int[][]				loopClosure;	// blue closing boundary, same coords
 	private final JPanel		grid;
 	private final int			rows, cols;
 	private Player[]			players;
@@ -112,6 +114,12 @@ public final class RaceUI {
 			g.setStroke(strkFinish);
 			for (final int[] cp : checkpoints)
 				g.drawLine(cp[0], cp[1], cp[2], cp[3]);
+		}
+		if (loopClosure != null) {
+			g.setColor(colClosure);
+			g.setStroke(strkTrack);
+			for (final int[] seg : loopClosure)
+				g.drawLine(seg[0], seg[1], seg[2], seg[3]);
 		}
 		if (finishLine != null) {
 			g.setColor(colFinish);
@@ -201,6 +209,24 @@ public final class RaceUI {
 		if (grid == null)
 			throw new IllegalStateException("grid is unavailable in headless mode");
 		return grid;
+	}
+
+	/** Multi-lap blue closing boundary in grid coords (x1,y1,x2,y2), or null. */
+	public void setLoopClosure(final int[][] segs) {
+		if (segs == null) {
+			loopClosure = null;
+			return;
+		}
+		loopClosure = new int[segs.length][];
+		for (int i = 0; i < segs.length; i++)
+			loopClosure[i] = new int[]{segs[i][0] * GRID_DIST, segs[i][1] * GRID_DIST,
+					segs[i][2] * GRID_DIST, segs[i][3] * GRID_DIST };
+	}
+
+	/** The starting grid is drawn only while someone is still on it; the
+	 *  next per-move frame repaint picks the change up. */
+	public void hideStartZone() {
+		startZone = null;
 	}
 
 	/** Multi-lap checkpoint lines in grid coords (x1,y1,x2,y2), or null. */

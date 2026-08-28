@@ -6,6 +6,33 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Multi-lap M11 (user-ordered): blue loop closures, loopability clamp, start-zone hide
+
+Three orders landed on top of V1: (1) a blue closing boundary bridges
+the two S/F side gaps so the loop is complete with no gaps -- physical
+(lap-mode legality; moves ORIGINATING on the starting grid are exempt,
+since the grid sits on the closure and leaving it is legitimate) and
+drawn in blue; (2) only where the loop closes easily -- both side gaps
+<= 8 cells -- else laps are DISABLED with a console note ("a loop that
+cannot be closed cannot be looped"); (3) the starting-grid box hides
+once every car has left it (latched, render-only). Lap cache key
+bumped to -lap2 (closure changes lap-mode legality).
+
+The clamp retroactively explained the bigoval saga: its boundary gap
+is 60 CELLS -- it was never a closable loop, and every bigoval lap
+probe was racing an impossible circuit. Auto-disabled now (falls back
+to laps=1 and races clean). Fleet census from the rebuilt atlas: 61 of
+79 circuits are lap-ready under the 8-cell rule. Probe state: circle
+3-lap solo remains perfect under closures; hungaroring (3-wide S/F
+corridor) and monza (wall-backed gate) stay on the lap-quality arc.
+laps=1 byte-identity re-proven; full battery green.
+
+Track atlas RECREATED (the old artifact had been deleted): all 79
+circuits with blue closures + grey checkpoint lines on lap-ready
+cards, per-card lap-ready badges, loopability in the form row, and
+campaign notes updated for the codex rescues (rand13-s4 r185,
+hairpin-s68 r186, rand3-s103 r187).
+
 ## Multi-lap V1 SHIPPED (experimental): laps, auto checkpoints, trace pruning
 
 User orders: multiple laps on the same circuit (for tracks where start

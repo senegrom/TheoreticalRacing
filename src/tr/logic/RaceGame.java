@@ -41,6 +41,11 @@ public final class RaceGame {
 	/** Multi-lap gates: [0] short real S/F line, [1] CP1, [2] CP2. */
 	Line2D[]					lapGates;
 	private int[][]				lapGatePoints;
+	/** Multi-lap: blue closing boundary across the two S/F side gaps. */
+	private Line2D[]			lapClosures;
+	private int[][]				lapClosurePoints;
+	private final static double	LAP_CLOSURE_MAX	= 8.0;
+	private boolean				startZoneGone;
 	Line2D				finishLine;
 	/** Unit vector of the racing direction at the finish line. A move only
 	 *  counts as crossing the finish if it travels with this heading (positive
@@ -644,6 +649,14 @@ public final class RaceGame {
 		}
 		final int[] from = {x1, y1 };
 		final int[] to = {x2, y2 };
+		// Multi-lap: the blue closing segments are boundary too -- the loop
+		// has no gaps once it is closed. Moves ORIGINATING on the starting
+		// grid are exempt (the grid sits on the closure; leaving it is
+		// legitimate, re-entering through the closure is not).
+		if (totalLaps > 1 && lapClosures != null && !startZoneA.contains(x1, y1)
+				&& (lapClosures[0] != null && lapClosures[0].intersectsLine(x1, y1, x2, y2)
+						|| lapClosures[1] != null && lapClosures[1].intersectsLine(x1, y1, x2, y2)))
+			return false;
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
 	}
 
@@ -1041,6 +1054,24 @@ public final class RaceGame {
 			System.out.println("[laps] track boundary too coarse for gates -- laps disabled");
 			return;
 		}
+		// A loop that cannot be closed cannot be lapped: both boundary side
+		// gaps must be small enough to bridge with a closing segment.
+		final int[] lLast = lefts.get(lefts.size() - 1), lFirst = lefts.get(0);
+		final int[] rLast = rights.get(rights.size() - 1), rFirst = rights.get(0);
+		final double gapL = Math.hypot(lLast[0] - lFirst[0], lLast[1] - lFirst[1]);
+		final double gapR = Math.hypot(rLast[0] - rFirst[0], rLast[1] - rFirst[1]);
+		if (gapL > LAP_CLOSURE_MAX || gapR > LAP_CLOSURE_MAX) {
+			totalLaps = 1;
+			System.out.println("[laps] boundary gap too wide to close ("
+					+ Math.round(Math.max(gapL, gapR)) + " cells) -- laps disabled");
+			return;
+		}
+		lapClosures = new Line2D[]{
+				gapL > 0 ? new Line2D.Double(lLast[0], lLast[1], lFirst[0], lFirst[1]) : null,
+				gapR > 0 ? new Line2D.Double(rLast[0], rLast[1], rFirst[0], rFirst[1]) : null };
+		lapClosurePoints = new int[][]{
+				{lLast[0], lLast[1], lFirst[0], lFirst[1] },
+				{rLast[0], rLast[1], rFirst[0], rFirst[1] } };
 		lapGates = new Line2D[3];
 		lapGatePoints = new int[3][];
 		final double[] fractions = {0.0, 1.0 / 3, 2.0 / 3 };
@@ -1230,6 +1261,7 @@ public final class RaceGame {
 			player.logPosition(newpos);
 			redoPlayerLabels();
 		}
+		maybeHideStartZone();
 		advanceToNextPlayer();
 	}
 
@@ -1258,6 +1290,19 @@ public final class RaceGame {
 			if (p.getNumber() == playerNum)
 				return p.getLap() + 1 >= totalLaps;
 		return true;
+	}
+
+	/** The starting grid is special only while someone is still on it. */
+	private void maybeHideStartZone() {
+		if (startZoneGone || startZoneA == null)
+			return;
+		for (final Player p : players) {
+			final int[] pp = p.getPosition();
+			if (pp[0] != Player.INIT_POS && startZoneA.contains(pp[0], pp[1]))
+				return;
+		}
+		startZoneGone = true;
+		rui.hideStartZone();
 	}
 
 	private void finishPlayer(final Player p, final int[] lastPos, final int place) {
@@ -1446,6 +1491,7 @@ public final class RaceGame {
 		rui.setStartZone(startZone);
 		rui.setCheckpoints(totalLaps > 1 && lapGatePoints != null
 				? new int[][]{lapGatePoints[1], lapGatePoints[2] } : null);
+		rui.setLoopClosure(totalLaps > 1 ? lapClosurePoints : null);
 		final Path2D.Float p = new Path2D.Float();
 		p.moveTo(startZone[0][0], startZone[1][0]);
 		for (int i = 1; i < 4; i++)

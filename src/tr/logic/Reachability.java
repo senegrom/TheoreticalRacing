@@ -1050,7 +1050,7 @@ final class Reachability {
 			// The suffix flows into the memo key and the .edges/.derived
 			// siblings automatically, since all of them derive from this path.
 			return TrackIO.reachCacheDir().resolve("reach-" + hex
-					+ (game.totalLaps > 1 ? "-lap" : "") + ".bin");
+					+ (game.totalLaps > 1 ? "-lap2" : "") + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}
