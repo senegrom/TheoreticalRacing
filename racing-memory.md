@@ -6,6 +6,60 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Multi-lap V1 SHIPPED (experimental): laps, auto checkpoints, trace pruning
+
+User orders: multiple laps on the same circuit (for tracks where start
+and finish sit close); two auto-computed checkpoint lines per track
+that must be crossed in order before a lap/finish counts, on every
+lap; light-grey checkpoint rendering; and rolling trace pruning (after
+passing gate n, hide the trace before gate n-1).
+
+ARCHITECTURE (all laps=1 behavior byte-identical, proven at every one
+of ten stages): laps=N property; per-player lap counter and gate state
+(CP1 -> CP2 -> S/F); three auto gates -- gate 0 is the REAL S/F line
+(first left-boundary point paired with its nearest right point --
+the legacy finish segment can slice diagonally through the infield and
+produced phantom re-crossings on oval-class tracks), CP1/CP2 the same
+construction at 1/3 and 2/3 of the boundary index space; referee: a
+non-final gate-complete forward S/F crossing logs "LAP k/N" and must
+be an ordinarily legal move, checkpoint touches are direction-free
+("ok cp1"/"ok cp2", laps>1 only); runaway cap at laps*1000 turns;
+reach maps keyed "-lap" (multi-lap semantics change crossesFinish, so
+laps=1 and lap-mode maps are separate cache identities -- the .edges/
+.derived siblings inherit the key); per-gate BFS maps (gate 0 seeded
+at shedable forward crossings, CPs at direction-free alive touches);
+the AI navigates gateTurns[mover's next gate] on every non-"final lap
+gate-complete" decision, with crossing precedence/search-terminal wins
+only for countable (gate-0, shedable) crossings, and stray crossings
+falling through as ordinary candidates. UI: light-grey gate lines;
+traces draw from Player.traceStart, which rolls one gate behind.
+
+PROOF: circle solo laps=3 -- 2 LAP marks + FINISH, all six checkpoint
+touches in order, zero crashes, 123 moves. The full lap pipeline
+(gates, maps, referee, logs) works end to end.
+
+DEBUGGING LAWS BANKED (a five-probe forensic chain, each fixing the
+previous failure and exposing the next): (1) the legacy finish segment
+is NOT the racing line on ring tracks -- phantom diagonal crossings;
+(2) geometry-keyed reach caches are SEMANTICS-keyed too -- a stale
+laps=1 map sent final-lap cars to a phantom line (park-forever); (3)
+excluding stray crossings from candidacy walls in cars that spawn
+behind the line (circle bobbed 3000 turns at the gate); (4) a
+direction-free single-target map cannot steer a loop -- backward
+routes tie forward ones and pre-gate states always beat post-gate
+landings (the start stall); the ordered CP maps are what break the
+symmetry; (5) raw shortest-path maps revive the naive-pace suicide
+class on hostile corridors -- open quality arc.
+
+OPEN ARCS (experimental status): bigoval solo dies at 8 moves chasing
+CP1 into the left-corridor pinch (entry pacing on narrow loop
+corridors); monza solo reaches both CPs then dies at the brutal
+post-gate wall (82 moves); 8-car fields add start-pocket traffic
+jams. This is the racing-quality frontier of the lap era -- the exact
+class rounds 40-83 solved for the finish map, now to be re-fought on
+loop maps. Sims still model crossers as terminal (recorded V1
+imperfection).
+
 ## Round 190 (local agent, SHIPPED): persist the reachability derive
 
 The startup derive (roomy/shed/cert sweeps, ~25%% of short-race

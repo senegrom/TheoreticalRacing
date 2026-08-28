@@ -146,6 +146,9 @@ final class Reachability {
 
 	BitSet	aliveStates;
 	int[]	turnsArr;
+	/** Multi-lap: per-gate maps -- [0] to a shedable forward S/F crossing,
+	 *  [1]/[2] to a direction-free alive touch of CP1/CP2 (null at laps==1). */
+	int[][]	gateTurns;
 	int		aliveW, aliveH, aliveVMAX, aliveSpan;
 	/** Precomputed {@link #isRoomy} (depth 0 / depth 1) over all alive states;
 	 *  non-alive states stay unset (isRoomy is false there — they can have
@@ -193,6 +196,112 @@ final class Reachability {
 		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
 			return Integer.MAX_VALUE;
 		return turnsArr[aliveIdx(x, y, vx, vy)];
+	}
+
+	/** Multi-lap potential: turns to the mover's NEXT gate (0=S/F forward
+	 *  shedable, 1/2 = checkpoint touch). Falls back to the finish map when
+	 *  no gate maps exist. */
+	int turnsToGate(final int gate, final int x, final int y, final int vx, final int vy) {
+		if (gateTurns == null || gateTurns[gate] == null)
+			return turnsToFinish(x, y, vx, vy);
+		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH
+				|| vx < -aliveVMAX || vx > aliveVMAX || vy < -aliveVMAX || vy > aliveVMAX)
+			return Integer.MAX_VALUE;
+		return gateTurns[gate][aliveIdx(x, y, vx, vy)];
+	}
+
+	/** Multi-lap: the landing beyond the line is alive and brakes to
+	 *  speed <= 6 within two moves (minShed2 O(1) lookup). */
+	boolean shedableLanding(final int nx, final int ny, final int nvx, final int nvy) {
+		if (nx < 0 || ny < 0 || nx >= aliveW || ny >= aliveH
+				|| nvx < -aliveVMAX || nvx > aliveVMAX || nvy < -aliveVMAX || nvy > aliveVMAX
+				|| minShed2 == null)
+			return false;
+		final int idx = aliveIdx(nx, ny, nvx, nvy);
+		return aliveStates.get(idx) && (minShed2[idx] & 0xFF) <= 64;
+	}
+
+	/** Multi-lap: one BFS per gate over the same move graph. Gate 0 seeds
+	 *  at shedable forward S/F crossings; checkpoint gates seed at any-
+	 *  direction touches with an alive landing (touching at speed is fine).
+	 *  Requires the finish map and minShed2 to be ready. */
+	void computeGateMaps(final java.awt.geom.Line2D[] gates) {
+		gateTurns = new int[3][];
+		for (int g = 0; g < 3; g++)
+			gateTurns[g] = computeGateMap(g, gates[g]);
+	}
+
+	private int[] computeGateMap(final int gate, final java.awt.geom.Line2D line) {
+		final int total = turnsArr.length;
+		final int[] map = new int[total];
+		Arrays.fill(map, Integer.MAX_VALUE);
+		final BitSet seen = new BitSet(total);
+		final IntQueue queue = new IntQueue();
+		for (int x = 0; x < aliveW; x++) {
+			for (int y = 0; y < aliveH; y++) {
+				if (distAt(x, y) == Integer.MAX_VALUE)
+					continue;
+				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
+					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
+						for (final Direction d : DIRECTIONS) {
+							final int nvx = vx + d.dx;
+							final int nvy = vy + d.dy;
+							if (velocityOutOfRange(nvx, nvy))
+								continue;
+							final int nx = x + nvx, ny = y + nvy;
+							final boolean hits = gate == 0
+									? game.crossesFinish(x, y, nx, ny)
+											&& shedableLanding(nx, ny, nvx, nvy)
+									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
+											line.getX2(), line.getY2(), x, y, nx, ny)
+											&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
+											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy));
+							if (hits) {
+								final int idx = aliveIdx(x, y, vx, vy);
+								if (!seen.get(idx)) {
+									seen.set(idx);
+									map[idx] = 1;
+									queue.add(idx);
+								}
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		while (!queue.isEmpty()) {
+			int rest = queue.remove();
+			final int curIdx = rest;
+			final int vyp = rest % aliveSpan - aliveVMAX;
+			rest /= aliveSpan;
+			final int vxp = rest % aliveSpan - aliveVMAX;
+			rest /= aliveSpan;
+			final int yp = rest % aliveH;
+			final int xp = rest / aliveH;
+			final int turns = map[curIdx];
+			final int x = xp - vxp;
+			final int y = yp - vyp;
+			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
+				continue;
+			if (distAt(x, y) == Integer.MAX_VALUE)
+				continue;
+			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
+				continue;
+			for (final Direction d : DIRECTIONS) {
+				final int vx = vxp - d.dx;
+				final int vy = vyp - d.dy;
+				if (velocityOutOfRange(vx, vy))
+					continue;
+				final int idx = aliveIdx(x, y, vx, vy);
+				if (!seen.get(idx)) {
+					seen.set(idx);
+					map[idx] = turns + 1;
+					queue.add(idx);
+				}
+			}
+		}
+		return map;
 	}
 
 	/**
@@ -298,6 +407,8 @@ final class Reachability {
 		final long tDerive = System.nanoTime();
 		writeReachabilityCache(legalAlive);
 		saveDerived();
+		if (game.totalLaps > 1 && game.lapGates != null)
+			computeGateMaps(game.lapGates);
 		final long tCache = System.nanoTime();
 		if (game.autoMode)
 			System.out.printf(
@@ -934,7 +1045,12 @@ final class Reachability {
 			final StringBuilder hex = new StringBuilder(64);
 			for (final byte b : md.digest())
 				hex.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
-			return TrackIO.reachCacheDir().resolve("reach-" + hex + ".bin");
+			// Multi-lap semantics change crossesFinish (the short gate-0 line),
+			// so the BFS differs from the laps=1 map: separate cache identity.
+			// The suffix flows into the memo key and the .edges/.derived
+			// siblings automatically, since all of them derive from this path.
+			return TrackIO.reachCacheDir().resolve("reach-" + hex
+					+ (game.totalLaps > 1 ? "-lap" : "") + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}
@@ -996,6 +1112,8 @@ final class Reachability {
 			derivePrecomputes(legalAlive);
 			saveDerived();
 		}
+		if (game.totalLaps > 1 && game.lapGates != null)
+			computeGateMaps(game.lapGates);
 		final long tDerive = System.nanoTime();
 		if (game.autoMode)
 			System.out.printf("[reachability] cache-hit load=%.0fms derive=%.0fms total=%.0fms alive=%d%n",

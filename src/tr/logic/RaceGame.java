@@ -36,6 +36,11 @@ public final class RaceGame {
 	public final static String			VERSION				= "0.3.0";
 
 	private int					finishedLast	= 0, finishedFirst = 0;
+	/** Multi-lap mode: S/F crossings required to finish (laps property). */
+	int							totalLaps		= 1;
+	/** Multi-lap gates: [0] short real S/F line, [1] CP1, [2] CP2. */
+	Line2D[]					lapGates;
+	private int[][]				lapGatePoints;
 	Line2D				finishLine;
 	/** Unit vector of the racing direction at the finish line. A move only
 	 *  counts as crossing the finish if it travels with this heading (positive
@@ -125,6 +130,7 @@ public final class RaceGame {
 		sanitizeIntProp("windowY", defWindowY, 200, 10000);
 		sanitizeIntProp("gameX", defCols, 2, 500);
 		sanitizeIntProp("gameY", defRows, 2, 500);
+		totalLaps = sanitizeIntProp("laps", 1, 1, 99);
 
 		for (int i = 0; i < maxPlayers; i++) {
 			final String prefix = "player" + (i + 1);
@@ -1007,11 +1013,61 @@ public final class RaceGame {
 
 	final Reachability reach = new Reachability(this);
 	boolean crossesFinish(final double x1, final double y1, final double x2, final double y2) {
-		if (!Line2D.linesIntersect(finishLine.getX1(), finishLine.getY1(), finishLine.getX2(), finishLine.getY2(), x1, y1, x2, y2))
+		// Multi-lap: the real line is the short boundary-gap gate -- the raw
+		// endpoint segment can slice diagonally through the infield and
+		// produce phantom re-crossings. laps=1 keeps exact legacy semantics.
+		final Line2D line = totalLaps > 1 && lapGates != null ? lapGates[0] : finishLine;
+		if (!Line2D.linesIntersect(line.getX1(), line.getY1(), line.getX2(), line.getY2(), x1, y1, x2, y2))
 			return false;
 		// Only a forward crossing counts (move heads in the racing direction).
 		// A zero-length or backward move across the line is not a finish.
 		return (x2 - x1) * finishFwdX + (y2 - y1) * finishFwdY > 0;
+	}
+
+	/** Multi-lap: three short cross-track gates -- [0] the real S/F line at
+	 *  the boundary gap, [1]/[2] auto checkpoints at 1/3 and 2/3 of the
+	 *  left-boundary index space, each pairing a left point with its nearest
+	 *  right point (auto-computed, works on custom-drawn tracks). Degenerate
+	 *  tracks disable laps instead of racing broken gates. */
+	private void computeLapGates() {
+		lapGates = null;
+		lapGatePoints = null;
+		if (totalLaps <= 1)
+			return;
+		final java.util.List<int[]> lefts = track.getLeft();
+		final java.util.List<int[]> rights = track.getRight();
+		if (lefts.size() < 8 || rights.size() < 8) {
+			totalLaps = 1;
+			System.out.println("[laps] track boundary too coarse for gates -- laps disabled");
+			return;
+		}
+		lapGates = new Line2D[3];
+		lapGatePoints = new int[3][];
+		final double[] fractions = {0.0, 1.0 / 3, 2.0 / 3 };
+		for (int k = 0; k < 3; k++) {
+			final int[] lp = lefts.get((int) Math.round(fractions[k] * (lefts.size() - 1)));
+			int[] best = null;
+			long bestD2 = Long.MAX_VALUE;
+			for (final int[] rp : rights) {
+				final long dx = rp[0] - lp[0], dy = rp[1] - lp[1];
+				final long d2 = dx * dx + dy * dy;
+				if (d2 < bestD2) {
+					bestD2 = d2;
+					best = rp;
+				}
+			}
+			lapGates[k] = new Line2D.Double(lp[0], lp[1], best[0], best[1]);
+			lapGatePoints[k] = new int[]{lp[0], lp[1], best[0], best[1] };
+		}
+		if (autoMode)
+			System.out.println("[laps] gate geometry: S/F " + java.util.Arrays.toString(lapGatePoints[0])
+					+ " CP1 " + java.util.Arrays.toString(lapGatePoints[1])
+					+ " CP2 " + java.util.Arrays.toString(lapGatePoints[2]));
+	}
+
+	private static boolean segTouches(final Line2D gate, final int[] a, final int[] b) {
+		return Line2D.linesIntersect(gate.getX1(), gate.getY1(), gate.getX2(), gate.getY2(),
+				a[0], a[1], b[0], b[1]);
 	}
 
 	/**
@@ -1097,7 +1153,42 @@ public final class RaceGame {
 		final Player player = players[subgamestate];
 		final int[] velBefore = player.getVelocity().clone();
 		final Direction d = directionOf(velBefore, vel);
-		final boolean finishes = crossesFinish(pos[0], pos[1], newpos[0], newpos[1]);
+		// Multi-lap runaway safety: a broken gate chain must not grow the log
+		// to the VM limit -- force-crash every live car and end the race.
+		if (totalLaps > 1 && turnCounter > totalLaps * 1000) {
+			dispMessage(player.getName() + " retires (race turn limit).");
+			logMove(player, directionOf(player.getVelocity(), vel), player.getVelocity().clone(),
+					pos, vel, newpos, "CRASH place=" + (players.length - finishedLast));
+			finishPlayer(player, newpos, players.length - finishedLast);
+			finishedLast++;
+			if (checkFinished())
+				return;
+			advanceToNextPlayer();
+			return;
+		}
+		final boolean crosses = crossesFinish(pos[0], pos[1], newpos[0], newpos[1]);
+		// Multi-lap checkpoint order: CP1 -> CP2 -> S/F. A checkpoint touch
+		// (direction-free) merely advances the gate; only a gate-complete S/F
+		// crossing counts as a lap. Stray S/F crossings while a checkpoint is
+		// still owed are ordinary moves.
+		String cpMark = "";
+		if (totalLaps > 1 && lapGates != null) {
+			if (player.getNextGate() == 1 && segTouches(lapGates[1], pos, newpos)) {
+				player.setNextGate(2);
+				player.passGate(1);
+				cpMark = " cp1";
+			}
+			if (player.getNextGate() == 2 && segTouches(lapGates[2], pos, newpos)) {
+				player.setNextGate(0);
+				player.passGate(2);
+				cpMark = cpMark + " cp2";
+			}
+		}
+		final boolean lapCross = crosses
+				&& (totalLaps <= 1 || lapGates == null || player.getNextGate() == 0);
+		final boolean finishes = lapCross && player.getLap() + 1 >= totalLaps;
+		// A non-final crossing continues the race, so unlike the final one it
+		// must also be an ordinarily legal move (landing on track, no body).
 		final boolean legal = finishes || isMoveLegal(pos, newpos, player.getNumber());
 
 		if (!legal && !player.isAi()) {
@@ -1116,6 +1207,15 @@ public final class RaceGame {
 			finishPlayer(player, newpos, finishedFirst);
 			if (checkFinished())
 				return;
+		} else if (lapCross && legal) {
+			final int lap = player.incrementLap();
+			player.setNextGate(1);
+			logMove(player, d, velBefore, pos, vel, newpos, "LAP " + lap + "/" + totalLaps);
+			player.setVelocity(vel);
+			player.setPosition(newpos);
+			player.logPosition(newpos);
+			player.passGate(0);
+			redoPlayerLabels();
 		} else if (!legal) {
 			dispMessage(player.getName() + " crashes.");
 			logMove(player, d, velBefore, pos, vel, newpos, "CRASH place=" + (players.length - finishedLast));
@@ -1124,7 +1224,7 @@ public final class RaceGame {
 			if (checkFinished())
 				return;
 		} else {
-			logMove(player, d, velBefore, pos, vel, newpos, "ok");
+			logMove(player, d, velBefore, pos, vel, newpos, "ok" + cpMark);
 			player.setVelocity(vel);
 			player.setPosition(newpos);
 			player.logPosition(newpos);
@@ -1140,6 +1240,24 @@ public final class RaceGame {
 			if (d.dx == dx && d.dy == dy)
 				return d;
 		return Direction.NONE;
+	}
+
+	/** The player's next required gate (0=S/F, 1=CP1, 2=CP2). */
+	int nextGateOf(final int playerNum) {
+		if (totalLaps <= 1 || lapGates == null)
+			return 0;
+		for (final Player p : players)
+			if (p.getNumber() == playerNum)
+				return p.getNextGate();
+		return 0;
+	}
+
+	/** True when this player's NEXT S/F crossing ends their race. */
+	boolean onFinalLap(final int playerNum) {
+		for (final Player p : players)
+			if (p.getNumber() == playerNum)
+				return p.getLap() + 1 >= totalLaps;
+		return true;
 	}
 
 	private void finishPlayer(final Player p, final int[] lastPos, final int place) {
@@ -1284,6 +1402,8 @@ public final class RaceGame {
 		turnCounter = 0;
 		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");
 		gameLog.append("# Grid ").append(gameCols).append("x").append(gameRows).append("\n");
+		if (totalLaps > 1)
+			gameLog.append("# laps ").append(totalLaps).append("\n");
 		gameLog.append("trackLeft=").append(TrackIO.pointListToString(track.getLeft())).append("\n");
 		gameLog.append("trackRight=").append(TrackIO.pointListToString(track.getRight())).append("\n");
 		for (final Player pl : players) {
@@ -1320,9 +1440,12 @@ public final class RaceGame {
 		final int[] fR = track.getRight().getLast();
 		finishLine = new Line2D.Double(fL[0], fL[1], fR[0], fR[1]);
 		computeFinishForward();
+		computeLapGates();
 		rui.setFinishLine(fL, fR);
 		startZone = TrackGeometry.makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
 		rui.setStartZone(startZone);
+		rui.setCheckpoints(totalLaps > 1 && lapGatePoints != null
+				? new int[][]{lapGatePoints[1], lapGatePoints[2] } : null);
 		final Path2D.Float p = new Path2D.Float();
 		p.moveTo(startZone[0][0], startZone[1][0]);
 		for (int i = 1; i < 4; i++)

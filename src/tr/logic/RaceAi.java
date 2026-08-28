@@ -280,8 +280,18 @@ final class RaceAi {
 				continue;
 			final int newX = x + newVx;
 			final int newY = y + newVy;
-			if (game.crossesFinish(x, y, newX, newY))
-				return d;
+			if (game.crossesFinish(x, y, newX, newY)) {
+				// Multi-lap: a non-final crossing keeps its precedence only when
+				// survivable (legal edge, no body, alive landing beyond the line)
+				// AND shedable -- the map prices every crossing at turns=1
+				// regardless of landing speed, so hot arrivals must not count.
+				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
+						&& !game.isCrashingPlayer(newX, newY, playerNum)
+						&& reach.shedableLanding(newX, newY, newVx, newVy)))
+					return d;
+				// Stray or unshedable crossing: an ordinary legal move (cars
+				// spawn BEHIND the line -- excluding these walls them in).
+			}
 			if ((sm & bit) == 0) {
 				fallbackIllegalMask |= bit;
 				continue;
@@ -289,7 +299,7 @@ final class RaceAi {
 			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
 			fallbackLegalMask |= bit;
-			final int turns = reach.turnsToFinish(newX, newY, newVx, newVy);
+			final int turns = ttf(newX, newY, newVx, newVy);
 			if (turns < bestTurns) {
 				bestTurns = turns;
 				best = d;
@@ -458,7 +468,8 @@ final class RaceAi {
 	private final static int		AI1_RIDGE_PLATEAU_SUCC	= 3;	// round 185: chosen landing has width 3 and its alive child fan is exactly widths 1/2/3 before paying for the scorer audit
 	private final static int		AI1_RIDGE_THREAD	= 4;	// round 178: s8-audit thread level that escalates to the true-6 verdict -- canon 0 escalations, lobe2 13 with DEAD only on the real doom line
 	private final static int		AI1_RIDGE_TRUE_ROUNDS	= 6;	// round 178: the ridge doom lands 6 rounds out -- true-4 reads the m363 commitment alive (V=7), true-6 kills it
-	private final static int		AI1_RIDGE_VMAX_TRUE_ROUNDS	= 7;	// exact axial speed-11 width-one holds can fail one round beyond the shared ridge horizon
+	private final static int		AI1_RIDGE_VMAX_TRUE_ROUNDS	= 7;	// codex round 187: exact axial speed-11 width-one holds can fail one round beyond the shared ridge horizon
+	// multi-lap shedability now lives in Reachability.shedableLanding (minShed2 <= 36)
 	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
@@ -486,11 +497,13 @@ final class RaceAi {
 		// legal move (a forced crash), take it. Only a rival that moves after me this
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
+		lapGate = game.nextGateOf(playerNum);
+		lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
 		final int sealRivals = liveRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
 		// every seal that forgoes the finish to crash a later mover.
 		if (moverKind(playerNum) == Player.Kind.AI1 && sealRivals >= 1
-				&& sealRivals <= AI1_SEAL_MAXRIVALS) {
+				&& sealRivals <= AI1_SEAL_MAXRIVALS && game.onFinalLap(playerNum)) {
 			final Direction finish = immediateFinishMove(pos, vel);
 			if (finish != null)
 				return finish;
@@ -584,8 +597,15 @@ final class RaceAi {
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
-			if (game.crossesFinish(pos[0], pos[1], newX, newY))
-				return d;
+			if (game.crossesFinish(pos[0], pos[1], newX, newY)) {
+				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
+				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
+						&& !game.isCrashingPlayer(newX, newY, playerNum)
+						&& reach.shedableLanding(newX, newY, newVx, newVy)))
+					return d;
+				// Stray or unshedable crossing: an ordinary legal move (cars
+				// spawn BEHIND the line -- excluding these walls them in).
+			}
 			if ((sm & bit) == 0) {
 				fallbackIllegalMask |= bit;
 				continue;
@@ -593,7 +613,7 @@ final class RaceAi {
 			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
 			fallbackLegalMask |= bit;
-			final int ownTurns = reach.turnsToFinish(newX, newY, newVx, newVy);
+			final int ownTurns = ttf(newX, newY, newVx, newVy);
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
@@ -854,7 +874,11 @@ final class RaceAi {
 					if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 						continue;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-					if (game.crossesFinish(pos[0], pos[1], nx, ny)) {
+					if (game.crossesFinish(pos[0], pos[1], nx, ny)
+							&& (!lapAware && game.onFinalLap(playerNum)
+									|| lapGate == 0 && game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
+									&& !game.isCrashingPlayer(nx, ny, playerNum)
+									&& reach.shedableLanding(nx, ny, nvx, nvy))) {
 						safest = d;
 						bestT = -1;
 						break;
@@ -869,7 +893,7 @@ final class RaceAi {
 						continue;
 					if (sealable(nx, ny, nvx, nvy, playerNum))
 						continue;
-					final int tt = reach.turnsToFinish(nx, ny, nvx, nvy);
+					final int tt = ttf(nx, ny, nvx, nvy);
 					if (tt < bestT) {
 						bestT = tt;
 						safest = d;
@@ -897,7 +921,8 @@ final class RaceAi {
 						&& kindHomogeneousRoster(playerNum)
 						&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
 						&& hasAdjacentPriorVelocityPeer(pos, vel, playerNum);
-				int sprintT = chosenT;
+				// Multi-lap: the sprint exists to cross ASAP -- final lap only.
+				int sprintT = game.onFinalLap(playerNum) ? chosenT : Integer.MIN_VALUE;
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
@@ -981,7 +1006,9 @@ final class RaceAi {
 			// switching cannot fire on a line that was actually fine).
 			if (AI_DEBUG_PLAYER == playerNum)
 				System.err.println("AIDBG turn" + (inScorerSim ? "-sim" : "-REAL") + " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
-						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]);
+						+ vel[0] + "," + vel[1] + ") chosen=" + chosen + " trap=" + trapByDir[chosen.ordinal()]
+						+ " gate=" + lapGate + " ttf=" + ttf(pos[0] + vel[0] + chosen.dx,
+								pos[1] + vel[1] + chosen.dy, vel[0] + chosen.dx, vel[1] + chosen.dy));
 			// round 45 (AI1): sim fidelity only -- finished cars vanish from the
 			// sim board (the real game removes them; ghosts caused phantom
 			// blockage verdicts). The always-on trigger arm was REJECTED by the
@@ -1126,7 +1153,7 @@ final class RaceAi {
 											true, true, true, true, false, false,
 											AI1_DEEP_CERT_RIVALS, null, null, cTr) < 0)
 										continue;
-									final int rTurns = reach.turnsToFinish(rx, ry, rvx, rvy);
+									final int rTurns = ttf(rx, ry, rvx, rvy);
 									if (cTr[0] >= AI1_RIDGE_THREAD) {
 										if (rTurns < ridgeLoudTurns) {
 											ridgeLoudTurns = rTurns;
@@ -1582,6 +1609,33 @@ final class RaceAi {
 			}
 			return chosen;
 		}
+		// Multi-lap survival fallback: when the lap map prices every candidate
+		// MAX (the single-file shedable approach is blocked by bodies), stay
+		// ALIVE by the finish map at minimum speed instead of dead-coasting --
+		// circle, then cross when the line unblocks.
+		if (lapAware) {
+			Direction alive = null;
+			int aliveT = Integer.MAX_VALUE;
+			int aliveSpd = Integer.MAX_VALUE;
+			for (final Direction d : DIRECTIONS) {
+				if ((fallbackLegalMask & 1 << d.ordinal()) == 0)
+					continue;
+				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+				if (game.isCrashingPlayer(nx, ny, playerNum)
+						|| !reach.isAlive(nx, ny, nvx, nvy))
+					continue;
+				final int t = reach.turnsToFinish(nx, ny, nvx, nvy);
+				final int spd = speedSquared(nvx, nvy);
+				if (spd < aliveSpd || spd == aliveSpd && t < aliveT) {
+					alive = d;
+					aliveSpd = spd;
+					aliveT = t;
+				}
+			}
+			if (alive != null)
+				return alive;
+		}
 		return scoreMinTurnsFallback(pos[0], pos[1], vel[0], vel[1],
 				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
 	}
@@ -1594,14 +1648,15 @@ final class RaceAi {
 			final CandidateWorkspace candidates) {
 		if (moverKind(playerNum) != Player.Kind.AI1 || inFinishDenialConfirm
 				|| trueConfirmDepth >= trueConfirmCandidateSnapshots.length
-				|| game.subgamestate != game.players.length - 1)
+				|| game.subgamestate != game.players.length - 1
+				|| !game.onFinalLap(playerNum))
 			return chosen;
 		final double[] trapByDir = candidates.trapByDirection;
 		final double[] uncByDir = candidates.uncertaintyByDirection;
 		final int[] turnsByDir = candidates.turnsByDirection;
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT < 0 || chosenT > AI1_FINISH_DENIAL_MAX_TTF
-				|| reach.turnsToFinish(pos[0], pos[1], vel[0], vel[1]) != chosenT + 1)
+				|| ttf(pos[0], pos[1], vel[0], vel[1]) != chosenT + 1)
 			return chosen;
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
@@ -1675,7 +1730,7 @@ final class RaceAi {
 				if (chosenSpeed2 - speed2 < AI1_FINISH_DENIAL_MIN_BRAKE2)
 					continue;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-				final int t = reach.turnsToFinish(nx, ny, nvx, nvy);
+				final int t = ttf(nx, ny, nvx, nvy);
 				if (game.crossesFinish(pos[0], pos[1], nx, ny))
 					return d;
 				if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
@@ -1721,6 +1776,19 @@ final class RaceAi {
 			final int vy, final int playerNum, final int faithfulCap) {
 		return simOutcome(x, y, vx, vy, playerNum, AI1_FINISH_DENIAL_ROUNDS,
 				true, true, true, true, true, true, faithfulCap, null, null, null);
+	}
+
+	/** Multi-lap: true while choosing for a mover NOT on its final lap --
+	 *  every turns-to-finish read then uses the shedable-crossing lap map.
+	 *  Set at optimalMoveAI1 entry; the dispatcher is only entered from
+	 *  RaceGame (no recursion), so a plain field is safe per instance. */
+	private boolean lapAware;
+	/** Multi-lap: the mover's next gate (0=S/F, 1=CP1, 2=CP2). */
+	private int lapGate;
+
+	private int ttf(final int x, final int y, final int vx, final int vy) {
+		return lapAware ? reach.turnsToGate(lapGate, x, y, vx, vy)
+				: reach.turnsToFinish(x, y, vx, vy);
 	}
 
 	/** The mover's own kind, for self-play (kind-homogeneity) gates. */
@@ -2513,7 +2581,7 @@ final class RaceAi {
 			if (occupied.contains(newX, newY))
 				continue;
 			fallbackLegalMask |= bit;
-			final int turns = reach.turnsToFinish(newX, newY, newVx, newVy);
+			final int turns = ttf(newX, newY, newVx, newVy);
 			if (turns < bestTurns) {
 				bestTurns = turns;
 				best = d;
@@ -2683,7 +2751,7 @@ final class RaceAi {
 			final CellOccupancy[] predictedSteps, final int playerNum,
 			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
 		if (levels == 0) {
-			final int t = reach.turnsToFinish(x, y, vx, vy);
+			final int t = ttf(x, y, vx, vy);
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
 		}
 		double best = Double.MAX_VALUE;
@@ -2693,7 +2761,7 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return 1;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -2735,7 +2803,7 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return new double[]{1, 9 };
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -2785,7 +2853,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return 9;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -2895,13 +2963,13 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int turns = reach.turnsToFinish(nx, ny, nvx, nvy);
+			final int turns = ttf(nx, ny, nvx, nvy);
 			if (turns < bestT) {
 				bestT = turns;
 				bestX = nx;
@@ -2926,7 +2994,7 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return 3;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -2959,14 +3027,14 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
-			final int turns = reach.turnsToFinish(nx, ny, nvx, nvy);
+			final int turns = ttf(nx, ny, nvx, nvy);
 			if (tier > bestTier || tier == bestTier && turns < bestT) {
 				bestTier = tier;
 				bestT = turns;
@@ -3002,7 +3070,7 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -3010,7 +3078,7 @@ final class RaceAi {
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
 			final double trap = tier == 0 ? 50.0 : tier == 1 ? AI1_TRAP_L1 : tier == 2 ? AI1_TRAP_L2 : 0.0;
-			final double score = reach.turnsToFinish(nx, ny, nvx, nvy) + trap;
+			final double score = ttf(nx, ny, nvx, nvy) + trap;
 			// Momentum tie-break (policy matrix "smom"): among score-equal
 			// candidates the real scorer HOLDS SPEED down the racing line
 			// (deep cost + momentum), so prefer the faster landing. This is
@@ -3440,7 +3508,7 @@ final class RaceAi {
 			for (int i = 0; i < game.players.length; i++) {
 				if (i == myIdx || !alive[i])
 					continue;
-				final int turns = reach.turnsToFinish(px[i], py[i], vx[i], vy[i]);
+				final int turns = ttf(px[i], py[i], vx[i], vy[i]);
 				final long terminalCost = turns == Integer.MAX_VALUE
 						? ROLLOUT_FAILURE_COST : turns;
 				fieldCost += terminalCost;
@@ -3456,7 +3524,7 @@ final class RaceAi {
 		if (outFinalTier != null && !myFinished)
 			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
 					myIdx, px, py, alive);
-		return myFinished ? 0 : reach.turnsToFinish(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+		return myFinished ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
 	}
 
 	/** Danger joint search (round 40, shared champion): if the chosen landing DIES in
@@ -3937,7 +4005,7 @@ final class RaceAi {
 				continue;
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return false;
 			if ((mask & bit) == 0 || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -4166,7 +4234,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return 9;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -4202,7 +4270,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return 9;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
@@ -4368,9 +4436,9 @@ final class RaceAi {
 		final int ri = decisiveRival(playerNum);
 		if (ri < 0)
 			return null;
-		final int myT = reach.turnsToFinish(pos[0], pos[1], vel[0], vel[1]);
+		final int myT = ttf(pos[0], pos[1], vel[0], vel[1]);
 		final int[] rp = game.players[ri].getPosition(), rv = game.players[ri].getVelocity();
-		final int rT = reach.turnsToFinish(rp[0], rp[1], rv[0], rv[1]);
+		final int rT = ttf(rp[0], rp[1], rv[0], rv[1]);
 		if (myT > AI1_EG_ETA || rT > AI1_EG_ETA)
 			return null;
 		egMemo = new java.util.HashMap<>();
@@ -4390,7 +4458,7 @@ final class RaceAi {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int t = reach.turnsToFinish(nx, ny, nvx, nvy);
+			final int t = ttf(nx, ny, nvx, nvy);
 			if (best != null && t >= bestT)
 				continue;		// only a strictly faster win can improve
 			if (egRival(nx, ny, nvx, nvy, rp[0], rp[1], rv[0], rv[1], AI1_EG_DEPTH * 2 - 1)) {
@@ -4514,7 +4582,7 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return false;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
@@ -4600,7 +4668,7 @@ final class RaceAi {
 				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx, ny = y + nvy;
-				if (game.crossesFinish(x, y, nx, ny)) {
+				if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))) {
 					cnt++;
 					continue;
 				}
@@ -4619,7 +4687,7 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny)) {
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))) {
 				fmMemoPut(memoKey, search.epoch, 1.0);
 				return 1.0;
 			}
@@ -4991,7 +5059,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny)) {
+			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))) {
 				count++;
 			} else {
 				if (!game.isMoveLegalGeometryCached(x, y, nx, ny))

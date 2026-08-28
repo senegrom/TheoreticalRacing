@@ -26,6 +26,7 @@ public final class RaceUI {
 	public final static int		CAR_SIZE			= 5;
 	private final static Color	colBackgrd			= Color.WHITE;
 	private final static Color	colBackgrdForb		= new Color(255, 245, 245);
+	private final static Color	colCheckpoint		= new Color(205, 205, 205);
 	private final static Color	colFinish			= Color.BLACK;
 	private final static Color	colGrid				= Color.GRAY;
 	private final static Color	colStartZFill		= new Color(220, 255, 220);
@@ -48,6 +49,7 @@ public final class RaceUI {
 	}
 
 	private int[]				finishLine;	// 4-element pixel coords [x1,y1,x2,y2]
+	private int[][]				checkpoints;	// light-grey gate lines, same coords
 	private final JPanel		grid;
 	private final int			rows, cols;
 	private Player[]			players;
@@ -105,6 +107,12 @@ public final class RaceUI {
 			g.setStroke(strkStartZ);
 			g.draw(startZone);
 		}
+		if (checkpoints != null) {
+			g.setColor(colCheckpoint);
+			g.setStroke(strkFinish);
+			for (final int[] cp : checkpoints)
+				g.drawLine(cp[0], cp[1], cp[2], cp[3]);
+		}
 		if (finishLine != null) {
 			g.setColor(colFinish);
 			g.setStroke(strkFinish);
@@ -144,7 +152,7 @@ public final class RaceUI {
 		for (int i = 0; i < players.length; i++) {
 			final Player pl = players[i];
 			g.setColor(pl.getColor());
-			for (int j = 1; j < pl.getHistory().size(); j++) {
+			for (int j = Math.max(1, pl.getTraceStart() + 1); j < pl.getHistory().size(); j++) {
 				final int[] oldP = pl.getHistory().get(j - 1);
 				final int[] pos = pl.getHistory().get(j);
 				g.drawLine(oldP[0] * GRID_DIST, oldP[1] * GRID_DIST, pos[0] * GRID_DIST, pos[1] * GRID_DIST);
@@ -193,6 +201,18 @@ public final class RaceUI {
 		if (grid == null)
 			throw new IllegalStateException("grid is unavailable in headless mode");
 		return grid;
+	}
+
+	/** Multi-lap checkpoint lines in grid coords (x1,y1,x2,y2), or null. */
+	public void setCheckpoints(final int[][] cps) {
+		if (cps == null) {
+			checkpoints = null;
+			return;
+		}
+		checkpoints = new int[cps.length][];
+		for (int i = 0; i < cps.length; i++)
+			checkpoints[i] = new int[]{cps[i][0] * GRID_DIST, cps[i][1] * GRID_DIST,
+					cps[i][2] * GRID_DIST, cps[i][3] * GRID_DIST };
 	}
 
 	public void setFinishLine(final int[] pL, final int[] pR) {

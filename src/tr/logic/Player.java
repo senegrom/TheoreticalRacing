@@ -40,6 +40,10 @@ public final class Player {
 	private final Color				brightColor;
 	private final Color				color;
 	private int						finishedPlace;
+	private int						lap;
+	private int						nextGate	= 1;
+	private int						traceStart;
+	private final int[]				gateMark	= new int[3];
 	private final List<int[]>			history		= new ArrayList<>();
 	private final String			name;
 	private final int				number;
@@ -96,6 +100,37 @@ public final class Player {
 
 	public boolean isFinished() {
 		return finishedPlace != 0;
+	}
+
+	/** Completed S/F crossings this race (multi-lap mode). */
+	public int getLap() {
+		return lap;
+	}
+
+	/** Records one more completed crossing; returns the new count. */
+	public int incrementLap() {
+		return ++lap;
+	}
+
+	/** Multi-lap gate order: 1 = CP1 next, 2 = CP2 next, 0 = S/F next. */
+	public int getNextGate() {
+		return nextGate;
+	}
+
+	public void setNextGate(final int g) {
+		nextGate = g;
+	}
+
+	/** Multi-lap trace pruning: first history index still drawn. */
+	public int getTraceStart() {
+		return traceStart;
+	}
+
+	/** Records passing gate g (0=S/F, 1=CP1, 2=CP2): the visible trace now
+	 *  starts where the PREVIOUS gate was passed. */
+	public void passGate(final int g) {
+		traceStart = gateMark[(g + 2) % 3];
+		gateMark[g] = Math.max(0, history.size() - 1);
 	}
 
 	public String statusLabel() {
