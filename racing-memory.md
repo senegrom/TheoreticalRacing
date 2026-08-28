@@ -6,6 +6,50 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 190 (local agent, SHIPPED): persist the reachability derive
+
+The startup derive (roomy/shed/cert sweeps, ~25%% of short-race
+samples; derive=538ms per process even on reach-cache hits) is a pure
+function of the cached (turns, legalAlive). It now persists beside the
+reach cache as <key>.derived -- Deflater-1 (0.2-2.1MB/track), CRC32
+over the inflated payload, best-effort, fresh-derive fallback. Warm
+startup: 620ms -> 144ms. Gates: byte-identity cold+warm on 5
+track/seed pairs; 25/25 battery; dual-order warm wall ALL FOUR cells
+faster -- serpentine2 -13.1%%, monza -19.3%% (both-order means;
+measured beside one same-class pin process, so magnitude carries noise;
+sign 4/4 unambiguous). With 189 this closes the per-process startup
+complex; the per-move residual is flat (succMask ~8%%, mobility ~7%%)
+-- the compute axis rests at roughly -30%%+ cumulative since 182.
+
+Verification-ops law learned the hard way tonight: background tool
+tasks and their children die with client reconnects (tree-kill), and
+process-liveness greps that match shell-snapshot paths lie both ways.
+Detached batteries now go through one-shot Task Scheduler launches
+(schtasks, no tool ancestry), markers + file-mtime stall probes are the
+liveness authority, and duplicate instances are defused by renaming
+their next-stage script (the running instance keeps its open fd).
+
+## Multi-lap mode (user-ordered): V1 opens
+
+The user's next axis: multiple laps on the same circuit, for the
+closed tracks where start and finish sit close (the fleet's full-loop
+law). Feasibility falls out of the existing map: turnsToFinish is a
+BFS to the NEXT S/F crossing, so it wraps the lap and stays finite
+beyond the line exactly when the loop closes -- that is the runtime
+clamp test for lap-capable tracks. V1 stage M1 (referee only, AI
+untouched): laps=N property (default 1 = byte-identical), per-player
+lap counter, a non-final crossing must be an ordinarily LEGAL move
+(today crossing skips legality because the race ends) and logs
+"LAP k/N"; "# laps N" header only when active. Known AI hazards to
+probe empirically before M2: the finish-special arms (75/94/96/176/
+186/188) treat any crossing as a win -- r188 even skips geometry, a
+wall-crash vector on non-final laps -- and pure turnsToFinish
+minimization would rather hover at TTF=1 than land beyond the line at
+TTF~lap, so M2 needs a lap-aware composite (lapsLeft lexicographic
+over TTF) at the candidate-comparison level plus final-lap gates on
+the finish arms. Sims modeling crossers as terminal stays a recorded
+V1 imperfection.
+
 ## Round 189 (local agent, SHIPPED): persistent dense edge-legality cache
 
 The wall-4 profile's residual: with in-memory caching collapsed, every
