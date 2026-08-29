@@ -39,6 +39,8 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-ai1-staged-") as directory:
         bench_ai.configure_runtime(directory)
+        import fixture_install
+        bench_ai.JAR = str(fixture_install.install(directory, ["hungaroring", "interlagos", "lemans", "monaco"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
         bench_ai.set_all_to("AI1")
         for (track, seed), max_move_sum in CASES.items():

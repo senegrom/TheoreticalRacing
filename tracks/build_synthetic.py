@@ -590,7 +590,7 @@ def _comb_fingers(ax, ay, ux, uy, nx, ny, positions, fw, depth, rin):
     return pts
 
 
-def _fractal_control(rng, npts, box, disp, minr):
+def _fractal_control(rng, npts, box, disp, minr, fill=1.0):
     """One attempt at the fractal control loop, or None if infeasible."""
 
     def hull(ps):
@@ -610,8 +610,8 @@ def _fractal_control(rng, npts, box, disp, minr):
     rin_s = 1.35 * minr     # sub base fillet
     rin = 1.35 * minr       # big-finger fillets
     sub_gap = 3.2 * minr    # wall-to-wall between sub-fingers
-    sub_depth = 3.0 * minr
-    big_depth = 6.5 * minr
+    sub_depth = 3.0 * minr * fill
+    big_depth = 6.5 * minr * fill
     plain_fw = 1.25 * minr
     plain_gap = 3.2 * minr
     plain_end = rin_s + minr
@@ -694,7 +694,7 @@ def _fractal_control(rng, npts, box, disp, minr):
     plain = None
     span2 = 2*(2*plain_fw) + plain_gap
     if elen2 >= span2 + 2*plain_end:
-        pdepth = rng.uniform(3.0, 4.0) * minr
+        pdepth = rng.uniform(3.0, 4.0) * minr * fill
         if not antler_in and rng.random() < 0.7:
             pmx, pmy = A2[0] + ux2*elen2/2.0, A2[1] + uy2*elen2/2.0
             if interior_clear(pmx, pmy, -nx2, -ny2, e_plain) >= pdepth + plain_fw + 4*minr:
@@ -722,7 +722,7 @@ def _fractal_control(rng, npts, box, disp, minr):
 
 
 def gen_fractal(seed=1, npts=8, box=200.0, disp=0.45, minr=8.0, step=6.0,
-                passes=8):
+                passes=8, fill=1.0):
     """Serpentines at two scales: one big antlered finger (its tip sprouts
     two small serpentine fingers) on the longest hull edge, a plain
     two-finger comb on the second-longest when it fits. Deterministic per
@@ -730,13 +730,58 @@ def gen_fractal(seed=1, npts=8, box=200.0, disp=0.45, minr=8.0, step=6.0,
     import random
     for attempt in range(160):
         rng = random.Random(seed * 1000 + attempt)
-        loop = _fractal_control(rng, npts, box, disp, minr)
+        loop = _fractal_control(rng, npts, box, disp, minr, fill)
         if loop is None:
             continue
         c = _finish_loop(loop, minr, step, passes)
         if c is not None:
             return c, True
     raise SystemExit(f"gen_fractal: no valid loop after 160 attempts (seed {seed})")
+
+
+def gen_double_spiral(turns=2.1, pitch_pair=46.0, r_core=17.0, step=6.0):
+    """Spiral in, U-turn at the core, spiral back out interleaved between the
+    in-arm's windings, then a U-bend through the empty wedge below the entry
+    closes the circuit. pitch_pair is the radial distance between successive
+    windings of the SAME arm (two corridors + walls fit inside it). Closed."""
+    c = pitch_pair / (2 * math.pi)      # radius shed per radian, per arm pair
+    half = pitch_pair / 2.0             # in-arm to out-arm radial offset
+    theta_max = 2 * math.pi * turns
+    r0 = r_core + half + c * theta_max
+    path = []
+    # in-arm: r = r0 - c*theta, theta 0 -> theta_max
+    theta = 0.0
+    while theta < theta_max:
+        r = r0 - c * theta
+        path.append((r * math.cos(theta), r * math.sin(theta)))
+        theta += step / max(r, 1.0)
+    # core U-turn: half circle of radius half/2 joining the arm ends
+    r_in_end = r0 - c * theta_max
+    r_out_end = r_in_end - half
+    mid = (r_in_end + r_out_end) / 2.0
+    ex, ey = math.cos(theta_max), math.sin(theta_max)
+    px, py = -ey, ex
+    n_u = max(6, int(math.pi * half / 2 / step))
+    for i in range(1, n_u + 1):
+        a = math.pi * i / n_u
+        rr = mid + (half / 2.0) * math.cos(a)
+        along = (half / 2.0) * math.sin(a)
+        path.append((rr * ex + along * px, rr * ey + along * py))
+    # out-arm: r = r0 - half - c*theta, theta theta_max -> 0
+    theta = theta_max
+    while theta > 0:
+        r = r0 - half - c * theta
+        path.append((r * math.cos(theta), r * math.sin(theta)))
+        theta -= step / max(r, 1.0)
+    # outer U-bend: a half circle bulging into the empty wedge below the
+    # entry (both joints tangent-smooth, same construction as the core turn)
+    r_exit = r0 - half
+    cx0 = (r_exit + r0) / 2.0
+    n_v = max(6, int(math.pi * half / 2 / step))
+    for i in range(1, n_v):
+        a = math.pi * i / n_v
+        path.append((cx0 - (half / 2.0) * math.cos(a), -(half / 2.0) * math.sin(a)))
+    return path, True
 
 
 GENERATORS = {
@@ -749,6 +794,7 @@ GENERATORS = {
     'lobes': gen_lobes,
     'hybrid': gen_hybrid,
     'fractal': gen_fractal,
+    'dspiral': gen_double_spiral,
 }
 
 
@@ -805,6 +851,26 @@ def dedupe(pts):
     for p in pts[1:]:
         if p != out[-1]:
             out.append(p)
+    # integer rounding can fold tight turns into A-B-A backtrack spikes,
+    # which the game's collinear-overlap intersection check rejects --
+    # unfold them (and any duplicates they expose) until stable
+    changed = True
+    while changed:
+        changed = False
+        i = 1
+        while i < len(out) - 1:
+            if out[i - 1] == out[i + 1]:
+                del out[i:i + 2]
+                changed = True
+            else:
+                i += 1
+        i = 1
+        while i < len(out):
+            if out[i] == out[i - 1]:
+                del out[i]
+                changed = True
+            else:
+                i += 1
     return out
 
 

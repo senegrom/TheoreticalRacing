@@ -20,6 +20,8 @@ def main() -> int:
     actual = {"AI1": {}, "AI2": {}}
     with tempfile.TemporaryDirectory(prefix="round126-regression-") as directory:
         bench_ai.configure_runtime(directory)
+        import fixture_install
+        bench_ai.JAR = str(fixture_install.install(directory, ["zandvoort"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
         for kind in ("AI1", "AI2"):
             bench_ai.set_all_to(kind)

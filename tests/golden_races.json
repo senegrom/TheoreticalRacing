@@ -50,20 +50,20 @@
       "track": "hungaroring",
       "seed": 13,
       "players": 8,
-      "sha256": "89c6525dae4a91d3f62d81c3fb216998ef5d6c267ac57c4d2f03fea4a9c0fe86",
+      "sha256": "a840cc211ed9eecb06c3f3cd7276673a19c6ea61337711d67afe7643a5757934",
       "summary": {
-        "turns": 995,
+        "turns": 927,
         "finishes": 7,
         "crashes": 0,
         "results": [
-          "C",
-          "F",
-          "G",
           "H",
+          "B",
           "D",
           "E",
-          "A",
-          "B"
+          "G",
+          "C",
+          "F",
+          "A"
         ]
       }
     },
@@ -72,20 +72,20 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "24d088756cf35daa0ec3fc36b99b7fe8b2050c46f2d138efded90183140cc899",
+      "sha256": "0b85ed1bf10a755098d5e402e732dc1653bb2d21a80243dd8f528508125882ec",
       "summary": {
-        "turns": 562,
+        "turns": 802,
         "finishes": 7,
         "crashes": 0,
         "results": [
-          "D",
-          "H",
           "A",
           "B",
+          "C",
+          "D",
           "E",
           "F",
           "G",
-          "C"
+          "H"
         ]
       }
     },
@@ -110,15 +110,15 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "ee37c4cd24a2ae9a7f47cb335712774db5be1399c71bfca19265e434dca19227",
+      "sha256": "a513c38ea48c347191c716c056d9acd3fd7b5befaec5636574d56d769f404242",
       "summary": {
-        "turns": 445,
+        "turns": 431,
         "finishes": 3,
         "crashes": 0,
         "results": [
           "B",
-          "D",
           "A",
+          "D",
           "C"
         ]
       }
@@ -128,9 +128,9 @@
       "track": "monaco",
       "seed": 16,
       "players": 8,
-      "sha256": "5dc2ef6bfa57860bf46cae9735c86738ec5e14f919d68191e5b6a1d22d0bada2",
+      "sha256": "32660b72cfcf79ecba448a68cb8f9aae12308bb04bdc867589fb5e024e1d5187",
       "summary": {
-        "turns": 918,
+        "turns": 883,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -150,19 +150,19 @@
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "2962a7fa343520d5a97f5eaaef6e3e4f8298f03dba36ae6a4bd2df658a2c8591",
+      "sha256": "25cacc17221ea2d96eb19cc6f6ea4f8cbfa84502bbdf2c9d1532cba4910b8cc5",
       "summary": {
-        "turns": 750,
+        "turns": 973,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
-          "H",
           "B",
-          "E",
-          "C",
           "G",
+          "C",
           "D",
+          "E",
+          "H",
           "F"
         ]
       }
@@ -172,20 +172,20 @@
       "track": "interlagos",
       "seed": 10,
       "players": 8,
-      "sha256": "49c5461992308a1a92b006f4e0f453573d0d2ccd8f06db0c70eb90c771dc2ce8",
+      "sha256": "5a8d86cebbc84ae813f610078df9f0050ff5e9b982515b08be9d8947c343d2bb",
       "summary": {
-        "turns": 1011,
+        "turns": 983,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
           "D",
+          "G",
+          "B",
+          "C",
           "E",
           "F",
-          "G",
-          "H",
-          "C",
-          "B"
+          "H"
         ]
       }
     },
@@ -216,18 +216,18 @@
       "track": "zandvoort",
       "seed": 45,
       "players": 8,
-      "sha256": "afbecd898fc1c9a93a2cd5205f4b40db395c79deaf1a2a93f9adaabf8ee1d43b",
+      "sha256": "4dc9be689d91256a3b0c8b5000b0f70bd2451cfccec5da64d2d1b91535846e4f",
       "summary": {
-        "turns": 1137,
+        "turns": 1117,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "D",
+          "F",
           "A",
           "B",
           "C",
           "E",
-          "F",
           "G",
           "H"
         ]
@@ -238,16 +238,16 @@
       "track": "lemans",
       "seed": 1,
       "players": 4,
-      "sha256": "b7ef0ffcffaf00f3337de0508da8c1cebbec03b2aedad7507d2c00f30659175c",
+      "sha256": "ba40bbbc627a3dacc70ff561ba4773c8c9d07840a8f63b2f3d8ea2ea3e66181b",
       "summary": {
-        "turns": 270,
+        "turns": 392,
         "finishes": 3,
         "crashes": 0,
         "results": [
-          "D",
           "A",
           "B",
-          "C"
+          "C",
+          "D"
         ]
       }
     }

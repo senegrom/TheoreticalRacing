@@ -22,6 +22,8 @@ def main() -> int:
     # certificate makes the race match the crash-free pre-private-lane policy.
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-ai1-mixed-") as directory:
         bench_ai.configure_runtime(directory)
+        import fixture_install
+        bench_ai.JAR = str(fixture_install.install(directory, ["lemans"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
         bench_ai.set_kinds(["AI2"] * 4 + ["AI1"] * 4)
         result = bench_ai.run_track_h2h("lemans", timeout=600, seed=2)

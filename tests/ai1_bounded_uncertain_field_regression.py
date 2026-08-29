@@ -194,6 +194,8 @@ def main() -> int:
         prefix="bounded-uncertain-field-regression-"
     ) as directory:
         bench_ai.configure_runtime(directory)
+        import fixture_install
+        bench_ai.JAR = str(fixture_install.install(directory, ["lemans"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
         for kind in ("AI1", "AI2"):
             bench_ai.set_all_to(kind)

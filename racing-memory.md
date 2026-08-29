@@ -6,6 +6,45 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Fleet batch 2026-08-29 (user TODO): rescales, widening, double spirals, fractal v3
+
+Six orders executed:
+- curve and sprint DELETED from the fleet; the_long_loop renamed
+  ugly_bump ("it's not a loop"). sprint's geometry survives as a frozen
+  fixture: the codex immediate-finish pin races a PRIVATE INSTALL (jar
+  copy beside the fixture track), so its byte-frozen boards stay valid.
+- nurburgring rescaled x1.8 (231x306, the fleet's longest lap, ~940
+  cells) and lemans x2.2 (196x375) -- both were drawn at 34-40 m/cell
+  vs the fleet's ~10.7 median; full real scale (x3.2-3.7) exceeds the
+  reach state-space budget, so this is the engine's honest maximum.
+- GP minimum corridors widened toward ~2.5 cells: hungaroring 1.5->2.6,
+  interlagos 1.9->2.5, zandvoort 2.3->2.8, monaco 1.6->1.8 (its dense
+  hairpins reject more without self-intersecting -- Monaco stays
+  Monaco). Integer grids eat sub-cell pushes; the widener overshoots in
+  float (3.3) so rounding lands the target.
+- FIXTURE-INSTALL LAW: geometry surgery on canonical tracks breaks
+  pins whose certificates were derived on the old drawing. Eight pins
+  (bounded-uncertain, energy-pace, equal-speed-veto, fast-funnel,
+  mixed-safety, pace, private-slack, staged-pace) now stage private
+  installs via tests/fixture_install.py -- live AI code, frozen
+  reference geometry (tests/fixtures/*.track = pre-surgery drawings).
+  All eight PASS again; goldens re-baselined on the new geometry;
+  interlagos still completes its 3-lap solo crown after widening.
+- DOUBLE SPIRAL (new generator, user design): wind in, U-turn at the
+  core, wind out interleaved between the in-arm's windings, close
+  through the empty wedge below the entry. Both closure joints are
+  tangent-smooth half circles. dspiral1 (2.1 turns) and dspiral2 (2.6
+  turns, ~290 moves/car -- the fleet's longest race) validate 7f/0c.
+  Debug law: integer rounding folds tight turns into A-B-A backtrack
+  spikes that the game's collinear-overlap check rejects while naive
+  crossing tests see nothing -- dedupe now unfolds spikes to a fixpoint.
+- FRACTAL v3 (fill=1.35): depths scale 6.5->8.8*minr big, 3->4*minr
+  sub, inward pockets deeper -- fractal23-26 join the fleet (validated
+  7f, 780-1190 moves).
+
+Fleet: 83 tracks, 66 lap-ready. Atlas recreated (previous artifact
+deleted): dspiral/ugly_bump cards, rescale notes, fractal 26.
+
 ## Multi-lap M12-M15: loopability census, real-world declarations, closure laws
 
 User asked: make all real-world tracks loopable (import the closure
