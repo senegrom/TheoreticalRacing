@@ -6,6 +6,32 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## LAP BENCHMARK #1 (baseline): 4 complete / 66 gate-deaths / 13 no-loop
+
+First fleet-wide lap benchmark (solo AI2, laps=3, seed 1, every
+track): COMPLETE -- circle (123 moves), interlagos (465), hybrid1
+(395), and the brand-new dspiral1 (753). All 66 deaths share ONE
+signature: laps=0, both checkpoints collected, killed on the first S/F
+gate approach -- the deep-search/lap-map misalignment is the single
+frontier, now quantified. The benchmark harness (solo laps=3 sweep +
+per-track COMPLETE/DIED/NOLOOP scoreboard) is the lap era's standing
+instrument; re-run it after every lap-quality round.
+
+Benchmark-caught regression, fixed: the x1.8/x2.2 rescales scaled
+lemans's and nurburgring's S/F side gaps past the 8-cell auto clamp
+(9.0/11.5) -- both refused to loop. As real circuits with properly
+opposite endpoints they now declare lapClosable=true and re-arm into
+the standard frontier. Scale-aware lesson: the clamp measures cells,
+and rescaling multiplies gaps too.
+
+Next: the gate-death arc opens (round 191). Known so far: the fatal
+decisions bypass the deep machinery's debug print (scan-level early
+returns and fallbacks), masks at the death states show one rejected
+crossing plus all-illegal alternatives, and doom seals several moves
+before the gate. Plan: instrument the scan returns and fallback paths,
+trace the first divergence from the lap map's finite line on rand1,
+and fix the emitting path.
+
 ## GP loops complete (user-ordered): all ten GP circuits loopable
 
 Two follow-up orders. (1) monaco rescaled x1.5 from its ORIGINAL
