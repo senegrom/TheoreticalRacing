@@ -6,6 +6,27 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## GP loops complete (user-ordered): all ten GP circuits loopable
+
+Two follow-up orders. (1) monaco rescaled x1.5 from its ORIGINAL
+drawing (uniform scale preserves the hairpin character exactly, unlike
+the widener): min corridor 1.97 >= the 1.9 floor, grid 195x255,
+mixed race clean, goldens re-baselined. Law: integer rounding eats
+sub-cell margins -- a x1.3 attempt landed at 1.74 despite 2.04 in
+float; scale so the float value clears the target with rounding room.
+(2) zandvoort, silverstone, spa, spielberg loop-REPAIRED by data
+surgery: each boundary closed into its real ring (the gap segment IS
+the missing real-world wall), the right ring rotated so its start sits
+opposite the left start, both re-cut with small aligned gaps
+(4.1-7.1 cells, all under the 8-cell clamp; S/F widths 3.2-13.6).
+Root cause had been offset first-points malforming the whole S/F zone.
+All four now: laps=1 mixed races 7f/0c; laps ARMED, joining the
+standard gate-death frontier (CP=2 then the S/F approach) that the
+new LAP BENCHMARK -- solo AI2 laps=3 over the whole fleet, first run
+in progress -- will quantify as the lap era's baseline scoreboard.
+Pins hosting spa/silverstone extended their frozen-fixture lists
+(bounded-uncertain, energy-pace, private-slack) -- all PASS.
+
 ## Fleet batch 2026-08-29 (user TODO): rescales, widening, double spirals, fractal v3
 
 Six orders executed:

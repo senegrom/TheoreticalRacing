@@ -15,7 +15,7 @@ def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:
   bench_ai.configure_runtime(d)
   import fixture_install
-  bench_ai.JAR = str(fixture_install.install(d, ["interlagos", "nurburgring", "zandvoort"]))  # frozen pre-2026-08-29 geometry
+  bench_ai.JAR = str(fixture_install.install(d, ["interlagos", "nurburgring", "zandvoort", "spa"]))  # frozen pre-2026-08-29 geometry
   bench_ai.set_nplayers(8); bench_ai.set_all_to("AI1")
   for (track,seed), expected in EXPECTED.items():
    result=bench_ai.run_track(track,timeout=900,seed=seed)
