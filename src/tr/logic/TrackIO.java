@@ -225,7 +225,25 @@ public final class TrackIO {
 		prop.put("gameX", String.valueOf(td.gameX()));
 		prop.put("gameY", String.valueOf(td.gameY()));
 		prop.put("useLastTrack", "true");
+		prop.put("lapClosable", String.valueOf(trackDeclaresClosable(name)));
 		return true;
+	}
+
+	/** True when the named track file declares lapClosable=true -- real-world
+	 *  circuits whose S/F straight closes the loop beyond the auto gap clamp. */
+	public static boolean trackDeclaresClosable(final String name) {
+		if (!validTrackName(name))
+			return false;
+		final Path file = tracksDir().resolve(name + ".track");
+		if (!Files.isRegularFile(file))
+			return false;
+		final Properties tp = new Properties();
+		try (java.io.InputStream in = Files.newInputStream(file)) {
+			tp.load(in);
+		} catch (final IOException e) {
+			return false;
+		}
+		return Boolean.parseBoolean(tp.getProperty("lapClosable", "false"));
 	}
 
 	public static boolean hasLastTrack(final Properties prop) {

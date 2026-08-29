@@ -41,9 +41,10 @@ public final class RaceGame {
 	/** Multi-lap gates: [0] short real S/F line, [1] CP1, [2] CP2. */
 	Line2D[]					lapGates;
 	private int[][]				lapGatePoints;
-	/** Multi-lap: blue closing boundary across the two S/F side gaps. */
-	private Line2D[]			lapClosures;
-	private int[][]				lapClosurePoints;
+	/** Multi-lap: blue closing boundary across the two S/F side gaps --
+	 *  per side a short polyline following the wall's natural extension. */
+	private Line2D[][]			lapClosures;
+	private int[][][]			lapClosurePoints;
 	private final static double	LAP_CLOSURE_MAX	= 8.0;
 	private boolean				startZoneGone;
 	Line2D				finishLine;
@@ -653,10 +654,15 @@ public final class RaceGame {
 		// has no gaps once it is closed. Moves ORIGINATING on the starting
 		// grid are exempt (the grid sits on the closure; leaving it is
 		// legitimate, re-entering through the closure is not).
+		// Crossing moves are exempt: the closures stop sideways escape through
+		// the boundary gaps, never the lap move itself -- a fast crossing spans
+		// the whole gap zone diagonally and would clip them.
 		if (totalLaps > 1 && lapClosures != null && !startZoneA.contains(x1, y1)
-				&& (lapClosures[0] != null && lapClosures[0].intersectsLine(x1, y1, x2, y2)
-						|| lapClosures[1] != null && lapClosures[1].intersectsLine(x1, y1, x2, y2)))
-			return false;
+				&& !crossesFinish(x1, y1, x2, y2))
+			for (final Line2D[] sideSegs : lapClosures)
+				for (final Line2D seg : sideSegs)
+					if (seg.intersectsLine(x1, y1, x2, y2))
+						return false;
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
 	}
 
@@ -1060,18 +1066,26 @@ public final class RaceGame {
 		final int[] rLast = rights.get(rights.size() - 1), rFirst = rights.get(0);
 		final double gapL = Math.hypot(lLast[0] - lFirst[0], lLast[1] - lFirst[1]);
 		final double gapR = Math.hypot(rLast[0] - rFirst[0], rLast[1] - rFirst[1]);
-		if (gapL > LAP_CLOSURE_MAX || gapR > LAP_CLOSURE_MAX) {
+		// Real-world circuits may declare lapClosable=true in their track
+		// file: their S/F straight closes the loop beyond the auto clamp.
+		final boolean declared = Boolean.parseBoolean(prop.getProperty("lapClosable", "false"));
+		if (!declared && (gapL > LAP_CLOSURE_MAX || gapR > LAP_CLOSURE_MAX)) {
 			totalLaps = 1;
 			System.out.println("[laps] boundary gap too wide to close ("
 					+ Math.round(Math.max(gapL, gapR)) + " cells) -- laps disabled");
 			return;
 		}
-		lapClosures = new Line2D[]{
-				gapL > 0 ? new Line2D.Double(lLast[0], lLast[1], lFirst[0], lFirst[1]) : null,
-				gapR > 0 ? new Line2D.Double(rLast[0], rLast[1], rFirst[0], rFirst[1]) : null };
-		lapClosurePoints = new int[][]{
-				{lLast[0], lLast[1], lFirst[0], lFirst[1] },
-				{rLast[0], rLast[1], rFirst[0], rFirst[1] } };
+		lapClosures = new Line2D[][]{extendClosure(lefts), extendClosure(rights) };
+		lapClosurePoints = new int[2][][];
+		for (int s = 0; s < 2; s++) {
+			lapClosurePoints[s] = new int[lapClosures[s].length][];
+			for (int i = 0; i < lapClosures[s].length; i++) {
+				final Line2D seg = lapClosures[s][i];
+				lapClosurePoints[s][i] = new int[]{(int) Math.round(seg.getX1()),
+						(int) Math.round(seg.getY1()), (int) Math.round(seg.getX2()),
+						(int) Math.round(seg.getY2()) };
+			}
+		}
 		lapGates = new Line2D[3];
 		lapGatePoints = new int[3][];
 		final double[] fractions = {0.0, 1.0 / 3, 2.0 / 3 };
@@ -1094,6 +1108,36 @@ public final class RaceGame {
 			System.out.println("[laps] gate geometry: S/F " + java.util.Arrays.toString(lapGatePoints[0])
 					+ " CP1 " + java.util.Arrays.toString(lapGatePoints[1])
 					+ " CP2 " + java.util.Arrays.toString(lapGatePoints[2]));
+	}
+
+	/** Natural continuation closure for one boundary side: extend the final
+	 *  segment's direction and the first segment's reverse direction to
+	 *  their intersection, closing along the wall's own curve instead of
+	 *  chord-cutting the corridor; straight fallback when degenerate. */
+	private static Line2D[] extendClosure(final java.util.List<int[]> side) {
+		final int[] last = side.get(side.size() - 1);
+		final int[] first = side.get(0);
+		if (last[0] == first[0] && last[1] == first[1])
+			return new Line2D[0];
+		final double gap = Math.hypot(last[0] - first[0], last[1] - first[1]);
+		final int[] prevLast = side.get(side.size() - 2);
+		final int[] nextFirst = side.get(1);
+		final double d1x = last[0] - prevLast[0], d1y = last[1] - prevLast[1];
+		final double d2x = first[0] - nextFirst[0], d2y = first[1] - nextFirst[1];
+		final double det = d2x * d1y - d1x * d2y;
+		if (Math.abs(det) > 1e-9) {
+			final double fx = first[0] - last[0], fy = first[1] - last[1];
+			final double t = (d2x * fy - d2y * fx) / det;
+			final double s = (d1x * fy - d1y * fx) / det;
+			final double reach = 3 * gap + 4;
+			if (t > 0 && s > 0
+					&& t * Math.hypot(d1x, d1y) < reach && s * Math.hypot(d2x, d2y) < reach) {
+				final double mx = last[0] + t * d1x, my = last[1] + t * d1y;
+				return new Line2D[]{new Line2D.Double(last[0], last[1], mx, my),
+						new Line2D.Double(mx, my, first[0], first[1]) };
+			}
+		}
+		return new Line2D[]{new Line2D.Double(last[0], last[1], first[0], first[1]) };
 	}
 
 	private static boolean segTouches(final Line2D gate, final int[] a, final int[] b) {
@@ -1491,7 +1535,10 @@ public final class RaceGame {
 		rui.setStartZone(startZone);
 		rui.setCheckpoints(totalLaps > 1 && lapGatePoints != null
 				? new int[][]{lapGatePoints[1], lapGatePoints[2] } : null);
-		rui.setLoopClosure(totalLaps > 1 ? lapClosurePoints : null);
+		rui.setLoopClosure(totalLaps > 1 && lapClosurePoints != null
+				? java.util.stream.Stream.of(lapClosurePoints)
+						.flatMap(java.util.stream.Stream::of).toArray(int[][]::new)
+				: null);
 		final Path2D.Float p = new Path2D.Float();
 		p.moveTo(startZone[0][0], startZone[1][0]);
 		for (int i = 1; i < 4; i++)

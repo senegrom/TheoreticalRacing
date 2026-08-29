@@ -287,7 +287,8 @@ final class RaceAi {
 				// regardless of landing speed, so hot arrivals must not count.
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
-						&& reach.shedableLanding(newX, newY, newVx, newVy)))
+						&& reach.isAlive(newX, newY, newVx, newVy)
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE))
 					return d;
 				// Stray or unshedable crossing: an ordinary legal move (cars
 				// spawn BEHIND the line -- excluding these walls them in).
@@ -601,7 +602,8 @@ final class RaceAi {
 				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
-						&& reach.shedableLanding(newX, newY, newVx, newVy)))
+						&& reach.isAlive(newX, newY, newVx, newVy)
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE))
 					return d;
 				// Stray or unshedable crossing: an ordinary legal move (cars
 				// spawn BEHIND the line -- excluding these walls them in).

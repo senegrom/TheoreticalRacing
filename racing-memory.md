@@ -6,6 +6,51 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Multi-lap M12-M15: loopability census, real-world declarations, closure laws
+
+User asked: make all real-world tracks loopable (import the closure
+from the real world) and whether all random tracks are loopable.
+
+CENSUS: all 53 generated tracks (rand 16, weave 8, lobe 6, hybrid 13,
+fractal 10) pass the 8-cell auto clamp -- every random track is
+loopable-armed. GP circuits: 6/10 auto-loopable (monza, monaco,
+lemans, nurburgring, hungaroring + interlagos via declaration); spa
+(21.5), silverstone (19.1), zandvoort (13.0), spielberg (56.3) fail.
+
+M12 -- lapClosable=true track-file declaration lifts the gap clamp
+(real-world closure knowledge; geometry untouched, so laps=1 and
+goldens unaffected -- verified). Declared for all five, then REVERTED
+for four: their S/F failure is deeper than closure length -- the
+left/right FIRST points are offset along the lap, so start zone,
+finish line and gate 0 are all malformed. Those four need track-data
+repair (endpoint alignment), a separate arc with golden re-baseline
+consequences. interlagos keeps its declaration and PROVES it: full
+3-lap solo, both checkpoints every lap, zero crashes, 481 moves.
+
+M13 -- closures close along the wall's natural extension (final
+segment direction meets first segment reverse direction) instead of
+chord-cutting; straight fallback when degenerate.
+
+M14 -- crossing precedence widened from shedable to SURVIVABLE
+(landing alive + CP1 map finite).
+
+M15 -- closure walls exempt moves that cross gate 0: closures stop
+sideways escape, never the lap move (a fast crossing spans the gap
+zone diagonally and would clip them). Lap cache key bumped -lap2 ->
+-lap3, and the LAW hardened: every lap-mode semantics change must
+bump the key -- three fixes in a row were invisible under stale
+persisted verdicts before this was caught.
+
+SOLO PANEL (fresh caches): circle, interlagos, hybrid1 complete full
+3-lap races clean. monza/lemans/nurburgring/rand1/weave1/lobe1/
+fractal1 all collect BOTH checkpoints then die near the gate; monaco
+circles; hungaroring's 3-wide S/F pinches at spawn. The common
+signature -- CP=2 then gate-approach death with the chooser picking
+X-masked moves while a finite map line exists -- points at the deep
+soft/DJS pricing deviating from the lap map near the gate (the
+machinery is finish-map-tuned). That alignment is the lap era's next
+research arc. Atlas republished: 62/79 lap-ready.
+
 ## Multi-lap M11 (user-ordered): blue loop closures, loopability clamp, start-zone hide
 
 Three orders landed on top of V1: (1) a blue closing boundary bridges
