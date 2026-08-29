@@ -287,9 +287,11 @@ final class RaceAi {
 				// regardless of landing speed, so hot arrivals must not count.
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
-						&& reach.isAlive(newX, newY, newVx, newVy)
-						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE))
+						&& reach.shedableLanding(newX, newY, newVx, newVy))) {
+					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
+				}
 				// Stray or unshedable crossing: an ordinary legal move (cars
 				// spawn BEHIND the line -- excluding these walls them in).
 			}
@@ -306,8 +308,17 @@ final class RaceAi {
 				best = d;
 			}
 		}
-		if (best != null)
+		if (best != null) {
+			if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+				System.err.println("AIDBG scan1 p=" + playerNum + " pos=(" + x + "," + y
+						+ ") vel=(" + vx + "," + vy + ") chosen=" + best + " t=" + bestTurns
+						+ " gate=" + lapGate);
 			return best;
+		}
+		if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+			System.err.println("AIDBG scan1-FB p=" + playerNum + " pos=(" + x + "," + y
+					+ ") vel=(" + vx + "," + vy + ") legal=" + fallbackLegalMask
+					+ " illegal=" + fallbackIllegalMask + " gate=" + lapGate);
 		return scoreMinTurnsFallback(x, y, vx, vy,
 				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
 	}
@@ -602,9 +613,11 @@ final class RaceAi {
 				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
-						&& reach.isAlive(newX, newY, newVx, newVy)
-						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE))
+						&& reach.shedableLanding(newX, newY, newVx, newVy))) {
+					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
+				}
 				// Stray or unshedable crossing: an ordinary legal move (cars
 				// spawn BEHIND the line -- excluding these walls them in).
 			}

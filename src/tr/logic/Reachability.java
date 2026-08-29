@@ -249,13 +249,18 @@ final class Reachability {
 							if (velocityOutOfRange(nvx, nvy))
 								continue;
 							final int nx = x + nvx, ny = y + nvy;
-							final boolean hits = gate == 0
+							// Unlike the laps=1 finish (where crossing ends the race and
+							// is legality-exempt), a mid-race gate passage must be an
+							// ordinarily LEGAL move -- seeds that clip a wall corner
+							// lure the chooser into value-1 death traps.
+							final boolean hits = (gate == 0
 									? game.crossesFinish(x, y, nx, ny)
 											&& shedableLanding(nx, ny, nvx, nvy)
 									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
 											line.getX2(), line.getY2(), x, y, nx, ny)
 											&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
-											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy));
+											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
+									&& game.isMoveLegalGeometryCached(x, y, nx, ny);
 							if (hits) {
 								final int idx = aliveIdx(x, y, vx, vy);
 								if (!seen.get(idx)) {
@@ -1050,7 +1055,7 @@ final class Reachability {
 			// The suffix flows into the memo key and the .edges/.derived
 			// siblings automatically, since all of them derive from this path.
 			return TrackIO.reachCacheDir().resolve("reach-" + hex
-					+ (game.totalLaps > 1 ? "-lap3" : "") + ".bin");
+					+ (game.totalLaps > 1 ? "-lap4" : "") + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}

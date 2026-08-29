@@ -122,6 +122,8 @@ def main() -> int:
     cases = [TARGET, *VETO_CASES]
     with tempfile.TemporaryDirectory(prefix="six-ahead-high-speed-regression-") as directory:
         bench_ai.configure_runtime(directory)
+        import fixture_install
+        bench_ai.JAR = str(fixture_install.install(directory, ["silverstone", "spa"]))  # frozen pre-repair geometry
         bench_ai.set_nplayers(8)
         for kind in ("AI1", "AI2"):
             bench_ai.set_all_to(kind)

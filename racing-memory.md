@@ -6,6 +6,37 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 191 (local agent, SHIPPED): legal-seed lap maps -- the gate-death fix
+
+The benchmark's 66 uniform gate-deaths traced to ONE line-class bug,
+proven by instrumented forensics: the chooser follows the gate-0 map
+PERFECTLY (ttf 14 -> 1 down the approach) into a trap, because the lap
+maps seeded every `crossesFinish && shedable` move as turns=1 WITHOUT
+checking the crossing edge's geometry-legality. At laps=1 that is
+correct semantics (a crossing ends the race and is legality-exempt);
+multi-lap M1 made non-final crossings ordinarily-legal moves, so
+states whose only crossing clips a wall corner still advertised
+value 1 and lured cars to their death (mask at the trap: one rejected
+F, eight X). Fix: gate-map seeds (S/F and checkpoint alike) require
+game.isMoveLegalGeometryCached on the seed move; the crossing
+precedence tests exactly the seed criterion (edge-legal + shedable
+landing), restoring gate/map agreement; the final-lap turnsArr keeps
+legacy exempt semantics. Lap cache key -> -lap4.
+
+Effect: rand1, monza, weave1, lobe1, fractal1, spa -- all previously
+gate-dying -- immediately complete flawless 3-lap solos (2 LAP marks +
+FINISH, all checkpoints, zero crashes). LAP BENCHMARK #2: 59 complete / 13 died / 11 no-loop -- 55 tracks flipped in one round
+(baseline #1 was 4 complete / 66 died / 13 no-loop).
+
+Verification: laps=1 byte-identical; full battery green after four
+more silverstone/spa-hosted pins (cross-model-pace, early-round-trap,
+six-ahead-high-speed, staged-pace) joined the frozen-fixture regime --
+they had broken silently at the loop-repair commit because only the
+three extended pins were re-run there. LAW: after ANY canonical-track
+geometry change, run the FULL battery, not the known-affected subset.
+Debug scan-exit instrumentation (AIDBG scan1/scan1-FB/SCAN-CROSS)
+stays, debug-gated.
+
 ## LAP BENCHMARK #1 (baseline): 4 complete / 66 gate-deaths / 13 no-loop
 
 First fleet-wide lap benchmark (solo AI2, laps=3, seed 1, every
