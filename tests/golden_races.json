@@ -2,28 +2,6 @@
   "format": 1,
   "cases": [
     {
-      "name": "sprint-s1-8p",
-      "track": "sprint",
-      "seed": 1,
-      "players": 8,
-      "sha256": "bea51814694c6c8c6ef7ba438aec2c581807a3d16dcc767742a5e2c841f3be04",
-      "summary": {
-        "turns": 118,
-        "finishes": 7,
-        "crashes": 0,
-        "results": [
-          "F",
-          "A",
-          "G",
-          "B",
-          "C",
-          "D",
-          "E",
-          "H"
-        ]
-      }
-    },
-    {
       "name": "hairpin-s10-8p",
       "track": "hairpin",
       "seed": 10,

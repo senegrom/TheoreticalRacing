@@ -23,7 +23,6 @@ import bench_ai  # noqa: E402
 
 FIXTURE = ROOT / "tests" / "golden_races.json"
 SPECS = [
-    {"name": "sprint-s1-8p", "track": "sprint", "seed": 1, "players": 8},
     {"name": "hairpin-s10-8p", "track": "hairpin", "seed": 10, "players": 8},
     {"name": "zigzag-s4-8p", "track": "zigzag", "seed": 4, "players": 8},
     {"name": "hungaroring-s13-8p", "track": "hungaroring", "seed": 13, "players": 8},

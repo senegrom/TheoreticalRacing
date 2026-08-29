@@ -220,7 +220,7 @@ public final class CoreTests {
 
     private static void testTrackNames() {
         check(TrackIO.validTrackName("sprint"), "simple track name rejected");
-        check(TrackIO.validTrackName("the_long_loop"), "underscore track name rejected");
+        check(TrackIO.validTrackName("ugly_bump"), "underscore track name rejected");
         check(!TrackIO.validTrackName("../sprint"), "parent traversal track name accepted");
         check(!TrackIO.validTrackName("..\\sprint"), "Windows traversal track name accepted");
         check(!TrackIO.validTrackName("C:sprint"), "drive-qualified track name accepted");

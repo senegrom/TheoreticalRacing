@@ -2,6 +2,7 @@
 """Pin immediate-finish precedence over a superficially winning endgame seal."""
 
 from pathlib import Path
+import shutil
 import sys
 import tempfile
 
@@ -12,6 +13,10 @@ import bench_ai  # noqa: E402
 from forensics_common import Oracle  # noqa: E402
 
 TRACK = "sprint"
+# sprint left the fleet (2026-08-29): the pin races a PRIVATE install --
+# a jar copy beside the frozen fixture track -- so its byte-frozen boards
+# and masks stay valid forever, independent of the live tracks/ folder.
+FIXTURE_JAR = None
 ROOT_BOARD = [
     (32, 10, -4, 9, 0),
     (28, 20, 0, -3, 0),
@@ -37,7 +42,7 @@ AFTER_RIVAL_CRASH = [
 
 def ask(kind: str, queries: list[tuple[int, list[tuple[int, int, int, int, int]]]]):
     bench_ai.set_all_to(kind)
-    oracle = Oracle(TRACK, Path(bench_ai.JAR), bench_ai.PROPS)
+    oracle = Oracle(TRACK, FIXTURE_JAR or Path(bench_ai.JAR), bench_ai.PROPS)
     try:
         return [oracle.ask(mover, board) for mover, board in queries]
     finally:
@@ -50,6 +55,13 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="immediate-finish-") as directory:
         bench_ai.configure_runtime(directory)
+        global FIXTURE_JAR
+        install = Path(directory)
+        FIXTURE_JAR = install / "theoreticRacing.jar"
+        shutil.copyfile(bench_ai.JAR, FIXTURE_JAR)
+        (install / "tracks").mkdir(exist_ok=True)
+        shutil.copyfile(ROOT / "tests" / "fixtures" / "sprint.track",
+                        install / "tracks" / "sprint.track")
         ai1 = {}
         ai2 = {}
         for nplayers, board in ROOT_BOARDS.items():

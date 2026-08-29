@@ -23,7 +23,7 @@ def main() -> int:
                 str(JAR),
                 "--auto",
                 "--track",
-                "sprint",
+                "chicane",
                 "--props",
                 "bench.properties",
                 "--log",
@@ -40,7 +40,7 @@ def main() -> int:
             raise SystemExit(f"headless race failed ({result.returncode})\n{result.stdout}\n{result.stderr}")
         log = (work / "race.log").read_text(encoding="utf-8")
         if "# results" not in log or log.count(" FINISH ") != 7 or " CRASH " in log:
-            raise SystemExit("headless race did not produce the expected complete sprint result")
+            raise SystemExit("headless race did not produce the expected complete chicane result")
 
         invalid_props = work / "human.properties"
         invalid_props.write_text(
@@ -56,7 +56,7 @@ def main() -> int:
                 str(JAR),
                 "--auto",
                 "--track",
-                "sprint",
+                "chicane",
                 "--props",
                 invalid_props.name,
                 "--log",
