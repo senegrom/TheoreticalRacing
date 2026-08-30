@@ -296,6 +296,20 @@ final class RaceAi {
 				// Stray or unshedable crossing: an ordinary legal move (cars
 				// spawn BEHIND the line -- excluding these walls them in).
 			}
+			// Checkpoint touch precedence: the post-touch landing prices a
+			// full lap on the CURRENT gate map, so slow approaches would bob
+			// one cell before the line forever (the gate-0 stall, at the CPs).
+			// A touch with a continuing landing is progress -- take it.
+			if (lapAware && lapGate != 0 && (sm & bit) != 0
+					&& game.touchesGate(lapGate, x, y, newX, newY)
+					&& !game.isCrashingPlayer(newX, newY, playerNum)
+					&& reach.isAlive(newX, newY, newVx, newVy)
+					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
+							!= Integer.MAX_VALUE) {
+				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
+				return d;
+			}
 			if ((sm & bit) == 0) {
 				fallbackIllegalMask |= bit;
 				continue;
@@ -622,6 +636,20 @@ final class RaceAi {
 				}
 				// Stray or unshedable crossing: an ordinary legal move (cars
 				// spawn BEHIND the line -- excluding these walls them in).
+			}
+			// Checkpoint touch precedence: the post-touch landing prices a
+			// full lap on the CURRENT gate map, so slow approaches would bob
+			// one cell before the line forever (the gate-0 stall, at the CPs).
+			// A touch with a continuing landing is progress -- take it.
+			if (lapAware && lapGate != 0 && (sm & bit) != 0
+					&& game.touchesGate(lapGate, pos[0], pos[1], newX, newY)
+					&& !game.isCrashingPlayer(newX, newY, playerNum)
+					&& reach.isAlive(newX, newY, newVx, newVy)
+					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
+							!= Integer.MAX_VALUE) {
+				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
+				return d;
 			}
 			if ((sm & bit) == 0) {
 				fallbackIllegalMask |= bit;

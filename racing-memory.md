@@ -6,6 +6,36 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 194 (local agent, SHIPPED): checkpoint touch precedence -- the solo sweep is PERFECT
+
+The three stragglers (fractal23, hybrid7, weave7) had healthy maps and
+still circled 3000 turns: they parked ONE CELL before their checkpoint
+line, bobbing at v0-1 forever. Mechanism: the gate-0 stall reincarnated
+at the CPs -- a post-touch landing prices a FULL LAP on the mover's
+CURRENT gate map, so pre-touch value-1 states always win; fast tracks
+escape only because physics forbids lingering at the line, slow tight
+approaches expose it. Fix: the same touch-precedence the S/F got --
+lapGate 1/2 candidates that touch the required CP with a legal edge,
+alive landing and NEXT-map-finite continuation short-circuit as
+progress (SCAN-CP), coherent with round 193's seed criteria.
+
+SOLO LAP BENCHMARK #6: 72 complete / 0 died / 11 no-loop -- a PERFECT
+SWEEP of the loop-armed fleet. Scoreboard arc closed: 4/66 -> 59/13 ->
+46/26 -> 50/22 -> 69/3 -> 72/0. The multi-lap navigation architecture
+(gates, product-coherent maps, precedences, closures, bands) is DONE.
+laps=1 byte-identical throughout; 25/25 battery.
+
+MULTI-CAR LAP BENCHMARK #1 (new standing instrument: 8-car mixed,
+laps=3, seed 1): 18/72 clean. 54 tracks crash in traffic, many as
+total wipeouts (fin=0 crash=7 grinding to the runaway cap): all eight
+weaves, both dspirals, fractal8/23-26, monaco, lemans, zandvoort,
+interlagos, hybrid3/17 among them. Same tracks race laps=1 mixed
+crash-free -- the failure is LAP TRAFFIC (gate bottlenecks, single-file
+shedable approaches contended by eight cars). That is the lap-quality
+frontier, now with a clean baseline; ops laws this stretch: benchmark
+workers are RESUMABLE (skip banked rows) under a 30-minute schtasks
+watchdog that self-heals reconnect kills.
+
 ## Round 193 (local agent, SHIPPED): product-coherent gate maps -- 69/72 lap the fleet
 
 The CP1-hole forensics bottomed out in an architecture truth: on

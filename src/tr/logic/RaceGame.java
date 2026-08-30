@@ -1330,6 +1330,14 @@ public final class RaceGame {
 		return Direction.NONE;
 	}
 
+	/** Direction-free touch test against one lap gate segment. */
+	boolean touchesGate(final int gate, final int x1, final int y1,
+			final int x2, final int y2) {
+		return totalLaps > 1 && lapGates != null
+				&& Line2D.linesIntersect(lapGates[gate].getX1(), lapGates[gate].getY1(),
+						lapGates[gate].getX2(), lapGates[gate].getY2(), x1, y1, x2, y2);
+	}
+
 	/** The player's next required gate (0=S/F, 1=CP1, 2=CP2). */
 	int nextGateOf(final int playerNum) {
 		if (totalLaps <= 1 || lapGates == null)
