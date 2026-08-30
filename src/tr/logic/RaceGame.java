@@ -1353,6 +1353,11 @@ public final class RaceGame {
 						lapGates[gate].getX2(), lapGates[gate].getY2(), x1, y1, x2, y2);
 	}
 
+	/** Landing within range of a gate segment (lap mode) -- where queues form. */
+	boolean nearRequiredGate(final int gate, final double x, final double y, final double r) {
+		return totalLaps > 1 && lapGates != null && lapGates[gate].ptSegDist(x, y) <= r;
+	}
+
 	/** The player's next required gate (0=S/F, 1=CP1, 2=CP2). */
 	int nextGateOf(final int playerNum) {
 		if (totalLaps <= 1 || lapGates == null)

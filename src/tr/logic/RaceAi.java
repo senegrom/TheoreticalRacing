@@ -288,7 +288,8 @@ final class RaceAi {
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
-						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE)) {
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
+						&& needleHeadway(newX, newY, newVx, newVy, playerNum))) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -299,13 +300,18 @@ final class RaceAi {
 			// Checkpoint touch precedence: the post-touch landing prices a
 			// full lap on the CURRENT gate map, so slow approaches would bob
 			// one cell before the line forever (the gate-0 stall, at the CPs).
-			// A touch with a continuing landing is progress -- take it.
+			// A touch with a continuing landing is progress -- take it. In
+			// traffic the landing must also hold needle headway: without it
+			// the precedence rams the car into an occupied one-cell pocket
+			// at unstoppable speed (the scorer then prices the wait instead,
+			// and the touch fires the moment the queue clears).
 			if (lapAware && lapGate != 0 && (sm & bit) != 0
 					&& game.touchesGate(lapGate, x, y, newX, newY)
 					&& !game.isCrashingPlayer(newX, newY, playerNum)
 					&& reach.isAlive(newX, newY, newVx, newVy)
 					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
-							!= Integer.MAX_VALUE) {
+							!= Integer.MAX_VALUE
+					&& needleHeadway(newX, newY, newVx, newVy, playerNum)) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
 				return d;
@@ -512,6 +518,8 @@ final class RaceAi {
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
 	private final static double	AI1_TRAP_L1		= 2.0;	// trap ladder: 1 safe successor
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
+	private final static int		AI1_NEEDLE_RIVAL_R	= 8;	// round 197: traffic radius for the needle-headway law
+	private final static double	AI1_NEEDLE_TRAP	= 30.0;	// round 197: surcharge for an unstoppable no-headway landing
 
 	/**
 	 * Promoted smart-driver policy. AI2 delegates here so both smart kinds run
@@ -633,7 +641,8 @@ final class RaceAi {
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
-						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE)) {
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
+						&& needleHeadway(newX, newY, newVx, newVy, playerNum))) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -644,13 +653,15 @@ final class RaceAi {
 			// Checkpoint touch precedence: the post-touch landing prices a
 			// full lap on the CURRENT gate map, so slow approaches would bob
 			// one cell before the line forever (the gate-0 stall, at the CPs).
-			// A touch with a continuing landing is progress -- take it.
+			// A touch with a continuing landing is progress -- take it (in
+			// traffic only with needle headway; see pure scan).
 			if (lapAware && lapGate != 0 && (sm & bit) != 0
 					&& game.touchesGate(lapGate, pos[0], pos[1], newX, newY)
 					&& !game.isCrashingPlayer(newX, newY, playerNum)
 					&& reach.isAlive(newX, newY, newVx, newVy)
 					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
-							!= Integer.MAX_VALUE) {
+							!= Integer.MAX_VALUE
+					&& needleHeadway(newX, newY, newVx, newVy, playerNum)) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
 				return d;
@@ -713,6 +724,16 @@ final class RaceAi {
 			// even alone.
 			if (trapPenalty > 0.0 && d2SafeCount > 0 && !rivalWithinCheb(newX, newY, playerNum, AI1_TRAP_SOLO_R))
 				trapPenalty = 0.0;
+			// Needle headway surcharge (round 197): an UNSTOPPABLE landing
+			// without two body-free alive continuations under CURRENT
+			// occupancy is one leader-stall from death -- the d2SafeCount
+			// world-step credits rivals with vacating, which a stall wave
+			// falsifies. Queues form at gates AND at narrow turns (rand2's
+			// westward pocket), so the law is traffic-gated, not gate-gated.
+			// Price it above every free approach so a stoppable entry wins.
+			if (game.totalLaps > 1 && lapAware && trapPenalty < 50.0
+					&& !needleHeadway(newX, newY, newVx, newVy, playerNum))
+				trapPenalty = Math.max(trapPenalty, AI1_NEEDLE_TRAP);
 			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
 			// Per-state certified budget with a legacy floor: the map-certified
@@ -4444,6 +4465,45 @@ final class RaceAi {
 			}
 			if (!blocked)
 				n++;
+		}
+		return n;
+	}
+
+	/** Round 197 needle headway: TRUE when a landing may take a lap-gate
+	 *  precedence in traffic. Stoppable (both velocity components <= 1: the
+	 *  car can park next turn and absorb a queue stall the way a leader
+	 *  does), no rival near the landing, or two body-free alive
+	 *  continuations proven under CURRENT occupancy. The world-step trap
+	 *  ladder predicts rivals vacating -- exactly wrong in a stall wave:
+	 *  the first follower above stoppable speed one cell behind a parked
+	 *  leader is dead (hybrid20 CP2 pocket: p5/p7 parked and lived, p8
+	 *  entered at vy=2 and died). */
+	private boolean needleHeadway(final int nx, final int ny, final int nvx, final int nvy,
+			final int playerNum) {
+		if (Math.abs(nvx) <= 1 && Math.abs(nvy) <= 1)
+			return true;
+		if (!rivalWithinCheb(nx, ny, playerNum, AI1_NEEDLE_RIVAL_R))
+			return true;
+		return currentFreeAliveSuccessors(nx, ny, nvx, nvy, playerNum, 2) >= 2;
+	}
+
+	/** Successor landings that are velocity-valid, geometry-legal, body-free
+	 *  RIGHT NOW and alive -- provable headway with no vacate optimism.
+	 *  Early-exits at {@code cap}. */
+	private int currentFreeAliveSuccessors(final int x, final int y, final int vx, final int vy,
+			final int playerNum, final int cap) {
+		int n = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (!game.isMoveLegalGeometryCached(x, y, nx, ny)
+					|| game.isCrashingPlayer(nx, ny, playerNum)
+					|| !reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			if (++n >= cap)
+				return n;
 		}
 		return n;
 	}

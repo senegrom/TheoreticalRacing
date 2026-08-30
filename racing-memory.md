@@ -6,6 +6,51 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 197 (local agent, SHIPPED): the needle-headway law -- multicar clean 41 -> 60 of 72
+
+The hybrid20 forensic bottomed the queue-death mechanism. The CP2 exit
+is a one-cell-wide geodesic pocket; a nose-to-tail train (p5,p7,p8,p2)
+threads it at 1-cell headway, and each leader stall propagates one
+follower back. p5 and p7 PARKED to absorb the wave and lived -- they
+had entered at stoppable speed (both velocity components <= 1). p8
+entered at vy=2, could not park (min next vy=1 forced it forward into
+the parked leader's only-exit cell), and died. The existing trap
+ladder priced the doom correctly ONCE INSIDE (trap=50 chosen for lack
+of better); the fatal act was the ENTRY, rammed by the CP touch
+precedence which short-circuits every traffic term. And the
+d2SafeCount world-step credits rivals with VACATING -- exactly wrong
+in a stall wave.
+
+THE LAW: needleHeadway(landing) = stoppable, OR no rival within
+Chebyshev 8 of the landing, OR >= 2 body-free alive continuations
+under CURRENT occupancy (no vacate optimism). Enforced three ways:
+the crossing precedence and the CP touch precedence require it in
+traffic (the touch then simply fires the moment the queue clears --
+the r194 bob is bounded by jam duration, not reintroduced), and the
+main scorer prices any no-headway landing at trap >= 30 so a
+stoppable entry beats every hot one. First cut gated the surcharge to
+gate proximity; the rand2 westward-turn queue proved queues form at
+narrow TURNS too, so the law is traffic-gated only. That widening
+also swept the hybrid20 S/F-flank overshoot class (three identical
+crashes at (117,40)v(2,-6)) without a dedicated fix.
+
+MULTI-CAR BENCH #4: 60/72 clean, from 41 (arc 18 -> 33 -> 41 -> 60).
+silverstone 3 crashes -> 0, hybrid20 5 -> 0, fractal8 4 -> 0 (CLEAN),
+lobe2-6 all clean (the uniform 6f/1c family), gear/weave1/circle/cog
+hold. Solo racing PROVABLY unchanged: needleHeadway is true with no
+rival near, and hybrid20/hybrid12/weave1 solo logs are byte-identical;
+laps=1 byte-identical (precedence gates and the surcharge are
+lap-mode-only by construction); 25/25 battery.
+
+Residue (12 tracks): nine single-crash rows (hybrid12/17, monaco,
+rand12/13/17/6, weave3 + rand16/19 at 2), fractal1 4f/3c, and rand2
+2f/5c -- diagnosed to the next mechanism: when traffic blanks every
+finite candidate, scoreMinTurnsFallback picks among LEGAL moves with
+no alive check and can steer into a legal-but-doomed spur (p5's
+terminal state (110,8)v(-3,-1): legal=0, selfAlive=false at entry+1).
+Round 198: lap-gated alive-preference in that last-resort fallback
+(tier finite-ttf > alive-legal > legal).
+
 ## Round 196 (local agent, SHIPPED): the S/F gate was a wall -- de-funneled crossings sweep the traffic board
 
 Two diseases found under the wipeout forensics, one round:
