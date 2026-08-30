@@ -1240,12 +1240,14 @@ public final class RaceGame {
 		final Player player = players[subgamestate];
 		final int[] velBefore = player.getVelocity().clone();
 		final Direction d = directionOf(velBefore, vel);
-		// Multi-lap runaway safety: a broken gate chain must not grow the log
-		// to the VM limit -- force-crash every live car and end the race.
-		if (totalLaps > 1 && turnCounter > totalLaps * 1000) {
+		// Multi-lap runaway safety: a broken race must not grow the log to the
+		// VM limit. The cap scales with the field (it counts TOTAL moves), and
+		// a capped car logs TIMEOUT, not CRASH -- benchmark metrics must not
+		// confuse slow traffic with wrecks.
+		if (totalLaps > 1 && turnCounter > (long) totalLaps * 750 * players.length) {
 			dispMessage(player.getName() + " retires (race turn limit).");
 			logMove(player, directionOf(player.getVelocity(), vel), player.getVelocity().clone(),
-					pos, vel, newpos, "CRASH place=" + (players.length - finishedLast));
+					pos, vel, newpos, "TIMEOUT place=" + (players.length - finishedLast));
 			finishPlayer(player, newpos, players.length - finishedLast);
 			finishedLast++;
 			if (checkFinished())

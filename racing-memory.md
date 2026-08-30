@@ -6,6 +6,30 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 195 (local agent, SHIPPED): fair runaway cap -- the traffic frontier separates
+
+Multicar forensics on the "wipeouts": weave1's whole field had
+completed lap 1 and was RETIRED BY THE RUNAWAY CAP -- 3000 total moves
+is ~375 per car in an 8-car field while solo enjoys all 3000, and the
+cap logged retirements as CRASH, poisoning the metric. Fix: the cap
+scales with the field (totalLaps * 750 * players) and capped cars log
+TIMEOUT, never CRASH. weave1 8-car immediately completes (7 finishers,
+0 crashes, 4337 moves); laps=1 byte-identical (cap is lap-mode only).
+
+MULTI-CAR LAP BENCHMARK #2 (fair cap): 33/72 clean, from 18. The
+remaining dirt separates into honest classes:
+- TRUE TRAFFIC WIPEOUTS: fractal8 (0f/7c) and hybrid12 (1f/6c) -- the
+  two queue-doom oracle fixtures, their known laps=1 model-boundary
+  dooms amplified by lap traffic. fractal25/26, hybrid20 nearby.
+- PARTIAL TRAFFIC CRASHES: circle 5f/2c, cog, fractal10/18, hybrid2/
+  14/17 and more -- one to three cars lost per race.
+- PACE COLLAPSE: gear 0f/0c/7 TIMEOUT (the field crawls forever);
+  fractal18/23/24/26 partial timeouts. Fields run ~3x slower per lap
+  than solo (weave1 ~190 moves/lap vs ~60): eight cars queue on the
+  single map-optimal lane.
+The lap-traffic arc (queue spreading, overtaking room, gate metering)
+is the standing frontier, now cleanly instrumented.
+
 ## Round 194 (local agent, SHIPPED): checkpoint touch precedence -- the solo sweep is PERFECT
 
 The three stragglers (fractal23, hybrid7, weave7) had healthy maps and
