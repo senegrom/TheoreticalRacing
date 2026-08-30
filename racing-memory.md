@@ -6,6 +6,46 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 192 (local agent, SHIPPED): the S/F gap band + giants' rediscretisation
+
+Chain of proven fixes, each from direct forensics:
+- CONTAINMENT GAP BAND: the trackA polygon's closing edge slices the
+  corridor at the boundary LASTS, excluding the band between lasts and
+  firsts -- an invisible ring-cut wall at every wider gap (monaco x1.5
+  alive=1438 of 400k; instant 6-move deaths; hungaroring the same). In
+  lap mode each boundary now closes THROUGH its blue closure polyline
+  (with the closure MIDPOINT appended -- a straight chord's endpoint
+  equals the list head and appended nothing, which is why monaco fixed
+  before hungaroring did). monaco alive -> 294k, hungaroring -> 187k;
+  both complete 3-lap solos.
+- CLOSURES ARE VISUAL: the physical closure-blocking check strangled
+  narrow gates (approach edges clip the stubs) and was redundant --
+  containment already seals the gaps. Removed; blue drawing stays.
+- LAP FORWARD: gate-0 crossing direction now derives from the FIRST
+  boundary segments' departure heading (the legacy tail heading can
+  disagree when a drawing's end curls).
+- SHEDABLE THRESHOLD BACK TO 36: the band opened faster shedable
+  crossings whose speed-7.6 landings died (spa's post-crossing crash);
+  the M5 loosening to 64 was a workaround from before the real fixes
+  and is retired.
+- REDISCRETISATION (user-ordered): the x1.8/x2.2 upscales stretched
+  lemans/nurburgring segments to 7.3-8.6 avg (max 26) without adding
+  points; one Chaikin pass + 4.2-cell resampling (endpoints exact,
+  spike-safe) restores uniform discretisation (207/223 pts). LEMANS
+  FLIPS TO COMPLETE 3-lap racing -- the chunky corners were its killer.
+
+LAP BENCHMARK #4: 50 complete / 22 died / 11 no-loop (25/25 battery,
+goldens re-baselined). Honest trade vs benchmark #2 (59/13): monaco,
+hungaroring, lemans, spa recovered; a NEW residual class opened -- the
+CP1-HOLE: ~14 tracks (lobe1, fractal1/3/4/8/10/17/21, rand12/14/18/19,
+hybrid2/4/15, dspiral1/2, cog, nurburgring) die 1-15 moves past their
+first LAP crossing. Instrumentation shows the fatal moves come from the
+UNINSTRUMENTED survival fallback: gateTurns[1] reads MAX just behind
+the gate, so the mover has no CP1 potential and blunders at low speed.
+Round 193: why the CP1 map cannot reach the post-gate region on this
+class (band-relaxation interaction suspected), survival fallback gets
+instrumented and hardened.
+
 ## Round 191 (local agent, SHIPPED): legal-seed lap maps -- the gate-death fix
 
 The benchmark's 66 uniform gate-deaths traced to ONE line-class bug,

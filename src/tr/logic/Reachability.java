@@ -218,7 +218,7 @@ final class Reachability {
 				|| minShed2 == null)
 			return false;
 		final int idx = aliveIdx(nx, ny, nvx, nvy);
-		return aliveStates.get(idx) && (minShed2[idx] & 0xFF) <= 64;
+		return aliveStates.get(idx) && (minShed2[idx] & 0xFF) <= 36;
 	}
 
 	/** Multi-lap: one BFS per gate over the same move graph. Gate 0 seeds
@@ -227,8 +227,16 @@ final class Reachability {
 	 *  Requires the finish map and minShed2 to be ready. */
 	void computeGateMaps(final java.awt.geom.Line2D[] gates) {
 		gateTurns = new int[3][];
-		for (int g = 0; g < 3; g++)
+		for (int g = 0; g < 3; g++) {
 			gateTurns[g] = computeGateMap(g, gates[g]);
+			if (game.autoMode) {
+				int finite = 0;
+				for (final int v : gateTurns[g])
+					if (v != Integer.MAX_VALUE)
+						finite++;
+				System.out.println("[laps] gate " + g + " map finite=" + finite);
+			}
+		}
 	}
 
 	private int[] computeGateMap(final int gate, final java.awt.geom.Line2D line) {
@@ -1055,7 +1063,7 @@ final class Reachability {
 			// The suffix flows into the memo key and the .edges/.derived
 			// siblings automatically, since all of them derive from this path.
 			return TrackIO.reachCacheDir().resolve("reach-" + hex
-					+ (game.totalLaps > 1 ? "-lap4" : "") + ".bin");
+					+ (game.totalLaps > 1 ? "-lap9" : "") + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}

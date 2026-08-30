@@ -40,6 +40,11 @@ public final class RaceGame {
 	int							totalLaps		= 1;
 	/** Multi-lap gates: [0] short real S/F line, [1] CP1, [2] CP2. */
 	Line2D[]					lapGates;
+	/** Multi-lap forward: the departure heading of the FIRST boundary
+	 *  segments -- the legacy finishFwd uses the tail heading, which can
+	 *  disagree at gate 0 when a drawing's end curls (monaco, hungaroring:
+	 *  inverted forward seeded backward crossings into a dead pocket). */
+	private double				lapFwdX, lapFwdY;
 	private int[][]				lapGatePoints;
 	/** Multi-lap: blue closing boundary across the two S/F side gaps --
 	 *  per side a short polyline following the wall's natural extension. */
@@ -650,19 +655,12 @@ public final class RaceGame {
 		}
 		final int[] from = {x1, y1 };
 		final int[] to = {x2, y2 };
-		// Multi-lap: the blue closing segments are boundary too -- the loop
-		// has no gaps once it is closed. Moves ORIGINATING on the starting
-		// grid are exempt (the grid sits on the closure; leaving it is
-		// legitimate, re-entering through the closure is not).
-		// Crossing moves are exempt: the closures stop sideways escape through
-		// the boundary gaps, never the lap move itself -- a fast crossing spans
-		// the whole gap zone diagonally and would clip them.
-		if (totalLaps > 1 && lapClosures != null && !startZoneA.contains(x1, y1)
-				&& !crossesFinish(x1, y1, x2, y2))
-			for (final Line2D[] sideSegs : lapClosures)
-				for (final Line2D seg : sideSegs)
-					if (seg.intersectsLine(x1, y1, x2, y2))
-						return false;
+		// Multi-lap: the blue closing segments are VISUAL -- the containment
+		// polygon already seals the boundary gaps physically (its closing edge
+		// spans them, and interior sampling catches any excursion), and a
+		// physical closure check strangles narrow S/F corridors: approach
+		// edges in a 3-wide gate clip the flanking stubs, emptying the maps
+		// and blocking real cars alike (monaco alive=1390 of 400k).
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
 	}
 
@@ -1040,6 +1038,8 @@ public final class RaceGame {
 			return false;
 		// Only a forward crossing counts (move heads in the racing direction).
 		// A zero-length or backward move across the line is not a finish.
+		if (totalLaps > 1 && lapGates != null)
+			return (x2 - x1) * lapFwdX + (y2 - y1) * lapFwdY > 0;
 		return (x2 - x1) * finishFwdX + (y2 - y1) * finishFwdY > 0;
 	}
 
@@ -1086,6 +1086,18 @@ public final class RaceGame {
 						(int) Math.round(seg.getY2()) };
 			}
 		}
+		double hx = 0, hy = 0;
+		if (lefts.size() >= 2) {
+			hx += lefts.get(1)[0] - lFirst[0];
+			hy += lefts.get(1)[1] - lFirst[1];
+		}
+		if (rights.size() >= 2) {
+			hx += rights.get(1)[0] - rFirst[0];
+			hy += rights.get(1)[1] - rFirst[1];
+		}
+		final double hlen = Math.hypot(hx, hy);
+		lapFwdX = hlen == 0 ? 0 : hx / hlen;
+		lapFwdY = hlen == 0 ? 0 : hy / hlen;
 		lapGates = new Line2D[3];
 		lapGatePoints = new int[3][];
 		final double[] fractions = {0.0, 1.0 / 3, 2.0 / 3 };
@@ -1328,6 +1340,36 @@ public final class RaceGame {
 		return 0;
 	}
 
+	/** Multi-lap: the containment polygon must cover the S/F gap band, so
+	 *  each boundary closes through its blue closure polyline -- the legacy
+	 *  polygon's closing edge slices the corridor at the lasts and walls off
+	 *  the band (monaco x1.5's 6-8 cell band was an impassable ring cut:
+	 *  alive=1438 of 400k, every lap dead at the gate).*/
+	private java.util.LinkedList<int[]> lapClosedSide(final java.util.LinkedList<int[]> side,
+			final Line2D[] closure) {
+		if (totalLaps <= 1 || lapGates == null || closure == null || closure.length == 0)
+			return side;
+		final java.util.LinkedList<int[]> out = new java.util.LinkedList<>(side);
+		for (final Line2D seg : closure) {
+			// midpoint first: a straight single-segment closure's endpoint IS
+			// the list head, and appending nothing leaves the legacy band cut
+			final int[] mid = {(int) Math.round((seg.getX1() + seg.getX2()) / 2),
+					(int) Math.round((seg.getY1() + seg.getY2()) / 2) };
+			if (!java.util.Arrays.equals(mid, out.getLast())
+					&& !java.util.Arrays.equals(mid, out.getFirst()))
+				out.add(mid);
+			final int[] q = {(int) Math.round(seg.getX2()), (int) Math.round(seg.getY2()) };
+			if (!java.util.Arrays.equals(q, out.getLast())
+					&& !java.util.Arrays.equals(q, out.getFirst()))
+				out.add(q);
+		}
+		return out;
+	}
+
+	private static String show(final int v) {
+		return v == Integer.MAX_VALUE ? "INF" : String.valueOf(v);
+	}
+
 	/** True when this player's NEXT S/F crossing ends their race. */
 	boolean onFinalLap(final int playerNum) {
 		for (final Player p : players)
@@ -1545,7 +1587,9 @@ public final class RaceGame {
 			p.lineTo(startZone[0][i], startZone[1][i]);
 		p.closePath();
 		startZoneA = TrackGeometry.getToleranceExpandedShape(p);
-		trackA = TrackGeometry.getToleranceExpandedShape(TrackGeometry.newPrefilledPath(track.getLeft(), track.getRight()));
+		trackA = TrackGeometry.getToleranceExpandedShape(TrackGeometry.newPrefilledPath(
+				lapClosedSide(track.getLeft(), lapClosures == null ? null : lapClosures[0]),
+				lapClosedSide(track.getRight(), lapClosures == null ? null : lapClosures[1])));
 		final String denseKey = autoMode ? reach.geometryCacheKey() : null;
 		denseEdgeLegalCache = denseKey == null
 				? DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1, 64L << 20)
@@ -1564,6 +1608,16 @@ public final class RaceGame {
 			reach.ensureReachabilityReady();
 			processQueries(queryInPath, queryOutPath);
 			System.exit(0);
+		}
+		if (totalLaps > 1 && autoMode) {
+			reach.ensureReachabilityReady();
+			final int[] lf = track.getLeft().getFirst();
+			final int[] rf = track.getRight().getFirst();
+			final int mx = (lf[0] + rf[0]) / 2, my = (lf[1] + rf[1]) / 2;
+			System.out.println("[laps] gate-mid values @(" + mx + "," + my + "): g0="
+					+ show(reach.turnsToGate(0, mx, my, 0, 0)) + " g1="
+					+ show(reach.turnsToGate(1, mx, my, 0, 0)) + " g2="
+					+ show(reach.turnsToGate(2, mx, my, 0, 0)));
 		}
 		saveTrackToProperties();
 	}
