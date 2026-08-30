@@ -50,6 +50,11 @@ public final class RaceGame {
 	 *  per side a short polyline following the wall's natural extension. */
 	private Line2D[][]			lapClosures;
 	private int[][][]			lapClosurePoints;
+	/** Gate-0 segment shrunk at both ends: the span a crossing must actually
+	 *  intersect. An endpoint-only touch is not a crossing -- otherwise the
+	 *  maps route arrivals from the exit side onto a one-cell endpoint tap
+	 *  (arrive, stop, creep across), which in traffic is a death queue. */
+	private Line2D				lapCrossGate;
 	private final static double	LAP_CLOSURE_MAX	= 8.0;
 	private boolean				startZoneGone;
 	Line2D				finishLine;
@@ -1033,7 +1038,7 @@ public final class RaceGame {
 		// Multi-lap: the real line is the short boundary-gap gate -- the raw
 		// endpoint segment can slice diagonally through the infield and
 		// produce phantom re-crossings. laps=1 keeps exact legacy semantics.
-		final Line2D line = totalLaps > 1 && lapGates != null ? lapGates[0] : finishLine;
+		final Line2D line = totalLaps > 1 && lapGates != null ? lapCrossGate : finishLine;
 		if (!Line2D.linesIntersect(line.getX1(), line.getY1(), line.getX2(), line.getY2(), x1, y1, x2, y2))
 			return false;
 		// Only a forward crossing counts (move heads in the racing direction).
@@ -1051,6 +1056,7 @@ public final class RaceGame {
 	private void computeLapGates() {
 		lapGates = null;
 		lapGatePoints = null;
+		lapCrossGate = null;
 		if (totalLaps <= 1)
 			return;
 		final java.util.List<int[]> lefts = track.getLeft();
@@ -1116,6 +1122,13 @@ public final class RaceGame {
 			lapGates[k] = new Line2D.Double(lp[0], lp[1], best[0], best[1]);
 			lapGatePoints[k] = new int[]{lp[0], lp[1], best[0], best[1] };
 		}
+		final double gx1 = lapGates[0].getX1(), gy1 = lapGates[0].getY1();
+		final double gx2 = lapGates[0].getX2(), gy2 = lapGates[0].getY2();
+		final double glen = Math.hypot(gx2 - gx1, gy2 - gy1);
+		final double shrink = glen == 0 ? 0 : Math.min(0.3 / glen, 0.45);
+		lapCrossGate = new Line2D.Double(
+				gx1 + (gx2 - gx1) * shrink, gy1 + (gy2 - gy1) * shrink,
+				gx2 - (gx2 - gx1) * shrink, gy2 - (gy2 - gy1) * shrink);
 		if (autoMode)
 			System.out.println("[laps] gate geometry: S/F " + java.util.Arrays.toString(lapGatePoints[0])
 					+ " CP1 " + java.util.Arrays.toString(lapGatePoints[1])
@@ -1597,9 +1610,18 @@ public final class RaceGame {
 			p.lineTo(startZone[0][i], startZone[1][i]);
 		p.closePath();
 		startZoneA = TrackGeometry.getToleranceExpandedShape(p);
-		trackA = TrackGeometry.getToleranceExpandedShape(TrackGeometry.newPrefilledPath(
-				lapClosedSide(track.getLeft(), lapClosures == null ? null : lapClosures[0]),
-				lapClosedSide(track.getRight(), lapClosures == null ? null : lapClosures[1])));
+		// Lap mode: the corridor is an ANNULUS -- each boundary closes on
+		// itself through its closure waypoints and the two rings even-odd
+		// fill. The legacy single-ring path closes right-first to left-first,
+		// which makes the S/F gate line itself a polygon wall: no move can
+		// legally cross the span, and the maps degenerate to one-cell
+		// endpoint taps (the traffic death funnel). laps=1 keeps the legacy
+		// path byte-for-byte.
+		trackA = TrackGeometry.getToleranceExpandedShape(totalLaps > 1 && lapGates != null
+				? TrackGeometry.newTwoRingPath(
+						lapClosedSide(track.getLeft(), lapClosures == null ? null : lapClosures[0]),
+						lapClosedSide(track.getRight(), lapClosures == null ? null : lapClosures[1]))
+				: TrackGeometry.newPrefilledPath(track.getLeft(), track.getRight()));
 		final String denseKey = autoMode ? reach.geometryCacheKey() : null;
 		denseEdgeLegalCache = denseKey == null
 				? DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1, 64L << 20)

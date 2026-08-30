@@ -528,9 +528,13 @@ final class RaceAi {
 		lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
 		final int sealRivals = liveRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
-		// every seal that forgoes the finish to crash a later mover.
+		// every seal that forgoes the finish to crash a later mover. Lap mode:
+		// only once the gates are complete is a crossing actually the finish --
+		// with a checkpoint still owed the referee treats it as an ordinary move,
+		// so the legality-waived immediate crossing would drive into the wall.
 		if (moverKind(playerNum) == Player.Kind.AI1 && sealRivals >= 1
-				&& sealRivals <= AI1_SEAL_MAXRIVALS && game.onFinalLap(playerNum)) {
+				&& sealRivals <= AI1_SEAL_MAXRIVALS && game.onFinalLap(playerNum)
+				&& lapGate == 0) {
 			final Direction finish = immediateFinishMove(pos, vel);
 			if (finish != null)
 				return finish;
@@ -1711,7 +1715,7 @@ final class RaceAi {
 		if (moverKind(playerNum) != Player.Kind.AI1 || inFinishDenialConfirm
 				|| trueConfirmDepth >= trueConfirmCandidateSnapshots.length
 				|| game.subgamestate != game.players.length - 1
-				|| !game.onFinalLap(playerNum))
+				|| !game.onFinalLap(playerNum) || lapGate != 0)
 			return chosen;
 		final double[] trapByDir = candidates.trapByDirection;
 		final double[] uncByDir = candidates.uncertaintyByDirection;

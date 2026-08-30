@@ -181,6 +181,31 @@ final class TrackGeometry {
 		return p;
 	}
 
+	/** Two independent closed rings, even-odd filled: the lap-mode corridor
+	 *  annulus. Each boundary closes on itself through its closure waypoints,
+	 *  so the corridor has no seam edges at the S/F gap -- the single-ring
+	 *  path closes right-first to left-first, which turns the gate line into
+	 *  a polygon wall and forbids every span crossing of the S/F. */
+	final static Path2D.Float newTwoRingPath(final List<int[]> left, final List<int[]> right) {
+		final Path2D.Float p = new Path2D.Float(Path2D.WIND_EVEN_ODD);
+		appendRing(p, left);
+		appendRing(p, right);
+		return p;
+	}
+
+	private static void appendRing(final Path2D.Float p, final List<int[]> ring) {
+		if (ring == null || ring.size() < 3)
+			return;
+		final Iterator<int[]> it = ring.iterator();
+		int[] pos = it.next();
+		p.moveTo(pos[0], pos[1]);
+		while (it.hasNext()) {
+			pos = it.next();
+			p.lineTo(pos[0], pos[1]);
+		}
+		p.closePath();
+	}
+
 	static boolean segmentCrossesPath(final int[] from, final int[] to, final List<int[]> path) {
 		int[] prev = null;
 		for (final int[] cur : path) {

@@ -6,6 +6,44 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 196 (local agent, SHIPPED): the S/F gate was a wall -- de-funneled crossings sweep the traffic board
+
+Two diseases found under the wipeout forensics, one round:
+1. FINAL-LAP SEAL HOLE: immediateFinishMove / finishDenialOverride (the
+   codex endgame arms) fired on the final lap with checkpoints still
+   owed -- but with lapGate!=0 a crossing is an ORDINARY move, so the
+   legality-waived "finish" drove into the wall. Both fractal8 AI1s
+   died deterministically one move after starting their final lap
+   (identical state, identical move). Gated on lapGate==0; laps=1 is a
+   no-op by construction (nextGateOf returns 0).
+2. THE FUNNEL: every car on hybrid12 -- solo included -- braked to
+   zero AT the gate endpoint cell and crept across at speed 1; in an
+   8-car field that is a death queue (all six crashes sat inside the
+   two crossing-queue windows). Root cause: the containment polygon
+   closes right-first -> left-first, so THE GATE LINE ITSELF IS A
+   POLYGON WALL. No legal move crossed the S/F span anywhere in the
+   fleet; the only "crossings" that ever existed were one-cell corner
+   taps past the wall's vertex. Fix pair: (a) a crossing must
+   intersect the gate span's INTERIOR (lapCrossGate, the gate shrunk
+   0.3 cells per end -- endpoint taps are not crossings), (b) lap-mode
+   trackA is a true ANNULUS (newTwoRingPath: each boundary ring closes
+   on itself through its closure waypoints, even-odd fill, no seam
+   edges). Cache key -> -lap13; the bump law caught a mid-round trap
+   (the -lap12 rerun silently served pre-annulus verdicts).
+
+Results: hybrid12 crosses mid-span at speed 5-6 and laps 28% faster
+solo; weave1 crosses at speed 9, circle at 8. SOLO BENCH #7: 72/0
+PERFECT holds under both changes. MULTI-CAR BENCH #3: 41/72 clean
+(from 33), ZERO timeouts fleet-wide, ZERO wipeouts -- gear (the
+7-TIMEOUT eternal crawl) races 7f/0c in 1036 moves: the "pace
+collapse" class was the funnel queue all along. fractal8 0f -> 3f,
+hybrid12 1f -> 4f; fractal25/26, cog, gear, hybrid2/14, weave-partials
+flip clean. Residue for the next rounds: ~20 tracks lose 1-2 cars
+(lobe2-lobe6 uniformly 6f/1c -- likely one shared doom worth a single
+forensic), 6 tracks lose 3-5 (hybrid20, rand2, fractal8, hybrid12,
+hybrid17, silverstone). laps=1 byte-identical, proven separately after
+each of the three changes; 25/25 battery green.
+
 ## Round 195 (local agent, SHIPPED): fair runaway cap -- the traffic frontier separates
 
 Multicar forensics on the "wipeouts": weave1's whole field had
