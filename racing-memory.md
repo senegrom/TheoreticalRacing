@@ -6,6 +6,40 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 193 (local agent, SHIPPED): product-coherent gate maps -- 69/72 lap the fleet
+
+The CP1-hole forensics bottomed out in an architecture truth: on
+lobe-class geometry the finish map's ALIVE can ride a SHORTCUT
+crossing that never passes CP1 (the wrapped corridor re-approaches the
+gate line without lapping), so alive+shedable admitted crossing
+landings with NO lap continuation -- gateTurns[1] honestly INF, the
+survival fallback blundering at low speed (the instrumented signature:
+selfAlive=true, selfG0=INF, selfG1=INF). Two prerequisite discoveries
+en route: the legacy distMap has no coverage past the S/F, so every
+BFS guard on distAt==MAX walled the maps out of the post-gate region
+(lap mode now prefilters seeds by direct gate-segment distance and
+relaxes wall-free; laps=1 keeps the legacy guard for byte-identity).
+
+THE FIX: product coherence across the lap cycle. The three gate maps
+build in reverse cycle order -- CP2, then CP1 (its touch landings must
+be CP2-finite), then S/F (its crossing landings must be CP1-finite) --
+iterated three passes to close the cycle fixpoint. The crossing
+precedence requires the same CP1-continuable landing. A gate passage
+counts as progress ONLY if the lap can continue from where it lands.
+
+LAP BENCHMARK #5: 69 complete / 3 died / 11 no-loop. The whole
+CP1-hole class flipped (lobe1, fractal1/3/4/8/10/17/21, rand12/14/18/
+19, hybrid2/4/14/15, dspiral1/2, cog, spa) and the last second-lap
+holdout NURBURGRING completes at 443 moves. Residual: three
+laps=0 stalls (fractal23, hybrid7, weave7 -- circle 3000 turns without
+crossing; per-track geometry pathologies, next round's tail). laps=1
+byte-identical; 25/25 battery with re-baselined goldens.
+
+Scoreboard history: #1 4/66/13 -> #2 59/13/11 -> #3 46/26/11 ->
+#4 50/22/11 -> #5 69/3/11. The lap era's navigation architecture is
+complete; what remains is the tail and, beyond it, lap RACING QUALITY
+(pace, traffic, multi-car lap fields) as the standing frontier.
+
 ## Round 192 (local agent, SHIPPED): the S/F gap band + giants' rediscretisation
 
 Chain of proven fixes, each from direct forensics:

@@ -287,7 +287,8 @@ final class RaceAi {
 				// regardless of landing speed, so hot arrivals must not count.
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
-						&& reach.shedableLanding(newX, newY, newVx, newVy))) {
+						&& reach.shedableLanding(newX, newY, newVx, newVy)
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE)) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -613,7 +614,8 @@ final class RaceAi {
 				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
-						&& reach.shedableLanding(newX, newY, newVx, newVy))) {
+						&& reach.shedableLanding(newX, newY, newVx, newVy)
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE)) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -1629,6 +1631,23 @@ final class RaceAi {
 		// ALIVE by the finish map at minimum speed instead of dead-coasting --
 		// circle, then cross when the line unblocks.
 		if (lapAware) {
+			if (AI_DEBUG_PLAYER == playerNum && !inScorerSim) {
+				final StringBuilder sb = new StringBuilder("AIDBG SURVIVAL p=" + playerNum
+						+ " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0] + ","
+						+ vel[1] + ") gate=" + lapGate
+						+ " selfAlive=" + reach.isAlive(pos[0], pos[1], vel[0], vel[1])
+						+ " selfG0=" + reach.turnsToGate(0, pos[0], pos[1], vel[0], vel[1])
+						+ " selfG1=" + reach.turnsToGate(1, pos[0], pos[1], vel[0], vel[1])
+						+ " vals=");
+				for (final Direction d : DIRECTIONS) {
+					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+					final int t = reach.turnsToGate(lapGate, pos[0] + nvx, pos[1] + nvy, nvx, nvy);
+					final int da = reach.distAt(pos[0] + nvx, pos[1] + nvy);
+					sb.append(d.ordinal()).append(':').append(t == Integer.MAX_VALUE ? "INF" : t)
+							.append('/').append(da == Integer.MAX_VALUE ? "X" : da).append(' ');
+				}
+				System.err.println(sb);
+			}
 			Direction alive = null;
 			int aliveT = Integer.MAX_VALUE;
 			int aliveSpd = Integer.MAX_VALUE;

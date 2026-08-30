@@ -198,6 +198,14 @@ final class Reachability {
 		return turnsArr[aliveIdx(x, y, vx, vy)];
 	}
 
+	/** Cell within reach of a gate segment (seed prefilter for lap maps --
+	 *  the legacy distMap has no coverage past the S/F, so lap-mode BFS
+	 *  cannot use it as a wall). */
+	private boolean cellNearSegment(final java.awt.geom.Line2D line, final int x,
+			final int y, final double r) {
+		return line.ptSegDist(x, y) <= r;
+	}
+
 	/** Multi-lap potential: turns to the mover's NEXT gate (0=S/F forward
 	 *  shedable, 1/2 = checkpoint touch). Falls back to the finish map when
 	 *  no gate maps exist. */
@@ -226,20 +234,30 @@ final class Reachability {
 	 *  direction touches with an alive landing (touching at speed is fine).
 	 *  Requires the finish map and minShed2 to be ready. */
 	void computeGateMaps(final java.awt.geom.Line2D[] gates) {
+		// Product coherence across the lap cycle: a gate passage only counts
+		// as progress if its landing can continue to the NEXT gate -- on
+		// lobe-class geometry the finish map's alive can ride a shortcut
+		// crossing that skips CP1, luring cars into multi-lap dead ends.
+		// Build 2 -> 1 -> 0, each seed requiring the next map finite at the
+		// landing; iterate to a fixpoint to close the cycle (2 needs 0).
 		gateTurns = new int[3][];
-		for (int g = 0; g < 3; g++) {
-			gateTurns[g] = computeGateMap(g, gates[g]);
-			if (game.autoMode) {
+		for (int pass = 0; pass < 3; pass++) {
+			gateTurns[2] = computeGateMap(2, gates[2], gateTurns[0]);
+			gateTurns[1] = computeGateMap(1, gates[1], gateTurns[2]);
+			gateTurns[0] = computeGateMap(0, gates[0], gateTurns[1]);
+		}
+		if (game.autoMode)
+			for (int g = 0; g < 3; g++) {
 				int finite = 0;
 				for (final int v : gateTurns[g])
 					if (v != Integer.MAX_VALUE)
 						finite++;
 				System.out.println("[laps] gate " + g + " map finite=" + finite);
 			}
-		}
 	}
 
-	private int[] computeGateMap(final int gate, final java.awt.geom.Line2D line) {
+	private int[] computeGateMap(final int gate, final java.awt.geom.Line2D line,
+			final int[] nextMap) {
 		final int total = turnsArr.length;
 		final int[] map = new int[total];
 		Arrays.fill(map, Integer.MAX_VALUE);
@@ -247,7 +265,7 @@ final class Reachability {
 		final IntQueue queue = new IntQueue();
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
-				if (distAt(x, y) == Integer.MAX_VALUE)
+				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5))
 					continue;
 				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
 					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
@@ -269,6 +287,9 @@ final class Reachability {
 											&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
 											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
 									&& game.isMoveLegalGeometryCached(x, y, nx, ny);
+							if (hits && nextMap != null
+									&& nextMap[aliveIdx(nx, ny, nvx, nvy)] == Integer.MAX_VALUE)
+								continue;
 							if (hits) {
 								final int idx = aliveIdx(x, y, vx, vy);
 								if (!seen.get(idx)) {
@@ -296,8 +317,6 @@ final class Reachability {
 			final int x = xp - vxp;
 			final int y = yp - vyp;
 			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
-				continue;
-			if (distAt(x, y) == Integer.MAX_VALUE)
 				continue;
 			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
 				continue;
@@ -344,11 +363,18 @@ final class Reachability {
 		final IntQueue queue = new IntQueue();
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
-				final int dist = distAt(x, y);
-				if (dist == Integer.MAX_VALUE)
-					continue;
-				if (dist > 2 * aliveVMAX + 5)
-					continue; // optimization: too far for direct finish-cross
+				if (game.totalLaps > 1 && game.lapGates != null) {
+					// the legacy distMap ends at the S/F: prefilter by direct
+					// distance to gate 0 instead
+					if (!cellNearSegment(game.lapGates[0], x, y, 2 * aliveVMAX + 5))
+						continue;
+				} else {
+					final int dist = distAt(x, y);
+					if (dist == Integer.MAX_VALUE)
+						continue;
+					if (dist > 2 * aliveVMAX + 5)
+						continue; // optimization: too far for direct finish-cross
+				}
 				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
 					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
 						for (final Direction d : DIRECTIONS) {
@@ -387,8 +413,8 @@ final class Reachability {
 			final int y = yp - vyp;
 			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
 				continue;
-			if (distAt(x, y) == Integer.MAX_VALUE)
-				continue;
+			if (game.totalLaps <= 1 && distAt(x, y) == Integer.MAX_VALUE)
+				continue; // laps=1 keeps the legacy wall (byte-identity)
 			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
 				continue;
 			for (final Direction d : DIRECTIONS) {
@@ -1063,7 +1089,7 @@ final class Reachability {
 			// The suffix flows into the memo key and the .edges/.derived
 			// siblings automatically, since all of them derive from this path.
 			return TrackIO.reachCacheDir().resolve("reach-" + hex
-					+ (game.totalLaps > 1 ? "-lap9" : "") + ".bin");
+					+ (game.totalLaps > 1 ? "-lap11" : "") + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}
