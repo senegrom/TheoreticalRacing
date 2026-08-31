@@ -104,6 +104,8 @@ def main() -> int:
     logs = {}
     with tempfile.TemporaryDirectory(prefix="finish-denial-") as directory:
         bench_ai.configure_runtime(directory)
+        import fixture_install
+        bench_ai.JAR = str(fixture_install.install(directory, ["hairpin"]))  # frozen pre-loop-surgery geometry
         bench_ai.set_nplayers(8)
         for kind in ("AI2", "AI1"):
             bench_ai.set_all_to(kind)

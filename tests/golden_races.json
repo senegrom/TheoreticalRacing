@@ -6,20 +6,20 @@
       "track": "hairpin",
       "seed": 10,
       "players": 8,
-      "sha256": "65c6af2d2bd7c51d1999a0fb4e50453d00f5cf1ecf1cec8f258c806e9a9c24c8",
+      "sha256": "2fd34696700c4d68265dba9b59aa043fdc9db9d7d84521a19f1b099c946f818c",
       "summary": {
-        "turns": 136,
+        "turns": 31,
         "finishes": 7,
         "crashes": 0,
         "results": [
+          "E",
+          "F",
+          "B",
+          "D",
           "A",
           "C",
-          "D",
-          "E",
-          "G",
-          "B",
-          "F",
-          "H"
+          "H",
+          "G"
         ]
       }
     },
@@ -28,9 +28,9 @@
       "track": "zigzag",
       "seed": 4,
       "players": 8,
-      "sha256": "aeff4d965d49ee9986e14e2bf502f610ff714f798bfe6eef6e628bf2ed69f13c",
+      "sha256": "8b5e21dd2cd666a485282372a3fae502c7a36e7bb7051264c9a481176ed89dc4",
       "summary": {
-        "turns": 532,
+        "turns": 643,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -38,10 +38,10 @@
           "B",
           "C",
           "D",
-          "H",
           "E",
           "F",
-          "G"
+          "G",
+          "H"
         ]
       }
     },
@@ -94,9 +94,9 @@
       "track": "hairpin",
       "seed": 1,
       "players": 2,
-      "sha256": "2ca8a53f544178a000c047f899dde4023cc1cb97b2847f709746bd6e0a032272",
+      "sha256": "5ebecec77655a7916fb95425653d7cbec413b05fc0080873f3b9b68a93df4a25",
       "summary": {
-        "turns": 33,
+        "turns": 5,
         "finishes": 1,
         "crashes": 0,
         "results": [
@@ -194,20 +194,20 @@
       "track": "zigzag",
       "seed": 22,
       "players": 8,
-      "sha256": "60b743070aefeec7e1c257bc5da9564213a04133ccfcaa6314e7512aa7b7fd63",
+      "sha256": "e12fa345b93f8b777b22990d913ebcebde573963a27539ee98e63ccbf1586826",
       "summary": {
-        "turns": 528,
+        "turns": 644,
         "finishes": 7,
         "crashes": 0,
         "results": [
-          "A",
-          "C",
-          "B",
-          "E",
-          "F",
           "D",
+          "F",
+          "C",
           "G",
-          "H"
+          "E",
+          "H",
+          "A",
+          "B"
         ]
       }
     },
