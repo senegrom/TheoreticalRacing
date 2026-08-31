@@ -6,6 +6,43 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 200 (local agent, REVERTED): three mechanisms probed, fleet says no -- policy saturation is measured
+
+Motivated by the hybrid20 bench-#6 regression forensic: its crashes
+were byte-identical RECURRENCES of the known CP2-pocket and S/F-flank
+poison states, re-exposed purely by traffic-timing shifts. Three
+mechanisms were built and probed:
+
+1. FALLBACK CONTINUING TIER: the all-INF regime (where every one of
+   these dooms actually executes) had no needle law at all --
+   scoreMinTurnsFallback gained a lap-continuable tier above the r198
+   alive tier (final-lap gate-complete crossings exempt).
+2. PARKED-ONLY BLOCKING: needleHeadway treated crossing trains as
+   permanent walls; successor cells became blocked only by rivals
+   with both velocity components <= 1.
+3. SEED WIDENING: shedableLanding without the speed<=6 cap (product
+   coherence already certifies continuation at any speed). Probed
+   alone-ish: rand19 1 -> 3, weave3 0 -> 1, stubborn tracks unmoved --
+   wider seeds add SPEEDS, not LANES. Reverted before the bench.
+
+MULTI-CAR BENCH #7 on (1)+(2): 58/72 clean, DOWN from 61. Fixed
+gear/monaco/rand17/weave3, dirtied fractal23/hybrid17/hybrid3/
+hybrid9/rand13/rand19/weave6 -- tracks clean since the early rounds,
+i.e. mechanism (2) weakened the r197 law where it was silently
+protecting. Working tree reverted to shipped round 199.
+
+THE MEASURED CONCLUSION, four configurations deep (benches #5-#7 +
+probes): total fleet crashes hover at ~20 while the SAME ~dozen
+deterministic poison states rotate with traffic timing. Global policy
+knobs are saturated -- each reshuffles which states fire, none removes
+one. The remaining frontier is PER-GEOMETRY: the poison states
+themselves (rand2's (108,8) alcove + upper band, hybrid20's
+(34,137)/(117,40) pockets, hybrid12's needle, fractal1's (135,15)
+alcove) need either map-level exclusion (mark statically-doomed
+funnel entries un-enterable in the gate BFS so no chooser layer can
+be lured) or track-surgery where the geometry is simply hostile.
+Next round starts there.
+
 ## Round 199 (local agent, SHIPPED): surviving is not continuing -- 61/72, plus 44 GB of cleanup
 
 The rand2 entry-chain forensic reached the ground truth: p5 LAPPED AT
