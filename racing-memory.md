@@ -6,6 +6,43 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 199 (local agent, SHIPPED): surviving is not continuing -- 61/72, plus 44 GB of cleanup
+
+The rand2 entry-chain forensic reached the ground truth: p5 LAPPED AT
+SPEED 7 ((123,29)->(122,23)), and that hot crossing geometrically
+commits the car to the thin upper band (from vy=-6 at y=23 no braking
+schedule can stay on the y~13-14 racing line), where it decelerated
+into a no-exit alcove at (110,8) while p8 died one slot ahead on the
+identical chain. The certified crossing (shedable + CP1-continuable,
+the r193 seed law) was the slower v(0,-6) line -- but its cell was
+occupied by p8 crossing just ahead, every alternative was lap-INF,
+and scoreMinTurnsFallback chose the hot uncontinuable crossing: the
+alive-aware tier (r198) passed it because the landing was STATICALLY
+alive. Surviving is not continuing.
+
+THE FIX: needleHeadway counts LAP-CONTINUING successors -- body-free,
+alive, AND finite on the post-landing gate map (a successor that
+itself crosses the S/F while heading for gate 0 continues on gate 1).
+The post-landing gate threads through all five call sites (crossing
+precedence -> 1, CP touch -> next map, scorer surcharge -> current).
+An ablation isolated the effect to the scorer site; the fleet
+arbitrated the full version.
+
+MULTI-CAR BENCH #6: 61/72 clean, from 60 (arc 18 -> 33 -> 41 -> 60 ->
+61). hybrid17, rand13, rand19 flip clean; fractal1 3 crashes -> 1.
+The trade: gear 0 -> 1 and hybrid20 0 -> 3 (stricter headway
+re-brakes their flows; named targets now). Total fleet crashes
+unchanged at 20 -- the gain is in distribution. rand2 resists a third
+distinct fix (2f/5c) -- its doom forms before any headway law can
+see it; dedicated round pending. laps=1 + solo byte-identical (the
+law is dormant without rivals); 25/25 battery.
+
+CLEANUP shipped alongside: 44 GB reclaimed on C: (eleven dead
+lap-suffix cache generations plus 105 orphaned-geometry files,
+verified against recomputed live track hashes -- 59G -> 15G); dead
+nearRequiredGate removed; lemans_overpass.json (the abandoned OSM
+source) dropped from the repo; scratch pruned to 1.1 GB.
+
 ## Le Mans rebuilt (local agent, SHIPPED): hand-authored Sarthe replaces the blob
 
 The user flagged Le Mans off the fresh atlas. Rendering it told the

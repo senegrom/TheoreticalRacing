@@ -289,7 +289,7 @@ final class RaceAi {
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
 						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
-						&& needleHeadway(newX, newY, newVx, newVy, playerNum))) {
+						&& needleHeadway(newX, newY, newVx, newVy, playerNum, 1))) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -311,7 +311,7 @@ final class RaceAi {
 					&& reach.isAlive(newX, newY, newVx, newVy)
 					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
 							!= Integer.MAX_VALUE
-					&& needleHeadway(newX, newY, newVx, newVy, playerNum)) {
+					&& needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate == 1 ? 2 : 0)) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
 				return d;
@@ -657,7 +657,7 @@ final class RaceAi {
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
 						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
-						&& needleHeadway(newX, newY, newVx, newVy, playerNum))) {
+						&& needleHeadway(newX, newY, newVx, newVy, playerNum, 1))) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -676,7 +676,7 @@ final class RaceAi {
 					&& reach.isAlive(newX, newY, newVx, newVy)
 					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
 							!= Integer.MAX_VALUE
-					&& needleHeadway(newX, newY, newVx, newVy, playerNum)) {
+					&& needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate == 1 ? 2 : 0)) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
 				return d;
@@ -747,7 +747,7 @@ final class RaceAi {
 			// westward pocket), so the law is traffic-gated, not gate-gated.
 			// Price it above every free approach so a stoppable entry wins.
 			if (game.totalLaps > 1 && lapAware && trapPenalty < 50.0
-					&& !needleHeadway(newX, newY, newVx, newVy, playerNum))
+					&& !needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate))
 				trapPenalty = Math.max(trapPenalty, AI1_NEEDLE_TRAP);
 			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
@@ -4494,7 +4494,7 @@ final class RaceAi {
 	 *  leader is dead (hybrid20 CP2 pocket: p5/p7 parked and lived, p8
 	 *  entered at vy=2 and died). */
 	private boolean needleHeadway(final int nx, final int ny, final int nvx, final int nvy,
-			final int playerNum) {
+			final int playerNum, final int gate) {
 		if (Math.abs(nvx) <= 1 && Math.abs(nvy) <= 1)
 			return true;
 		if (!rivalWithinCheb(nx, ny, playerNum, AI1_NEEDLE_RIVAL_R))
@@ -4505,14 +4505,24 @@ final class RaceAi {
 		// 1 -> 2, rand2 unmoved): heading-blind stall counting brakes for
 		// flowing trains -- the place-ceding trap the queue-box v2 note
 		// warns about. Deeper queue awareness needs heading, not radius.
-		return currentFreeAliveSuccessors(nx, ny, nvx, nvy, playerNum, 2) >= 2;
+		return currentFreeContinuingSuccessors(nx, ny, nvx, nvy, playerNum, gate, 2) >= 2;
 	}
 
 	/** Successor landings that are velocity-valid, geometry-legal, body-free
-	 *  RIGHT NOW and alive -- provable headway with no vacate optimism.
+	 *  RIGHT NOW, alive, and -- in lap mode -- able to CONTINUE the lap on
+	 *  the given gate map. Surviving is not continuing: a successor that
+	 *  cannot reach the next gate is a parking lot, not headway (round 199,
+	 *  rand2: a speed-7 crossing's landing counted 2+ alive successors, all
+	 *  of them lap-INF threads into a dead upper band, while the single
+	 *  certified continuation cell was occupied by the car ahead). A
+	 *  successor that itself crosses the S/F while heading for gate 0
+	 *  continues on the gate-1 map. A negative {@code gate} skips the
+	 *  continuation requirement (alive-only counting: the scorer surcharge
+	 *  uses it -- requiring continuation there over-brakes flowing traffic,
+	 *  gear 0 -> 1 and hybrid12 1 -> 3 in the round-199 ablation).
 	 *  Early-exits at {@code cap}. */
-	private int currentFreeAliveSuccessors(final int x, final int y, final int vx, final int vy,
-			final int playerNum, final int cap) {
+	private int currentFreeContinuingSuccessors(final int x, final int y, final int vx, final int vy,
+			final int playerNum, final int gate, final int cap) {
 		int n = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
@@ -4522,6 +4532,11 @@ final class RaceAi {
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny)
 					|| game.isCrashingPlayer(nx, ny, playerNum)
 					|| !reach.isAlive(nx, ny, nvx, nvy))
+				continue;
+			if (gate >= 0 && lapAware
+					&& reach.turnsToGate(gate, nx, ny, nvx, nvy) == Integer.MAX_VALUE
+					&& !(gate == 0 && game.crossesFinish(x, y, nx, ny)
+							&& reach.turnsToGate(1, nx, ny, nvx, nvy) != Integer.MAX_VALUE))
 				continue;
 			if (++n >= cap)
 				return n;
