@@ -6,44 +6,6 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
-## Loop conversions (local agent, SHIPPED): eight point-to-points become circuits -- 80 of 83 lap-ready
-
-Standing order: make all tracks work looped. The eleven NOLOOP tracks
-classified into three groups from renders + hull measurements:
-
-CLOSED ACROSS THE OPEN BOTTOM (ends face each other): bigoval ->
-full oval, triangle -> closed pentagon-ish loop, hairpin ->
-rectangle loop. Bridge legs appended to both boundaries, canvas
-grown at the bottom, S/F gap kept at the original start.
-
-RETURN-CORRIDOR CONVERSIONS (the GP loop-repair pattern: build both
-walls as CLOSED rings, cut both at the same spot on the new return
-straight, rotate -- so the gap spans the corridor perpendicular to
-travel and the auto-gate lands correctly): chicane and slalom get a
-bottom return; zigzag and serpentine2 a west return column;
-serpentine a full right-bottom-west wrap. The boustrophedon family
-fills its canvas to the west edge (bulges at x=3), so those three
-shifted +10 east first; all bulges sit above the first-leg row, so
-the caps route cleanly beneath them. Chicane needed +8 for its west
-cap. Return corridors 3.7-6.0 wide, every ring validated
-(self/cross-intersection, gaps 3-8, in-bounds) before writing.
-
-FIXTURE LAW APPLIED FIRST: zigzag, hairpin, bigoval, serpentine,
-chicane, serpentine2 raced LIVE in six pins -- their pre-surgery
-geometries are frozen in tests/fixtures/ and the pins repointed at
-private installs (all six verified green pre-surgery).
-
-RESULTS: all eight lap solo (chicane 129 moves, slalom 229, zigzag
-226, serpentine 427, serpentine2 573, bigoval 101, triangle 83,
-hairpin 99); 8-car laps=3: six of eight CLEAN 7f/0c, hairpin and
-serpentine2 6f/1c (the ordinary single-crash residue class).
-Lap-armed fleet 72 -> 80 of 83. The remaining three -- coil, spiral,
-ugly_bump -- are geometrically impossible without self-crossing
-(spiral-in ends at the center; dspiral1/2 already serve as the
-loopable spiral experience). TrackDataTests 83 OK; goldens
-re-baselined (hairpin/zigzag races changed); 23/23 pins green on
-frozen fixtures; atlas republished (80 lap-ready badges).
-
 ## Round 200 (local agent, REVERTED): three mechanisms probed, fleet says no -- policy saturation is measured
 
 Motivated by the hybrid20 bench-#6 regression forensic: its crashes

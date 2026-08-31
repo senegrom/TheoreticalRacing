@@ -58,8 +58,6 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-ai1-field-") as directory:
         bench_ai.configure_runtime(directory)
-        import fixture_install
-        bench_ai.JAR = str(fixture_install.install(directory, ["zigzag"]))  # frozen pre-loop-surgery geometry
         for track, seed in EXPECTED:
             check(track, seed)
 

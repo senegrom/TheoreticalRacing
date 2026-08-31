@@ -29,8 +29,6 @@ def main() -> int:
     with tempfile.TemporaryDirectory(
             prefix="theoretical-racing-ai1-thread-") as directory:
         bench_ai.configure_runtime(directory)
-        import fixture_install
-        bench_ai.JAR = str(fixture_install.install(directory, ["chicane"]))  # frozen pre-loop-surgery geometry
         bench_ai.set_nplayers(8)
         bench_ai.set_all_to("AI1")
         result = bench_ai.run_track("chicane", timeout=600, seed=51)

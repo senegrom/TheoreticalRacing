@@ -27,8 +27,6 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-ai1-vmax-") as directory:
         bench_ai.configure_runtime(directory)
-        import fixture_install
-        bench_ai.JAR = str(fixture_install.install(directory, ["serpentine2"]))  # frozen pre-loop-surgery geometry
         bench_ai.set_nplayers(8)
         bench_ai.set_kinds(["AI1", "AI2"] * 4)
         for seed in (6, 35):
