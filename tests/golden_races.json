@@ -72,20 +72,20 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "241cf88665d732a85b049e7c156e621b2242d568666600956268aed136f5e28f",
+      "sha256": "9012d68b0cc3911ad2d0be1c2830b22329c049c83fcd9f7860514815a4ee50b3",
       "summary": {
-        "turns": 808,
+        "turns": 1016,
         "finishes": 7,
         "crashes": 0,
         "results": [
-          "E",
-          "D",
-          "F",
-          "G",
-          "B",
-          "H",
           "A",
-          "C"
+          "C",
+          "D",
+          "B",
+          "G",
+          "F",
+          "H",
+          "E"
         ]
       }
     },
@@ -238,16 +238,16 @@
       "track": "lemans",
       "seed": 1,
       "players": 4,
-      "sha256": "dd313a54c3007f892f4d751fb1586923f7653fe1af350775e447e983ea984517",
+      "sha256": "8a11f97eb4e04f49ea16a9a16d85690e9ae4e80131ba4daeae95b74b4644f9e0",
       "summary": {
-        "turns": 394,
+        "turns": 491,
         "finishes": 3,
         "crashes": 0,
         "results": [
           "A",
-          "D",
           "B",
-          "C"
+          "C",
+          "D"
         ]
       }
     }

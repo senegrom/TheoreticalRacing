@@ -6,6 +6,35 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Le Mans rebuilt (local agent, SHIPPED): hand-authored Sarthe replaces the blob
+
+The user flagged Le Mans off the fresh atlas. Rendering it told the
+story: the OSM trace was missing ~40% of the lap (public-road
+Mulsanne sections bridged with straight lines) and the Chaikin
+rediscretisation had smoothed the rest into a featureless rounded
+triangle -- no chicanes, no Mulsanne corner, no Porsche Curves.
+
+REBUILD (tracks/build_lemans_v2.py pattern, script in E:/tmp-claude):
+the centerline is hand-authored from the circuit's documented corner
+sequence -- S/F, Dunlop curve + chicane, Esses, Tertre Rouge, the
+Hunaudieres straight broken by BOTH chicanes, the Virage de Mulsanne
+near-hairpin, Indianapolis, Arnage, the Porsche Curves esses, Maison
+Blanche, and the Ford double-chicane -- as Catmull-Rom control points
+(the spline passes THROUGH its points, so chicanes survive; Chaikin
+shrinkage is what ate them), densely sampled, curvature-adaptively
+decimated (2.4-cell corners / 4.2-cell straights), offset +-2.75,
+with offset-cusp excision + integer snap iterated to fixpoint and
+every validity property asserted before the file is written. Same
+canvas 196x375, corridor min 4.5 / med 5.4, gaps 8.5/6.3,
+lapClosable=true.
+
+Verification: TrackDataTests 83 OK; solo laps=3 COMPLETE at 124
+moves/lap crossing the S/F mid-span at speed 8; 8-car laps=3 7f/0c/0t
+(fleet scoreboard keeps 60/72); 8-car laps=1 7f/0c; goldens
+re-baselined (lemans-s1-4p: 491 turns, 3 finishers, 0 crashes);
+23/23 pins green (fixture-frozen lemans keeps the certificates
+byte-stable through live surgery). Atlas republished.
+
 ## Round 198 (local agent, SHIPPED): alive-aware last resort; the queue-depth probe fails honestly
 
 The rand2 forensic reached the terminal state exactly: p5 died at
