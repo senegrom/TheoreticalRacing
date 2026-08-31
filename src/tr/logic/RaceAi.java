@@ -350,6 +350,8 @@ final class RaceAi {
 	private Direction scoreMinTurnsFallback(final int x, final int y,
 			final int vx, final int vy, final int legalMask,
 			final int illegalMask, final Direction emptyFallback) {
+		Direction bestAlive = null;
+		double bestAliveScore = Double.MAX_VALUE;
 		Direction bestLegal = null;
 		double bestLegalScore = Double.MAX_VALUE;
 		Direction fallback = emptyFallback;
@@ -363,6 +365,17 @@ final class RaceAi {
 			final int newVy = vy + d.dy;
 			final double sc = reach.scorePos(x + newVx, y + newVy, newVx, newVy);
 			if ((legalMask & bit) != 0) {
+				// Round 198: lap traffic blanks every finite candidate far
+				// more often than laps=1 ever did, and this last resort must
+				// not steer into a legal-but-doomed spur while an alive
+				// landing exists (rand2 (110,8)v(-3,-1): entered legal,
+				// selfAlive=false, all nine successors illegal). laps=1
+				// keeps the legacy tiering byte-for-byte.
+				if (game.totalLaps > 1 && sc < bestAliveScore
+						&& reach.isAlive(x + newVx, y + newVy, newVx, newVy)) {
+					bestAliveScore = sc;
+					bestAlive = d;
+				}
 				if (sc < bestLegalScore) {
 					bestLegalScore = sc;
 					bestLegal = d;
@@ -372,6 +385,8 @@ final class RaceAi {
 				fallback = d;
 			}
 		}
+		if (bestAlive != null)
+			return bestAlive;
 		return bestLegal != null ? bestLegal : fallback;
 	}
 
@@ -4484,6 +4499,12 @@ final class RaceAi {
 			return true;
 		if (!rivalWithinCheb(nx, ny, playerNum, AI1_NEEDLE_RIVAL_R))
 			return true;
+		// A queue-DEPTH extension (>= 2 stalled rivals within stopping
+		// distance, direction-agnostic) was probed here in round 198 and
+		// REGRESSED the fleet (hybrid12 1 -> 3, lobe2 0 -> 1, monaco
+		// 1 -> 2, rand2 unmoved): heading-blind stall counting brakes for
+		// flowing trains -- the place-ceding trap the queue-box v2 note
+		// warns about. Deeper queue awareness needs heading, not radius.
 		return currentFreeAliveSuccessors(nx, ny, nvx, nvy, playerNum, 2) >= 2;
 	}
 

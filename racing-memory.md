@@ -6,6 +6,38 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 198 (local agent, SHIPPED): alive-aware last resort; the queue-depth probe fails honestly
+
+The rand2 forensic reached the terminal state exactly: p5 died at
+(110,8)v(-3,-1) -- legal=0, selfAlive=false -- having ENTERED a
+provably dead spur. The scan never picks INF/dead candidates and the
+M5 survival checks isAlive, but when traffic blanks every finite
+candidate, scoreMinTurnsFallback picked among LEGAL moves with no
+alive check. FIX (shipped): lap-gated tiering in the last resort --
+finite-ttf > alive-legal > legal > illegal; laps=1 keeps the legacy
+tiering byte-for-byte.
+
+PROBED AND REVERTED, recorded here as a negative result: extending
+needleHeadway with queue DEPTH (>= 2 stalled rivals within stopping
+distance (spd2-6.25)/2, direction-agnostic because the legacy distMap
+ahead/behind test INVERTS on lap out-legs -- CP1 travel runs away
+from the S/F, a parked queue ahead reads as behind, which is why
+queueBox never fires in these pockets). The probe regressed the
+fleet: hybrid12 1 -> 3 crashes, lobe2 0 -> 1, monaco 1 -> 2, rand2
+unmoved. Heading-blind stall radii brake for FLOWING trains -- the
+place-ceding trap the queue-box v2 note warns about. Deeper queue
+awareness needs heading, not radius; the inverted-ahead insight
+stands for any future lap-mode queue guard.
+
+MULTI-CAR BENCH #5: 60/72 clean, dirty set IDENTICAL to bench #4 --
+the fallback is fleet-neutral on seed 1 and protective by
+construction. laps=1 + solo byte-identical; 25/25 battery. Residue
+unchanged (rand2 2f/5c, fractal1 4f/3c -- fractal1's three identical
+deaths at (135,15)v(-3,-1) are the same entered-a-dead-state class
+arriving through a path deeper than the last resort; nine
+single-crash rows). The 199 frontier: heading-aware queue depth, or
+per-state forensics on the rand2/fractal1 entry chains.
+
 ## Round 197 (local agent, SHIPPED): the needle-headway law -- multicar clean 41 -> 60 of 72
 
 The hybrid20 forensic bottomed the queue-death mechanism. The CP2 exit
