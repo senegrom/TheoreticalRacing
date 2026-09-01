@@ -6,6 +6,30 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 204 (local agent, REVERTED): trap-gated flow-merging does not reach the merge moment
+
+C8 implemented the round-203 conclusion directly: among congestion-
+trapped candidates (trap >= L1), prefer the one whose velocity matches
+the local stream (mean of up to 3 moving rivals within Cheb 10;
+parked cars stay obstacles). Multi-seed bench #11 vs the
+post-narrowing baseline: 85 vs 86 -- noise -- and monaco, the merge
+fixture, moved only 11 -> 10 while rand19 +4 / rand13 -3 reshuffled.
+DIAGNOSIS: by the time candidates are TRAPPED the merge choice is
+gone; the merge decision lives in the free-running approach, where a
+flow term is unscoped caution again (the C2/C3/C5 lesson). Scoping
+flow-merging correctly means velocity-matching inside the world-step
+rollouts or a merge-aware candidate layer -- champion-architecture
+work, not a scorer term. Reverted; named for the next era.
+
+CAMPAIGN CHECKPOINT at this close: eleven bench cycles on the
+105-race instrument this stretch; shipped survivors = lane spreading
+(r201) + the fair-cap/needle/continuation laws (r195-r199). Fleet
+state: multi-seed residual 86 (was 100 at the instrument's birth,
+89 before the width normalization changed the board), single-seed
+60/72 clean on the narrowed fleet, solo 72/72... now 73/73 with the
+Nordschleife, whose 8-car debut raced CLEAN in both modes. laps=1
+byte-frozen through every one of the ~20 verified builds.
+
 ## Nordschleife (local agent, SHIPPED): the green hell joins the fleet -- 84 tracks, clean 8-car debut
 
 Per user direction ("add the nordschleife. It will be massive but ok.
