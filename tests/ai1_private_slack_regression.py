@@ -152,7 +152,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="ai1-private-slack-") as directory:
         bench_ai.configure_runtime(directory)
         import fixture_install
-        bench_ai.JAR = str(fixture_install.install(directory, ["hungaroring", "interlagos", "lemans", "monaco", "zandvoort", "spa"]))  # frozen pre-2026-08-29 geometry
+        bench_ai.JAR = str(fixture_install.install(directory, ["hungaroring", "interlagos", "lemans", "monaco", "zandvoort", "spa", "monza"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
         for kind in ("AI1", "AI2"):
             bench_ai.set_all_to(kind)

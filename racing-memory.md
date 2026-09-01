@@ -6,6 +6,48 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Width normalization (local agent, SHIPPED): six real circuits narrowed to reality -- and the Nurburgring layout verified
+
+The user flagged Nurburgring's variable width and Red Bull Ring's
+fatness off the atlas, ruling real tracks should be thickness < 4
+(floor stays "about 2.5"). The audit agreed: spielberg median 14.4,
+nurburgring 13.0 (min 5.4 max 21.6 -- the x1.8 upscale had scaled
+WIDTH along with length, and per-side rediscretisation added the
+wobble), monza 10.0, silverstone 7.6, spa 6.3, lemans 5.4 -- while
+the four previously hand-widened tracks (monaco, zandvoort,
+hungaroring, interlagos, medians 3.2-3.5) were already in band and
+untouched.
+
+LAYOUT VERIFICATION: re-fetched bacinger/f1-circuits de-1927.geojson.
+It is the modern GP-STRECKE (5.1 km; bbox ~1.1x1.5 km), not the
+Nordschleife, and our track is topologically faithful to it
+(possibly mirrored -- gameplay-neutral).
+
+METHOD (tracks/width_normalize.py, in-repo): centerline from
+LOCALITY-PAIRED midpoints (global nearest-point pairing collapses
+the midline where a wide section runs close to another pass -- the
+arena loop paired across the infield), 1-cell resample, window-5
+smoothing, curvature-adaptive decimation (2.4/4.2), uniform +-1.9
+offset, offset-cusp excision + integer snap to fixpoint, S/F gap
+walked back to ~6 (end smoothing had grown it), every property
+asserted before writing. Result: all six at min >= 2.5, median
+3.6-4.0, max <= 4.5, gaps 5-6.5. Layouts, canvases, headers intact.
+
+FIXTURE LAW: monza raced LIVE in ai1_private_slack (byte-frozen
+seed-30/145 trajectory hashes) -- frozen to tests/fixtures/ and the
+pin repointed BEFORE surgery (verified green both sides). All other
+affected pins already rode fixtures.
+
+VERIFICATION: TrackDataTests 83 OK; all six complete 3 solo laps
+(257-436 moves); 8-car laps=3: nurburgring/silverstone/spa/lemans
+CLEAN, spielberg/monza 6f/1c -- four times narrower and still racing;
+goldens re-baselined (lemans-s1-4p 588 turns 3f/0c); 23/23 pins;
+atlas republished. Note: the single-seed fleet board and multi-seed
+instrument baselines PREDATE this surgery -- the narrowed six change
+racing difficulty, so the next bench cycle re-baselines both before
+any further AI-quality comparison (C8 flow-merging is queued behind
+that re-baseline).
+
 ## Round 203 (local agent, ARC CLOSED at 89): three more measured negatives refine the knot to its core
 
 Continuing on the 105-race instrument against the shipped lane-

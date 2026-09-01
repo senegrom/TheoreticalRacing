@@ -72,20 +72,20 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "9012d68b0cc3911ad2d0be1c2830b22329c049c83fcd9f7860514815a4ee50b3",
+      "sha256": "7b09ff469965a5d72b1da4aecc040f2c7f27788f06f6687a1e8e45fc99e7b7ae",
       "summary": {
-        "turns": 1016,
-        "finishes": 7,
-        "crashes": 0,
+        "turns": 1087,
+        "finishes": 6,
+        "crashes": 1,
         "results": [
-          "A",
-          "C",
-          "D",
           "B",
-          "G",
           "F",
           "H",
-          "E"
+          "D",
+          "E",
+          "G",
+          "C",
+          "A"
         ]
       }
     },
@@ -150,20 +150,20 @@
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "3d1bcd4bf549bd4cee1b6db9eeaf6ae4fc7beb613fdb257ac40ad701eae2ac45",
+      "sha256": "884b27a44d4fb9ee984ec77c40a0e8de5936cd237a8a5a8618a46d158804b129",
       "summary": {
-        "turns": 939,
+        "turns": 1152,
         "finishes": 7,
         "crashes": 0,
         "results": [
-          "A",
           "C",
+          "D",
           "E",
-          "G",
           "F",
           "H",
-          "B",
-          "D"
+          "A",
+          "G",
+          "B"
         ]
       }
     },
@@ -238,16 +238,16 @@
       "track": "lemans",
       "seed": 1,
       "players": 4,
-      "sha256": "8a11f97eb4e04f49ea16a9a16d85690e9ae4e80131ba4daeae95b74b4644f9e0",
+      "sha256": "b3979aeb48d435ecc32cdca92c126eaad2a86cf41dfdd5dde7aed165b4023232",
       "summary": {
-        "turns": 491,
+        "turns": 588,
         "finishes": 3,
         "crashes": 0,
         "results": [
-          "A",
-          "B",
           "C",
-          "D"
+          "D",
+          "B",
+          "A"
         ]
       }
     }
