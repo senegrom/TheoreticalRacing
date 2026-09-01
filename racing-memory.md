@@ -6,6 +6,37 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 202 (local agent, REVERTED): the gate-approach hold does not reach the flank dooms
+
+The candidate priced hot S/F approaches (landing within 10 of the
+gate, 2+ rivals in the gate zone, non-final lap, speed above 4) --
+aimed at the flank twins (hybrid12/hybrid20, 18 crashes) and rand2
+(21), the family every earlier bench said responds to caution near
+the gate. Multi-seed bench #7: 85 vs 89 -- but the SHAPE disproves
+the mechanism: hybrid12 +0, hybrid20 +0, rand2 +3 (WORSE, 24). The
+-4 total is scattered one-crash shifts on NON-target tracks -- the
+timing-butterfly reshuffle, not the fix. Shipping noise violates the
+instrument discipline; reverted.
+
+What this negative pins down: the flank dooms are not created inside
+the 10-cell approach zone at speeds the surcharge can price -- their
+commitment is earlier or hotter than a scorer-side trap can reach
+(consistent with the C3 lesson that the amplification acts upstream
+of any gate radius). And rand2 worsening under MORE gate caution
+kills the "hold short of the contested line" theory for it: its
+displaced band entries do not come from crossing too eagerly.
+
+Arc status after six measured candidates on the 105-race instrument:
+shipped = lane spreading (89); every caution-shaped and body-
+permanence knob measured and closed. The surviving magnets -- rand2
+(21-24, worsens under gate caution), rand16 (11-13), monaco (11,
+fully cured by moving-body transparency that is globally net-
+negative), hybrid12/hybrid20 (9+9, unreachable by every scoped
+surcharge tried) -- now require per-magnet forensics at the exact
+displacement moment, with per-seed debug reruns. Monaco first: a
+mechanism that is 100% curable by a known-but-unscopable lever is
+the most likely to yield a local law.
+
 ## Round 201 (local agent, SHIPPED): the multi-seed instrument, the magnet census, and lane spreading -- residual crashes 100 -> 89
 
 THE INSTRUMENT (new standing law): single-seed clean-counts are dice
