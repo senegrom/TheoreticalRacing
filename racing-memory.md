@@ -6,6 +6,45 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 203 (local agent, ARC CLOSED at 89): three more measured negatives refine the knot to its core
+
+Continuing on the 105-race instrument against the shipped lane-
+spreading baseline (89 crashes):
+
+- C6 GRADED NEEDLE TRAP (0 threads -> 30, 1 thread -> 15, from the
+  monaco-corner analysis that a flat trap on ALL candidates stops
+  discriminating): 91, and nearly every race byte-held -- under
+  current-body counting the corner's turn candidates read ZERO
+  threads, not one, so the grade never fires. The cure requires
+  seeing through the moving train.
+- C7 PREDICTED-OCCUPANCY NEEDLE (the scorer's own one-round rival
+  prediction instead of live bodies -- parked predicts parked, a
+  train predicts advanced and re-blocks where it lands; the physics
+  between r197 opacity and C2 transparency): 107 (+18), monaco
+  itself +2. THE REFINED TRUTH: a dense train is opaque under ANY
+  one-step occupancy model, because each vacated cell is re-occupied
+  by the follower. Prediction shows the train advanced but still
+  there.
+- (C5, round 202, already ledgered: the gate-approach hold never
+  reached the flank dooms.)
+
+WHAT THE WHOLE ARC NOW PINS DOWN: monaco's transparency cure (11 -> 0)
+works not because cells free up but because ignoring the train lets
+the mover MERGE INTO ITS FLOW -- match speed and take the corner as
+part of the train. No successor-count, graded, scoped, or predicted,
+expresses that; it is flow-relative reasoning (speed matching against
+the local traffic stream), a mechanism class the champion does not
+have. That -- not more occupancy variants -- is the frontier, with
+three precise fixtures: monaco's corner (the pure merge case), rand2's
+band (displacement + alcove), and the flank twins (hot approach).
+
+The tree stays at shipped round 201: multi-seed residual 89 (from
+100), single-seed board 61/72, solo 72/72 perfect, laps=1 byte-frozen
+through fourteen verified builds this campaign stretch. Nine bench
+cycles ran on the instrument; one candidate shipped, seven were
+rejected by measurement, and each rejection narrowed the problem --
+the residue is no longer mysterious, merely unsolved.
+
 ## Round 202 (local agent, REVERTED): the gate-approach hold does not reach the flank dooms
 
 The candidate priced hot S/F approaches (landing within 10 of the
