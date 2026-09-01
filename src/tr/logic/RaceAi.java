@@ -535,6 +535,7 @@ final class RaceAi {
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
 	private final static int		AI1_NEEDLE_RIVAL_R	= 8;	// round 197: traffic radius for the needle-headway law
 	private final static double	AI1_NEEDLE_TRAP	= 30.0;	// round 197: surcharge for an unstoppable no-headway landing
+	private final static double	AI1_LANE_STYLE	= 0.12;	// round 204: per-player tie-break style spread in lap traffic
 
 	/**
 	 * Promoted smart-driver policy. AI2 delegates here so both smart kinds run
@@ -824,7 +825,26 @@ final class RaceAi {
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
 			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
-			final double score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry + queueBox + spread - momentum - robustness;
+			// Lane spreading (round 204): every magnet death in the multi-seed
+			// census begins as displacement off a SINGLE shared geodesic --
+			// eight cars stacked on one line. In lap traffic each driver weighs
+			// the two tie-breaks slightly differently (deterministic by player
+			// index; player 0 keeps the exact champion weights, laps=1
+			// untouched), so the field fans across parallel near-optimal lines
+			// instead of queueing nose-to-tail through the poison states.
+			// The unstyled path keeps the LEGACY floating-point shape
+			// (- momentum - robustness, two subtractions): folding them into
+			// one subtraction is a one-ULP change that flips near-exact ties
+			// (monza s30 trajectory pin caught it).
+			final double score;
+			if (game.totalLaps > 1 && playerNum > 0) {
+				final double f = 1.0 + AI1_LANE_STYLE * ((playerNum % 3) - 1);
+				score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry
+						+ queueBox + spread - (momentum * f + robustness * (2.0 - f));
+			} else {
+				score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry
+						+ queueBox + spread - momentum - robustness;
+			}
 			final int poT = ownTurns;
 			if (AI_DEBUG_COMP)
 				System.err.println("R49C p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("

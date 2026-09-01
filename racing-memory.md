@@ -6,6 +6,59 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 201 (local agent, SHIPPED): the multi-seed instrument, the magnet census, and lane spreading -- residual crashes 100 -> 89
+
+THE INSTRUMENT (new standing law): single-seed clean-counts are dice
+-- the round-200 oscillation proved it. The residual bench is now the
+21-track x 5-seed grid (11 dirty + 10 guards, 105 races), scored on
+TOTAL CRASHES. Baseline on shipped r199: 100 crashes -- and four
+"clean" guards leak across seeds (rand13, rand19, circle, lemans).
+
+THE MAGNET CENSUS (mined from the baseline): every dirty track is ONE
+attractor state, stable across all five seeds. rand2 20/22 crashes at
+two states feeding the (108,8) alcove; monaco 10/11 at literally
+(12,123)v(1,-5) -- built vy=-10 down the west straight, max-shed still
+reaches the NW corner at vy=-5, survivable only by growing vx east
+through the turn, and the pack occupies those cells; hybrid12 7/9 at
+(142,40)v(2,-5) and hybrid20 8/10 at (117,40)v(2,-6) -- the S/F flank
+overshoot twins; rand17 6/7, rand16 11/14, rand12 clustered likewise.
+~80% of all residual crashes live in ~7 named states. Universal form:
+traffic displacement off ONE shared geodesic into a state where every
+option is already dead.
+
+FOUR CANDIDATES, MEASURED HONESTLY:
+- C1 (fallback lap-continuing tier): byte-level NO-OP over all 105
+  races -- body-blocked candidates never reach the fallback's legal
+  mask, so the tier is always empty where it mattered. Not shipped.
+- C2 (moving bodies transparent in needleHeadway): 107 (+7), but a
+  clean DECOMPOSITION: corner-displacement magnets collapse (monaco
+  11 -> 0, rand17 -5, rand16 -4, rand12 -2 = -28) while flank magnets
+  amplify (hybrid20 +9, hybrid17 +10, rand13 +8 = +35). Not shipped.
+- C3 (C2 away from gates, r199 opacity near them): 108 -- the flank
+  amplification acts UPSTREAM of any gate radius (approach-speed
+  pressure, not local blocking). Body-permanence is double-edged at
+  every radius; the caution-knob family is closed. Not shipped.
+- C4 (LANE SPREADING, shipped): attack the root -- the single shared
+  geodesic. In lap traffic each driver weighs the momentum/plateau
+  tie-breaks slightly differently (three deterministic styles by
+  player index; player 0 keeps exact champion weights; laps=1
+  untouched). 89 crashes (-11): broad shallow wins on nine tracks
+  (rand17 -5, rand12/weave3 -2, six at -1) and NO amplification
+  anywhere (fractal1 +1, rand13 +3 the only pushes).
+
+Shipping caught a real trap: folding "- momentum - robustness" into
+one subtraction is a one-ULP float change that flips near-exact ties
+(the monza s30 trajectory pin failed). The unstyled path keeps the
+legacy fp shape exactly; 23/23 pins + goldens green after the fix,
+laps=1 + solo byte-identical, spot-checks confirm the wins survive.
+
+Residue for the per-magnet rounds: rand2 21 (invariant under all five
+configurations -- the alcove band needs its own round), rand16 13,
+monaco 11 (transparency cures it but is globally net-negative; its
+corner needs a magnet-specific answer), hybrid12/hybrid20 9 each (the
+flank twins), rand13 5. AI1_LANE_STYLE=0.12 was the first value tried;
+a sweep (0.2?) is the cheap next probe on the standing instrument.
+
 ## Round 200 (local agent, REVERTED): three mechanisms probed, fleet says no -- policy saturation is measured
 
 Motivated by the hybrid20 bench-#6 regression forensic: its crashes
