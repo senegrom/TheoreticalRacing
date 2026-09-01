@@ -6,6 +6,40 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Nordschleife (local agent, SHIPPED): the green hell joins the fleet -- 84 tracks, clean 8-car debut
+
+Per user direction ("add the nordschleife. It will be massive but ok.
+Make sure it's the same scale as the other"). SOURCE: 52 OSM raceway
+section ways (Hohe Acht, Fuchsroehre, Schwedenkreuz, Pflanzgarten,
+Doettinger Hoehe...) endpoint-stitched into a closed loop of 20.75 km
+vs the real 20.832 -- 0.4% off. SCALE HONESTY: the GP-Strecke sibling
+sits at ~4.9 m/cell; true same-scale needs ~1250 cells and the grid
+caps at 500 (sanitizeIntProp gameX/gameY max) -- built at the largest
+legal scale, 500x402 at ~12.3 m/cell, noted in the track header.
+Width 3.8 per the fleet <4 law.
+
+BUILD LESSONS (tracks/build_nordschleife.py, in-repo): at 12.3 m/cell
+the real hairpins have radii of 1-2 cells and the +-1.9 inner offset
+self-crosses; blind cusp-cutting then EXCISES the whole tip from one
+wall and the walls diverge (width scars of 21, 15.7, 11.4 in
+successive attempts). Two fixes proved out: (a) iterative TARGETED
+rounding of the dense centerline wherever chord-heading delta over
+span 3 exceeds 0.42 (tip radius >= ~7 cells -- chord delta ~ span/R,
+NOT arc curvature; conflating the two silently under-rounds), and
+(b) offset the DENSE 1-cell line and decimate the WALLS (decimating
+the centerline first re-sharpens what the rounding smoothed). The
+S/F found itself: the longest low-curvature stretch (151 cells) is
+the Doettinger Hoehe.
+
+SCALE OF THE STATE SPACE: 500x402 = 125M states; reachability builds
+in 36s (BFS 29s) under the stock 8.3 GB-max JVM, alive=657k, gate
+maps 649k finite, cache write 5.3s. RACING: solo laps in ~280
+moves/lap crossing at speed 8, finishing at 14; the 8-CAR FIELD RACES
+IT CLEAN in both modes (laps=3: 7f/0c/0t in 6846 moves -- the field
+paces at ~285 moves/lap/car, essentially solo speed; laps=1: 7f/0c).
+TrackDataTests 84 OK; goldens and pins untouched (new track); atlas
+republished (84 tracks, 73 lap-ready).
+
 ## Width normalization (local agent, SHIPPED): six real circuits narrowed to reality -- and the Nurburgring layout verified
 
 The user flagged Nurburgring's variable width and Red Bull Ring's
