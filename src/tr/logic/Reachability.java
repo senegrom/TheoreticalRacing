@@ -149,6 +149,12 @@ final class Reachability {
 	/** Multi-lap: per-gate maps -- [0] to a shedable forward S/F crossing,
 	 *  [1]/[2] to a direction-free alive touch of CP1/CP2 (null at laps==1). */
 	int[][]	gateTurns;
+	/** Round 210: per gate, the states with a 1-FAULT-TOLERANT path to it --
+	 *  a second-arrival BFS where a state joins only once TWO distinct
+	 *  successors are in (each valid gate passage counts as one). A state
+	 *  outside the set is a NEEDLE: its continuation is a single thread that
+	 *  one rival body turns into a wall. */
+	BitSet[]	robustReach;
 	/** Round 208 diagnostics: gate-0 seeding had to fall back to plain seeds. */
 	boolean robustSeedFallback;
 	/** Round 209 diagnostics: finish-closure alive states dropped as phantom. */
@@ -222,6 +228,24 @@ final class Reachability {
 		return gateTurns[gate][aliveIdx(x, y, vx, vy)];
 	}
 
+	/** Round 210: the plain lap potential with needle states surcharged --
+	 *  the gradient stays the fast line (the full robust-distance gradient
+	 *  cost 4% of pace in traffic); only a state whose continuation is a
+	 *  single thread is worth {@code surcharge} more turns. */
+	int turnsToGateNeedleAware(final int gate, final int x, final int y, final int vx, final int vy,
+			final int surcharge) {
+		if (robustReach == null || robustReach[gate] == null)
+			return turnsToGate(gate, x, y, vx, vy);
+		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH
+				|| vx < -aliveVMAX || vx > aliveVMAX || vy < -aliveVMAX || vy > aliveVMAX)
+			return Integer.MAX_VALUE;
+		final int idx = aliveIdx(x, y, vx, vy);
+		final int pt = gateTurns[gate][idx];
+		if (pt == Integer.MAX_VALUE || robustReach[gate].get(idx))
+			return pt;
+		return pt + surcharge;
+	}
+
 	/** Round 208: a crossing landing is ROBUST when at least two of its
 	 *  successors are legal-edge, alive, and continue the lap on the next
 	 *  gate map (alive alone before the product fixpoint has a next map). */
@@ -239,6 +263,30 @@ final class Reachability {
 			if (!aliveStates.get(sidx))
 				continue;
 			if (nextMap != null && nextMap[sidx] == Integer.MAX_VALUE)
+				continue;
+			if (!game.isMoveLegalGeometryCached(nx, ny, sx, sy))
+				continue;
+			if (++n >= 2)
+				return true;
+		}
+		return false;
+	}
+
+	/** Round 210: {@link #robustLanding} against a robust reach SET. */
+	private boolean robustLandingIn(final int nx, final int ny, final int nvx, final int nvy,
+			final BitSet next) {
+		int n = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int svx = nvx + d.dx, svy = nvy + d.dy;
+			if (velocityOutOfRange(svx, svy))
+				continue;
+			final int sx = nx + svx, sy = ny + svy;
+			if (sx < 0 || sy < 0 || sx >= aliveW || sy >= aliveH)
+				continue;
+			final int sidx = aliveIdx(sx, sy, svx, svy);
+			if (!aliveStates.get(sidx))
+				continue;
+			if (next != null && !next.get(sidx))
 				continue;
 			if (!game.isMoveLegalGeometryCached(nx, ny, sx, sy))
 				continue;
@@ -276,6 +324,20 @@ final class Reachability {
 			gateTurns[1] = computeGateMap(1, gates[1], gateTurns[2]);
 			gateTurns[0] = computeGateMap(0, gates[0], gateTurns[1]);
 		}
+		// Round 210: the robust reach sets, same product cycle, second-arrival
+		// BFS. A robust seed's landing must be in the NEXT gate's robust set,
+		// so the whole lap cycle is 1-fault-tolerant. The BFS distances are
+		// transient (one scratch map); only membership is kept.
+		robustReach = new BitSet[3];
+		{
+			final int[] scratch = new int[turnsArr.length];
+			final byte[] arrivals = new byte[turnsArr.length];
+			for (int pass = 0; pass < 3; pass++) {
+				robustReach[2] = computeRobustReach(2, gates[2], robustReach[0], scratch, arrivals);
+				robustReach[1] = computeRobustReach(1, gates[1], robustReach[2], scratch, arrivals);
+				robustReach[0] = computeRobustReach(0, gates[0], robustReach[1], scratch, arrivals);
+			}
+		}
 		// Round 209: coherent alive. The finish BFS seeds from every forward
 		// crossing as a terminal (laps=1 semantics: the final crossing
 		// finishes even into a wall). A non-final crossing must land legally
@@ -306,6 +368,7 @@ final class Reachability {
 					if (v != Integer.MAX_VALUE)
 						finite++;
 				System.out.println("[laps] gate " + g + " map finite=" + finite
+						+ " robust=" + robustReach[g].cardinality()
 						+ (g == 0 ? (robustSeedFallback ? " seeds=plain-fallback" : " seeds=robust")
 								+ " coherent alive=" + aliveStates.cardinality() + " phantom=" + phantomAlive : ""));
 			}
@@ -406,6 +469,90 @@ final class Reachability {
 			}
 		}
 		return map;
+	}
+
+	/** Round 210: second-arrival gate reach. A state joins when its SECOND
+	 *  distinct successor is in (each valid gate passage counts as one
+	 *  arrival at distance 1), so membership means the gate is reachable
+	 *  with one successor denied at every step -- the racecraft law of
+	 *  always keeping an out. {@code scratch} carries the BFS distances
+	 *  (nondecreasing pops make the second arrival the second-smallest);
+	 *  only the membership BitSet is returned. */
+	private BitSet computeRobustReach(final int gate, final java.awt.geom.Line2D line,
+			final BitSet nextRobust, final int[] scratch, final byte[] arrivals) {
+		final int total = turnsArr.length;
+		Arrays.fill(scratch, Integer.MAX_VALUE);
+		Arrays.fill(arrivals, (byte) 0);
+		final IntQueue queue = new IntQueue();
+		for (int x = 0; x < aliveW; x++) {
+			for (int y = 0; y < aliveH; y++) {
+				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5))
+					continue;
+				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
+					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
+						final int idx = aliveIdx(x, y, vx, vy);
+						for (final Direction d : DIRECTIONS) {
+							final int nvx = vx + d.dx;
+							final int nvy = vy + d.dy;
+							if (velocityOutOfRange(nvx, nvy))
+								continue;
+							final int nx = x + nvx, ny = y + nvy;
+							final boolean hits = (gate == 0
+									? game.crossesFinish(x, y, nx, ny)
+											&& shedableLanding(nx, ny, nvx, nvy)
+									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
+											line.getX2(), line.getY2(), x, y, nx, ny)
+											&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
+											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
+									&& game.isMoveLegalGeometryCached(x, y, nx, ny);
+							if (!hits)
+								continue;
+							if (nextRobust != null && !nextRobust.get(aliveIdx(nx, ny, nvx, nvy)))
+								continue;
+							if (gate == 0 && !robustLandingIn(nx, ny, nvx, nvy, nextRobust))
+								continue;
+							if (arrivals[idx] < 2 && ++arrivals[idx] == 2) {
+								scratch[idx] = 1;
+								queue.add(idx);
+							}
+						}
+					}
+				}
+			}
+		}
+		while (!queue.isEmpty()) {
+			int rest = queue.remove();
+			final int curIdx = rest;
+			final int vyp = rest % aliveSpan - aliveVMAX;
+			rest /= aliveSpan;
+			final int vxp = rest % aliveSpan - aliveVMAX;
+			rest /= aliveSpan;
+			final int yp = rest % aliveH;
+			final int xp = rest / aliveH;
+			final int turns = scratch[curIdx];
+			final int x = xp - vxp;
+			final int y = yp - vyp;
+			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
+				continue;
+			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
+				continue;
+			for (final Direction d : DIRECTIONS) {
+				final int vx = vxp - d.dx;
+				final int vy = vyp - d.dy;
+				if (velocityOutOfRange(vx, vy))
+					continue;
+				final int idx = aliveIdx(x, y, vx, vy);
+				if (arrivals[idx] < 2 && ++arrivals[idx] == 2) {
+					scratch[idx] = turns + 1;
+					queue.add(idx);
+				}
+			}
+		}
+		final BitSet in = new BitSet(total);
+		for (int i = 0; i < total; i++)
+			if (scratch[i] != Integer.MAX_VALUE)
+				in.set(i);
+		return in;
 	}
 
 	/**

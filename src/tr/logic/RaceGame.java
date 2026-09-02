@@ -1731,8 +1731,8 @@ public final class RaceGame {
 				int liveCount = 0;
 				for (int i = 0; i < players.length; i++) {
 					final String[] f = parts[i + 1].split(",", -1);
-					if (f.length != 5)
-						throw new IllegalArgumentException("Player " + i + " query group must contain x,y,vx,vy,finished");
+					if (f.length != 5 && f.length != 6)
+						throw new IllegalArgumentException("Player " + i + " query group must contain x,y,vx,vy,finished[,gate]");
 					final int x = Integer.parseInt(f[0].trim());
 					final int y = Integer.parseInt(f[1].trim());
 					final int vx = Integer.parseInt(f[2].trim());
@@ -1754,6 +1754,10 @@ public final class RaceGame {
 					players[i].setPosition(new int[]{x, y });
 					players[i].setVelocity(new int[]{vx, vy });
 					players[i].setFinishedPlace(finished);
+					// Round 210 forensics: an optional 6th field sets the lap gate
+					// (0=S/F, 1=CP1, 2=CP2) so a multi-lap board replays faithfully.
+					if (f.length == 6 && totalLaps > 1)
+						players[i].setNextGate(Integer.parseInt(f[5].trim()));
 				}
 				if (players[mover].isFinished())
 					throw new IllegalArgumentException("Mover is already finished");

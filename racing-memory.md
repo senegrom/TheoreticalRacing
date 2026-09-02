@@ -6,6 +6,77 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 210 (local agent, SHIPPED): the needle surcharge -- 1-fault-tolerant reach, traffic-gated
+
+THE FINDING (query-oracle forensics on the round-209 residue): the
+remaining chains are NEEDLES. rand2 after the S/F: (121,23) v(-1,-6)
+-> (119,18) -> (117,14) -> (114,11) -> (112,9) -> (111,8), every
+state with exactly ONE alive successor; a rival parked on that one
+cell ((112,8) v(0,0)) and the follower took the dead cell (107,8).
+The same shape at rand19 (138,8), weave3 (89,79), hybrid20 (117,33).
+Fleet census: 6-20% of coherent-alive states are needles (monaco
+19.9%, hybrid12 13.4%, rand2 9.3%), nearly all at speed >= 4.
+
+THE LAW (Reachability.computeRobustReach): per gate, the set of
+states with a 1-FAULT-TOLERANT path -- a second-arrival BFS where a
+state joins only once TWO distinct successors are in (each valid
+gate passage counts as one arrival), the product cycle closed over
+the robust sets (a robust seed's landing must be in the next gate's
+robust set; robustLandingIn). Membership only, one BitSet per gate
+(16 MB on the Nordschleife; the BFS distances live in one transient
+scratch map). RaceAi: with a live rival AHEAD or beside within
+Chebyshev 12 (rivalAheadWithinCheb: dot with my velocity >= -2 speed),
+ttf() reads turnsToGateNeedleAware -- the PLAIN turns, plus
+AI1_ROBUST_SURCHARGE = 12 on a needle state. Alone, or with only cars
+behind, the plain map: solo pace untouched by construction.
+
+WHAT THE SWEEP TAUGHT (20 forensic races that carried 15 round-209
+crashes; scratch build, constants as JVM properties): the full
+ROBUST-DISTANCE gradient (turns with one successor denied at every
+step) is a different racer -- 0 crashes but +4.4% mean-finisher pace,
+at surcharge 40, 12 or 6, at range 12 or 8: in a pack the mode is on
+nearly always and the 2-wide margin costs everywhere. The plain
+gradient with a needle surcharge keeps the fast line: 3 crashes at
++1.9% (surcharge 12; 6 gives byte-identical races, 3 gives 2 crashes
+-- the surcharge is an ordering, not a weight). Gating on ANY rival
+within 12 taxed the leader for cars behind it (guard set +3.2%);
+gating on rivals ahead or beside halves the cost: forensic 4 crashes
+at +0.9% (winners +0.5%), guard set 2 -> 0 crashes at +0.7%. Range 8
+loses half the benefit (9 crashes). Shipped: ahead-gate, 12, 12.
+
+MULTI-SEED BENCH #18 vs shipped #17: 24 -> 11, zero timeouts,
+finishers 711 -> 724. rand2 7 -> 0 (the band that eleven candidates
+never touched is clean on all five seeds), weave3 3 -> 0, hybrid20
+4 -> 2, hybrid12 3 -> 2, fractal1/rand12/rand16/lobe2/rand13 -1 each;
+pushes rand6 2 -> 4 (the west-wall long needle, see round 211),
+gear +1, rand17 +1, hybrid17 +1. Solo fleet 73/73 with byte-identical
+move counts (22510 = 22510: the gate needs a rival). Traffic pace on
+the 30 forensic+guard races: winners +0.5%, mean finisher +0.9%.
+
+INSTRUMENT ARC: 100 -> 89 -> 86 -> 84 -> 77 -> 34 -> 24 -> 11.
+Residue: rand6 4, hybrid12 2, hybrid20 2, gear 1, rand17 1,
+hybrid17 1.
+
+PROBED AND LEFT ALONE: the Gipps weight (AI1_FOLLOW_W 1.0 -> 2.0 / 3.0)
+on top of the needle gate, 30 races: 4 -> 3 -> 3 crashes at the same
+pace, the hybrid12 hairpin death untouched -- the follow surcharge is
+not what the boxed-in hot arrival lacks. What remains on the forensic
+set is four scattered singletons, no magnet clusters: a car at speed
+8-9 in a first-lap pack whose alive landings fill with bodies as the
+pack brakes for a hairpin (hybrid12 west side (7,113)). The next
+instrument is a per-candidate score breakdown in --query-moves.
+
+VERIFICATION: laps=1 fractal8 byte-identical; repo build reproduces
+the scratch config T logs byte-for-byte (rand2, hybrid12, rand19,
+monaco); apply_c14_needle.py reproduces the working tree from HEAD;
+Nordschleife 3-lap solo 48 s (robust sets 389k of 649k alive). Gate
+battery 27/27.
+
+TRAP RECORDED: a scratch jar resolves tracks/ next to ITSELF -- the
+scratchpad copy had a stale 130x170 monaco, which made one sweep row
+look 14% faster. Sync the scratch tracks before any scratch-jar
+comparison; check the log header grid size.
+
 ## Round 209 (local agent, SHIPPED): coherent alive -- the phantom states before the line, residual 34 -> 24
 
 THE FINDING (query-oracle forensics on the round-208 residue): the
