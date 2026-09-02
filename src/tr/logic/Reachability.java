@@ -211,7 +211,7 @@ final class Reachability {
 	/** Cell within reach of a gate segment (seed prefilter for lap maps --
 	 *  the legacy distMap has no coverage past the S/F, so lap-mode BFS
 	 *  cannot use it as a wall). */
-	private boolean cellNearSegment(final java.awt.geom.Line2D line, final int x,
+	static boolean cellNearSegment(final java.awt.geom.Line2D line, final int x,
 			final int y, final double r) {
 		return line.ptSegDist(x, y) <= r;
 	}

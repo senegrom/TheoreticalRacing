@@ -540,6 +540,7 @@ final class RaceAi {
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
 	private final static double	AI1_TRAP_L1		= 2.0;	// trap ladder: 1 safe successor
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
+	private final static int		AI1_ALONE_R	= 40;	// round 214: no live rival within this Chebyshev radius means the track is mine and the exact potential applies; 20 was too tight -- cars left the optimal line already inside a pack (weave3 lost 8 races of 10)
 	private final static int		AI1_NEEDLE_RIVAL_R	= 8;	// round 197: traffic radius for the needle-headway law
 	private final static double	AI1_NEEDLE_TRAP	= 30.0;	// round 197: surcharge for an unstoppable no-headway landing
 	private final static double	AI1_LANE_STYLE	= 0.12;	// round 201: per-player tie-break style spread in lap traffic (multi-seed: 0.12 -> 89 crashes, 0.20 -> 105 -- past the sweet spot the style sacrifice costs more than spreading buys)
@@ -560,6 +561,16 @@ final class RaceAi {
 		final int robustSp = Math.max(Math.abs(vel[0]), Math.abs(vel[1]));
 		robustMode = lapAware && rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum,
 				Math.max(AI1_ROBUST_RANGE, Math.min(robustSp * (robustSp + 1) / 2, AI1_ROBUST_KIN_CAP)));
+		// Round 214: with nobody near, the race is a shortest-path problem and
+		// the exact potential solves it. Every caution term below is priced
+		// against a rival that is not there, and the measured cost of that was
+		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
+		// with a finite value always has a successor one move closer.
+		if (game.totalLaps > 1 && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
+			final Direction alone = optimalAloneMove(pos, vel, playerNum);
+			if (alone != null)
+				return alone;
+		}
 		final int sealRivals = liveRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
 		// every seal that forgoes the finish to crash a later mover. Lap mode:
@@ -4322,6 +4333,21 @@ final class RaceAi {
 				return true;
 		}
 		return false;
+	}
+
+	/** Round 214: the exact optimal move for a car with the track to itself, or
+	 *  null when the potential was not built (an over-budget board) or the
+	 *  state has no finite continuation. */
+	private Direction optimalAloneMove(final int[] pos, final int[] vel, final int playerNum) {
+		final OptimalPotential potential = game.optimalPotential();
+		if (potential == null)
+			return null;
+		int lapsDone = 0;
+		for (final Player p : game.players)
+			if (p.getNumber() == playerNum)
+				lapsDone = p.getLap();
+		return potential.bestMove(game, pos[0], pos[1], vel[0], vel[1],
+				OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps));
 	}
 
 	/** Round 61: any live opponent within Chebyshev distance {@code cheb} of

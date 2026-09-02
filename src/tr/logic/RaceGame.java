@@ -1039,6 +1039,41 @@ public final class RaceGame {
 	}
 
 
+	/** Round 214: exact distance-to-finish for a car with the track to itself.
+	 *  Built once per (geometry, laps) and shared by every race in this JVM;
+	 *  null when the board is too large for the budget. */
+	private static final java.util.HashMap<String, OptimalPotential> OPTIMAL_MEMO =
+			new java.util.HashMap<>();
+	/** 1.5 GB covers every board in the fleet except the Nordschleife, whose
+	 *  89M states would need 1.6 GB -- and which is already within about a
+	 *  percent of optimal, so it keeps the ordinary policy. */
+	private static final long OPTIMAL_BUDGET_BYTES = 1536L << 20;
+	private OptimalPotential optimalPotential;
+	private boolean optimalPotentialBuilt;
+
+	OptimalPotential optimalPotential() {
+		if (optimalPotentialBuilt)
+			return optimalPotential;
+		optimalPotentialBuilt = true;
+		if (totalLaps > 1 && lapGates != null) {
+			final String key = reach.geometryCacheKey() + "-laps" + totalLaps;
+			synchronized (OPTIMAL_MEMO) {
+				if (OPTIMAL_MEMO.containsKey(key)) {
+					optimalPotential = OPTIMAL_MEMO.get(key);
+				} else {
+					final long t0 = System.nanoTime();
+					optimalPotential = OptimalPotential.build(this, totalLaps, OPTIMAL_BUDGET_BYTES);
+					OPTIMAL_MEMO.put(key, optimalPotential);
+					if (autoMode)
+						System.out.printf("[optimal] potential %s in %.1fs%n",
+								optimalPotential == null ? "SKIPPED (over budget)" : "built",
+								(System.nanoTime() - t0) / 1e9);
+				}
+			}
+		}
+		return optimalPotential;
+	}
+
 	final Reachability reach = new Reachability(this);
 	boolean crossesFinish(final double x1, final double y1, final double x2, final double y2) {
 		// Multi-lap: the real line is the short boundary-gap gate -- the raw

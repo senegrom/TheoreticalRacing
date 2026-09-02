@@ -6,6 +6,63 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 214 (local agent, SHIPPED): drive the exact optimum when nobody is near
+
+Per user direction ("if no opponent is close they should drive optimally").
+The measurement said a lone car spends 3.45% more moves than the track allows,
+and none of it can be traffic caution because there is no traffic.
+
+FIRST PROBE, and why it was not enough: with no rival inside 20 cells, take the
+move the GATE MAP prefers (the greedy descent the rollouts already use to model
+rivals) and skip the scorer. It recovered about a third -- circle 9.9% -> 4.5%,
+cog 12.1% -> 9.1% -- but rand12 barely moved (15.7% -> 15.1%) and silverstone
+got worse. The gate map answers "how far to the NEXT gate", and the state you
+arrive at a gate in shapes the segment after it, so its descent is not the
+shortest race. Composition, not caution, is the bigger half.
+
+THE LAW (OptimalPotential): fold the gates still owed into the state and search
+backward from the finish. Every move and every seed costs one turn, so it is a
+plain breadth-first search, not a weighted one, and its greedy descent is
+optimal by construction and cannot crash -- a state with a finite value always
+has a successor one move closer. It obeys the referee, not the AI: a non-final
+passage must be an ordinarily legal move, the race-ending crossing is
+legality-waived, and nothing must be shedable or alive. RaceAi consults it when
+no live rival is within Chebyshev AI1_ALONE_R = 20; otherwise every existing
+law stands untouched. laps=1 never reaches it (8-car byte-identical).
+
+COST: the potential is short-valued over (state, gates remaining), built once
+per (geometry, laps) and shared across races in a JVM. Median board 245 MB,
+built in under a second; the budget of 1.5 GB skips exactly one track, the
+Nordschleife (2.2 GB), which was already within 1.2% of optimal.
+
+SOLO, the point of the round: 72 of the 73 lap tracks now race the EXACT
+optimum -- not close to it, equal to it -- and the fleet sits 0.05% above the
+theoretical minimum where it was 3.45%. 741 moves saved. The single exception
+is the Nordschleife, whose potential is over budget and which keeps the
+ordinary policy (10 moves, 1.2%).
+
+TRAFFIC, and the radius that decides it: at AI1_ALONE_R = 20 the fleet grid
+went 1 -> 10 crashes, eight of them on weave3. The forensics killed the
+obvious theory: at the crash the SCORER was in control, two cells behind a
+rival, so this was not a hot handover out of the optimal line. Cars that drive
+optimally while isolated simply arrive at the pack in configurations the
+traffic laws have never seen. Widening the radius to 40 restores the baseline
+exactly: 720 races, 1 crash -- the same rand19 s9, the same 1456 moves -- with
+fleet moves -0.01% and 591 of 720 races running identically to the shipped
+build. The optimum still applies wherever the track is genuinely clear.
+The deeper slice agrees: the 21 bench tracks over fresh seeds 11-20 give
+2 crashes, the same two races and the same count as the shipped build.
+
+INSTRUMENT NOTE: the same 730-race grid was run on Modal and on the AWS box,
+and every race matched on both move count and crashes. The bench is hardware-
+independent. Wall time was about ten minutes either way -- the box keeps its
+reachability caches on disk, so it needs no rebuilds, while each container
+pays for its own.
+
+VERIFICATION: laps=1 8-car byte-identical; gate battery 27/27 (compile under
+-Werror, CoreTests with TrackDataTests 84, MainTests, smoke, tooling, goldens,
+23 pins).
+
 ## Solo optimum (local agent, SHIPPED tooling): the exact shortest race, and the gap to it
 
 The question was whether a car alone on the track is already optimal. It is
