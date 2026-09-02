@@ -6,6 +6,42 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 213 (local agent, REVERTED): second-order headway cures the named magnets and mints new ones
+
+THE CANDIDATE, straight from the fleet baseline's forensics: needleHeadway
+(round 197) counts continuations that are body-free RIGHT NOW, and every rival
+moves once between my landing and my next one. So it also required at least one
+continuation outside every live rival's NEXT-MOVE BOX (its coasting landing
+plus one cell of steering per axis) -- "keep an out that survives the pack's
+next step". Lap-traffic only; laps=1 byte-identical.
+
+TARGET EVIDENCE, all three magnets cured: rand6 s17, rand19 s20 and rand19 s9
+each went from one crash to seven finishers.
+
+FULL EVIDENCE, and the verdict: 940 races, 5 crashes against the round-212
+build's 3.
+  - fleet (73 tracks x seeds 1-10): 1 crash, but a DIFFERENT one -- rand19 s9
+    cured, rand19 s1 broken.
+  - bench tracks x fresh seeds 11-20: 4 crashes against 2 -- rand6 s17 and
+    rand19 s20 cured, fractal1 s11, rand16 s17, rand16 s18 and rand19 s19
+    broken.
+  - pace unchanged (fleet moves 1866185 -> 1867046, +0.05%).
+
+DIAGNOSIS: the new deaths are the SAME state family as the cured ones -- a car
+crossing the S/F at speed 5 into the corner (rand19 (138,5) v(0,-5) is
+literally the state round 212 died in on another seed; rand16 (140,8) v(0,-5)).
+The veto does not remove the class, it re-phases which seed meets it: braking
+one move earlier hands the corner to a different car. A law that only shifts
+arrival phase cannot be told from noise except by the direction it happens to
+land, and here it landed worse. The corner state itself has to become
+survivable -- upstream commitment, not one more decision-time refusal. That is
+the ninth measured negative of the decision-time class and the clearest: its
+own targets were cured and the fleet still got worse.
+
+INSTRUMENT NOTE: this is exactly what the widened bench is for. On the old
+21x5 grid the candidate would have shown 0 crashes on its targets and nothing
+else -- it would have shipped.
+
 ## Fleet baseline (local agent): the round-212 build over 940 races -- three magnets left
 
 The 21-track x 5-seed grid read 0 after round 212, so the instrument grew in
