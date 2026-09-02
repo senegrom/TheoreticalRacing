@@ -529,6 +529,9 @@ final class RaceAi {
 	private final static double	AI1_PO_ROOM_MID	= 0.78;	// paceOverride: mid-roominess clause (slow landings)
 	private final static int		AI1_PO_SPD_MAX	= 4;		// paceOverride: max |v| component for the mid clause
 	private final static double	AI1_BRAKE_SPEED	= 4.0;	// arming gate + slope base of the speed brakes
+	private final static double	AI1_FOLLOW_W	= 1.0;	// round 206: surcharge per cell of stopping-distance excess behind a leader
+	private final static double	AI1_FOLLOW_LAT	= 1.5;	// round 206: lateral half-width of the following cone (2.5 cured monaco 10 -> 0 but braked for adjacent-lane leaders on open track: four clean guards dirtied; 1.5 = same lane only)
+	private final static double	AI1_FOLLOW_RANGE	= 40.0;	// round 206: look-ahead along my heading
 	private final static int		AI1_PACK_R2		= 36;	// cornerEntry pack radius^2
 	private final static int		AI1_VACATE_SPEED2	= 9;	// |v| >= 3: predicted cell nulled (transiting)
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
@@ -774,6 +777,19 @@ final class RaceAi {
 					if (proofs < 2)
 						uncertified = (speed - AI1_BRAKE_SPEED) * (proofs == 0 ? 2.5 : 1.0);
 				}
+			}
+			// Car-following law (round 206, Gipps): in lap traffic a landing's
+			// stopping distance must fit inside the gap to the leader ahead on my
+			// heading plus the leader's own stopping distance. Continuous (no
+			// trap cliff), directional (forward cone on my route, not radial),
+			// speed-relative (a fast leader's stopping distance lets me follow
+			// fast; a parked one does not) -- exactly the headway the 1-cell
+			// trains violated in the pocket dooms, and exactly what the radial
+			// stalled-rival probe lacked when it braked for flowing traffic.
+			if (game.totalLaps > 1) {
+				final double excess = followingExcess(newX, newY, newVx, newVy, playerNum);
+				if (excess > 0.0)
+					uncertified += AI1_FOLLOW_W * excess;
 			}
 			// Pack-gated knife-edge corner-entry brake: price roomy-successor
 			// scarcity when a pack is packed at a corner entry (>= 2 rivals
@@ -4575,6 +4591,45 @@ final class RaceAi {
 				return n;
 		}
 		return n;
+	}
+
+	/** Round 206 (Gipps): the largest stopping-distance excess against any
+	 *  live rival ahead in my heading cone from the candidate landing.
+	 *  Along-heading integer-shed physics: stopping from speed s covers
+	 *  s(s+1)/2 cells. The leader is credited its own along-heading stopping
+	 *  distance plus this round's advance; one cell of occupancy is taken
+	 *  off the gap. Oncoming rivals (adjacent hairpin leg) are ignored. */
+	private double followingExcess(final int nx, final int ny, final int nvx, final int nvy,
+			final int playerNum) {
+		final double sp = Math.hypot(nvx, nvy);
+		if (sp < 1.0)
+			return 0.0;
+		final double ux = nvx / sp, uy = nvy / sp;
+		final double myStop = sp * (sp + 1.0) / 2.0;
+		double worst = 0.0;
+		for (final Player r : game.players) {
+			if (r.getNumber() == playerNum || r.isFinished())
+				continue;
+			final int[] rp = r.getPosition();
+			final double dx = rp[0] - nx, dy = rp[1] - ny;
+			final double along = dx * ux + dy * uy;
+			if (along <= 0.0 || along > AI1_FOLLOW_RANGE)
+				continue;
+			final double lat = Math.abs(dx * uy - dy * ux);
+			if (lat > AI1_FOLLOW_LAT)
+				continue;
+			final int[] rv = r.getVelocity();
+			final double rAlong = rv[0] * ux + rv[1] * uy;
+			if (rAlong < -0.5)
+				continue; // oncoming: another leg of the corridor, not my leader
+			final double lead = Math.max(0.0, rAlong);
+			final double leadStop = lead * (lead + 1.0) / 2.0;
+			final double gap = along + lead - 1.0;
+			final double excess = myStop - gap - leadStop;
+			if (excess > worst)
+				worst = excess;
+		}
+		return worst;
 	}
 
 	/** Finish precedence mirrors the main candidate scan: a velocity-range-valid

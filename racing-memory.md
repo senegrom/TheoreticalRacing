@@ -6,6 +6,39 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 206 (local agent, SHIPPED): the Gipps following law -- monaco 10 -> 0, residual 84 -> 77
+
+The second commitment law. Real racecraft has a GAP law: my stopping
+distance must fit inside the gap to the leader plus the leader's own
+stopping distance (Gipps). In integer-shed physics stopping from speed
+s covers s(s+1)/2 cells. Implemented as followingExcess(landing): for
+every live rival in my forward cone (along-heading > 0, within 40,
+lateral <= AI1_FOLLOW_LAT, not oncoming), excess = myStop - (gap +
+leadAdvance - 1) - leadStop; the largest excess is surcharged at
+AI1_FOLLOW_W = 1.0 per cell, folded into `uncertified` inside a
+lap-mode branch (laps=1 byte-frozen). Continuous (no trap cliff),
+directional (a cone, not a radius -- the radial stalled-rival probe
+of round 198 braked for flowing traffic), speed-relative (a fast
+leader's stopping distance lets me follow fast; a parked one does
+not).
+
+TWO BENCHES: wide cone (LAT 2.5): 81 vs 84 with MONACO 10 -> 0 (the
+merge corner, cured outright -- followers hold gap behind the pack
+instead of ramming the turn hot), rand16 -5, hybrid12 -2 -- but four
+robustly clean guards each lost a car (weave1, silverstone, circle,
+cog): the cone caught adjacent-lane leaders on open straights and
+followers braked for cars they would simply pass. Same-lane cone
+(LAT 1.5): 77 vs 84 -- monaco 0 retained, fractal1 5 -> 1, rand16
+14 -> 9, rand13 -3, both round-205 gains intact (hybrid20 5, rand2
+18); weave1/silverstone clean again; residual pushes on rand19 (+4,
+the noisiest guard in every bench) and lobe2 (+2). Shipped at LAT 1.5.
+
+INSTRUMENT ARC: 100 (birth) -> 89 (lane spreading) -> 86 (narrowed
+board) -> 84 (kinematic horizon) -> 77 (following law). Two physical
+laws of commitment did what twelve decision-time heuristics could
+not. Residue: rand2 18 (the band; horizon reached it, headway did
+not), rand12 9, rand16 9, hybrid12 8, rand19 8, hybrid20 5.
+
 ## Round 205 (local agent, SHIPPED): the kinematic horizon -- the first fix to reach a flank magnet
 
 New-approach premise: the residual dooms are COMMITMENT errors, sealed
