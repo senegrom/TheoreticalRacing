@@ -16,10 +16,10 @@ public final class Main {
 	private Main() {}
 
 	static record Options(boolean auto, String trackName, boolean listTracks,
-			String dumpReach, String queryIn, String queryOut, Long seed, Long seedEnd,
+			String dumpReach, String queryIn, String queryOut, String optimalStart, Long seed, Long seedEnd,
 			String logPath, String propsPath) {
 		boolean headless() {
-			return auto || dumpReach != null || queryIn != null;
+			return auto || dumpReach != null || queryIn != null || optimalStart != null;
 		}
 	}
 
@@ -79,6 +79,8 @@ public final class Main {
 				game.setDumpReachPath(options.dumpReach());
 			if (options.queryIn() != null)
 				game.setQueryPaths(options.queryIn(), options.queryOut());
+			if (options.optimalStart() != null)
+				game.setOptimalStart(options.optimalStart());
 			if (options.seed() != null)
 				game.setStartSeed(options.seed());
 			if (options.logPath() != null)
@@ -139,6 +141,7 @@ public final class Main {
 		String dumpReach = null;
 		String queryIn = null;
 		String queryOut = null;
+		String optimalStart = null;
 		Long seed = null;
 		Long seedEnd = null;
 		String logPath = null;
@@ -151,6 +154,8 @@ public final class Main {
 				case "--list-tracks" -> listTracks = true;
 				case "--track" -> trackName = value(args, ++i, option);
 				case "--dump-reach" -> dumpReach = value(args, ++i, option);
+				// Exact shortest solo race from the given start cell: "x,y".
+				case "--optimal-laps" -> optimalStart = value(args, ++i, option);
 				case "--log" -> logPath = value(args, ++i, option);
 				case "--props" -> propsPath = value(args, ++i, option);
 				case "--seed" -> {
@@ -183,7 +188,7 @@ public final class Main {
 		if (seedEnd != null && (dumpReach != null || queryIn != null))
 			throw new IllegalArgumentException("--seed range cannot be combined with reach/query modes");
 		return new Options(auto, trackName, listTracks, dumpReach, queryIn, queryOut,
-				seed, seedEnd, logPath, propsPath);
+				optimalStart, seed, seedEnd, logPath, propsPath);
 	}
 
 	private static String value(final String[] args, final int index, final String option) {
@@ -195,7 +200,7 @@ public final class Main {
 	private static String usage() {
 		return "Usage: java -jar theoreticRacing.jar [--auto] [--track NAME] "
 				+ "[--props FILE] [--log FILE] [--seed N|A-B] [--dump-reach FILE] "
-				+ "[--query-moves INPUT OUTPUT] [--list-tracks]";
+				+ "[--query-moves INPUT OUTPUT] [--optimal-laps X,Y] [--list-tracks]";
 	}
 
 	private static void installLookAndFeel() {

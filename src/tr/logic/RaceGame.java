@@ -209,6 +209,12 @@ public final class RaceGame {
 	 *  line "mover;x,y,vx,vy,fin;..." (one group per player) sets the board and
 	 *  the reply is the champion AI's move "dx,dy". Headless; exits when done. */
 	private String queryInPath = null, queryOutPath = null;
+	/** "x,y" start cell for the exact shortest-solo-race search (--optimal-laps). */
+	private String optimalStart = null;
+
+	public void setOptimalStart(final String cell) {
+		this.optimalStart = cell;
+	}
 
 	public void setQueryPaths(final String in, final String out) {
 		this.queryInPath = in;
@@ -1639,6 +1645,19 @@ public final class RaceGame {
 		if (queryInPath != null) {
 			reach.ensureReachabilityReady();
 			processQueries(queryInPath, queryOutPath);
+			System.exit(0);
+		}
+		if (optimalStart != null) {
+			// The exact search needs the geometry and the gates, not the AI's
+			// reachability maps -- it is measured against the referee.
+			final String[] cell = optimalStart.split(",", -1);
+			final int sx = Integer.parseInt(cell[0].trim());
+			final int sy = Integer.parseInt(cell[1].trim());
+			final long t0 = System.nanoTime();
+			final int best = OptimalLap.solve(this, sx, sy, totalLaps);
+			System.out.printf("[optimal] laps=%d start=(%d,%d) moves=%s in %.1fs%n",
+					totalLaps, sx, sy, best < 0 ? "UNREACHABLE" : Integer.toString(best),
+					(System.nanoTime() - t0) / 1e9);
 			System.exit(0);
 		}
 		if (totalLaps > 1 && autoMode) {

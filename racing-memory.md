@@ -6,6 +6,59 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Solo optimum (local agent, SHIPPED tooling): the exact shortest race, and the gap to it
+
+The question was whether a car alone on the track is already optimal. It is
+answerable exactly: every move costs one turn, so the fewest moves to complete
+the laps is a breadth-first search over (position, velocity, gates completed).
+tracks/../src/tr/logic/OptimalLap.java does that search and `--optimal-laps X,Y`
+runs it from a given start cell; the flag exits before racing, so the race path
+is untouched (laps=1 8-car byte-identical, a lap race unchanged at 1456 moves).
+
+WHAT THE SEARCH OBEYS: the referee's rules only -- a non-final gate passage
+must be an ordinarily legal move, the race-ending crossing is legality-waived,
+and nothing must be shedable, certified or reachability-alive. Pruning to the
+AI's own alive set would have measured the AI against its own conservatism.
+The one shared limit is the velocity domain (|v| <= 12 per axis). Cost: about
+a second per track on a 150x150 board, because the search only ever visits the
+states actually reachable from the start (1-2M of the 10M-state product).
+
+THE READING (all 73 lap tracks, one car, three laps, the AI's own start
+cell): the AI spends 22510 moves where 21759 suffice -- 3.45% above optimal. Spread:
+21 tracks within 2%, 27 between 2 and 5%, 20 between 5 and 10%, 4 worse, worst
+rand12 at +15.7% (199 against 172). Exactly one track is driven perfectly:
+fractal17, 354 moves against 354.
+
+WHERE THE LOSS IS: the real circuits are nearly optimal -- interlagos +0.6%,
+lemans +0.7%, monaco +1.0%, silverstone +1.1%, spielberg +1.5%, hungaroring
++1.8%, monza +2.0%, nurburgring +2.7%, spa +4.4%. The double-digit gaps are
+all small twisty boards (rand12 +15.7%, rand14 +12.3%, cog +12.1%, rand19
++11.6%, circle +9.9%), where a lap is under 70 moves and every cautious corner
+is a larger share of it. The Nordschleife, 20 km of it, is +1.2% (841 against
+831) and took 133 s to solve -- 2.5M states of an 801M-state product.
+
+WHAT IT MEANS: alone, the AI is safe but not fast. It never crashes (73 of 73
+lap tracks complete), yet it spends measurably more moves than the track
+allows. The loss cannot be traffic caution -- there is no traffic -- so it is
+the scorer's own terms firing on an empty track, plus the fact that descending
+each gate map in turn is not the same as minimising the whole race: the state
+you arrive at a gate in shapes the next segment, and a per-gate greedy descent
+never accounts for that.
+
+THE LEVER, if it is ever worth pulling: the same search run BACKWARD from the
+terminal gives an exact distance-to-go for every (state, gate) pair, and a car
+that descends it is optimal by construction and cannot crash (every state on a
+finite path has a successor one closer). Gating that on "no live rival" would
+leave traffic behaviour untouched, which is where all the campaign's evidence
+lives. The cost is memory: the staged potential is three times the three gate
+maps already built, which is comfortable on a 150x150 board and heavy on the
+Nordschleife.
+
+OPS: measured on the AWS lab box (8 vCPU / 32 GiB), which suits this better
+than Modal -- one JVM per track with a big heap and a persistent disk for the
+caches, rather than many small containers. Temurin 25 had to be installed by
+hand (Ubuntu 24.04 ships Java 21, too old for this bytecode).
+
 ## Round 213 (local agent, REVERTED): second-order headway cures the named magnets and mints new ones
 
 THE CANDIDATE, straight from the fleet baseline's forensics: needleHeadway
