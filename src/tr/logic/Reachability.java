@@ -151,6 +151,8 @@ final class Reachability {
 	int[][]	gateTurns;
 	/** Round 208 diagnostics: gate-0 seeding had to fall back to plain seeds. */
 	boolean robustSeedFallback;
+	/** Round 209 diagnostics: finish-closure alive states dropped as phantom. */
+	int phantomAlive;
 	int		aliveW, aliveH, aliveVMAX, aliveSpan;
 	/** Precomputed {@link #isRoomy} (depth 0 / depth 1) over all alive states;
 	 *  non-alive states stay unset (isRoomy is false there — they can have
@@ -274,6 +276,29 @@ final class Reachability {
 			gateTurns[1] = computeGateMap(1, gates[1], gateTurns[2]);
 			gateTurns[0] = computeGateMap(0, gates[0], gateTurns[1]);
 		}
+		// Round 209: coherent alive. The finish BFS seeds from every forward
+		// crossing as a terminal (laps=1 semantics: the final crossing
+		// finishes even into a wall). A non-final crossing must land legally
+		// and continue, so states whose only continuation is such a crossing
+		// are PHANTOM-alive: the run-up to an S/F placed at a corner looks
+		// survivable at any speed, and the rollouts certify hot arrivals
+		// that die two moves past the line (hybrid12 (143,35), rand19
+		// (143,9): braking 9,8,7,6,5 into the wall behind the line). Alive
+		// := finite on any product-coherent gate map (a state that can
+		// reach one coherent gate reaches them all); the successor mask and
+		// the roomy/shed/certified sweeps are re-derived over it. The final
+		// lap's terminal crossing stays a precedence, not a map. laps=1 is
+		// untouched (no gate maps there).
+		final BitSet coherent = new BitSet(turnsArr.length);
+		for (int g = 0; g < 3; g++) {
+			final int[] m = gateTurns[g];
+			for (int i = 0; i < m.length; i++)
+				if (m[i] != Integer.MAX_VALUE)
+					coherent.set(i);
+		}
+		phantomAlive = aliveStates.cardinality() - coherent.cardinality();
+		aliveStates = coherent;
+		derivePrecomputes(buildLegalAliveMask(turnsArr.length));
 		if (game.autoMode)
 			for (int g = 0; g < 3; g++) {
 				int finite = 0;
@@ -281,7 +306,8 @@ final class Reachability {
 					if (v != Integer.MAX_VALUE)
 						finite++;
 				System.out.println("[laps] gate " + g + " map finite=" + finite
-						+ (g == 0 ? (robustSeedFallback ? " seeds=plain-fallback" : " seeds=robust") : ""));
+						+ (g == 0 ? (robustSeedFallback ? " seeds=plain-fallback" : " seeds=robust")
+								+ " coherent alive=" + aliveStates.cardinality() + " phantom=" + phantomAlive : ""));
 			}
 	}
 
@@ -492,8 +518,6 @@ final class Reachability {
 		final long tDerive = System.nanoTime();
 		writeReachabilityCache(legalAlive);
 		saveDerived();
-		if (game.totalLaps > 1 && game.lapGates != null)
-			computeGateMaps(game.lapGates);
 		final long tCache = System.nanoTime();
 		if (game.autoMode)
 			System.out.printf(
@@ -1053,6 +1077,13 @@ final class Reachability {
 						computeReachability();
 					publishMemo(memoKey);
 				}
+				// Round 209: the gate maps and the coherent alive set they
+				// define are per-race products of the memoized finish closure
+				// -- computed on every path, memo hits included (the memo
+				// path used to race multi-lap batches with no gate maps at
+				// all, silently falling back to the finish map).
+				if (game.totalLaps > 1 && game.lapGates != null)
+					computeGateMaps(game.lapGates);
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
 			} finally {
@@ -1197,8 +1228,6 @@ final class Reachability {
 			derivePrecomputes(legalAlive);
 			saveDerived();
 		}
-		if (game.totalLaps > 1 && game.lapGates != null)
-			computeGateMaps(game.lapGates);
 		final long tDerive = System.nanoTime();
 		if (game.autoMode)
 			System.out.printf("[reachability] cache-hit load=%.0fms derive=%.0fms total=%.0fms alive=%d%n",

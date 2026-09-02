@@ -6,6 +6,54 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 209 (local agent, SHIPPED): coherent alive -- the phantom states before the line, residual 34 -> 24
+
+THE FINDING (query-oracle forensics on the round-208 residue): the
+hot-arrival crashes at S/F corners (hybrid12 (143,35) braking
+9,8,7,6,5 into the wall behind the line; rand19 (143,9); rand16,
+rand17, rand6) were sealed 3-5 moves out in states the engine called
+ALIVE although every continuation crossed the line into the wall.
+The finish BFS seeds from every forward crossing as a TERMINAL --
+laps=1 semantics, where the final crossing finishes even into a
+wall. A non-final crossing must land legally and continue, so states
+whose only continuation is such a crossing are phantom-alive: the
+run-up to an S/F placed at a corner looks survivable at any speed,
+the danger rollouts certify the hot approach, and the car dies two
+moves past the line. Phantoms per track: hybrid12 20847 (5.2% of
+alive), rand19 24992, hybrid20 19753, nordschleife 7825.
+
+THE LAW (Reachability.computeGateMaps): after the product fixpoint,
+alive := finite on any product-coherent gate map (a state that can
+reach one coherent gate reaches them all); the successor mask and
+the roomy/shed/certified sweeps are re-derived over it. The gate
+maps and this coherent set are now computed on EVERY reachability
+path -- the memo path (multi-seed batches in one JVM) used to race
+lap mode with no gate maps at all, silently falling back to the
+finish map. Per-race products of the memoized finish closure, so
+single and batch JVMs agree. Start-up cost: Nordschleife load 1.75 s,
+a 3-lap solo in 42 s. laps=1 untouched (no gate maps there):
+fractal8 8-car byte-identical.
+
+MULTI-SEED BENCH #17 vs shipped #16: 34 -> 24, zero timeouts,
+finishers 701 -> 711. hybrid12 8 -> 3, rand19 6 -> 0, rand2 9 -> 7,
+rand17 1 -> 0; single-crash pushes on fractal1, rand12, lobe2, rand13
+(+1 each). Solo fleet 73/73 clean, pace +0.15% (23 tracks +1/+2
+moves: the truthful S/F approach brakes one move earlier). Gate
+battery 27/27 (run_tests incl. TrackDataTests 84, smoke, tooling
+14, goldens, 23 pins).
+
+INSTRUMENT ARC: 100 -> 89 -> 86 -> 84 -> 77 -> 34 -> 24. Residue:
+rand2 7, hybrid20 4, hybrid12 3, weave3 3, rand6 2, fractal1 1,
+rand12 1, rand16 1, lobe2 1, rand13 1 -- the needle class (single-
+thread corridors blocked by a rival: rand2 (107,8), rand19 (138,8),
+weave3 (89,79), hybrid20 (117,33)) is what remains. Queued as round
+210: the 1-fault-tolerant potential (second-arrival gate maps,
+traffic-gated), clean on 20/20 forensic seeds in a scratch build.
+
+OPS: schtasks-launched workers died twice with STATUS_CONTROL_C_EXIT
+(a console closed on this busy PC); workers now run hidden and
+battery-proof via Register-ScheduledTask, with PID-checked locks.
+
 ## Round 208 (local agent, SHIPPED): robust gate-0 seeds -- residual 77 -> 34, the largest cut of the campaign
 
 THE FINDING (census of the residue): every residual crash is a
