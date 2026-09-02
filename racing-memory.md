@@ -6,6 +6,34 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 207 (local agent, REVERTED): traffic-triggered certification -- more rollout is not the lever at speeds 4-6
+
+The two commitment laws' shared blind spot: the kinematic horizon acts
+only when a danger rollout runs (trap >= 0.5 or landing speed >= 7),
+and the surviving hot-arrival magnets (rand12 (14x,74)v(2,-3), rand16
+(14x,17)v(1,-5), hybrid12 (142,40)v(2,-5)) sit at speeds 4-6 with the
+trap ladder at 0. C11 fired DJS for any lap-traffic commitment at
+speed >= 4 with a rival within the needle radius. Bench #15: 77 vs 77
+-- flat -- hybrid12 -2 but rand12 +1, hybrid20 +2, fractal1 +2, rand2
+unmoved, at +30% compute per race. Reverted.
+
+WHAT IT PINS DOWN: at these speeds the rollout either does not
+reproduce the specific traffic displacement that kills (its rival
+model diverges from the real field within the horizon), or it sees
+the death and finds no surviving alternative -- in both cases the
+certification machinery is not the bottleneck. The residue after the
+two laws: rand2 18 (16 of them the alcove band pair, untouched by
+horizon or headway), rand12 9, rand16 9, hybrid12 8, rand19 8 (its
+(136,8)->(133,8) westward alcove is rand2's twin), hybrid20 5.
+
+STANDING STATE: shipped = r201 lane spreading + r205 kinematic
+horizon + r206 Gipps following (same-lane cone 1.5). Instrument arc
+100 -> 89 -> 86 -> 84 -> 77. The rand2/rand19 alcove class is now the
+dominant residue and has resisted seven distinct mechanisms; it is
+the named target for a dedicated forensic of the ENTRY into the band
+(post-crossing displacement), with the following law's cone and the
+band's INF-map status as the two open levers.
+
 ## Round 206 (local agent, SHIPPED): the Gipps following law -- monaco 10 -> 0, residual 84 -> 77
 
 The second commitment law. Real racecraft has a GAP law: my stopping
