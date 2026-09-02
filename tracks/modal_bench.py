@@ -46,7 +46,10 @@ image = (
 app = modal.App("tr-lap-bench", image=image)
 
 
-@app.function(cpu=1.0, memory=4096, timeout=3600, max_containers=80, retries=1)
+# 8 GB / -Xmx6g is sized for the biggest board in the fleet: the Nordschleife's
+# 89M states carry ~2.5 GB of arrays (three gate maps alone are 1.1 GB) and it
+# died with OutOfMemoryError at -Xmx3g. Memory is the cheap axis here.
+@app.function(cpu=1.0, memory=8192, timeout=3600, max_containers=80, retries=1)
 def race_batch(track: str, seeds: str, props: str, want_logs: bool = False) -> dict:
     """Race one track over a seed range; return per-seed outcomes (+ optional logs)."""
     import os
@@ -60,7 +63,7 @@ def race_batch(track: str, seeds: str, props: str, want_logs: bool = False) -> d
 
     proc = subprocess.run(
         [
-            "java", "-Xmx3g", "-Djava.awt.headless=true",
+            "java", "-Xmx6g", "-Djava.awt.headless=true",
             "-jar", f"{REMOTE}/theoreticRacing.jar",
             "--auto", "--track", track,
             "--props", str(props_path),
