@@ -424,6 +424,7 @@ final class RaceAi {
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
 	private final static int		AI1_ROBUST_RANGE	= 12;	// round 210: a live rival AHEAD or beside within this Chebyshev radius turns the needle surcharge on (only such a rival can reach my one cell)
+	private final static int		AI1_ROBUST_KIN_CAP	= 24;	// round 212: the needle gate reaches as far as my stopping distance s(s+1)/2, capped here -- the rand6 long needle was entered at speed 7 with the parked pack 13 cells ahead, one outside the fixed radius
 	private final static int		AI1_ROBUST_SURCHARGE	= 12;	// round 210: turns a needle state (no 1-fault-tolerant path to the gate) costs on top of its plain value in traffic
 	private final static int		AI1_KIN_HORIZON_CAP	= 10;	// round 205: kinematic DJS horizon cap (rounds-to-stop, lap mode)
 	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7)
@@ -556,7 +557,9 @@ final class RaceAi {
 		// trap myself to trap them.
 		lapGate = game.nextGateOf(playerNum);
 		lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
-		robustMode = lapAware && rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum, AI1_ROBUST_RANGE);
+		final int robustSp = Math.max(Math.abs(vel[0]), Math.abs(vel[1]));
+		robustMode = lapAware && rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum,
+				Math.max(AI1_ROBUST_RANGE, Math.min(robustSp * (robustSp + 1) / 2, AI1_ROBUST_KIN_CAP)));
 		final int sealRivals = liveRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
 		// every seal that forgoes the finish to crash a later mover. Lap mode:

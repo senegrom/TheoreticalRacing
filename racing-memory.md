@@ -6,6 +6,44 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 212 (local agent, SHIPPED): the kinematic gate -- a rival within my stopping distance
+
+THE FINDING (replay of the rand6 west-wall death that round 210 added):
+from (24,10) v(-7,-1) the car had exactly ONE alive candidate at six
+successive moves -- a long needle down the west channel, entered at
+speed 7 with the parked pack 13 cells ahead. The round-210 gate is a
+fixed 12-cell radius; the pack sat one cell outside it, so the needle
+cost nothing and the plain map ran the solo line into a corner full
+of parked cars.
+
+THE LAW (RaceAi entry): the needle surcharge is on when a live rival is
+ahead or beside within max(12, min(s(s+1)/2, AI1_ROBUST_KIN_CAP = 24))
+cells, s the larger velocity component -- my stopping distance, the
+distance over which a parked rival is a wall I am already committed
+to. Uncapped, a car at speed 9-10 saw 45-55 cells of traffic and the
+long tracks paid (guard set +1.7%: weave1 +6, silverstone +6, lemans
++8 rounds); capped at 24 (full stopping distance up to speed 6) the
+cost vanished. Probes, 35 races on top of round 211: cap 24 and cap
+18 both 0 crashes at round-211 pace; the five round-210 grid singles
+(rand6 x3, gear, rand17) all clean.
+
+MULTI-SEED BENCH #20 vs shipped #19: 3 -> 0, zero timeouts, all 735
+cars finish. hybrid20 1 -> 0, rand17 1 -> 0, rand6 1 -> 0; no track
+worse. Solo fleet 73/73 with byte-identical move counts (22510). Gate
+battery 27/27.
+
+INSTRUMENT ARC: 100 (birth) -> 89 (lane spreading) -> 86 (narrowed
+board) -> 84 (kinematic horizon) -> 77 (following law) -> 34 (robust
+seeds) -> 24 (coherent alive) -> 11 (needle surcharge) -> 3 (robust
+precedence) -> 0 (kinematic gate). The 21-track x 5-seed instrument
+is exhausted; the next residue needs a bigger one (more seeds, the
+whole lap-ready fleet), which is a compute question -- see the
+Modal/EC2 note in the session.
+
+VERIFICATION: laps=1 fractal8 byte-identical; the scratch probe
+reproduced byte-for-byte by the repo build; apply_c16_kin.py
+reproduces the working tree from HEAD. Gate battery 27/27.
+
 ## Round 211 (local agent, SHIPPED): robust precedence -- a checkpoint touch must keep an out
 
 THE INSTRUMENT: --query-moves now takes an optional 6th field per car
