@@ -6,6 +6,36 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Cloud bench (local agent, SHIPPED): the instrument fans out, and it is the same instrument
+
+Per user direction ("Run on modal if possible"). tracks/modal_bench.py races
+the fleet on Modal: one container per track, all its seeds in ONE JVM via the
+existing batch mode (--seed A-B), so a container costs one reachability build
+plus N races. The jar and tracks/ ride in the image (0.5 MB); the properties
+file travels as a string argument, so one image serves every bench shape. The
+image is eclipse-temurin:25-jre, pinned -- a different JVM would be a different
+instrument. tracks/lap_bench.properties (the 8-car laps=3 grid config) moved
+into the repo with it, so the bench no longer depends on a scratch file.
+
+THE CHECK THAT MATTERS: rand2 seeds 1-5 raced in a Linux container on Temurin
+25 produce logs BYTE-IDENTICAL to the local Windows JDK 26 logs of the same
+build (round 212's grid). Integer physics and array-order decisions carry
+across OS and JVM, so cloud results are directly comparable to every local
+baseline in this ledger -- the summaries carry a per-race SHA-256 prefix so
+identity is checkable without shipping logs around.
+
+WHAT IT COSTS AND WHAT LIMITS IT: a container is CPU-only (1 core, 4 GB,
+-Xmx3g) and exits with its batch; an 84-track x 10-seed fleet grid is roughly
+2-3 core-hours, i.e. cents. The binding constraint is not money but the
+WORKSPACE CONTAINER CAP: another project's app held 94 of ~100 containers
+during the first fleet run, which starved this one to a single container and
+turned a 5-minute grid into an hour-plus trickle. Check `modal container list`
+before counting on fan-out; when the pool is free the same run is minutes.
+
+WHY IT MATTERS FOR THE CAMPAIGN: the 21-track x 5-seed local grid reads 0 after
+round 212 and can no longer separate candidates. The next instrument is more
+seeds over the whole lap-ready fleet, which is exactly what fan-out buys.
+
 ## Round 212 (local agent, SHIPPED): the kinematic gate -- a rival within my stopping distance
 
 THE FINDING (replay of the rand6 west-wall death that round 210 added):
