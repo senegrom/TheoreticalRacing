@@ -6,6 +6,58 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 211 (local agent, SHIPPED): robust precedence -- a checkpoint touch must keep an out
+
+THE INSTRUMENT: --query-moves now takes an optional 6th field per car
+(the lap gate), so a multi-lap board replays faithfully, and
+-Dai.debug.comp=true prints every candidate's score components. The
+first replay explained the hybrid12 hairpin death that survived
+round 210: at move 222 the mover (22,59) v(-5,7) had a safe move
+scored 41 and the CP1-touching move (17,67) v(-5,8) scored 105 (unc
+39.8, corner-entry 16.3) -- and the checkpoint-touch precedence took
+the 105. Needle headway (round 197) is a SNAPSHOT: both continuing
+cells of the landing were free at that instant; one was a rival's
+next landing, and from there every state had one alive successor
+until the wall at (7,113).
+
+THE LAW (RaceAi, main policy only): with a live rival ahead or beside
+(the round-210 robustMode), the checkpoint-touch precedence and the
+non-final crossing precedence require a landing in the ROBUST reach
+set of the next gate (Reachability.isRobust) -- an out with one
+successor denied at every step. Without it the scorer prices the
+touch like any candidate; the car takes the safe move and touches a
+move later. Alone, unchanged. laps=1 untouched (both precedences are
+lap-only).
+
+PROBE (scratch build, 30 races): forensic 20 crashes 4 -> 1, guard
+10 stays at 0, pace +0.3% on top of round 210 (mean finisher +1.2%
+vs round 209, winners +0.6%). The same replay tool showed the rand6
+west-wall crawl death to be a LONG needle: from (24,10) v(-7,-1) the
+car had exactly one alive candidate at six successive moves, entered
+at speed 7 with the parked pack 13 cells ahead -- one cell outside
+the fixed 12-cell gate.
+A KINEMATIC gate range (the needle surcharge also on with a rival
+ahead within my stopping distance s(s+1)/2) cleared the remaining
+crash and the five round-210 grid singles (0 in 35 races) but, uncapped,
+taxed the long tracks (guard set +1.7%: weave1 +6, silverstone +6,
+lemans +8 rounds of mean finisher -- a car at speed 9-10 sees 45-55
+cells of traffic). Capped at 24 or 18 cells the cost vanishes (0 in
+35, pace equal to this round). Queued as round 212 at cap 24, one
+change per bench.
+
+MULTI-SEED BENCH #19 vs shipped #18: 11 -> 3, zero timeouts,
+finishers 724 -> 732. hybrid12 2 -> 0, rand6 4 -> 1, gear 1 -> 0,
+hybrid20 2 -> 1, hybrid17 1 -> 0; rand17 1 unmoved; no track worse.
+Solo fleet 73/73 with byte-identical move counts (22510). Gate battery
+27/27.
+
+INSTRUMENT ARC: 100 -> 89 -> 86 -> 84 -> 77 -> 34 -> 24 -> 11 -> 3.
+Residue: hybrid20 1, rand17 1, rand6 1 (the long needle, round 212).
+
+VERIFICATION: laps=1 fractal8 byte-identical; the scratch probe
+reproduced byte-for-byte by the repo build; apply_c15_touch.py
+reproduces the working tree from HEAD. Gate battery 27/27.
+
 ## Round 210 (local agent, SHIPPED): the needle surcharge -- 1-fault-tolerant reach, traffic-gated
 
 THE FINDING (query-oracle forensics on the round-209 residue): the

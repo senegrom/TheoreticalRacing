@@ -228,6 +228,17 @@ final class Reachability {
 		return gateTurns[gate][aliveIdx(x, y, vx, vy)];
 	}
 
+	/** Round 211: 1-fault-tolerant membership for the given gate -- the
+	 *  landing keeps an out with one successor denied at every step. */
+	boolean isRobust(final int gate, final int x, final int y, final int vx, final int vy) {
+		if (robustReach == null || robustReach[gate] == null)
+			return true;
+		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH
+				|| vx < -aliveVMAX || vx > aliveVMAX || vy < -aliveVMAX || vy > aliveVMAX)
+			return false;
+		return robustReach[gate].get(aliveIdx(x, y, vx, vy));
+	}
+
 	/** Round 210: the plain lap potential with needle states surcharged --
 	 *  the gradient stays the fast line (the full robust-distance gradient
 	 *  cost 4% of pace in traffic); only a state whose continuation is a

@@ -665,7 +665,10 @@ final class RaceAi {
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
 						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
-						&& needleHeadway(newX, newY, newVx, newVy, playerNum, 1))) {
+						&& needleHeadway(newX, newY, newVx, newVy, playerNum, 1)
+						// Round 211: in traffic the landing must keep an out (see the
+						// checkpoint precedence below).
+						&& (!robustMode || reach.isRobust(1, newX, newY, newVx, newVy)))) {
 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
@@ -684,7 +687,15 @@ final class RaceAi {
 					&& reach.isAlive(newX, newY, newVx, newVy)
 					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
 							!= Integer.MAX_VALUE
-					&& needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate == 1 ? 2 : 0)) {
+					&& needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate == 1 ? 2 : 0)
+					// Round 211: needle headway is a snapshot -- both continuing
+					// cells free NOW, one of them a rival's next landing (hybrid12
+					// west side: the touch at (17,67) v(-5,8) scored 105 against 41
+					// for the safe move and the precedence took it). In traffic the
+					// landing must be in the robust set of the next gate; else the
+					// scorer prices the touch and takes it a move later.
+					&& (!robustMode
+							|| reach.isRobust(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy))) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
 				return d;
