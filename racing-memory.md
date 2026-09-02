@@ -6,6 +6,44 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Fleet baseline (local agent): the round-212 build over 940 races -- three magnets left
+
+The 21-track x 5-seed grid read 0 after round 212, so the instrument grew in
+both directions at once: WIDER on Modal (every lap-ready track, seeds 1-10 =
+730 races, ~10 min wall) and DEEPER locally (the 21 bench tracks over FRESH
+seeds 11-20 = 210 races, batch mode, ~25 min on four workers).
+
+THE READING: 940 races, 3 crashes, 0 timeouts -- 6507 of 6510 cars finish.
+  - fleet, seeds 1-10: 1 crash (rand19 s9); 72 of 73 tracks perfectly clean
+  - bench tracks, seeds 11-20: 2 crashes (rand6 s17, rand19 s20)
+  - the Nordschleife needed its own container size: at 4 GB / -Xmx3g its
+    89M-state board died with OutOfMemoryError and its ten races came back
+    MISSING, a hole the summary made obvious; re-run at 8 GB / -Xmx6g.
+
+FORENSICS ON THE CLASS (query oracle, rand6 s17): the car was ALREADY DEAD two
+moves before the wall -- at (139,20) v(-1,-5) every candidate was illegal,
+body-blocked or reachability-dead. Walking back, at (140,25) v(-1,-6) exactly
+ONE candidate was alive and free, and the AI took it; the cells beyond it were
+then taken by the braking pack. So the veto that would save these cars has to
+look one RIVAL MOVE ahead: keep an out that survives the pack's next step, not
+just the current board. Needle headway (round 197) checks free-NOW; the
+second-order version is the queued round 213.
+
+CROSS-CHECK: on the 105 races the cloud grid shares with the local round-212
+grid, every move count is identical -- the fan-out is the same instrument at
+scale, not just on the five races that were compared byte-for-byte.
+
+THE THREE MAGNETS, all first-lap pack traffic at speed, none a needle:
+rand19 (16,42) v(-2,4) and rand6 (133,4) v(-3,-4) are cars in a braking train
+whose alive landings fill with bodies; rand19 s9 is the third. This is the
+class round 210's forensics named "a car at speed 8-9 in a first-lap pack
+whose alive landings fill as the pack brakes" -- the follow law prices the
+leader, not the second and third rows.
+
+RESIDUE RATE: 3 in 940 races is 0.3%; the old instrument would have needed
+~60 seeds of its 21 tracks to see them. Cost of the wide half: cents (a
+container is 1 core / 8 GB and exits with its batch).
+
 ## Cloud bench (local agent, SHIPPED): the instrument fans out, and it is the same instrument
 
 Per user direction ("Run on modal if possible"). tracks/modal_bench.py races
