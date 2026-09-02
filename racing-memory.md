@@ -6,6 +6,38 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 205 (local agent, SHIPPED): the kinematic horizon -- the first fix to reach a flank magnet
+
+New-approach premise: the residual dooms are COMMITMENT errors, sealed
+3-7 moves before death by momentum, so decision-time penalties cannot
+touch them (eleven measured negatives agree). Commitments need laws
+about distance and time.
+
+THE FINDING: the danger rollouts that certify hot moves ran 3 rounds
+for FAST fires (landing speed^2 >= 49) and 5-6 for slow ones --
+kinematically backwards. A car at max-component speed s needs s
+rounds to stop (shedding one unit per round), so a 3-round world at
+speed 10 ends 28 cells short of the wall it is certifying against.
+Monaco's magnet committed vy=-10 forty-five cells out and was
+certified safe every seed. THE LAW: dangerRounds >= rounds-to-stop
+(max component of the landing velocity), capped at 10; lap mode
+only, laps=1 keeps its pinned horizons. Rollout cost is linear in
+rounds -- a fast track's race still runs in ~10 s.
+
+MULTI-SEED BENCH #12 vs the post-narrowing baseline: 84 vs 86 -- and
+the SHAPE is the theory's own fixtures: hybrid20 9 -> 5, rand2
+21 -> 18 (rand2 had been invariant under every one of the eleven
+previous candidates; this is the first mechanism that ever reached
+it), monaco -1. Scattered pushes (rand12 +2, rand19 +2, fractal1 +1,
+rand16 +1) keep the total modest. Shipped on target evidence:
+principled, target-confirmed, no amplification class. laps=1 + solo
+byte-identical; 25/25 battery.
+
+Queued behind it, round 206: the Gipps car-following law (stopping
+distance must fit inside the gap plus the leader's stopping distance
+-- continuous, directional, speed-relative), the second law of
+commitment.
+
 ## Round 204 (local agent, REVERTED): trap-gated flow-merging does not reach the merge moment
 
 C8 implemented the round-203 conclusion directly: among congestion-

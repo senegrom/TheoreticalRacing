@@ -423,6 +423,7 @@ final class RaceAi {
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
+	private final static int		AI1_KIN_HORIZON_CAP	= 10;	// round 205: kinematic DJS horizon cap (rounds-to-stop, lap mode)
 	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7)
 	private final static int		AI1_DEEP_PACK	= 3;	// round 65: escalate only with >= this many rivals within AI1_DEEP_PACK_R of the landing (the doom class lives in packs; solo tunnels excluded)
 	private final static int		AI1_DEEP_PACK_R	= 10;	// round 65: Chebyshev pack radius for the deep escalation gate
@@ -1137,9 +1138,21 @@ final class RaceAi {
 			final boolean djSlow = speedSquared(djvx, djvy) < AI1_DJS_SPD2;
 			if (!inScorerSim) {
 				if (trapByDir[chosen.ordinal()] >= 0.5 || !djSlow) {
-					final int dangerRounds = djSlow && trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
+					final int dangerRounds0 = djSlow && trapByDir[chosen.ordinal()] >= AI1_TRAP_L1
 							? AI1_DJS_SLOW_L1_ROUNDS
 							: djSlow ? AI1_DJS_SLOW_ROUNDS : AI1_DJS_ROUNDS;
+					// Kinematic horizon (round 205): a certification must see the
+					// stopping distance. Shedding one unit per round, a landing at
+					// max-component speed s needs s rounds to stop -- yet fast fires
+					// got the SHORTEST world (3 rounds): at speed 10 that world ends
+					// 28 cells short of the wall it is certifying against (monaco's
+					// (12,123) magnet committed vy=-10 forty-five cells out; the
+					// flank twins and rand2's band are the same shape). Lap mode
+					// only; laps=1 keeps its pinned horizons.
+					final int dangerRounds = game.totalLaps > 1
+							? Math.max(dangerRounds0, Math.min(AI1_KIN_HORIZON_CAP,
+									Math.max(Math.abs(djvx), Math.abs(djvy))))
+							: dangerRounds0;
 					// round 65 (AI1): pack-gated DEEP escalation for fast fires.
 					// The 5-7-round doom class (hairpin s10: three candidates
 					// FINISH @r6 while the chosen dies @r7) is invisible to the
