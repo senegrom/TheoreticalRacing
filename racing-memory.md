@@ -6,6 +6,59 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 208 (local agent, SHIPPED): robust gate-0 seeds -- residual 77 -> 34, the largest cut of the campaign
+
+THE FINDING (census of the residue): every residual crash is a
+deterministic magnet state, and rand2's were identical chains from
+vy=-6 crossings whose CERTIFIED continuation was a single thread --
+the whole train arrives hot onto one lane, the leader's cell is the
+follower's only finite successor, and the alive-aware fallback
+substitutes a dead cell. The needle-headway law (r197) refuses such
+moves at decision time; the map still CERTIFIED them, so commitment
+kept targeting needles.
+
+THE LAW (Reachability.computeGateMap): a gate-0 crossing seeds the
+lap map only if its landing is ROBUST -- at least two legal-edge,
+alive successors that continue the lap on the next gate map (alive
+alone before the product fixpoint has a next map). Two-pass seeding:
+pass 0 robust; a gate with no robust seed at all falls back to the
+plain law in pass 1 and says so ([laps] ... seeds=plain-fallback).
+All 73 lap-ready tracks seed robust; nothing fell back. Gate maps are
+computed live (not in the -lap13 cache), so no key bump. The first
+shipped change to WHAT is certified rather than how it is scored:
+the ">= 2 continuing successors" idea moved from the decision layer
+into the map itself.
+
+MULTI-SEED BENCH #16 vs shipped #14: 77 -> 34, zero timeouts,
+finishers 658 -> 701 of 840, NO TRACK WORSE. rand12 9 -> 0, rand16
+9 -> 1, rand2 18 -> 9 (the band, halved), gear 2 -> 0, rand6 2 -> 0,
+rand17 3 -> 1, fractal1 1 -> 0, hybrid20 5 -> 4; guards lobe2 2 -> 0,
+rand13 2 -> 0, circle 2 -> 0, cog 1 -> 0, rand19 8 -> 6. Unmoved:
+hybrid12 8, weave3 3, monaco 0. Twelve of twenty-one tracks moved,
+all downward -- no amplification class anywhere.
+
+INSTRUMENT NOTE: the gate-0 FINITE SET is unchanged on all 72
+comparable tracks (a robust crossing is reachable from wherever any
+crossing is); the VALUES changed -- turns-to-crossing now route
+through robust landings. Solo laps=3 is therefore not byte-frozen by
+design: on the non-normalized lap-ready tracks total moves 19646 ->
+19616 (-0.15%), 15 tracks moved by <= 10 moves, no result changed,
+73/73 complete. laps=1 byte-identical (gate maps are null there).
+
+VERIFICATION: run_tests.sh (-Werror compile, CoreTests incl.
+TrackDataTests 84 OK, MainTests), headless smoke, tooling 14/14,
+goldens, 23/23 AI1 pins.
+
+INSTRUMENT ARC: 100 (birth) -> 89 (lane spreading) -> 86 (narrowed
+board) -> 84 (kinematic horizon) -> 77 (following law) -> 34
+(robust seeds). Residue: rand2 9, hybrid12 8, rand19 6, hybrid20 4,
+weave3 3, rand6 2, rand16 1, rand17 1.
+
+OPS: a worker killed abnormally (the capacity pause, ~10:45) left
+its lock file and the resumable bench stalled 106 min honoring it.
+Next worker template: record the PID in the lock and treat a dead
+PID as no lock.
+
 ## Round 207 (local agent, REVERTED): traffic-triggered certification -- more rollout is not the lever at speeds 4-6
 
 The two commitment laws' shared blind spot: the kinematic horizon acts

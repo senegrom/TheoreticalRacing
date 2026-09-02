@@ -149,6 +149,8 @@ final class Reachability {
 	/** Multi-lap: per-gate maps -- [0] to a shedable forward S/F crossing,
 	 *  [1]/[2] to a direction-free alive touch of CP1/CP2 (null at laps==1). */
 	int[][]	gateTurns;
+	/** Round 208 diagnostics: gate-0 seeding had to fall back to plain seeds. */
+	boolean robustSeedFallback;
 	int		aliveW, aliveH, aliveVMAX, aliveSpan;
 	/** Precomputed {@link #isRoomy} (depth 0 / depth 1) over all alive states;
 	 *  non-alive states stay unset (isRoomy is false there — they can have
@@ -218,6 +220,32 @@ final class Reachability {
 		return gateTurns[gate][aliveIdx(x, y, vx, vy)];
 	}
 
+	/** Round 208: a crossing landing is ROBUST when at least two of its
+	 *  successors are legal-edge, alive, and continue the lap on the next
+	 *  gate map (alive alone before the product fixpoint has a next map). */
+	private boolean robustLanding(final int nx, final int ny, final int nvx, final int nvy,
+			final int[] nextMap) {
+		int n = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int svx = nvx + d.dx, svy = nvy + d.dy;
+			if (velocityOutOfRange(svx, svy))
+				continue;
+			final int sx = nx + svx, sy = ny + svy;
+			if (sx < 0 || sy < 0 || sx >= aliveW || sy >= aliveH)
+				continue;
+			final int sidx = aliveIdx(sx, sy, svx, svy);
+			if (!aliveStates.get(sidx))
+				continue;
+			if (nextMap != null && nextMap[sidx] == Integer.MAX_VALUE)
+				continue;
+			if (!game.isMoveLegalGeometryCached(nx, ny, sx, sy))
+				continue;
+			if (++n >= 2)
+				return true;
+		}
+		return false;
+	}
+
 	/** Multi-lap: the landing beyond the line is alive and brakes to
 	 *  speed <= 6 within two moves (minShed2 O(1) lookup). */
 	boolean shedableLanding(final int nx, final int ny, final int nvx, final int nvy) {
@@ -252,7 +280,8 @@ final class Reachability {
 				for (final int v : gateTurns[g])
 					if (v != Integer.MAX_VALUE)
 						finite++;
-				System.out.println("[laps] gate " + g + " map finite=" + finite);
+				System.out.println("[laps] gate " + g + " map finite=" + finite
+						+ (g == 0 ? (robustSeedFallback ? " seeds=plain-fallback" : " seeds=robust") : ""));
 			}
 	}
 
@@ -263,6 +292,20 @@ final class Reachability {
 		Arrays.fill(map, Integer.MAX_VALUE);
 		final BitSet seen = new BitSet(total);
 		final IntQueue queue = new IntQueue();
+		// Round 208 robust seeds: a gate-0 crossing is certified only if its
+		// landing has >= 2 legal-alive successors that continue the lap. A
+		// single-thread crossing is a needle -- the whole train arrives hot
+		// onto one lane, the leader's cell is the follower's only finite
+		// successor, and the fallback substitutes a dead cell (rand2: every
+		// death one deterministic chain from a vy=-6 crossing). Pass 0 seeds
+		// robustly; if a gate has no robust seed at all, pass 1 falls back to
+		// the plain law so no track loses its laps.
+		for (int pass = 0; pass < 2; pass++) {
+		if (pass == 1 && !queue.isEmpty())
+			break;
+		if (pass == 1 && gate == 0)
+			robustSeedFallback = true;
+		final boolean robust = gate == 0 && pass == 0;
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
 				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5))
@@ -290,6 +333,8 @@ final class Reachability {
 							if (hits && nextMap != null
 									&& nextMap[aliveIdx(nx, ny, nvx, nvy)] == Integer.MAX_VALUE)
 								continue;
+							if (hits && robust && !robustLanding(nx, ny, nvx, nvy, nextMap))
+								continue;
 							if (hits) {
 								final int idx = aliveIdx(x, y, vx, vy);
 								if (!seen.get(idx)) {
@@ -303,6 +348,7 @@ final class Reachability {
 					}
 				}
 			}
+		}
 		}
 		while (!queue.isEmpty()) {
 			int rest = queue.remove();
