@@ -1,0 +1,10 @@
+# The shell scripts run on Linux (CI and the bench box); a stray CR
+# splits into the shell's words and breaks the script there.
+*.sh text eol=lf
+*.py text eol=lf
+*.java text eol=lf
+*.track text eol=lf
+*.properties text eol=lf
+*.md text
+*.jar binary
+.gitattributes text eol=lf

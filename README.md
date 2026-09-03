@@ -72,6 +72,15 @@ python3 tracks/bench_ai.py --1v1 --seeds 5
 python3 tracks/bench_ai.py --slow --seeds 5
 ```
 
+The campaign's primary instrument is the 8-car lap grid: every lap-capable track over a seed range, one JVM per track across a work queue.
+
+```bash
+sh tracks/fleet_grid.sh                 # seeds 1-10, one job per core
+RACING_TRACKS=rand19,cog sh tracks/fleet_grid.sh 11-20 8
+```
+
+It writes one `<track> <seed> fin= crash= timeout= moves=` row per race plus a `FLEETDONE` summary line, skips tracks that already have a row (so an interrupted grid resumes), and marks courses without lap gates `NOLOOP`. `RACING_JAR`, `RACING_JAVA`, `RACING_PROPS` and `RACING_HEAP` point it at a different build, JVM, race shape or heap.
+
 `tracks/bench_ai.py` creates an isolated temporary properties/log directory, so benchmarks do not mutate a developer's `user.properties`. Use `--seed-start 6 --seeds 5` for seeds 6–10.
 
 Reachability maps are cached on disk per track geometry (the reverse-BFS dominates race startup; seeds only move start placements). The cache lives in `%LOCALAPPDATA%/theoreticRacing/reach_cache` (or `~/.theoreticRacing/reach_cache`), can be overridden with `RACING_REACH_CACHE`, and is always safe to delete — a corrupt or missing file just recomputes. `tracks/verify_reach_cache.sh [track] [seed]` proves the cache is behavior-invisible (byte-identical race logs and reachability dumps, cold vs warm).
