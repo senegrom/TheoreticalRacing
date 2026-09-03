@@ -371,7 +371,7 @@ final class RaceAi {
 				// landing exists (rand2 (110,8)v(-3,-1): entered legal,
 				// selfAlive=false, all nine successors illegal). laps=1
 				// keeps the legacy tiering byte-for-byte.
-				if (game.totalLaps > 1 && sc < bestAliveScore
+				if (game.lapGates != null && sc < bestAliveScore
 						&& reach.isAlive(x + newVx, y + newVy, newVx, newVy)) {
 					bestAliveScore = sc;
 					bestAlive = d;
@@ -566,7 +566,7 @@ final class RaceAi {
 		// against a rival that is not there, and the measured cost of that was
 		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
 		// with a finite value always has a successor one move closer.
-		if (game.totalLaps > 1 && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
+		if (game.lapGates != null && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
 			final Direction alone = optimalAloneMove(pos, vel, playerNum);
 			if (alone != null)
 				return alone;
@@ -779,7 +779,7 @@ final class RaceAi {
 			// falsifies. Queues form at gates AND at narrow turns (rand2's
 			// westward pocket), so the law is traffic-gated, not gate-gated.
 			// Price it above every free approach so a stoppable entry wins.
-			if (game.totalLaps > 1 && lapAware && trapPenalty < 50.0
+			if (game.lapGates != null && lapAware && trapPenalty < 50.0
 					&& !needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate))
 				trapPenalty = Math.max(trapPenalty, AI1_NEEDLE_TRAP);
 			trapByDir[d.ordinal()] = trapPenalty;
@@ -814,7 +814,7 @@ final class RaceAi {
 			// fast; a parked one does not) -- exactly the headway the 1-cell
 			// trains violated in the pocket dooms, and exactly what the radial
 			// stalled-rival probe lacked when it braked for flowing traffic.
-			if (game.totalLaps > 1) {
+			if (game.lapGates != null) {
 				final double excess = followingExcess(newX, newY, newVx, newVy, playerNum);
 				if (excess > 0.0)
 					uncertified += AI1_FOLLOW_W * excess;
@@ -882,7 +882,7 @@ final class RaceAi {
 			// one subtraction is a one-ULP change that flips near-exact ties
 			// (monza s30 trajectory pin caught it).
 			final double score;
-			if (game.totalLaps > 1 && playerNum > 0) {
+			if (game.lapGates != null && playerNum > 0) {
 				final double f = 1.0 + AI1_LANE_STYLE * ((playerNum % 3) - 1);
 				score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry
 						+ queueBox + spread - (momentum * f + robustness * (2.0 - f));
@@ -1193,7 +1193,7 @@ final class RaceAi {
 					// (12,123) magnet committed vy=-10 forty-five cells out; the
 					// flank twins and rand2's band are the same shape). Lap mode
 					// only; laps=1 keeps its pinned horizons.
-					final int dangerRounds = game.totalLaps > 1
+					final int dangerRounds = game.lapGates != null
 							? Math.max(dangerRounds0, Math.min(AI1_KIN_HORIZON_CAP,
 									Math.max(Math.abs(djvx), Math.abs(djvy))))
 							: dangerRounds0;

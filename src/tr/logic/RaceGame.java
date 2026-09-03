@@ -643,6 +643,39 @@ public final class RaceGame {
 	}
 
 	/**
+	 * Round 215: is the run-up to a finishing crossing legal? The move may
+	 * leave the track only at or after the point where it crosses the line, so
+	 * everything strictly before that point must satisfy ordinary containment.
+	 * A move that does not reach the line is judged in full.
+	 */
+	boolean finishRunUpLegal(final int x1, final int y1, final int x2, final int y2) {
+		final Line2D line = lapGates != null ? lapCrossGate : finishLine;
+		final double px = line.getX1(), py = line.getY1();
+		final double rx = line.getX2() - px, ry = line.getY2() - py;
+		final double sx = (double) x2 - x1, sy = (double) y2 - y1;
+		final double denom = rx * sy - ry * sx;
+		double u = 1.0;
+		if (denom != 0.0) {
+			final double qx = x1 - px, qy = y1 - py;
+			final double along = (qx * ry - qy * rx) / denom;
+			if (along >= 0.0 && along <= 1.0)
+				u = along;
+		}
+		if (u >= 1.0)
+			return isMoveLegalGeometry(x1, y1, x2, y2);
+		if (!containsTrackOrStart(x1, y1))
+			return false;
+		final double ex = x1 + u * sx, ey = y1 + u * sy;
+		final int n = Math.max(2, (int) Math.ceil(Math.hypot(ex - x1, ey - y1) * 2));
+		for (int j = 1; j < n; j++) {
+			final double c = (double) j / n;
+			if (!containsTrackOrStart(x1 + c * u * sx, y1 + c * u * sy))
+				return false;
+		}
+		return true;
+	}
+
+	/**
 	 * Geometry-only legality (no player crash check). The interval scan is
 	 * scaled by move length: ~2 samples per unit of euclidean distance. This
 	 * keeps cost low for short moves while still catching cases where the line
@@ -1055,7 +1088,7 @@ public final class RaceGame {
 		if (optimalPotentialBuilt)
 			return optimalPotential;
 		optimalPotentialBuilt = true;
-		if (totalLaps > 1 && lapGates != null) {
+		if (lapGates != null) {
 			final String key = reach.geometryCacheKey() + "-laps" + totalLaps;
 			synchronized (OPTIMAL_MEMO) {
 				if (OPTIMAL_MEMO.containsKey(key)) {
@@ -1079,12 +1112,12 @@ public final class RaceGame {
 		// Multi-lap: the real line is the short boundary-gap gate -- the raw
 		// endpoint segment can slice diagonally through the infield and
 		// produce phantom re-crossings. laps=1 keeps exact legacy semantics.
-		final Line2D line = totalLaps > 1 && lapGates != null ? lapCrossGate : finishLine;
+		final Line2D line = lapGates != null ? lapCrossGate : finishLine;
 		if (!Line2D.linesIntersect(line.getX1(), line.getY1(), line.getX2(), line.getY2(), x1, y1, x2, y2))
 			return false;
 		// Only a forward crossing counts (move heads in the racing direction).
 		// A zero-length or backward move across the line is not a finish.
-		if (totalLaps > 1 && lapGates != null)
+		if (lapGates != null)
 			return (x2 - x1) * lapFwdX + (y2 - y1) * lapFwdY > 0;
 		return (x2 - x1) * finishFwdX + (y2 - y1) * finishFwdY > 0;
 	}
@@ -1098,8 +1131,6 @@ public final class RaceGame {
 		lapGates = null;
 		lapGatePoints = null;
 		lapCrossGate = null;
-		if (totalLaps <= 1)
-			return;
 		final java.util.List<int[]> lefts = track.getLeft();
 		final java.util.List<int[]> rights = track.getRight();
 		if (lefts.size() < 8 || rights.size() < 8) {
@@ -1298,7 +1329,7 @@ public final class RaceGame {
 		// VM limit. The cap scales with the field (it counts TOTAL moves), and
 		// a capped car logs TIMEOUT, not CRASH -- benchmark metrics must not
 		// confuse slow traffic with wrecks.
-		if (totalLaps > 1 && turnCounter > (long) totalLaps * 750 * players.length) {
+		if (lapGates != null && turnCounter > (long) totalLaps * 750 * players.length) {
 			dispMessage(player.getName() + " retires (race turn limit).");
 			logMove(player, directionOf(player.getVelocity(), vel), player.getVelocity().clone(),
 					pos, vel, newpos, "TIMEOUT place=" + (players.length - finishedLast));
@@ -1315,7 +1346,7 @@ public final class RaceGame {
 		// crossing counts as a lap. Stray S/F crossings while a checkpoint is
 		// still owed are ordinary moves.
 		String cpMark = "";
-		if (totalLaps > 1 && lapGates != null) {
+		if (lapGates != null) {
 			if (player.getNextGate() == 1 && segTouches(lapGates[1], pos, newpos)) {
 				player.setNextGate(2);
 				player.passGate(1);
@@ -1328,11 +1359,13 @@ public final class RaceGame {
 			}
 		}
 		final boolean lapCross = crosses
-				&& (totalLaps <= 1 || lapGates == null || player.getNextGate() == 0);
+				&& (lapGates == null || player.getNextGate() == 0);
 		final boolean finishes = lapCross && player.getLap() + 1 >= totalLaps;
 		// A non-final crossing continues the race, so unlike the final one it
 		// must also be an ordinarily legal move (landing on track, no body).
-		final boolean legal = finishes || isMoveLegal(pos, newpos, player.getNumber());
+		final boolean legal = finishes
+				? finishRunUpLegal(pos[0], pos[1], newpos[0], newpos[1])
+				: isMoveLegal(pos, newpos, player.getNumber());
 
 		if (!legal && !player.isAi()) {
 			final int answer = JOptionPane.showConfirmDialog(gameFrame.getDialogParent(),
@@ -1389,14 +1422,14 @@ public final class RaceGame {
 	/** Direction-free touch test against one lap gate segment. */
 	boolean touchesGate(final int gate, final int x1, final int y1,
 			final int x2, final int y2) {
-		return totalLaps > 1 && lapGates != null
+		return lapGates != null
 				&& Line2D.linesIntersect(lapGates[gate].getX1(), lapGates[gate].getY1(),
 						lapGates[gate].getX2(), lapGates[gate].getY2(), x1, y1, x2, y2);
 	}
 
 	/** The player's next required gate (0=S/F, 1=CP1, 2=CP2). */
 	int nextGateOf(final int playerNum) {
-		if (totalLaps <= 1 || lapGates == null)
+		if (lapGates == null)
 			return 0;
 		for (final Player p : players)
 			if (p.getNumber() == playerNum)
@@ -1411,7 +1444,7 @@ public final class RaceGame {
 	 *  alive=1438 of 400k, every lap dead at the gate).*/
 	private java.util.LinkedList<int[]> lapClosedSide(final java.util.LinkedList<int[]> side,
 			final Line2D[] closure) {
-		if (totalLaps <= 1 || lapGates == null || closure == null || closure.length == 0)
+		if (lapGates == null || closure == null || closure.length == 0)
 			return side;
 		final java.util.LinkedList<int[]> out = new java.util.LinkedList<>(side);
 		for (final Line2D seg : closure) {
@@ -1639,9 +1672,9 @@ public final class RaceGame {
 		rui.setFinishLine(fL, fR);
 		startZone = TrackGeometry.makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
 		rui.setStartZone(startZone);
-		rui.setCheckpoints(totalLaps > 1 && lapGatePoints != null
+		rui.setCheckpoints(lapGates != null && lapGatePoints != null
 				? new int[][]{lapGatePoints[1], lapGatePoints[2] } : null);
-		rui.setLoopClosure(totalLaps > 1 && lapClosurePoints != null
+		rui.setLoopClosure(lapGates != null && lapClosurePoints != null
 				? java.util.stream.Stream.of(lapClosurePoints)
 						.flatMap(java.util.stream.Stream::of).toArray(int[][]::new)
 				: null);
@@ -1658,7 +1691,7 @@ public final class RaceGame {
 		// legally cross the span, and the maps degenerate to one-cell
 		// endpoint taps (the traffic death funnel). laps=1 keeps the legacy
 		// path byte-for-byte.
-		trackA = TrackGeometry.getToleranceExpandedShape(totalLaps > 1 && lapGates != null
+		trackA = TrackGeometry.getToleranceExpandedShape(lapGates != null
 				? TrackGeometry.newTwoRingPath(
 						lapClosedSide(track.getLeft(), lapClosures == null ? null : lapClosures[0]),
 						lapClosedSide(track.getRight(), lapClosures == null ? null : lapClosures[1]))
@@ -1695,7 +1728,7 @@ public final class RaceGame {
 					(System.nanoTime() - t0) / 1e9);
 			System.exit(0);
 		}
-		if (totalLaps > 1 && autoMode) {
+		if (lapGates != null && autoMode) {
 			reach.ensureReachabilityReady();
 			final int[] lf = track.getLeft().getFirst();
 			final int[] rf = track.getRight().getFirst();
@@ -1810,7 +1843,7 @@ public final class RaceGame {
 					players[i].setFinishedPlace(finished);
 					// Round 210 forensics: an optional 6th field sets the lap gate
 					// (0=S/F, 1=CP1, 2=CP2) so a multi-lap board replays faithfully.
-					if (f.length == 6 && totalLaps > 1)
+					if (f.length == 6 && lapGates != null)
 						players[i].setNextGate(Integer.parseInt(f[5].trim()));
 				}
 				if (players[mover].isFinished())

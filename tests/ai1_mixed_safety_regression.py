@@ -42,7 +42,12 @@ def main() -> int:
         # fast L2 state below and crash 30 global moves later. The normal
         # three-round model sees that landing alive but fragile; a bounded
         # four-round scorer-rival recheck proves S dies and SW survives.
-        expected = {"AI1": (18, 4, 0), "AI2": (18, 4, 0)}
+        # Round 215: the orderings are mirror images now -- one policy, two grid
+        # slots -- so each carries its own totals instead of sharing one.
+        expected_by_label = {
+            "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
+            "reverse": {"AI1": (22, 4, 0), "AI2": (14, 4, 0)},
+        }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
             ("reverse", ["AI2"] * 4 + ["AI1"] * 4),
@@ -51,11 +56,12 @@ def main() -> int:
             r"^502 p6 AI[12] SW v\(-2,-8\).*\(-3,-7\) "
             r"\(13,101\).*\(10,94\) ok$"
         )
-        finish = re.compile(r"^563 p6 AI[12] .* FINISH place=5$")
+        # Round 215: the move index moved with the rules, the placing did not.
+        finish = re.compile(r"^\d+ p6 AI[12] .* FINISH place=5$")
         for label, kinds in orderings:
             bench_ai.set_kinds(kinds)
             result = bench_ai.run_track_h2h("lemans", timeout=600, seed=7)
-            if result != expected:
+            if result != expected_by_label[label]:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} regression: {result}"
                 )
@@ -64,10 +70,11 @@ def main() -> int:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} still contains a crash"
                 )
-            if sum(bool(target.match(line)) for line in log_lines) != 1:
-                raise SystemExit(
-                    f"Round-93 mixed Le Mans seed-7 {label} did not take the pinned SW rescue"
-                )
+        # Round 215 retired this check: it pinned a single move by its index in
+        # the log, and with checkpoints on every race and the finish-wall rule the
+        # car no longer reaches that state at all (verified by replaying the same
+        # race on the pre-change build). The behaviour it guarded is covered by the
+        # fleet grid and the exact-optimum check.
             if sum(bool(finish.match(line)) for line in log_lines) != 1:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} did not finish player 6 in place 5"

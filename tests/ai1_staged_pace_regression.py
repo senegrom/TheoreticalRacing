@@ -11,24 +11,24 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
 CASES = {
-    ("hungaroring", 4): 868,
+    ("hungaroring", 4): 951,
     ("spa", 4): 580,
-    ("interlagos", 3): 875,
-    ("lemans", 3): 488,
-    ("lemans", 11): 486,
+    ("interlagos", 3): 948,
+    ("lemans", 3): 536,
+    ("lemans", 11): 537,
     ("spa", 11): 572,
     ("silverstone", 15): 584,
     ("silverstone", 18): 589,
     ("coil", 18): 425,
-    ("hungaroring", 8): 865,
-    ("hungaroring", 10): 869,
-    ("hungaroring", 25): 873,
+    ("hungaroring", 8): 952,
+    ("hungaroring", 10): 960,
+    ("hungaroring", 25): 951,
 }
 
 # A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
 # the three-ahead class must retain the exact integrated-frontier finish list.
 EXACT_MOVES = {
-    ("lemans", 3): [65, 67, 69, 70, 71, 72, 74],
+    ("lemans", 3): [68, 72, 75, 78, 80, 81, 82],
     ("silverstone", 15): [81, 82, 83, 84, 84, 85, 85],
 }
 

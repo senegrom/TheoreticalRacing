@@ -6,6 +6,60 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 215 (local agent, SHIPPED): two rule fixes -- a lap is a lap, and a finish is not a wall pass
+
+Per user direction ("add the checkpoints also to single lap/no lap races" and
+"the last move should be allowed to cross walls only on or after crossing the
+finish line"). Both were prompted by measurement, and both void old baselines.
+
+RULE ONE -- CHECKPOINTS ON EVERY RACE. The gate machinery switched on only at
+laps > 1, so a single-lap race was "cross the line going forwards" with nothing
+in between. On circle, whose start zone sits just behind the line, that was a
+THREE-MOVE race; on rand20 a car could reach the line without going round (26
+moves against an honest lap of 68). The switch is now "does this track have
+gates" rather than "is this multi-lap": one lap means CP1, CP2, then the line,
+whatever the lap count. Courses whose boundary cannot close still have no gates
+and still race end to end. Circle's single lap is now 39 moves.
+
+RULE TWO -- THE FINISH IS NOT A DOOR THROUGH A WALL. The referee waived
+legality for the whole race-ending move, so a car could finish by driving
+THROUGH a wall into the line from a neighbouring fold. The rule now: the part
+of the move before the crossing must be an ordinary legal move; only the part
+at or beyond the line is free (RaceGame.finishRunUpLegal intersects the move
+with the gate and samples containment along the run-up only). Everything that
+reasons about crossings uses the same test -- the alive search, both gate-map
+seeders, the robust reach sets, the exact potential, the offline solver -- so
+the map and the referee cannot disagree. Cache key -lap13 -> -lap14.
+
+WHY RULE TWO MATTERED, AND A CORRECTION TO THE PREVIOUS ROUND'S NUMBERS: the
+"3.45% off optimal" finding was measured with a solver that inherited the
+waiver. On serpentine it claimed 72 moves against the AI's 103, and on rand20
+26 against 66. Forbid the wall pass and both optima become exactly what the AI
+drives. The single-lap AI was never suboptimal: it declined an exploit. Under
+the new rules it is exactly optimal on 83 of 84 tracks (the exception is
+serpentine, whose remaining gap is the same artifact in the other direction --
+see the pin note below).
+
+WHAT DID NOT CHANGE: multi-lap racing. rand19 s9 still runs 1456 moves with one
+crash, weave3 s2 3695/0, monaco s1 3451/0 -- byte-for-byte the shipped
+behaviour, because gates were already on there.
+
+THE COST, PAID IN BASELINES: the goldens moved on the eight gated circuits (the
+four open courses did not) and are re-frozen. Of the 27 battery checks, 16
+passed untouched; six re-froze from measurement; five needed judgment:
+  - two compared against the PRE-PROMOTION model using constants recorded under
+    the old rules. That build cannot be re-run, so the comparison is undefined;
+    re-freezing both sides would compare the build with itself. Retired.
+  - three pinned a MOMENT -- "at move 95 the car takes the SE rescue", a
+    decision trace, a control race that crashes. Replaying the same races on
+    the pre-change build shows the car never reaches those states now, and the
+    vmax control race no longer crashes at all, so there is no rescue to
+    detect. Retired, constants kept as a record.
+  - two more pinned a finish by its move index as well as its place; the index
+    is a clock the rules moved, so they now pin the placing only.
+  - two h2h pins expected both grid orderings to give the same totals; they are
+    mirror images now (one policy, two slots), so each ordering carries its own.
+
 ## Round 214 (local agent, SHIPPED): drive the exact optimum when nobody is near
 
 Per user direction ("if no opponent is close they should drive optimally").

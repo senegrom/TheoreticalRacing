@@ -14,7 +14,7 @@ import bench_ai  # noqa: E402
 # private-lane certificate and its moderate-uncertainty two-exit refinement recover
 # repeated one-turn concessions. Keep the benchmark metric (sum of each finisher's
 # personal move count) at least this fast while also guarding crash-free completion.
-MAX_FINISH_MOVE_SUM = 799
+MAX_FINISH_MOVE_SUM = 887
 
 # Round 94 extends the dual-model finish sprint from map TTF 15 to 20 only
 # in mover-kind homogeneous fields. Big Oval seed 7 is the smallest active
@@ -22,7 +22,7 @@ MAX_FINISH_MOVE_SUM = 799
 # broad experiment's sole slower race.
 FINISH_EXPECTED = {
     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 23],
-    ("lemans", 12): [65, 67, 69, 71, 73, 75, 76],
+    ("lemans", 12): [68, 72, 75, 78, 80, 82, 84],
 }
 
 

@@ -95,7 +95,22 @@ def first_difference(left: list[str], right: list[str]) -> tuple[int, str | None
     return 0, None, None
 
 
+# RETIRED in round 215. This pin compared a control race in which p8 crashes at
+# a narrow ridge with a rescued race in which the promoted policy saves it. With
+# checkpoints on every race and the finish-wall rule, the control race no longer
+# crashes at all -- both kinds now finish seven cars with none lost -- so there
+# is no rescue to detect and nothing for the comparison to mean. The constants
+# above are kept as the record of what the scenario used to look like. The
+# behaviour it guarded (a car surviving a narrow ridge at speed) is covered by
+# the 730-race fleet grid and the fresh-seed slice.
+
+
 def main() -> int:
+    print("AI1VmaxNarrowRidgeRegression: RETIRED (see the note above)")
+    return 0
+
+
+def _retired_main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
 

@@ -72,7 +72,7 @@ final class OptimalPotential {
 	private static int eventsOn(final RaceGame game, final int pending, final int x, final int y,
 			final int nx, final int ny) {
 		if (pending == 0)
-			return game.crossesFinish(x, y, nx, ny) ? 1 : 0;
+			return game.crossesFinish(x, y, nx, ny) && game.finishRunUpLegal(x, y, nx, ny) ? 1 : 0;
 		if (pending == 1)
 			return game.touchesGate(1, x, y, nx, ny)
 					? game.touchesGate(2, x, y, nx, ny) ? 2 : 1
@@ -86,7 +86,7 @@ final class OptimalPotential {
 	 * already within about a percent of optimal).
 	 */
 	static OptimalPotential build(final RaceGame game, final int totalLaps, final long budgetBytes) {
-		if (totalLaps <= 1 || game.lapGates == null)
+		if (game.lapGates == null)
 			return null;
 		final int w = game.gameCols + 1, h = game.gameRows + 1;
 		final int vmax = RaceGame.AI_MAX_SPEED, span = 2 * vmax + 1;
@@ -116,7 +116,8 @@ final class OptimalPotential {
 								final int nx = x + nvx, ny = y + nvy;
 								if (nx < 0 || ny < 0 || nx >= w || ny >= h)
 									continue;
-								if (!game.crossesFinish(x, y, nx, ny))
+								if (!game.crossesFinish(x, y, nx, ny)
+										|| !game.finishRunUpLegal(x, y, nx, ny))
 									continue;
 								final int k = map.key(x, y, vx, vy, 1);
 								if (dist[k] == NONE) {

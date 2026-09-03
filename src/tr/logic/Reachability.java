@@ -424,6 +424,7 @@ final class Reachability {
 							// lure the chooser into value-1 death traps.
 							final boolean hits = (gate == 0
 									? game.crossesFinish(x, y, nx, ny)
+											&& game.finishRunUpLegal(x, y, nx, ny)
 											&& shedableLanding(nx, ny, nvx, nvy)
 									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
 											line.getX2(), line.getY2(), x, y, nx, ny)
@@ -510,6 +511,7 @@ final class Reachability {
 							final int nx = x + nvx, ny = y + nvy;
 							final boolean hits = (gate == 0
 									? game.crossesFinish(x, y, nx, ny)
+											&& game.finishRunUpLegal(x, y, nx, ny)
 											&& shedableLanding(nx, ny, nvx, nvy)
 									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
 											line.getX2(), line.getY2(), x, y, nx, ny)
@@ -593,7 +595,7 @@ final class Reachability {
 		final IntQueue queue = new IntQueue();
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
-				if (game.totalLaps > 1 && game.lapGates != null) {
+				if (game.lapGates != null) {
 					// the legacy distMap ends at the S/F: prefilter by direct
 					// distance to gate 0 instead
 					if (!cellNearSegment(game.lapGates[0], x, y, 2 * aliveVMAX + 5))
@@ -612,7 +614,8 @@ final class Reachability {
 							final int nvy = vy + d.dy;
 							if (velocityOutOfRange(nvx, nvy))
 								continue;
-							if (game.crossesFinish(x, y, x + nvx, y + nvy)) {
+							if (game.crossesFinish(x, y, x + nvx, y + nvy)
+									&& game.finishRunUpLegal(x, y, x + nvx, y + nvy)) {
 								final int idx = aliveIdx(x, y, vx, vy);
 								if (!aliveStates.get(idx)) {
 									aliveStates.set(idx);
@@ -643,7 +646,7 @@ final class Reachability {
 			final int y = yp - vyp;
 			if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
 				continue;
-			if (game.totalLaps <= 1 && distAt(x, y) == Integer.MAX_VALUE)
+			if (game.lapGates == null && distAt(x, y) == Integer.MAX_VALUE)
 				continue; // laps=1 keeps the legacy wall (byte-identity)
 			if (!game.isMoveLegalGeometryCached(x, y, xp, yp))
 				continue;
@@ -883,7 +886,8 @@ final class Reachability {
 					continue;
 				final int nx = x + nvx;
 				final int ny = y + nvy;
-				if (game.crossesFinish(x, y, nx, ny)) {
+				if (game.crossesFinish(x, y, nx, ny)
+						&& game.finishRunUpLegal(x, y, nx, ny)) {
 					count++;
 				} else {
 					if ((mask & 1 << di) == 0)
@@ -1240,7 +1244,7 @@ final class Reachability {
 				// -- computed on every path, memo hits included (the memo
 				// path used to race multi-lap batches with no gate maps at
 				// all, silently falling back to the finish map).
-				if (game.totalLaps > 1 && game.lapGates != null)
+				if (game.lapGates != null)
 					computeGateMaps(game.lapGates);
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
@@ -1324,7 +1328,7 @@ final class Reachability {
 			// The suffix flows into the memo key and the .edges/.derived
 			// siblings automatically, since all of them derive from this path.
 			return TrackIO.reachCacheDir().resolve("reach-" + hex
-					+ (game.totalLaps > 1 ? "-lap13" : "") + ".bin");
+					+ (game.lapGates != null ? "-lap14" : "") + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}

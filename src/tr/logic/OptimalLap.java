@@ -42,7 +42,7 @@ final class OptimalLap {
 		// A track whose boundary cannot close has no gates: the race is one
 		// forward crossing of the finish, so there is a single stage and the
 		// checkpoints never enter. Everything else below is unchanged.
-		final boolean gated = game.lapGates != null && laps > 1;
+		final boolean gated = game.lapGates != null;
 		final int stages = gated ? 3 * laps : 1;
 		final long cells = (long) w * h * span * span;
 		if (cells > Integer.MAX_VALUE)
@@ -83,7 +83,8 @@ final class OptimalLap {
 							continue;
 						int ns = stage;
 						if (pending == 0) {
-							if (game.crossesFinish(x, y, nx, ny))
+							if (game.crossesFinish(x, y, nx, ny)
+									&& game.finishRunUpLegal(x, y, nx, ny))
 								ns++;
 						} else if (game.touchesGate(pending, x, y, nx, ny)) {
 							ns++;
@@ -93,6 +94,10 @@ final class OptimalLap {
 								ns++;
 						}
 						final boolean finishes = ns == stages;
+						// The referee waives legality on the race-ending crossing, so a
+						// car may finish THROUGH a wall from a neighbouring fold. Set
+						// tr.strictFinish to require an ordinarily legal move there too
+						// and measure what that permission is worth.
 						if (!finishes && !game.isMoveLegalGeometryCached(x, y, nx, ny))
 							continue;
 						if (finishes) {
