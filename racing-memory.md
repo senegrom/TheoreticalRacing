@@ -6,6 +6,49 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Post-215 verification (local agent): the rules cost nothing, and a second instrument
+
+The round-215 rules changed what a lap is, so every reading taken before them
+had to be retaken. Three of them were, and one correction follows.
+
+TRAFFIC IS UNTOUCHED. The fleet grid on the round-215 build (all 73 lap tracks
+x seeds 1-10, 730 races, on the AWS box in 19 minutes over eight cores): 1
+crash, 0 timeouts -- the same rand19 s9 at the same 1456 moves as round 214.
+691 of the 730 races run identically to the previous build and fleet moves
+differ by -0.00%. Checkpoints everywhere and the finish-wall rule cost the
+field nothing.
+
+SOLO IS STILL EXACT. Three laps: 72 of 73 lap tracks match the optimum, the
+Nordschleife the only exception at +10 moves because its potential is over
+budget. Single lap: 84 of 84, the whole fleet -- which CORRECTS the round-215
+entry above, written before the wall rule reached the solver. It said 83 of 84
+with serpentine outstanding; serpentine reads 103 against 103 now. The eleven
+courses that cannot be lapped were re-measured directly and every one is exact.
+
+THE ATLAS WAS WRONG AND IS FIXED. Its optima were computed with the old
+waiver, so it advertised routes that finished through a wall. Only three
+figures actually moved: serpentine's perfect run 72 -> 103, and one move each
+on fractal10 and rand18. Republished.
+
+THE NEW INSTRUMENT -- WHAT TRAFFIC COSTS. With crashes at one per 730 races the
+grid can no longer rank candidates, so pace against the exact optimum becomes
+the second axis. Measuring it needs care: the eight cars start on different
+cells, so comparing a winner with a solo optimum measured from one cell lets a
+well-placed car appear to beat perfection. The start-free version compares the
+moves a car spends between its FIRST LAP COMPLETION and the flag -- two laps,
+both bounded by line crossings -- against twice the exact steady-state lap.
+Reading on the round-215 build: the best car on a track is a median 3.0% above
+a perfect lap and the field median 5.7%; the worst tracks are the small twisty
+boards (rand19 10.3%, rand5 9.8%, rand12 9.5%, cog 9.3%) and the flowing ones
+sit near 1%. Caveat kept in the open: the final lap enjoys the finish
+allowance, so a lone car's last lap can be marginally cheaper than a middle
+one, which is why a best-car figure can read slightly negative. The number is
+comparative between tracks, not a strict bound.
+
+OPS: the round-215 cache key retired 10.2 GB of maps across both cache
+locations (E:\tr-reach-cache and a stray LOCALAPPDATA copy written by runs that
+did not carry the override).
+
 ## Round 215 (local agent, SHIPPED): two rule fixes -- a lap is a lap, and a finish is not a wall pass
 
 Per user direction ("add the checkpoints also to single lap/no lap races" and
