@@ -20,12 +20,12 @@ final class OptimalLap {
 
 	private OptimalLap() {}
 
-	/** Growable int list: a BFS level is filled once and then read once. */
-	private static final class IntList {
-		private int[] data = new int[1024];
+	/** Growable long list: a BFS level is filled once and then read once. */
+	private static final class LongList {
+		private long[] data = new long[1024];
 		private int size;
 
-		void add(final int value) {
+		void add(final long value) {
 			if (size == data.length)
 				data = java.util.Arrays.copyOf(data, data.length * 2);
 			data[size++] = value;
@@ -39,32 +39,40 @@ final class OptimalLap {
 	static int solve(final RaceGame game, final int startX, final int startY, final int laps) {
 		final int w = game.gameCols + 1, h = game.gameRows + 1;
 		final int vmax = RaceGame.AI_MAX_SPEED, span = 2 * vmax + 1;
-		final int stages = 3 * laps;
+		// A track whose boundary cannot close has no gates: the race is one
+		// forward crossing of the finish, so there is a single stage and the
+		// checkpoints never enter. Everything else below is unchanged.
+		final boolean gated = game.lapGates != null && laps > 1;
+		final int stages = gated ? 3 * laps : 1;
 		final long cells = (long) w * h * span * span;
-		if (cells * stages > Integer.MAX_VALUE)
-			throw new IllegalStateException("optimal-lap state space too large: " + cells * stages);
+		if (cells > Integer.MAX_VALUE)
+			throw new IllegalStateException("optimal-lap board too large: " + cells);
 		final int total = (int) cells;
-		final BitSet seen = new BitSet(total * stages);
-		IntList frontier = new IntList();
-		IntList next = new IntList();
-		final int start = (((startX * h + startY) * span + vmax) * span + vmax) * stages;
-		seen.set(start);
-		frontier.add(start);
+		// One visited set per stage rather than one over the product: ten laps
+		// on a 500-cell board would overflow a single int-indexed BitSet.
+		final BitSet[] seen = new BitSet[stages];
+		for (int s = 0; s < stages; s++)
+			seen[s] = new BitSet(total);
+		LongList frontier = new LongList();
+		LongList next = new LongList();
+		final int startIdx = ((startX * h + startY) * span + vmax) * span + vmax;
+		seen[0].set(startIdx);
+		frontier.add((long) startIdx * stages);
 		int level = 0;
 		long visited = 1;
 		while (frontier.size > 0) {
 			level++;
 			for (int i = 0; i < frontier.size; i++) {
-				final int key = frontier.data[i];
-				final int stage = key % stages;
-				int rest = key / stages;
+				final long key = frontier.data[i];
+				final int stage = (int) (key % stages);
+				int rest = (int) (key / stages);
 				final int vy = rest % span - vmax;
 				rest /= span;
 				final int vx = rest % span - vmax;
 				rest /= span;
 				final int y = rest % h;
 				final int x = rest / h;
-				final int pending = ORDER[stage % 3];
+				final int pending = gated ? ORDER[stage % 3] : 0;
 				for (int dvx = -1; dvx <= 1; dvx++) {
 					for (int dvy = -1; dvy <= 1; dvy++) {
 						final int nvx = vx + dvx, nvy = vy + dvy;
@@ -92,17 +100,16 @@ final class OptimalLap {
 									+ " frontier-levels=" + level);
 							return level;
 						}
-						final int nkey = (((nx * h + ny) * span + nvx + vmax) * span + nvy + vmax)
-								* stages + ns;
-						if (!seen.get(nkey)) {
-							seen.set(nkey);
+						final int nidx = ((nx * h + ny) * span + nvx + vmax) * span + nvy + vmax;
+						if (!seen[ns].get(nidx)) {
+							seen[ns].set(nidx);
 							visited++;
-							next.add(nkey);
+							next.add((long) nidx * stages + ns);
 						}
 					}
 				}
 			}
-			final IntList swap = frontier;
+			final LongList swap = frontier;
 			frontier = next;
 			next = swap;
 			next.size = 0;
