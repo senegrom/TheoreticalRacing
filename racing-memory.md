@@ -6,6 +6,87 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 216: the scorer was measuring the wrong distance
+
+SHIPPED. Every caution in the scorer is weighed against a pace number, and that
+number was reach.turnsToGate -- how far to the NEXT gate. A race does not
+minimise that. The state a car reaches a gate in shapes the segment after it,
+so the fastest way to a checkpoint is often not the fastest way to the flag.
+OptimalPotential, built in round 214 for the solo policy, answers the right
+question in one array read, and ttf() now returns it whenever it exists. The
+round-210 needle surcharge still rides on top (reach.isRobust decides, exactly
+as turnsToGateNeedleAware did), so robust mode prices single-thread states as
+before. No safety term, ladder or weight changed: only the number they are all
+weighed against.
+
+HOW THE TARGET WAS FOUND. A scratch build priced every real decision against
+the potential -- loss = 1 + value(after) - value(before), zero when the move is
+on a shortest race -- and tagged each with what the car could see. 9093
+decisions over five tracks, 952 moves lost:
+
+    85 (  9%) forced   -- a live car sat on the best landing
+   867 ( 91%) chosen   -- among landings no car occupied, of which
+   847 ( 89%) were also on the alive map, and
+   652 ( 68%) also had three or more continuations
+
+So two thirds of the whole gap is landings that are free, alive and roomy --
+safe by the policy's OWN standards -- and declined anyway. Splitting that again:
+half is the pace term ranking a slower landing first (myopia), half is a
+caution term outbidding a pace term that found the optimum. This round takes
+the first half. Loss also climbed steeply with speed (0.04/move at |v|=3,
+0.15 at |v|=7-10), which is the signature of braking that buys nothing.
+
+THE EXTREME WAS MEASURED FIRST. Variant A drove the exact move in traffic
+whenever the landing was empty -- no caution at any distance. Five races, ten
+crashes against the champion's none. Caution is buying something real, so the
+fix had to be the NUMBER, not its removal.
+
+EVIDENCE (both grids 730 races, 8 cars, 73 lap tracks, on the AWS box):
+
+                       seeds 1-10        seeds 11-20 (never tuned on)
+    crashes            1 ->  0           4 ->  1
+    timeouts           0 ->  0           0 ->  0
+    moves             -0.63%            -0.63%
+    tracks faster     50 / 22 slower    51 / 21 slower
+
+The three crashes that vanished on the fresh slice are spa s20, rand6 s17 and
+rand19 s20; fractal3 s17 still crashes on both builds. The start-free pace
+instrument agrees: best car on a track 2.99% -> 1.69% above a perfect lap
+(median), whole field 5.73% -> 4.71%, 49 tracks closer to perfect and 20
+further. Biggest gains on the small twisty boards the last entry named
+(rand12 -4.2%, fractal1 -3.9%, rand3 -3.9%); the losses are small and clustered
+on the lobes (lobe4 +1.8%, lobe2 +1.7%).
+
+CONTROLS. The Nordschleife is byte-identical across all twenty seeds -- its
+potential is over budget, exactPot is null, and the gate maps serve exactly as
+they did, which is the fallback path proving itself. Solo racing is still
+exact (circle 111, cog 132, serpentine 103 against the same optima); the alone
+branch returns before ttf is ever consulted. Courses without lap gates are
+untouched by construction.
+
+RE-BASELINE. 8 of 12 goldens and 8 of 22 pins moved, every one of them a pace
+or placement number with finishers and crashes unchanged; re-frozen from
+measurement. The bounded-uncertain-field pin is the clean control: seven of its
+nine cases came back byte-identical, only Le Mans s29 and s14 moved.
+
+WHAT IS LEFT, AND ONE THING TO CHECK. The other half of the recoverable gap is
+caution outbidding a correct pace term -- 489 moves over the five probed tracks
+even after this round. That is the next candidate, and it needs the same
+treatment: find WHICH term, not remove them all. Separately, lapGate, lapAware,
+robustMode and now exactPot/exactRemaining are plain fields set at
+optimalMoveAI1 entry with no save/restore, so a scorerMoveOverState rollout
+that re-enters the dispatcher for a rival leaves them describing that rival.
+simulateTwoRounds does not do this (it uses pureMinTurnsMoveSim), so the main
+candidate loop is unaffected, but the DJS path is. It is pre-existing and this
+round inherits it rather than adding it; whether restoring them is an
+improvement is a measurable question nobody has asked.
+
+TOOLING. The fleet grid is now tracks/fleet_grid.sh in the repo instead of an
+ad-hoc script: resumable, RACING_JAR/JAVA/PROPS/HEAP/TRACKS to point it
+anywhere, NOLOOP and NOTRACK instead of silent MISSING rows. It is what ran
+both grids above. tracks/modal_bench.py is gone (all compute is on AWS) and so
+is the vmax-narrow-ridge pin, retired in round 215 and running nothing since.
+
 ## Post-215 verification (local agent): the rules cost nothing, and a second instrument
 
 The round-215 rules changed what a lap is, so every reading taken before them

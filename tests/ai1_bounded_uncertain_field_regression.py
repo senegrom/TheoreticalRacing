@@ -15,9 +15,9 @@ import bench_ai  # noqa: E402
 
 TARGET = ("lemans", 29)
 PROOF_VETO = ("lemans", 87)
-PROMOTED = (7, 0, [68, 72, 75, 77, 80, 81, 82])
+PROMOTED =(7, 0, [68, 72, 75, 77, 79, 81, 83])
 LEGACY = (7, 0, [65, 67, 69, 71, 73, 74, 76])
-PROMOTED_FINISHERS =[(1, 68), (3, 72), (5, 75), (6, 77), (2, 80), (7, 81), (8, 82)]
+PROMOTED_FINISHERS =[(1, 68), (3, 72), (5, 75), (6, 77), (7, 79), (2, 81), (4, 83)]
 LEGACY_FINISHERS = [
     (1, 65),
     (3, 67),
@@ -27,7 +27,7 @@ LEGACY_FINISHERS = [
     (8, 74),
     (2, 76),
 ]
-PROMOTED_ALL_MOVES ={1: 68, 2: 80, 3: 72, 4: 82, 5: 75, 6: 77, 7: 81, 8: 82}
+PROMOTED_ALL_MOVES ={1: 68, 2: 81, 3: 72, 4: 83, 5: 75, 6: 77, 7: 79, 8: 82}
 LEGACY_ALL_MOVES = {
     1: 65,
     2: 76,
@@ -39,7 +39,7 @@ LEGACY_ALL_MOVES = {
     8: 74,
 }
 PROMOTED_NORMALIZED_SHA256 = (
-    "5a6b5cbdaa28110e350a753779ea0e38d99dcdba125b91eb32ee504401df28dc"
+    "8cb6db6ea2dcf29607b5c48b6f6d5680e5c1c6ca85fc56c00962ae85b92b5353"
 )
 PROMOTED_DECISION = (
     "88 p8 {kind} N v(3,-2)→(3,-3) (18,17)→(21,14) ok"
@@ -65,14 +65,14 @@ PROOF_VETO_VECTOR = (
 # cover every redistribution/slowdown class shared with the older broad arm.
 # Every complete trajectory must remain the current champion.
 RETENTION_CASES = {
-    PROOF_VETO: ((7, 0, [69, 71, 75, 76, 78, 80, 82]),
-        "55108ecde4438d85b566c325d0f74cb88844aef729c3a125efa3bef0cc66c6d2",
+    PROOF_VETO: ((7, 0, [69, 73, 75, 77, 78, 80, 82]),
+        "c812b6136b457d64e59a0be7c30d20b58908dc9514d10c7358bb2f7cc0a852d0",
     ),
-    ("lemans", 93): ((7, 0, [69, 71, 76, 78, 80, 81, 82]),
-        "d6d13e1998d90ec62602ece47aa82a151dddca4564721c254530a94f7849e988",
+    ("lemans", 93): ((7, 0, [69, 73, 75, 77, 78, 79, 80]),
+        "2820ed08785f0e62ff7bcf5c2062936a436c28ae647321f053718219db22b25d",
     ),
-    ("lemans", 14): ((7, 0, [69, 71, 76, 77, 79, 82, 85]),
-        "55b7d2f4dd28caffc34d1d298275462c76e747a21d6812b1b88c365478f51297",
+    ("lemans", 14): ((7, 0, [69, 73, 76, 79, 80, 81, 83]),
+        "3deb93bac4828fddcd947328f0f260a09ec9a3a214f7a74c3d39810a3dfff02c",
     ),
     ("silverstone", 78): (
         (7, 0, [81, 82, 83, 84, 85, 85, 86]),

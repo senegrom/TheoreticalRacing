@@ -20,7 +20,7 @@ CASES = {
     ("silverstone", 15): 584,
     ("silverstone", 18): 589,
     ("coil", 18): 425,
-    ("hungaroring", 8): 952,
+    ("hungaroring", 8): 957,
     ("hungaroring", 10): 960,
     ("hungaroring", 25): 951,
 }
@@ -28,7 +28,7 @@ CASES = {
 # A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
 # the three-ahead class must retain the exact integrated-frontier finish list.
 EXACT_MOVES = {
-    ("lemans", 3): [68, 72, 75, 78, 80, 81, 82],
+    ("lemans", 3):[68, 71, 75, 77, 78, 79, 80],
     ("silverstone", 15): [81, 82, 83, 84, 84, 85, 85],
 }
 

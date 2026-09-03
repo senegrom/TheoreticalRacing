@@ -66,8 +66,11 @@ def main() -> int:
             bench_ai.set_kinds(kinds)
             result = bench_ai.run_track_h2h("rand13", timeout=600, seed=4)
             # Round 215: one policy in two grid slots, so the totals mirror
-            expected = ({"AI1": (21, 4, 0), "AI2": (15, 4, 0)} if target_kind == "AI1"
-                        else {"AI1": (15, 4, 0), "AI2": (21, 4, 0)})
+            # Round 216 re-froze the place sums: the exact pace term reorders
+            # the finish without touching what the pin guards -- four cars home
+            # and none lost, whichever grid slot carries p7.
+            expected = ({"AI1": (19, 4, 0), "AI2": (17, 4, 0)} if target_kind == "AI1"
+                        else {"AI1": (17, 4, 0), "AI2": (19, 4, 0)})
             if result != expected:
                 raise SystemExit(
                     "Round-185 width-three ridge regression: "
@@ -80,12 +83,17 @@ def main() -> int:
             # car never reaches that state again -- replaying the same race on the
             # pre-change build shows it leaves (86,10) there and nowhere now. The
             # behaviour it guarded is covered by the fleet grid.
+            # Round 216: the rescued car now comes home FIFTH rather than
+            # seventh, on the same move (563) and identically for both kinds.
+            # What the round-185 rescue bought is that p7 survives the ridge at
+            # all -- its old line crashes three turns later -- so the pin still
+            # asserts a finish, at the place the faster pace term now earns.
             if not any(
-                " p7 " in line and f" {target_kind} " in line and "FINISH place=7" in line
+                " p7 " in line and f" {target_kind} " in line and "FINISH place=5" in line
                 for line in lines
             ):
                 raise SystemExit(
-                    "Round-185 width-three ridge regression did not finish p7 seventh "
+                    "Round-185 width-three ridge regression did not finish p7 fifth "
                     f"for kind {target_kind}"
                 )
     print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4 both kinds)")

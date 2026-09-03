@@ -22,7 +22,7 @@ MAX_FINISH_MOVE_SUM = 887
 # broad experiment's sole slower race.
 FINISH_EXPECTED = {
     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 23],
-    ("lemans", 12): [68, 72, 75, 78, 80, 82, 84],
+    ("lemans", 12):[68, 71, 75, 77, 78, 80, 81],
 }
 
 

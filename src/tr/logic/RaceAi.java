@@ -561,6 +561,14 @@ final class RaceAi {
 		final int robustSp = Math.max(Math.abs(vel[0]), Math.abs(vel[1]));
 		robustMode = lapAware && rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum,
 				Math.max(AI1_ROBUST_RANGE, Math.min(robustSp * (robustSp + 1) / 2, AI1_ROBUST_KIN_CAP)));
+		exactPot = game.optimalPotential();
+		if (exactPot != null) {
+			int lapsDone = 0;
+			for (final Player q : game.players)
+				if (q.getNumber() == playerNum)
+					lapsDone = q.getLap();
+			exactRemaining = OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps);
+		}
 		// Round 214: with nobody near, the race is a shortest-path problem and
 		// the exact potential solves it. Every caution term below is priced
 		// against a rival that is not there, and the measured cost of that was
@@ -1968,8 +1976,27 @@ final class RaceAi {
 	 *  surcharges needle states (single-thread continuations); alone, the
 	 *  plain map keeps the solo line. Set beside lapAware at entry. */
 	private boolean robustMode;
+	/** Round 216: the exact distance-to-finish map, and the gate events this
+	 *  mover still owes. Null on a board too large for the potential's budget
+	 *  and on a course without lap gates; the gate maps then serve as before. */
+	private OptimalPotential	exactPot;
+	private int					exactRemaining;
 
 	private int ttf(final int x, final int y, final int vx, final int vy) {
+		// Round 216: the exact remaining distance whenever the potential exists.
+		// The gate maps answer "how far to the NEXT gate", which is not what a
+		// race minimises -- arriving at a gate in a poor state is paid for after
+		// it, and measurement put half the pace given up on landings the policy
+		// would happily take beyond what the gate map can see. The round-210
+		// needle surcharge still rides on top, so robust mode prices
+		// single-thread states exactly as it did.
+		if (exactPot != null) {
+			final int v = exactPot.movesToFinish(exactRemaining, x, y, vx, vy);
+			if (v == Integer.MAX_VALUE)
+				return Integer.MAX_VALUE;
+			return robustMode && !reach.isRobust(lapGate, x, y, vx, vy)
+					? v + AI1_ROBUST_SURCHARGE : v;
+		}
 		if (!lapAware)
 			return reach.turnsToFinish(x, y, vx, vy);
 		return robustMode ? reach.turnsToGateNeedleAware(lapGate, x, y, vx, vy, AI1_ROBUST_SURCHARGE)
