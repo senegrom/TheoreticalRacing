@@ -23,7 +23,7 @@ DIRNAMES = ["NW", "N", "NE", "W", "NONE", "E", "SW", "S", "SE"]
 
 MOVE_LINE = re.compile(
     r"^(\d+) p(\d+) \S+ (\S+) v\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) "
-    r"\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) (ok|CRASH|FINISH)"
+    r"\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) (ok|CRASH|FINISH|LAP \d+/\d+)"
 )
 START_LINE = re.compile(r"^player(\d+) name=.*? kind=\S+ start=(\d+),(\d+)")
 ORACLE_ANSWER = re.compile(r"^(-?\d+),(-?\d+);([FXBDA]{9})$")
