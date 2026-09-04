@@ -6,6 +6,106 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Rounds 217-218 (reverted): where the time is NOT, and one veto that never fired
+
+Two candidates, six sweeps, three new instruments, no shipped policy change.
+The map they drew is the result, so it is written down in full.
+
+WHAT 216 LEFT OPEN. Half the recoverable pace was "a caution term outbidding a
+pace term that had already found the optimum". A term-attribution probe named
+it: over 12199 decisions on seven tracks, 651 moves went to a term, and
+uncertified took 279 of them (trap 167, cost 107, rob 57, spread 31; corner,
+queue and mom negligible). Inside uncertified the round-206 car-following
+excess was present in 242 of 272 cases against 152 for the brake proofs.
+
+ROUND 217, ARM A -- reverted. The round-49 and round-62 pace recoveries ask
+"strictly faster?" of poTByDir, which since 216 carries the round-210 needle
+surcharge. Of 450 landings they refused as not faster, 407 WERE faster on the
+raw exact distance; the surcharge alone said otherwise. Giving both recoveries
+the surcharge-free number: 10 tracks x 3 seeds, +0.09%. The unblinded lines
+reach the later gates (zero trap, not sealable, DJS survival) and die there.
+
+ROUND 217, ARM B -- reverted. The following law projects rivals onto a
+forty-cell heading ray, and on a twisty board the ray leaves the tarmac: of 373
+optimal landings charged for following, 206 were braking for a car BEHIND me
+on the road (152 within five cells; none the finish-line wrap). Requiring the
+leader to be at-or-ahead in track progress, with the +3 slack and wall
+exclusion every other traffic term uses: +0.01%. Both arms removed a caution
+exactly where its premise was false, and neither converted into race time.
+LESSON: per-decision loss against the solo potential is an upper bound on
+recoverable pace, not a prediction of it. In company, a locally optimal move
+is not a globally faster race.
+
+THE SWEEPS. One dial at a time, 10 tracks x 3 seeds, K = 1 bit-identical to
+the champion (folding the cautions into one product regroups the additions and
+flips near-exact ties by a ULP; the scaled path only runs when the dial is
+turned):
+
+  whole soft caution stack x0.85/0.70/0.50/0.30 : +0.02 +0.05 +0.06 -0.01%, 0 crashes
+  search depth 3 / 4                            : +0.32 / +0.83%  (deeper is WORSE:
+                                                   body pricing covers plies 1-2 only,
+                                                   so a deeper search is traffic-blind
+                                                   at its far end)
+  predicted-body price x0.5 / x2.0              : -0.01 / +0.02%  (8 of 10 tracks 0.00)
+  ply>=1 predicted-body veto -> price 0/1.5/3/6 : byte-identical on all 30 races
+
+The soft stack is nearly weightless: scaled to 30% it neither costs a crash nor
+buys pace. The ranking is decided by costToFinish, whose leaves are the exact
+potential since 216 -- the car is already driving very nearly the deep-search
+optimum, and the caution terms mostly break ties.
+
+THE VETO THAT NEVER FIRED. Both soft searches carried, at every ply past the
+first, "if predictedSteps[stepIdx] contains the landing, continue". It reads as
+refusing to plan through a predicted body. predictedSteps is built ONE step
+deep (predictedOpponentSteps(playerNum, 1)), so its length-1 bound admits only
+stepIdx == 0 -- the other arm of the same if/else. Unreachable by reading,
+byte-identical by measurement. Removed; ply-1 bodies are priced through
+aheadOccupancy, which is live. Behaviour-identical build, verified on four
+races against the champion logs.
+
+ROUND 218 -- reverted, and the most instructive number of the session. The
+needle surcharge is the one weight that lives INSIDE the pace term, so no
+caution sweep could touch it. Sweeping it:
+
+  12 / 8 / 5 / 3 / 2 : byte-identical      -- not a weight but a VETO: anything
+                                              >= 2 exceeds every candidate gap
+  1                  : -0.61%, 0 crashes   -- a tie-break toward thick states
+  0                  : -2.29%, 0 crashes   -- and on those 30 races 14.6% of
+                                              pairs swapped order vs 8.1%
+
+Then the fleet. Surcharge 0: 6 crashes in the first 283 races, two cars in
+EVERY monza seed, stopped there. Surcharge 1, three full slices:
+
+                     seeds 1-10   seeds 11-20   seeds 21-30   total
+    champion (216)   0 crashes    1             0             1 in 2190
+    surcharge 1      0            2             5             7 in 2190
+    moves            -0.72%       -0.72%        -0.79%
+
+69 of 73 tracks faster on every slice, field pace gap 4.71% -> 3.92%, and
+seven cars lost against one. Crashes decide first. The surcharge is
+load-bearing; it just does not look like a weight. And the "more racing" the
+30-race sample showed did not survive the fleet: 6.9% -> 6.8% of pairs swap
+order, 69% -> 71% hold station. METHOD LESSON, twice over: the 30-race sample
+said "zero crashes at every setting" and the fleet found 7; the 30-race sample
+said "twice the overtaking" and the fleet found none. Ten tracks by three seeds
+ranks candidates; it does not clear them.
+
+THE PROCESSION. New instrument: order at the end of lap 1 versus the flag.
+Fleet-wide, 6.9% of car pairs swap over the last two laps; 69% of cars hold
+station; 327 of 730 races see no change at all. A second instrument (following
+a slower car within four cells) finds cars in that state 9.5% of the time at a
+mean speed 2.4% below clear air -- so queueing is not where the field's 4.7%
+goes. The gap is caution paid in the pack (p1 runs 0.5% off the fastest car on
+its board, p7 3.2%), and the sweeps say that caution is, at the margin, neither
+expensive nor removable. What remains is largely the geometry of eight cars
+sharing one racing line.
+
+ALSO. A local sweep with sixteen JVMs at 6 GB each paged a 31 GB box to a
+crawl; the capped runner is xargs -P 4 at 4 GB. And the AWS `aws login`
+session expired mid-run: only start/stop/describe and the Instance Connect key
+push need it, so a running grid finishes regardless, but the box cannot be
+stopped or its results pulled until the user logs in again.
+
 ## Round 216: the scorer was measuring the wrong distance
 
 SHIPPED. Every caution in the scorer is weighed against a pace number, and that

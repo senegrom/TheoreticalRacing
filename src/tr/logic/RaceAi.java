@@ -2982,8 +2982,13 @@ final class RaceAi {
 				if (occupancy.contains(nx, ny))
 					price = 3.0;
 			} else {
-				if (stepIdx < predictedSteps.length && predictedSteps[stepIdx].contains(nx, ny))
-					continue;
+				// Round 217: the predicted-occupancy veto that used to sit here
+				// could not fire. predictedSteps is built one step deep
+				// (predictedOpponentSteps(playerNum, 1)), so its length-1 bound
+				// admits only stepIdx == 0 -- the other arm of this if/else.
+				// Pricing it 0.0 through 6.0 gave byte-identical logs over
+				// thirty races. Ply-1 bodies are priced through aheadOccupancy
+				// below, which is live.
 				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
 					price = AI1_PLY2_PRICE;
 			}
@@ -3024,8 +3029,13 @@ final class RaceAi {
 				if (occupancy.contains(nx, ny))
 					price = 3.0;
 			} else {
-				if (stepIdx < predictedSteps.length && predictedSteps[stepIdx].contains(nx, ny))
-					continue;
+				// Round 217: the predicted-occupancy veto that used to sit here
+				// could not fire. predictedSteps is built one step deep
+				// (predictedOpponentSteps(playerNum, 1)), so its length-1 bound
+				// admits only stepIdx == 0 -- the other arm of this if/else.
+				// Pricing it 0.0 through 6.0 gave byte-identical logs over
+				// thirty races. Ply-1 bodies are priced through aheadOccupancy
+				// below, which is live.
 				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
 					price = AI1_PLY2_PRICE;
 			}
