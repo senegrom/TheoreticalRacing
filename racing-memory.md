@@ -6,6 +6,52 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 220 (feasibility probe, no candidate): the lane is almost never free
+
+After 216-219 the scorer is at a local optimum on every weight and the
+remaining gap looked structural: eight equal cars on one racing line. The one
+structural idea left was a multi-car lane planner -- predict the rival's path
+through the next corner and take a thin lane when it will stay clear instead
+of paying the surcharge for it. Before building it, one probe to size its
+pool.
+
+THE PROBE. A scratch build prices every real decision against the exact
+potential and, whenever the surcharge plausibly moved the car off its optimal
+landing (robust mode on, that landing non-robust, another taken), prints the
+lane it declined: the landing plus the next three cells of the exact solo line
+from it. An offline pass then reads the ACTUAL race: did any rival stand on or
+beside one of those cells during the next four rounds? Forty races, twenty
+tracks from twisty to flowing, seeds 1-2.
+
+THE NUMBERS. 90528 real decisions, 6289 moves lost (6.9% of moves). Two
+thirds of the loss (4192 moves) falls while a rival is within ten road cells
+and six cells -- in company. The surcharge-shaped decisions number 11995 and
+carry 3612 lost moves, 57% of everything lost. Of those lanes:
+
+    contested within four rounds   11030  (92%)   3503 moves
+    false alarm, lane stayed clear   965  ( 8%)    109 moves  = 1.7% of all loss
+
+Per track the false-alarm share tops out at 6% (fractal20) and is zero on
+cog, hybrid3, lobe4 and rand12 -- the twisty boards where the pace is lost
+are exactly where every declined lane gets taken.
+
+WHAT IT MEANS. The surcharge is right nine times in ten by the race's own
+testimony: the lanes it refuses are lanes a rival then occupies. A planner
+that predicted rivals perfectly could recover 109 of 6289 moves -- a tenth of
+a percent of race moves -- before paying anything for its own mistakes. That
+is not a project. The field's loss in traffic is earned caution over
+genuinely contested road, and the campaign's instruments now say so from four
+directions: removing the caution kills cars (218), aiming it recovers nothing
+(219), scaling it changes nothing (217), and the lanes it avoids are occupied
+(220).
+
+FRONTIER. Pace in traffic is closed for this architecture. What is left:
+(a) the 8% false alarms, worth 0.1%; (b) the start -- p1 runs 0.5% off the
+fastest car on its board, p7 3.2%, and that ordering is set before the first
+corner; (c) a different game entirely, where cars are not equal. The probe
+build and its analysis (E:\tmp-claude\probe220.py, needle_pool.py) are the
+instrument for whoever reopens this.
+
 ## Round 219: the needle surcharge, aimed (reverted)
 
 Round 218 said the surcharge was a veto worth 2.3% of the fleet's moves and
