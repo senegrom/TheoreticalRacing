@@ -6,6 +6,111 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 219: the needle surcharge, aimed (reverted)
+
+Round 218 said the surcharge was a veto worth 2.3% of the fleet's moves and
+that removing it killed cars. This round asked what, exactly, it was
+preventing, and aimed it at that.
+
+THE AUDIT. A new tool (tracks/needle_audit.py) walks a crashed car back
+through its last moves and asks the game's own oracle how many of its nine
+landings were alive and how wide the lane it chose was, with the rivals where
+they stood. Five surcharge-0 deaths were audited -- Monza s1 p2 (the double
+crash that hit every seed), Monaco s4 p1, Le Mans s6 p8, fractal20 s1 p8,
+lobe1 s2 p6 -- and they tell one story. The car enters a single-lane landing
+two to four moves before the wall (Le Mans ran four consecutive thread-1
+states) and a rival then occupies the one cell it needs; the crash move itself
+has nothing open, the death was decided upstream. At the decisive move the
+closing rival stood ONE TO THREE cells from the chosen landing in every case:
+Monza p8 at 3/2/1, Monaco p5 at 2/1/1, Le Mans p7 at 1, fractal20 p4 at 2/1,
+lobe1 p5 at 1. Wheel to wheel, never twelve cells ahead.
+
+THE OLD GATE. robustMode fires on any rival ahead or beside the CAR within
+max(12, min(s(s+1)/2, 24)) cells, and then every non-robust state the scorer
+prices -- including the deep search's leaves two plies out -- costs twelve.
+A first attempt gated each priced state on a rival's two-round kinematic
+reach (2|v_r|+3 plus the state's envelope): that bound is about the size of
+the old radius, so it fired in the same places, 7 of 10 tracks byte-identical,
+-0.04%. A gate has to be tight to discriminate, and the audit says tight is
+correct.
+
+THE CANDIDATE. A non-robust state is charged only if a live rival stands
+within the state's own next-move envelope plus two cells,
+cheb(rival, state) <= |v|+1+2 -- "someone is on or beside the lane I am about
+to use". Evaluated per priced state, so the search still sees it at its leaves.
+isRobust, the trap ladder, needle headway, the seals and the joint
+roll-forward are untouched. The one-round-each variant (|v|+1 + |v_r|+1) was
+also tried: flat (+0.01%). On the five killer boards both variants finish
+every car; near2 is a few moves faster on four of them. 30-race sample:
+near2 -0.36%, 7 of 10 tracks faster, no crashes.
+
+V1 ON THE FLEET -- reverted after one slice. Seeds 1-10: 2 crashes against
+the champion's 0 (monza s3, spielberg s9). Both audited at once, and they are
+the OTHER way a lane closes: the car enters a long single lane at speed with a
+SLOW rival 11-18 cells ahead IN the lane (Monza p7 at 11, |v| 4 falling to 2;
+Spielberg p5 at 18, |v| 6 falling to 3), the rival keeps slowing, and the exit
+shuts five to seven moves later. That is round 212's rand6 lesson -- a parked
+pack thirteen cells ahead -- and the old gate's 12-24 cell kinematic range was
+exactly the stopping distance that covers it. A two-cell gate cannot see it.
+
+V2. Two conditions, both measured from the priced state: a rival within the
+next-move envelope plus two cells (beside), OR a rival ahead ON THE ROAD --
+distAt smaller -- by no more than the state's stopping range
+max(12, min(s(s+1)/2, 24)) and within that many cells geometrically (ahead).
+What the old gate charged and v2 does not: a rival beside or behind beyond the
+envelope, and one geometrically ahead but not ahead on the road (the opposite
+leg of a hairpin, the outside of a wide turn). On the box: all seven killer
+boards finish every car, net faster on them; the 30-race sample -0.02%.
+
+THE FLEET (730 races per slice, champion = round 216):
+
+            crashes        moves       tracks
+    1-10      0 -> 0     -0.02%   37 faster / 30 slower
+    11-20     1 -> 1     -0.04%   39 faster / 27 slower
+    21-30     0 -> 0     -0.04%   40 faster / 22 slower
+
+Seeds 1-10 in detail: 207 of 730 races byte-identical, median per-track
+delta -0.01%, 37 tracks faster, 30 slower, 6 unchanged -- total moves are
+FLAT. The other two instruments are not. Closing-lap pace gap (start-free):
+best car 1.69% -> 1.41% above a
+perfect lap, field median 4.71% -> 4.29%,
+18 tracks closer and 13 further. Running order over the last two laps: 1056 ->
+1195 inversions of 15330 pairs (6.9% -> 7.8%), races with no change 327 -> 290,
+cars holding station 3514 -> 3350. On 730 races that is a four-sigma change,
+not the 30-race mirage of round 218. What it means: the fleet is no faster in
+sum, but the cars pass each other more and a thin state is taken where nobody
+can contest it, so the running order is earned more often -- or so slice one said.
+
+SLICES TWO AND THREE. Seeds 11-20: the one crash is fractal3 s17, the race
+the champion loses too; moves -0.04%, 212 races byte-identical, 39 faster /
+27 slower. Seeds 21-30: 0 -> 0, -0.04%, 226 identical, 40 faster / 22
+slower. Safety is exactly the champion's over 2190 races. But the order effect
+did NOT reproduce: on seeds 11-20 inversions went 7.3% -> 7.2% and the
+closing-lap gap 4.55% -> 4.48% (23 tracks closer, 14 further). Slice one's
+four-sigma signal was real for those seeds and specific to them. Flat pace,
+no reliable order change, more code: reverted.
+
+WHAT STANDS. Once the gate covers both ways a lane closes -- a rival beside it
+within the envelope, or ahead in it within stopping distance on the road --
+it fires where the old gate fires. The old gate was not blunt; the surcharge's
+2.3% is the price of those two mechanisms, and the campaign has now measured
+it from both sides (218: remove it and cars die; 219: aim it and nothing is
+gained). The needle deaths are structural: a single lane is dangerous exactly
+when someone can reach it, and someone usually can.
+
+LANE STYLE, MEASURED WHILE WAITING. Round 201 gives two thirds of the field
+perturbed tie-break weights (AI1_LANE_STYLE = 0.12) so eight cars do not
+stack on one geodesic. The per-class pace numbers had looked like a cost
+(class 1 at 1.2-1.4% off the fastest car on its board, class 2 at 2.1-2.2%).
+A dial build racing the 30-race sample at 0.06 and at 0.0: -0.00% and
+-0.01%, no crashes. The classes differ by grid position, not by their
+weights; the spread costs nothing and is left alone.
+
+ALSO. tracks/forensics_common.py now parses lap-completion lines; before,
+every "LAP n/3" move was skipped, a reconstructed board could put two cars on
+one cell, and the oracle died. board_at.py's docstring now says its offline
+map is the finish map and is blind to gates in a lap race.
+
 ## Rounds 217-218 (reverted): where the time is NOT, and one veto that never fired
 
 Two candidates, six sweeps, three new instruments, no shipped policy change.
