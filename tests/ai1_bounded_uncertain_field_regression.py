@@ -16,48 +16,8 @@ import bench_ai  # noqa: E402
 TARGET = ("lemans", 29)
 PROOF_VETO = ("lemans", 87)
 PROMOTED =(7, 0, [68, 72, 75, 77, 79, 81, 83])
-LEGACY = (7, 0, [65, 67, 69, 71, 73, 74, 76])
 PROMOTED_FINISHERS =[(1, 68), (3, 72), (5, 75), (6, 77), (7, 79), (2, 81), (4, 83)]
-LEGACY_FINISHERS = [
-    (1, 65),
-    (3, 67),
-    (6, 69),
-    (5, 71),
-    (7, 73),
-    (8, 74),
-    (2, 76),
-]
 PROMOTED_ALL_MOVES ={1: 68, 2: 81, 3: 72, 4: 83, 5: 75, 6: 77, 7: 79, 8: 82}
-LEGACY_ALL_MOVES = {
-    1: 65,
-    2: 76,
-    3: 67,
-    4: 75,
-    5: 71,
-    6: 69,
-    7: 73,
-    8: 74,
-}
-PROMOTED_NORMALIZED_SHA256 = (
-    "8cb6db6ea2dcf29607b5c48b6f6d5680e5c1c6ca85fc56c00962ae85b92b5353"
-)
-PROMOTED_DECISION = (
-    "88 p8 {kind} N v(3,-2)→(3,-3) (18,17)→(21,14) ok"
-)
-TARGET_VECTOR = (
-    "AIDBG FIELD-VECTOR p=8 chosen=(20,15)v(2,-2) "
-    "candidate=(21,14)v(3,-3) rounds=8 self=52->51 field=352->351 "
-    "projected=401->400 componentwise=true accepted=true "
-    "chosenRivals={p1=54,p2=60,p3=56,p4=60,p5=56,p6=57,p7=58} "
-    "candidateRivals={p1=54,p2=59,p3=56,p4=60,p5=56,p6=57,p7=58}"
-)
-PROOF_VETO_VECTOR = (
-    "AIDBG FIELD-VECTOR p=7 chosen=(24,13)v(3,-1) "
-    "candidate=(25,11)v(4,-3) rounds=8 self=50->50 field=346->346 "
-    "projected=396->396 componentwise=false accepted=false "
-    "chosenRivals={p1=55,p2=58,p3=59,p4=56,p5=53,p6=56,p8=59} "
-    "candidateRivals={p1=55,p2=59,p3=59,p4=56,p5=53,p6=56,p8=58}"
-)
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;

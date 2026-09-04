@@ -14,16 +14,7 @@ import bench_ai  # noqa: E402
 
 TARGET = ("rand3", 1)
 PROMOTED =(7, 0, [61, 62, 64, 64, 65, 66, 68])
-LEGACY = (6, 1, [59, 60, 60, 61, 61, 63])
 PROMOTED_FINISHERS =[(5, 61), (8, 62), (1, 64), (7, 64), (4, 65), (6, 66), (2, 68)]
-LEGACY_FINISHERS = [
-    (1, 59),
-    (3, 60),
-    (4, 60),
-    (5, 61),
-    (6, 61),
-    (2, 63),
-]
 PROMOTED_ALL_MOVES ={1: 64, 2: 68, 3: 67, 4: 65, 5: 61, 6: 66, 7: 64, 8: 62}
 LEGACY_ALL_MOVES = {
     1: 59,
@@ -35,11 +26,7 @@ LEGACY_ALL_MOVES = {
     7: 62,
     8: 61,
 }
-LEGACY_CRASHES = [(8, 61)]
 PROMOTED_SHA256 = "366e42f211febe0e042c4b9a5281008fa6d3344eecf6b3f3452234bd526c6b21"
-PROMOTED_DECISION = (
-    "448 p8 {kind} NW v(9,0)→(8,-1) (109,130)→(117,129) ok"
-)
 
 
 def race_events(

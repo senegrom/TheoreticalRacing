@@ -91,7 +91,7 @@ Before a large run, locate AI1/AI2 behavior changes cheaply:
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
 ```
 
-For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) for the workflow and current research directions.
+For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [racing-memory.md](racing-memory.md) for the campaign ledger -- every round's measurements, the instruments and the current frontier; [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) keeps the older-era notes.
 
 ## How to play
 
@@ -116,7 +116,8 @@ src/tr/gui/           Swing UI and rendering
 tracks/               bundled circuits, generators, benchmark tooling
 tests/tr/logic/       dependency-free regression tests
 .github/workflows/    fast CI and the manual promotion battery
-AI_DEVELOPMENT.md     current AI workflow, frontier and next ideas
+racing-memory.md      the AI campaign ledger: rounds, measurements, instruments, frontier
+AI_DEVELOPMENT.md     older-era AI notes (rounds 168-177), kept as history
 racing-memory.md      long-form AI research/promotion history
 ```
 

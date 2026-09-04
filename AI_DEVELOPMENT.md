@@ -1,5 +1,12 @@
 # AI development and promotion
 
+> **OLD-ERA NOTES (rounds 168-177, August 2026).** Kept as history. The live
+> account of the AI campaign -- every round since, its measurements, the
+> instruments, and the current frontier -- is `racing-memory.md` at the repo
+> root; read that first. Since the 2026-08-25 promotion AI2 delegates to AI1,
+> so the AI1-vs-AI2 differential workflow described below is historical.
+
+
 `RaceAi` currently uses one promoted champion body: AI2 delegates to AI1.
 Candidate experiments are compared with a frozen copy of the previous champion
 before promotion, then checked for exact AI1/AI2 identity. A candidate remains
