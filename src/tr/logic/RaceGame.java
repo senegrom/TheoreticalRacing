@@ -96,13 +96,16 @@ public final class RaceGame {
 		final int[]	finishedPlaces;
 		final int		gameLogLength;
 		final int[]	historySizes;
+		final int[][]	lapStates;
 		final int[][]	positions;
+		final boolean	startZoneGone;
 		final int		subgamestate;
 		final int		turnCounter;
 		final int[][]	velocities;
 
 		MoveSnapshot(final RaceGame game) {
 			subgamestate = game.subgamestate;
+			startZoneGone = game.startZoneGone;
 			finishedFirst = game.finishedFirst;
 			finishedLast = game.finishedLast;
 			turnCounter = game.turnCounter;
@@ -111,12 +114,14 @@ public final class RaceGame {
 			velocities = new int[game.players.length][];
 			finishedPlaces = new int[game.players.length];
 			historySizes = new int[game.players.length];
+			lapStates = new int[game.players.length][];
 			for (int i = 0; i < game.players.length; i++) {
 				final Player player = game.players[i];
 				positions[i] = player.getPosition().clone();
 				velocities[i] = player.getVelocity().clone();
 				finishedPlaces[i] = player.getFinishedPlace();
 				historySizes[i] = player.getHistory().size();
+				lapStates[i] = player.lapState();
 			}
 		}
 
@@ -126,11 +131,13 @@ public final class RaceGame {
 			game.finishedLast = finishedLast;
 			game.turnCounter = turnCounter;
 			game.gameLog.setLength(gameLogLength);
+			game.startZoneGone = startZoneGone;
 			for (int i = 0; i < game.players.length; i++) {
 				final Player player = game.players[i];
 				player.setPosition(positions[i].clone());
 				player.setVelocity(velocities[i].clone());
 				player.setFinishedPlace(finishedPlaces[i]);
+				player.restoreLapState(lapStates[i]);
 				while (player.getHistory().size() > historySizes[i])
 					player.getHistory().removeLast();
 			}
@@ -196,6 +203,13 @@ public final class RaceGame {
 	/** Override the game-log output path (default: next to the JAR). Lets
 	 *  concurrent --auto runs write distinct logs (pair with Main's --props). */
 	private Path gameLogOverride = null;
+	private Path propertiesOverride = null;
+
+	/** Where saveProperties writes. Set from --props, so a session started on a
+	 *  bench profile never writes that profile over the user's own settings. */
+	public void setPropertiesPath(final String p) {
+		propertiesOverride = Path.of(p);
+	}
 
 	public void setGameLogPath(final String p) {
 		gameLogOverride = Path.of(p);
@@ -222,7 +236,7 @@ public final class RaceGame {
 	}
 
 	private boolean isAutoRace() {
-		return autoMode && dumpReachPath == null && queryInPath == null;
+		return autoMode && dumpReachPath == null && queryInPath == null && optimalStart == null;
 	}
 
 	private void abortAutoRace(final String message) {
@@ -1346,20 +1360,22 @@ public final class RaceGame {
 		// crossing counts as a lap. Stray S/F crossings while a checkpoint is
 		// still owed are ordinary moves.
 		String cpMark = "";
+		int gateAfter = player.getNextGate();
+		boolean passCp1 = false, passCp2 = false;
 		if (lapGates != null) {
-			if (player.getNextGate() == 1 && segTouches(lapGates[1], pos, newpos)) {
-				player.setNextGate(2);
-				player.passGate(1);
+			if (gateAfter == 1 && segTouches(lapGates[1], pos, newpos)) {
+				gateAfter = 2;
+				passCp1 = true;
 				cpMark = " cp1";
 			}
-			if (player.getNextGate() == 2 && segTouches(lapGates[2], pos, newpos)) {
-				player.setNextGate(0);
-				player.passGate(2);
+			if (gateAfter == 2 && segTouches(lapGates[2], pos, newpos)) {
+				gateAfter = 0;
+				passCp2 = true;
 				cpMark = cpMark + " cp2";
 			}
 		}
 		final boolean lapCross = crosses
-				&& (lapGates == null || player.getNextGate() == 0);
+				&& (lapGates == null || gateAfter == 0);
 		final boolean finishes = lapCross && player.getLap() + 1 >= totalLaps;
 		// A non-final crossing continues the race, so unlike the final one it
 		// must also be an ordinarily legal move (landing on track, no body).
@@ -1375,6 +1391,17 @@ public final class RaceGame {
 		}
 		if (!autoMode)
 			moveHistory.push(new MoveSnapshot(this));
+		// The gate credit belongs to a move that actually happens: the confirm
+		// above can still abandon this one, and the snapshot has to record the
+		// pre-move gate ledger so Undo can put it back.
+		if (passCp1) {
+			player.setNextGate(2);
+			player.passGate(1);
+		}
+		if (passCp2) {
+			player.setNextGate(0);
+			player.passGate(2);
+		}
 
 		if (finishes) {
 			finishedFirst++;
@@ -2086,7 +2113,8 @@ public final class RaceGame {
 
 	/** Atomic property save. */
 	public void saveProperties() {
-		final Path target = TrackIO.userPropertiesPath();
+		final Path target = propertiesOverride != null
+				? propertiesOverride : TrackIO.userPropertiesPath();
 		try {
 			TrackIO.writeAtomically(target, out -> prop.store(out, null));
 		} catch (final IOException e) {

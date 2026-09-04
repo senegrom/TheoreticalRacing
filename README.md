@@ -54,7 +54,7 @@ python3 tests/ai1_staged_pace_regression.py
 python3 tests/ai1_energy_pace_regression.py
 ```
 
-The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10, Zandvoort seed-45, Silverstone seed-15, and Le Mans four-car seed-1 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
+The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10, Zandvoort seed-45, Hungaroring seed-13, and Le Mans four-car seed-1 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
 
 ## Benchmarks
 
@@ -88,7 +88,7 @@ Reachability maps are cached on disk per track geometry (the reverse-BFS dominat
 Before a large run, locate AI1/AI2 behavior changes cheaply:
 
 ```bash
-python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
+python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans hungaroring
 ```
 
 For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [racing-memory.md](racing-memory.md) for the campaign ledger -- every round's measurements, the instruments and the current frontier; [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) keeps the older-era notes.
@@ -115,13 +115,14 @@ src/tr/logic/         game rules, track IO/geometry, reachability, AI
 src/tr/gui/           Swing UI and rendering
 tracks/               bundled circuits, generators, benchmark tooling
 tests/tr/logic/       dependency-free regression tests
+tests/ai1_*.py        champion AI regression pins, run by CI on every push
 .github/workflows/    fast CI and the manual promotion battery
 racing-memory.md      the AI campaign ledger: rounds, measurements, instruments, frontier
 AI_DEVELOPMENT.md     older-era AI notes (rounds 168-177), kept as history
-racing-memory.md      long-form AI research/promotion history
+BRANCH_ARCHIVE.md     where the deleted development branches stay recoverable
 ```
 
-`RaceAi` intentionally contains both the frozen champion and the experimental frontier. AI changes should be benchmarked against the frozen body and promoted only after the repository's multi-stage regression battery passes.
+`RaceAi` holds one promoted champion body: `AI2` delegates to `AI1`, so the two kinds differ only where an experiment is still explicitly gated to `AI1` while it awaits its own promotion. AI changes should be benchmarked against the previous champion and promoted only after the repository's multi-stage regression battery passes.
 
 ## License
 

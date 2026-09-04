@@ -33,7 +33,7 @@ OLD_JAR = os.environ.get('OLD_JAR', ROOT + '/era60.jar')
 def start_positions(track, seed):
     """Ask the new jar for a real race's initial board by parsing a 0-move log?
     Simpler: run one race with --seed and read the start= lines from its log."""
-    import subprocess, tempfile
+    import subprocess
     log = os.path.join(S, 'cross_start_%s_%d.log' % (track, seed))
     subprocess.run(['java', '-jar', NEW_JAR, '--auto', '--track', track,
                     '--props', os.path.join(S, 'era_AI2.properties'),

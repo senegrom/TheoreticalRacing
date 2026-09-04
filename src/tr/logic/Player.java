@@ -133,6 +133,22 @@ public final class Player {
 		gateMark[g] = Math.max(0, history.size() - 1);
 	}
 
+	/** Multi-lap progress, for the undo snapshot: lap, next gate, trace start
+	 *  and the three gate marks. Undo rewinds position and velocity, so it has
+	 *  to rewind the gate ledger with them or a rewound crossing stays banked. */
+	int[] lapState() {
+		return new int[] { lap, nextGate, traceStart, gateMark[0], gateMark[1], gateMark[2] };
+	}
+
+	void restoreLapState(final int[] state) {
+		lap = state[0];
+		nextGate = state[1];
+		traceStart = state[2];
+		gateMark[0] = state[3];
+		gateMark[1] = state[4];
+		gateMark[2] = state[5];
+	}
+
 	public String statusLabel() {
 		return isFinished() ? finishedPlace + "." : velocity[0] + " " + (-velocity[1]);
 	}

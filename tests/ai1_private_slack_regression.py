@@ -15,16 +15,6 @@ import bench_ai  # noqa: E402
 HUNGARORING_SEED = 12
 HUNGARORING_PROMOTED =(7, 0, [123, 130, 134, 137, 140, 142, 143])
 HUNGARORING_PROMOTED_FINISHERS =[(3, 123), (5, 130), (4, 134), (7, 137), (1, 140), (6, 142), (8, 143)]
-HUNGARORING_LEGACY_ALL_MOVES = {
-    1: 126,
-    2: 131,
-    3: 118,
-    4: 124,
-    5: 130,
-    6: 128,
-    7: 121,
-    8: 129,
-}
 HUNGARORING_ALL_MOVES = {
     "AI1": {1: 140, 2: 143, 3: 123, 4: 134, 5: 130, 6: 142, 7: 137, 8: 143},
     "AI2": {1: 140, 2: 143, 3: 123, 4: 134, 5: 130, 6: 142, 7: 137, 8: 143},
@@ -175,7 +165,7 @@ def main() -> int:
             "private-slack Hungaroring seed-12 complete move-count regression: "
             f"{actual_moves}, expected {HUNGARORING_ALL_MOVES}"
         )
-    # Round 215 retired this check: HUNGARORING_LEGACY_ALL_MOVES came from the
+    # Round 215 retired the all-move comparison: its reference came from the
     # pre-promotion build under the old single-lap rules. Under checkpoints on
     # every race both builds drive different races, so a Pareto comparison
     # between them measures the rule change, not the policy.

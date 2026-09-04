@@ -19,7 +19,7 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
-DEFAULT_TRACKS = ["sprint", "hairpin", "lemans", "hungaroring"]
+DEFAULT_TRACKS = ["chicane", "hairpin", "lemans", "hungaroring"]
 
 
 def configure_console() -> None:

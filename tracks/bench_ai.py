@@ -42,8 +42,7 @@ import tempfile
 DEFAULT_TRACKS = [
     'silverstone', 'monza', 'spa', 'monaco', 'spielberg', 'nurburgring', 'lemans',
     'interlagos', 'zandvoort', 'hungaroring',
-    'circle', 'the_long_loop', 'sprint', 'hairpin', 'triangle',
-    'chicane', 'bigoval', 'curve',
+    'circle', 'ugly_bump', 'hairpin', 'triangle', 'chicane', 'bigoval',
     # Fast synthetic geometric patterns (build_synthetic.py, small grids ->
     # reachability 1-6s): a serpentine zig-zag, an inward spiral, a flowing
     # slalom, and a scalloped closed ring (gear). The open ones are honest by

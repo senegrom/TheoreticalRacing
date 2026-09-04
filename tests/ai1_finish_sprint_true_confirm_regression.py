@@ -16,16 +16,6 @@ TARGET = ("rand3", 1)
 PROMOTED =(7, 0, [61, 62, 64, 64, 65, 66, 68])
 PROMOTED_FINISHERS =[(5, 61), (8, 62), (1, 64), (7, 64), (4, 65), (6, 66), (2, 68)]
 PROMOTED_ALL_MOVES ={1: 64, 2: 68, 3: 67, 4: 65, 5: 61, 6: 66, 7: 64, 8: 62}
-LEGACY_ALL_MOVES = {
-    1: 59,
-    2: 63,
-    3: 60,
-    4: 60,
-    5: 61,
-    6: 61,
-    7: 62,
-    8: 61,
-}
 PROMOTED_SHA256 = "366e42f211febe0e042c4b9a5281008fa6d3344eecf6b3f3452234bd526c6b21"
 
 
@@ -109,10 +99,10 @@ def main() -> int:
         # Round 215 retired this comparison: the order it checks against was
         # recorded from the pre-promotion model under the old single-lap rules,
         # and that build cannot be re-run to produce a fair reference.
-        # Round 215 retired this check: LEGACY_ALL_MOVES came from the
-        # pre-promotion build under the old single-lap rules, so comparing this
-        # build against it says nothing about either. The pins above still hold
-        # the current trajectory exactly.
+        # Round 215 retired the all-move comparison: its reference came from
+        # the pre-promotion build under the old single-lap rules, so comparing
+        # this build against it says nothing about either. The pins above still
+        # hold the current trajectory exactly.
         # Round 215 retired this check: it measured the rescue as an offset from
         # where the pre-promotion build crashed, and that race no longer exists to
         # offset from.

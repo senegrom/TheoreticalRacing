@@ -72,7 +72,7 @@ public final class Main {
 			runBatch(options, prop);
 			return;
 		}
-		EventQueue.invokeLater(() -> {
+		runOnEventThread(options.headless(), () -> {
 			final RaceGame game = new RaceGame(prop);
 			game.setAutoMode(options.headless());
 			if (options.dumpReach() != null)
@@ -85,6 +85,8 @@ public final class Main {
 				game.setStartSeed(options.seed());
 			if (options.logPath() != null)
 				game.setGameLogPath(options.logPath());
+			if (options.propsPath() != null)
+				game.setPropertiesPath(options.propsPath());
 			game.start();
 		});
 	}
@@ -101,7 +103,7 @@ public final class Main {
 		while (true) {
 			final long thisSeed = s;
 			final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
-			EventQueue.invokeLater(() -> {
+			runOnEventThread(true, () -> {
 				final Properties raceProp = new Properties();
 				raceProp.putAll(baseProp);
 				final RaceGame game = new RaceGame(raceProp);
@@ -123,6 +125,20 @@ public final class Main {
 			s++;
 		}
 		System.exit(0);
+	}
+
+	/** Schedule work on the event thread. The EDT catches every Throwable and
+	 *  keeps pumping, so a headless failure would print a trace and then hang
+	 *  forever on a non-daemon thread; a headless task exits non-zero instead. */
+	private static void runOnEventThread(final boolean headless, final Runnable task) {
+		EventQueue.invokeLater(!headless ? task : () -> {
+			try {
+				task.run();
+			} catch (final RuntimeException | Error error) {
+				error.printStackTrace();
+				System.exit(1);
+			}
+		});
 	}
 
 	/** Insert _sN before the extension: races/x.log + 7 -> races/x_s7.log. */
@@ -185,8 +201,9 @@ public final class Main {
 		}
 		if (seedEnd != null && !auto)
 			throw new IllegalArgumentException("--seed range requires --auto");
-		if (seedEnd != null && (dumpReach != null || queryIn != null))
-			throw new IllegalArgumentException("--seed range cannot be combined with reach/query modes");
+		if (seedEnd != null && (dumpReach != null || queryIn != null || optimalStart != null))
+			throw new IllegalArgumentException(
+					"--seed range cannot be combined with reach/query/optimal-laps modes");
 		return new Options(auto, trackName, listTracks, dumpReach, queryIn, queryOut,
 				optimalStart, seed, seedEnd, logPath, propsPath);
 	}

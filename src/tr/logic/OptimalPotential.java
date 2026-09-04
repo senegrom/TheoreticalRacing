@@ -48,10 +48,6 @@ final class OptimalPotential {
 		return inLap + 3 * (totalLaps - lapsDone - 1);
 	}
 
-	int stages() {
-		return stages;
-	}
-
 	/** @return moves to finish, or {@link Integer#MAX_VALUE} if the race cannot
 	 *  be completed from here. {@code remaining == 0} means already finished. */
 	int movesToFinish(final int remaining, final int x, final int y, final int vx, final int vy) {

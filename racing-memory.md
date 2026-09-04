@@ -6,6 +6,154 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## 2026-09-04 audit: the champion is current, AI1 is NOT AI2, and eleven defects
+
+The user asked three things: is the champion promoted and current, is AI1 = AI2,
+and scan once more for bugs and debloat.
+
+CURRENT: yes. `build_main.sh` from HEAD reproduces the repo jar byte for byte
+(sha256 a844c92d...), and the whole corpus is green on it -- 22 Python pins, 8
+golden races (every hash unchanged), CoreTests/MainTests/TrackDataTests, the
+tooling unittests and compileall. The shipped champion is round 216; 217-221
+were all reverted or never shipped, so HEAD is the champion.
+
+AI1 = AI2: NO, and the pins say so out loud. `optimalMoveAI2` delegates to
+`optimalMoveAI1` -- one body -- but THREE arms are still gated `moverKind ==
+AI1`, all merged from the local agent's branch under the post-promotion
+protocol and never promoted since:
+
+  - the immediate-finish precedence (optimalMoveAI1, before the endgame seal)
+  - the finish-denial override (its own kind gate at the top)
+  - the exact axial-vmax extension of the r178 ridge check
+
+`ai1_finish_denial_regression` pins the difference by SHA256: on hairpin s68,
+p8 as AI2 crashes at move 104 and as AI1 is rescued to seventh. The class
+comment on `optimalMoveAI2` claimed "No kind-gated arms remain", which has been
+false since those arms landed; it now names them. Promotion still awaits the
+user's explicit word, per the frozen-baseline law.
+
+### THE AUDIT. Four reviewers over the four layers, every finding re-verified
+here before it was believed. Eleven hold up. They split cleanly into the ones
+that cannot touch an AI decision (shipped in this commit, corpus byte-identical)
+and the ones that can (NOT shipped -- they are the next rounds).
+
+SHIPPED, provably decision-free. Undo snapshots exist only when `!autoMode`,
+the confirm dialog is human-only, the CLI guards run before any race, and the
+properties target is an IO path. Goldens byte-identical, 22 pins pass.
+
+ 1. `commitMove` granted the CP1/CP2 advance BEFORE legality and before the
+    human "going there will crash you" confirm, whose No-return abandons the
+    move -- so a human could bank a checkpoint by proposing a crashing move
+    through the gate and declining it. The snapshot push sat after the
+    mutation, so Undo could not recover it either. The transitions are now
+    computed, used for `lapCross` exactly as before, and applied only once the
+    move commits.
+ 2. `MoveSnapshot` never captured `lap`, `nextGate`, `traceStart`, `gateMark`
+    or `startZoneGone`. Undo across an S/F crossing rewound position and
+    velocity and left the lap banked: the car then finished the race a lap
+    early. The snapshot now carries the gate ledger.
+ 3. `isAutoRace()` forgot `--optimal-laps`, which `Options.headless()` counts,
+    so the exact solo search aborted with "--auto requires every configured
+    player to be AI" on any config with a human -- which is the default. And
+    `--seed A-B --optimal-laps` silently ran the races and dropped the search.
+    Both reproduced from the CLI; both are now correct/explicit.
+ 4. Headless work runs inside `EventQueue.invokeLater`, and the EDT catches
+    Throwable and keeps pumping: a headless failure printed a trace and then
+    hung forever on a non-daemon thread. A hung fleet job costs hours, so
+    headless tasks now exit 1.
+ 5. `--props FILE` was honoured on read and ignored on write, so a GUI session
+    started on a bench profile wrote it over the user's own `user.properties`
+    on Save, OK, Exit or Restart.
+ 6. The round-215 "Exit saves config" fix overshot: Cancel ran the full
+    `commitSelections()`, so merely BROWSING the track combo and pressing Exit
+    selected that circuit and overwrote the typed grid size with its
+    dimensions. Cancel now keeps the fields and the kinds and leaves the track
+    alone; only OK commits a track.
+ 7. "Draw new track" left `lapClosable` from the previously loaded circuit in
+    the properties, so a hand-drawn open track could skip the loop-closure
+    clamp.
+ 8. `bench_ai.DEFAULT_TRACKS` still named `the_long_loop`, `sprint` and
+    `curve` -- deleted or renamed by 4a99798 on 2026-08-29. A missing track
+    makes the row INVALID and the bench invalid, and EIGHT of the eleven
+    promotion-battery stages call `bench_ai.py` with no positional tracks, so
+    they run on this list. The promotion battery has been broken for a week.
+    Same deleted `sprint` led `ai_probe.DEFAULT_TRACKS` and the README command
+    that copy-pastes it.
+ 9. Debloat: a dead `h11` binding whose own comment says the verdict is
+    ignored; `OptimalPotential.stages()`, no callers repo-wide; the last two
+    record-only pin constants (the earlier sweep missed them -- their names
+    differ from their siblings'); an unused import; README listed
+    racing-memory.md twice, omitted the pins, and named a Silverstone golden
+    case the 12-case corpus does not contain.
+
+NOT SHIPPED -- these change decisions and are owed a measured round:
+
+ A. **The nested compute clobbers the mover's lap context.** `optimalMoveAI1`
+    assigns `lapGate`, `lapAware`, `robustMode` and `exactRemaining` at entry,
+    unconditionally, before any `inScorerSim` gate. `scorerMoveOverState` sets
+    `game.subgamestate = i` and calls `computeAiMove()` for a RIVAL; its
+    `finally` restores positions, velocities, finished places, subgamestate and
+    `inScorerSim` -- but not those four. So after the first scorer-rival move
+    inside a rollout, the outer decision keeps pricing on a rival's gate, lap
+    count and robust flag, and `simOutcomeCore`'s own terminal `ttf` reads
+    return values from whichever rival happened to be computed last. The field
+    javadoc asserts the invariant this falsifies ("the dispatcher is only
+    entered from RaceGame (no recursion)"). Inert when `lapGates == null`;
+    live on every lap race, which is the entire fleet.
+ B. **`ttf()` prices rivals on the mover's frame even without (A).** Round
+    216 made `ttf` read `exactPot.movesToFinish(exactRemaining, ...)`, and
+    `exactRemaining` encodes the MOVER's gate phase and laps done. It is then
+    called on rival states in `rivalMoveOverState`, in the rollout field cost,
+    and in `endgameSolve`'s `rT` -- which is compared against `myT` to decide
+    "I cross first". Two cars in the same lap but either side of CP1 differ by
+    a whole gate, so the predicted rival line skips a checkpoint. The shape
+    predates 216 (`lapGate` was always the mover's); 216 widened the error from
+    one gate to whole laps.
+ C. **The robust set double-counts one continuation.** In `computeRobustReach`
+    the seed pass credits `arrivals[P]` for the edge P->S that crosses the
+    gate; when S is later popped, the pop decodes P as S's predecessor for that
+    SAME direction and credits it again. A state with exactly ONE continuation
+    reaches arrivals == 2 and is certified 1-fault-tolerant. On a closed
+    circuit S is in the robust set for essentially every gate-passing state, so
+    this is not a corner case. `isRobust` is what the whole needle surcharge
+    (rounds 210, 216-221) rides on: it over-certifies, so the surcharge is
+    silently NOT firing on some genuinely thin states. This is the most
+    consequential finding of the audit.
+ D. **The roomy map and its reference body compute different predicates.**
+    `isRoomy` returns the precomputed bit unconditionally for any in-range
+    state, so the recursive body's lap-aware crossing rule
+    (`!lapAware || lapGate == 0 && shedableLanding`) is dead code, while
+    `sweepRoomy` counts `crossesFinish && finishRunUpLegal` with no
+    lap-awareness at all. Since 215 this applies to single-lap races too.
+ E. **`finishRunUpLegal` waives the whole move when it starts ON the line.**
+    `along == 0` gives `u == 0`, so the sample loop re-tests the start cell and
+    nothing else: a car standing on the gate can finish through a wall. The
+    same referee backs `OptimalLap`, so the "exact optimum" inherits it.
+ F. **The cache key versions only the lap branch.** Round 215 added
+    `finishRunUpLegal` to the alive seed unconditionally but bumped the key to
+    `-lap14` only when `lapGates != null`, so a point-to-point cache written
+    before 215 is still accepted. `E:\tr-reach-cache` holds unsuffixed files
+    from 2026-08-13/14 under a live key. `verify_reach_cache.sh` proves
+    cold == warm within one build, which is exactly the axis that cannot catch
+    this.
+ G. Smaller: an unsuppressed rival compute calls `outerCandidates.reset()` on
+    the arrays the enclosing decision is still reading (only two of seven sites
+    take the `trueConfirmCandidateSnapshots` guard that exists for it, so the
+    round-95 retain gate silently never fires after a true-rival confirm); the
+    ridge true-rival leg omits `trueConfirmDepth++`, so the depth cap never
+    engages on that leg; an NPE in the `TRUECONF` debug print when the speed
+    bands arm on a non-audit call; a live `javax.swing.Timer` orphaned by
+    Restart that races the dead game on the EDT.
+
+### FRONTIER after this audit. The scorer is at a measured local optimum and
+the remaining gap is not in its weights -- it is in three things the audit
+found, in this order: (C) the robust set certifies needles it should refuse;
+(A) the rollout prices the outer decision on a rival's lap frame; (B) rivals
+are predicted on the mover's gate schedule. Each is a correctness fix with a
+plausible racecraft payoff, and each needs its own fleet grid. Round 220's
+list -- the start gradient, and a game where cars are not equal -- stands
+behind them.
+
 ## Round 221 (not shipped): the 8% false alarms, predicted away, are worth 41 moves
 
 Round 220 found that 8% of the lanes the needle surcharge refuses stay clear.

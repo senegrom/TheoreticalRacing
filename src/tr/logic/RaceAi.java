@@ -3958,7 +3958,7 @@ final class RaceAi {
 										AI1_SCORER_MAXRIVALS, null, null, null) < 0;
 							} else {
 								final int[] h11Tr = { 0, 0 };
-								final int h11 = simOutcome(cx, cy, cvx, cvy, playerNum,
+								simOutcome(cx, cy, cvx, cvy, playerNum,
 										AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
 										true, scorerSelf, false, confirmCap, null, null, h11Tr);
 								// Round 177: the s8 verdict is ignored entirely (both
@@ -4185,9 +4185,13 @@ final class RaceAi {
 	 * after promoting the measured Round 115/117/124 field-acceleration frontier
 	 * and Round 126's homogeneous false-target veto. Later promoted gates remain
 	 * in that shared body, including Round 169's exact-private slack, Round 174's
-	 * squeeze check and Round 175's bounded high-speed six-ahead acceleration.
-	 * No kind-gated arms remain. Future experiments must explicitly gate AI1
-	 * until their own independently measured promotion.
+	 * squeeze check, Round 175's bounded high-speed six-ahead acceleration,
+	 * Rounds 178-180's thin-ridge check and Round 216's exact-potential pace
+	 * number. THREE ARMS ARE STILL AI1-ONLY, each awaiting its own promotion:
+	 * the immediate-finish precedence and the finish-denial override (both
+	 * final-lap endgame, gated in optimalMoveAI1 and finishDenialOverride) and
+	 * the exact axial-vmax extension of the ridge check. Future experiments
+	 * must likewise gate AI1 until their own independently measured promotion.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		return optimalMoveAI1(pos, vel, playerNum);
