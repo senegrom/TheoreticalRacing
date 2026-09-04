@@ -8,6 +8,10 @@ wall legality is NOT checkable offline -- an OPEN cell may still be an
 illegal cut (use oracle_roll.py's mask for exact classification); a
 DEAD-STATE/BODY verdict is definitive.
 
+In a LAP race the dumped map is the finish map and knows nothing of the
+checkpoint gates, so it calls live states DEAD-STATE wholesale; use
+needle_audit.py there, which asks the game's oracle instead.
+
 Usage: board_at.py <log> <reach.bin> <moveIndex>
 """
 import argparse
