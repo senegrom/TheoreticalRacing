@@ -6,6 +6,52 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 221 (not shipped): the 8% false alarms, predicted away, are worth 41 moves
+
+Round 220 found that 8% of the lanes the needle surcharge refuses stay clear.
+The user asked for that fixed. The fix is the lane planner in its smallest
+form: at each decision every live rival is rolled four moves along its own
+exact solo line and, as a second branch, coasted straight at its velocity;
+every cell touched, dilated by one, goes into a per-decision set; a thin
+state is charged only if the cells of its own solo line -- the state and its
+next three moves -- meet that set. robustMode, isRobust, the surcharge's size
+and the gate-map fallback are untouched. It is a strict subset of the old
+gate: it can only remove charges.
+
+PRE-FLIGHT. All seven killer boards finish every car, net faster on them.
+The 30-race sample: +0.04%.
+
+THE FIX MEASURED ON ITS OWN TERMS. The round-220 probe rebuilt on top of the
+candidate and re-run on the same forty races, now also recording the gate's
+verdict on each declined lane:
+
+                                   champion        candidate
+    decisions / moves lost         90528 / 6289    90469 / 6248
+    thin optimal landing declined  11995 / 3612    11900 / 3596
+    lane contested within 4 rounds 11030 / 3503    10906 / 3503
+    false alarm (lane stayed clear)  965 /  109      994 /   93
+
+    candidate false alarms by its own gate:
+      gate let the lane through, car declined anyway   389 decisions   24 moves
+      gate still charged it (predictor too pessimistic)  605 decisions   69 moves
+
+So the false alarms were never one thing. Four in ten are not the surcharge's
+decisions at all -- the lane was uncharged and some other term (the trap
+ladder, needle headway, a charged leaf two plies down) still declined it. The
+rest are lanes a solo-line-plus-coast predictor cannot tell from contested
+ones, and they carry 69 lost moves in 90469 decisions. End to end the
+candidate recovers 41 moves: 0.05% of race moves, inside the noise of a 30-race
+sample, against a gate that now lets 436 genuinely-contested lanes through
+(the car declined them for other reasons in these races; in others it would
+not). Not shipped, and not sent to the fleet: a crash-risk experiment for a
+gain the instrument cannot see.
+
+WHAT THIS CLOSES. The needle surcharge is now measured from every side --
+removed (218), aimed (219), audited against the race (220), and predicted
+(221). Its cost is earned. Recall of the four-round solo-line predictor on
+genuinely contested lanes is 96% (10470 of 10906), which says these cars are
+predictable; the trouble is that nearly every thin lane in traffic IS
+contested, so there is nothing left to predict away.
 ## Round 220 (feasibility probe, no candidate): the lane is almost never free
 
 After 216-219 the scorer is at a local optimum on every weight and the
