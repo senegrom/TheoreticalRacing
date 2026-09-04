@@ -1,5 +1,16 @@
 #!/usr/bin/env python3
-"""Pin the contested-finish denial rescue and its frozen AI2 control."""
+"""Pin the contested-finish denial rescue, now for both kinds.
+
+Hairpin seed 68, eight cars: p8 arrives at the flag on a high-energy line a
+rival can close, and without the override it crashes at move 104 (its old
+frozen AI2 control: 6 finishers, one crash, p8 last). The finish-denial
+certificate switches it to a braking escape that survives both the deep
+scorer world and the faithful world, and it finishes sixth. Until the
+2026-09-04 promotion that arm was AI1-only and this pin froze the AI2 crash
+as a control; both kinds now run one policy, so every roster -- all-AI2,
+all-AI1 and the two mixed halves -- must drive the same rescued race, byte
+for byte once the kind labels are normalized away.
+"""
 
 import hashlib
 from pathlib import Path
@@ -13,16 +24,7 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
 TARGET = ("hairpin", 68)
-CONTROL = (6, 1, [16, 16, 17, 18, 19, 20])
 RESCUED = (7, 0, [16, 16, 17, 18, 19, 19, 20])
-CONTROL_FINISHERS = [
-    (2, 16),
-    (3, 16),
-    (4, 17),
-    (6, 18),
-    (7, 19),
-    (1, 20),
-]
 RESCUED_FINISHERS = [
     (2, 16),
     (3, 16),
@@ -32,12 +34,9 @@ RESCUED_FINISHERS = [
     (8, 19),
     (1, 20),
 ]
-CONTROL_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 20, 6: 18, 7: 19, 8: 20}
 RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 19, 6: 18, 7: 19, 8: 19}
-CONTROL_CRASHES = [(8, 20)]
-CONTROL_DECISION = "104 p8 AI2 SE v(7,0)→(8,1) (41,6)→(49,7) ok"
-RESCUED_DECISION = "104 p8 AI1 W v(7,0)→(6,0) (41,6)→(47,6) ok"
-CONTROL_SHA256 = "c65bdb60c43e7a65e9256e1623850b9da07ba8b6c42dae90c25408e24e5aba48"
+# The rescue decision with the kind label normalized, as normalized_lines does.
+RESCUED_DECISION = "104 p8 AI W v(7,0)→(6,0) (41,6)→(47,6) ok"
 RESCUED_SHA256 = "802fef7f56604ece09ab89ae6bf332d5f858dfd18a8d216e119e8ce7d1f452e4"
 
 
@@ -100,112 +99,55 @@ def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
 
+    rosters = {
+        "AI2": ["AI2"] * 8,
+        "AI1": ["AI1"] * 8,
+        "MIXED_AI2_LAST": ["AI1"] * 4 + ["AI2"] * 4,
+        "MIXED_AI1_LAST": ["AI2"] * 4 + ["AI1"] * 4,
+    }
     summaries = {}
     logs = {}
     with tempfile.TemporaryDirectory(prefix="finish-denial-") as directory:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
-        for kind in ("AI2", "AI1"):
-            bench_ai.set_all_to(kind)
-            summary = bench_ai.run_track(TARGET[0], timeout=1200, seed=TARGET[1])
-            if summary is None:
-                raise SystemExit(f"finish-denial hairpin seed-68 {kind} race failed")
-            log_path = Path(bench_ai.LOG)
-            if not log_path.is_file():
-                raise SystemExit(f"finish-denial hairpin seed-68 {kind} log missing")
-            summaries[kind] = summary
-            logs[kind] = log_path.read_text(encoding="utf-8")
-
-        mixed_rosters = {
-            "MIXED_AI2_LAST": ["AI1"] * 4 + ["AI2"] * 4,
-            "MIXED_AI1_LAST": ["AI2"] * 4 + ["AI1"] * 4,
-        }
-        for label, kinds in mixed_rosters.items():
+        for label, kinds in rosters.items():
             bench_ai.set_kinds(kinds)
             summary = bench_ai.run_track(TARGET[0], timeout=1200, seed=TARGET[1])
             if summary is None:
                 raise SystemExit(f"finish-denial hairpin seed-68 {label} race failed")
-            summaries[label] = summary
-            log = Path(bench_ai.LOG).read_text(encoding="utf-8")
+            log_path = Path(bench_ai.LOG)
+            if not log_path.is_file():
+                raise SystemExit(f"finish-denial hairpin seed-68 {label} log missing")
+            log = log_path.read_text(encoding="utf-8")
             actual_kinds = logged_kinds(log, len(kinds))
             if actual_kinds != kinds:
                 raise SystemExit(
                     f"finish-denial {label} roster changed: {actual_kinds}, expected {kinds}"
                 )
+            summaries[label] = summary
             logs[label] = log
 
-    control_finishers, control_crashes, control_moves = race_events(logs["AI2"])
-    if summaries["AI2"] != CONTROL:
-        raise SystemExit(f"finish-denial AI2 control changed: {summaries['AI2']}")
-    if control_finishers != CONTROL_FINISHERS:
-        raise SystemExit(f"finish-denial AI2 finishers changed: {control_finishers}")
-    if control_crashes != CONTROL_CRASHES or control_moves != CONTROL_MOVES:
-        raise SystemExit(
-            f"finish-denial AI2 events changed: crashes={control_crashes}, moves={control_moves}"
-        )
-    if CONTROL_DECISION not in logs["AI2"].splitlines():
-        raise SystemExit(f"finish-denial AI2 decision missing: {CONTROL_DECISION}")
-    control_digest = normalized_sha256(logs["AI2"])
-    if control_digest != CONTROL_SHA256:
-        raise SystemExit(
-            f"finish-denial AI2 trajectory changed: {control_digest}, expected {CONTROL_SHA256}"
-        )
-
-    rescued_finishers, rescued_crashes, rescued_moves = race_events(logs["AI1"])
-    if summaries["AI1"] != RESCUED:
-        raise SystemExit(f"finish-denial AI1 rescue changed: {summaries['AI1']}")
-    if rescued_finishers != RESCUED_FINISHERS:
-        raise SystemExit(f"finish-denial AI1 finishers changed: {rescued_finishers}")
-    if rescued_crashes or rescued_moves != RESCUED_MOVES:
-        raise SystemExit(
-            f"finish-denial AI1 events changed: crashes={rescued_crashes}, moves={rescued_moves}"
-        )
-    if RESCUED_DECISION not in logs["AI1"].splitlines():
-        raise SystemExit(f"finish-denial AI1 decision missing: {RESCUED_DECISION}")
-    rescued_digest = normalized_sha256(logs["AI1"])
-    if rescued_digest != RESCUED_SHA256:
-        raise SystemExit(
-            f"finish-denial AI1 trajectory changed: {rescued_digest}, expected {RESCUED_SHA256}"
-        )
-
-    if [event for event in rescued_finishers if event[0] != 8] != CONTROL_FINISHERS:
-        raise SystemExit("finish-denial rescue changed an existing finisher's order or moves")
-    for player in (1, 2, 3, 4, 6, 7):
-        if rescued_moves[player] != CONTROL_MOVES[player]:
-            raise SystemExit(f"finish-denial rescue changed existing finisher p{player}")
-    if rescued_moves[8] != CONTROL_CRASHES[0][1] - 1:
-        raise SystemExit("finish-denial rescue lost the exact one-move crash-to-finish gain")
-    if rescued_moves[5] != CONTROL_MOVES[5] - 1:
-        raise SystemExit("finish-denial rescue lost the expected earlier-race cutoff for p5")
-
-    mixed_expectations = (
-        ("MIXED_AI2_LAST", CONTROL, CONTROL_FINISHERS, CONTROL_CRASHES,
-         CONTROL_MOVES, CONTROL_DECISION, CONTROL_SHA256),
-        ("MIXED_AI1_LAST", RESCUED, RESCUED_FINISHERS, [],
-         RESCUED_MOVES, RESCUED_DECISION, RESCUED_SHA256),
-    )
-    for label, summary, finishers, crashes, moves, decision, digest in mixed_expectations:
-        actual_finishers, actual_crashes, actual_moves = race_events(logs[label])
-        if summaries[label] != summary:
+    for label in rosters:
+        finishers, crashes, moves = race_events(logs[label])
+        if summaries[label] != RESCUED:
             raise SystemExit(f"finish-denial {label} summary changed: {summaries[label]}")
-        if (actual_finishers != finishers or actual_crashes != crashes
-                or actual_moves != moves):
+        if finishers != RESCUED_FINISHERS:
+            raise SystemExit(f"finish-denial {label} finishers changed: {finishers}")
+        if crashes or moves != RESCUED_MOVES:
             raise SystemExit(
-                f"finish-denial {label} events changed: finishers={actual_finishers}, "
-                f"crashes={actual_crashes}, moves={actual_moves}"
+                f"finish-denial {label} events changed: crashes={crashes}, moves={moves}"
             )
-        if decision not in logs[label].splitlines():
-            raise SystemExit(f"finish-denial {label} decision missing: {decision}")
-        actual_digest = normalized_sha256(logs[label])
-        if actual_digest != digest:
+        if RESCUED_DECISION not in normalized_lines(logs[label]):
+            raise SystemExit(f"finish-denial {label} decision missing: {RESCUED_DECISION}")
+        digest = normalized_sha256(logs[label])
+        if digest != RESCUED_SHA256:
             raise SystemExit(
-                f"finish-denial {label} trajectory changed: {actual_digest}, expected {digest}"
+                f"finish-denial {label} trajectory changed: {digest}, expected {RESCUED_SHA256}"
             )
 
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68 p8 crash-to-sixth rescue in homogeneous and mixed fields; "
-        "AI2 control exact)"
+        "(hairpin s68 p8 crash-to-sixth rescue, identical for every roster of both kinds)"
     )
     return 0
 

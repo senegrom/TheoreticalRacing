@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Pin immediate-finish precedence over a superficially winning endgame seal."""
+"""Pin immediate-finish precedence over a superficially winning endgame seal.
+
+Both kinds take the guaranteed crossing on every board. Until the 2026-09-04
+promotion the precedence was AI1-only and this pin froze AI2 forgoing it
+with two or three rivals as the control; the kinds are one policy now.
+"""
 
 from pathlib import Path
 import shutil
@@ -82,14 +87,9 @@ def main() -> int:
                 f"immediate-finish {nplayers}-player AI1 did not take S: "
                 f"{ai1[nplayers]}"
             )
-    expected_ai2 = {
-        2: (0, 1, finish_mask),
-        3: (1, -1, finish_mask),
-        4: (1, -1, finish_mask),
-    }
-    if ai2 != expected_ai2:
+    if ai2 != ai1:
         raise SystemExit(
-            f"immediate-finish frozen AI2 field boundary changed: {ai2}"
+            f"immediate-finish AI2 no longer matches AI1 on the root boards: {ai2}"
         )
     if boxed_rival != (-1, -1, "XXXXXBXXB"):
         raise SystemExit(f"immediate-finish causal rival crash changed: {boxed_rival}")
@@ -98,8 +98,7 @@ def main() -> int:
 
     print(
         "AI1ImmediateFinishRegression: OK "
-        "(AI1 takes guaranteed first with 1-3 live rivals; frozen AI2 "
-        "forgoes it with 2-3 rivals)"
+        "(both kinds take guaranteed first with 1-3 live rivals)"
     )
     return 0
 

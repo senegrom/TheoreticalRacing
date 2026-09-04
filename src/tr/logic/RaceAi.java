@@ -585,8 +585,7 @@ final class RaceAi {
 		// only once the gates are complete is a crossing actually the finish --
 		// with a checkpoint still owed the referee treats it as an ordinary move,
 		// so the legality-waived immediate crossing would drive into the wall.
-		if (moverKind(playerNum) == Player.Kind.AI1 && sealRivals >= 1
-				&& sealRivals <= AI1_SEAL_MAXRIVALS && game.onFinalLap(playerNum)
+		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS && game.onFinalLap(playerNum)
 				&& lapGate == 0) {
 			final Direction finish = immediateFinishMove(pos, vel);
 			if (finish != null)
@@ -1264,10 +1263,9 @@ final class RaceAi {
 						// Round 180: accels admitted too (rand5-s40 commits by
 						// accelerating onto the ridge; 11+ stays with round 133).
 						// User-ordered promotion: rounds 178-180 are the baseline;
-						// both kinds run those established ridge bands. The exact
-						// axial-vmax extension remains AI1-only while evaluated.
-						final boolean axialVmaxHold = moverKind(playerNum) == Player.Kind.AI1
-								&& isExactAxialVmaxHold(vel[0], vel[1], djvx, djvy);
+						// both kinds run those established ridge bands, and since the
+						// 2026-09-04 promotion the exact axial-vmax extension too.
+						final boolean axialVmaxHold = isExactAxialVmaxHold(vel[0], vel[1], djvx, djvy);
 						final int ridgeSucc = !deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
 								&& (fSpdInf < AI1_FASTV_MAX || axialVmaxHold)
 								&& !game.crossesFinish(pos[0], pos[1], fCx, fCy)
@@ -1833,7 +1831,7 @@ final class RaceAi {
 	private Direction finishDenialOverride(final int[] pos, final int[] vel,
 			final int playerNum, final Direction chosen,
 			final CandidateWorkspace candidates) {
-		if (moverKind(playerNum) != Player.Kind.AI1 || inFinishDenialConfirm
+		if (inFinishDenialConfirm
 				|| trueConfirmDepth >= trueConfirmCandidateSnapshots.length
 				|| game.subgamestate != game.players.length - 1
 				|| !game.onFinalLap(playerNum) || lapGate != 0)
@@ -4187,11 +4185,11 @@ final class RaceAi {
 	 * in that shared body, including Round 169's exact-private slack, Round 174's
 	 * squeeze check, Round 175's bounded high-speed six-ahead acceleration,
 	 * Rounds 178-180's thin-ridge check and Round 216's exact-potential pace
-	 * number. THREE ARMS ARE STILL AI1-ONLY, each awaiting its own promotion:
-	 * the immediate-finish precedence and the finish-denial override (both
-	 * final-lap endgame, gated in optimalMoveAI1 and finishDenialOverride) and
-	 * the exact axial-vmax extension of the ridge check. Future experiments
-	 * must likewise gate AI1 until their own independently measured promotion.
+	 * number, and -- promoted on the user's word on 2026-09-04 after a fleet
+	 * grid -- the immediate-finish precedence, the finish-denial override and
+	 * the exact axial-vmax extension of the ridge check. No kind-gated arms
+	 * remain: the two kinds are one policy. Future experiments must gate AI1
+	 * until their own independently measured promotion.
 	 */
 	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
 		return optimalMoveAI1(pos, vel, playerNum);

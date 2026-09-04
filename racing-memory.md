@@ -6,6 +6,46 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 222: the agents made equal
+
+The user's word on the audit's findings: "fix them, make the agents equal /
+fix the defects / review the other six findings with grids", then "promote
+once ready and tested". This entry is the promotion; the defect fixes follow
+as their grids land.
+
+THE PROMOTION. The three arms still gated `moverKind == AI1` -- the
+immediate-finish precedence before the endgame seal, the finish-denial
+override, and the exact axial-vmax extension of the r178 ridge check -- are
+lifted. `optimalMoveAI2` already delegated to `optimalMoveAI1`; with the gates
+gone the two kinds are one policy and no kind-gated arm remains. `moverKind`
+survives only for the homogeneity gates, which compare kinds among players
+and are unaffected.
+
+TESTED THREE WAYS.
+  - The board that pinned the difference: hairpin s68 with an all-AI2 field,
+    where p8 as AI2 died at move 104, now finishes p8 sixth with no crash.
+  - The corpus: 8 goldens byte-identical (no golden race reaches the arms);
+    20 of 22 pins unchanged; the two that froze the old AI2 control moved
+    exactly as the promotion predicts -- finish-denial's AI2 race is now the
+    rescued race (7 finishers, no crash, hash 802fef7f...) and AI2 takes the
+    guaranteed crossing on all three immediate-finish boards -- and both pins
+    are rewritten to assert that every roster of either kind drives the same
+    race. Both pass on the promoted jar.
+  - The fleet grid, 73 lap tracks x seeds 1-10, 8 cars, the mixed AI1/AI2
+    field, against the round-216 champion:
+
+        crashes    0 -> 0      timeouts  0 -> 0
+        finishes   5110 -> 5110
+        moves      1854172 -> 1854172     730 of 730 races identical
+
+    The arms never changed an outcome in 730 lap races: they fire on
+    final-lap endgames with one to three live rivals and on exact speed-11
+    ridge holds, situations these races do not produce. Provably free.
+
+Grid conditions worth recording: the box was shared with another session's
+seven MILP jobs at 100% CPU, so the grid ran one JVM at nice 19 on the one
+free core (80 minutes for 730 races instead of 15) and left those jobs alone.
+
 ## 2026-09-04 audit: the champion is current, AI1 is NOT AI2, and eleven defects
 
 The user asked three things: is the champion promoted and current, is AI1 = AI2,
