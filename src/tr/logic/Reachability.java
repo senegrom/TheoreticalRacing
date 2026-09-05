@@ -489,7 +489,17 @@ final class Reachability {
 	 *  with one successor denied at every step -- the racecraft law of
 	 *  always keeping an out. {@code scratch} carries the BFS distances
 	 *  (nondecreasing pops make the second arrival the second-smallest);
-	 *  only the membership BitSet is returned. */
+	 *  only the membership BitSet is returned.
+	 *  Round 222, THE PASSAGE RULE: a gate passage is credited twice -- once
+	 *  here as a seed, once more when its landing is popped as robust -- so a
+	 *  state whose only continuation passes the gate into a robust landing is
+	 *  robust on that one continuation. The 2026-09-04 audit read this as a
+	 *  double count; the strict version (the pop skipping gate-passing edges)
+	 *  was built and raced on the fleet: robust sets one per cent smaller and
+	 *  the racing worse -- crashes 0 -> 1, moves +0.14%, 42 tracks slower
+	 *  against 28 faster on 712 races. The rule stands, and is deliberate: the
+	 *  landing's fault tolerance carries across the line, and the crossing
+	 *  move itself is the one edge no rival lane closes. Do not "fix" it. */
 	private BitSet computeRobustReach(final int gate, final java.awt.geom.Line2D line,
 			final BitSet nextRobust, final int[] scratch, final byte[] arrivals) {
 		final int total = turnsArr.length;
@@ -1293,6 +1303,11 @@ final class Reachability {
 	// live outside the install dir (TrackIO.reachCacheDir) so multi-MB caches
 	// never land in cloud-synced folders.
 
+	/** Round 222: the semantics version of the cached maps, on BOTH branches.
+	 *  Round 215 changed the alive seed for every course but bumped only the
+	 *  lap branch's suffix, so pre-215 point-to-point caches were still read.
+	 *  Bump this whenever the BFS or its seeds change meaning. */
+	private static final String CACHE_SEMANTICS = "14";
 	// TRC2 appends a CRC32 so valid-looking, same-size corruption cannot alter AI decisions.
 	private static final int CACHE_MAGIC = 0x54524332; // "TRC2"
 	private static final int CACHE_HEADER_BYTES = 4 * Integer.BYTES;
@@ -1328,7 +1343,7 @@ final class Reachability {
 			// The suffix flows into the memo key and the .edges/.derived
 			// siblings automatically, since all of them derive from this path.
 			return TrackIO.reachCacheDir().resolve("reach-" + hex
-					+ (game.lapGates != null ? "-lap14" : "") + ".bin");
+					+ (game.lapGates != null ? "-lap" : "-p2p") + CACHE_SEMANTICS + ".bin");
 		} catch (final java.security.NoSuchAlgorithmException e) {
 			return null;
 		}

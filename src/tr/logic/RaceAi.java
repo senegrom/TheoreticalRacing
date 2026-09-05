@@ -569,6 +569,7 @@ final class RaceAi {
 					lapsDone = q.getLap();
 			exactRemaining = OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps);
 		}
+		recordPlayerFrames();
 		// Round 214: with nobody near, the race is a shortest-path problem and
 		// the exact potential solves it. Every caution term below is priced
 		// against a rival that is not there, and the measured cost of that was
@@ -1976,9 +1977,65 @@ final class RaceAi {
 	private boolean robustMode;
 	/** Round 216: the exact distance-to-finish map, and the gate events this
 	 *  mover still owes. Null on a board too large for the potential's budget
-	 *  and on a course without lap gates; the gate maps then serve as before. */
+	 *  and on a course without lap gates; the gate maps then serve as before.
+	 *  Round 222: like lapGate/lapAware/robustMode these are the MOVER's and
+	 *  a nested rival compute reassigns them -- scorerMoveOverState restores
+	 *  all four. */
 	private OptimalPotential	exactPot;
 	private int					exactRemaining;
+	/** Round 222: every player's own lap frame, by player index, recorded at
+	 *  each decision entry so a rival's state is priced on the rival's gate
+	 *  schedule and not the mover's. */
+	private int[]				frameGate		= new int[0];
+	private int[]				frameRemaining	= new int[0];
+	private boolean[]			frameLapAware	= new boolean[0];
+
+	/** Round 222: each player's gate, lap-awareness and remaining events, by
+	 *  player index. Per-player facts, so a nested rival compute records the
+	 *  same values and nothing needs restoring. */
+	private void recordPlayerFrames() {
+		final int n = game.players.length;
+		if (frameGate.length < n) {
+			frameGate = new int[n];
+			frameRemaining = new int[n];
+			frameLapAware = new boolean[n];
+		}
+		for (int i = 0; i < n; i++) {
+			final Player q = game.players[i];
+			final int number = q.getNumber();
+			frameGate[i] = game.nextGateOf(number);
+			frameLapAware[i] = !game.onFinalLap(number) || frameGate[i] != 0;
+			frameRemaining[i] = OptimalPotential.remainingEvents(frameGate[i], q.getLap(),
+					game.totalLaps);
+		}
+	}
+
+	/** Round 222: ttf() in player {@code idx}'s own frame -- its gate, its
+	 *  remaining events, its lap-awareness. Robust mode stays the mover's:
+	 *  it describes the traffic, not the car. */
+	private int ttfFor(final int idx, final int x, final int y, final int vx, final int vy) {
+		if (exactPot != null) {
+			final int v = exactPot.movesToFinish(frameRemaining[idx], x, y, vx, vy);
+			if (v == Integer.MAX_VALUE)
+				return Integer.MAX_VALUE;
+			return robustMode && !reach.isRobust(frameGate[idx], x, y, vx, vy)
+					? v + AI1_ROBUST_SURCHARGE : v;
+		}
+		if (!frameLapAware[idx])
+			return reach.turnsToFinish(x, y, vx, vy);
+		return robustMode
+				? reach.turnsToGateNeedleAware(frameGate[idx], x, y, vx, vy, AI1_ROBUST_SURCHARGE)
+				: reach.turnsToGate(frameGate[idx], x, y, vx, vy);
+	}
+
+	/** Round 222: the crossing rule of the rollout's move models, in player
+	 *  {@code idx}'s frame: a crossing is a finish or a lap only when that
+	 *  player owes nothing else. */
+	private boolean crossingCountsFor(final int idx, final int nx, final int ny, final int nvx,
+			final int nvy) {
+		return !frameLapAware[idx]
+				|| frameGate[idx] == 0 && reach.shedableLanding(nx, ny, nvx, nvy);
+	}
 
 	private int ttf(final int x, final int y, final int vx, final int vy) {
 		// Round 216: the exact remaining distance whenever the potential exists.
@@ -2770,7 +2827,7 @@ final class RaceAi {
 	/** {@link #pureMinTurnsMove} against an exact counted simulated occupancy
 	 *  instead of the live player positions; used by
 	 *  {@link #simulateRoundPass}. */
-	private Direction pureMinTurnsMoveSim(final int[] pos, final int[] vel,
+	private Direction pureMinTurnsMoveSim(final int idx, final int[] pos, final int[] vel,
 			final CellOccupancy occupied) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
@@ -2791,7 +2848,7 @@ final class RaceAi {
 			if (occupied.contains(newX, newY))
 				continue;
 			fallbackLegalMask |= bit;
-			final int turns = ttf(newX, newY, newVx, newVy);
+			final int turns = ttfFor(idx, newX, newY, newVx, newVy);
 			if (turns < bestTurns) {
 				bestTurns = turns;
 				best = d;
@@ -2888,7 +2945,7 @@ final class RaceAi {
 				final int[] current = occupancy[idx];
 				blockedOccupancy.remove(current[0], current[1]);
 				final int[] velocity = simulatedVelocity[idx];
-				final Direction direction = pureMinTurnsMoveSim(current, velocity, blockedOccupancy);
+				final Direction direction = pureMinTurnsMoveSim(idx, current, velocity, blockedOccupancy);
 				int nx = current[0];
 				int ny = current[1];
 				if (direction != null) {
@@ -3183,13 +3240,13 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			if (game.crossesFinish(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int turns = ttf(nx, ny, nvx, nvy);
+			final int turns = ttfFor(self, nx, ny, nvx, nvy);
 			if (turns < bestT) {
 				bestT = turns;
 				bestX = nx;
@@ -3290,7 +3347,7 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			if (game.crossesFinish(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -3298,7 +3355,7 @@ final class RaceAi {
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
 			final double trap = tier == 0 ? 50.0 : tier == 1 ? AI1_TRAP_L1 : tier == 2 ? AI1_TRAP_L2 : 0.0;
-			final double score = ttf(nx, ny, nvx, nvy) + trap;
+			final double score = ttfFor(self, nx, ny, nvx, nvy) + trap;
 			// Momentum tie-break (policy matrix "smom"): among score-equal
 			// candidates the real scorer HOLDS SPEED down the racing line
 			// (deep cost + momentum), so prefer the faster landing. This is
@@ -3347,6 +3404,12 @@ final class RaceAi {
 		final int n = game.players.length;
 		final int ss = game.subgamestate;
 		final boolean previousScorerSim = inScorerSim;
+		// Round 222: the rival's compute assigns ITS lap frame at entry --
+		// gate, lap-awareness, robust flag, remaining events. Put the mover's
+		// back afterwards, or the rest of this decision is priced on the
+		// rival's map.
+		final int outerLapGate = lapGate, outerExactRemaining = exactRemaining;
+		final boolean outerLapAware = lapAware, outerRobustMode = robustMode;
 		for (int j = 0; j < n; j++) {
 			final Player player = game.players[j];
 			workspace.originalPosition[j] = player.getPosition();
@@ -3382,6 +3445,10 @@ final class RaceAi {
 			}
 		} finally {
 			inScorerSim = previousScorerSim;
+			lapGate = outerLapGate;
+			lapAware = outerLapAware;
+			robustMode = outerRobustMode;
+			exactRemaining = outerExactRemaining;
 			for (int j = 0; j < n; j++) {
 				final Player player = game.players[j];
 				player.setPosition(workspace.originalPosition[j]);
@@ -3728,7 +3795,7 @@ final class RaceAi {
 			for (int i = 0; i < game.players.length; i++) {
 				if (i == myIdx || !alive[i])
 					continue;
-				final int turns = ttf(px[i], py[i], vx[i], vy[i]);
+				final int turns = ttfFor(i, px[i], py[i], vx[i], vy[i]);
 				final long terminalCost = turns == Integer.MAX_VALUE
 						? ROLLOUT_FAILURE_COST : turns;
 				fieldCost += terminalCost;
@@ -4797,7 +4864,7 @@ final class RaceAi {
 			return null;
 		final int myT = ttf(pos[0], pos[1], vel[0], vel[1]);
 		final int[] rp = game.players[ri].getPosition(), rv = game.players[ri].getVelocity();
-		final int rT = ttf(rp[0], rp[1], rv[0], rv[1]);
+		final int rT = ttfFor(ri, rp[0], rp[1], rv[0], rv[1]);
 		if (myT > AI1_EG_ETA || rT > AI1_EG_ETA)
 			return null;
 		egMemo = new java.util.HashMap<>();
@@ -5404,8 +5471,15 @@ final class RaceAi {
 		// O(1) fast path via the maps precomputed in computeReachability()
 		// (always ready in practice: reach.ensureReachabilityReady() runs before any
 		// AI move). States outside the precomputed space fall through to the
-		// recursive body, which handles them exactly as before (its in-range
-		// sub-calls hit the maps).
+		// recursive body, which states the same rule (its in-range sub-calls
+		// hit the maps). Round 222: the body used to carry a lap-aware
+		// crossing rule -- a crossing is an out only when it finishes, or
+		// scores a lap onto a shedable landing -- that no reachable state
+		// ever ran, because the map answered first. Built as frame-specific
+		// maps and raced on the fleet it was inert (crashes 0 -> 0, +78 moves
+		// in 1854172, 708 of 730 races identical, fractal18 slower on seven of
+		// ten seeds), so the map's rule is the rule: a legal forward crossing
+		// counts as an out in every lap frame.
 		final BitSet roomyMap = depth == 0 ? reach.roomy0 : depth == 1 ? reach.roomy1 : null;
 		if (roomyMap != null && !reach.velocityOutOfRange(vx, vy) && x >= 0 && y >= 0 && x < reach.aliveW
 				&& y < reach.aliveH)
@@ -5418,7 +5492,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))) {
+			if (game.crossesFinish(x, y, nx, ny) && game.finishRunUpLegal(x, y, nx, ny)) {
 				count++;
 			} else {
 				if (!game.isMoveLegalGeometryCached(x, y, nx, ny))

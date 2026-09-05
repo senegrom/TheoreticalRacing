@@ -6,6 +6,95 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 222, second part: the audit's defects, one grid each
+
+Same fleet, same discipline as the promotion above: 73 lap tracks x seeds
+1-10, 8 cars, the mixed field, one change per build on top of the promoted
+champion, one JVM at nice 19 on the shared box. Each row is that build
+against the promotion grid (730 races, 0 crashes, 1854172 moves).
+
+  A. LAP FRAME RESTORED after a nested rival compute. scorerMoveOverState
+     saves lapGate / lapAware / robustMode / exactRemaining before it runs a
+     rival's compute and puts them back in its finally, beside inScorerSim.
+         crashes 0 -> 0   moves 1854172 -> 1854143   728 of 730 identical
+     Two races changed, both faster (hybrid6 s9 -19, lobe6 s6 -10). SHIPPED.
+     The clobber was real and rarely decisive: the rollouts that reach a
+     rival's compute mostly finish before the outer decision reads ttf again.
+
+  B. EVERY CAR PRICED ON ITS OWN GATE SCHEDULE. Each decision entry records
+     per-player gate, lap-awareness and remaining events by player index;
+     ttfFor(idx, ...) prices a state in that player's frame and is used by
+     the rollout's rival models (smom and greedy), the two-round pure
+     min-turns rival prediction, the rollout's terminal field cost and the
+     decisive rival's distance in endgameSolve; the rival models' crossing
+     rule follows the same frame. ttf() for the mover is unchanged.
+         crashes 0 -> 0   moves 1854172 -> 1854163   724 of 730 identical
+     Six races moved by one to eight moves, net faster. SHIPPED. Small for a
+     reason: a rival close enough to shape the mover's decision is usually
+     in the mover's own gate phase, so the wrong frame rarely reached a
+     choice.
+
+  C. THE ROBUST SET'S DOUBLE COUNT -- built strictly and MEASURED WORSE. The
+     pop skipping gate-passing edges shrinks the robust sets by about one
+     per cent (circle: 261523/262888/263320 -> 259120/259405/259405) and on
+     the fleet:
+         crashes 0 -> 1 (circle s6)   moves +0.14%   116 of 712 identical
+         42 tracks slower, 28 faster
+     (712 races: the kernel took the JVM on lemans and the Nordschleife at
+     the memory low point, by design; the verdict does not depend on them.)
+     NOT SHIPPED. The lenient count is kept and named THE PASSAGE RULE in
+     computeRobustReach's javadoc: a passage whose landing is robust in the
+     next gate's set carries that fault tolerance across the line -- the
+     crossing move itself is the one edge no rival lane closes. Read as a
+     definition it was a double count; read as racing it is right, and the
+     rounds 210-221 measured exactly this set.
+
+  D. ROOMY MAPS IN THE MOVER'S LAP FRAME -- built and MEASURED INERT. Three
+     variants per depth (FINAL: a legal crossing finishes, the map as before;
+     LAP: gate 0 owed on a non-final lap, a crossing counts only as a legal
+     move to a shedable landing; OWED: a checkpoint owed, a crossing is an
+     ordinary move), built by the post-gate re-derive and selected by the
+     mover's frame -- the rule the recursive body had always stated and
+     never got to run.
+         crashes 0 -> 0   moves 1854172 -> 1854250   708 of 730 identical
+     Twenty-two races moved; the only systematic effect is fractal18 slower
+     on seven of ten seeds (+93), the other tracks net -15. NOT SHIPPED: an
+     inert addition of three maps is not a fix. The body now states the
+     map's rule -- a legal forward crossing is an out in every lap frame --
+     with the measurement beside it, so the two no longer disagree.
+
+  E. Re-examined and reclassified: BY DESIGN. finishRunUpLegal waives the
+     part of a finishing move past the line for EVERY crossing; a car that
+     stands on the line has an empty run-up, so its forward move finishes
+     wherever it lands -- exactly what a car one cell behind the line gets.
+     Reaching the line without crossing it costs a move, so there is nothing
+     to exploit and nothing for a grid to see. Not changed.
+
+  F. THE CACHE KEY VERSIONED ON BOTH BRANCHES (-lap14 / -p2p14, one constant).
+     Behaviour-neutral on the lap fleet by construction; point-to-point
+     courses rebuilt once under the new key and the four goldens on them
+     came back byte-identical, so the pre-215 files had not drifted for
+     those geometries. SHIPPED with the others.
+
+THE FINAL BUILD (promotion + A + B + F, with C and D resolved in comments):
+
+    seeds 1-10 vs the promotion grid:
+        crashes 0 -> 0   moves 1854172 -> 1854134 (-38)   722 of 730 identical
+        the eight changed races are exactly A's two and B's six, at the same
+        deltas: the fixes compose additively and F changes nothing on the lap
+        fleet, as it must.
+    seeds 11-20 (never tuned on) vs the round-216 champion:
+        crashes 1 -> 1 (the same race)   moves 1853712 -> 1853701 (-11)
+        724 of 730 identical; six races moved by one to ten moves, net faster.
+
+Corpus on the final build: 8 goldens byte-identical, 22 of 22 pins pass unchanged -- the fixes
+change decisions too rarely to reach any pinned race.
+
+What this round says about the frontier: the scorer's correctness debts
+were real and almost free. Three of them, fixed, move fewer than one race
+in a hundred; the one that moves many races (C) moves them the wrong way,
+because the "bug" was carrying a racing truth the definition had missed.
+
 ## Round 222: the agents made equal
 
 The user's word on the audit's findings: "fix them, make the agents equal /
