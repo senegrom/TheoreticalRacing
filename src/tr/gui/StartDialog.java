@@ -189,10 +189,6 @@ public final class StartDialog extends JFrame {
 		final String trackSel = (String) cmbTrack.getSelectedItem();
 		if (trackSel == null || TRACK_DRAW_NEW.equals(trackSel)) {
 			prop.put("useLastTrack", "false");
-			// lapClosable describes the LOADED track. A track about to be drawn
-			// has declared nothing, and inheriting a real circuit's waiver would
-			// skip the loop-closure clamp on an open drawing.
-			prop.put("lapClosable", "false");
 		} else if (TRACK_LAST.equals(trackSel)) {
 			prop.put("useLastTrack", "true");
 		} else if (!TrackIO.loadTrack(prop, trackSel)) {

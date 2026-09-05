@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Pin the exact-private score-slack pace frontier and its identity vetoes."""
 
-import hashlib
 from pathlib import Path
-import re
 import sys
 import tempfile
 
@@ -11,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import finishers, normalized_lines, normalized_sha256, player_moves  # noqa: E402
 
 HUNGARORING_SEED = 12
 HUNGARORING_PROMOTED =(7, 0, [123, 130, 134, 137, 140, 142, 143])
@@ -71,46 +70,6 @@ VETO_NORMALIZED_SHA256 = {
     ("monza", 145): "e020fc3c4ceefcc7987d4d5529c6be5b250553f9ead7e433ac3223d89d3fc753",
     ("serpentine", 38): "e081392cf11674acbbf839eebb301ed78f3d18670ae710ec036893dba30f2f22",
 }
-
-
-def finishers(text: str) -> list[tuple[int, int]]:
-    moves: dict[int, int] = {}
-    result = []
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is None:
-            continue
-        player = int(match.group(2))
-        moves[player] = moves.get(player, 0) + 1
-        if "FINISH" in line:
-            result.append((player, moves[player]))
-    return result
-
-
-def player_moves(text: str) -> dict[int, int]:
-    result: dict[int, int] = {}
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is not None:
-            player = int(match.group(2))
-            result[player] = result.get(player, 0) + 1
-    return result
-
-
-def normalized_lines(text: str) -> list[str]:
-    return [
-        line.replace("AI1", "AI").replace("AI2", "AI")
-        for line in text.splitlines()
-        if line.startswith("player")
-        or line.startswith("# turns")
-        or line.startswith("# results")
-        or (line and line[0].isdigit())
-    ]
-
-
-def normalized_sha256(text: str) -> str:
-    normalized = "\n".join(normalized_lines(text)).encode("utf-8")
-    return hashlib.sha256(normalized).hexdigest()
 
 
 def main() -> int:
@@ -184,7 +143,7 @@ def main() -> int:
                 f"{digest}, expected {HUNGARORING_NORMALIZED_SHA256}"
             )
 
-    for (track, seed), (expected, decision_template) in VETO_CASES.items():
+    for (track, seed), (expected, _) in VETO_CASES.items():
         for kind in ("AI1", "AI2"):
             actual = summaries[(kind, track, seed)]
             if actual != expected:

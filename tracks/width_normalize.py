@@ -10,7 +10,7 @@ only the width changes. Asserts all, then writes once.
 """
 import math, pathlib, re
 
-TRACKS = pathlib.Path('E:/OneDrive/Coding/Java/theoreticRacing/tracks')
+TRACKS = pathlib.Path(__file__).resolve().parent
 TARGETS = ['spielberg', 'nurburgring', 'monza', 'silverstone', 'spa', 'lemans']
 HALF = 1.9           # -> corridor ~3.8, inside the user's <4 band; integer snap can pinch ~0.7, staying >=2.5
 SEG_STRAIGHT = 4.2
@@ -184,39 +184,45 @@ def cross_bad(A, B):
 def poly_dist(p, P):
     return min(seg_pt_foot(P[i], P[i + 1], p)[0] for i in range(len(P) - 1))
 
-outputs = {}
-for name in TARGETS:
-    f = TRACKS / f'{name}.track'
-    t = f.read_text(encoding='utf-8', errors='replace')
-    L0, R0 = parse(t, 'trackLeft'), parse(t, 'trackRight')
-    gx = int(re.search(r'gameX=(\d+)', t).group(1))
-    gy = int(re.search(r'gameY=(\d+)', t).group(1))
-    mid = []
-    for i, p in enumerate(L0):
-        jc = round(i * (len(R0) - 1) / (len(L0) - 1))
-        q = nearest_on_poly_windowed(p, R0, jc)
-        mid.append(((p[0] + q[0]) / 2, (p[1] + q[1]) / 2))
-    center = decimate(smooth(resample(mid, 1.0), SMOOTH_WIN))
-    L = build_side(center, -1)
-    R = build_side(center, +1)
-    for side, P in (('L', L), ('R', R)):
-        assert len(P) >= 40, (name, side, len(P))
-        for x, y in P:
-            assert 2 <= x <= gx - 2 and 2 <= y <= gy - 2, (name, side, x, y)
-        for i in range(len(P) - 1):
-            assert math.dist(P[i], P[i + 1]) >= 1.0, (name, side, i, P[i])
-        sb = self_bad(P)
-        assert sb is None, (name, side, sb, P[sb[0]] if sb else None)
-    assert cross_bad(L, R) is None, (name, 'cross')
-    w = sorted(poly_dist(p, R) for p in L)
-    assert w[0] >= 2.45, (name, 'narrow', w[0])  # user floor "about 2.5"; integer snap noise allowed
-    assert w[-1] <= 5.0, (name, 'still fat', w[-1])
-    gl, gr = math.dist(L[0], L[-1]), math.dist(R[0], R[-1])
-    assert 2.0 <= gl <= 10.0 and 2.0 <= gr <= 10.0, (name, 'gap', gl, gr)
-    t2 = re.sub(r'trackLeft=[0-9;,\s-]+\n', 'trackLeft=' + fmt(L) + '\n', t)
-    t2 = re.sub(r'trackRight=[0-9;,\s-]+\n', 'trackRight=' + fmt(R) + '\n', t2)
-    outputs[f] = (t2, len(L), len(R), w[0], w[len(w) // 2], w[-1], gl, gr)
 
-for f, (t2, nl, nr, wmin, wmed, wmax, gl, gr) in outputs.items():
-    f.write_text(t2, encoding='utf-8')
-    print(f'{f.name}: nL={nl} nR={nr} width {wmin:.2f}/{wmed:.2f}/{wmax:.2f} gaps {gl:.1f}/{gr:.1f}')
+def main():
+    outputs = {}
+    for name in TARGETS:
+        f = TRACKS / f'{name}.track'
+        t = f.read_text(encoding='utf-8', errors='replace')
+        L0, R0 = parse(t, 'trackLeft'), parse(t, 'trackRight')
+        gx = int(re.search(r'gameX=(\d+)', t).group(1))
+        gy = int(re.search(r'gameY=(\d+)', t).group(1))
+        mid = []
+        for i, p in enumerate(L0):
+            jc = round(i * (len(R0) - 1) / (len(L0) - 1))
+            q = nearest_on_poly_windowed(p, R0, jc)
+            mid.append(((p[0] + q[0]) / 2, (p[1] + q[1]) / 2))
+        center = decimate(smooth(resample(mid, 1.0), SMOOTH_WIN))
+        L = build_side(center, -1)
+        R = build_side(center, +1)
+        for side, P in (('L', L), ('R', R)):
+            assert len(P) >= 40, (name, side, len(P))
+            for x, y in P:
+                assert 2 <= x <= gx - 2 and 2 <= y <= gy - 2, (name, side, x, y)
+            for i in range(len(P) - 1):
+                assert math.dist(P[i], P[i + 1]) >= 1.0, (name, side, i, P[i])
+            sb = self_bad(P)
+            assert sb is None, (name, side, sb, P[sb[0]] if sb else None)
+        assert cross_bad(L, R) is None, (name, 'cross')
+        w = sorted(poly_dist(p, R) for p in L)
+        assert w[0] >= 2.45, (name, 'narrow', w[0])  # user floor "about 2.5"; integer snap noise allowed
+        assert w[-1] <= 5.0, (name, 'still fat', w[-1])
+        gl, gr = math.dist(L[0], L[-1]), math.dist(R[0], R[-1])
+        assert 2.0 <= gl <= 10.0 and 2.0 <= gr <= 10.0, (name, 'gap', gl, gr)
+        t2 = re.sub(r'trackLeft=[0-9;,\s-]+\n', 'trackLeft=' + fmt(L) + '\n', t)
+        t2 = re.sub(r'trackRight=[0-9;,\s-]+\n', 'trackRight=' + fmt(R) + '\n', t2)
+        outputs[f] = (t2, len(L), len(R), w[0], w[len(w) // 2], w[-1], gl, gr)
+
+    for f, (t2, nl, nr, wmin, wmed, wmax, gl, gr) in outputs.items():
+        f.write_text(t2, encoding='utf-8')
+        print(f'{f.name}: nL={nl} nR={nr} width {wmin:.2f}/{wmed:.2f}/{wmax:.2f} gaps {gl:.1f}/{gr:.1f}')
+
+
+if __name__ == '__main__':
+    main()

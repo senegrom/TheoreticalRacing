@@ -1,15 +1,18 @@
 """Shared primitives for the campaign forensic tools.
 
 The standalone forensic scripts all consume the same race-log grammar,
-reachability dump, and interactive move-oracle protocol.  Keeping those
-formats here prevents small parser and process-lifecycle differences from
-changing an investigation's result.
+reachability dump, and interactive move-oracle protocol, and the
+regression pins all hash the same normalized projection of a log.
+Keeping those formats here prevents small parser and process-lifecycle
+differences from changing an investigation's result.
 """
 
 from pathlib import Path
+import hashlib
 import re
 import struct
 import subprocess
+import sys
 from typing import NamedTuple
 
 
@@ -23,7 +26,8 @@ DIRNAMES = ["NW", "N", "NE", "W", "NONE", "E", "SW", "S", "SE"]
 
 MOVE_LINE = re.compile(
     r"^(\d+) p(\d+) \S+ (\S+) v\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) "
-    r"\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) (ok|CRASH|FINISH|LAP \d+/\d+)"
+    r"\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) "
+    r"(ok|CRASH|FINISH|TIMEOUT|LAP \d+/\d+)(.*)$"
 )
 START_LINE = re.compile(r"^player(\d+) name=.*? kind=\S+ start=(\d+),(\d+)")
 ORACLE_ANSWER = re.compile(r"^(-?\d+),(-?\d+);([FXBDA]{9})$")
@@ -42,10 +46,16 @@ class LogMove(NamedTuple):
     new_x: int
     new_y: int
     status: str
+    detail: str = ""
 
 
 def parse_move(line):
-    """Parse one behavior-bearing move line, or return ``None``."""
+    """Parse one behavior-bearing move line, or return ``None``.
+
+    ``status`` is the outcome word (``ok``, ``CRASH``, ``FINISH``, ``TIMEOUT``
+    or ``LAP n/m``) and ``detail`` whatever the game appended to it, such as
+    `` place=8`` or a checkpoint mark.
+    """
     match = MOVE_LINE.match(line)
     if match is None:
         return None
@@ -55,7 +65,64 @@ def parse_move(line):
         int(match.group(6)), int(match.group(7)),
         int(match.group(8)), int(match.group(9)),
         int(match.group(10)), int(match.group(11)), match.group(12),
+        match.group(13),
     )
+
+
+def normalized_lines(text: str) -> list[str]:
+    """Project a race log onto its behavior-bearing lines, kind labels erased.
+
+    The regression pins freeze SHA-256 digests over exactly this projection,
+    so the line predicate, its order, and the AI1-then-AI2 replacement order
+    must stay as they are.
+    """
+    return [
+        line.replace("AI1", "AI").replace("AI2", "AI")
+        for line in text.splitlines()
+        if line.startswith("player")
+        or line.startswith("# turns")
+        or line.startswith("# results")
+        or (line and line[0].isdigit())
+    ]
+
+
+def normalized_sha256(text: str) -> str:
+    """Digest of ``normalized_lines`` joined by newlines, as the pins store it."""
+    return hashlib.sha256("\n".join(normalized_lines(text)).encode("utf-8")).hexdigest()
+
+
+def race_events(
+    text: str,
+) -> tuple[list[tuple[int, int]], list[tuple[int, int]], dict[int, int]]:
+    """Return ``(finishers, crashes, moves)`` for one race log.
+
+    ``finishers`` and ``crashes`` list ``(player, own_move_count)`` in log
+    order; ``moves`` maps every player to its total move count.
+    """
+    moves: dict[int, int] = {}
+    finishers: list[tuple[int, int]] = []
+    crashes: list[tuple[int, int]] = []
+    for line in text.splitlines():
+        match = re.match(r"^(\d+) p(\d+) ", line)
+        if match is None:
+            continue
+        player = int(match.group(2))
+        moves[player] = moves.get(player, 0) + 1
+        if "FINISH" in line:
+            finishers.append((player, moves[player]))
+        if "CRASH" in line:
+            crashes.append((player, moves[player]))
+    return finishers, crashes, moves
+
+
+def finishers(text: str) -> list[tuple[int, int]]:
+    """``(player, own_move_count)`` for every finisher, in log order."""
+    return race_events(text)[0]
+
+
+def player_moves(text: str) -> dict[int, int]:
+    """Every player's total move count."""
+    return race_events(text)[2]
 
 
 class Reach:
@@ -112,8 +179,8 @@ def reconstruct_board(log, target, player_count=8):
     """Return the board immediately before global move ``target``.
 
     The result is ``(cars, mover, real_moves)``.  Each car is
-    ``(x, y, vx, vy, fate)``, where fate is 0 for live, 90 for finished, and
-    99 for crashed. ``mover`` is zero-based; ``real_moves`` contains parsed
+    ``(x, y, vx, vy, fate)``, where fate is 0 for live, 90 for finished or
+    timed out, and 99 for crashed. ``mover`` is zero-based; ``real_moves`` contains parsed
     log moves from the target onward.
     """
     cars = [None] * player_count
@@ -145,7 +212,7 @@ def reconstruct_board(log, target, player_count=8):
                 raise ValueError("move references an uninitialized player")
             if move.status == "CRASH":
                 cars[index][4] = 99
-            elif move.status == "FINISH":
+            elif move.status in ("FINISH", "TIMEOUT"):
                 cars[index][4] = 90
             else:
                 cars[index] = [
@@ -220,3 +287,10 @@ class Oracle:
 
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
+
+
+def configure_console(line_buffering=None):
+    """Make behavior-bearing Unicode log lines printable on Windows."""
+    reconfigure = getattr(sys.stdout, "reconfigure", None)
+    if reconfigure is not None:
+        reconfigure(encoding="utf-8", errors="replace", line_buffering=line_buffering)

@@ -18,24 +18,9 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import configure_console, normalized_lines  # noqa: E402
 
 DEFAULT_TRACKS = ["chicane", "hairpin", "lemans", "hungaroring"]
-
-
-def configure_console() -> None:
-    """Make behavior-bearing Unicode log lines printable on Windows."""
-    reconfigure = getattr(sys.stdout, "reconfigure", None)
-    if reconfigure is not None:
-        reconfigure(encoding="utf-8", errors="replace")
-
-
-def normalized_lines(text: str) -> list[str]:
-    lines = []
-    for line in text.splitlines():
-        if line.startswith("player") or line.startswith("# turns") or line.startswith("# results") \
-                or (line and line[0].isdigit()):
-            lines.append(line.replace("AI1", "AI").replace("AI2", "AI"))
-    return lines
 
 
 def run_log(track: str, seed: int, kind: str) -> tuple[list[str], tuple[int, int, list[int]]]:

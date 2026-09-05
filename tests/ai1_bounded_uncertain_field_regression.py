@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Pin bounded uncertain-field acceleration and its faithful confirmation."""
 
-import hashlib
 from pathlib import Path
-import re
 import subprocess
 import sys
 import tempfile
@@ -12,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("lemans", 29)
 PROOF_VETO = ("lemans", 87)
@@ -87,48 +86,12 @@ def run_vector_debug_track(track: str, seed: int, timeout: int = 1200):
     return bench_ai.parse_race_log(bench_ai.LOG), completed.stderr
 
 
-def race_events(
-    text: str,
-) -> tuple[list[tuple[int, int]], list[tuple[int, int]], dict[int, int]]:
-    moves: dict[int, int] = {}
-    finishers: list[tuple[int, int]] = []
-    crashes: list[tuple[int, int]] = []
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is None:
-            continue
-        player = int(match.group(2))
-        moves[player] = moves.get(player, 0) + 1
-        if "FINISH" in line:
-            finishers.append((player, moves[player]))
-        if "CRASH" in line:
-            crashes.append((player, moves[player]))
-    return finishers, crashes, moves
-
-
-def normalized_lines(text: str) -> list[str]:
-    return [
-        line.replace("AI1", "AI").replace("AI2", "AI")
-        for line in text.splitlines()
-        if line.startswith("player")
-        or line.startswith("# turns")
-        or line.startswith("# results")
-        or (line and line[0].isdigit())
-    ]
-
-
-def normalized_sha256(text: str) -> str:
-    normalized = "\n".join(normalized_lines(text)).encode("utf-8")
-    return hashlib.sha256(normalized).hexdigest()
-
-
 def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
 
     summaries = {}
     logs = {}
-    vector_logs = {}
     cases = [TARGET, *RETENTION_CASES]
     with tempfile.TemporaryDirectory(
         prefix="bounded-uncertain-field-regression-"
@@ -142,12 +105,7 @@ def main() -> int:
             for track, seed in cases:
                 try:
                     if (track, seed) in (TARGET, PROOF_VETO):
-                        summary, stderr = run_vector_debug_track(track, seed)
-                        vector_logs[(kind, track, seed)] = [
-                            line
-                            for line in stderr.splitlines()
-                            if line.startswith("AIDBG FIELD-VECTOR ")
-                        ]
+                        summary, _ = run_vector_debug_track(track, seed)
                     else:
                         summary = bench_ai.run_track(track, timeout=1200, seed=seed)
                 except subprocess.TimeoutExpired as error:

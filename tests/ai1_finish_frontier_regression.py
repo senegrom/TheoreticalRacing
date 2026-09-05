@@ -2,7 +2,6 @@
 """Pin Round 96's synchronized finish-frontier pace gain."""
 
 from pathlib import Path
-import re
 import sys
 import tempfile
 
@@ -10,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import finishers, normalized_lines  # noqa: E402
 
 EXPECTED = {
     6: (7, 0, [58, 59, 59, 60, 61, 62, 62]),
@@ -30,31 +30,6 @@ EXPECTED_DECISION = {
     47: "298 p2 {kind} SW v(1,-6)→(0,-5) (65,49)→(65,44) ok",
     49: "308 p4 {kind} SW v(1,-5)→(0,-4) (67,49)→(67,45) ok",
 }
-
-
-def finishers(text: str) -> list[tuple[int, int]]:
-    moves: dict[int, int] = {}
-    result = []
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is None:
-            continue
-        player = int(match.group(2))
-        moves[player] = moves.get(player, 0) + 1
-        if "FINISH" in line:
-            result.append((player, moves[player]))
-    return result
-
-
-def normalized_lines(text: str) -> list[str]:
-    return [
-        line.replace("AI1", "AI").replace("AI2", "AI")
-        for line in text.splitlines()
-        if line.startswith("player")
-        or line.startswith("# turns")
-        or line.startswith("# results")
-        or (line and line[0].isdigit())
-    ]
 
 
 def main() -> int:

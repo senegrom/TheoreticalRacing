@@ -15,18 +15,11 @@ needle_audit.py there, which asks the game's oracle instead.
 Usage: board_at.py <log> <reach.bin> <moveIndex>
 """
 import argparse
-import sys
 
 if __package__:
-    from .forensics_common import Reach, log_player_count, reconstruct_board
+    from .forensics_common import Reach, configure_console, log_player_count, reconstruct_board
 else:
-    from forensics_common import Reach, log_player_count, reconstruct_board
-
-
-def configure_console():
-    reconfigure = getattr(sys.stdout, "reconfigure", None)
-    if reconfigure is not None:
-        reconfigure(encoding="utf-8", errors="replace")
+    from forensics_common import Reach, configure_console, log_player_count, reconstruct_board
 
 
 def main(argv=None):

@@ -22,13 +22,17 @@ NEW 4.438 vs OLD 4.562 mean place, both crash-free -- the edge lives
 entirely on tracks where overtaking exists.
 """
 import os, sys
-sys.path.insert(0, 'E:/OneDrive/Coding/Java/theoreticRacing/tracks')
-from forensics_common import DIRS, Oracle
 
-ROOT = 'E:/OneDrive/Coding/Java/theoreticRacing'
-S = os.environ.get('RACING_WORK_DIR', os.path.dirname(os.path.abspath(__file__)))
-NEW_JAR = ROOT + '/theoreticRacing.jar'
-OLD_JAR = os.environ.get('OLD_JAR', ROOT + '/era60.jar')
+if __package__:
+    from .forensics_common import DIRS, Oracle, START_LINE
+else:
+    from forensics_common import DIRS, Oracle, START_LINE
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+S = os.environ.get('RACING_WORK_DIR', HERE)
+NEW_JAR = os.path.join(ROOT, 'theoreticRacing.jar')
+OLD_JAR = os.environ.get('OLD_JAR', os.path.join(ROOT, 'era60.jar'))
 
 def start_positions(track, seed):
     """Ask the new jar for a real race's initial board by parsing a 0-move log?
@@ -40,9 +44,8 @@ def start_positions(track, seed):
                     '--seed', str(seed), '--log', log],
                    capture_output=True, timeout=300)
     starts = []
-    import re
     for ln in open(log, encoding='utf-8', errors='replace'):
-        m = re.match(r'^player(\d+) name=.*start=(\d+),(\d+)', ln)
+        m = START_LINE.match(ln)
         if m:
             starts.append((int(m.group(2)), int(m.group(3))))
     return starts

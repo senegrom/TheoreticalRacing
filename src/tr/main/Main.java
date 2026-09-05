@@ -60,6 +60,9 @@ public final class Main {
 
 		if (options.headless()) {
 			System.setProperty("java.awt.headless", "true");
+			// Covers the event thread too: an exception escaping an invokeLater
+			// task is routed to this handler (probed), so a failed headless run
+			// exits 1 instead of hanging.
 			Thread.setDefaultUncaughtExceptionHandler((thread, error) -> {
 				System.err.println("Uncaught exception on " + thread.getName());
 				error.printStackTrace();
@@ -72,7 +75,7 @@ public final class Main {
 			runBatch(options, prop);
 			return;
 		}
-		runOnEventThread(options.headless(), () -> {
+		EventQueue.invokeLater(() -> {
 			final RaceGame game = new RaceGame(prop);
 			game.setAutoMode(options.headless());
 			if (options.dumpReach() != null)
@@ -103,7 +106,7 @@ public final class Main {
 		while (true) {
 			final long thisSeed = s;
 			final java.util.concurrent.CountDownLatch done = new java.util.concurrent.CountDownLatch(1);
-			runOnEventThread(true, () -> {
+			EventQueue.invokeLater(() -> {
 				final Properties raceProp = new Properties();
 				raceProp.putAll(baseProp);
 				final RaceGame game = new RaceGame(raceProp);
@@ -125,20 +128,6 @@ public final class Main {
 			s++;
 		}
 		System.exit(0);
-	}
-
-	/** Schedule work on the event thread. The EDT catches every Throwable and
-	 *  keeps pumping, so a headless failure would print a trace and then hang
-	 *  forever on a non-daemon thread; a headless task exits non-zero instead. */
-	private static void runOnEventThread(final boolean headless, final Runnable task) {
-		EventQueue.invokeLater(!headless ? task : () -> {
-			try {
-				task.run();
-			} catch (final RuntimeException | Error error) {
-				error.printStackTrace();
-				System.exit(1);
-			}
-		});
 	}
 
 	/** Insert _sN before the extension: races/x.log + 7 -> races/x_s7.log. */

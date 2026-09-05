@@ -13,27 +13,24 @@ uses this to classify doom speed classes (wide trigger = spd^2 >= 49).
 Usage: crash_scan.py <log-or-dir> [...]
 """
 import os
-import re
 import sys
 
-sys.stdout.reconfigure(encoding='utf-8')
-
-MOVE = re.compile(
-    r'^(\d+) p(\d+) \S+ (\S+) v\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) '
-    r'\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) (.+)$')
+if __package__:
+    from .forensics_common import configure_console, parse_move
+else:
+    from forensics_common import configure_console, parse_move
 
 
 def scan(path):
-    moves = {}          # player -> list of (turn, dir, nvx, nvy, x, y, nx, ny, outcome)
+    moves = {}          # player -> list of (turn, dir, nvx, nvy, nx, ny, outcome)
     with open(path, encoding='utf-8', errors='replace') as f:
         for ln in f:
-            m = MOVE.match(ln)
-            if not m:
+            mv = parse_move(ln)
+            if mv is None:
                 continue
-            t, p = int(m.group(1)), int(m.group(2))
-            nvx, nvy = int(m.group(6)), int(m.group(7))
-            nx, ny = int(m.group(10)), int(m.group(11))
-            moves.setdefault(p, []).append((t, m.group(3), nvx, nvy, nx, ny, m.group(12)))
+            moves.setdefault(mv.player, []).append(
+                (mv.index, mv.direction, mv.new_vx, mv.new_vy, mv.new_x, mv.new_y,
+                 mv.status + mv.detail))
     if not moves:
         return None
     end = max(ms[-1][0] for ms in moves.values())
@@ -49,6 +46,7 @@ def scan(path):
 
 
 def main():
+    configure_console()
     paths = []
     for a in sys.argv[1:]:
         if os.path.isdir(a):
@@ -73,4 +71,5 @@ def main():
     print('\n%d crashed player(s) across %d log(s)' % (total, len(paths)))
 
 
-main()
+if __name__ == '__main__':
+    main()

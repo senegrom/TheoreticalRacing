@@ -515,7 +515,7 @@ both AI1 and AI2.
 sh ./run_tests.sh
 sh ./run_golden_tests.sh
 for test in tests/ai1_*_regression.py; do python3 "$test"; done
-python3 tracks/ai_probe.py --allow-divergence --seeds 3 sprint hairpin lemans hungaroring
+python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans hungaroring
 python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
 python3 tracks/bench_ai.py --h2h --seeds 5
 python3 tracks/bench_ai.py --4p --seeds 5

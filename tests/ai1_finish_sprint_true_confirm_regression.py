@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Pin the faithful-rival finish-sprint safety confirmation."""
 
-import hashlib
 from pathlib import Path
-import re
 import sys
 import tempfile
 
@@ -11,46 +9,13 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("rand3", 1)
 PROMOTED =(7, 0, [61, 62, 64, 64, 65, 66, 68])
 PROMOTED_FINISHERS =[(5, 61), (8, 62), (1, 64), (7, 64), (4, 65), (6, 66), (2, 68)]
 PROMOTED_ALL_MOVES ={1: 64, 2: 68, 3: 67, 4: 65, 5: 61, 6: 66, 7: 64, 8: 62}
 PROMOTED_SHA256 = "366e42f211febe0e042c4b9a5281008fa6d3344eecf6b3f3452234bd526c6b21"
-
-
-def race_events(
-    text: str,
-) -> tuple[list[tuple[int, int]], list[tuple[int, int]], dict[int, int]]:
-    moves: dict[int, int] = {}
-    finishers: list[tuple[int, int]] = []
-    crashes: list[tuple[int, int]] = []
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is None:
-            continue
-        player = int(match.group(2))
-        moves[player] = moves.get(player, 0) + 1
-        if "FINISH" in line:
-            finishers.append((player, moves[player]))
-        if "CRASH" in line:
-            crashes.append((player, moves[player]))
-    return finishers, crashes, moves
-
-
-def normalized_lines(text: str) -> list[str]:
-    return [
-        line.replace("AI1", "AI").replace("AI2", "AI")
-        for line in text.splitlines()
-        if line.startswith("player")
-        or line.startswith("# turns")
-        or line.startswith("# results")
-        or (line and line[0].isdigit())
-    ]
-
-
-def normalized_sha256(text: str) -> str:
-    return hashlib.sha256("\n".join(normalized_lines(text)).encode("utf-8")).hexdigest()
 
 
 def main() -> int:
@@ -95,7 +60,6 @@ def main() -> int:
                 f"finish-sprint true-confirm Rand3 seed-1 {kind} move regression: "
                 f"{moves}, expected {PROMOTED_ALL_MOVES}"
             )
-        legacy_finishers = [event for event in finishers if event[0] != 8]
         # Round 215 retired this comparison: the order it checks against was
         # recorded from the pre-promotion model under the old single-lap rules,
         # and that build cannot be re-run to produce a fair reference.

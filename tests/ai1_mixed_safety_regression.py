@@ -52,10 +52,6 @@ def main() -> int:
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
             ("reverse", ["AI2"] * 4 + ["AI1"] * 4),
         )
-        target = re.compile(
-            r"^502 p6 AI[12] SW v\(-2,-8\).*\(-3,-7\) "
-            r"\(13,101\).*\(10,94\) ok$"
-        )
         # Round 215: the move index moved with the rules, the placing did not.
         finish = re.compile(r"^\d+ p6 AI[12] .* FINISH place=5$")
         for label, kinds in orderings:

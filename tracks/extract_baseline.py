@@ -17,16 +17,22 @@ import sys
 ROW = re.compile(
     r'^(\S+)\s+\|\s+(\d+)/(\d+) mv=\s*([\d.]+)\s+\|\s+(\d+)/(\d+) mv=\s*([\d.]+)')
 
-col = int(sys.argv[3]) if len(sys.argv) > 3 else 2
-rows = {}
-for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
-    m = ROW.match(line)
-    if not m or m.group(1) == 'TOTAL':
-        continue
-    track, f1, c1, mv1, f2, c2, mv2 = m.groups()
-    rows[track] = [int(f1), int(c1), float(mv1)] if col == 1 else [int(f2), int(c2), float(mv2)]
 
-assert rows, 'no rows parsed'
-with open(sys.argv[2], 'w') as f:
-    json.dump(rows, f)
-print('wrote %d tracks -> %s' % (len(rows), sys.argv[2]))
+def main():
+    col = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+    rows = {}
+    for line in open(sys.argv[1], encoding='utf-8', errors='replace'):
+        m = ROW.match(line)
+        if not m or m.group(1) == 'TOTAL':
+            continue
+        track, f1, c1, mv1, f2, c2, mv2 = m.groups()
+        rows[track] = [int(f1), int(c1), float(mv1)] if col == 1 else [int(f2), int(c2), float(mv2)]
+
+    assert rows, 'no rows parsed'
+    with open(sys.argv[2], 'w') as f:
+        json.dump(rows, f)
+    print('wrote %d tracks -> %s' % (len(rows), sys.argv[2]))
+
+
+if __name__ == '__main__':
+    main()

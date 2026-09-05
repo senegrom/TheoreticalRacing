@@ -132,6 +132,8 @@ public final class RaceGame {
 			game.turnCounter = turnCounter;
 			game.gameLog.setLength(gameLogLength);
 			game.startZoneGone = startZoneGone;
+			if (!startZoneGone)
+				game.rui.setStartZone(game.startZone);
 			for (int i = 0; i < game.players.length; i++) {
 				final Player player = game.players[i];
 				player.setPosition(positions[i].clone());
@@ -1567,6 +1569,19 @@ public final class RaceGame {
 			poll.start();
 			return;
 		}
+		if (!autoMode) {
+			// The daemon reports ready even when it failed (the pre-allocation
+			// guard, an OOM); in GUI mode nothing handles an exception on the
+			// EDT, so without this the AI would never move and the status
+			// would say "Computing track reachability..." forever.
+			try {
+				reach.ensureReachabilityReady();
+			} catch (final RuntimeException failure) {
+				dispMessage("Track reachability failed: " + failure.getMessage());
+				gamestate = GameState.FINISHED;
+				return;
+			}
+		}
 		executeMove(ai.computeAiMove());
 	}
 
@@ -1730,6 +1745,24 @@ public final class RaceGame {
 						64L << 20, 128L << 20);
 		buildLegalRaster();
 		rui.finishTrack();
+		if (optimalStart != null) {
+			// The exact search needs the geometry and the gates, not the AI's
+			// reachability maps -- it is measured against the referee -- so it
+			// runs before those maps are built rather than beside the daemon.
+			final String[] cell = optimalStart.split(",", -1);
+			if (cell.length != 2)
+				abortAutoRace("--optimal-laps needs a start cell X,Y: " + optimalStart);
+			final int sx = Integer.parseInt(cell[0].trim());
+			final int sy = Integer.parseInt(cell[1].trim());
+			if (sx < 0 || sy < 0 || sx > gameCols || sy > gameRows || !containsTrackOrStart(sx, sy))
+				abortAutoRace("--optimal-laps start (" + sx + "," + sy + ") is not on the course");
+			final long t0 = System.nanoTime();
+			final int best = OptimalLap.solve(this, sx, sy, totalLaps);
+			System.out.printf("[optimal] laps=%d start=(%d,%d) moves=%s in %.1fs%n",
+					totalLaps, sx, sy, best < 0 ? "UNREACHABLE" : Integer.toString(best),
+					(System.nanoTime() - t0) / 1e9);
+			System.exit(0);
+		}
 		reach.computeDistMap();
 		reach.startReachabilityCompute();
 		if (dumpReachPath != null) {
@@ -1740,19 +1773,6 @@ public final class RaceGame {
 		if (queryInPath != null) {
 			reach.ensureReachabilityReady();
 			processQueries(queryInPath, queryOutPath);
-			System.exit(0);
-		}
-		if (optimalStart != null) {
-			// The exact search needs the geometry and the gates, not the AI's
-			// reachability maps -- it is measured against the referee.
-			final String[] cell = optimalStart.split(",", -1);
-			final int sx = Integer.parseInt(cell[0].trim());
-			final int sy = Integer.parseInt(cell[1].trim());
-			final long t0 = System.nanoTime();
-			final int best = OptimalLap.solve(this, sx, sy, totalLaps);
-			System.out.printf("[optimal] laps=%d start=(%d,%d) moves=%s in %.1fs%n",
-					totalLaps, sx, sy, best < 0 ? "UNREACHABLE" : Integer.toString(best),
-					(System.nanoTime() - t0) / 1e9);
 			System.exit(0);
 		}
 		if (lapGates != null && autoMode) {
@@ -2020,6 +2040,10 @@ public final class RaceGame {
 			gamestate = GameState.PLACEPLAYERS;
 			subgamestate = 0;
 			gameFrame.setOkEnabled(false);
+			// lapClosable describes the LOADED track: this drawing declares
+			// nothing, and inheriting a real circuit's waiver would skip the
+			// loop-closure clamp on an open drawing.
+			prop.put("lapClosable", "false");
 			buildTrackGeometry();
 			autoPlaceAiPlayers();
 			updatePlaceStatus();
@@ -2099,8 +2123,18 @@ public final class RaceGame {
 	/** Restart the game after a prompt. */
 	public void restartMe() {
 		if (confirmAndSave("Do you really want to restart?")) {
+			// Leave PLAY before anything else: a pending AI turn or the
+			// reachability poll would otherwise keep this game running on
+			// the EDT beside the next one.
+			gamestate = GameState.FINISHED;
 			gameFrame.dispose();
-			SwingUtilities.invokeLater(() -> new RaceGame(prop).start());
+			SwingUtilities.invokeLater(() -> {
+				final RaceGame next = new RaceGame(prop);
+				next.propertiesOverride = propertiesOverride;
+				next.gameLogOverride = gameLogOverride;
+				next.startRng = startRng;
+				next.start();
+			});
 		}
 	}
 

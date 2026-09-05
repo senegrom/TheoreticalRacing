@@ -3,8 +3,9 @@ package tr.logic;
 import java.util.BitSet;
 
 /**
- * The vector-racing AI extracted from {@link RaceGame}: move selection for both
- * variants (AI1 = development frontier, AI2 = mirrored champion/control), opponent
+ * The vector-racing AI extracted from {@link RaceGame}: move selection (the
+ * AI1 and AI2 kinds are two labels for one promoted policy since round 222;
+ * an experiment gates one kind while it is being measured), opponent
  * prediction, box-seal detection, brake-proof pace discipline and the N-ply
  * escape-headroom search. Reads the reachability maps and its host's
  * legality/geometry predicates through back-refs; returns the chosen move.
@@ -33,10 +34,12 @@ final class RaceAi {
 	private int[] liveOccupancyTouched;
 	private int liveOccupancyTouchedCount;
 	private final long[] rolloutFieldCost = new long[1];
-	/** Outer candidate scores stay live while scorer-rival rollouts invoke a
-	 *  recursion-guarded nested scorer, so those two levels need disjoint rows. */
-	private final CandidateWorkspace outerCandidates = new CandidateWorkspace();
-	private final CandidateWorkspace nestedCandidates = new CandidateWorkspace();
+	/** Candidate rows per rollout depth. A decision's rows must stay live while
+	 *  the rollouts it runs invoke nested scorers for rivals -- and an
+	 *  unsuppressed (true-rival) nested scorer used to take the OUTER rows,
+	 *  because it runs with inScorerSim off, wiping the decision still reading
+	 *  them (round 223). Keyed by simDepth, every compute owns its level. */
+	private CandidateWorkspace[] candidatesByDepth = new CandidateWorkspace[4];
 
 	private static final class CandidateWorkspace {
 		final double[] trapByDirection = new double[DIRECTIONS.length];
@@ -237,13 +240,17 @@ final class RaceAi {
 	}
 
 	private CandidateWorkspace candidateWorkspace() {
-		final CandidateWorkspace workspace = inScorerSim ? nestedCandidates : outerCandidates;
+		if (simDepth >= candidatesByDepth.length)
+			candidatesByDepth = java.util.Arrays.copyOf(candidatesByDepth, simDepth + 4);
+		CandidateWorkspace workspace = candidatesByDepth[simDepth];
+		if (workspace == null)
+			workspace = candidatesByDepth[simDepth] = new CandidateWorkspace();
 		workspace.reset();
 		return workspace;
 	}
 
-	/** Dispatches by kind. The promoted AI2 entry delegates to the champion AI1
-	 * body; experiments must add an explicit AI1 kind gate to preserve a control. */
+	/** The move for the player to move. Every AI kind runs the one promoted
+	 * body; an experiment must add an explicit kind gate to keep a control. */
 	Direction computeAiMove() {
 		reach.ensureReachabilityReady();
 		// Round 175: retire per-compute memo entries (the hold-overspeed
@@ -255,9 +262,6 @@ final class RaceAi {
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
 		final int playerNum = p.getNumber();
-
-		if (p.getKind() == Player.Kind.AI2)
-			return optimalMoveAI2(pos, vel, playerNum);
 		return optimalMoveAI1(pos, vel, playerNum);
 	}
 
@@ -267,6 +271,10 @@ final class RaceAi {
 	 */
 	private Direction pureMinTurnsMove(final int x, final int y, final int vx, final int vy,
 			final int playerNum) {
+		// Round 223: this player's own lap frame, not the mover's.
+		final int idx = playerNum - 1;
+		final boolean scanLapAware = frameLapAware[idx];
+		final int scanGate = frameGate[idx];
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
 		int fallbackLegalMask = 0;
@@ -285,7 +293,7 @@ final class RaceAi {
 				// survivable (legal edge, no body, alive landing beyond the line)
 				// AND shedable -- the map prices every crossing at turns=1
 				// regardless of landing speed, so hot arrivals must not count.
-				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
+				if (!scanLapAware && game.onFinalLap(playerNum) || scanGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
 						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
@@ -305,15 +313,15 @@ final class RaceAi {
 			// the precedence rams the car into an occupied one-cell pocket
 			// at unstoppable speed (the scorer then prices the wait instead,
 			// and the touch fires the moment the queue clears).
-			if (lapAware && lapGate != 0 && (sm & bit) != 0
-					&& game.touchesGate(lapGate, x, y, newX, newY)
+			if (scanLapAware && scanGate != 0 && (sm & bit) != 0
+					&& game.touchesGate(scanGate, x, y, newX, newY)
 					&& !game.isCrashingPlayer(newX, newY, playerNum)
 					&& reach.isAlive(newX, newY, newVx, newVy)
-					&& reach.turnsToGate(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
+					&& reach.turnsToGate(scanGate == 1 ? 2 : 0, newX, newY, newVx, newVy)
 							!= Integer.MAX_VALUE
-					&& needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate == 1 ? 2 : 0)) {
+					&& needleHeadway(newX, newY, newVx, newVy, playerNum, scanGate == 1 ? 2 : 0)) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
-					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
+					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + scanGate + " chosen=" + d);
 				return d;
 			}
 			if ((sm & bit) == 0) {
@@ -323,7 +331,7 @@ final class RaceAi {
 			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
 			fallbackLegalMask |= bit;
-			final int turns = ttf(newX, newY, newVx, newVy);
+			final int turns = ttfFor(idx, newX, newY, newVx, newVy);
 			if (turns < bestTurns) {
 				bestTurns = turns;
 				best = d;
@@ -546,9 +554,17 @@ final class RaceAi {
 	private final static double	AI1_LANE_STYLE	= 0.12;	// round 201: per-player tie-break style spread in lap traffic (multi-seed: 0.12 -> 89 crashes, 0.20 -> 105 -- past the sweet spot the style sacrifice costs more than spreading buys)
 
 	/**
-	 * Promoted smart-driver policy. AI2 delegates here so both smart kinds run
-	 * the same certified champion; candidate experiments must add an explicit
-	 * kind gate until their differential evidence is complete.
+	 * The promoted policy, for every AI kind. Round 129 established one scorer
+	 * body by delegation after promoting the measured Round 115/117/124
+	 * field-acceleration frontier and Round 126's homogeneous false-target
+	 * veto. Later promoted gates live in this body too: Round 169's
+	 * exact-private slack, Round 174's squeeze check, Round 175's bounded
+	 * high-speed six-ahead acceleration, Rounds 178-180's thin-ridge check,
+	 * Round 216's exact-potential pace number, and -- promoted on the user's
+	 * word on 2026-09-04 after a fleet grid -- the immediate-finish precedence,
+	 * the finish-denial override and the exact axial-vmax ridge extension. No
+	 * kind-gated arm remains; a candidate experiment must add an explicit kind
+	 * gate until its own independently measured promotion.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		// Endgame seal (frontier, per "force the last rival to crash = win"): with
@@ -1284,12 +1300,25 @@ final class RaceAi {
 							final int rg8 = simOutcome(fCx, fCy, djvx, djvy, playerNum,
 									AI1_DEEP_HORIZON, true, true, true, true, false, false,
 									AI1_DEEP_CERT_RIVALS, null, null, rgTr);
+							boolean ridgeTrueDead = false;
 							if ((rg8 < 0 || rgTr[0] >= AI1_RIDGE_THREAD)
-									&& simOutcome(fCx, fCy, djvx, djvy, playerNum,
+									&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
+								// Round 223: the true-rival verdict counts against the
+								// confirm depth like every other faithful leg, so a
+								// train on one thin ridge cannot chain nested verdicts
+								// without end.
+								trueConfirmDepth++;
+								try {
+									ridgeTrueDead = simOutcome(fCx, fCy, djvx, djvy, playerNum,
 											axialVmaxRidge ? AI1_RIDGE_VMAX_TRUE_ROUNDS
 													: AI1_RIDGE_TRUE_ROUNDS,
 											true, true, true, true, false,
-											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0) {
+											true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0;
+								} finally {
+									trueConfirmDepth--;
+								}
+							}
+							if (ridgeTrueDead) {
 								final boolean ridgePlateau = ridgeSucc > AI1_RIDGE_MAX_SUCC;
 								Direction ridgeBest = null;
 								int ridgeTurns = Integer.MAX_VALUE;
@@ -2058,30 +2087,23 @@ final class RaceAi {
 				: reach.turnsToGate(lapGate, x, y, vx, vy);
 	}
 
-	/** The mover's own kind, for self-play (kind-homogeneity) gates. */
-	private Player.Kind moverKind(final int playerNum) {
-		for (final Player p : game.players)
-			if (p.getNumber() == playerNum)
-				return p.getKind();
-		return Player.Kind.AI1;
-	}
-
-	/** Whether every live rival uses the mover's policy kind. */
+	/** Whether every live rival runs the mover's policy. Since the 2026-09-04
+	 *  promotion every AI kind is the one policy, so the question is whether a
+	 *  human is among the live rivals; before it the gates compared kind labels,
+	 *  which kept them off in the mixed-label fleet field for no reason. */
 	private boolean kindHomogeneousField(final int playerNum) {
-		final Player.Kind kind = moverKind(playerNum);
 		for (final Player p : game.players)
-			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != kind)
+			if (p.getNumber() != playerNum && !p.isFinished() && !p.isAi())
 				return false;
 		return true;
 	}
 
-	/** Whether every racer in the starting roster uses the mover's policy kind.
+	/** Whether every racer in the starting roster runs the mover's policy.
 	 *  Unlike the live-field gate, this cannot become true late in a mixed race
-	 *  after the other policy has finished or crashed. */
+	 *  after the human has finished or crashed. */
 	private boolean kindHomogeneousRoster(final int playerNum) {
-		final Player.Kind kind = moverKind(playerNum);
 		for (final Player p : game.players)
-			if (p.getNumber() != playerNum && p.getKind() != kind)
+			if (p.getNumber() != playerNum && !p.isAi())
 				return false;
 		return true;
 	}
@@ -2337,7 +2359,7 @@ final class RaceAi {
 			originallyLiveRival[i] = player.getNumber() != playerNum && !player.isFinished();
 		}
 		final CandidateWorkspace snapshot = trueConfirmCandidateSnapshots[trueConfirmDepth];
-		snapshot.copyFrom(outerCandidates);
+		snapshot.copyFrom(candidatesByDepth[simDepth]);
 		trueConfirmDepth++;
 		try {
 			final int chosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy,
@@ -2383,7 +2405,7 @@ final class RaceAi {
 			return accepted;
 		} finally {
 			trueConfirmDepth--;
-			outerCandidates.copyFrom(snapshot);
+			candidatesByDepth[simDepth].copyFrom(snapshot);
 		}
 	}
 
@@ -2411,10 +2433,9 @@ final class RaceAi {
 				- uncByDir[chosen.ordinal()];
 		RaceAiPrivateLane.ProofSession privateProof = null;
 		RaceAiPrivateLane.ProofSession slackProof = null;
-		// Promotion semantics (round 83 mirror): "self-play" means kind
-		// homogeneity with the MOVER, not AI1-ness -- an all-AI2 field of the
-		// promoted body is exactly as homogeneous as an all-AI1 one.
-		final Player.Kind moverKind = moverKind(playerNum);
+		// Promotion semantics (round 83 mirror, round 223): "self-play" means
+		// every rival runs the mover's policy -- since the 2026-09-04 promotion
+		// that is every AI kind, so only a human breaks it.
 		final int slackChosenVx = vel[0] + chosen.dx;
 		final int slackChosenVy = vel[1] + chosen.dy;
 		final int slackChosenSpeed2 = speedSquared(slackChosenVx, slackChosenVy);
@@ -2425,7 +2446,7 @@ final class RaceAi {
 				&& kindHomogeneousRoster(playerNum);
 		boolean homogeneousFrontier = true;
 		for (final Player p : game.players) {
-			if (p.getNumber() != playerNum && !p.isFinished() && p.getKind() != moverKind) {
+			if (p.getNumber() != playerNum && !p.isFinished() && !p.isAi()) {
 				homogeneousFrontier = false;
 				break;
 			}
@@ -2623,14 +2644,13 @@ final class RaceAi {
 		// This new long-horizon certificate is therefore self-play-only until a
 		// mixed-policy externality proof exists.
 		int rivalsAhead = 0;
-		final Player.Kind stagedMoverKind = moverKind(playerNum);
 		final boolean stagedLaunch = useTrackDistanceForStagedLaunch(vel[0], vel[1],
 				game.startZoneA.contains(pos[0], pos[1]));
 		final int moverProgress = reach.distAt(pos[0], pos[1]);
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
-			if (p.getKind() != stagedMoverKind)
+			if (!p.isAi())
 				return chosen;
 			final int[] rivalPos = p.getPosition();
 			// Round 91: a stationary starting-grid car has no velocity
@@ -3764,7 +3784,11 @@ final class RaceAi {
 									: "(" + move[0] + "," + move[1] + ")v(" + move[2] + "," + move[3]
 											+ ")" + (game.crossesFinish(px[i], py[i], move[0], move[1])
 													? " FINISH" : "")));
-				if (simFinishVanish && moved && game.crossesFinish(px[i], py[i], move[0], move[1])) {
+				// Round 223: only a FINISHING crossing takes the car off the board
+				// -- final lap, nothing owed, in the crosser's own frame; a lap
+				// scored or a stray crossing keeps it in the race.
+				if (simFinishVanish && moved && !frameLapAware[i]
+						&& game.crossesFinish(px[i], py[i], move[0], move[1])) {
 					alive[i] = false;
 					if (i == myIdx) {
 						if (outFinalTier != null)
@@ -4078,8 +4102,9 @@ final class RaceAi {
 				}
 				if (AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
 					System.err.println("AIDBG TRUECONF p=" + playerNum + " pos=(" + pos[0] + ","
-							+ pos[1] + ") chosen=" + chosen + " tier=" + finalTier[0] + " thread="
-							+ threadRounds[0] + " -> true rivals "
+							+ pos[1] + ") chosen=" + chosen + " tier="
+							+ (finalTier != null ? finalTier[0] : -1) + " thread="
+							+ (threadRounds != null ? threadRounds[0] : -1) + " -> true rivals "
 							+ (trueDead ? "KILL @" + AI1_TRUE_CONFIRM_ROUNDS + "r, switching"
 									: "keep alive"));
 			}
@@ -4243,23 +4268,6 @@ final class RaceAi {
 			System.err.println("AIDBG DJS  -> " + (best != null ? "SWITCH " + best + " simT=" + bestT
 					: "KEEP " + chosen + " (no survivor)"));
 		return best != null ? best : chosen;
-	}
-
-	/**
-	 * AI2 (CHAMPION MIRROR): Round 129 established one scorer body by delegation
-	 * after promoting the measured Round 115/117/124 field-acceleration frontier
-	 * and Round 126's homogeneous false-target veto. Later promoted gates remain
-	 * in that shared body, including Round 169's exact-private slack, Round 174's
-	 * squeeze check, Round 175's bounded high-speed six-ahead acceleration,
-	 * Rounds 178-180's thin-ridge check and Round 216's exact-potential pace
-	 * number, and -- promoted on the user's word on 2026-09-04 after a fleet
-	 * grid -- the immediate-finish precedence, the finish-denial override and
-	 * the exact axial-vmax extension of the ridge check. No kind-gated arms
-	 * remain: the two kinds are one policy. Future experiments must gate AI1
-	 * until their own independently measured promotion.
-	 */
-	private Direction optimalMoveAI2(final int[] pos, final int[] vel, final int playerNum) {
-		return optimalMoveAI1(pos, vel, playerNum);
 	}
 
 	private final static double	AI2_MOMENTUM_TIEBREAK	= 0.02;

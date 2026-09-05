@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """Pin the high-speed moderate six-ahead pace frontier and its vetoes."""
 
-import hashlib
 from pathlib import Path
-import re
 import sys
 import tempfile
 
@@ -11,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import finishers, normalized_lines, normalized_sha256, player_moves  # noqa: E402
 
 TARGET = ("spa", 83)
 PROMOTED = (7, 0, [79, 80, 81, 84, 84, 85, 87])
@@ -72,45 +71,6 @@ VETO_CASES = {
         "edeb00d8d0c3f9fa663c985fa5f25b8418531496901122b7a4313c031bd05319",
     ),
 }
-
-
-def finishers(text: str) -> list[tuple[int, int]]:
-    moves: dict[int, int] = {}
-    result = []
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is None:
-            continue
-        player = int(match.group(2))
-        moves[player] = moves.get(player, 0) + 1
-        if "FINISH" in line:
-            result.append((player, moves[player]))
-    return result
-
-
-def player_moves(text: str) -> dict[int, int]:
-    result: dict[int, int] = {}
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is not None:
-            player = int(match.group(2))
-            result[player] = result.get(player, 0) + 1
-    return result
-
-
-def normalized_lines(text: str) -> list[str]:
-    return [
-        line.replace("AI1", "AI").replace("AI2", "AI")
-        for line in text.splitlines()
-        if line.startswith("player")
-        or line.startswith("# turns")
-        or line.startswith("# results")
-        or (line and line[0].isdigit())
-    ]
-
-
-def normalized_sha256(text: str) -> str:
-    return hashlib.sha256("\n".join(normalized_lines(text)).encode("utf-8")).hexdigest()
 
 
 def main() -> int:

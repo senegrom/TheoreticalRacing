@@ -10,7 +10,10 @@ Porsche Curves, Maison Blanche, Ford chicanes -- as Catmull-Rom control
 points (the spline passes THROUGH every point, so chicanes survive),
 samples it densely, decimates adaptively (dense in corners, coarse on
 straights), offsets both borders, and validates everything before
-writing. Asserts all checks, then writes once.
+writing. Asserts all checks, then writes once. The committed
+tracks/lemans.track is this output after width_normalize.py narrowed
+it, so it must not be regenerated in place: running this script
+restores the wider pre-normalization corridor.
 """
 import math, pathlib
 
@@ -187,40 +190,46 @@ def build_side(center, side):
         P = snap_clean(cut_cusps(P))
     return cut_gap(P, GAP)
 
-center = decimate(catmull(WP))
-left = build_side(center, -1)
-right = build_side(center, +1)
 
-# --- validate everything, then write once ---
-for name, P in (('left', left), ('right', right)):
-    assert len(P) >= 60, (name, len(P))
-    for x, y in P:
-        assert 2 <= x <= W - 2 and 2 <= y <= H - 2, (name, x, y)
-    for i in range(len(P) - 1):
-        assert 1.0 <= math.dist(P[i], P[i + 1]) <= 8.0, (name, i, P[i], P[i + 1])
-    si = self_intersects(P)
-    assert si is None, (name, 'self-intersect', si, P[si[0]] if si else None)
-ci = cross_intersects(left, right)
-assert ci is None, ('cross-intersect', ci)
-wmins = []
-for p in left:
-    wmins.append(poly_dist(p, right))
-for p in right:
-    wmins.append(poly_dist(p, left))
-wmin = min(wmins)
-assert wmin >= 2.5, ('corridor too narrow', wmin)
-gl, gr = math.dist(left[0], left[-1]), math.dist(right[0], right[-1])
-assert 3.0 <= gl <= 10.0 and 3.0 <= gr <= 10.0, ('gap', gl, gr)
+def main():
+    center = decimate(catmull(WP))
+    left = build_side(center, -1)
+    right = build_side(center, +1)
 
-out = pathlib.Path('E:/OneDrive/Coding/Java/theoreticRacing/tracks/lemans.track')
-txt = ('# Theoretical Racing track file\n'
-       '# Hand-authored Circuit de la Sarthe (corner-sequence faithful)\n'
-       'name=Le Mans\n'
-       f'gameX={W}\n'
-       f'gameY={H}\n'
-       'lapClosable=true\n'
-       'trackLeft=' + ';'.join(f'{x},{y}' for x, y in left) + '\n'
-       'trackRight=' + ';'.join(f'{x},{y}' for x, y in right) + '\n')
-out.write_text(txt, encoding='utf-8')
-med = sorted(wmins)[len(wmins) // 2]
-print(f'wrote {out}: nL={len(left)} nR={len(right)} corridor min={wmin:.2f} med={med:.2f} gapL={gl:.1f} gapR={gr:.1f}')
+    # --- validate everything, then write once ---
+    for name, P in (('left', left), ('right', right)):
+        assert len(P) >= 60, (name, len(P))
+        for x, y in P:
+            assert 2 <= x <= W - 2 and 2 <= y <= H - 2, (name, x, y)
+        for i in range(len(P) - 1):
+            assert 1.0 <= math.dist(P[i], P[i + 1]) <= 8.0, (name, i, P[i], P[i + 1])
+        si = self_intersects(P)
+        assert si is None, (name, 'self-intersect', si, P[si[0]] if si else None)
+    ci = cross_intersects(left, right)
+    assert ci is None, ('cross-intersect', ci)
+    wmins = []
+    for p in left:
+        wmins.append(poly_dist(p, right))
+    for p in right:
+        wmins.append(poly_dist(p, left))
+    wmin = min(wmins)
+    assert wmin >= 2.5, ('corridor too narrow', wmin)
+    gl, gr = math.dist(left[0], left[-1]), math.dist(right[0], right[-1])
+    assert 3.0 <= gl <= 10.0 and 3.0 <= gr <= 10.0, ('gap', gl, gr)
+
+    out = pathlib.Path(__file__).resolve().with_name('lemans.track')
+    txt = ('# Theoretical Racing track file\n'
+           '# Hand-authored Circuit de la Sarthe (corner-sequence faithful)\n'
+           'name=Le Mans\n'
+           f'gameX={W}\n'
+           f'gameY={H}\n'
+           'lapClosable=true\n'
+           'trackLeft=' + ';'.join(f'{x},{y}' for x, y in left) + '\n'
+           'trackRight=' + ';'.join(f'{x},{y}' for x, y in right) + '\n')
+    out.write_text(txt, encoding='utf-8')
+    med = sorted(wmins)[len(wmins) // 2]
+    print(f'wrote {out}: nL={len(left)} nR={len(right)} corridor min={wmin:.2f} med={med:.2f} gapL={gl:.1f} gapR={gr:.1f}')
+
+
+if __name__ == '__main__':
+    main()

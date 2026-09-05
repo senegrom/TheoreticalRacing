@@ -24,9 +24,9 @@ import os
 import sys
 
 if __package__:
-    from .forensics_common import DIRS, Oracle, Reach, log_player_count, reconstruct_board
+    from .forensics_common import DIRS, Oracle, Reach, configure_console, log_player_count, reconstruct_board
 else:
-    from forensics_common import DIRS, Oracle, Reach, log_player_count, reconstruct_board
+    from forensics_common import DIRS, Oracle, Reach, configure_console, log_player_count, reconstruct_board
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Reach dumps and logs resolve against RACING_WORK_DIR (default: this script's
@@ -245,9 +245,7 @@ POLICIES = ['greedy', 'gmom', 'shape', 'smom', 'orivals']
 
 
 def main():
-    reconfigure = getattr(sys.stdout, 'reconfigure', None)
-    if reconfigure is not None:
-        reconfigure(encoding='utf-8', errors='replace')
+    configure_console()
     rounds = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     sites = POCKET if len(sys.argv) > 2 and sys.argv[2] == 'pocket' else SITES
     global POLICIES

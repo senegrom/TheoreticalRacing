@@ -14,9 +14,13 @@ import os
 import sys
 
 if __package__:
-    from .forensics_common import DIRNAMES, DIRS, Oracle, Reach, log_player_count, reconstruct_board
+    from .forensics_common import (
+        DIRNAMES, DIRS, Oracle, Reach, configure_console, log_player_count, reconstruct_board,
+    )
 else:
-    from forensics_common import DIRNAMES, DIRS, Oracle, Reach, log_player_count, reconstruct_board
+    from forensics_common import (
+        DIRNAMES, DIRS, Oracle, Reach, configure_console, log_player_count, reconstruct_board,
+    )
 
 
 HERE = Path(__file__).resolve().parent
@@ -133,12 +137,6 @@ def candidates(oracle, reach, cars, mover, rounds):
                 x + nvx, y + nvy, nvx, nvy, fate, suffix,
             )
         )
-
-
-def configure_console():
-    reconfigure = getattr(sys.stdout, 'reconfigure', None)
-    if reconfigure is not None:
-        reconfigure(encoding='utf-8', errors='replace')
 
 
 def main(argv):

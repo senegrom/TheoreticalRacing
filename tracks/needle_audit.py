@@ -26,38 +26,31 @@ from __future__ import annotations
 
 import os
 import pathlib
-import re
 import sys
 
 if __package__:
-    from .forensics_common import DIRNAMES, DIRS, Oracle, log_player_count, reconstruct_board
+    from .forensics_common import (
+        DIRNAMES, DIRS, Oracle, configure_console, log_player_count, parse_move, reconstruct_board,
+    )
 else:
-    from forensics_common import DIRNAMES, DIRS, Oracle, log_player_count, reconstruct_board
+    from forensics_common import (
+        DIRNAMES, DIRS, Oracle, configure_console, log_player_count, parse_move, reconstruct_board,
+    )
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 JAR = ROOT / 'theoreticRacing.jar'
 PROPS = pathlib.Path(os.environ.get('RACING_PROPS', HERE / 'lap_bench.properties'))
 
-MOVE = re.compile(r'^(\d+) p(\d+) \S+ (\S+) v\((-?\d+),(-?\d+)\)\D+\((-?\d+),(-?\d+)\) '
-                  r'\((\d+),(\d+)\)\D+\((\d+),(\d+)\) (\S+)')
-
 
 def car_moves(log, player):
+    """The player's parsed moves, in log order."""
     out = []
     for line in pathlib.Path(log).read_text(encoding='utf-8', errors='replace').splitlines():
-        m = MOVE.match(line)
-        if m and int(m.group(2)) == player:
-            out.append((int(m.group(1)), m.group(3), int(m.group(4)), int(m.group(5)),
-                        int(m.group(6)), int(m.group(7)), int(m.group(8)), int(m.group(9)),
-                        int(m.group(10)), int(m.group(11)), m.group(12)))
+        mv = parse_move(line)
+        if mv is not None and mv.player == player:
+            out.append(mv)
     return out
-
-
-def configure_console():
-    reconfigure = getattr(sys.stdout, 'reconfigure', None)
-    if reconfigure is not None:
-        reconfigure(encoding='utf-8', errors='replace')
 
 
 def main(argv=None) -> int:
@@ -72,19 +65,21 @@ def main(argv=None) -> int:
         raise SystemExit('theoreticRacing.jar not found; run build_main.sh first')
     n = log_player_count(log)
     moves = car_moves(log, player)
-    crash = next((i for i, mv in enumerate(moves) if 'CRASH' in mv[10]), None)
+    crash = next((i for i, mv in enumerate(moves) if mv.status == 'CRASH'), None)
     if crash is None:
         print(f'p{player} never crashed in {log}')
         return 1
     window = moves[max(0, crash - steps + 1):crash + 1]
     oracle = Oracle(track, JAR, PROPS)
     try:
-        print(f'{pathlib.Path(log).name}: p{player} crashed at move {moves[crash][0]}; '
+        print(f'{pathlib.Path(log).name}: p{player} crashed at move {moves[crash].index}; '
               f'walking back {len(window)} of its moves\n')
         print(f"{'move':>5s} {'state':22s} {'chose':6s} {'open':>4s} {'thread':>6s}  "
               f"mask       nearest rival      note")
         first_narrow = None
-        for gm, _, ovx, ovy, nvx, nvy, x, y, nx, ny, status in window:
+        for mv in window:
+            gm, ovx, ovy, nvx, nvy = mv.index, mv.old_vx, mv.old_vy, mv.new_vx, mv.new_vy
+            x, y, nx, ny, status = mv.x, mv.y, mv.new_x, mv.new_y, mv.status
             cars, mover, _ = reconstruct_board(log, gm, n)
             _, _, mask = oracle.ask(mover, cars)
             open_ = mask.count('A')

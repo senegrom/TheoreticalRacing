@@ -12,8 +12,12 @@ import shutil
 import sys
 import tempfile
 
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+if __package__:
+    from .forensics_common import configure_console
+else:
+    from forensics_common import configure_console
+
+configure_console(line_buffering=True)
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # Props/logs must live OFF any cloud-synced directory (OneDrive rewrites

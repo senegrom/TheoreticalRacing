@@ -7,7 +7,7 @@ Players draw or select a track, place their cars in the start zone, then take tu
 ## Requirements
 
 - JDK 25 or later
-- Python 3.9+ for benchmark and track-generation tooling
+- Python 3.9+ for benchmark and track-generation tooling (CI runs 3.13); `tracks/build_track_from_geojson.py` additionally needs `shapely`
 - `sh` for the convenience scripts
 
 The Java game itself has no third-party dependencies.
@@ -38,13 +38,13 @@ sh ./run_tests.sh
 
 The tests cover direction/index invariants, player-kind parsing, point serialization, track geometry, structural validation of every bundled circuit, and other pure core helpers. Compilation uses `-Xlint:all -Werror`.
 
-The frozen AI2 policy also has deterministic golden-race regression tests:
+The AI also has deterministic golden-race regression tests (eight-car and four-car races whose normalized logs are hashed):
 
 ```bash
 sh ./run_golden_tests.sh
 ```
 
-The AI1 frontier also has deterministic pace, mixed-field safety, field-externality, and staged self-play pace checkpoints:
+And a set of regression pins for pace, mixed-field safety, field externality, and staged self-play pace, for example:
 
 ```bash
 python3 tests/ai1_pace_regression.py
@@ -54,7 +54,7 @@ python3 tests/ai1_staged_pace_regression.py
 python3 tests/ai1_energy_pace_regression.py
 ```
 
-The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10, Zandvoort seed-45, Hungaroring seed-13, and Le Mans four-car seed-1 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the frozen AI2 corpus plus the AI1 frontier checkpoints on JDK 25, and syntax-checks the Python and shell tooling.
+The corpus spans short, long, congested, slow and endgame races, including the Le Mans seed-4, Monaco four-car seed-9, Nurburgring seed-19, Interlagos seed-10, Zandvoort seed-45, Hungaroring seed-13, and Le Mans four-car seed-1 counterexamples. GitHub Actions compiles on JDK 25 and JDK 26, runs the golden corpus plus every regression pin on JDK 25, and syntax-checks the Python and shell tooling.
 
 ## Benchmarks
 
@@ -122,7 +122,7 @@ AI_DEVELOPMENT.md     older-era AI notes (rounds 168-177), kept as history
 BRANCH_ARCHIVE.md     where the deleted development branches stay recoverable
 ```
 
-`RaceAi` holds one promoted champion body: `AI2` delegates to `AI1`, so the two kinds differ only where an experiment is still explicitly gated to `AI1` while it awaits its own promotion. AI changes should be benchmarked against the previous champion and promoted only after the repository's multi-stage regression battery passes.
+`RaceAi` holds one promoted policy; the `AI1` and `AI2` kinds are two labels for it, kept so that an experiment can gate one kind while it is being measured against the other. AI changes are benchmarked against the previous champion on the fleet grid and promoted only when that measurement and the regression battery both pass.
 
 ## License
 

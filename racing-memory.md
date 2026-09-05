@@ -6,6 +6,102 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 223: the second review, and self-play means every AI
+
+The user asked for another bug-and-debloat pass over the codebase. Three
+reviewers over the changed layers (the round-222 AI edits, the game and GUI
+layer after the audit fixes, the Python tooling), every finding re-verified
+here, and every finding that could change a decision given its own fleet
+grid -- the box was free again, so a 730-race grid took fifteen minutes.
+
+FIRST, A CORRECTION TO THE AUDIT ENTRY. Its item 4 said the event thread
+swallows an exception thrown inside invokeLater, so a headless failure hung
+forever; the fix wrapped headless tasks in a catch-and-exit. The reviewer
+probed it: an exception escaping an invokeLater task IS routed to the
+default uncaught-exception handler, which Main installs in headless mode
+and which exits 1 ("HANDLER on AWT-EventQueue-0", exit 1). The wrapper was
+redundant and is removed. The hang mode that does exist is exception-free:
+in GUI mode the daemon marks itself ready even when it failed, the AI's
+compute rethrew on the EDT with no handler, and the status said "Computing
+track reachability..." forever -- the turn now ends the game with the
+message.
+
+DECISION-FREE, SHIPPED (corpus byte-identical: 8 goldens, 22 pins; and the
+base build's own grid identical to the round-222 final on all 730 races):
+  - Restart left the old game playing beside the new one: restartMe never
+    left PLAY, so the dead game's AI turn chain kept running on the EDT,
+    wrote the log over the new game's and popped its dialog on a disposed
+    frame. It leaves PLAY first now, and carries --props / --log / --seed
+    into the new game (before, one Restart lost them and a session on a
+    bench profile wrote it over user.properties again).
+  - --optimal-laps started the reachability daemon and ran the exact search
+    beside it, sharing the unsynchronised fallback edge cache on boards past
+    the dense limit, for a result it never read. It runs before the maps now
+    and rejects a start cell off the course.
+  - Undo restored the start-zone flag but not the drawing; lapClosable is
+    cleared when a drawn track becomes the loaded track, not when "Draw new"
+    is merely chosen; the TRUECONF debug print no longer dereferences null
+    audit arrays; optimalMoveAI2 and the kind dispatch are gone (one entry,
+    one body; the promotion history moved onto optimalMoveAI1's javadoc).
+  - Tooling: 23 files. The log grammar gained TIMEOUT (a timed-out car had
+    stayed a live body in every offline board reconstruction) and a detail
+    field; needle_audit's private regex, which rejected negative landing
+    coordinates, and crash_scan's are gone in favour of parse_move; the six
+    log helpers copied across the pins (150 lines) and four copies of
+    configure_console live in forensics_common; the builders and
+    crash_scan/extract_baseline no longer do work at import time (the
+    Nordschleife builder's loop JSON is committed beside it; the Le Mans
+    builder's docstring records that the committed track is its output
+    after width_normalize); four dead locals; README and AI_DEVELOPMENT
+    wording. crash_scan's output is byte-identical before and after.
+
+MEASURED, each against the decision-free base (730 races, 0 crashes,
+1854134 moves):
+
+  h. SELF-PLAY MEANS EVERY RIVAL RUNS THE ONE POLICY. The self-play gates
+     (certified pace, the equal veto and its retain, the field-acceleration
+     frontier, the private-slack frontier, the staged pace certificate)
+     compared Kind labels, so after the promotion a mixed AI1/AI2 field --
+     the fleet's field -- counted as heterogeneous and kept every one of
+     them off, while an all-AI1 or all-AI2 field had them on. They ask
+     isAi() now; moverKind is gone.
+         seeds 1-10   crashes 0 -> 0   moves -323 (-0.02%)   495 of 730 identical
+                      30 tracks faster, 28 slower, median 0.00%
+         seeds 11-20  crashes 1 -> 1 (the same race)   moves -507 (-0.03%)
+                      502 of 730 identical, 40 tracks faster, 16 slower
+     SHIPPED. The first pace gain since round 216, and it came from making
+     the code mean what it said.
+  i. CANDIDATE ROWS PER ROLLOUT DEPTH. An unsuppressed (true-rival) nested
+     scorer took the outer decision's candidate rows and reset them, so the
+     decision read a rival's trap/pace rows afterwards (the DJS trigger
+     among them); only two of seven sites snapshotted around it. Rows are
+     keyed by simDepth now.
+         crashes 0 -> 0   moves +20   727 of 730 identical (hybrid6 s10 +5,
+         rand6 s3 +7, s9 +8)
+     SHIPPED as a correctness fix at noise cost: no added mechanism, a real
+     hazard removed.
+  j. THE THIN-RIDGE TRUE-RIVAL VERDICT under the confirm depth cap, like
+     every other faithful leg.   730 of 730 identical. SHIPPED: free.
+  k. THE 1-PLY RIVAL PREDICTOR (pureMinTurnsMove, the trap ladder's and the
+     brake proofs' view of a rival) in the rival's own lap frame -- the twin
+     of round 222's B.   730 of 730 identical. SHIPPED: free.
+  l. THE ROLLOUT VANISHES A CAR ONLY ON A FINISHING CROSSING (final lap,
+     nothing owed, its own frame); before, a lap scored or a stray crossing
+     took the car off the board.   moves +0, 725 of 730 identical, two
+     tracks faster and two slower. SHIPPED: free.
+
+THE FINAL BUILD (base + h + i + j + k + l):
+    seeds 1-10 vs the base:   crashes 0 -> 0   moves 1854134 -> 1853792 (-342, -0.02%)
+                              486 of 730 identical, 31 tracks faster, 29 slower
+    seeds 11-20 vs round 222: crashes 1 -> 1 (the same race)   moves 1853701 -> 1853177 (-524, -0.03%)
+                              492 of 730 identical, 41 tracks faster, 16 slower
+    against h alone (1-10): -19 more moves, 714 of 730 identical -- i, j, k, l
+    compose with it at noise cost.
+
+Corpus on the final build: 8 goldens byte-identical and 22 of 22 pins pass
+unchanged -- the self-play gates, now on in mixed fields, never changed a
+pinned race, mixed-roster pins included.
+
 ## Round 222, second part: the audit's defects, one grid each
 
 Same fleet, same discipline as the promotion above: 73 lap tracks x seeds

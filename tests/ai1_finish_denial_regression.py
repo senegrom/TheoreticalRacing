@@ -12,7 +12,6 @@ all-AI1 and the two mixed halves -- must drive the same rescued race, byte
 for byte once the kind labels are normalized away.
 """
 
-import hashlib
 from pathlib import Path
 import re
 import sys
@@ -22,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("hairpin", 68)
 RESCUED = (7, 0, [16, 16, 17, 18, 19, 19, 20])
@@ -38,40 +38,6 @@ RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 19, 6: 18, 7: 19, 8: 19}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 RESCUED_DECISION = "104 p8 AI W v(7,0)→(6,0) (41,6)→(47,6) ok"
 RESCUED_SHA256 = "802fef7f56604ece09ab89ae6bf332d5f858dfd18a8d216e119e8ce7d1f452e4"
-
-
-def race_events(
-    text: str,
-) -> tuple[list[tuple[int, int]], list[tuple[int, int]], dict[int, int]]:
-    moves: dict[int, int] = {}
-    finishers: list[tuple[int, int]] = []
-    crashes: list[tuple[int, int]] = []
-    for line in text.splitlines():
-        match = re.match(r"^(\d+) p(\d+) ", line)
-        if match is None:
-            continue
-        player = int(match.group(2))
-        moves[player] = moves.get(player, 0) + 1
-        if "FINISH" in line:
-            finishers.append((player, moves[player]))
-        if "CRASH" in line:
-            crashes.append((player, moves[player]))
-    return finishers, crashes, moves
-
-
-def normalized_lines(text: str) -> list[str]:
-    return [
-        line.replace("AI1", "AI").replace("AI2", "AI")
-        for line in text.splitlines()
-        if line.startswith("player")
-        or line.startswith("# turns")
-        or line.startswith("# results")
-        or (line and line[0].isdigit())
-    ]
-
-
-def normalized_sha256(text: str) -> str:
-    return hashlib.sha256("\n".join(normalized_lines(text)).encode("utf-8")).hexdigest()
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:
