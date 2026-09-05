@@ -206,6 +206,40 @@ final class TrackGeometry {
 		p.closePath();
 	}
 
+	/** Exact wall intersections on the open run-up (0, until) of a move.
+	 * Integer endpoints are retained; rounding the finish intersection back to
+	 * the lattice would either miss a corner or check beyond the finish. */
+	static boolean segmentCrossesPathBefore(final int x1, final int y1,
+			final int x2, final int y2, final double until, final List<int[]> path) {
+		final double dx = (double) x2 - x1, dy = (double) y2 - y1;
+		final double lengthSquared = dx * dx + dy * dy;
+		if (lengthSquared == 0 || until <= 0)
+			return false;
+		int[] previous = null;
+		for (final int[] point : path) {
+			if (previous != null) {
+				final double bx = (double) point[0] - previous[0];
+				final double by = (double) point[1] - previous[1];
+				final double qx = (double) previous[0] - x1, qy = (double) previous[1] - y1;
+				final double denominator = dx * by - dy * bx;
+				if (denominator != 0) {
+					final double t = (qx * by - qy * bx) / denominator;
+					final double u = (qx * dy - qy * dx) / denominator;
+					if (t > 0 && t < until && u >= 0 && u <= 1)
+						return true;
+				} else if (qx * dy - qy * dx == 0) {
+					final double a = (qx * dx + qy * dy) / lengthSquared;
+					final double b = ((point[0] - (double) x1) * dx
+							+ (point[1] - (double) y1) * dy) / lengthSquared;
+					if (Math.max(0, Math.min(a, b)) < Math.min(until, Math.max(a, b)))
+						return true;
+				}
+			}
+			previous = point;
+		}
+		return false;
+	}
+
 	static boolean segmentCrossesPath(final int[] from, final int[] to, final List<int[]> path) {
 		int[] prev = null;
 		for (final int[] cur : path) {

@@ -7245,3 +7245,42 @@ silverstone seed 93. AI2 remains frozen.
 
 ROUND 171 (direct projected-occupancy maps): exact touched-cell counts replace repeated linear scans of projected opponent positions. The 26-track gate was byte-identical over 3500 races; alternating runtime ratio 0.881500 (11.85% faster).
 Integration hardening records touched-cell membership for the whole clear epoch, preventing remove/re-add cycles from overflowing the touched buffer on supported tiny grids; CoreTests pins a full 3x3 board.
+
+## Review corrections after round 223 — finish rules and trustworthy instruments
+
+The follow-up review fixes the referee's ignored illegal-finish verdict and
+adds pre-finish wall intersection checks (including collinear overlap and
+thin notches). AI terminal shortcuts share that legal-finish predicate;
+no scoring constants or champion heuristics are retuned. Cache semantics 15
+invalidates the changed finish seeds. `RaceGame.evaluateMove` is the common
+side-effect-free referee/oracle transition.
+
+V2 query boards carry lap, next gate and global turn count; legacy missing
+fields have explicit defaults instead of inheriting prior queries. Full
+replay distinguishes LAP/FINISH/CRASH/TIMEOUT, compares full kinematics and
+uses the engine's last-survivor rule. Standalone sim queries initialize
+their own decision frame. Gate-map cycles now test convergence (minimum
+three passes, bounded failure at 128), without changing the robust passage
+rule.
+
+The fleet shell entry point delegates to a Python runner with manifests,
+OS locking, fresh per-attempt logs, complete-result validation and atomic
+completion markers. JVM failures and incomplete results are errors and
+remain retryable; changed build/profile/seed/track/runtime inputs cannot
+reuse old rows. See `docs/replay-protocol.md` and `docs/review-corrections.md`.
+
+The baseline/corrected zigzag comparison explains the only two golden digest
+updates: four former finish moves overlap a wall before the line. Legal
+alternatives preserve both races' total moves and result order. The other
+ten golden fixtures stay unchanged. Dedicated tests cover both thin-notch
+failures, full two-lap replay, query order, exact outcome comparison,
+fixed-point convergence and fleet failure/resume injection. These are
+correctness changes, not a claimed full-fleet pace promotion; the full
+expensive promotion battery is not replaced by the regression corpus.
+
+The private-slack Monza s30/s145 cases each change only one finish vector
+(illegal NW to legal N). Serpentine s38 corrects p3's wall-overlap finish by
+changing its last two approach moves, with a nearby p6 response. All three
+retain every player's move count and finishing order, seven finishes and
+zero crashes. Their digests are updated for the rule correction; summary
+and AI1/AI2 identity assertions remain in place.

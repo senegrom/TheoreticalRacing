@@ -64,11 +64,16 @@ VETO_NORMALIZED_SHA256 = {
     ("spa", 1): "9b9d38ea1a2e6c50f7a425849cba5ef97e0b0ba53726fe15936e0d3c33a433cb",
     ("hungaroring", 40): "ccf16cdccbaf28dc3776272bb19c5a85065974d19d56ae1aeb0aa43533daa31b",
     ("interlagos", 47): "b822d5313a6811e2bc5dd1ca0eaf9a41578b0be6e5e724342f64a00e36d08b2f",
-    ("monza", 30): "e4ca6f93f4cfc634305b0bc3b0d85479d885cd459eec47ae857af895c4ea4c0e",
+    # Referee correction: turn 647 p5 N replaces an illegal NW finish;
+    # every earlier move, race total and finishing place is unchanged.
+    ("monza", 30): "67f129625462d644791f43c3dd876b61342b70fe88f3279bb4f12a8279793826",
     ("monaco", 35): "221d2f4d45c38eb9a4b4676dd3bcb1d0018a03be0147326e9555a4a5f7b7541c",
     ("zandvoort", 34): "fd46bc1213512c6acaafa7e7783fad19db44667bcc84dad0fcb69b8d68acec58",
-    ("monza", 145): "e020fc3c4ceefcc7987d4d5529c6be5b250553f9ead7e433ac3223d89d3fc753",
-    ("serpentine", 38): "e081392cf11674acbbf839eebb301ed78f3d18670ae710ec036893dba30f2f22",
+    # Same illegal finishing vector at turn 640; legal N preserves all counters.
+    ("monza", 145): "7586919cad80d61aa99cdcc4f961305df47aebbcbd95b9a96f08f5ea8fe32713",
+    # Reject p3's wall-overlap finish at turn 819: its last two approach moves
+    # and p6's nearby response move, but the full field's outcome counters do not.
+    ("serpentine", 38): "82de9001dbb13f1ee6fce99387032658ac199c9dc977f3ca05e679e48bd44b0a",
 }
 
 

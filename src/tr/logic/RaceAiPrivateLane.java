@@ -302,7 +302,7 @@ final class RaceAiPrivateLane {
 						if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 							continue;
 						final int nx = x + nvx, ny = y + nvy;
-						if (game.crossesFinish(x, y, nx, ny))
+						if (game.crossesFinishLegally(x, y, nx, ny))
 							continue;
 						if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 							continue;
@@ -350,7 +350,7 @@ final class RaceAiPrivateLane {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinishLegally(x, y, nx, ny))
 				return requiredEscapes;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
@@ -374,7 +374,7 @@ final class RaceAiPrivateLane {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinish(x, y, nx, ny))
+			if (game.crossesFinishLegally(x, y, nx, ny))
 				return true;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;

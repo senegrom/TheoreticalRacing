@@ -79,7 +79,11 @@ sh tracks/fleet_grid.sh                 # seeds 1-10, one job per core
 RACING_TRACKS=rand19,cog sh tracks/fleet_grid.sh 11-20 8
 ```
 
-It writes one `<track> <seed> fin= crash= timeout= moves=` row per race plus a `FLEETDONE` summary line, skips tracks that already have a row (so an interrupted grid resumes), and marks courses without lap gates `NOLOOP`. `RACING_JAR`, `RACING_JAVA`, `RACING_PROPS` and `RACING_HEAP` point it at a different build, JVM, race shape or heap.
+It writes one `<track> <seed> fin= crash= timeout= moves=` row per race plus a `FLEETDONE` summary line. The Python runner behind the shell entry point validates every completed log, publishes completion markers atomically, and returns nonzero on a failed JVM, missing result or timeout. Only successfully completed, validated courses without lap gates are marked `NOLOOP`.
+
+Use a separate output directory for each experiment, for example `sh tracks/fleet_grid.sh 11-20 2 /tmp/fleet-candidate-s11-20`. Resuming the **same** command validates its manifest and log hashes; failed or incomplete tracks are retried. The manifest binds the results to the JAR, properties, track data, exact seeds, runner and Java runtime/options. A changed experiment or an old unmanifested output directory is rejected rather than silently reused. Aggregation includes only the selected tracks, and an OS lock prevents two writers from sharing an output directory.
+
+`RACING_JAR`, `RACING_JAVA`, `RACING_PROPS` and `RACING_HEAP` select the build, JVM, race shape and heap. `RACING_TRACKS` selects a comma/space-separated subset from the tracks beside the selected JAR. `RACING_TIMEOUT` bounds each track batch in seconds (default 3600). Choose concurrency to fit available memory: the default heap is 8 GB **per JVM**, not for the entire work queue.
 
 `tracks/bench_ai.py` creates an isolated temporary properties/log directory, so benchmarks do not mutate a developer's `user.properties`. Use `--seed-start 6 --seeds 5` for seeds 6–10.
 
@@ -92,6 +96,12 @@ python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans h
 ```
 
 For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [racing-memory.md](racing-memory.md) for the campaign ledger -- every round's measurements, the instruments and the current frontier; [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) keeps the older-era notes.
+
+## Replay and rule-contract tests
+
+`python3 tests/query_replay_regression.py` records a two-lap race and replays every move through the versioned oracle, including standalone simulation queries and query-order isolation. It runs in CI alongside the existing goldens and champion pins. The core tests include illegal finish approaches, checkpoint transitions and convergence guards; the tooling tests inject failed JVMs, stale logs, interrupted runs and mismatched replay outcomes.
+
+`tracks/oracle_roll.py` and `tracks/needle_audit.py` carry complete lap/gate state. Set `RACING_PROPS` to the recorded roster and lap profile before replaying. The legacy five-field protocol is retained with explicit first-lap defaults; it is not a full multi-lap snapshot. Older diagnostics using incomplete reconstruction reject multi-lap logs instead of silently dropping progress. See [docs/replay-protocol.md](docs/replay-protocol.md) for V2 and [docs/review-corrections.md](docs/review-corrections.md) for the finish-rule and golden-fixture changes.
 
 ## How to play
 

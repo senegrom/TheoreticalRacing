@@ -29,10 +29,12 @@ import pathlib
 import sys
 
 if __package__:
+    from .oracle_roll import apply_move
     from .forensics_common import (
         DIRNAMES, DIRS, Oracle, configure_console, log_player_count, parse_move, reconstruct_board,
     )
 else:
+    from oracle_roll import apply_move
     from forensics_common import (
         DIRNAMES, DIRS, Oracle, configure_console, log_player_count, parse_move, reconstruct_board,
     )
@@ -80,15 +82,14 @@ def main(argv=None) -> int:
         for mv in window:
             gm, ovx, ovy, nvx, nvy = mv.index, mv.old_vx, mv.old_vy, mv.new_vx, mv.new_vy
             x, y, nx, ny, status = mv.x, mv.y, mv.new_x, mv.new_y, mv.status
-            cars, mover, _ = reconstruct_board(log, gm, n)
+            cars, mover, _ = reconstruct_board(log, gm, n, complete=True)
             _, _, mask = oracle.ask(mover, cars)
             open_ = mask.count('A')
             chosen_i = DIRS.index((nvx - ovx, nvy - ovy))
             chosen_cls = mask[chosen_i]
             thread = '-'
             if chosen_cls in 'AD':
-                hyp = list(cars)
-                hyp[mover] = (nx, ny, nvx, nvy, 0)
+                hyp, _ = apply_move(cars, mover, nvx - ovx, nvy - ovy, mask)
                 _, _, mask2 = oracle.ask(mover, hyp)
                 thread = str(mask2.count('A'))
                 if first_narrow is None and mask2.count('A') <= 1:

@@ -330,11 +330,8 @@ final class Reachability {
 		// Build 2 -> 1 -> 0, each seed requiring the next map finite at the
 		// landing; iterate to a fixpoint to close the cycle (2 needs 0).
 		gateTurns = new int[3][];
-		for (int pass = 0; pass < 3; pass++) {
-			gateTurns[2] = computeGateMap(2, gates[2], gateTurns[0]);
-			gateTurns[1] = computeGateMap(1, gates[1], gateTurns[2]);
-			gateTurns[0] = computeGateMap(0, gates[0], gateTurns[1]);
-		}
+		GateFixedPoint.converge(gateTurns,
+				(gate, next) -> computeGateMap(gate, gates[gate], next), Arrays::equals, 128);
 		// Round 210: the robust reach sets, same product cycle, second-arrival
 		// BFS. A robust seed's landing must be in the NEXT gate's robust set,
 		// so the whole lap cycle is 1-fault-tolerant. The BFS distances are
@@ -343,11 +340,9 @@ final class Reachability {
 		{
 			final int[] scratch = new int[turnsArr.length];
 			final byte[] arrivals = new byte[turnsArr.length];
-			for (int pass = 0; pass < 3; pass++) {
-				robustReach[2] = computeRobustReach(2, gates[2], robustReach[0], scratch, arrivals);
-				robustReach[1] = computeRobustReach(1, gates[1], robustReach[2], scratch, arrivals);
-				robustReach[0] = computeRobustReach(0, gates[0], robustReach[1], scratch, arrivals);
-			}
+			GateFixedPoint.converge(robustReach,
+					(gate, next) -> computeRobustReach(gate, gates[gate], next, scratch, arrivals),
+					BitSet::equals, 128);
 		}
 		// Round 209: coherent alive. The finish BFS seeds from every forward
 		// crossing as a terminal (laps=1 semantics: the final crossing
@@ -1307,7 +1302,7 @@ final class Reachability {
 	 *  Round 215 changed the alive seed for every course but bumped only the
 	 *  lap branch's suffix, so pre-215 point-to-point caches were still read.
 	 *  Bump this whenever the BFS or its seeds change meaning. */
-	private static final String CACHE_SEMANTICS = "14";
+	private static final String CACHE_SEMANTICS = "15";
 	// TRC2 appends a CRC32 so valid-looking, same-size corruption cannot alter AI decisions.
 	private static final int CACHE_MAGIC = 0x54524332; // "TRC2"
 	private static final int CACHE_HEADER_BYTES = 4 * Integer.BYTES;

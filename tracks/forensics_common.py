@@ -175,27 +175,86 @@ def log_player_count(log):
     return count
 
 
-def reconstruct_board(log, target, player_count=8):
+class ReplayBoard(list):
+    """A complete oracle board plus its race clock/profile. Legacy callers may
+    still use five-field cars; full replay explicitly requests seven fields."""
+
+    def __init__(self, cars=(), *, laps=1, turns=0, complete=False):
+        super().__init__(cars)
+        self.laps = laps
+        self.turns = turns
+        self.complete = complete
+
+    def copy(self):
+        return ReplayBoard(self, laps=self.laps, turns=self.turns, complete=self.complete)
+
+
+class Transition(NamedTuple):
+    status: str
+    lap: int
+    gate: int
+    checkpoints: int
+
+
+class CandidateMask(str):
+    def __new__(cls, value, transitions, laps):
+        result = super().__new__(cls, value)
+        result.transitions = tuple(transitions)
+        result.laps = laps
+        return result
+
+
+def parse_v2_answer(line, laps):
+    parts = line.strip().split(';')
+    if len(parts) != 4 or parts[0] != 'v2':
+        raise ValueError('malformed V2 oracle answer')
+    direction = tuple(int(v) for v in parts[1].split(','))
+    if direction not in DIRS or not re.fullmatch(r'[FXBDAT]{9}', parts[2]):
+        raise ValueError('invalid V2 oracle direction/mask')
+    transitions = []
+    for symbol, token in zip(parts[2], parts[3].split('|')):
+        fields = token.split(',')
+        if len(fields) != 4:
+            raise ValueError('malformed V2 transition')
+        status, lap, gate, checkpoints = fields
+        t = Transition(status, int(lap), int(gate), int(checkpoints))
+        allowed = {'F': ('FINISH',), 'X': ('CRASH',), 'B': ('CRASH',),
+                   'T': ('TIMEOUT',), 'A': ('OK', 'LAP'), 'D': ('OK', 'LAP')}
+        if status not in allowed[symbol] or not (0 <= t.lap <= laps and 0 <= t.gate <= 2
+                                                and 0 <= t.checkpoints <= 3):
+            raise ValueError('inconsistent V2 transition')
+        transitions.append(t)
+    if len(transitions) != 9 or len(parts[3].split('|')) != 9:
+        raise ValueError('V2 answer must contain exactly nine transitions')
+    return direction[0], direction[1], CandidateMask(parts[2], transitions, laps)
+
+
+def reconstruct_board(log, target, player_count=8, *, complete=False):
     """Return the board immediately before global move ``target``.
 
     The result is ``(cars, mover, real_moves)``.  Each car is
-    ``(x, y, vx, vy, fate)``, where fate is 0 for live, 90 for finished or
-    timed out, and 99 for crashed. ``mover`` is zero-based; ``real_moves`` contains parsed
+    ``(x, y, vx, vy, fate)``, or with complete=True additionally ``lap, gate``.
+    Fate is 0 for live, 90 for finished or timed out, and 99 for crashed. ``mover`` is zero-based; ``real_moves`` contains parsed
     log moves from the target onward.
     """
     cars = [None] * player_count
+    laps = 1
     mover = None
     real_moves = []
 
     with open(log, encoding="utf-8", errors="replace") as lines:
         for line in lines:
+            if line.startswith('# laps '):
+                laps = int(line.split()[2])
+                if laps > 1 and not complete:
+                    raise ValueError('multi-lap replay requires complete=True (use oracle_roll)')
             start = START_LINE.match(line)
             if start is not None:
                 player = int(start.group(1))
                 if 1 <= player <= player_count:
                     cars[player - 1] = [
                         int(start.group(2)), int(start.group(3)), 0, 0, 0
-                    ]
+                    ] + ([0, 1] if complete else [])
                 continue
 
             move = parse_move(line)
@@ -210,6 +269,18 @@ def reconstruct_board(log, target, player_count=8):
             index = move.player - 1
             if not (0 <= index < player_count) or cars[index] is None:
                 raise ValueError("move references an uninitialized player")
+            progress = cars[index][5:] if complete else []
+            if complete:
+                if 'cp1' in move.detail.split():
+                    progress[1] = 2
+                if 'cp2' in move.detail.split():
+                    progress[1] = 0
+                if move.status.startswith('LAP '):
+                    lap, total = map(int, move.status.split()[1].split('/'))
+                    if total != laps:
+                        raise ValueError('log lap event disagrees with its profile')
+                    progress = [lap, 1]
+                cars[index][5:] = progress
             if move.status == "CRASH":
                 cars[index][4] = 99
             elif move.status in ("FINISH", "TIMEOUT"):
@@ -217,13 +288,16 @@ def reconstruct_board(log, target, player_count=8):
             else:
                 cars[index] = [
                     move.new_x, move.new_y, move.new_vx, move.new_vy, 0
-                ]
+                ] + progress
+            if complete and move.status in ('CRASH', 'FINISH', 'TIMEOUT'):
+                cars[index][:4] = [-100000, -100000, 0, 0]
 
     if mover is None:
         raise ValueError("move %d was not found in %s" % (target, log))
     if any(car is None for car in cars):
         raise ValueError("log does not initialize all %d players" % player_count)
-    return [tuple(car) for car in cars], mover, real_moves
+    return ReplayBoard((tuple(car) for car in cars), laps=laps, turns=target - 1,
+                       complete=complete), mover, real_moves
 
 
 class Oracle:
@@ -249,9 +323,12 @@ class Oracle:
         """Return ``(dx, dy, mask)`` for a zero-based mover and car board."""
         if self.proc.stdin is None or self.proc.stdout is None:
             raise RuntimeError("oracle pipes are unavailable")
-        query = str(mover) + ";" + ";".join(
-            "%d,%d,%d,%d,%d" % tuple(car) for car in cars
-        )
+        complete = isinstance(cars, ReplayBoard) and cars.complete
+        header = ('v2,%d,%d,%d' % (mover, cars.turns, cars.laps)) if complete else str(mover)
+        expected = 7 if complete else 5
+        if any(len(car) != expected for car in cars):
+            raise ValueError('oracle board has incomplete or mixed-version car states')
+        query = header + ';' + ';'.join(','.join(str(v) for v in car) for car in cars)
         self.proc.stdin.write(query + "\n")
         self.proc.stdin.flush()
         self.asks += 1
@@ -259,8 +336,14 @@ class Oracle:
             line = self.proc.stdout.readline()
             if not line:
                 raise RuntimeError("oracle died while answering query")
+            if line.startswith('v2;'):
+                if not complete:
+                    raise ValueError('unexpected V2 reply to a legacy query')
+                return parse_v2_answer(line, cars.laps)
             answer = ORACLE_ANSWER.fullmatch(line.strip())
             if answer is not None:
+                if complete:
+                    raise ValueError('legacy oracle cannot replay complete lap state')
                 return int(answer.group(1)), int(answer.group(2)), answer.group(3)
 
     def close(self):

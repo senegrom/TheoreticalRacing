@@ -679,6 +679,11 @@ public final class RaceGame {
 		}
 		if (u >= 1.0)
 			return isMoveLegalGeometry(x1, y1, x2, y2);
+		// Sampling alone misses arbitrarily thin notches between two probes.
+		// Test the actual walls, strictly before the finish, without rounding.
+		if (TrackGeometry.segmentCrossesPathBefore(x1, y1, x2, y2, u, track.getLeft())
+				|| TrackGeometry.segmentCrossesPathBefore(x1, y1, x2, y2, u, track.getRight()))
+			return false;
 		if (!containsTrackOrStart(x1, y1))
 			return false;
 		final double ex = x1 + u * sx, ey = y1 + u * sy;
@@ -1337,6 +1342,53 @@ public final class RaceGame {
 		rui.setPrePath(prePath);
 	}
 
+	/** Side-effect-free referee result, shared by live play and the move oracle.
+	 * Only a legal move earns checkpoint, lap or finish credit. The portion
+	 * AFTER the race-ending finish remains exempt from landing/body checks. */
+	static record MoveResult(boolean legal, boolean geometryLegal, boolean finishes,
+			boolean lapCross, boolean passCp1, boolean passCp2, int lapAfter, int gateAfter) {}
+
+	MoveResult evaluateMove(final Player player, final int[] pos, final int[] newpos) {
+		int gate = player.getNextGate();
+		final boolean cp1 = lapGates != null && gate == 1
+				&& touchesGate(1, pos[0], pos[1], newpos[0], newpos[1]);
+		if (cp1)
+			gate = 2;
+		final boolean cp2 = lapGates != null && gate == 2
+				&& touchesGate(2, pos[0], pos[1], newpos[0], newpos[1]);
+		if (cp2)
+			gate = 0;
+		final boolean crossing = crossesFinish(pos[0], pos[1], newpos[0], newpos[1])
+				&& (lapGates == null || gate == 0);
+		final boolean finishing = crossing && player.getLap() + 1 >= totalLaps;
+		final boolean geometryLegal = finishing
+				? finishRunUpLegal(pos[0], pos[1], newpos[0], newpos[1])
+				: isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1]);
+		final boolean legal = geometryLegal && (finishing
+				|| !isCrashingPlayer(newpos[0], newpos[1], player.getNumber()));
+		if (!legal)
+			return new MoveResult(false, geometryLegal, false, false, false, false,
+					player.getLap(), player.getNextGate());
+		return new MoveResult(true, true, finishing, crossing, cp1, cp2,
+				player.getLap() + (crossing && !finishing ? 1 : 0),
+				crossing && !finishing ? 1 : gate);
+	}
+
+	/** AI terminal shortcuts must obey the same pre-finish wall rule. */
+	boolean crossesFinishLegally(final int x1, final int y1, final int x2, final int y2) {
+		return crossesFinish(x1, y1, x2, y2) && finishRunUpLegal(x1, y1, x2, y2);
+	}
+
+	boolean raceTurnLimitReached() {
+		return lapGates != null && turnCounter > (long) totalLaps * 750 * players.length;
+	}
+
+	void setQueryTurnCounter(final int turns) {
+		if (turns < 0)
+			throw new IllegalArgumentException("Query turn count must be non-negative");
+		turnCounter = turns;
+	}
+
 	private void commitMove(final int[] pos, final int[] vel, final int[] newpos) {
 		final Player player = players[subgamestate];
 		final int[] velBefore = player.getVelocity().clone();
@@ -1345,7 +1397,7 @@ public final class RaceGame {
 		// VM limit. The cap scales with the field (it counts TOTAL moves), and
 		// a capped car logs TIMEOUT, not CRASH -- benchmark metrics must not
 		// confuse slow traffic with wrecks.
-		if (lapGates != null && turnCounter > (long) totalLaps * 750 * players.length) {
+		if (raceTurnLimitReached()) {
 			dispMessage(player.getName() + " retires (race turn limit).");
 			logMove(player, directionOf(player.getVelocity(), vel), player.getVelocity().clone(),
 					pos, vel, newpos, "TIMEOUT place=" + (players.length - finishedLast));
@@ -1356,34 +1408,12 @@ public final class RaceGame {
 			advanceToNextPlayer();
 			return;
 		}
-		final boolean crosses = crossesFinish(pos[0], pos[1], newpos[0], newpos[1]);
-		// Multi-lap checkpoint order: CP1 -> CP2 -> S/F. A checkpoint touch
-		// (direction-free) merely advances the gate; only a gate-complete S/F
-		// crossing counts as a lap. Stray S/F crossings while a checkpoint is
-		// still owed are ordinary moves.
-		String cpMark = "";
-		int gateAfter = player.getNextGate();
-		boolean passCp1 = false, passCp2 = false;
-		if (lapGates != null) {
-			if (gateAfter == 1 && segTouches(lapGates[1], pos, newpos)) {
-				gateAfter = 2;
-				passCp1 = true;
-				cpMark = " cp1";
-			}
-			if (gateAfter == 2 && segTouches(lapGates[2], pos, newpos)) {
-				gateAfter = 0;
-				passCp2 = true;
-				cpMark = cpMark + " cp2";
-			}
-		}
-		final boolean lapCross = crosses
-				&& (lapGates == null || gateAfter == 0);
-		final boolean finishes = lapCross && player.getLap() + 1 >= totalLaps;
-		// A non-final crossing continues the race, so unlike the final one it
-		// must also be an ordinarily legal move (landing on track, no body).
-		final boolean legal = finishes
-				? finishRunUpLegal(pos[0], pos[1], newpos[0], newpos[1])
-				: isMoveLegal(pos, newpos, player.getNumber());
+		final MoveResult result = evaluateMove(player, pos, newpos);
+		final boolean legal = result.legal();
+		final boolean finishes = result.finishes();
+		final boolean lapCross = result.lapCross();
+		final boolean passCp1 = result.passCp1(), passCp2 = result.passCp2();
+		final String cpMark = (passCp1 ? " cp1" : "") + (passCp2 ? " cp2" : "");
 
 		if (!legal && !player.isAi()) {
 			final int answer = JOptionPane.showConfirmDialog(gameFrame.getDialogParent(),
@@ -1788,146 +1818,9 @@ public final class RaceGame {
 		saveTrackToProperties();
 	}
 
-	/** Answer AI-move queries (DAgger). Each line sets the whole board, and we
-	 *  reply with the champion AI's chosen move for the named mover. The AI is a
-	 *  pure function of the board + the (track-level) reachability map, so queries
-	 *  are independent -- no state carries between them. */
+	/** Answer versioned, independent move queries using the live referee. */
 	private void processQueries(final String inPath, final String outPath) {
-		// "-" as the input path switches to interactive stdin/stdout mode (one
-		// answer per query line, flushed) so a driver can roll positions
-		// SEQUENTIALLY against one JVM instead of paying the reachability BFS
-		// per query batch. Replies are "dx,dy;MMMMMMMMM" -- the mover's chosen
-		// move plus a 9-char candidate mask in Direction.values() order
-		// (NW,N,NE,W,NONE,E,SW,S,SE): F crosses finish, X illegal (speed cap or
-		// geometry), B live body on the cell, D landing state cannot finish
-		// (reachability-dead), A alive. The mask is what lets an offline roller
-		// apply moves with the game's exact crash rules.
-		final boolean interactive = "-".equals(inPath);
-		try (java.io.BufferedReader br = interactive
-				? new java.io.BufferedReader(new java.io.InputStreamReader(System.in))
-				: java.nio.file.Files.newBufferedReader(java.nio.file.Path.of(inPath));
-				java.io.BufferedWriter bw = interactive
-						? new java.io.BufferedWriter(new java.io.OutputStreamWriter(System.out))
-						: java.nio.file.Files.newBufferedWriter(java.nio.file.Path.of(outPath))) {
-			String line;
-			while ((line = br.readLine()) != null) {
-				line = line.trim();
-				if (line.isEmpty())
-					continue;
-				if ("quit".equals(line))
-					break;
-				if (line.length() > 8192)
-					throw new IllegalArgumentException("Query line is too long");
-				final String[] parts = line.split(";", -1);
-				if (parts.length != players.length + 1)
-					throw new IllegalArgumentException("Query must contain exactly " + players.length + " player groups");
-				// Round 103: "sim,<mover>,<rounds>,<world>,<cap>" header runs the
-				// in-game joint rollout instead of a move query -- me already AT
-				// the queried landing in the board groups. world: smom | scorer |
-				// true (scorer-set rivals unsuppressed). Reply "V=<verdict>";
-				// SIMTRACE step lines go to stderr for line-by-line diffing
-				// against the offline Python roll.
-				if (parts[0].startsWith("sim,")) {
-					final String[] h = parts[0].split(",", -1);
-					final int smover = Integer.parseInt(h[1].trim());
-					final int srounds = Integer.parseInt(h[2].trim());
-					final String world = h[3].trim();
-					final int scap = Integer.parseInt(h[4].trim());
-					for (int i = 0; i < players.length; i++) {
-						final String[] f = parts[i + 1].split(",", -1);
-						players[i].setPosition(new int[]{Integer.parseInt(f[0].trim()),
-								Integer.parseInt(f[1].trim()) });
-						players[i].setVelocity(new int[]{Integer.parseInt(f[2].trim()),
-								Integer.parseInt(f[3].trim()) });
-						players[i].setFinishedPlace(Integer.parseInt(f[4].trim()));
-					}
-					subgamestate = smover;
-					ai.simTrace = true;
-					final int verdict;
-					final int[] audit = new int[3];
-					try {
-						verdict = ai.querySimOutcome(smover, srounds,
-								!"smom".equals(world), "true".equals(world), false, scap, audit);
-					} finally {
-						ai.simTrace = false;
-					}
-					System.err.flush();
-					bw.write("V=" + verdict + ";tier=" + audit[0] + ";thread=" + audit[1]
-							+ ";snug=" + audit[2]);
-					bw.newLine();
-					bw.flush();
-					continue;
-				}
-				final int mover = Integer.parseInt(parts[0].trim());
-				if (mover < 0 || mover >= players.length)
-					throw new IllegalArgumentException("Mover index out of range: " + mover);
-				final long[] liveCells = new long[players.length];
-				int liveCount = 0;
-				for (int i = 0; i < players.length; i++) {
-					final String[] f = parts[i + 1].split(",", -1);
-					if (f.length != 5 && f.length != 6)
-						throw new IllegalArgumentException("Player " + i + " query group must contain x,y,vx,vy,finished[,gate]");
-					final int x = Integer.parseInt(f[0].trim());
-					final int y = Integer.parseInt(f[1].trim());
-					final int vx = Integer.parseInt(f[2].trim());
-					final int vy = Integer.parseInt(f[3].trim());
-					final int finished = Integer.parseInt(f[4].trim());
-					if (finished < 0)
-						throw new IllegalArgumentException("Finished marker must be non-negative");
-					if (aiVelocityOutOfRange(vx, vy))
-						throw new IllegalArgumentException("Query velocity outside AI planning domain");
-					if (finished == 0) {
-						if (x < 0 || y < 0 || x > gameCols || y > gameRows)
-							throw new IllegalArgumentException("Live player position outside grid");
-						final long cell = (long) x << 32 | y & 0xffffffffL;
-						for (int j = 0; j < liveCount; j++)
-							if (liveCells[j] == cell)
-								throw new IllegalArgumentException("Two live players occupy the same cell");
-						liveCells[liveCount++] = cell;
-					}
-					players[i].setPosition(new int[]{x, y });
-					players[i].setVelocity(new int[]{vx, vy });
-					players[i].setFinishedPlace(finished);
-					// Round 210 forensics: an optional 6th field sets the lap gate
-					// (0=S/F, 1=CP1, 2=CP2) so a multi-lap board replays faithfully.
-					if (f.length == 6 && lapGates != null)
-						players[i].setNextGate(Integer.parseInt(f[5].trim()));
-				}
-				if (players[mover].isFinished())
-					throw new IllegalArgumentException("Mover is already finished");
-				subgamestate = mover;
-				final Direction d = ai.computeAiMove();
-				final Player me = players[mover];
-				final int[] mp = me.getPosition(), mv = me.getVelocity();
-				final StringBuilder mask = new StringBuilder(9);
-				for (final Direction cd : DIRECTIONS) {
-					final int nvx = mv[0] + cd.dx, nvy = mv[1] + cd.dy;
-					final int nx = mp[0] + nvx, ny = mp[1] + nvy;
-					final char c;
-					if (aiVelocityOutOfRange(nvx, nvy))
-						c = 'X';
-					else if (crossesFinish(mp[0], mp[1], nx, ny))
-						c = 'F';
-					else if (!isMoveLegalGeometryCached(mp[0], mp[1], nx, ny))
-						c = 'X';
-					else if (isCrashingPlayer(nx, ny, me.getNumber()))
-						c = 'B';
-					else if (!reach.isAlive(nx, ny, nvx, nvy))
-						c = 'D';
-					else
-						c = 'A';
-					mask.append(c);
-				}
-				bw.write(d.dx + "," + d.dy + ";" + mask);
-				bw.newLine();
-				bw.flush();
-			}
-		} catch (final java.io.IOException e) {
-			e.printStackTrace();
-			System.exit(3);
-		}
-		if (!interactive)
-			System.out.println("answered queries -> " + outPath);
+		MoveQueries.process(this, inPath, outPath);
 	}
 
 	private void saveTrackToProperties() {

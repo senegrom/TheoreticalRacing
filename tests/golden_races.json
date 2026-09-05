@@ -28,7 +28,7 @@
       "track": "zigzag",
       "seed": 4,
       "players": 8,
-      "sha256": "aeff4d965d49ee9986e14e2bf502f610ff714f798bfe6eef6e628bf2ed69f13c",
+      "sha256": "1eb6b01083b9198345a5db4ea2b0cb81761fc9d0e0bbde4020f9492faccb5e41",
       "summary": {
         "turns": 532,
         "finishes": 7,
@@ -194,7 +194,7 @@
       "track": "zigzag",
       "seed": 22,
       "players": 8,
-      "sha256": "60b743070aefeec7e1c257bc5da9564213a04133ccfcaa6314e7512aa7b7fd63",
+      "sha256": "728bf5ff6ed5031fba1fc89418b1e4b2bac405319e3bde5f1395ff1324b4df92",
       "summary": {
         "turns": 528,
         "finishes": 7,
