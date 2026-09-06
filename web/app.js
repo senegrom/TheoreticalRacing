@@ -1,5 +1,5 @@
-import {Engine} from './engine.js?v=3';
-import {Activity} from './activity.js?v=3';
+import {Engine} from './engine.js?v=4';
+import {Activity} from './activity.js?v=4';
 import {Board} from './board.js';
 
 const $ = id => document.getElementById(id);
@@ -25,6 +25,7 @@ const preview = new Board($('track-preview'));
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 function notice(text = '') { $('notice-text').textContent = text; $('notice').hidden = !text; }
+$('keep-waiting').addEventListener('click', () => engine?.keepWaiting());
 $('dismiss-notice').addEventListener('click', () => notice());
 function human() { return state?.phase === 'PLAY' && state.players[state.current]?.kind === 'HUMAN'; }
 function modalOpen() { return $('setup').open || $('instructions').open || $('installation').open; }
@@ -311,6 +312,7 @@ $('setup-form').addEventListener('submit', async e => {
   $('export').disabled = true; document.body.dataset.turn = '0';
   const current = new Engine((text, progress) => {
     if (token !== generation) return;
+    if (typeof progress?.stalled === 'boolean') { activity.setStalled(progress.stalled); return; }
     if (progress?.failure) { failed = true; notice(progress.failure); render(); return; }
     if (text) { bootStatus = text; $('status').textContent = text; }
     if (progress) preparation = progress;

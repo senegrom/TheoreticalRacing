@@ -8,6 +8,8 @@ export class Activity {
     this.slow = root.querySelector('[data-work-slow]');
     this.bar = root.querySelector('progress');
     this.key = '';
+    this.warning = root.querySelector('[data-work-stalled]');
+    this.continueButton = root.querySelector('#keep-waiting');
   }
   show(key, label, progress = null) {
     if (this.key !== key) {
@@ -33,12 +35,18 @@ export class Activity {
     this.bar.setAttribute('aria-label', phase);
     this.clock();
   }
+  setStalled(stalled) {
+    this.warning.hidden = !stalled;
+    this.continueButton.hidden = !stalled;
+    this.root.dataset.stalled = String(stalled);
+  }
   clock() {
     const seconds = Math.floor((performance.now() - this.started) / 1000);
     this.elapsed.textContent = seconds < 60 ? `${seconds}s elapsed` : `${Math.floor(seconds / 60)}m ${seconds % 60}s elapsed`;
     this.slow.hidden = seconds < 15;
   }
   hide() {
+    this.setStalled(false);
     this.key = '';
     clearInterval(this.timer);
     this.root.hidden = true;

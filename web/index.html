@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="./icons/racing-apple-167-v3.png" sizes="167x167">
   <link rel="apple-touch-icon" href="./icons/racing-apple-180-v3.png" sizes="180x180">
   <link rel="manifest" href="./manifest.webmanifest?v=3">
-  <link rel="stylesheet" href="./app.css?v=3">
+  <link rel="stylesheet" href="./app.css?v=4">
 </head>
 <body>
   <a class="skip-link" href="#race-controls">Skip to race controls</a>
@@ -33,9 +33,11 @@
       <div class="work-description"><strong data-work-label role="status" aria-live="polite"></strong>
         <span data-work-detail></span>
         <progress max="1" aria-label="Engine progress"></progress>
+        <span data-work-stalled role="status" hidden>No new progress has been reported recently. The engine may still be working; your race has not been stopped.</span>
         <span data-work-slow hidden>No completion estimate is available. You can stop this race without reloading the page.</span>
       </div>
       <span data-work-elapsed class="work-elapsed"></span>
+      <button id="keep-waiting" type="button" hidden>Keep waiting</button>
       <button id="stop-work" type="button">Stop race</button>
     </section>
     <div class="race-layout">
@@ -58,7 +60,7 @@
         <section class="card"><span class="eyebrow">The field</span><ol id="standings" aria-label="Drivers"></ol></section>
       </aside>
     </div>
-    <footer>Rules, geometry and AI run locally in Java. <a href="https://github.com/senegrom/TheoreticalRacing/tree/browser" target="_blank" rel="noopener">Source · AGPL-3.0</a> <span>Powered by <a href="https://cheerpj.com" target="_blank" rel="noopener">CheerpJ</a> · runtime downloaded on first use.</span></footer>
+    <footer>Rules, geometry and AI run locally in Java. <a href="https://github.com/senegrom/TheoreticalRacing/tree/master" target="_blank" rel="noopener">Source · AGPL-3.0</a> <a href="./source.tar.gz" download>Source for this build</a> <span>Powered by <a href="https://cheerpj.com" target="_blank" rel="noopener">CheerpJ</a> · runtime downloaded on first use.</span></footer>
   </main>
   <dialog id="setup" aria-labelledby="setup-title">
     <form id="setup-form"><div class="dialog-head"><div><span class="eyebrow">Build your race</span><h2 id="setup-title">A circuit. A vector. A finish line.</h2></div><button type="button" id="close-setup" aria-label="Close race setup">×</button></div>
@@ -80,5 +82,5 @@
     <p class="hint">Installation is a shortcut to this web app, not an offline download. Internet access is needed to load the Java runtime. An active race is not saved when you reload or leave this page.</p>
   </dialog>
   <noscript><p>JavaScript is required to run the racing engine in your browser.</p></noscript>
-  <script type="module" src="./app.js?v=3"></script>
+  <script type="module" src="./app.js?v=4"></script>
 </body></html>

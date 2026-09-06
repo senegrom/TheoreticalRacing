@@ -13,6 +13,7 @@ import sys
 import threading
 
 from playwright.sync_api import sync_playwright
+from live_revision import wait_for_revision
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'tests'))
@@ -33,7 +34,11 @@ def main():
     parser.add_argument('--browser', choices=['chromium', 'webkit'], default='chromium')
     parser.add_argument('--ui-only', action='store_true')
     parser.add_argument('--url', help='Test an already deployed site instead of the local build')
+    parser.add_argument('--expected-sha', help='Required with --url: the tested commit')
+    parser.add_argument('--expected-repository', default='senegrom/TheoreticalRacing')
     args = parser.parse_args()
+    if args.url and not args.expected_sha:
+        parser.error('--url requires --expected-sha; testing an unknown old deployment is not sufficient')
     out = ROOT / 'web/build/browser-tests' / args.browser
     out.mkdir(parents=True, exist_ok=True)
     server = None
@@ -55,7 +60,17 @@ def main():
         page.set_default_timeout(30_000)
         try:
             page.add_init_script("window.workReports=[]; new MutationObserver(()=>{const e=document.querySelector('[data-work-detail]');if(e && e.textContent) workReports.push(e.textContent)}).observe(document,{subtree:true,childList:true,characterData:true})")
+            if args.url:
+                marker = wait_for_revision(url, args.expected_sha, args.expected_repository)
+                (out / 'verified-deployment.json').write_text(json.dumps(marker, indent=2))
+                print(f'Public revision verified before gameplay: {marker["source"]}', flush=True)
             page.goto(url)
+            if args.url:
+                # Also check the browser's view, rather than only the HTTP client.
+                marker = page.request.get(url + 'deployment.json?expected=' + args.expected_sha,
+                                          headers={'Cache-Control': 'no-cache'}).json()
+                assert marker == {'source': args.expected_sha, 'repository': args.expected_repository}
+
             # Decode the real HTTP PNGs, including all Apple and manifest sizes.
             icons = page.evaluate("""async () => {
               const manifestLink = document.querySelector('link[rel=manifest]');

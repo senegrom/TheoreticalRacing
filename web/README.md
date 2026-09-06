@@ -10,7 +10,8 @@ Players need no Java installation, account, game server or browser plugin.
 ## Hosting and automatic updates
 
 The site tracks `master`. A push that changes what the site contains -- the
-web app, the engine, the track files, the licence or the workflow itself --
+web app, the engine, the track files, shared tests/build scripts, dependency
+configuration, the licence or the workflow itself --
 runs `.github/workflows/browser.yml`; once native parity and both real browser
 suites pass, the exact tested artifact is deployed to GitHub Pages. Commits
 that touch none of those (a ledger entry, say) do not run it, and nothing is
@@ -23,6 +24,21 @@ nothing. The published site still includes `source.tar.gz` (corresponding AGPL
 source for the exact commit) and `deployment.json` (that commit and the
 repository). After deployment the workflow plays a real Java race against the
 public URL, and saves the evidence as `live-pages-evidence` in Actions.
+
+Generated `site/` files are not versioned. The publish job empties a staging
+folder under `RUNNER_TEMP` before downloading the tested artifact. The build's
+`asset-manifest.json` binds every file to its SHA-256 digest and source commit;
+missing files, altered files, symlinks and leftovers fail publication. Matching
+source is archived from that exact checkout, then hashed into the manifest too.
+The page links both current `master` and the exact corresponding source archive.
+
+Public verification first waits for a cache-busted `deployment.json` matching
+`--expected-sha` and the repository, then starts gameplay. An older functioning
+site cannot satisfy the revision gate. Publication jobs queue without cancelling
+one another, and a final guard refuses a candidate that is no longer current
+`master`. Thus an old workflow rerun cannot roll back the site or cancel a newer
+run. A skipped superseded build can be replaced by dispatching the workflow on
+current `master`, including when the newer commit was only a ledger edit.
 
 No personal access token is stored in the repository: deployment uses the
 run's own OIDC identity, so the workflow needs `pages: write` and
@@ -91,12 +107,13 @@ sh run_tests.sh
 sh web/build.sh
 python3 web/tests/parity.py
 python3 web/tests/server_test.py
+node --test web/tests/engine.test.mjs
 python3 -m unittest discover -s web/tests -p 'test_*.py'
 python3 -m pip install playwright==1.57.0
 python3 -m playwright install chromium webkit
 python3 web/tests/browser_e2e.py --browser chromium
 python3 web/tests/browser_e2e.py --browser webkit
-python3 web/tests/browser_e2e.py --browser chromium --url https://senegrom.github.io/TheoreticalRacing/
+python3 web/tests/browser_e2e.py --browser chromium --url https://senegrom.github.io/TheoreticalRacing/ --expected-sha "$(git rev-parse HEAD)"
 ```
 
 Parity compares complete desktop/adapter logs byte-for-byte for all 12 existing
@@ -111,7 +128,8 @@ complete race against an existing Java golden. Both exercise human placement,
 repeated previews, confirmation, undo, session replacement and custom drawing.
 Mobile tests also check that confirmation is visible on the initial screen.
 Screenshots and logs are saved on success or failure. `--ui-only` is explicitly
-not a runtime/gameplay test; `--url` exercises an already deployed site.
+not a runtime/gameplay test; `--url` requires `--expected-sha` and exercises an
+already deployed site only after verifying its revision.
 
 ## Runtime, resources and licensing
 
@@ -161,6 +179,16 @@ current finite scan. BFS and AI search have unknown final work sizes: they use
 indeterminate bars (with explored-state counts where available), never an
 invented percentage or ETA. Pause takes effect after the current AI turn; Stop
 race terminates it immediately and explicitly discards that race.
+
+The three-minute boot and five-minute operation watchdogs measure silence,
+not total elapsed time. Changed runtime stages or progress counters restart
+monitoring; repeated counters do not count as advancement. Silence produces a
+visible warning with **Keep waiting** and **Stop race**, never an automatic
+termination. Keep waiting retains pending calls and restarts monitoring; genuine
+progress dismisses the warning automatically. Explicit worker failures still
+terminate and reject outstanding calls. No watchdog changes the AI search or
+its outcome. Deterministic clock tests cover the old five-minute race-loss bug,
+late completion, duplicate telemetry, cancellation and fatal failures.
 
 `instrument_progress.py` inserts only tagged, output-only statements in the
 browser copy of Reachability. Removing those lines recovers the exact original

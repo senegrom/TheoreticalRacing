@@ -35,6 +35,7 @@ class Engine {
     if (method === 'tick') s.turn++;
     return structuredClone(s);
   }
+  keepWaiting() { window.keptWaiting=true; this.onStatus('', {stalled:false}); }
   destroy() { this.dead = true; }
 }
 '''
@@ -142,6 +143,14 @@ def main():
             page.evaluate("window.testEngine.onStatus('', {kind:'preparation',phase:'Checking safe continuations',done:40,total:100,unit:'scan'})")
             assert page.locator('#work-status progress').get_attribute('value') == '0.4'
             assert '40% of this scan' in page.locator('[data-work-detail]').inner_text()
+            page.evaluate("window.testEngine.onStatus('', {stalled:true})")
+            assert page.locator('[data-work-stalled]').is_visible()
+            assert page.locator('#keep-waiting').is_visible()
+            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'wait warning overflows {width}'
+            page.screenshot(path=str(out / f'waiting-{width}.png'), full_page=True)
+            page.locator('#keep-waiting').click()
+            assert page.evaluate('window.keptWaiting && !window.testEngine.dead')
+            assert page.locator('[data-work-stalled]').is_hidden()
             page.evaluate('window.releaseCreate()'); page.wait_for_function('document.body.dataset.phase === "PLAY"')
             page.evaluate("window.failNext='Simulated engine failure'")
             page.locator('#moves button').nth(4).click()

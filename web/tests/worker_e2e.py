@@ -7,6 +7,7 @@ error handling or stopping/replacing a race. It does not simulate racing rules.
 import argparse
 import functools
 import json
+import os
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 import sys
@@ -31,7 +32,7 @@ onmessage = ({data:m}) => {
 HARNESS = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Worker test</title></head><body>
 <button id="click">Responsive button</button>
 <script type="module">
-import {Engine} from './engine.js?v=3';
+import {Engine} from './engine.js?v=4';
 window.Engine=Engine; window.errors=[]; window.cpuStarted=false;
 window.engine=new Engine((_text,p)=>{if(p?.failure) errors.push(p.failure); if(p?.phase==='CPU stress') cpuStarted=true;});
 window.ticks=0; setInterval(()=>ticks++, 20);
@@ -56,7 +57,8 @@ def main():
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
         with sync_playwright() as p:
-            browser = getattr(p, args.browser).launch()
+            options = {'executable_path': os.environ['CHROMIUM_PATH']} if args.browser == 'chromium' and os.environ.get('CHROMIUM_PATH') else {}
+            browser = getattr(p, args.browser).launch(**options)
             context = browser.new_context()
             context.route('**/worker-harness.html', lambda route: route.fulfill(body=HARNESS, content_type='text/html'))
             context.route('**/runtime.js?*', lambda route: route.fulfill(body=FIXTURE, content_type='text/javascript'))
@@ -86,16 +88,20 @@ def main():
             page.evaluate("window.failures=[]; engine.call('crash').catch(e=>failures.push(e.message)); engine.call('queued').catch(e=>failures.push(e.message));")
             page.wait_for_function('failures.length===2')
             assert page.evaluate('engine.dead && engine.pending.size===0')
-            # Unanswered operation timeouts also terminate, not just reject.
+            # Inactivity warns without killing the worker or rejecting its result.
             page.evaluate("""window.originalTimer=setTimeout;
               window.setTimeout=(fn,ms,...a)=>originalTimer(fn,ms===300000?30:ms,...a);
-              window.engine=new Engine(); window.timedOut=false;
-              engine.call('work').catch(()=>timedOut=true);
+              window.engine=new Engine(); window.finished=false; window.waitError='';
+              void engine.call('work').then(value=>{window.finished=value==='work'}).catch(e=>waitError=e.message);
             """)
-            page.wait_for_function('timedOut && engine.dead')
+            page.wait_for_function('engine.stalled && !finished')
+            assert page.evaluate('!engine.dead && engine.pending.size===1 && !waitError')
+            page.evaluate('engine.keepWaiting()')
+            page.wait_for_function('finished', timeout=10000)
+            assert page.evaluate('!engine.dead && engine.pending.size===0 && !engine.stalled && !waitError')
             page.evaluate('window.setTimeout=originalTimer')
             page.close(); browser.close()
-        print(f'{args.browser}: worker CPU isolation, cancellation, replacement, fatal errors and timeouts passed', flush=True)
+        print(f'{args.browser}: worker CPU isolation, cancellation, replacement, fatal errors and non-destructive inactivity warnings passed', flush=True)
     finally:
         server.shutdown(); server.server_close()
 

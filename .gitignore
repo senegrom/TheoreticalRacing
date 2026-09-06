@@ -29,3 +29,6 @@ __pycache__/
 # Browser build and verification outputs
 /web/build/
 /web/dist/
+
+# Publication is staged from a verified artifact, never committed
+/site/

@@ -1,6 +1,0 @@
-# Theoretical Racing track file
-name=Hairpin
-gameX=80
-gameY=30
-trackLeft=5,27;3,14;6,3;74,3;77,14;75,27
-trackRight=18,27;15,16;19,12;61,12;65,16;62,27
