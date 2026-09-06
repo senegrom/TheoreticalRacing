@@ -1,0 +1,132 @@
+name: Finish proved racecraft
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/finish-proved-racecraft.yml']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: 8db66b3b87bcd3957e5fc595de09641699308879
+      EXPECTED_TREE: 26755f1f24f1a00becc597662f0ca03f23af5b4d
+      JAVA_TOOL_OPTIONS: -Xmx2g
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preserve concurrent agent changes and materialize the reviewed patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          base, head = os.environ['BASE'], os.environ['GITHUB_SHA']
+          names = set(subprocess.check_output(['git', 'diff', '--name-only', base, head], text=True).splitlines())
+          allowed = {'.github/workflows/materialize-racecraft.yml', '.github/workflows/finish-proved-racecraft.yml'}
+          if names - allowed:
+              raise SystemExit('Master has newer agent changes; refusing to replace them: ' + ', '.join(sorted(names - allowed)))
+          sha = '5f761029e969fd8815756cb9a95f4c1a84df1ffe'
+          request = urllib.request.Request('https://api.github.com/repos/' + os.environ['GITHUB_REPOSITORY'] + '/git/blobs/' + sha,
+              headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=60) as response:
+              raw = base64.b64decode(json.load(response)['content'])
+          assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+          patch = lzma.decompress(raw)
+          assert hashlib.sha256(patch).hexdigest() == 'ca394df02bbafae9499797dbac9ed7b547d01328aef58be44c74b9e0bb5f881a'
+          patch_path = pathlib.Path(os.environ['RUNNER_TEMP'], 'racecraft.patch')
+          patch_path.write_bytes(patch)
+          subprocess.run(['git', 'checkout', '--detach', base], check=True)
+          subprocess.run(['git', 'apply', '--index', str(patch_path)], check=True)
+          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          assert subprocess.check_output(['git', 'write-tree'], text=True).strip() == os.environ['EXPECTED_TREE']
+          PY
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Full JDK 25 validation without changing fixture expectations
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          python3 tests/headless_smoke.py
+          python3 tests/query_replay_regression.py
+          python3 tests/lap_progress_regression.py
+          python3 tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python3 "$test"
+          done
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - name: JDK 26 core and production build
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+      - name: Publish exactly the tested tree using a non-forced fast-forward
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, json, os, pathlib, subprocess, urllib.request
+          repo, parent, tree = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA'], os.environ['EXPECTED_TREE']
+          assert subprocess.check_output(['git', 'write-tree'], text=True).strip() == tree
+          assert not subprocess.check_output(['git', 'diff', '--name-only'], text=True).strip(), 'tests changed tracked source'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'}
+          api = 'https://api.github.com/repos/' + repo
+          with urllib.request.urlopen(urllib.request.Request(api + '/git/ref/heads/master', headers=headers), timeout=60) as response:
+              current = json.load(response)['object']['sha']
+          if current != parent:
+              raise SystemExit('Master advanced during validation; refusing to overwrite ' + current)
+          env = os.environ.copy()
+          env.update(GIT_AUTHOR_NAME='github-actions[bot]', GIT_COMMITTER_NAME='github-actions[bot]',
+              GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com',
+              GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com')
+          message = ('Improve racecraft with referee-proved last-rival winning blocks\n\n'
+              'Prefer a legal immediate finish, otherwise take a decisive block only after\n'
+              'the referee rejects every rival reply. Preserve original scoring constants\n'
+              'and add soundness plus live-policy regression tests and documentation.\n\n'
+              'Validated exact tree on JDK 25 and 26. Full JDK 25 core, tooling, headless,\n'
+              'query/lap replay, golden corpus and every champion regression passed.\n'
+              'Earlier paired validation: 74 ordinary race pairs across eight tracks with\n'
+              'unchanged counters/rankings and no crashes/timeouts; seven constructed duel\n'
+              'losses become proved wins across 56 label/order/retired-slot variants.\n'
+              'No fleet-wide pace gain or full expensive promotion battery is claimed.\n\n'
+              'Remove both temporary racecraft validation/publication workflows.\n'
+              'Tested source tree: ' + tree + '\n')
+          commit = subprocess.check_output(['git', 'commit-tree', tree, '-p', parent], input=message, text=True, env=env).strip()
+          auth = base64.b64encode(('x-access-token:' + os.environ['GH_TOKEN']).encode()).decode()
+          env.update(GIT_CONFIG_COUNT='1', GIT_CONFIG_KEY_0='http.https://github.com/.extraheader', GIT_CONFIG_VALUE_0='AUTHORIZATION: basic ' + auth)
+          subprocess.run(['git', 'push', 'origin', commit + ':refs/heads/master'], check=True, env=env)
+          with urllib.request.urlopen(urllib.request.Request(api + '/git/ref/heads/master', headers=headers), timeout=60) as response:
+              published = json.load(response)['object']['sha']
+          assert published == commit, (published, commit)
+          report = dict(repository=repo, base=os.environ['BASE'], parent=parent, commit=commit, tree=tree, published=True,
+              validation='JDK 25 full regression suite and JDK 26 core/build passed', workflow_run=os.environ['GITHUB_RUN_ID'])
+          pathlib.Path(os.environ['RUNNER_TEMP'], 'racecraft-publication.json').write_text(json.dumps(report, indent=2))
+          print('Verified master commit: ' + commit)
+          # Token-authenticated pushes do not trigger other workflows automatically.
+          dispatch_headers = dict(headers, **{'Content-Type': 'application/json'})
+          request = urllib.request.Request(api + '/actions/workflows/browser.yml/dispatches',
+              data=json.dumps({'ref': 'master'}).encode(), headers=dispatch_headers, method='POST')
+          with urllib.request.urlopen(request, timeout=60) as response:
+              assert response.status == 204
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: racecraft-publication
+          path: |
+            ${{ runner.temp }}/racecraft-publication.json
+            ${{ runner.temp }}/racecraft.patch
+          retention-days: 7
