@@ -81,8 +81,10 @@ jobs:
       - name: Worker responsiveness and cancellation
         run: python3 web/tests/worker_e2e.py --browser ${{ matrix.browser }}
       - name: UI interaction and layout regressions
+        if: ${{ !cancelled() }}
         run: python3 web/tests/ui_e2e.py --browser ${{ matrix.browser }}
       - name: Real browser JVM golden race and UI
+        if: ${{ !cancelled() }}
         run: python3 web/tests/browser_e2e.py --browser ${{ matrix.browser }}
       - uses: actions/upload-artifact@v4
         if: always()
