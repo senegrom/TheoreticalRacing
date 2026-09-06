@@ -1348,30 +1348,50 @@ public final class RaceGame {
 	static record MoveResult(boolean legal, boolean geometryLegal, boolean finishes,
 			boolean lapCross, boolean passCp1, boolean passCp2, int lapAfter, int gateAfter) {}
 
+	/** Number of ordered gate events on this segment. Shared by the referee,
+	 * detached rollouts and both exact solvers. Geometric events alone do not
+	 * grant credit: callers must still check continuing/terminal legality. */
+	int gateEventsOnMove(final int nextGate, final int x, final int y,
+			final int nx, final int ny) {
+		int pending = lapGates == null ? 0 : nextGate;
+		int events = 0;
+		if (pending == 1 && touchesGate(1, x, y, nx, ny)) {
+			pending = 2;
+			events++;
+		}
+		if (pending == 2 && touchesGate(2, x, y, nx, ny)) {
+			pending = 0;
+			events++;
+		}
+		if (pending == 0 && crossesFinish(x, y, nx, ny))
+			events++;
+		return events;
+	}
+
 	MoveResult evaluateMove(final Player player, final int[] pos, final int[] newpos) {
-		int gate = player.getNextGate();
-		final boolean cp1 = lapGates != null && gate == 1
-				&& touchesGate(1, pos[0], pos[1], newpos[0], newpos[1]);
-		if (cp1)
-			gate = 2;
-		final boolean cp2 = lapGates != null && gate == 2
-				&& touchesGate(2, pos[0], pos[1], newpos[0], newpos[1]);
-		if (cp2)
-			gate = 0;
-		final boolean crossing = crossesFinish(pos[0], pos[1], newpos[0], newpos[1])
-				&& (lapGates == null || gate == 0);
-		final boolean finishing = crossing && player.getLap() + 1 >= totalLaps;
+		return evaluateMove(player.getLap(), player.getNextGate(), pos[0], pos[1],
+				newpos[0], newpos[1], isCrashingPlayer(newpos[0], newpos[1], player.getNumber()));
+	}
+
+	/** The same transition on a detached board. Occupancy is supplied by that
+	 * board, not read from the live players while a rollout is in progress. */
+	MoveResult evaluateMove(final int lap, final int nextGate, final int x, final int y,
+			final int nx, final int ny, final boolean occupied) {
+		final int pending = lapGates == null ? 0 : nextGate;
+		final int events = gateEventsOnMove(pending, x, y, nx, ny);
+		final int toLine = pending == 1 ? 3 : pending == 2 ? 2 : 1;
+		final boolean crossing = events == toLine;
+		final boolean finishing = crossing && lap + 1 >= totalLaps;
 		final boolean geometryLegal = finishing
-				? finishRunUpLegal(pos[0], pos[1], newpos[0], newpos[1])
-				: isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1]);
-		final boolean legal = geometryLegal && (finishing
-				|| !isCrashingPlayer(newpos[0], newpos[1], player.getNumber()));
+				? finishRunUpLegal(x, y, nx, ny) : isMoveLegalGeometry(x, y, nx, ny);
+		final boolean legal = geometryLegal && (finishing || !occupied);
 		if (!legal)
-			return new MoveResult(false, geometryLegal, false, false, false, false,
-					player.getLap(), player.getNextGate());
+			return new MoveResult(false, geometryLegal, false, false, false, false, lap, nextGate);
+		final boolean cp1 = lapGates != null && pending == 1 && events >= 1;
+		final boolean cp2 = lapGates != null && (pending == 1 && events >= 2 || pending == 2 && events >= 1);
+		final int gateAfter = finishing ? 0 : crossing ? 1 : (pending + events) % 3;
 		return new MoveResult(true, true, finishing, crossing, cp1, cp2,
-				player.getLap() + (crossing && !finishing ? 1 : 0),
-				crossing && !finishing ? 1 : gate);
+				lap + (crossing && !finishing ? 1 : 0), lapGates == null ? nextGate : gateAfter);
 	}
 
 	/** AI terminal shortcuts must obey the same pre-finish wall rule. */
@@ -1381,6 +1401,10 @@ public final class RaceGame {
 
 	boolean raceTurnLimitReached() {
 		return lapGates != null && turnCounter > (long) totalLaps * 750 * players.length;
+	}
+
+	int turnCount() {
+		return turnCounter;
 	}
 
 	void setQueryTurnCounter(final int turns) {
@@ -1741,7 +1765,7 @@ public final class RaceGame {
 		finishLine = new Line2D.Double(fL[0], fL[1], fR[0], fR[1]);
 		computeFinishForward();
 		computeLapGates();
-		rui.setFinishLine(fL, fR);
+		rui.setFinishLine(lapGates == null ? finishLine : lapCrossGate);
 		startZone = TrackGeometry.makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
 		rui.setStartZone(startZone);
 		rui.setCheckpoints(lapGates != null && lapGatePoints != null
@@ -1774,7 +1798,7 @@ public final class RaceGame {
 				: DenseEdgeLegalCache.shared(denseKey, gameCols + 1, gameRows + 1,
 						64L << 20, 128L << 20);
 		buildLegalRaster();
-		rui.finishTrack();
+		rui.finishTrack(trackA);
 		if (optimalStart != null) {
 			// The exact search needs the geometry and the gates, not the AI's
 			// reachability maps -- it is measured against the referee -- so it

@@ -1,8 +1,5 @@
 # Theoretical Racing
 
-**Browser edition:** the `browser` branch adds a native web interface using the
-same Java rules, AI and all 84 tracks. See [browser build and verification](web/README.md).
-
 A Java Swing implementation of the classic pen-and-paper [Racetrack](https://en.wikipedia.org/wiki/Racetrack_(game)) game, with deterministic computer players, exact empty-track reachability, benchmark tooling, and a library of real and synthetic tracks.
 
 Players draw or select a track, place their cars in the start zone, then take turns racing by adjusting their velocity vector. Each turn changes velocity by at most 1 in each axis; the new position is the current position plus the updated velocity. Leaving the track or landing on another live car crashes the player.
@@ -105,6 +102,8 @@ For a promotion candidate, run the manual **AI promotion battery** workflow in G
 `python3 tests/query_replay_regression.py` records a two-lap race and replays every move through the versioned oracle, including standalone simulation queries and query-order isolation. It runs in CI alongside the existing goldens and champion pins. The core tests include illegal finish approaches, checkpoint transitions and convergence guards; the tooling tests inject failed JVMs, stale logs, interrupted runs and mismatched replay outcomes.
 
 `tracks/oracle_roll.py` and `tracks/needle_audit.py` carry complete lap/gate state. Set `RACING_PROPS` to the recorded roster and lap profile before replaying. The legacy five-field protocol is retained with explicit first-lap defaults; it is not a full multi-lap snapshot. Older diagnostics using incomplete reconstruction reject multi-lap logs instead of silently dropping progress. See [docs/replay-protocol.md](docs/replay-protocol.md) for V2 and [docs/review-corrections.md](docs/review-corrections.md) for the finish-rule and golden-fixture changes.
+
+`python3 tests/lap_progress_regression.py` checks the non-final endgame counterexample and compares internal TRUE rollout moves with independent oracle queries across a checkpoint. See [follow-up rule corrections](docs/followup-rule-corrections.md) for the shared event rules, solver differential tests and rendering/build checks.
 
 ## How to play
 

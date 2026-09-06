@@ -38,7 +38,7 @@ def main():
         (ref / 'tracks').symlink_to(ROOT / 'tracks', target_is_directory=True)
     # Original direct rule-contract tests are also run on the generated engine.
     run(['javac', '-encoding', 'UTF-8', '-Xlint:all', '-Werror', '-cp', 'web/dist/racing.jar', '-d', str(build),
-         'tests/tr/logic/ReviewRuleTests.java', 'web/tests/BrowserTests.java'], build / 'test-compile.log')
+         'tests/tr/logic/ReviewRuleTests.java', 'tests/tr/logic/FollowupRuleTests.java', 'web/tests/BrowserTests.java'], build / 'test-compile.log')
     run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'web/dist/racing.jar{os.pathsep}{build}', 'tr.logic.BrowserTests'], build / 'adapter-tests.log')
     print((build / 'adapter-tests.log').read_text(), flush=True)
     cases = json.loads((ROOT / 'tests/golden_races.json').read_text())['cases']

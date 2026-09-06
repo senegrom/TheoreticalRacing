@@ -150,7 +150,9 @@ public final class BrowserBridge {
         out.put("right", game.track == null ? List.of() : game.track.getRight());
         out.put("startZone", scene.startZone); out.put("checkpoints", scene.checkpoints);
         out.put("closures", scene.closures);
-        out.put("finish", scene.finishLeft == null ? null : new int[][]{scene.finishLeft, scene.finishRight});
+        out.put("finish", scene.finishLine == null ? null : new double[][]{
+                {scene.finishLine.getX1(), scene.finishLine.getY1()},
+                {scene.finishLine.getX2(), scene.finishLine.getY2()}});
         out.put("prePath", scene.prePath);
         // Export the actual Java Area once per geometry, including tolerance and
         // multi-lap closures. Canvas is only a renderer, never a geometry oracle.

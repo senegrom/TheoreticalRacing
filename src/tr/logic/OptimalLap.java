@@ -10,7 +10,7 @@ import java.util.BitSet;
  * (position, velocity, gates completed) is exact rather than heuristic. The
  * search obeys the REFEREE's rules and none of the AI's self-imposed ones: a
  * non-final gate passage must be an ordinarily legal move, the race-ending
- * crossing is legality-waived, and nothing has to be shedable, certified or
+ * crossing requires a legal approach but exempts its post-line landing, and nothing has to be shedable, certified or
  * reachability-alive. That is deliberate -- pruning to the AI's own alive set
  * would measure the AI against its own conservatism instead of against the
  * game. The one shared limit is the velocity domain (|v| <= AI_MAX_SPEED per
@@ -79,26 +79,13 @@ final class OptimalLap {
 						if (nvx < -vmax || nvx > vmax || nvy < -vmax || nvy > vmax)
 							continue;
 						final int nx = x + nvx, ny = y + nvy;
-						if (nx < 0 || ny < 0 || nx >= w || ny >= h)
-							continue;
-						int ns = stage;
-						if (pending == 0) {
-							if (game.crossesFinish(x, y, nx, ny)
-									&& game.finishRunUpLegal(x, y, nx, ny))
-								ns++;
-						} else if (game.touchesGate(pending, x, y, nx, ny)) {
-							ns++;
-							// the referee tests CP1 then CP2 within one move, so a
-							// single move can take both
-							if (pending == 1 && game.touchesGate(2, x, y, nx, ny))
-								ns++;
-						}
+						final int ns = stage + game.gateEventsOnMove(pending, x, y, nx, ny);
 						final boolean finishes = ns == stages;
-						// The referee waives legality on the race-ending crossing, so a
-						// car may finish THROUGH a wall from a neighbouring fold. Set
-						// tr.strictFinish to require an ordinarily legal move there too
-						// and measure what that permission is worth.
-						if (!finishes && !game.isMoveLegalGeometryCached(x, y, nx, ny))
+						// Only continuing landings need an in-grid state. A legal
+						// final approach may overshoot the grid after the finish.
+						if (finishes ? !game.finishRunUpLegal(x, y, nx, ny)
+								: nx < 0 || ny < 0 || nx >= w || ny >= h
+										|| !game.isMoveLegalGeometryCached(x, y, nx, ny))
 							continue;
 						if (finishes) {
 							System.out.println("[optimal] states=" + visited

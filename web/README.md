@@ -86,7 +86,7 @@ python3 web/tests/browser_e2e.py --browser webkit
 Parity compares the complete desktop and adapter logs byte-for-byte across all
 12 pre-existing golden races, plus unseeded AI1, negative-seed mixed AI1/AI2 and
 multi-lap races. It also checks those original golden hashes, runs the original
-finish/checkpoint rule-contract tests on the generated engine, and tests repeat
+finish/checkpoint, lap-aware rollout and exact-geometry rule-contract tests on the generated engine, and tests repeat
 previews, crash consent, human undo including AI replies, drawing and validation.
 No existing golden fixture is changed. Track and source hashes are verified.
 
@@ -119,5 +119,7 @@ runtime or other uses may require a commercial licence. The app credits CheerpJ
 and links its game source. Do not remove those credits or redistribute the
 runtime without the appropriate permission.
 
-The port starts from desktop commit `b9471692e748c7a6c9d509e6b5992d1f7e8d8268`.
+The port started from desktop commit `b9471692e748c7a6c9d509e6b5992d1f7e8d8268`
+and incorporates master `fcee261ea27fb17b971819d573b8272f502a4f82`, including its
+lap-aware AI and exact finish-geometry fixes, without changing those sources.
 Future engine/track edits must rerun the differential and real-browser tests.

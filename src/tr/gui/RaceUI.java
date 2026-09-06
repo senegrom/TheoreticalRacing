@@ -8,6 +8,9 @@ import java.awt.GraphicsEnvironment;
 import java.awt.Polygon;
 import java.awt.RenderingHints;
 import java.awt.Stroke;
+import java.awt.Shape;
+import java.awt.geom.AffineTransform;
+import java.awt.geom.Line2D;
 import java.awt.Toolkit;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -49,7 +52,7 @@ public final class RaceUI {
 				: Math.max(15, 15 * Toolkit.getDefaultToolkit().getScreenResolution() / 96);
 	}
 
-	private int[]				finishLine;	// 4-element pixel coords [x1,y1,x2,y2]
+	private Line2D				finishLine; // pixel coordinates, including fractional gate endpoints
 	private int[][]				checkpoints;	// light-grey gate lines, same coords
 	private int[][]				loopClosure;	// blue closing boundary, same coords
 	private final JPanel		grid;
@@ -58,7 +61,7 @@ public final class RaceUI {
 	private List<int[]>		prePath;
 	private Polygon				startZone;
 	private Track				track;
-	private Polygon				trackPol;
+	private Shape				trackPol;
 	private int[]				velVector;
 	private int					velVectorPlayer	= -1;
 
@@ -124,7 +127,7 @@ public final class RaceUI {
 		if (finishLine != null) {
 			g.setColor(colFinish);
 			g.setStroke(strkFinish);
-			g.drawLine(finishLine[0], finishLine[1], finishLine[2], finishLine[3]);
+			g.draw(finishLine);
 		}
 
 		if (track != null) {
@@ -186,23 +189,13 @@ public final class RaceUI {
 		}
 	}
 
-	public void finishTrack() {
-		if (grid == null || track == null)
-			return;
-		final int[][] tTrack = new int[2][track.getLeft().size() + track.getRight().size()];
-		int i = 0;
-		for (final int[] pos : track.getLeft()) {
-			tTrack[0][i] = pos[0] * GRID_DIST;
-			tTrack[1][i] = pos[1] * GRID_DIST;
-			i++;
-		}
-		for (final int[] pos : track.getRight().reversed()) {
-			tTrack[0][i] = pos[0] * GRID_DIST;
-			tTrack[1][i] = pos[1] * GRID_DIST;
-			i++;
-		}
-		trackPol = new Polygon(tTrack[0], tTrack[1], tTrack[0].length);
-		grid.setBackground(colBackgrdForb);
+	/** Copy the referee's corridor rather than reconstructing a different
+	 * single polygon. The affine copy preserves lap holes and closure bands. */
+	public void finishTrack(final Shape corridor) {
+		trackPol = corridor == null ? null
+				: AffineTransform.getScaleInstance(GRID_DIST, GRID_DIST).createTransformedShape(corridor);
+		if (grid != null)
+			grid.setBackground(colBackgrdForb);
 	}
 
 	public JPanel getGrid() {
@@ -241,10 +234,11 @@ public final class RaceUI {
 					cps[i][2] * GRID_DIST, cps[i][3] * GRID_DIST };
 	}
 
-	public void setFinishLine(final int[] pL, final int[] pR) {
-		if (grid == null || pL == null || pR == null)
-			return;
-		finishLine = new int[]{pL[0] * GRID_DIST, pL[1] * GRID_DIST, pR[0] * GRID_DIST, pR[1] * GRID_DIST };
+	/** Same finish segment as the referee, with no rounding to grid cells. */
+	public void setFinishLine(final Line2D line) {
+		finishLine = line == null ? null : new Line2D.Double(
+				line.getX1() * GRID_DIST, line.getY1() * GRID_DIST,
+				line.getX2() * GRID_DIST, line.getY2() * GRID_DIST);
 	}
 
 	public void setPlayers(final Player[] players) {
