@@ -21,9 +21,10 @@ const board = new Board($('board'), p => {
 const preview = new Board($('track-preview'));
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
-function notice(text = '') { $('notice').textContent = text; $('notice').hidden = !text; }
+function notice(text = '') { $('notice-text').textContent = text; $('notice').hidden = !text; }
+$('dismiss-notice').addEventListener('click', () => notice());
 function human() { return state?.phase === 'PLAY' && state.players[state.current]?.kind === 'HUMAN'; }
-function modalOpen() { return $('setup').open || $('instructions').open; }
+function modalOpen() { return $('setup').open || $('instructions').open || $('installation').open; }
 function schedule() {
   clearTimeout(timer);
   if (!engine || !state || busy || polling || failed || modalOpen() || document.hidden || state.phase === 'FINISHED') return;
@@ -49,11 +50,14 @@ async function pollReadiness() {
     if (token === generation) { polling = false; render(); schedule(); }
   }
 }
+const warnBeforeLeave = event => { event.preventDefault(); event.returnValue = ''; };
 function accept(next) {
   const old = state;
   state = next;
+  window.removeEventListener('beforeunload', warnBeforeLeave);
+  if (next.phase !== 'FINISHED') window.addEventListener('beforeunload', warnBeforeLeave);
   if (next.failure) { failed = true; notice(`Engine error: ${next.failure}. No replacement AI has been substituted. Start a new race to recover.`); }
-  else if (next.messages?.length) notice(next.messages.join(' '));
+  else if (next.messages?.length) notice(next.phase === 'FINISHED' ? 'Race complete. The final classifications are below; use Save log to download the race.' : next.messages.join(' '));
   else if (old?.turn !== next.turn) notice();
   board.set(next);
   const driver = next.players[next.current];
@@ -84,6 +88,7 @@ async function act(method, ...args) {
 function render() {
   const s = state;
   $('export').disabled = !s || busy || failed || s.turn === 0;
+  document.querySelector('.decision').setAttribute('aria-busy', String(busy));
   if (!s) return;
   document.body.dataset.phase = s.phase;
   document.body.dataset.turn = s.turn;
@@ -93,9 +98,9 @@ function render() {
   $('phase').textContent = phaseNames[s.phase] ?? s.phase;
   $('race-meta').textContent = `${s.players.length} drivers · ${s.laps} ${s.laps === 1 ? 'lap' : 'laps'} · turn ${s.turn}`;
   $('grid-label').textContent = `${s.cols} × ${s.rows} grid`;
-  $('driver').textContent = s.phase === 'FINISHED' ? 'Race complete' : driver?.name ?? 'Ready to race';
-  $('status').textContent = !s.ready ? 'Building the original reachability maps…' : busy ? 'Engine working…' : s.status;
-  $('telemetry').textContent = s.phase === 'PLAY' && driver ? `Position ${driver.position.join(', ')}  ·  Velocity ${driver.velocity.join(', ')}` : '';
+  $('driver').textContent = s.phase === 'FINISHED' ? 'Race complete' : s.phase === 'START' ? 'Draw your circuit' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border' : 'Right border') : driver?.name ?? 'Ready to race';
+  $('status').textContent = failed ? 'The engine stopped. Start a new race to recover.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? 'AI paused. Choose Step or Resume AI.' : s.status;
+  $('telemetry').textContent = s.phase === 'PLAY' && driver ? `Position ${driver.position.join(', ')}  ·  Velocity ${driver.velocity.join(', ')}` : s.phase === 'DRAWTRACK' ? `${(s.current === 0 ? s.left : s.right).length} border points` : '';
   $('placement').hidden = !['DRAWTRACK', 'PLACEPLAYERS'].includes(s.phase) || (s.phase === 'PLACEPLAYERS' && s.current >= s.players.length);
   $('place-x').max = s.cols; $('place-y').max = s.rows;
   $('place').disabled = busy || failed;
@@ -120,6 +125,7 @@ function render() {
   $('ok').disabled = busy || failed || (s.phase === 'PLACEPLAYERS' && !s.ready);
   $('ok').textContent = s.phase === 'START' ? 'Begin drawing' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border done →' : 'Complete track →') : 'Start race →';
   $('undo').disabled = busy || failed || !s.undo;
+  $('undo').textContent = s.phase === 'DRAWTRACK' ? 'Undo point' : s.phase === 'PLACEPLAYERS' ? 'Undo placement' : 'Undo turn';
   $('pause').disabled = failed || s.phase !== 'PLAY';
   $('pause').textContent = paused ? 'Resume AI' : 'Pause AI';
   $('step').disabled = busy || failed || !s.ready || !paused || s.phase !== 'PLAY' || human();
@@ -130,7 +136,9 @@ function render() {
     const label = document.createElement('span'); label.className = 'name'; label.textContent = p.name;
     const kind = document.createElement('small'); kind.textContent = `${i + 1} · ${p.kind === 'HUMAN' ? 'Human' : p.kind}`; label.append(kind);
     const result = document.createElement('span'); result.className = 'result';
-    result.textContent = p.place > 0 ? `P${p.place}` : p.place < 0 ? 'Crashed' : p.position[0] < -1000 ? 'To place' : s.laps > 1 ? `Lap ${Math.min(p.lap + 1, s.laps)}/${s.laps}` : 'Racing';
+    result.textContent = p.place > 0 ? `P${p.place} · ${p.outcome === 'CRASH' ? 'Crashed' : p.outcome === 'TIMEOUT' ? 'Retired' : p.outcome === 'FINISH' ? 'Finished' : 'Classified'}` : p.position[0] < -1000 ? 'To place' : s.phase === 'PLACEPLAYERS' ? 'On grid' : s.laps > 1 ? `Lap ${Math.min(p.lap + 1, s.laps)}/${s.laps}` : 'Racing';
+    label.title = p.name;
+    li.dataset.outcome = p.outcome ?? '';
     li.append(badge, label, result); return li;
   }));
 }
@@ -140,7 +148,7 @@ for (let i = 0; i < 9; i++) {
 }
 $('confirm').addEventListener('click', () => {
   const move = state?.moves.find(m => m.index === state.selected);
-  if (!move || busy) return;
+  if (!move || busy || failed) return;
   const confirmed = !move.legal && window.confirm('This move crashes your car. Take it anyway?');
   if (!move.legal && !confirmed) return;
   act('move', move.index, confirmed);
@@ -148,7 +156,7 @@ $('confirm').addEventListener('click', () => {
 $('ok').addEventListener('click', () => act('ok'));
 $('undo').addEventListener('click', () => act('undo'));
 $('place').addEventListener('click', () => {
-  const x = Number($('place-x').value), y = Number($('place-y').value);
+  const x = $('place-x').valueAsNumber, y = $('place-y').valueAsNumber;
   if (state && Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x <= state.cols && y <= state.rows) act('click', x, y);
   else notice('Enter grid coordinates within the track dimensions.');
 });
@@ -166,28 +174,34 @@ $('setup').addEventListener('close', schedule);
 $('help').addEventListener('click', () => { clearTimeout(timer); $('instructions').showModal(); });
 $('close-help').addEventListener('click', () => $('instructions').close());
 $('instructions').addEventListener('close', schedule);
+$('install').addEventListener('click', () => { clearTimeout(timer); $('installation').showModal(); });
+$('close-install').addEventListener('click', () => $('installation').close());
+$('installation').addEventListener('close', schedule);
 document.addEventListener('visibilitychange', schedule);
 window.addEventListener('pagehide', () => { clearTimeout(timer); engine?.destroy(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { engine = null; failed = true; notice('The engine was closed when you left this page. Start a new race.'); render(); } });
 window.addEventListener('keydown', e => {
-  if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || modalOpen() || (/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName) || (e.target.tagName === 'BUTTON' && !e.target.closest('#moves')))) return;
+  if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || modalOpen() || e.target.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  // Preserve native activation of focused buttons and links, not letter shortcuts.
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button, a') && !e.target.closest('#moves')) return;
   const map = {q:0,w:1,e:2,a:3,s:4,d:5,z:6,x:7,c:8,ArrowUp:1,ArrowLeft:3,ArrowRight:5,ArrowDown:7,' ':4};
   const keypad = {Numpad7:0,Numpad8:1,Numpad9:2,Numpad4:3,Numpad5:4,Numpad6:5,Numpad1:6,Numpad2:7,Numpad3:8};
-  const index = keypad[e.code] ?? map[e.key];
+  const index = keypad[e.code] ?? map[e.key.length === 1 ? e.key.toLowerCase() : e.key];
   if (index !== undefined && human()) { e.preventDefault(); act('preview', index); }
   else if (e.key === 'Enter') { e.preventDefault(); if (human()) $('confirm').click(); else if (!$('ok').hidden) $('ok').click(); }
   else if (e.key.toLowerCase() === 'u') { e.preventDefault(); $('undo').click(); }
 });
 $('export').addEventListener('click', async () => {
-  if (!engine || busy) return;
-  const current = engine;
-  busy = true; render();
+  if (!engine || busy || failed) return;
+  const current = engine, token = generation;
+  busy = true; clearTimeout(timer); render();
   try {
     const text = await current.call('log');
+    if (token !== generation) return;
     const url = URL.createObjectURL(new Blob([text], {type: 'text/plain;charset=utf-8'}));
-    const a = document.createElement('a'); a.href = url; a.download = 'theoretical-racing.log'; a.click();
+    const a = document.createElement('a'); a.href = url; a.download = 'theoretical-racing.log'; document.body.append(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  } catch (e) { if (e.name !== 'AbortError') notice(e.message); }
+  } catch (e) { if (token === generation && e.name !== 'AbortError') notice(e.message); }
   finally { if (current === engine) { busy = false; render(); schedule(); } }
 });
 function readRoster() {
@@ -210,10 +224,15 @@ function drawRoster() {
   }));
 }
 $('player-count').addEventListener('input', drawRoster);
+function validDimension(id, fallback) {
+  const value = $(id).valueAsNumber;
+  return Number.isInteger(value) && value >= 2 && value <= 500 ? value : fallback;
+}
 function updateTrack() {
   const t = catalog.find(t => t.id === $('track').value);
   $('custom-size').hidden = Boolean(t);
-  const drawing = {cols: Number($('cols').value), rows: Number($('rows').value)};
+  $('cols').disabled = Boolean(t); $('rows').disabled = Boolean(t);
+  const drawing = {cols: validDimension('cols', 86), rows: validDimension('rows', 48)};
   preview.set(t ?? drawing); preview.fit();
   $('track-info').textContent = t ? `${t.cols} × ${t.rows} grid · ${t.left.length + t.right.length} original border points${t.lapClosable ? ' · loop circuit' : ''}` : 'Draw both borders on the grid after starting.';
 }
@@ -228,15 +247,19 @@ $('setup-form').addEventListener('submit', async e => {
   catch { $('setup-error').textContent = 'The seed must be a signed 64-bit integer, or left blank.'; return; }
   readRoster();
   const count = Number($('player-count').value), track = $('track').value;
-  const config = {nPlayers: count, laps: Number($('laps').value), gameX: Number($('cols').value), gameY: Number($('rows').value)};
+  const config = {nPlayers: count, laps: Number($('laps').value), gameX: validDimension('cols', 86), gameY: validDimension('rows', 48)};
+  if (state && state.phase !== 'FINISHED' && !window.confirm('Replace the current race? Its progress is not saved.')) return;
   roster.slice(0, count).forEach((p, i) => {
     config[`player${i + 1}Name`] = p.name || `Player ${i + 1}`;
     config[`player${i + 1}Kind`] = p.kind;
     config[`player${i + 1}Color`] = [1, 3, 5].map(j => parseInt(p.color.slice(j, j + 2), 16)).join(' ');
   });
-  try { localStorage.setItem('theoretical-racing-setup-v1', JSON.stringify({track, count, laps: config.laps, seed, roster})); } catch { /* Private browsing must not prevent play. */ }
+  try { localStorage.setItem('theoretical-racing-setup-v1', JSON.stringify({track, count, laps: config.laps, cols: config.gameX, rows: config.gameY, seed, roster})); } catch { /* Private browsing must not prevent play. */ }
   clearTimeout(timer); engine?.destroy();
   const token = ++generation;
+  $('moves').hidden = true; $('placement').hidden = true; $('ok').hidden = true; $('confirm').hidden = true;
+  $('telemetry').textContent = ''; $('standings').replaceChildren(); $('move-detail').textContent = 'Preparing the original engine…';
+  document.body.classList.remove('loading');
   busy = true; polling = false; failed = false; state = null; paused = false;
   $('setup-error').textContent = ''; $('setup').close(); notice();
   raceName = catalog.find(t => t.id === track)?.name ?? 'Your circuit'; $('track-title').textContent = raceName;
@@ -244,6 +267,7 @@ $('setup-form').addEventListener('submit', async e => {
   $('driver').textContent = 'Preparing your race'; $('status').textContent = 'Loading the Java runtime…';
   $('phase').textContent = 'Preparing the engine'; document.body.dataset.phase = 'LOADING';
   for (const button of document.querySelectorAll('.pitwall button')) button.disabled = true;
+  $('export').disabled = true; document.body.dataset.turn = '0';
   const current = new Engine(text => { if (token === generation) $('status').textContent = text; }); engine = current;
   try {
     const properties = Object.entries(config).map(([k, v]) => `${k}=${property(v)}`).join('\n');
@@ -273,6 +297,9 @@ async function init() {
       if (catalog.some(t => t.id === saved.track) || saved.track === '') $('track').value = saved.track;
       if (Number.isInteger(saved.count) && saved.count >= 1 && saved.count <= 9) $('player-count').value = saved.count;
       if (Number.isInteger(saved.laps) && saved.laps >= 1 && saved.laps <= 99) $('laps').value = saved.laps;
+      for (const id of ['cols', 'rows']) {
+        if (Number.isInteger(saved[id]) && saved[id] >= 2 && saved[id] <= 500) $(id).value = saved[id];
+      }
       if (typeof saved.seed === 'string') $('seed').value = saved.seed.slice(0, 20);
     }
   } catch { /* Invalid or inaccessible settings are ignored. */ }

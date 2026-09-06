@@ -67,6 +67,7 @@ export class Board {
     };
     canvas.addEventListener('pointerup', e => finish(e, false));
     canvas.addEventListener('pointercancel', e => finish(e, true));
+    canvas.addEventListener('lostpointercapture', e => finish(e, true));
   }
   world([x, y]) { return [(x - this.offset[0]) / this.scale, (y - this.offset[1]) / this.scale]; }
   screen([x, y]) { return [x * this.scale + this.offset[0], y * this.scale + this.offset[1]]; }
@@ -122,7 +123,7 @@ export class Board {
         else c.lineTo(...point([x, y]));
       }
       c.fillStyle = '#e9ede2'; c.fill('nonzero');
-    } else if (s.left?.length && s.right?.length) fill([...s.left, ...s.right.toReversed()], '#e9ede2');
+    } else if (s.left?.length && s.right?.length) fill([...s.left, ...[...s.right].reverse()], '#e9ede2');
     if (s.startZone) fill(s.startZone[0].map((x, i) => [x, s.startZone[1][i]]), '#b6d6bb');
     const first = this.world([0, 0]), last = this.world([this.width, this.height]);
     // Avoid spending time on invisible grid points on very large circuits.
@@ -133,6 +134,18 @@ export class Board {
       }
     }
     line(s.left, '#2c5264', 2.2); line(s.right, '#2c5264', 2.2);
+    if (s.phase === 'DRAWTRACK') {
+      for (const [side, label] of [[s.left, 'L'], [s.right, 'R']]) {
+        for (const [i, pos] of (side ?? []).entries()) {
+          const p = point(pos); c.beginPath(); c.arc(...p, i === side.length - 1 ? 5 : 3, 0, Math.PI * 2);
+          c.fillStyle = '#2c5264'; c.fill();
+          if (i === side.length - 1) {
+            c.fillStyle = '#20382f'; c.font = 'bold 12px system-ui'; c.textAlign = 'left'; c.textBaseline = 'bottom';
+            c.fillText(label + (i + 1), p[0] + 7, p[1] - 5);
+          }
+        }
+      }
+    }
     if (s.left?.length && s.right?.length) line([s.left[0], s.right[0]], '#4b9671', 3);
     if (s.finish) line(s.finish, '#ae3928', 3);
     else if (s.left?.length && s.right?.length) line([s.left.at(-1), s.right.at(-1)], '#ae3928', 3);
@@ -164,8 +177,12 @@ export class Board {
       c.stroke();
     }
     for (const [i, player] of (s.players ?? []).entries()) {
-      if (player.position[0] < -1000) continue;
-      const p = point(player.position);
+      // Retired cars have a sentinel position in Java. Draw their recorded final
+      // landing as a result marker; never treat that marker as a live car.
+      const terminal = player.position[0] < -1000;
+      const position = terminal ? player.history?.at(-1) : player.position;
+      if (!position || position[0] < -1000) continue;
+      const p = point(position);
       const r = 7;
       if (s.phase === 'PLAY' && i === s.current) {
         c.beginPath(); c.arc(...p, r + 4, 0, Math.PI * 2); c.strokeStyle = '#d8a12a'; c.lineWidth = 3; c.stroke();
@@ -173,7 +190,7 @@ export class Board {
       c.beginPath(); c.arc(...p, r, 0, Math.PI * 2); c.fillStyle = player.color; c.fill(); c.strokeStyle = '#fff'; c.lineWidth = 2; c.stroke();
       c.font = 'bold 10px system-ui'; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.strokeStyle = '#000'; c.lineWidth = 2.5; c.strokeText(String(i + 1), p[0], p[1]); c.fillStyle = '#fff'; c.fillText(String(i + 1), p[0], p[1]);
-      if (player.place < 0) { c.strokeStyle = '#ae3928'; c.lineWidth = 2; c.beginPath(); c.moveTo(p[0] - 10, p[1] - 10); c.lineTo(p[0] + 10, p[1] + 10); c.stroke(); }
+      if (player.outcome === 'CRASH' || player.outcome === 'TIMEOUT') { c.strokeStyle = '#ae3928'; c.lineWidth = 2; c.beginPath(); c.moveTo(p[0] - 10, p[1] - 10); c.lineTo(p[0] + 10, p[1] + 10); c.stroke(); }
     }
   }
 }
