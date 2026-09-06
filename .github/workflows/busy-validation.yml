@@ -1,0 +1,108 @@
+name: Validate responsive racing engine
+on:
+  push:
+    branches: [browser]
+    paths: [.github/workflows/busy-validation.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BASE: 7af22a497dec9f039c39323bd78ca81995e908d9
+      BASE_TREE: 59ebecd47a7cda50b2a0c0ce0eabf8b91aa978a2
+      EXPECTED_TREE: bd2b8f8cdf6edabd21d610da94ea2baf5a317681
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7af22a497dec9f039c39323bd78ca81995e908d9
+          persist-credentials: false
+      - name: Materialize and preserve exact reviewed source objects
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          root = 'https://api.github.com/repos/senegrom/TheoreticalRacing/git/'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}
+          chunks = ['6adbb7ce8d1bc64d0c46787a3d8285b207e9e795', 'ed28d769a0705522a9bb5cd8a1b7893167d877f9', '15005aedacca40449746902cb6bd34cf3ee353e2', '42fd2db13cdbb8d9ff7e43f63236cb31bbeab2d5']
+          parts = []
+          for sha in chunks:
+              with urllib.request.urlopen(urllib.request.Request(root + 'blobs/' + sha, headers=headers), timeout=60) as response:
+                  raw = base64.b64decode(json.load(response)['content'])
+              assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+              parts.append(raw)
+          patch = lzma.decompress(b''.join(parts))
+          assert hashlib.sha256(patch).hexdigest() == 'f4233a22accc84d606d1855263de3035f888c0a3ff97634cd662f7501deacf7b'
+          pathlib.Path('/tmp/busy.patch').write_bytes(patch)
+          subprocess.run(['git', 'apply', '--index', '/tmp/busy.patch'], check=True)
+          assert subprocess.check_output(['git', 'write-tree'], text=True).strip() == '5eb931eac1027a8284c1f8018158feb15103ef4c'
+          replacements = {
+            'web/tests/worker_e2e.py': [
+              ("window.before=ticks; window.finished=false; engine.call('work')", "window.before=ticks; window.finished=false; void engine.call('work')"),
+              ('Unanswered boot and operation timeouts also terminate', 'Unanswered operation timeouts also terminate')],
+            'web/app.js': [("paused && s.phase === 'PLAY' && !human() ? 'AI paused. Choose Step or Resume AI.' : s.status", "paused && s.phase === 'PLAY' && !human() ? (busy ? 'Pausing after the current AI move…' : 'AI paused. Choose Step or Resume AI.') : s.status")]
+          }
+          for name, edits in replacements.items():
+              p = pathlib.Path(name)
+              text = p.read_text()
+              for old, new in edits:
+                  assert text.count(old) == 1
+                  text = text.replace(old, new)
+              p.write_text(text)
+          subprocess.run(['git', 'add', 'web'], check=True)
+          tree = subprocess.check_output(['git', 'write-tree'], text=True).strip()
+          assert tree == os.environ['EXPECTED_TREE'], tree
+          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          entries = []
+          for name in subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines():
+              assert name.startswith('web/') and '..' not in pathlib.PurePosixPath(name).parts
+              mode = subprocess.check_output(['git', 'ls-files', '-s', '--', name], text=True).split()[0]
+              entries.append(dict(path=name, mode=mode, type='blob', content=pathlib.Path(name).read_text()))
+          request = urllib.request.Request(root + 'trees', method='POST', headers=headers, data=json.dumps(dict(base_tree=os.environ['BASE_TREE'], tree=entries)).encode())
+          with urllib.request.urlopen(request, timeout=60) as response:
+              stored = json.load(response)['sha']
+          assert stored == tree
+          pathlib.Path('busy-source-tree.json').write_text(json.dumps(dict(base=os.environ['BASE'], tree=tree, files=[e['path'] for e in entries]), indent=2))
+          print('Stored exact reviewed source tree:', tree)
+          PY
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install test dependencies
+        run: |
+          python3 -m pip install -r web/requirements-icons.txt playwright==1.57.0
+          python3 -m playwright install --with-deps chromium webkit
+      - name: Build and check output-only instrumentation and icon integrity
+        run: |
+          sh web/build.sh
+          python3 -m unittest discover -s web/tests -p 'test_*.py'
+          for f in web/*.js; do node --check "$f"; done
+          python3 web/tests/parity.py --quick
+      - name: Worker responsiveness, cancellation and error recovery
+        run: |
+          python3 web/tests/worker_e2e.py --browser chromium
+          python3 web/tests/worker_e2e.py --browser webkit
+      - name: Busy and progress UI at five viewport sizes
+        run: |
+          python3 web/tests/ui_e2e.py --browser chromium
+          python3 web/tests/ui_e2e.py --browser webkit
+      - name: Actual worker-hosted Java golden race and native progress
+        run: |
+          python3 web/tests/browser_e2e.py --browser chromium
+          python3 web/tests/browser_e2e.py --browser webkit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: responsive-engine-validation
+          path: |
+            busy-source-tree.json
+            web/build/browser-tests/
+            web/build/parity/results.json
+          retention-days: 7
