@@ -10,14 +10,14 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Racing">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <link rel="icon" href="./favicon.ico?v=2" type="image/x-icon" sizes="16x16 32x32 48x48">
-  <link rel="icon" href="./favicon-16x16.png?v=2" type="image/png" sizes="16x16">
-  <link rel="icon" href="./favicon-32x32.png?v=2" type="image/png" sizes="32x32">
-  <link rel="apple-touch-icon" href="./apple-touch-icon-152.png?v=2" sizes="152x152">
-  <link rel="apple-touch-icon" href="./apple-touch-icon-167.png?v=2" sizes="167x167">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=2" sizes="180x180">
-  <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./app.css">
+  <link rel="icon" href="./icons/racing-favicon-v3.ico" type="image/x-icon" sizes="16x16 32x32 48x48">
+  <link rel="icon" href="./icons/racing-tab-16-v3.png" type="image/png" sizes="16x16">
+  <link rel="icon" href="./icons/racing-tab-32-v3.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="./icons/racing-apple-152-v3.png" sizes="152x152">
+  <link rel="apple-touch-icon" href="./icons/racing-apple-167-v3.png" sizes="167x167">
+  <link rel="apple-touch-icon" href="./icons/racing-apple-180-v3.png" sizes="180x180">
+  <link rel="manifest" href="./manifest.webmanifest?v=3">
+  <link rel="stylesheet" href="./app.css?v=3">
 </head>
 <body>
   <a class="skip-link" href="#race-controls">Skip to race controls</a>
@@ -28,6 +28,16 @@
   <main>
     <section class="race-heading" aria-label="Race status"><div><span id="phase" class="eyebrow">Ready on the grid</span><h2 id="track-title">Choose your circuit</h2></div><span id="race-meta">Original engine · original opponents</span></section>
     <div id="notice" role="alert" hidden><span id="notice-text"></span><button id="dismiss-notice" type="button" aria-label="Dismiss message">×</button></div>
+    <section id="work-status" class="work-status" hidden aria-label="Engine activity">
+      <span class="work-spinner" aria-hidden="true"></span>
+      <div class="work-description"><strong data-work-label role="status" aria-live="polite"></strong>
+        <span data-work-detail></span>
+        <progress max="1" aria-label="Engine progress"></progress>
+        <span data-work-slow hidden>No completion estimate is available. You can stop this race without reloading the page.</span>
+      </div>
+      <span data-work-elapsed class="work-elapsed"></span>
+      <button id="stop-work" type="button">Stop race</button>
+    </section>
     <div class="race-layout">
       <section class="track-panel" aria-label="Track">
         <div class="track-toolbar"><span id="coordinates">Drag to pan · scroll or pinch to zoom</span><div><button id="zoom-out" aria-label="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button><button id="focus-car">Car / start</button></div></div>
@@ -70,5 +80,5 @@
     <p class="hint">Installation is a shortcut to this web app, not an offline download. Internet access is needed to load the Java runtime. An active race is not saved when you reload or leave this page.</p>
   </dialog>
   <noscript><p>JavaScript is required to run the racing engine in your browser.</p></noscript>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=3"></script>
 </body></html>

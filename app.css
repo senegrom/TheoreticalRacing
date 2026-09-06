@@ -881,3 +881,15 @@ dialog {
     min-height: 220px;
   }
 }
+
+/* Outside the busy controls: live announcements and cancellation remain usable. */
+.work-status { position:sticky; top:max(8px, env(safe-area-inset-top)); z-index:5; display:flex; align-items:center; gap:12px; padding:12px 16px; margin:0 0 14px; background:#fff8dd; border:1px solid #cfad54; border-radius:10px; box-shadow:0 3px 12px #0001; }
+.work-description { flex:1; min-width:0; display:grid; gap:3px; overflow-wrap:anywhere; }
+.work-description strong { font-size:.9rem; }
+.work-description>span { font-size:.78rem; }
+.work-description progress { width:100%; height:8px; accent-color:var(--felt); margin:4px 0; }
+.work-elapsed { font-size:.75rem; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.work-spinner { width:22px; height:22px; flex:none; border:3px solid #c8c6ae; border-top-color:var(--felt); border-radius:50%; animation:work-spin .8s linear infinite; }
+@keyframes work-spin { to { transform:rotate(360deg); } }
+@media(max-width:600px) { .work-status { gap:8px; padding:10px; flex-wrap:wrap; } .work-description { flex-basis:calc(100% - 40px); } .work-elapsed { margin-left:30px; } #stop-work { margin-left:auto; min-height:36px; padding:5px 12px; } }
+@media(prefers-reduced-motion:reduce) { .work-spinner { animation:none; } }
