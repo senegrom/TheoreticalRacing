@@ -5,31 +5,129 @@ on:
     branches: [master]
     paths: ['.github/workflows/rule-review-validation.yml']
 permissions:
-  contents: read
+  contents: write
 jobs:
-  snapshot:
+  validate:
+    name: Follow-up validation JDK ${{ matrix.java }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    env:
+      BASE: b9471692e748c7a6c9d509e6b5992d1f7e8d8268
+      EXPECTED_TREE: 2aed749f75cbe0c79418d8bf44765e64a997c865
+      JAVA_TOOL_OPTIONS: -Xmx3g
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: b9471692e748c7a6c9d509e6b5992d1f7e8d8268
+          persist-credentials: false
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: '25'
-      - name: Prepare isolated validation inputs
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Materialize exact reviewed source
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git archive --format=tar HEAD -o "$RUNNER_TEMP/racing-source.tar"
-          git rev-parse HEAD > "$RUNNER_TEMP/racing-source-commit.txt"
-          tar -C "$JAVA_HOME" -czf "$RUNNER_TEMP/racing-jdk25.tar.gz" .
+          python - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          sha = '7827667773ada982810a6442fed2198d983b4201'
+          url = 'https://api.github.com/repos/senegrom/TheoreticalRacing/git/blobs/' + sha
+          request = urllib.request.Request(url, headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(request, timeout=60) as response:
+              raw = base64.b64decode(json.load(response)['content'])
+          assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+          payload = lzma.decompress(raw)
+          assert hashlib.sha256(payload).hexdigest() == '03144209f52acb3b7e94bc2e3d0beeeed7455bd2a543d82d5abf52e63757dcb8'
+          for path, before, after, edits in json.loads(payload):
+              target = pathlib.Path(path)
+              data = target.read_bytes() if target.exists() else b''
+              assert hashlib.sha256(data).hexdigest() == before, path
+              if after is None:
+                  target.unlink()
+                  continue
+              lines = data.decode('utf-8').splitlines(keepends=True)
+              for start, end, text in reversed(edits):
+                  lines[start:end] = text.splitlines(keepends=True)
+              data = ''.join(lines).encode('utf-8')
+              assert hashlib.sha256(data).hexdigest() == after, path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(data)
+          subprocess.run(['git', 'add', '-A'], check=True)
+          tree = subprocess.check_output(['git', 'write-tree'], text=True).strip()
+          assert tree == os.environ['EXPECTED_TREE'], tree
+          print('Verified source tree:', tree)
+          PY
+      - name: Core, solver and renderer tests; build with JVM banner
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python -m compileall -q tracks tests
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+          git diff --check --cached
+      - name: Tooling and build-parser regressions
+        if: matrix.java == '25'
+        run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Live replay and internal TRUE-projection counterexamples
+        if: matrix.java == '25'
+        run: |
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+      - name: Unchanged golden corpus
+        if: matrix.java == '25'
+        run: python tests/golden_races.py
+      - name: Cache identity and real fleet resume
+        if: matrix.java == '25'
+        run: |
+          sh tracks/verify_reach_cache.sh circle 1
+          export RACING_TRACKS=circle RACING_HEAP=-Xmx3g
+          sh tracks/fleet_grid.sh 1-2 1 "$RUNNER_TEMP/followup-fleet"
+          sh tracks/fleet_grid.sh 1-2 1 "$RUNNER_TEMP/followup-fleet"
+      - name: Store validated file objects without changing any branch
+        if: matrix.java == '25'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import base64, hashlib, json, os, pathlib, subprocess, urllib.request
+          tree = subprocess.check_output(['git', 'write-tree'], text=True).strip()
+          assert tree == os.environ['EXPECTED_TREE']
+          assert not subprocess.check_output(['git', 'diff', '--name-only'], text=True).strip(), 'tests changed tracked inputs'
+          entries = []
+          rows = subprocess.check_output(['git', 'diff', '--cached', '--name-status', os.environ['BASE']], text=True)
+          for row in rows.splitlines():
+              status, path = row.split('\t')
+              assert status in ('A', 'M', 'D'), row
+              if status == 'D':
+                  entries.append(dict(path=path, mode='100644', type='blob', sha=None))
+              else:
+                  mode, sha = subprocess.check_output(['git', 'ls-files', '-s', '--', path], text=True).split()[:2]
+                  entries.append(dict(path=path, mode=mode, type='blob', sha=sha))
+          report = pathlib.Path(os.environ['RUNNER_TEMP'], 'validated-master-files.json')
+          report.write_text(json.dumps(dict(base=os.environ['BASE'], tree=tree, files=entries), indent=2))
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}
+          for entry in entries:
+              if entry['sha'] is None:
+                  continue
+              data = pathlib.Path(entry['path']).read_bytes()
+              assert hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest() == entry['sha']
+              request = urllib.request.Request('https://api.github.com/repos/senegrom/TheoreticalRacing/git/blobs', data=json.dumps(dict(encoding='base64', content=base64.b64encode(data).decode())).encode(), headers=headers, method='POST')
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  assert json.load(response)['sha'] == entry['sha']
+              print('Stored', entry['path'], entry['sha'])
+          print('VALIDATED_TREE=' + tree)
+          PY
       - uses: actions/upload-artifact@v4
+        if: always() && matrix.java == '25'
         with:
-          name: racing-validation-source
-          path: |
-            ${{ runner.temp }}/racing-source.tar
-            ${{ runner.temp }}/racing-source-commit.txt
-          retention-days: 1
-      - uses: actions/upload-artifact@v4
-        with:
-          name: racing-validation-jdk25
-          path: ${{ runner.temp }}/racing-jdk25.tar.gz
-          compression-level: 0
-          retention-days: 1
+          name: validated-master-files
+          path: ${{ runner.temp }}/validated-master-files.json
+          if-no-files-found: warn
+          retention-days: 7
