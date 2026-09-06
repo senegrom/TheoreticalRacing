@@ -28,6 +28,25 @@ public final class BrowserBridge {
     private int selected = -1;
     private java.awt.geom.Area shownArea;
     private List<double[]> shownShape = List.of();
+    private final Map<Integer, String> outcomes = new LinkedHashMap<>();
+    private int scannedLogLength;
+    private void readOutcomes() {
+        final StringBuilder log = (StringBuilder) field("gameLog");
+        if (log.length() < scannedLogLength) { outcomes.clear(); scannedLogLength = 0; }
+        // Records are append-only between undo operations. Names are never parsed.
+        if (log.length() != scannedLogLength) {
+            for (final String line : log.substring(scannedLogLength).split("\n")) {
+                final String[] words = line.split(" ");
+                if (words.length > 3 && words[0].matches("[0-9]+") && words[1].matches("p[1-9]")) {
+                    for (final String outcome : new String[]{"CRASH", "FINISH", "TIMEOUT"}) {
+                        if (line.contains(" " + outcome + " place="))
+                            outcomes.put(Integer.parseInt(words[1].substring(1)), outcome);
+                    }
+                }
+            }
+            scannedLogLength = log.length();
+        }
+    }
     private static final Map<String, Field> FIELDS = new LinkedHashMap<>();
 
     private Object field(final String name) {
@@ -170,12 +189,14 @@ public final class BrowserBridge {
             shownShape = shape;
         }
         out.put("shape", shownShape);
+        readOutcomes();
         final List<Object> players = new ArrayList<>();
         for (final Player p : game.players) {
             final Map<String, Object> item = new LinkedHashMap<>();
             item.put("name", p.getName()); item.put("number", p.getNumber());
             item.put("kind", p.getKind().name()); item.put("position", p.getPosition());
             item.put("velocity", p.getVelocity()); item.put("place", p.getFinishedPlace());
+            item.put("outcome", outcomes.getOrDefault(p.getNumber(), ""));
             item.put("lap", p.getLap()); item.put("nextGate", p.getNextGate());
             item.put("traceStart", p.getTraceStart()); item.put("history", p.getHistory());
             item.put("color", String.format("#%02x%02x%02x", p.getColor().getRed(), p.getColor().getGreen(), p.getColor().getBlue()));

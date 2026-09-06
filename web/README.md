@@ -29,10 +29,11 @@ are automatic; no personal access token is stored in the repository.
 
 ## Build and play locally
 
-The browser build needs JDK 17+ and Python 3.9+. Desktop/parity tests require
+The browser build needs JDK 17+, Python 3.9+ and the pinned icon-export dependencies in `web/requirements-icons.txt` (CairoSVG uses the system Cairo library). Desktop/parity tests require
 the repository's supported JDK 25+.
 
 ```sh
+python3 -m pip install -r web/requirements-icons.txt
 sh web/build.sh
 python3 web/serve.py --port 8080
 # Open http://localhost:8080
@@ -132,3 +133,18 @@ The port started from `b9471692e748c7a6c9d509e6b5992d1f7e8d8268` and incorporate
 master `fcee261ea27fb17b971819d573b8272f502a4f82`, including its lap-aware AI and
 exact finish-geometry fixes, without changing those sources. Engine/track edits
 must rerun the differential and real-browser checks before publication.
+
+## UI and installed-app review
+
+The browser/Apple icon family is generated from `branding/racing-icon.svg`;
+see `branding/README.md`. The Install button explains Home Screen / Dock setup.
+Standalone mode includes safe-area spacing, and touch text inputs avoid Safari’s
+small-input zoom. This is still an online web app; active races are not persisted.
+
+UI regression coverage (`python3 web/tests/ui_e2e.py`) uses isolated presentation
+fixtures, not an alternative game engine. It checks setup validation, narrow and
+landscape layouts, long names, keyboard/touch controls, stale downloads, setup
+cancellation, errors, notification dismissal and icon declarations. Actual Java
+runtime gameplay is checked separately by `browser_e2e.py` on both browser engines
+and the deployed public site. Device-level iOS Home Screen installation cannot
+be automated by these desktop WebKit tests and should also be checked on an iPhone.

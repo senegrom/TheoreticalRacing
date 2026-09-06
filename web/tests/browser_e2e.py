@@ -55,6 +55,32 @@ def main():
         page.set_default_timeout(30_000)
         try:
             page.goto(url)
+            # Decode the real HTTP PNGs, including all Apple and manifest sizes.
+            icons = page.evaluate("""async () => {
+              const manifestLink = document.querySelector('link[rel=manifest]');
+              const response = await fetch(manifestLink.href);
+              if (!response.ok) throw new Error('Manifest is not served');
+              const manifest = await response.json();
+              if (manifest.id !== '/TheoreticalRacing/' || manifest.display !== 'standalone') throw new Error('Wrong installed-app identity');
+              if (document.querySelector('meta[name=apple-mobile-web-app-capable]')?.content !== 'yes') throw new Error('Missing Apple standalone metadata');
+              const links = [...document.querySelectorAll('link[rel=apple-touch-icon], link[rel=icon][type="image/png"]')].map(e => ({src:e.href, sizes:e.sizes.value}));
+              for (const icon of manifest.icons) links.push({...icon, src:new URL(icon.src, manifestLink.href).href});
+              return await Promise.all(links.map(async ({src,sizes}) => {
+                if (!src.startsWith(new URL('./', location.href).href)) throw new Error('Icon escaped repository path');
+                const image = new Image(); image.src=src; await image.decode();
+                if (`${image.naturalWidth}x${image.naturalHeight}` !== sizes) throw new Error('Wrong image dimensions');
+                return {src, sizes};
+              }));
+            }""")
+            assert len(icons) == 8, 'Apple, browser or manifest icon missing'
+            ico = page.request.get(url.rstrip('/') + '/favicon.ico?v=2')
+            assert ico.ok and ico.body()[:6] == bytes([0, 0, 1, 0, 3, 0]), 'ICO fallback is not served'
+            page.wait_for_function('document.querySelector("#setup").open')
+            page.locator('#close-setup').click()
+            page.locator('#install').click()
+            assert page.locator('#installation').is_visible()
+            page.locator('#close-install').click()
+            page.locator('#new-race').click()
             page.wait_for_function('!document.querySelector("#track").disabled')
             assert page.locator('#track option').count() == 85, 'missing original tracks or custom drawing'
             assert page.locator('#setup').evaluate('(d) => d.open')
@@ -119,6 +145,7 @@ def main():
                 page.locator('#new-race').click()
                 page.locator('#track').select_option('')
                 page.locator('#player-count').fill('1')
+                page.once('dialog', lambda dialog: dialog.accept())
                 page.locator('#start').click()
                 page.wait_for_function('document.body.dataset.phase === "START"', timeout=300_000)
                 page.locator('#ok').click()

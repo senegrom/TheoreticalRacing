@@ -31,6 +31,8 @@ jobs:
           python-version: '3.13'
       - name: Original core tests
         run: sh run_tests.sh
+      - name: Install icon build dependencies
+        run: python3 -m pip install -r web/requirements-icons.txt
       - name: Build the same engine for browsers
         run: sh web/build.sh
       - name: Complete native parity and existing goldens
@@ -69,11 +71,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install icon build dependencies
+        run: python3 -m pip install -r web/requirements-icons.txt
       - run: sh web/build.sh
       - name: Install test browser
         run: |
           python -m pip install playwright==1.57.0
           python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: UI interaction and layout regressions
+        run: python3 web/tests/ui_e2e.py --browser ${{ matrix.browser }}
       - name: Real browser JVM golden race and UI
         run: python3 web/tests/browser_e2e.py --browser ${{ matrix.browser }}
       - uses: actions/upload-artifact@v4

@@ -61,7 +61,8 @@ public final class BrowserTests {
         final String beforeCrash = b.log();
         b.move(Direction.NW.ordinal(), false);
         check(beforeCrash.equals(b.log()) && !g.players[0].isFinished(), "crash happened without consent");
-        b.move(Direction.NW.ordinal(), true);
+        final String crashed = b.move(Direction.NW.ordinal(), true);
+        check(crashed.contains("\"outcome\":\"CRASH\""), "snapshot loses recorded crash outcome");
         check(g.players[0].getFinishedPlace() == 2 && b.log().contains(" CRASH place=2"), "confirmed crash did not use referee");
         final BrowserBridge custom = new BrowserBridge();
         custom.create("", "nPlayers=1\nplayer1Kind=HUMAN\n", "");
