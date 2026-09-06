@@ -82,15 +82,18 @@ def main():
               'page_url': f'https://{repo.split("/")[0]}.github.io/{repo.split("/")[1]}/'}
     args.report.write_text(json.dumps(report, indent=2) + '\n')
     if old:
+        page = api('GET', '/pages')
+        if page.get('source') != {'branch': 'gh-pages', 'path': '/'}:
+            raise RuntimeError('Pages publishing source changed; refusing to overwrite a different site')
         if api('GET', '/git/ref/heads/browser')['object']['sha'] != source:
             raise SystemExit('A newer browser commit exists; refusing a stale deployment')
         api('PATCH', '/git/refs/heads/gh-pages', {'sha': commit, 'force': False})
-        build = api('POST', '/pages/builds', {})
+        api('POST', '/pages/builds', {})
         for _ in range(120):
-            status = api('GET', f'/pages/builds/{build["id"]}')
-            if status['status'] == 'built':
+            status = api('GET', '/pages/builds/latest')
+            if status.get('commit') == commit and status['status'] == 'built':
                 break
-            if status['status'] == 'errored':
+            if status.get('commit') == commit and status['status'] == 'errored':
                 raise RuntimeError('Pages build failed: ' + json.dumps(status.get('error')))
             time.sleep(5)
         else:

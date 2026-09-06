@@ -1,16 +1,36 @@
 # Theoretical Racing — browser edition
 
-This branch keeps the desktop game and adds a native HTML/Canvas interface. Like
-mahjong, decisions live in one engine, not in a second JavaScript ruleset.
-Here the existing Java engine runs **locally in the browser** through the pinned
-CheerpJ 4.3 Java 17 runtime. No Java installation, account, game server or plugin
-is needed by the player.
+**[Play on GitHub Pages](https://senegrom.github.io/TheoreticalRacing/)**
 
-## Build and play
+A native HTML/Canvas interface around the original Java engine. Like mahjong,
+decisions live in one engine, not in a separate JavaScript ruleset. The engine
+runs locally in the browser through the pinned CheerpJ 4.3 Java 17 runtime.
+Players need no Java installation, account, game server or browser plugin.
 
-The browser build needs JDK 17+ and Python 3.9+. The desktop/original parity tests
-need the repository's supported JDK 25+ (the original sources also compile with
-Java 21, but that is not the desktop build's supported target).
+## Hosting and automatic updates
+
+Application source stays on `browser`. After the native parity and both real
+browser test suites pass, `.github/workflows/browser.yml` publishes the exact
+tested static artifact to the generated `gh-pages` branch and requests a Pages
+build. Nothing is pushed or merged to `master`.
+
+The repository's Pages publishing source is **Deploy from a branch → gh-pages
+→ / (root)**. Do not edit the generated branch by hand: a successful browser
+build replaces its contents. The site includes `source.tar.gz` (corresponding
+AGPL source) and `deployment.json` (the source commit). The publisher rejects
+stale source commits and unexpected publishing-source changes, uses non-force
+updates, and verifies the deployed commit before running real Java gameplay
+against the public URL. Evidence is saved as `live-pages-evidence` in Actions.
+
+On initial setup, the publisher stages a complete site commit and records it
+in the `pages-publication` artifact. Creating `gh-pages` at that commit through
+the maintainer connection initializes project Pages. Subsequent publications
+are automatic; no personal access token is stored in the repository.
+
+## Build and play locally
+
+The browser build needs JDK 17+ and Python 3.9+. Desktop/parity tests require
+the repository's supported JDK 25+.
 
 ```sh
 sh web/build.sh
@@ -18,56 +38,47 @@ python3 web/serve.py --port 8080
 # Open http://localhost:8080
 ```
 
-Serve **the contents of `web/dist`** on a static HTTPS host with HTTP byte-range
-support (206 / Content-Range), including a
-repository subdirectory on GitHub Pages. Opening `index.html` as a `file:` URL
-will not work. Neither will the standard `python -m http.server`, which lacks
-byte ranges; use the included `web/serve.py` for local development or
-`npx http-server web/dist`. The runtime checks host compatibility at startup.
-The Browser app workflow publishes a `browser-webapp` artifact;
-extract it and serve its contents. The workflow does not change the repository's
-Pages settings or deploy/merge to master.
+Serve the contents of `web/dist` over HTTP(S) with byte-range support (206 /
+Content-Range). Subdirectory hosting is supported. Opening `index.html` as a
+`file:` URL does not work. The standard `python -m http.server` also lacks
+byte ranges; use `web/serve.py` or `npx http-server web/dist`. The app checks
+host compatibility before starting Java. A prebuilt `browser-webapp` artifact
+is available from the workflow for other static hosts.
 
 ## What is preserved
 
-* Every rule, finish approach, checkpoint, lap transition, collision, retirement,
-  turn ordering and undo operation enters the original `RaceGame` methods.
-* Both AI labels, AI1 and AI2, use the original promoted `RaceAi` policy. They are
-  deliberately not presented as different difficulty levels: the Java game
-  currently uses two labels for the same policy.
-* All 84 `.track` files are copied byte-for-byte. The catalogue is exported by
-  the **original Java parser**, not parsed/reconstructed in JavaScript. The site
-  contains `track-hashes.json` and `engine-sources.json` for auditing.
-* Original Java RNG and the original start-cell enumeration determine seeded
-  AI placement. A blank seed preserves the legacy first-free placement order.
-* The full reachability computation, speed range, AI search and numerical Java
-  geometry are retained. There is no simplified, mobile or fallback AI.
+* Rules, finish approaches, checkpoints, laps, collisions, retirement, turn
+  ordering and undo enter the original `RaceGame` methods.
+* AI1 and AI2 use the original promoted `RaceAi` policy, not separate invented
+  difficulty levels. The full reachability computation and search are retained.
+* All 84 `.track` files are copied byte-for-byte. The original Java parser
+  exports the catalogue. `track-hashes.json` and `engine-sources.json` allow
+  independent audits.
+* Seeded placement uses the original Java RNG and start-cell enumeration.
+  A blank seed keeps the legacy first-free placement order.
 
-`src/` is not modified by the port. `scripts/prepare_sources.py` copies it at
-build time, swapping only the Swing presentation/scheduling imports and a small
-number of Java 21 list conveniences for equivalent Java 17 expressions. Each
-replacement is counted so an upstream edit requires an explicit audit. The AI,
-reachability and move-query sources are byte-for-byte copies.
+The port does not modify `src/`. At build time, `scripts/prepare_sources.py`
+changes only the Swing presentation/scheduling imports and counted Java 21
+list conveniences into equivalent Java 17 expressions. Upstream drift fails
+that build. AI, reachability and move-query sources are byte-for-byte copies.
 
-`java/tr/logic/BrowserBridge.java` is a transport adapter: it exports snapshots,
-reads the existing live move referee for previews, and forwards actions to the
-same public methods that the Swing UI calls. Geometry is exported from the Java
-`Area` for display. Canvas never decides whether a move or placement is legal.
-One hidden same-origin iframe owns each Java runtime and its workers; replacing
-a race destroys that realm instead of leaving an old AI worker running.
+`java/tr/logic/BrowserBridge.java` exports snapshots, queries the existing live
+referee for previews and forwards commands to the public methods used by Swing.
+Canvas renders Java's actual corridor and exact finish segment; it never decides
+legality. One hidden same-origin iframe owns each Java runtime. Starting a new
+race destroys the old realm and its workers.
 
-## Browser interface
+## Interface
 
-Configure 1–9 human/computer drivers, original colours, names, starting order,
-track, laps and optional seed. Draw custom tracks with the original validator.
-Tap the grid or use explicit coordinate inputs for placement/drawing. The board
-supports drag, pinch, zoom, fit and focusing on a car or start line.
+Configure 1–9 human/computer drivers, colours, names, order, track, laps and an
+optional seed. Draw custom tracks through the original validator. Use touch,
+mouse or coordinate inputs for placement/drawing, and pan, pinch, zoom, fit or
+focus the board. Keyboard controls are explained in the in-app help.
 
-Select a move to preview, then confirm. Invalid moves require separate crash
-consent. Undo restores the human decision and all intervening computer replies.
-AI pause, single-step and pacing change scheduling only, not the policy. Race
-logs export in the original format. Controls support touch, mouse and keyboard;
-settings are saved locally when storage is available. Active races are **not**
+Select a move to preview, then confirm it. Crashes require separate consent.
+Undo restores the human decision and intervening AI replies. AI pause, step
+and pacing affect scheduling only. Exported logs retain the original format.
+Settings are saved locally when storage is available; active races are not
 restored after reloading or leaving the page.
 
 ## Verification
@@ -77,49 +88,47 @@ sh run_tests.sh
 sh web/build.sh
 python3 web/tests/parity.py
 python3 web/tests/server_test.py
+python3 -m unittest discover -s web/tests -p 'test_*.py'
 python3 -m pip install playwright==1.57.0
 python3 -m playwright install chromium webkit
 python3 web/tests/browser_e2e.py --browser chromium
 python3 web/tests/browser_e2e.py --browser webkit
+python3 web/tests/browser_e2e.py --browser chromium --url https://senegrom.github.io/TheoreticalRacing/
 ```
 
-Parity compares the complete desktop and adapter logs byte-for-byte across all
-12 pre-existing golden races, plus unseeded AI1, negative-seed mixed AI1/AI2 and
-multi-lap races. It also checks those original golden hashes, runs the original
-finish/checkpoint, lap-aware rollout and exact-geometry rule-contract tests on the generated engine, and tests repeat
-previews, crash consent, human undo including AI replies, drawing and validation.
-No existing golden fixture is changed. Track and source hashes are verified.
+Parity compares complete desktop/adapter logs byte-for-byte for all 12 existing
+golden races plus unseeded AI1, negative-seed mixed AI1/AI2 and multi-lap races.
+It checks original golden hashes, original finish/checkpoint/rollout/geometry
+contracts, repeated previews, crash consent, undo including AI replies, drawing
+and validation. Existing fixtures are not rewritten. Track/source hashes are
+verified, and the publisher has offline transport-contract tests.
 
-The browser tests run the actual CheerpJ JVM, finish a seeded race, and compare
-its log with the existing Java golden. Chromium additionally exercises human
-placement, repeat previews, keyboard confirmation, undo and replacement of a
-running session, custom drawing and subdirectory hosting. WebKit runs at a phone-sized touch viewport. Screenshots and
-console logs are uploaded whether the tests pass or fail. `--ui-only` tests only
-layout and setup; it is explicitly not a Java-runtime or gameplay parity test.
+Chromium and phone-sized touch WebKit run the actual CheerpJ JVM and match a
+complete race against an existing Java golden. Both exercise human placement,
+repeated previews, confirmation, undo, session replacement and custom drawing.
+Mobile tests also check that confirmation is visible on the initial screen.
+Screenshots and logs are saved on success or failure. `--ui-only` is explicitly
+not a runtime/gameplay test; `--url` exercises an already deployed site.
 
 ## Runtime, resources and licensing
 
-The original engine is sizeable and builds exact reachability maps; large
-circuits can need substantial startup time and memory, particularly on phones.
-The UI reports preparation/failure rather than weakening the AI. Keep the tab
-visible to run computer turns. Readiness is polled without joining the Java
-worker on the UI path.
+Large circuits retain the original exact reachability calculation and can need
+substantial startup time and memory, particularly on phones. Preparation or
+failure is reported rather than substituting a weaker AI. Keep the tab visible
+to run computer turns.
 
-Unlike mahjong's bundled Rust/Wasm engine, this edition loads its Java runtime
-from `https://cjrtnc.leaningtech.com/4.3/loader.js`. It therefore needs network
-access and is **not advertised as an offline/self-contained PWA**. The app has a
-home-screen manifest but does not install an incomplete service-worker cache.
-The runtime is third-party code, fetched by the browser; the game server does
-not receive race decisions.
+Unlike mahjong's bundled Rust/Wasm engine, this app loads Java from
+`https://cjrtnc.leaningtech.com/4.3/loader.js`. It needs network access and is not
+an offline/self-contained PWA. The home-screen manifest does not install an
+incomplete service-worker cache. Game decisions run locally; the runtime is
+third-party code downloaded by the browser.
 
-The game and adapter retain the repository's AGPL-3.0 licence. The runtime has
-its separate [CheerpJ Community License](https://cheerpj.com/docs/licensing.html),
-which covers personal and FOSS projects with attribution; self-hosting the
-runtime or other uses may require a commercial licence. The app credits CheerpJ
-and links its game source. Do not remove those credits or redistribute the
-runtime without the appropriate permission.
+Game and adapter retain AGPL-3.0. CheerpJ has its separate
+[Community License](https://cheerpj.com/docs/licensing.html), covering personal
+and FOSS projects with attribution; other uses or runtime self-hosting may need
+a commercial licence. Keep the app's runtime credit and game-source links.
 
-The port started from desktop commit `b9471692e748c7a6c9d509e6b5992d1f7e8d8268`
-and incorporates master `fcee261ea27fb17b971819d573b8272f502a4f82`, including its
-lap-aware AI and exact finish-geometry fixes, without changing those sources.
-Future engine/track edits must rerun the differential and real-browser tests.
+The port started from `b9471692e748c7a6c9d509e6b5992d1f7e8d8268` and incorporates
+master `fcee261ea27fb17b971819d573b8272f502a4f82`, including its lap-aware AI and
+exact finish-geometry fixes, without changing those sources. Engine/track edits
+must rerun the differential and real-browser checks before publication.

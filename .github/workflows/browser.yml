@@ -37,6 +37,8 @@ jobs:
         run: python3 web/tests/parity.py
       - name: HTTP byte-range transport
         run: python3 web/tests/server_test.py
+      - name: Publishing transport contracts
+        run: python3 -m unittest discover -s web/tests -p 'test_*.py'
       - name: JavaScript syntax
         run: for f in web/*.js; do node --check "$f"; done
       - uses: actions/upload-artifact@v4
