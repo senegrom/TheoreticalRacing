@@ -25,3 +25,7 @@ __pycache__/
 
 # Local backups
 *.bak
+
+# Browser build and verification outputs
+/web/build/
+/web/dist/

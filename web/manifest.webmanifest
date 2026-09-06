@@ -1,0 +1,32 @@
+{
+  "id": "/TheoreticalRacing/",
+  "name": "Theoretical Racing",
+  "short_name": "Racing",
+  "description": "The original vector racing game, tracks and Java opponents.",
+  "lang": "en",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f0e6",
+  "theme_color": "#163e32",
+  "icons": [
+    {
+      "src": "./icons/racing-app-192-v3.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/racing-app-512-v3.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/racing-maskable-512-v3.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
