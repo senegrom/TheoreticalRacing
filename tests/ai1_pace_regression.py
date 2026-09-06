@@ -14,7 +14,12 @@ import bench_ai  # noqa: E402
 # private-lane certificate and its moderate-uncertainty two-exit refinement recover
 # repeated one-turn concessions. Keep the benchmark metric (sum of each finisher's
 # personal move count) at least this fast while also guarding crash-free completion.
-MAX_FINISH_MOVE_SUM = 887
+# Round 224 raised it from 887 to 891: the simulated rival predictor now reads
+# each car's own gate schedule, and on this one race that costs four moves. The
+# fleet cleared the change on both seed slices (no crash moved; +19 moves in
+# 1.85M on seeds 1-10, +133 on 11-20), and the safety assertions above this
+# bound -- seven finishers, no crash -- are untouched.
+MAX_FINISH_MOVE_SUM = 891
 
 # Round 94 extends the dual-model finish sprint from map TTF 15 to 20 only
 # in mover-kind homogeneous fields. Big Oval seed 7 is the smallest active

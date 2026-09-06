@@ -6,6 +6,72 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 224: the last frame-blind predictor, and what a re-freeze costs
+
+The peer review of round 222 sent ten findings. Three were already closed by
+round 223, and the two commits another agent pushed overnight closed five more
+-- including the crash I reproduced here (a `sim,` query as the FIRST query on
+a JVM entered the rollout with length-0 frame arrays and threw
+ArrayIndexOutOfBoundsException in ttfFor) and the 1v1 endgame solver, for which
+that agent found a counterexample this session had only reasoned about: on a
+99-lap circle the solver claimed victory through a crossing that was not a
+finish, and crashed.
+
+What was left is one function. pureMinTurnsMoveSim is the twin of
+pureMinTurnsMove over a simulated occupancy -- the predictor every rival is
+rolled through in the two-round projection. Round 222 gave it the rival's ttf
+and round 223 gave the LIVE twin the rival's gate frame, but the simulated twin
+still returned any legal forward crossing before it looked at the gate that car
+owed, the simulated body on the landing, or whether the landing could carry on;
+and it never had the twin's checkpoint precedence at all, so a projected rival
+ignored the checkpoint it owed and its post-touch landing priced a whole lap on
+the current gate map. Both are now the twin's rules in the car's own frame,
+minus needle headway, which has no simulated-occupancy analogue.
+
+MEASURED, against fcee261 (730 races a slice, one JVM at nice 19 on the box):
+
+    seeds 1-10    crashes 0 -> 0   moves 1853745 -> 1853764 (+19, +0.001%)
+                  611 of 730 races identical
+    seeds 11-20   crashes 1 -> 1 (the same race)   moves 1853205 -> 1853338
+                  (+133, +0.01%)   629 of 730 identical
+
+The crossing rule alone was +28 on seeds 1-10; the checkpoint precedence on top
+of it gave 9 back. Neither buys pace. Both are shipped as correctness at noise
+cost, on the user's standard: a principled change whose results hold is still
+worth having.
+
+WHAT A RE-FREEZE ACTUALLY COST, because "results hold" deserves an audit rather
+than an assertion. Six pinned artifacts moved. Three are the same race by a
+different route, outcome bit-identical:
+
+    interlagos-s10-8p (golden)   turns 1041, seven finishers, same order
+    private-slack hungaroring s40   same order AND same per-car move counts
+    private-slack interlagos s47    same order AND same per-car move counts
+
+Three changed a result:
+
+    zandvoort-s45-8p (golden)   1159 -> 1160 moves; D falls from second to
+                                fourth, B and C move up
+    private-slack lemans s2     one move shorter; the seventh finisher changes
+                                from car 6 to car 4, both at 86 moves
+    private-slack monaco s35    nine moves longer; car 7 finished before and
+                                car 1 finishes now -- a different car is the
+                                one that misses out
+
+And one bound moved: the Monaco seed-1 pace pin, 887 -> 891, four moves slower
+on that race. Its safety assertions (seven finishers, no crash) never moved.
+
+So the fleet is neutral on 1460 races and no crash changed anywhere, while
+three individual pinned races hand a place to a different car. That is the
+honest shape of a policy change at this scale, and the numbers are written next
+to each pin so a later reader can tell a measured re-freeze from a quiet
+loosening.
+
+ALSO THIS ROUND. The box stops itself: a CloudWatch alarm carl-codex-lab-idle-stop
+stops the instance after thirty minutes below 5% average CPU. It is the user's
+own cost control and it fired three times here, always after a run had
+finished; the lesson is not to leave a grid queued behind a long think.
+
 ## The review corrections, measured: a real referee bug, and the fleet does not feel it
 
 Another agent pushed the entry below straight to master (a0710ff) with the

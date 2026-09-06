@@ -2883,7 +2883,27 @@ final class RaceAi {
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
-			if (game.crossesFinishLegally(pos[0], pos[1], newX, newY))
+			if (game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
+				// Round 224: the twin's precedence, in this car's own frame. A
+				// crossing ends the race only on the final lap with nothing owed;
+				// a lap-scoring one must be survivable (legal edge, no simulated
+				// body, a shedable landing that can still reach CP1). Anything
+				// else is an ordinary move and falls through to the pace compare.
+				if (!frameLapAware[idx]
+					|| frameGate[idx] == 0 && (sm & bit) != 0
+						&& !occupied.contains(newX, newY)
+						&& reach.shedableLanding(newX, newY, newVx, newVy)
+						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE)
+					return d;
+			}
+			// Round 224: the twin's checkpoint precedence -- a touch with a
+			// continuing landing is progress the gate map cannot price.
+			if (frameLapAware[idx] && frameGate[idx] != 0 && (sm & bit) != 0
+				&& game.touchesGate(frameGate[idx], pos[0], pos[1], newX, newY)
+				&& !occupied.contains(newX, newY)
+				&& reach.isAlive(newX, newY, newVx, newVy)
+				&& reach.turnsToGate(frameGate[idx] == 1 ? 2 : 0, newX, newY, newVx, newVy)
+					!= Integer.MAX_VALUE)
 				return d;
 			if ((sm & bit) == 0)
 				continue;

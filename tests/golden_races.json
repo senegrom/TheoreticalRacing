@@ -172,7 +172,7 @@
       "track": "interlagos",
       "seed": 10,
       "players": 8,
-      "sha256": "087fedfaa3bc799fd5d1f8827bd64e829c0a6683bde32510f274148b1bee8225",
+      "sha256": "f5dfbdea7d5d3d4a73dcbb0810a2a710de5a13b1845d1f00c356052afa3fad55",
       "summary": {
         "turns": 1041,
         "finishes": 7,
@@ -216,16 +216,16 @@
       "track": "zandvoort",
       "seed": 45,
       "players": 8,
-      "sha256": "769b67dea9ef25162203c6650c1a3f9d6d3380b94572a31b71a372de3ce1f4ca",
+      "sha256": "bb2a611f64cf60ec75e22382c3a3a352acb8139fe81094f0322a2dcebd1742c4",
       "summary": {
-        "turns": 1159,
+        "turns": 1160,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
-          "D",
           "B",
           "C",
+          "D",
           "E",
           "F",
           "G",
