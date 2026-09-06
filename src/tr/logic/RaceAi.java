@@ -23,7 +23,7 @@ final class RaceAi {
 	 *  do not hit any reference landing can reuse both projected rounds exactly. */
 	private TwoRoundWorkspace nestedScorerTwoRoundReferenceWorkspace;
 	private PredictionWorkspace predictionWorkspace;
-	private RolloutWorkspace rolloutWorkspace;
+	private RolloutWorkspace[] rolloutsByDepth = new RolloutWorkspace[4];
 	private final int[] sealEscapes = new int[DIRECTIONS.length * 2];
 	private final int[] sealCover = new int[DIRECTIONS.length];
 	private final int[] sealMatch = new int[Integer.SIZE];
@@ -193,6 +193,10 @@ final class RaceAi {
 		final int[][] simulatedPosition;
 		final int[][] simulatedVelocity;
 		final int[] finishedPlace;
+		final int[][] originalLapState;
+		final int[] frameGate;
+		final int[] frameRemaining;
+		final boolean[] frameLapAware;
 
 		ScorerWorkspace(final int players) {
 			originalPosition = new int[players][];
@@ -200,10 +204,19 @@ final class RaceAi {
 			simulatedPosition = new int[players][2];
 			simulatedVelocity = new int[players][2];
 			finishedPlace = new int[players];
+			originalLapState = new int[players][];
+			frameGate = new int[players];
+			frameRemaining = new int[players];
+			frameLapAware = new boolean[players];
 		}
 	}
 
 	private static final class RolloutWorkspace {
+		final int[] laps;
+		final int[] gates;
+		final int[] remaining;
+		final boolean[] lapAware;
+		int turns;
 		final int[] px;
 		final int[] py;
 		final int[] vx;
@@ -219,6 +232,10 @@ final class RaceAi {
 		final ScorerWorkspace scorer;
 
 		RolloutWorkspace(final int players) {
+			laps = new int[players];
+			gates = new int[players];
+			remaining = new int[players];
+			lapAware = new boolean[players];
 			px = new int[players];
 			py = new int[players];
 			vx = new int[players];
@@ -2026,7 +2043,7 @@ final class RaceAi {
 
 	/** Round 222: each player's gate, lap-awareness and remaining events, by
 	 *  player index. Per-player facts, so a nested rival compute records the
-	 *  same values and nothing needs restoring. */
+	 *  projected values. Rollouts and nested scorers own separate frame arrays. */
 	private void recordPlayerFrames() {
 		final int n = game.players.length;
 		if (frameGate.length < n) {
@@ -3265,7 +3282,9 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy))
+			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
@@ -3296,7 +3315,9 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return 3;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -3329,14 +3350,16 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
-			final int turns = ttf(nx, ny, nvx, nvy);
+			final int turns = ttfFor(self, nx, ny, nvx, nvy);
 			if (tier > bestTier || tier == bestTier && turns < bestT) {
 				bestTier = tier;
 				bestT = turns;
@@ -3372,7 +3395,9 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy))
+			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -3413,19 +3438,20 @@ final class RaceAi {
 	 *  returns false when the scorer is boxed or would enter a body/dead state. */
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
-			final ScorerWorkspace workspace) {
-		return scorerMoveOverState(i, px, py, vx, vy, alive, out, workspace, true);
+			final RolloutWorkspace rollout) {
+		return scorerMoveOverState(i, px, py, vx, vy, alive, out, rollout, true);
 	}
 
 	/** suppress=false (round 99): the rival's computeAiMove runs its FULL pace
 	 *  stack -- the zandvoort-s32 killer move is a private-lane pace-arm
 	 *  product, invisible to every suppressed world. The rival's own nested
-	 *  sims still self-suppress (each nested scorer move re-sets the flag),
-	 *  and the workspace field is swapped out so the rival's rollouts cannot
-	 *  clobber the arrays of the rollout that spawned this move. */
+	 *  sims still self-suppress (each nested scorer move re-sets the flag).
+	 *  Per-depth workspaces and separately saved frames prevent the rival's
+	 *  rollouts from clobbering their parent's projected state. */
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
-			final ScorerWorkspace workspace, final boolean suppress) {
+			final RolloutWorkspace rollout, final boolean suppress) {
+		final ScorerWorkspace workspace = rollout.scorer;
 		final int n = game.players.length;
 		final int ss = game.subgamestate;
 		final boolean previousScorerSim = inScorerSim;
@@ -3435,14 +3461,22 @@ final class RaceAi {
 		// rival's map.
 		final int outerLapGate = lapGate, outerExactRemaining = exactRemaining;
 		final boolean outerLapAware = lapAware, outerRobustMode = robustMode;
+		final int[] outerFrameGate = frameGate, outerFrameRemaining = frameRemaining;
+		final boolean[] outerFrameLapAware = frameLapAware;
+		final int outerTurns = game.turnCount();
 		for (int j = 0; j < n; j++) {
 			final Player player = game.players[j];
 			workspace.originalPosition[j] = player.getPosition();
 			workspace.originalVelocity[j] = player.getVelocity();
 			workspace.finishedPlace[j] = player.getFinishedPlace();
+			workspace.originalLapState[j] = player.lapState();
 		}
 		final Direction direction;
 		try {
+			frameGate = workspace.frameGate;
+			frameRemaining = workspace.frameRemaining;
+			frameLapAware = workspace.frameLapAware;
+			game.setQueryTurnCounter(rollout.turns);
 			for (int j = 0; j < n; j++) {
 				final Player player = game.players[j];
 				final int[] position = workspace.simulatedPosition[j];
@@ -3454,31 +3488,27 @@ final class RaceAi {
 				player.setPosition(position);
 				player.setVelocity(velocity);
 				player.setFinishedPlace(alive[j] ? 0 : 77);
+				player.restoreLapState(new int[]{rollout.laps[j], rollout.gates[j], 0, 0, 0, 0});
 			}
 			game.subgamestate = i;
 			inScorerSim = suppress;
-			if (suppress) {
-				direction = computeAiMove();
-			} else {
-				final RolloutWorkspace outer = rolloutWorkspace;
-				rolloutWorkspace = null;
-				try {
-					direction = computeAiMove();
-				} finally {
-					rolloutWorkspace = outer;
-				}
-			}
+			direction = computeAiMove();
 		} finally {
 			inScorerSim = previousScorerSim;
 			lapGate = outerLapGate;
 			lapAware = outerLapAware;
 			robustMode = outerRobustMode;
 			exactRemaining = outerExactRemaining;
+			frameGate = outerFrameGate;
+			frameRemaining = outerFrameRemaining;
+			frameLapAware = outerFrameLapAware;
+			game.setQueryTurnCounter(outerTurns);
 			for (int j = 0; j < n; j++) {
 				final Player player = game.players[j];
 				player.setPosition(workspace.originalPosition[j]);
 				player.setVelocity(workspace.originalVelocity[j]);
 				player.setFinishedPlace(workspace.finishedPlace[j]);
+				player.restoreLapState(workspace.originalLapState[j]);
 			}
 			game.subgamestate = ss;
 		}
@@ -3488,23 +3518,24 @@ final class RaceAi {
 		if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 			return false;
 		final int nx = px[i] + nvx, ny = py[i] + nvy;
-		if (game.crossesFinishLegally(px[i], py[i], nx, ny))
+		final RaceGame.MoveResult result = game.evaluateMove(rollout.laps[i], rollout.gates[i],
+				px[i], py[i], nx, ny, occupiedByOther(nx, ny, i, px, py, alive));
+		if (result.finishes())
 			return writeMove(out, nx, ny, nvx, nvy);
-		if (!game.isMoveLegalGeometryCached(px[i], py[i], nx, ny))
-			return false;
-		for (int j = 0; j < n; j++)
-			if (j != i && alive[j] && px[j] == nx && py[j] == ny)
-				return false;
-		if (!reach.isAlive(nx, ny, nvx, nvy))
+		if (!result.legal() || !reach.isAlive(nx, ny, nvx, nvy))
 			return false;
 		return writeMove(out, nx, ny, nvx, nvy);
 	}
 
+	/** Disjoint storage for every active rollout, including suppressed nested
+	 * scorers. Parent proof vectors and progress ledgers remain live. */
 	private RolloutWorkspace rolloutWorkspace() {
+		if (simDepth >= rolloutsByDepth.length)
+			rolloutsByDepth = java.util.Arrays.copyOf(rolloutsByDepth, simDepth + 4);
 		final int players = game.players.length;
-		if (rolloutWorkspace == null || rolloutWorkspace.px.length != players)
-			rolloutWorkspace = new RolloutWorkspace(players);
-		return rolloutWorkspace;
+		if (rolloutsByDepth[simDepth] == null || rolloutsByDepth[simDepth].px.length != players)
+			rolloutsByDepth[simDepth] = new RolloutWorkspace(players);
+		return rolloutsByDepth[simDepth];
 	}
 
 	/** Roll the joint game forward from MY candidate landing over a DETACHED
@@ -3596,8 +3627,8 @@ final class RaceAi {
 		prepareDecisionFrame(mp, mv, me.getNumber());
 		final int[] ft = { 3 };
 		final int[] tr = { 0, 0 };
-		final int v = simOutcome(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
-				true, scorerRivals, scorerSelf, trueRivals, scorerCap, ft, null, tr);
+		final int v = simulate(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
+				true, scorerRivals, scorerSelf, trueRivals, scorerCap, ft, null, tr, false, null, false);
 		if (outAudit != null) {
 			outAudit[0] = ft[0];
 			outAudit[1] = tr[0];
@@ -3631,15 +3662,52 @@ final class RaceAi {
 			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
 			final long[] outFieldCost, final int[] outThreadRounds,
 			final boolean allScorerRivals, final long[] outRivalCost) {
+		return simulate(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish, exactSelf,
+				exactRivals, scorerRivals, scorerSelf, trueRivals, scorerCap, outFinalTier,
+				outFieldCost, outThreadRounds, allScorerRivals, outRivalCost, true);
+	}
+
+	private int simulate(final int myX, final int myY, final int myVx, final int myVy,
+			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
+			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
+			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
+			final long[] outFieldCost, final int[] outThreadRounds,
+			final boolean allScorerRivals, final long[] outRivalCost, final boolean candidatePending) {
+		final int outerGate = lapGate, outerRemaining = exactRemaining;
+		final boolean outerAware = lapAware, outerRobust = robustMode;
+		final int[] outerGates = frameGate, outerRemainingByPlayer = frameRemaining;
+		final boolean[] outerAwareByPlayer = frameLapAware;
 		simDepth++;
 		try {
+			final RolloutWorkspace workspace = rolloutWorkspace();
+			frameGate = workspace.gates;
+			frameRemaining = workspace.remaining;
+			frameLapAware = workspace.lapAware;
 			return simOutcomeCore(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish,
 					exactSelf, exactRivals, scorerRivals, scorerSelf, trueRivals, scorerCap,
 					outFinalTier, outFieldCost, outThreadRounds, allScorerRivals,
-					outRivalCost);
+					outRivalCost, candidatePending);
 		} finally {
+			frameGate = outerGates;
+			frameRemaining = outerRemainingByPlayer;
+			frameLapAware = outerAwareByPlayer;
+			lapGate = outerGate;
+			exactRemaining = outerRemaining;
+			lapAware = outerAware;
+			robustMode = outerRobust;
 			simDepth--;
 		}
+	}
+
+	private void updateRolloutFrame(final RolloutWorkspace workspace, final int i) {
+		frameLapAware[i] = workspace.laps[i] + 1 < game.totalLaps || frameGate[i] != 0;
+		frameRemaining[i] = OptimalPotential.remainingEvents(frameGate[i], workspace.laps[i], game.totalLaps);
+	}
+
+	private void usePlayerFrame(final int i) {
+		lapGate = frameGate[i];
+		lapAware = frameLapAware[i];
+		exactRemaining = frameRemaining[i];
 	}
 
 	private int simOutcomeCore(final int myX, final int myY, final int myVx, final int myVy,
@@ -3647,7 +3715,7 @@ final class RaceAi {
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
 			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
 			final long[] outFieldCost, final int[] outThreadRounds,
-			final boolean allScorerRivals, final long[] outRivalCost) {
+			final boolean allScorerRivals, final long[] outRivalCost, final boolean candidatePending) {
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -3657,6 +3725,7 @@ final class RaceAi {
 		final boolean[] scorerSet = workspace.scorerSet;
 		final int[] projectedMoves = workspace.projectedMoves;
 		final int[] move = workspace.move;
+		workspace.turns = game.turnCount();
 		java.util.Arrays.fill(scorerSet, false);
 		if (outRivalCost != null) {
 			if (outRivalCost.length < game.players.length)
@@ -3678,8 +3747,29 @@ final class RaceAi {
 			vx[i] = velocity[0];
 			vy[i] = velocity[1];
 			alive[i] = !player.isFinished();
+			workspace.laps[i] = player.getLap();
+			workspace.gates[i] = game.lapGates == null ? 0 : player.getNextGate();
+			updateRolloutFrame(workspace, i);
 			if (player.getNumber() == playerNum)
 				myIdx = i;
+		}
+		if (candidatePending) {
+			final RaceGame.MoveResult candidate = game.evaluateMove(workspace.laps[myIdx], workspace.gates[myIdx],
+					px[myIdx], py[myIdx], myX, myY, occupiedByOther(myX, myY, myIdx, px, py, alive));
+			if (!candidate.legal())
+				return -1;
+			workspace.laps[myIdx] = candidate.lapAfter();
+			workspace.gates[myIdx] = game.lapGates == null ? 0 : candidate.gateAfter();
+			updateRolloutFrame(workspace, myIdx);
+			workspace.turns++;
+			if (candidate.finishes() && simFinishVanish) {
+				alive[myIdx] = false;
+				myFinished = true;
+				if (outFinalTier != null)
+					outFinalTier[0] = 3;
+				if (outFieldCost == null && outRivalCost == null)
+					return 0;
+			}
 		}
 		px[myIdx] = myX;
 		py[myIdx] = myY;
@@ -3740,6 +3830,7 @@ final class RaceAi {
 			for (int i = from; i < game.players.length; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
+				usePlayerFrame(i);
 				if (outRivalCost != null && i != myIdx)
 					projectedMoves[i]++;
 				if (i == myIdx && outThreadRounds != null) {
@@ -3749,7 +3840,8 @@ final class RaceAi {
 						if (RaceGame.aiVelocityOutOfRange(tvx, tvy))
 							continue;
 						final int tx = px[i] + tvx, ty = py[i] + tvy;
-						if (game.crossesFinishLegally(px[i], py[i], tx, ty)) {
+						if (game.evaluateMove(workspace.laps[i], workspace.gates[i], px[i], py[i], tx, ty,
+								occupiedByOther(tx, ty, i, px, py, alive)).finishes()) {
 							viable = DIRECTIONS.length;
 							break;
 						}
@@ -3771,17 +3863,23 @@ final class RaceAi {
 				final boolean moved;
 				if (i == myIdx)
 					moved = scorerSelf
-							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer)
+							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace)
 							: exactSelf
 									? selfMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move)
 									: greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else if (scorerSet[i])
-					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace.scorer,
+					moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace,
 							!trueRivals);
 				else if (exactRivals)
 					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
 					moved = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
+				final RaceGame.MoveResult transition = moved
+						? game.evaluateMove(workspace.laps[i], workspace.gates[i], px[i], py[i], move[0], move[1],
+								occupiedByOther(move[0], move[1], i, px, py, alive)) : null;
+				final boolean timedOut = game.lapGates != null
+						&& workspace.turns > (long) game.totalLaps * 750 * game.players.length;
+				workspace.turns++;
 				if (trace)
 					System.err.println("SIMTRACE r=" + round + " i=" + i + " "
 							+ (i == myIdx ? (scorerSelf ? "scorerME" : exactSelf ? "selfME" : "greedyME")
@@ -3790,13 +3888,13 @@ final class RaceAi {
 							+ " (" + px[i] + "," + py[i] + ")v(" + vx[i] + "," + vy[i] + ") -> "
 							+ (!moved ? "STUCK"
 									: "(" + move[0] + "," + move[1] + ")v(" + move[2] + "," + move[3]
-											+ ")" + (game.crossesFinishLegally(px[i], py[i], move[0], move[1])
-													? " FINISH" : "")));
+											+ ")" + (timedOut ? " TIMEOUT" : !transition.legal() ? " CRASH"
+													: transition.finishes() ? " FINISH" : transition.lapCross() ? " LAP" : "")
+											+ " progress=" + transition.lapAfter() + "," + transition.gateAfter()));
 				// Round 223: only a FINISHING crossing takes the car off the board
 				// -- final lap, nothing owed, in the crosser's own frame; a lap
 				// scored or a stray crossing keeps it in the race.
-				if (simFinishVanish && moved && !frameLapAware[i]
-						&& game.crossesFinishLegally(px[i], py[i], move[0], move[1])) {
+				if (simFinishVanish && !timedOut && moved && transition.finishes()) {
 					alive[i] = false;
 					if (i == myIdx) {
 						if (outFinalTier != null)
@@ -3808,7 +3906,7 @@ final class RaceAi {
 						outRivalCost[i] = projectedMoves[i];
 					continue;
 				}
-				if (!moved) {
+				if (!moved || timedOut || !transition.legal()) {
 					if (i == myIdx)
 						return -1;
 					alive[i] = false;
@@ -3816,6 +3914,9 @@ final class RaceAi {
 						failedRivalCost += ROLLOUT_FAILURE_COST;
 					continue;
 				}
+				workspace.laps[i] = transition.lapAfter();
+				workspace.gates[i] = game.lapGates == null ? 0 : transition.gateAfter();
+				updateRolloutFrame(workspace, i);
 				px[i] = move[0];
 				py[i] = move[1];
 				vx[i] = move[2];
@@ -3838,6 +3939,7 @@ final class RaceAi {
 			if (outFieldCost != null)
 				outFieldCost[0] = fieldCost;
 		}
+		usePlayerFrame(myIdx);
 		// Round 65: a surviving-but-fragile final (tier <= 1) is the
 		// escalation signal for the 5-7-round doom class.
 		if (outFinalTier != null && !myFinished)
@@ -4876,7 +4978,10 @@ final class RaceAi {
 	 *  my state stays alive) or null. A blown node budget claims nothing. */
 	private Direction endgameSolve(final int[] pos, final int[] vel, final int playerNum) {
 		final int ri = decisiveRival(playerNum);
-		if (ri < 0)
+		// The minimax key has no progress ledger. It is sound only when
+		// BOTH racers owe just their final S/F crossing; being near the next
+		// gate is not being near victory when the exact potential is absent.
+		if (ri < 0 || lapAware || frameLapAware[ri])
 			return null;
 		final int myT = ttf(pos[0], pos[1], vel[0], vel[1]);
 		final int[] rp = game.players[ri].getPosition(), rv = game.players[ri].getVelocity();

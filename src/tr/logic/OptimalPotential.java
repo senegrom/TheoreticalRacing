@@ -17,7 +17,7 @@ import java.awt.geom.Line2D;
  * <p>Every move costs one turn and every seed costs one turn, so this is a
  * plain breadth-first search backward from the finish rather than a weighted
  * one. It obeys the referee: a non-final gate passage must be an ordinarily
- * legal move, the race-ending crossing is legality-waived. Rivals are not
+ * legal move, only the post-line part of a race-ending crossing is exempt. Rivals are not
  * modelled at all, which is exactly why the policy that uses it must first
  * check that none is near.
  */
@@ -57,24 +57,13 @@ final class OptimalPotential {
 				|| vx < -vmax || vx > vmax || vy < -vmax || vy > vmax)
 			return Integer.MAX_VALUE;
 		final short d = dist[key(x, y, vx, vy, remaining)];
-		return d == NONE ? Integer.MAX_VALUE : d - 1;
+		return d == NONE ? Integer.MAX_VALUE : Short.toUnsignedInt(d) - 1;
 	}
 
 	private int key(final int x, final int y, final int vx, final int vy, final int remaining) {
 		return (((x * h + y) * span + vx + vmax) * span + vy + vmax) * stages + remaining - 1;
 	}
 
-	/** Events the referee counts for this move, given the gate it is owed. */
-	private static int eventsOn(final RaceGame game, final int pending, final int x, final int y,
-			final int nx, final int ny) {
-		if (pending == 0)
-			return game.crossesFinish(x, y, nx, ny) && game.finishRunUpLegal(x, y, nx, ny) ? 1 : 0;
-		if (pending == 1)
-			return game.touchesGate(1, x, y, nx, ny)
-					? game.touchesGate(2, x, y, nx, ny) ? 2 : 1
-					: 0;
-		return game.touchesGate(2, x, y, nx, ny) ? 1 : 0;
-	}
 
 	/**
 	 * Build the potential, or return null when the board is too large for the
@@ -95,8 +84,8 @@ final class OptimalPotential {
 		final OptimalPotential map = new OptimalPotential(w, h, vmax, stages, dist);
 		final IntList frontier = new IntList();
 
-		// Seeds: one move from the finish. The race-ending crossing is
-		// legality-waived, so only the velocity domain and the board bound it.
+		// Seed every terminal predecessor, including a move that collects
+		// CP2 (or CP1 and CP2) before the finish and lands beyond the grid.
 		final Line2D sf = game.lapGates[0];
 		for (int x = 0; x < w; x++)
 			for (int y = 0; y < h; y++) {
@@ -110,15 +99,18 @@ final class OptimalPotential {
 								if (nvx < -vmax || nvx > vmax || nvy < -vmax || nvy > vmax)
 									continue;
 								final int nx = x + nvx, ny = y + nvy;
-								if (nx < 0 || ny < 0 || nx >= w || ny >= h)
-									continue;
 								if (!game.crossesFinish(x, y, nx, ny)
 										|| !game.finishRunUpLegal(x, y, nx, ny))
 									continue;
-								final int k = map.key(x, y, vx, vy, 1);
-								if (dist[k] == NONE) {
-									dist[k] = 2;   // one move, stored as moves + 1
-									frontier.add(k);
+								for (int remaining = 1; remaining <= 3; remaining++) {
+									final int pending = ORDER[(stages - remaining) % 3];
+									if (game.gateEventsOnMove(pending, x, y, nx, ny) != remaining)
+										continue;
+									final int k = map.key(x, y, vx, vy, remaining);
+									if (dist[k] == NONE) {
+										dist[k] = 2; // one move, stored as moves + 1
+										frontier.add(k);
+									}
 								}
 							}
 			}
@@ -127,7 +119,7 @@ final class OptimalPotential {
 		// move, so a plain queue keeps the values exact.
 		for (int read = 0; read < frontier.size; read++) {
 			final int cur = frontier.data[read];
-			final short next = (short) (dist[cur] + 1);
+			final int next = Short.toUnsignedInt(dist[cur]) + 1;
 			int rest = cur / stages;
 			final int rNow = cur % stages + 1;
 			final int nvy = rest % span - vmax;
@@ -141,12 +133,12 @@ final class OptimalPotential {
 				continue;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
-			for (int extra = 0; extra <= 2; extra++) {
+			for (int extra = 0; extra <= 3; extra++) {
 				final int rPred = rNow + extra;
 				if (rPred > stages)
 					break;
 				final int pending = ORDER[(stages - rPred) % 3];
-				if (eventsOn(game, pending, x, y, nx, ny) != extra)
+				if (game.gateEventsOnMove(pending, x, y, nx, ny) != extra)
 					continue;
 				for (int dvx = -1; dvx <= 1; dvx++)
 					for (int dvy = -1; dvy <= 1; dvy++) {
@@ -155,7 +147,9 @@ final class OptimalPotential {
 							continue;
 						final int k = map.key(x, y, vx, vy, rPred);
 						if (dist[k] == NONE) {
-							dist[k] = next;
+							if (next > 0xffff)
+								throw new IllegalStateException("optimal potential distance exceeds storage range");
+							dist[k] = (short) next;
 							frontier.add(k);
 						}
 					}
@@ -182,13 +176,15 @@ final class OptimalPotential {
 			if (nvx < -vmax || nvx > vmax || nvy < -vmax || nvy > vmax)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (nx < 0 || ny < 0 || nx >= w || ny >= h)
-				continue;
-			final int events = eventsOn(game, pending, x, y, nx, ny);
+			final int events = game.gateEventsOnMove(pending, x, y, nx, ny);
 			final int after = remaining - events;
-			if (after == 0)
-				return d;              // this move ends the race
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if (after == 0) {
+				if (game.finishRunUpLegal(x, y, nx, ny))
+					return d;
+				continue;
+			}
+			if (nx < 0 || ny < 0 || nx >= w || ny >= h
+					|| !game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
 			final int value = movesToFinish(after, nx, ny, nvx, nvy);
 			if (value < bestValue) {

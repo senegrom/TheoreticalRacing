@@ -19,18 +19,27 @@ resolve_jdk_tool() {
 
 require_jdk25_or_newer() {
     tool_path=$1
-    first_line=$("$tool_path" --version 2>&1 | sed -n '1p')
-    major=$(printf '%s\n' "$first_line" | sed -E 's/^[^0-9]*([0-9]+).*/\1/')
+    tool_name=$2
+    if ! version_output=$("$tool_path" --version 2>&1); then
+        printf '%s\n' "Cannot determine $tool_name version: $version_output" >&2
+        exit 2
+    fi
+    major=$(printf '%s\n' "$version_output" | sed -nE "s/^$tool_name ([0-9]+)([. +\\-].*)?$/\\1/p")
+    case "$major" in
+        ''|*[!0-9]*)
+            printf '%s\n' "Unrecognized $tool_name version: $version_output" >&2
+            exit 2 ;;
+    esac
     if [ "$major" -lt 25 ]; then
-        printf '%s\n' "JDK 25 or newer is required; $tool_path reports: $first_line" >&2
+        printf '%s\n' "JDK 25 or newer is required; $tool_path reports: $version_output" >&2
         exit 2
     fi
 }
 
 JAVAC_TOOL=$(resolve_jdk_tool javac)
 JAR_TOOL=$(resolve_jdk_tool jar)
-require_jdk25_or_newer "$JAVAC_TOOL"
-require_jdk25_or_newer "$JAR_TOOL"
+require_jdk25_or_newer "$JAVAC_TOOL" javac
+require_jdk25_or_newer "$JAR_TOOL" jar
 
 rm -rf build/classes theoreticRacing.jar
 mkdir -p build/classes

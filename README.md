@@ -103,6 +103,8 @@ For a promotion candidate, run the manual **AI promotion battery** workflow in G
 
 `tracks/oracle_roll.py` and `tracks/needle_audit.py` carry complete lap/gate state. Set `RACING_PROPS` to the recorded roster and lap profile before replaying. The legacy five-field protocol is retained with explicit first-lap defaults; it is not a full multi-lap snapshot. Older diagnostics using incomplete reconstruction reject multi-lap logs instead of silently dropping progress. See [docs/replay-protocol.md](docs/replay-protocol.md) for V2 and [docs/review-corrections.md](docs/review-corrections.md) for the finish-rule and golden-fixture changes.
 
+`python3 tests/lap_progress_regression.py` checks the non-final endgame counterexample and compares internal TRUE rollout moves with independent oracle queries across a checkpoint. See [follow-up rule corrections](docs/followup-rule-corrections.md) for the shared event rules, solver differential tests and rendering/build checks.
+
 ## How to play
 
 1. **Start dialog** — Configure 1–9 players, player names, colours, AI kinds, dimensions, and optionally choose a bundled track.
