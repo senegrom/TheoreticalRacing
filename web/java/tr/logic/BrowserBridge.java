@@ -32,6 +32,13 @@ public final class BrowserBridge {
     private final List<int[]> startCells = new ArrayList<>();
     private final Map<Integer, String> outcomes = new LinkedHashMap<>();
     private int scannedLogLength;
+    // Lossless worker transport state. Public snapshot() remains a complete
+    // resynchronization; normal actions send revisions and history deltas.
+    private int transportRevision;
+    private Object transportGeometryToken;
+    private int transportLeftSize = -1, transportRightSize = -1;
+    private String[] transportPlayerSignatures = new String[0];
+    private final List<List<int[]>> transportHistories = new ArrayList<>();
     private void readOutcomes() {
         final StringBuilder log = (StringBuilder) field("gameLog");
         if (log.length() < scannedLogLength) { outcomes.clear(); scannedLogLength = 0; }
@@ -90,7 +97,7 @@ public final class BrowserBridge {
         game.start();
         ui = (GameUI) field("gameFrame");
         scene = (RaceUI) field("rui");
-        return snapshot();
+        return transportSnapshot();
     }
 
     private GameState phase() { return (GameState) field("gamestate"); }
@@ -111,19 +118,19 @@ public final class BrowserBridge {
         // The real Java background worker does the work, unchanged. Never block
         // the browser transport by joining it, and never substitute a weaker AI.
         if (game.trackA == null || game.reach.isReady()) SwingUtilities.tick();
-        return snapshot();
+        return transportSnapshot();
     }
     public String click(final int x, final int y) {
         requireGame();
         if (x < 0 || y < 0 || x > game.gameCols || y > game.gameRows)
             throw new IllegalArgumentException("Click is outside the grid");
         game.clickedGrid(x, y);
-        return snapshot();
+        return transportSnapshot();
     }
     public String ok() {
         requireGame();
         game.clickedOK();
-        return snapshot();
+        return transportSnapshot();
     }
     public String undo() {
         requireGame();
@@ -132,7 +139,7 @@ public final class BrowserBridge {
             game.clickedUndo();
             selected = -1;
         }
-        return snapshot();
+        return transportSnapshot();
     }
     public String preview(final int index) {
         requireHumanTurn();
@@ -140,7 +147,7 @@ public final class BrowserBridge {
         // A repeated UI preview must not commit the engine's double-click action.
         if ((Integer) field("isShowingPrePath") != index) game.clickedDirection(Direction.fromIndex(index));
         selected = index;
-        return snapshot();
+        return transportSnapshot();
     }
     public String move(final int index, final boolean crashConfirmed) {
         requireHumanTurn();
@@ -151,7 +158,7 @@ public final class BrowserBridge {
         try { game.clickedDirection(Direction.fromIndex(index)); }
         finally { JOptionPane.confirmCrash(false); }
         if ((Integer) field("turnCounter") != before) selected = -1;
-        return snapshot();
+        return transportSnapshot();
     }
     public String log() { requireGame(); return field("gameLog").toString(); }
     public void awaitReady() { requireGame(); game.reach.ensureReachabilityReady(); }
@@ -163,7 +170,7 @@ public final class BrowserBridge {
         if (phase() != GameState.PLAY || game.players[game.subgamestate].isAi())
             throw new IllegalStateException("It is not a human turn");
     }
-    public String snapshot() {
+    private Map<String, Object> fullSnapshotMap() {
         requireGame();
         final GameState phase = phase();
         final Map<String, Object> out = new LinkedHashMap<>();
@@ -256,7 +263,101 @@ public final class BrowserBridge {
             }
         }
         out.put("starts", starts);
+        return out;
+    }
+
+    /** Explicit complete state for resynchronization and native diagnostics. */
+    public String snapshot() {
+        final Map<String, Object> out = fullSnapshotMap();
+        updateTransportTrackers(out);
+        out.put("_snapshot", "full");
+        out.put("_revision", ++transportRevision);
         return Json.encode(out);
+    }
+
+    private String transportSnapshot() {
+        if (transportRevision == 0) return snapshot();
+        final int base = transportRevision;
+        final Map<String, Object> full = fullSnapshotMap();
+        final Map<String, Object> delta = new LinkedHashMap<>();
+        delta.put("_snapshot", "delta");
+        delta.put("_base", base);
+        delta.put("_revision", ++transportRevision);
+
+        final Map<String, Object> set = new LinkedHashMap<>();
+        for (final String key : new String[]{"phase", "status", "cols", "rows", "current", "turn",
+                "laps", "selected", "ok", "undo", "ready", "messages", "prePath", "moves", "starts"})
+            set.put(key, full.get(key));
+        set.put("failure", full.getOrDefault("failure", null));
+        delta.put("set", set);
+
+        final int leftSize = game.track == null ? 0 : game.track.getLeft().size();
+        final int rightSize = game.track == null ? 0 : game.track.getRight().size();
+        final Object geometryToken = game.trackA != null ? game.trackA : game.track;
+        if (geometryToken != transportGeometryToken || leftSize != transportLeftSize || rightSize != transportRightSize) {
+            final Map<String, Object> geometry = new LinkedHashMap<>();
+            for (final String key : new String[]{"left", "right", "startZone", "checkpoints", "closures", "finish", "shape"})
+                geometry.put(key, full.get(key));
+            delta.put("geometry", geometry);
+            transportGeometryToken = geometryToken; transportLeftSize = leftSize; transportRightSize = rightSize;
+        }
+
+        @SuppressWarnings("unchecked")
+        final List<Map<String, Object>> players = (List<Map<String, Object>>) (List<?>) full.get("players");
+        ensureTransportPlayers(players.size());
+        final List<Object> patches = new ArrayList<>();
+        for (int i = 0; i < players.size(); i++) {
+            final Map<String, Object> player = players.get(i);
+            final Map<String, Object> fields = new LinkedHashMap<>(player);
+            fields.remove("history");
+            final String signature = Json.encode(fields);
+            @SuppressWarnings("unchecked")
+            final List<int[]> history = (List<int[]>) player.get("history");
+            final List<int[]> previous = transportHistories.get(i);
+            final boolean prefix = isHistoryPrefix(previous, history);
+            final Map<String, Object> patch = new LinkedHashMap<>();
+            patch.put("index", i);
+            if (!signature.equals(transportPlayerSignatures[i])) { patch.put("set", fields); transportPlayerSignatures[i] = signature; }
+            if (!prefix) patch.put("history", history);
+            else if (history.size() > previous.size()) patch.put("historyAppend", history.subList(previous.size(), history.size()));
+            if (patch.size() > 1) patches.add(patch);
+            transportHistories.set(i, copyHistory(history));
+        }
+        if (!patches.isEmpty()) delta.put("players", patches);
+        return Json.encode(delta);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void updateTransportTrackers(final Map<String, Object> full) {
+        transportGeometryToken = game.trackA != null ? game.trackA : game.track;
+        transportLeftSize = game.track == null ? 0 : game.track.getLeft().size();
+        transportRightSize = game.track == null ? 0 : game.track.getRight().size();
+        final List<Map<String, Object>> players = (List<Map<String, Object>>) (List<?>) full.get("players");
+        ensureTransportPlayers(players.size());
+        for (int i = 0; i < players.size(); i++) {
+            final Map<String, Object> fields = new LinkedHashMap<>(players.get(i));
+            @SuppressWarnings("unchecked") final List<int[]> history = (List<int[]>) fields.remove("history");
+            transportPlayerSignatures[i] = Json.encode(fields);
+            transportHistories.set(i, copyHistory(history));
+        }
+    }
+
+    private void ensureTransportPlayers(final int count) {
+        if (transportPlayerSignatures.length != count) transportPlayerSignatures = new String[count];
+        while (transportHistories.size() < count) transportHistories.add(new ArrayList<>());
+        while (transportHistories.size() > count) transportHistories.remove(transportHistories.size() - 1);
+    }
+
+    private static List<int[]> copyHistory(final List<int[]> history) {
+        final List<int[]> copy = new ArrayList<>(history.size());
+        for (final int[] point : history) copy.add(point.clone());
+        return copy;
+    }
+
+    private static boolean isHistoryPrefix(final List<int[]> prefix, final List<int[]> history) {
+        if (prefix.size() > history.size()) return false;
+        for (int i = 0; i < prefix.size(); i++) if (!java.util.Arrays.equals(prefix.get(i), history.get(i))) return false;
+        return true;
     }
 
     /** Java-side catalogue uses the original parser, never a second .track parser. */

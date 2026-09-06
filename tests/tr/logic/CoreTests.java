@@ -35,6 +35,7 @@ public final class CoreTests {
         testPointContainmentCache();
         testGeometryCacheThreadIsolation();
         testSharedDistanceMaps();
+        testBoundedSolverMemos();
         testEndgameMemoKey();
         testDistinctCoverMatching();
         testDirectBlockedLookup();
@@ -563,6 +564,77 @@ public final class CoreTests {
         check(Reachability.findDistanceMaps("core-distance-private", 2, 2) == null,
                 "distance map larger than the cap was retained globally");
         Reachability.clearDistanceMemoForTests();
+    }
+
+    private static void testBoundedSolverMemos() {
+        final String oldReach = System.getProperty("tr.reachMemoBytes");
+        final String oldOptimal = System.getProperty("tr.optimalMemoBytes");
+        try {
+            final java.lang.reflect.Method publish = Reachability.class.getDeclaredMethod("publishMemo", String.class);
+            final java.lang.reflect.Method publishLap = Reachability.class.getDeclaredMethod("publishLapMemo", String.class);
+            final java.lang.reflect.Method adopt = Reachability.class.getDeclaredMethod("adoptMemo", String.class);
+            final java.lang.reflect.Method adoptLap = Reachability.class.getDeclaredMethod("adoptLapMemo", String.class);
+            for (final var m : new java.lang.reflect.Method[]{publish, publishLap, adopt, adoptLap}) m.setAccessible(true);
+
+            System.setProperty("tr.reachMemoBytes", "180");
+            Reachability.clearReachMemoForTests();
+            final Reachability first = syntheticReachability(16);
+            final Reachability second = syntheticReachability(16);
+            publish.invoke(first, "memo-a");
+            publish.invoke(second, "memo-b");
+            check(Reachability.reachMemoBytesForTests() <= 180, "reachability memo exceeded configured byte cap");
+            check(!(Boolean) adopt.invoke(syntheticReachability(16), "memo-a"), "reachability memo LRU retained its eldest entry");
+            check((Boolean) adopt.invoke(syntheticReachability(16), "memo-b"), "reachability memo evicted its newest entry");
+
+            System.setProperty("tr.reachMemoBytes", "4096");
+            Reachability.clearReachMemoForTests();
+            final Reachability lap = syntheticReachability(8);
+            publish.invoke(lap, "memo-lap");
+            lap.gateTurns = new int[][]{new int[8], new int[8], new int[8]};
+            lap.robustReach = new BitSet[]{new BitSet(8), new BitSet(8), new BitSet(8)};
+            lap.aliveStates = new BitSet(8); lap.aliveStates.set(1);
+            lap.roomy0 = new BitSet(8); lap.roomy1 = new BitSet(8);
+            lap.minShed2 = new byte[8]; lap.minShed2Roomy = new byte[8]; lap.certSq = new byte[8];
+            lap.robustSeedFallback = true; lap.phantomAlive = 3;
+            publishLap.invoke(lap, "memo-lap");
+            final Reachability adopted = syntheticReachability(8);
+            check((Boolean) adopt.invoke(adopted, "memo-lap") && (Boolean) adoptLap.invoke(adopted, "memo-lap"),
+                    "complete lap bundle was not reusable");
+            check(adopted.gateTurns == lap.gateTurns && adopted.robustReach == lap.robustReach
+                    && adopted.aliveStates == lap.aliveStates && adopted.phantomAlive == 3
+                    && adopted.robustSeedFallback, "lap memo did not restore the coherent bundle atomically");
+
+            final java.lang.reflect.Constructor<OptimalPotential> ctor = OptimalPotential.class
+                    .getDeclaredConstructor(int.class, int.class, int.class, int.class, short[].class);
+            ctor.setAccessible(true);
+            final java.lang.reflect.Method cache = RaceGame.class.getDeclaredMethod("cacheOptimal", String.class, OptimalPotential.class);
+            cache.setAccessible(true);
+            final java.lang.reflect.Field memo = RaceGame.class.getDeclaredField("OPTIMAL_MEMO"); memo.setAccessible(true);
+            System.setProperty("tr.optimalMemoBytes", "250");
+            RaceGame.clearOptimalMemoForTests();
+            final OptimalPotential one = ctor.newInstance(1, 1, 0, 1, new short[100]);
+            final OptimalPotential two = ctor.newInstance(1, 1, 0, 1, new short[100]);
+            cache.invoke(null, "one", one); cache.invoke(null, "two", two);
+            @SuppressWarnings("unchecked") final java.util.Map<String, OptimalPotential> cached =
+                    (java.util.Map<String, OptimalPotential>) memo.get(null);
+            check(RaceGame.optimalMemoBytesForTests() <= 250 && !cached.containsKey("one") && cached.get("two") == two,
+                    "optimal-potential memo did not evict by byte budget");
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("solver memo budget test failed", error);
+        } finally {
+            if (oldReach == null) System.clearProperty("tr.reachMemoBytes"); else System.setProperty("tr.reachMemoBytes", oldReach);
+            if (oldOptimal == null) System.clearProperty("tr.optimalMemoBytes"); else System.setProperty("tr.optimalMemoBytes", oldOptimal);
+            Reachability.clearReachMemoForTests(); RaceGame.clearOptimalMemoForTests();
+        }
+    }
+
+    private static Reachability syntheticReachability(final int states) {
+        final Reachability r = new Reachability(new RaceGame(new java.util.Properties()));
+        r.aliveW = 1; r.aliveH = 1; r.aliveVMAX = 0; r.aliveSpan = 1;
+        r.turnsArr = new int[states]; r.aliveStates = new BitSet(states);
+        r.roomy0 = new BitSet(states); r.roomy1 = new BitSet(states);
+        r.minShed2 = new byte[states]; r.minShed2Roomy = new byte[states]; r.certSq = new byte[states];
+        return r;
     }
 
     private static void testDistinctCoverMatching() {

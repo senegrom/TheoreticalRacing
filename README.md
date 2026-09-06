@@ -97,6 +97,10 @@ python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans h
 
 For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [racing-memory.md](racing-memory.md) for the campaign ledger -- every round's measurements, the instruments and the current frontier; [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) keeps the older-era notes.
 
+## Performance and memory
+
+Map preparation, in-process cache and browser-transport invariants are documented in [docs/performance.md](docs/performance.md). These optimizations are decision-invisible by design and are guarded by equivalence/regression tests.
+
 ## Replay and rule-contract tests
 
 `python3 tests/query_replay_regression.py` records a two-lap race and replays every move through the versioned oracle, including standalone simulation queries and query-order isolation. It runs in CI alongside the existing goldens and champion pins. The core tests include illegal finish approaches, checkpoint transitions and convergence guards; the tooling tests inject failed JVMs, stale logs, interrupted runs and mismatched replay outcomes.

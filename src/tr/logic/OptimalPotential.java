@@ -71,6 +71,15 @@ final class OptimalPotential {
 	 * already within about a percent of optimal).
 	 */
 	static OptimalPotential build(final RaceGame game, final int totalLaps, final long budgetBytes) {
+		return build(game, totalLaps, budgetBytes, budgetBytes);
+	}
+
+	/** The retained-distance limit and total construction limit are separate:
+	 * production keeps the historical distance-map eligibility while reserving
+	 * additional, bounded room for the pending FIFO. Tests may pass one shared
+	 * limit through the three-argument overload above. */
+	static OptimalPotential build(final RaceGame game, final int totalLaps,
+			final long distanceBudgetBytes, final long totalBudgetBytes) {
 		if (game.lapGates == null)
 			return null;
 		final int w = game.gameCols + 1, h = game.gameRows + 1;
@@ -78,11 +87,18 @@ final class OptimalPotential {
 		final int stages = 3 * totalLaps;
 		final long states = (long) w * h * span * span;
 		final long entries = states * stages;
-		if (entries > Integer.MAX_VALUE || entries * Short.BYTES > budgetBytes)
+		final long distanceBytes = entries * Short.BYTES;
+		if (entries > Integer.MAX_VALUE || distanceBytes > distanceBudgetBytes)
+			return null;
+		// The total budget also covers the live frontier. The circular queue
+		// retains only pending states and refuses to grow past this allowance.
+		final long queueBytes = totalBudgetBytes - distanceBytes;
+		if (queueBytes < 1024L * Integer.BYTES)
 			return null;
 		final short[] dist = new short[(int) entries];
 		final OptimalPotential map = new OptimalPotential(w, h, vmax, stages, dist);
-		final IntList frontier = new IntList();
+		final IntQueue frontier = new IntQueue((int) Math.min(Integer.MAX_VALUE, queueBytes / Integer.BYTES));
+		try {
 
 		// Seed every terminal predecessor, including a move that collects
 		// CP2 (or CP1 and CP2) before the finish and lands beyond the grid.
@@ -116,9 +132,9 @@ final class OptimalPotential {
 			}
 
 		// Backward breadth-first search: every edge and every seed costs one
-		// move, so a plain queue keeps the values exact.
-		for (int read = 0; read < frontier.size; read++) {
-			final int cur = frontier.data[read];
+		// move, so FIFO order keeps the values exact.
+		while (!frontier.isEmpty()) {
+			final int cur = frontier.remove();
 			final int next = Short.toUnsignedInt(dist[cur]) + 1;
 			int rest = cur / stages;
 			final int rNow = cur % stages + 1;
@@ -154,6 +170,9 @@ final class OptimalPotential {
 						}
 					}
 			}
+		}
+		} catch (final FrontierBudgetExceeded ignored) {
+			return null;
 		}
 		return map;
 	}
@@ -195,15 +214,48 @@ final class OptimalPotential {
 		return best;
 	}
 
-	/** Growable int list: the search queue, read once in order. */
-	private static final class IntList {
-		private int[] data = new int[1 << 16];
-		private int size;
+	long retainedBytes() { return (long) dist.length * Short.BYTES; }
+
+	private static final class FrontierBudgetExceeded extends RuntimeException {
+		private static final long serialVersionUID = 1L;
+	}
+
+	/** Circular FIFO: processed states are released immediately. The capacity
+	 * is bounded by the caller's construction-memory budget. */
+	private static final class IntQueue {
+		private int[] data;
+		private int head, size;
+		private final int maxCapacity;
+
+		IntQueue(final int maxCapacity) {
+			this.maxCapacity = Math.max(1024, maxCapacity);
+			data = new int[Math.min(1 << 16, this.maxCapacity)];
+		}
+
+		boolean isEmpty() { return size == 0; }
 
 		void add(final int value) {
-			if (size == data.length)
-				data = java.util.Arrays.copyOf(data, data.length * 2);
-			data[size++] = value;
+			if (size == data.length) grow();
+			int tail = head + size;
+			if (tail >= data.length) tail -= data.length;
+			data[tail] = value; size++;
+		}
+
+		int remove() {
+			final int value = data[head];
+			if (++head == data.length) head = 0;
+			size--; return value;
+		}
+
+		private void grow() {
+			if (data.length >= maxCapacity)
+				throw new FrontierBudgetExceeded();
+			final int next = data.length <= maxCapacity / 2 ? data.length << 1 : maxCapacity;
+			final int[] larger = new int[next];
+			final int first = Math.min(size, data.length - head);
+			System.arraycopy(data, head, larger, 0, first);
+			System.arraycopy(data, 0, larger, first, size - first);
+			data = larger; head = 0;
 		}
 	}
 }

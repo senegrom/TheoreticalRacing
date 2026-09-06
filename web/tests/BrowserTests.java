@@ -19,7 +19,9 @@ public final class BrowserTests {
         FollowupRuleTests.run();
         StartPlacementTests.run();
         final BrowserBridge b = new BrowserBridge();
-        b.create("hairpin", "nPlayers=2\nplayer1Kind=HUMAN\nplayer2Kind=AI1\nlaps=1\n", "1");
+        final String created = b.create("hairpin", "nPlayers=2\nplayer1Kind=HUMAN\nplayer2Kind=AI1\nlaps=1\n", "1");
+        check(created.contains("\"_snapshot\":\"full\"") && created.contains("\"shape\":"),
+                "initial browser state is not a complete resynchronization");
         final RaceGame g = (RaceGame) get(b, "game");
         b.awaitReady();
         int[] start = null;
@@ -37,7 +39,10 @@ public final class BrowserTests {
             if (d != Direction.NONE && g.evaluateMove(g.players[0], start, new int[]{start[0] + d.dx, start[1] + d.dy}).legal()) { legal = d; break; }
         }
         check(legal != null, "no legal first move");
-        b.preview(legal.ordinal()); b.preview(legal.ordinal());
+        final String previewDelta = b.preview(legal.ordinal());
+        check(previewDelta.contains("\"_snapshot\":\"delta\"") && !previewDelta.contains("\"shape\":"),
+                "unchanged geometry was resent in a normal action delta");
+        b.preview(legal.ordinal());
         check(Arrays.equals(g.players[0].getPosition(), start), "repeated preview moved the car");
         check(originalLog.equals(b.log()), "preview changed race log");
         b.move(legal.ordinal(), false);
@@ -45,7 +50,11 @@ public final class BrowserTests {
         int ticks = 0;
         while (g.players[g.subgamestate].isAi() && ++ticks < 10) b.tick();
         check(!g.players[g.subgamestate].isAi(), "AI replies did not return human turn");
-        b.undo();
+        final String undoDelta = b.undo();
+        check(undoDelta.contains("\"history\":"), "undo did not send a history replacement delta");
+        final String resync = b.snapshot();
+        check(resync.contains("\"_snapshot\":\"full\"") && resync.contains("\"shape\":"),
+                "explicit snapshot did not provide a full resynchronization");
         check(Arrays.deepEquals(originalPositions, new int[][]{g.players[0].getPosition(), g.players[1].getPosition()}), "undo failed to restore the complete field");
         check(originalLog.equals(b.log()), "undo failed to restore original log");
         check(g.players[0].getHistory().size() == 1 && g.players[1].getHistory().size() == 1, "undo retained replies in histories");

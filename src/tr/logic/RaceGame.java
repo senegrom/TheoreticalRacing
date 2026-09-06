@@ -1096,33 +1096,76 @@ public final class RaceGame {
 	/** Round 214: exact distance-to-finish for a car with the track to itself.
 	 *  Built once per (geometry, laps) and shared by every race in this JVM;
 	 *  null when the board is too large for the budget. */
-	private static final java.util.HashMap<String, OptimalPotential> OPTIMAL_MEMO =
-			new java.util.HashMap<>();
-	/** 1.5 GB covers every board in the fleet except the Nordschleife, whose
-	 *  89M states would need 1.6 GB -- and which is already within about a
-	 *  percent of optimal, so it keeps the ordinary policy. */
+	private static final long OPTIMAL_MEMO_MAX_BYTES = 768L << 20;
+	private static final int OPTIMAL_MEMO_MAX_ENTRIES = 16;
+	private static final java.util.LinkedHashMap<String, OptimalPotential> OPTIMAL_MEMO =
+			new java.util.LinkedHashMap<>(16, 0.75f, true);
+	private static long optimalMemoBytes;
+	/** The historical upper bound remains, but construction now also respects
+	 *  current free heap and includes its pending-state FIFO in the budget. */
 	private static final long OPTIMAL_BUDGET_BYTES = 1536L << 20;
 	private OptimalPotential optimalPotential;
 	private boolean optimalPotentialBuilt;
 
+	private static long optimalMemoLimit() {
+		final long adaptive = Math.min(OPTIMAL_MEMO_MAX_BYTES, Math.max(32L << 20, Runtime.getRuntime().maxMemory() / 4));
+		final long configured = Long.getLong("tr.optimalMemoBytes", adaptive);
+		return Math.max(0, Math.min(OPTIMAL_MEMO_MAX_BYTES, configured));
+	}
+
+	private static void cacheOptimal(final String key, final OptimalPotential map) {
+		if (key == null || map == null || map.retainedBytes() > optimalMemoLimit()) return;
+		synchronized (OPTIMAL_MEMO) {
+			final OptimalPotential old = OPTIMAL_MEMO.remove(key);
+			if (old != null) optimalMemoBytes -= old.retainedBytes();
+			while (!OPTIMAL_MEMO.isEmpty() && (OPTIMAL_MEMO.size() >= OPTIMAL_MEMO_MAX_ENTRIES
+					|| optimalMemoBytes + map.retainedBytes() > optimalMemoLimit())) {
+				final java.util.Iterator<java.util.Map.Entry<String, OptimalPotential>> it = OPTIMAL_MEMO.entrySet().iterator();
+				final OptimalPotential evicted = it.next().getValue(); it.remove(); optimalMemoBytes -= evicted.retainedBytes();
+			}
+			OPTIMAL_MEMO.put(key, map); optimalMemoBytes += map.retainedBytes();
+		}
+	}
+
+	static void clearOptimalMemoForTests() { synchronized (OPTIMAL_MEMO) { OPTIMAL_MEMO.clear(); optimalMemoBytes = 0; } }
+	static long optimalMemoBytesForTests() { synchronized (OPTIMAL_MEMO) { return optimalMemoBytes; } }
+
+	private static final long OPTIMAL_FRONTIER_BUDGET_BYTES = 64L << 20;
+
+	/** Deterministic per heap size: GC timing must never decide whether an exact
+	 * map exists, because that would change AI choices between identical races.
+	 * Keep the historical 1.5-GiB retained-map limit and reserve separate room
+	 * for the bounded FIFO plus the rest of the game. */
+	private static long optimalDistanceBudget() {
+		return Math.max(0, Math.min(OPTIMAL_BUDGET_BYTES,
+				Long.getLong("tr.optimalBuildBytes", OPTIMAL_BUDGET_BYTES)));
+	}
+
+	private static long optimalTotalBuildBudget(final long distanceBudget) {
+		final long heap = Runtime.getRuntime().maxMemory();
+		final long reserve = Math.max(512L << 20, heap / 4);
+		final long usable = Math.max(0, heap - reserve);
+		return Math.min(usable, distanceBudget + OPTIMAL_FRONTIER_BUDGET_BYTES);
+	}
+
 	OptimalPotential optimalPotential() {
-		if (optimalPotentialBuilt)
-			return optimalPotential;
+		if (optimalPotentialBuilt) return optimalPotential;
 		optimalPotentialBuilt = true;
 		if (lapGates != null) {
 			final String key = reach.geometryCacheKey() + "-laps" + totalLaps;
-			synchronized (OPTIMAL_MEMO) {
-				if (OPTIMAL_MEMO.containsKey(key)) {
-					optimalPotential = OPTIMAL_MEMO.get(key);
-				} else {
-					final long t0 = System.nanoTime();
-					optimalPotential = OptimalPotential.build(this, totalLaps, OPTIMAL_BUDGET_BYTES);
-					OPTIMAL_MEMO.put(key, optimalPotential);
-					if (autoMode)
-						System.out.printf("[optimal] potential %s in %.1fs%n",
-								optimalPotential == null ? "SKIPPED (over budget)" : "built",
-								(System.nanoTime() - t0) / 1e9);
-				}
+			synchronized (OPTIMAL_MEMO) { optimalPotential = OPTIMAL_MEMO.get(key); }
+			if (optimalPotential == null) {
+				final long t0 = System.nanoTime();
+				final long distanceBudget = optimalDistanceBudget();
+				final long totalBudget = optimalTotalBuildBudget(distanceBudget);
+				optimalPotential = distanceBudget <= 0 ? null
+						: OptimalPotential.build(this, totalLaps, distanceBudget, totalBudget);
+				cacheOptimal(key, optimalPotential);
+				if (autoMode)
+					System.out.printf("[optimal] potential %s in %.1fs (distance %.0f MiB, total %.0f MiB)%n",
+							optimalPotential == null ? "SKIPPED (over budget)" : "built",
+							(System.nanoTime() - t0) / 1e9, distanceBudget / (double) (1 << 20),
+							totalBudget / (double) (1 << 20));
 			}
 		}
 		return optimalPotential;

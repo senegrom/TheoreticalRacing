@@ -86,6 +86,8 @@ final class FollowupRuleTests {
         final RaceGame g = corridor(8, 7, 5, 6);
         final OptimalPotential pot = OptimalPotential.build(g, 1, 16L << 20);
         check(pot != null, "small potential was skipped");
+        check(OptimalPotential.build(g, 1, pot.retainedBytes() + 1024) == null,
+                "potential ignored construction/frontier memory budget");
         for (final int gate : new int[]{1, 2, 0}) {
             final int remaining = OptimalPotential.remainingEvents(gate, 0, 1);
             final RaceGame.MoveResult r = g.evaluateMove(0, gate, 4, 2, 8, 2, false);

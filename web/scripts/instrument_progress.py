@@ -33,7 +33,7 @@ def instrument(source: str) -> str:
         after(anchor, f'begin("{label}", {stage});')
     after('\tprivate boolean tryLoadDerived() {', 'begin("Loading saved driving maps", 5);')
     after('\t\taliveStates = alive;', 'reused();')
-    after('\t\tcertSq = (byte[]) m[10];', 'reused();')
+    after('\t\tminShed2 = m.baseShed2; minShed2Roomy = m.baseShed2Roomy; certSq = m.baseCert;', 'reused();')
     after('\t\t\t\tgame.clearPointContainmentCacheForCurrentThread();',
           'if (reachabilityFailure == null) tr.browser.Progress.complete();', expression=True)
     # Distinct signatures for each real checkpoint pass, including convergence.
@@ -82,13 +82,17 @@ def instrument_optimal(source: str) -> str:
     hooks = [
         ('\t\tfinal Line2D sf = game.lapGates[0];',
          '\t\ttr.browser.Progress.begin("Exact full-race map — scanning finish approaches", 9);'),
-        ('\t\tfor (int read = 0; read < frontier.size; read++) {',
-         '\t\t\tif ((read & 2047) == 0) tr.browser.Progress.explored(read);'),
     ]
     for anchor, code in hooks:
         if result.count(anchor) != 1:
             raise RuntimeError(f'Optimal-map progress hook drift: {anchor!r}')
         result = result.replace(anchor, anchor + '\n' + code + TAG)
+    anchor = '\t\twhile (!frontier.isEmpty()) {'
+    if result.count(anchor) != 1:
+        raise RuntimeError(f'Optimal-map progress hook drift: {anchor!r}')
+    result = result.replace(anchor, '\t\ttr.browser.Progress.searching();' + TAG
+                            + '\n\t\tint browserOptimalProgress = 0;' + TAG + '\n' + anchor)
+    result = result.replace(anchor, anchor + '\n\t\t\tif (((++browserOptimalProgress) & 2047) == 0) tr.browser.Progress.explored(browserOptimalProgress);' + TAG)
     if strip(result) != source:
         raise RuntimeError('Optimal-map instrumentation changed engine code')
     return result

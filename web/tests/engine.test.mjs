@@ -99,3 +99,54 @@ test('fatal worker errors still terminate and reject all queued requests', async
   worker.send({fatal: 'broken'}); await Promise.all(errors);
   assert.equal(e.dead, true); assert.equal(worker.terminated, true); assert.equal(timers.size, 0);
 });
+
+test('snapshot deltas reconstruct exact state with structural sharing and full resync', async t => {
+  const {e, worker} = harness(t);
+  worker.send({ready: true});
+  const first = await pending(e, 'create');
+  worker.send({id: first.id, result: {
+    _snapshot: 'full', _revision: 1, phase: 'PLAY', turn: 0,
+    left: [[0,0]], shape: [[0,1,2]], messages: [], moves: [], starts: [],
+    players: [
+      {name: 'A', position: [1,1], velocity: [0,0], history: [[1,1]], outcome: ''},
+      {name: 'B', position: [2,2], velocity: [0,0], history: [[2,2]], outcome: ''}
+    ]
+  }});
+  const s1 = await first.result;
+  assert.equal(s1.__revision, 1);
+  const oldGeometry = s1.shape, oldSecond = s1.players[1], oldFirstHistory = s1.players[0].history;
+
+  const step = await pending(e, 'tick');
+  worker.send({id: step.id, result: {
+    _snapshot: 'delta', _base: 1, _revision: 2,
+    set: {turn: 1, messages: ['moved'], moves: [], starts: []},
+    players: [{index: 0, set: {position: [2,1], velocity: [1,0]}, historyAppend: [[2,1]]}]
+  }});
+  const s2 = await step.result;
+  assert.equal(s2.turn, 1);
+  assert.deepEqual(s2.players[0].history, [[1,1],[2,1]]);
+  assert.equal(s2.shape, oldGeometry, 'unchanged geometry should be shared');
+  assert.equal(s2.players[1], oldSecond, 'unchanged player should be shared');
+  assert.notEqual(s2.players[0].history, oldFirstHistory, 'changed history must not mutate the old snapshot');
+  assert.deepEqual(s1.players[0].history, [[1,1]], 'prior state was mutated');
+
+  const undo = await pending(e, 'undo');
+  worker.send({id: undo.id, result: {
+    _snapshot: 'delta', _base: 2, _revision: 3,
+    set: {turn: 0, messages: [], moves: [], starts: []},
+    players: [{index: 0, set: {position: [1,1], velocity: [0,0]}, history: [[1,1]]}]
+  }});
+  assert.deepEqual((await undo.result).players[0].history, [[1,1]]);
+
+  const resync = await pending(e, 'snapshot');
+  worker.send({id: resync.id, result: {
+    _snapshot: 'full', _revision: 4, phase: 'FINISHED', turn: 9, messages: [], moves: [], starts: [],
+    left: [[9,9]], shape: [[4,5,6]], players: [{name:'A', history:[[9,9]]}]
+  }});
+  const s4 = await resync.result;
+  assert.equal(s4.phase, 'FINISHED'); assert.equal(s4.__revision, 4);
+
+  const bad = await pending(e, 'tick');
+  worker.send({id: bad.id, result: {_snapshot:'delta', _base: 1, _revision:5, set:{turn:10}}});
+  await assert.rejects(bad.result, /lost synchronization/);
+});

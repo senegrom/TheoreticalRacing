@@ -403,42 +403,29 @@ final class Reachability {
 		final boolean robust = gate == 0 && pass == 0;
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
-				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5))
-					continue;
-				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
-					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
+				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5)) continue;
+				// One geometric edge per landing velocity; distribute to predecessors.
+				for (int nvx = -aliveVMAX; nvx <= aliveVMAX; nvx++) {
+					for (int nvy = -aliveVMAX; nvy <= aliveVMAX; nvy++) {
+						final int nx = x + nvx, ny = y + nvy;
+						final boolean hits = (gate == 0
+								? game.crossesFinish(x, y, nx, ny)
+										&& game.finishRunUpLegal(x, y, nx, ny)
+										&& shedableLanding(nx, ny, nvx, nvy)
+								: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
+										line.getX2(), line.getY2(), x, y, nx, ny)
+										&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
+										&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
+								&& game.isMoveLegalGeometryCached(x, y, nx, ny);
+						if (!hits) continue;
+						if (nextMap != null && nextMap[aliveIdx(nx, ny, nvx, nvy)] == Integer.MAX_VALUE) continue;
+						if (robust && !robustLanding(nx, ny, nvx, nvy, nextMap)) continue;
 						for (final Direction d : DIRECTIONS) {
-							final int nvx = vx + d.dx;
-							final int nvy = vy + d.dy;
-							if (velocityOutOfRange(nvx, nvy))
-								continue;
-							final int nx = x + nvx, ny = y + nvy;
-							// Unlike the laps=1 finish (where crossing ends the race and
-							// is legality-exempt), a mid-race gate passage must be an
-							// ordinarily LEGAL move -- seeds that clip a wall corner
-							// lure the chooser into value-1 death traps.
-							final boolean hits = (gate == 0
-									? game.crossesFinish(x, y, nx, ny)
-											&& game.finishRunUpLegal(x, y, nx, ny)
-											&& shedableLanding(nx, ny, nvx, nvy)
-									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
-											line.getX2(), line.getY2(), x, y, nx, ny)
-											&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
-											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
-									&& game.isMoveLegalGeometryCached(x, y, nx, ny);
-							if (hits && nextMap != null
-									&& nextMap[aliveIdx(nx, ny, nvx, nvy)] == Integer.MAX_VALUE)
-								continue;
-							if (hits && robust && !robustLanding(nx, ny, nvx, nvy, nextMap))
-								continue;
-							if (hits) {
-								final int idx = aliveIdx(x, y, vx, vy);
-								if (!seen.get(idx)) {
-									seen.set(idx);
-									map[idx] = 1;
-									queue.add(idx);
-								}
-								break;
+							final int vx = nvx - d.dx, vy = nvy - d.dy;
+							if (velocityOutOfRange(vx, vy)) continue;
+							final int idx = aliveIdx(x, y, vx, vy);
+							if (!seen.get(idx)) {
+								seen.set(idx); map[idx] = 1; queue.add(idx);
 							}
 						}
 					}
@@ -446,6 +433,7 @@ final class Reachability {
 			}
 		}
 		}
+
 		while (!queue.isEmpty()) {
 			int rest = queue.remove();
 			final int curIdx = rest;
@@ -503,41 +491,36 @@ final class Reachability {
 		final IntQueue queue = new IntQueue();
 		for (int x = 0; x < aliveW; x++) {
 			for (int y = 0; y < aliveH; y++) {
-				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5))
-					continue;
-				for (int vx = -aliveVMAX; vx <= aliveVMAX; vx++) {
-					for (int vy = -aliveVMAX; vy <= aliveVMAX; vy++) {
-						final int idx = aliveIdx(x, y, vx, vy);
+				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5)) continue;
+				// One geometric edge per landing velocity; distribute to predecessors.
+				for (int nvx = -aliveVMAX; nvx <= aliveVMAX; nvx++) {
+					for (int nvy = -aliveVMAX; nvy <= aliveVMAX; nvy++) {
+						final int nx = x + nvx, ny = y + nvy;
+						final boolean hits = (gate == 0
+								? game.crossesFinish(x, y, nx, ny)
+										&& game.finishRunUpLegal(x, y, nx, ny)
+										&& shedableLanding(nx, ny, nvx, nvy)
+								: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
+										line.getX2(), line.getY2(), x, y, nx, ny)
+										&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
+										&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
+								&& game.isMoveLegalGeometryCached(x, y, nx, ny);
+						if (!hits) continue;
+						if (nextRobust != null && !nextRobust.get(aliveIdx(nx, ny, nvx, nvy))) continue;
+						if (gate == 0 && !robustLandingIn(nx, ny, nvx, nvy, nextRobust)) continue;
 						for (final Direction d : DIRECTIONS) {
-							final int nvx = vx + d.dx;
-							final int nvy = vy + d.dy;
-							if (velocityOutOfRange(nvx, nvy))
-								continue;
-							final int nx = x + nvx, ny = y + nvy;
-							final boolean hits = (gate == 0
-									? game.crossesFinish(x, y, nx, ny)
-											&& game.finishRunUpLegal(x, y, nx, ny)
-											&& shedableLanding(nx, ny, nvx, nvy)
-									: java.awt.geom.Line2D.linesIntersect(line.getX1(), line.getY1(),
-											line.getX2(), line.getY2(), x, y, nx, ny)
-											&& nx >= 0 && ny >= 0 && nx < aliveW && ny < aliveH
-											&& aliveStates.get(aliveIdx(nx, ny, nvx, nvy)))
-									&& game.isMoveLegalGeometryCached(x, y, nx, ny);
-							if (!hits)
-								continue;
-							if (nextRobust != null && !nextRobust.get(aliveIdx(nx, ny, nvx, nvy)))
-								continue;
-							if (gate == 0 && !robustLandingIn(nx, ny, nvx, nvy, nextRobust))
-								continue;
+							final int vx = nvx - d.dx, vy = nvy - d.dy;
+							if (velocityOutOfRange(vx, vy)) continue;
+							final int idx = aliveIdx(x, y, vx, vy);
 							if (arrivals[idx] < 2 && ++arrivals[idx] == 2) {
-								scratch[idx] = 1;
-								queue.add(idx);
+								scratch[idx] = 1; queue.add(idx);
 							}
 						}
 					}
 				}
 			}
 		}
+
 		while (!queue.isEmpty()) {
 			int rest = queue.remove();
 			final int curIdx = rest;
@@ -1199,38 +1182,128 @@ final class Reachability {
 				+ " (" + turnsArr.length + " states) -> " + path);
 	}
 
-	/** In-process memo of fully derived reachability products, keyed by the
-	 *  geometry-hash cache path. Batch racing (one JVM, many seeds of one
-	 *  track) adopts the arrays instantly instead of re-reading and
-	 *  re-deriving ~1.3s of cache per race; everything stored is read-only
-	 *  after build. */
-	private static final java.util.concurrent.ConcurrentHashMap<String, Object[]> REACH_MEMO =
-			new java.util.concurrent.ConcurrentHashMap<>();
+	/** In-process memo of immutable reachability products. The entry keeps the
+	 *  finish closure and, when it fits, the complete coherent lap bundle too.
+	 *  A byte-bounded access-order map prevents desktop sessions that visit many
+	 *  tracks from retaining every multi-megabyte solver product indefinitely. */
+	private static final long REACH_MEMO_MAX_BYTES = 384L << 20;
+	private static long reachMemoLimit() {
+		final long adaptive = Math.min(REACH_MEMO_MAX_BYTES, Math.max(32L << 20, Runtime.getRuntime().maxMemory() / 6));
+		final long configured = Long.getLong("tr.reachMemoBytes", adaptive);
+		return Math.max(0, Math.min(REACH_MEMO_MAX_BYTES, configured));
+	}
+	private static final java.util.LinkedHashMap<String, ReachMemoEntry> REACH_MEMO =
+			new java.util.LinkedHashMap<>(16, 0.75f, true);
+	private static long reachMemoBytes;
+
+	private static long bytes(final int[] a) { return a == null ? 0L : (long) a.length * Integer.BYTES; }
+	private static long bytes(final byte[] a) { return a == null ? 0L : a.length; }
+	private static long bytes(final BitSet a) { return a == null ? 0L : (long) a.size() / Byte.SIZE; }
+	private static long bytes(final int[][] a) {
+		long n = 0; if (a != null) for (final int[] row : a) n += bytes(row); return n;
+	}
+	private static long bytes(final BitSet[] a) {
+		long n = 0; if (a != null) for (final BitSet row : a) n += bytes(row); return n;
+	}
+
+	private static final class ReachMemoEntry {
+		final int w, h, vmax, span;
+		final int[] turns;
+		final BitSet baseAlive, baseRoomy0, baseRoomy1;
+		final byte[] baseShed2, baseShed2Roomy, baseCert;
+		final long baseBytes;
+		int[][] gateTurns; BitSet[] robustReach; BitSet lapAlive, lapRoomy0, lapRoomy1;
+		byte[] lapShed2, lapShed2Roomy, lapCert;
+		boolean robustSeedFallback; int phantomAlive; long lapBytes;
+
+		ReachMemoEntry(final Reachability r) {
+			w = r.aliveW; h = r.aliveH; vmax = r.aliveVMAX; span = r.aliveSpan;
+			turns = r.turnsArr; baseAlive = r.aliveStates; baseRoomy0 = r.roomy0; baseRoomy1 = r.roomy1;
+			baseShed2 = r.minShed2; baseShed2Roomy = r.minShed2Roomy; baseCert = r.certSq;
+			baseBytes = bytes(turns) + bytes(baseAlive) + bytes(baseRoomy0) + bytes(baseRoomy1)
+					+ bytes(baseShed2) + bytes(baseShed2Roomy) + bytes(baseCert);
+		}
+
+		long totalBytes() { return baseBytes + lapBytes; }
+		boolean compatible(final Reachability r) {
+			return w == r.aliveW && h == r.aliveH && vmax == r.aliveVMAX && span == r.aliveSpan
+					&& turns.length == r.turnsArr.length;
+		}
+	}
+
+	private static void evictReachMemoTo(final long targetBytes) {
+		final java.util.Iterator<java.util.Map.Entry<String, ReachMemoEntry>> it = REACH_MEMO.entrySet().iterator();
+		while (reachMemoBytes > targetBytes && it.hasNext()) {
+			final ReachMemoEntry entry = it.next().getValue();
+			it.remove();
+			reachMemoBytes -= entry.totalBytes();
+		}
+	}
 
 	private boolean adoptMemo(final String key) {
-		final Object[] m = key == null ? null : REACH_MEMO.get(key);
-		if (m == null)
-			return false;
-		aliveW = (Integer) m[0];
-		aliveH = (Integer) m[1];
-		aliveVMAX = (Integer) m[2];
-		aliveSpan = (Integer) m[3];
-		turnsArr = (int[]) m[4];
-		aliveStates = (BitSet) m[5];
-		roomy0 = (BitSet) m[6];
-		roomy1 = (BitSet) m[7];
-		minShed2 = (byte[]) m[8];
-		minShed2Roomy = (byte[]) m[9];
-		certSq = (byte[]) m[10];
+		final ReachMemoEntry m;
+		synchronized (REACH_MEMO) { m = key == null ? null : REACH_MEMO.get(key); }
+		if (m == null) return false;
+		aliveW = m.w; aliveH = m.h; aliveVMAX = m.vmax; aliveSpan = m.span; turnsArr = m.turns;
+		aliveStates = m.baseAlive; roomy0 = m.baseRoomy0; roomy1 = m.baseRoomy1;
+		minShed2 = m.baseShed2; minShed2Roomy = m.baseShed2Roomy; certSq = m.baseCert;
 		return true;
 	}
 
 	private void publishMemo(final String key) {
-		if (key == null || turnsArr == null)
-			return;
-		REACH_MEMO.putIfAbsent(key, new Object[]{aliveW, aliveH, aliveVMAX, aliveSpan,
-				turnsArr, aliveStates, roomy0, roomy1, minShed2, minShed2Roomy, certSq});
+		if (key == null || turnsArr == null) return;
+		final ReachMemoEntry created = new ReachMemoEntry(this);
+		if (created.baseBytes > reachMemoLimit()) return;
+		synchronized (REACH_MEMO) {
+			final ReachMemoEntry old = REACH_MEMO.get(key);
+			if (old != null && old.compatible(this)) return;
+			if (old != null) { REACH_MEMO.remove(key); reachMemoBytes -= old.totalBytes(); }
+			REACH_MEMO.put(key, created); reachMemoBytes += created.baseBytes;
+			evictReachMemoTo(reachMemoLimit());
+		}
 	}
+
+	private boolean adoptLapMemo(final String key) {
+		final ReachMemoEntry m;
+		synchronized (REACH_MEMO) { m = key == null ? null : REACH_MEMO.get(key); }
+		if (m == null || m.gateTurns == null) return false;
+		gateTurns = m.gateTurns; robustReach = m.robustReach; aliveStates = m.lapAlive;
+		roomy0 = m.lapRoomy0; roomy1 = m.lapRoomy1; minShed2 = m.lapShed2;
+		minShed2Roomy = m.lapShed2Roomy; certSq = m.lapCert;
+		robustSeedFallback = m.robustSeedFallback; phantomAlive = m.phantomAlive;
+		return true;
+	}
+
+	private void publishLapMemo(final String key) {
+		if (key == null || gateTurns == null) return;
+		synchronized (REACH_MEMO) {
+			final ReachMemoEntry m = REACH_MEMO.get(key);
+			if (m == null || m.gateTurns != null) return;
+			final long extra = bytes(gateTurns) + bytes(robustReach) + bytes(aliveStates)
+					+ bytes(roomy0) + bytes(roomy1) + bytes(minShed2) + bytes(minShed2Roomy) + bytes(certSq);
+			if (m.baseBytes + extra > reachMemoLimit()) return;
+			// Evict other entries first; never evict the entry currently being extended.
+			final long needed = reachMemoBytes + extra - reachMemoLimit();
+			if (needed > 0) {
+				final java.util.Iterator<java.util.Map.Entry<String, ReachMemoEntry>> it = REACH_MEMO.entrySet().iterator();
+				long freed = 0;
+				while (it.hasNext() && freed < needed) {
+					final java.util.Map.Entry<String, ReachMemoEntry> e = it.next();
+					if (e.getValue() == m) continue;
+					freed += e.getValue().totalBytes(); reachMemoBytes -= e.getValue().totalBytes(); it.remove();
+				}
+			}
+			if (reachMemoBytes + extra > reachMemoLimit()) return;
+			m.gateTurns = gateTurns; m.robustReach = robustReach; m.lapAlive = aliveStates;
+			m.lapRoomy0 = roomy0; m.lapRoomy1 = roomy1; m.lapShed2 = minShed2;
+			m.lapShed2Roomy = minShed2Roomy; m.lapCert = certSq;
+			m.robustSeedFallback = robustSeedFallback; m.phantomAlive = phantomAlive; m.lapBytes = extra;
+			reachMemoBytes += extra;
+		}
+	}
+
+	static void clearReachMemoForTests() { synchronized (REACH_MEMO) { REACH_MEMO.clear(); reachMemoBytes = 0; } }
+	static long reachMemoBytesForTests() { synchronized (REACH_MEMO) { return reachMemoBytes; } }
 
 	/** Kick off reverse-BFS reachability on a daemon thread so it doesn't block the UI. */
 	void startReachabilityCompute() {
@@ -1249,8 +1322,10 @@ final class Reachability {
 				// -- computed on every path, memo hits included (the memo
 				// path used to race multi-lap batches with no gate maps at
 				// all, silently falling back to the finish map).
-				if (game.lapGates != null)
+				if (game.lapGates != null && !adoptLapMemo(memoKey)) {
 					computeGateMaps(game.lapGates);
+					publishLapMemo(memoKey);
+				}
 				if (game.needsInformedStartMaps()) game.prepareOptimalStartMap();
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;

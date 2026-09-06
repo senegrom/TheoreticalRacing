@@ -3,6 +3,7 @@ export class Engine {
   constructor(onStatus = () => {}) {
     this.next = 1;
     this.pending = new Map();
+    this.snapshotState = null;
     this.dead = false;
     this.booting = true;
     this.stalled = false;
@@ -46,7 +47,10 @@ export class Engine {
           if (request.method !== 'readiness') this.noteActivity();
           if (!this.booting && this.pending.size === 0) this.setStalled(false);
           if (message.error) request.reject(new Error(message.error));
-          else request.resolve(message.result);
+          else {
+            try { request.resolve(this.mergeSnapshot(message.result)); }
+            catch (error) { request.reject(error); }
+          }
         }
       };
       this.worker.onerror = event => {
@@ -90,6 +94,32 @@ export class Engine {
       try { this.worker.postMessage({scope: 'theoretical-racing', id, method, args}); }
       catch (error) { this.fail(error); }
     });
+  }
+  mergeSnapshot(result) {
+    if (!result || typeof result !== 'object' || !result._snapshot) return result;
+    if (result._snapshot === 'full') {
+      const next = {...result, __revision: result._revision};
+      delete next._snapshot; delete next._revision;
+      this.snapshotState = next;
+      return next;
+    }
+    if (result._snapshot !== 'delta' || !this.snapshotState || result._base !== this.snapshotState.__revision)
+      throw new Error('The Java state stream lost synchronization. Start a new race to recover.');
+    const next = {...this.snapshotState, ...(result.set || {}), __revision: result._revision};
+    if (result.geometry) Object.assign(next, result.geometry);
+    if (result.players) {
+      next.players = this.snapshotState.players.slice();
+      for (const patch of result.players) {
+        const old = this.snapshotState.players[patch.index];
+        if (!old) throw new Error('Invalid player state delta');
+        const player = {...old, ...(patch.set || {})};
+        if (patch.history) player.history = patch.history;
+        else if (patch.historyAppend) player.history = [...old.history, ...patch.historyAppend];
+        next.players[patch.index] = player;
+      }
+    }
+    this.snapshotState = next;
+    return next;
   }
   fail(error) {
     if (this.dead) return;
