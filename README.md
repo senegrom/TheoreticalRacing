@@ -1,5 +1,8 @@
 # Theoretical Racing
 
+**Browser edition:** the `browser` branch adds a native web interface using the
+same Java rules, AI and all 84 tracks. See [browser build and verification](web/README.md).
+
 A Java Swing implementation of the classic pen-and-paper [Racetrack](https://en.wikipedia.org/wiki/Racetrack_(game)) game, with deterministic computer players, exact empty-track reachability, benchmark tooling, and a library of real and synthetic tracks.
 
 Players draw or select a track, place their cars in the start zone, then take turns racing by adjusting their velocity vector. Each turn changes velocity by at most 1 in each axis; the new position is the current position plus the updated velocity. Leaving the track or landing on another live car crashes the player.

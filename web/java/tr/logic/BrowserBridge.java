@@ -77,7 +77,7 @@ public final class BrowserBridge {
         requireGame();
         // The real Java background worker does the work, unchanged. Never block
         // the browser transport by joining it, and never substitute a weaker AI.
-        if (game.track == null || game.reach.isReady()) SwingUtilities.tick();
+        if (game.trackA == null || game.reach.isReady()) SwingUtilities.tick();
         return snapshot();
     }
     public String click(final int x, final int y) {
@@ -140,7 +140,7 @@ public final class BrowserBridge {
         out.put("current", game.subgamestate); out.put("turn", field("turnCounter"));
         out.put("laps", game.totalLaps); out.put("selected", selected);
         out.put("ok", ui.okEnabled); out.put("undo", ui.undoEnabled);
-        out.put("ready", game.track == null || game.reach.isReady());
+        out.put("ready", game.trackA == null || game.reach.isReady());
         if (game.track != null && game.reach.isReady()) {
             try { game.reach.ensureReachabilityReady(); }
             catch (final RuntimeException | Error error) { out.put("failure", error.toString()); }

@@ -14,13 +14,17 @@ Java 21, but that is not the desktop build's supported target).
 
 ```sh
 sh web/build.sh
-python3 -m http.server --directory web/dist 8080
+python3 web/serve.py --port 8080
 # Open http://localhost:8080
 ```
 
-Serve **the contents of `web/dist`** on any HTTP(S) static host, including a
+Serve **the contents of `web/dist`** on a static HTTPS host with HTTP byte-range
+support (206 / Content-Range), including a
 repository subdirectory on GitHub Pages. Opening `index.html` as a `file:` URL
-will not work. The Browser app workflow publishes a `browser-webapp` artifact;
+will not work. Neither will the standard `python -m http.server`, which lacks
+byte ranges; use the included `web/serve.py` for local development or
+`npx http-server web/dist`. The runtime checks host compatibility at startup.
+The Browser app workflow publishes a `browser-webapp` artifact;
 extract it and serve its contents. The workflow does not change the repository's
 Pages settings or deploy/merge to master.
 
@@ -72,6 +76,7 @@ restored after reloading or leaving the page.
 sh run_tests.sh
 sh web/build.sh
 python3 web/tests/parity.py
+python3 web/tests/server_test.py
 python3 -m pip install playwright==1.57.0
 python3 -m playwright install chromium webkit
 python3 web/tests/browser_e2e.py --browser chromium
@@ -88,7 +93,7 @@ No existing golden fixture is changed. Track and source hashes are verified.
 The browser tests run the actual CheerpJ JVM, finish a seeded race, and compare
 its log with the existing Java golden. Chromium additionally exercises human
 placement, repeat previews, keyboard confirmation, undo and replacement of a
-running session. WebKit runs at a phone-sized touch viewport. Screenshots and
+running session, custom drawing and subdirectory hosting. WebKit runs at a phone-sized touch viewport. Screenshots and
 console logs are uploaded whether the tests pass or fail. `--ui-only` tests only
 layout and setup; it is explicitly not a Java-runtime or gameplay parity test.
 
