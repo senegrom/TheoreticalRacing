@@ -39,7 +39,13 @@ function accept(next) {
   else if (next.messages?.length) notice(next.messages.join(' '));
   else if (old?.turn !== next.turn) notice();
   board.set(next);
-  if (!old || (old.phase !== 'PLAY' && next.phase === 'PLAY')) board.focus();
+  const driver = next.players[next.current];
+  if (next.phase === 'FINISHED' && old?.phase !== 'FINISHED') board.fit();
+  else if (!old && next.phase === 'PLACEPLAYERS' && driver?.kind === 'HUMAN') board.focus();
+  else if (next.phase === 'PLAY' && driver?.kind === 'HUMAN') {
+    const [x, y] = board.screen(driver.position);
+    if (old?.phase !== 'PLAY' || (!board.fitMode && (x < 20 || y < 20 || x > board.width - 20 || y > board.height - 20))) board.focus();
+  }
   render();
 }
 async function act(method, ...args) {
