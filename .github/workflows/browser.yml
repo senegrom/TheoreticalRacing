@@ -80,3 +80,50 @@ jobs:
           name: browser-${{ matrix.browser }}-evidence
           path: web/build/browser-tests/
           retention-days: 7
+  publish:
+    name: Publish GitHub Pages
+    needs: [parity, browsers]
+    if: github.ref == 'refs/heads/browser' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pages: write
+    concurrency:
+      group: github-pages-publication
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-webapp
+          path: site
+      - name: Publish the verified build
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 web/scripts/publish_pages.py site
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pages-publication
+          path: pages-publication.json
+          if-no-files-found: error
+      - name: Install live-site test browser
+        if: steps.publish.outputs.published == 'true'
+        run: |
+          python3 -m pip install playwright==1.57.0
+          python3 -m playwright install --with-deps chromium
+      - name: Verify gameplay on the public site
+        if: steps.publish.outputs.published == 'true'
+        env:
+          PAGE_URL: ${{ steps.publish.outputs.page_url }}
+        run: python3 web/tests/browser_e2e.py --browser chromium --url "$PAGE_URL"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.publish.outputs.published == 'true'
+        with:
+          name: live-pages-evidence
+          path: web/build/browser-tests/
+          retention-days: 7

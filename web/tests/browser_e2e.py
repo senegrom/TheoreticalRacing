@@ -32,12 +32,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--browser', choices=['chromium', 'webkit'], default='chromium')
     parser.add_argument('--ui-only', action='store_true')
+    parser.add_argument('--url', help='Test an already deployed site instead of the local build')
     args = parser.parse_args()
     out = ROOT / 'web/build/browser-tests' / args.browser
     out.mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(QuietHandler, directory=str(ROOT / 'web')))
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
+    server = None
+    if args.url:
+        url = args.url.rstrip('/') + '/'
+    else:
+        server = ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(QuietHandler, directory=str(ROOT / 'web')))
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        url = f'http://127.0.0.1:{server.server_port}/dist/'
     mobile = args.browser == 'webkit'
     messages, errors = [], []
     with sync_playwright() as p:
@@ -49,7 +54,7 @@ def main():
         page.on('requestfailed', lambda r: messages.append(f'FAILED {r.url}: {r.failure}'))
         page.set_default_timeout(30_000)
         try:
-            page.goto(f'http://127.0.0.1:{server.server_port}/dist/')
+            page.goto(url)
             page.wait_for_function('!document.querySelector("#track").disabled')
             assert page.locator('#track option').count() == 85, 'missing original tracks or custom drawing'
             assert page.locator('#setup').evaluate('(d) => d.open')
@@ -140,7 +145,9 @@ def main():
             page.screenshot(path=str(out / 'last-state.png'), full_page=True)
             (out / 'last-state.html').write_text(page.content())
             browser.close()
-            server.shutdown()
+            if server:
+                server.shutdown()
+                server.server_close()
     print(f'{args.browser}: passed', flush=True)
 
 
