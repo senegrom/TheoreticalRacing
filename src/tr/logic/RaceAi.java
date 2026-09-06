@@ -590,6 +590,9 @@ final class RaceAi {
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
 		prepareDecisionFrame(pos, vel, playerNum);
+		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum);
+		if (tacticalWin != null)
+			return tacticalWin;
 		// Round 214: with nobody near, the race is a shortest-path problem and
 		// the exact potential solves it. Every caution term below is priced
 		// against a rival that is not there, and the measured cost of that was
