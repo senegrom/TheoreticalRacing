@@ -93,6 +93,11 @@ def main():
                 page.wait_for_function('document.querySelector("#placement").hidden')
                 page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=600_000)
                 page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "PLAY"')
+                if mobile:
+                    page.evaluate('scrollTo(0, 0)')
+                    box = page.locator('#confirm').bounding_box()
+                    assert box and box['y'] + box['height'] <= page.evaluate('innerHeight'), 'phone driving controls fall below the first screen'
                 legal = page.locator('#moves button[data-legal="true"]').first
                 legal.click(); legal.click()
                 assert page.locator('body').get_attribute('data-turn') == '0', 'preview committed move'

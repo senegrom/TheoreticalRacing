@@ -3,3 +3,27 @@
 @media(max-width:1000px){.masthead{padding:20px}.race-layout{grid-template-columns:minmax(0,1fr) 260px;gap:12px}main{padding:0 14px}.card{padding:15px}.track-toolbar>span{display:none}.track-toolbar{justify-content:end}.edition{display:none}}
 @media(max-width:720px){.masthead{padding:16px;display:block}.masthead nav{margin-top:14px}.masthead h1{font-size:1.7rem}.masthead button{min-height:38px;font-size:.84rem}main{padding:0 10px}.race-heading{margin-top:18px;align-items:start}.race-heading h2{font-size:1.2rem}#race-meta{font-size:.72rem;text-align:right;max-width:140px}.race-layout{grid-template-columns:1fr}#board{height:48dvh;min-height:280px}.pitwall{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:10px}.card{padding:12px}.card h2{font-size:1.2rem}#status{min-height:0}.move-grid{gap:6px;margin-top:10px}.move-grid button{height:46px}.button-row{flex-wrap:wrap}.speed-label{font-size:.73rem}.telemetry{font-size:.7rem;flex-wrap:wrap}.setup-grid{grid-template-columns:1fr;gap:16px}dialog{padding:18px}.dialog-actions{align-items:stretch;flex-direction:column;gap:12px}.dialog-head h2{font-size:1.4rem}#track-preview{height:160px}#roster{max-height:none}#grid-label{display:none}footer{line-height:1.7;gap:5px}#standings li{gap:5px;padding:9px 0;grid-template-columns:16px minmax(0,1fr)}#standings .badge{width:14px;height:14px}#standings .result{grid-column:2}.coordinate-inputs{grid-template-columns:1fr 1fr}.coordinate-inputs button{grid-column:span 2}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+
+/* Keep the track and human driving controls together on a portrait phone. */
+@media(max-width:720px){
+  .masthead{padding:12px 16px}.masthead nav{margin-top:10px}
+  .race-heading{margin:12px 0}
+  #board{height:30dvh;min-height:210px}
+  .pitwall{grid-template-columns:1fr}
+  .decision:has(#moves:not([hidden])){display:grid;grid-template-columns:minmax(0,1fr) 144px;grid-template-areas:'eyebrow moves' 'driver moves' 'status moves' 'telemetry moves' 'detail confirm' 'actions pacing';gap:3px 12px;align-items:start}
+  .decision:has(#moves:not([hidden]))>.eyebrow{grid-area:eyebrow;margin:0}
+  .decision:has(#moves:not([hidden])) #driver{grid-area:driver}
+  .decision:has(#moves:not([hidden])) #status{grid-area:status;margin:2px 0}
+  .decision:has(#moves:not([hidden])) #telemetry{grid-area:telemetry;min-height:0}
+  .decision:has(#moves:not([hidden])) #moves{grid-area:moves;margin:0;gap:5px}
+  .decision:has(#moves:not([hidden])) #moves button{height:44px;padding:5px}
+  .decision:has(#moves:not([hidden])) #move-detail{grid-area:detail;margin:2px 0}
+  .decision:has(#moves:not([hidden])) #confirm{grid-area:confirm;margin:0;padding:8px 5px}
+  .decision:has(#moves:not([hidden])) .button-row{grid-area:actions;margin:0;flex-wrap:nowrap;gap:4px}
+  .decision:has(#moves:not([hidden])) .button-row button{min-height:38px;padding:5px 3px;font-size:.72rem}
+  .decision:has(#moves:not([hidden])) .speed-label{grid-area:pacing;display:block;line-height:1.2}
+  .decision:has(#moves:not([hidden])) .speed-label select{width:100%;margin-top:3px}
+  #standings{grid-template-columns:repeat(2,minmax(0,1fr));column-gap:16px}
+  #standings li{grid-template-columns:16px minmax(0,1fr) auto}
+  #standings .result{grid-column:auto}
+}
