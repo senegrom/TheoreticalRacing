@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Racing engine compatibility host</title></head>
+<body><script>
+// Compatibility with an older cached engine.js: even that iframe now delegates
+// to a dedicated worker. The current app creates the worker directly.
+const worker = new Worker('./runtime.js?v=3');
+worker.onmessage = event => parent.postMessage(event.data, location.origin);
+worker.onerror = event => parent.postMessage({scope:'theoretical-racing', fatal:event.message || 'Java worker failed'}, location.origin);
+addEventListener('message', event => {
+  if (event.source === parent && event.origin === location.origin && event.data?.scope === 'theoretical-racing') worker.postMessage(event.data);
+});
+addEventListener('pagehide', () => worker.terminate());
+</script></body></html>

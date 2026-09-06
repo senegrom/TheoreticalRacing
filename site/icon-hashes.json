@@ -1,0 +1,23 @@
+{
+  "source": "427b3a41b23074f4df01c6183382584f002625ec366d0888903a8b0099c7e2d8",
+  "files": {
+    "favicon-16x16.png": "7f4c6d295e49f10e0c3712baa0367d45bd983bc3a6b813aa052453f03974c42b",
+    "favicon-32x32.png": "64c882ab9aeebc32f81b3d7b0ecdf643eb8db1ffcd136cf319a9f55e7b2ab7c7",
+    "apple-touch-icon.png": "85698a7d4a83a2e4a448ecc6442924c729a43cde154991ef2ad2da6e5d3a9b95",
+    "apple-touch-icon-152.png": "abd9d408c54329dc65310377e345d6c114ad783e227a6e9f4c7fecd0615eb0fa",
+    "apple-touch-icon-167.png": "7efa47f17ee7ed16bea6ae81d3e60ee516af7b9d6571698733642bc1234d3984",
+    "icons/racing-192.png": "df51174c8e59cae71ea48598b175ce876014d85b6f3ff709ebe59922546d0177",
+    "icons/racing-512.png": "c9f53866b835137ae11b6b588041edd7b2c05c43a07c1569575a3ece29e01347",
+    "icons/racing-512-maskable.png": "b3baaf1f8d11345edd56daa6c016beff913e5278142c5a30fb8c9ab4ffb30f91",
+    "favicon.ico": "c3931e67a9181012f433e0e843cc0d75039e8abb08f5435cf942a1b2c4e57021",
+    "icons/racing-favicon-v3.ico": "c3931e67a9181012f433e0e843cc0d75039e8abb08f5435cf942a1b2c4e57021",
+    "icons/racing-tab-16-v3.png": "7f4c6d295e49f10e0c3712baa0367d45bd983bc3a6b813aa052453f03974c42b",
+    "icons/racing-tab-32-v3.png": "64c882ab9aeebc32f81b3d7b0ecdf643eb8db1ffcd136cf319a9f55e7b2ab7c7",
+    "icons/racing-apple-180-v3.png": "85698a7d4a83a2e4a448ecc6442924c729a43cde154991ef2ad2da6e5d3a9b95",
+    "icons/racing-apple-152-v3.png": "abd9d408c54329dc65310377e345d6c114ad783e227a6e9f4c7fecd0615eb0fa",
+    "icons/racing-apple-167-v3.png": "7efa47f17ee7ed16bea6ae81d3e60ee516af7b9d6571698733642bc1234d3984",
+    "icons/racing-app-192-v3.png": "df51174c8e59cae71ea48598b175ce876014d85b6f3ff709ebe59922546d0177",
+    "icons/racing-app-512-v3.png": "c9f53866b835137ae11b6b588041edd7b2c05c43a07c1569575a3ece29e01347",
+    "icons/racing-maskable-512-v3.png": "b3baaf1f8d11345edd56daa6c016beff913e5278142c5a30fb8c9ab4ffb30f91"
+  }
+}
