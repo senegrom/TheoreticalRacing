@@ -1,0 +1,78 @@
+name: Export validated UI source
+on:
+  push:
+    branches: [browser]
+    paths: ['.github/workflows/ui-source-export.yml']
+permissions:
+  contents: write
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 269cf14701663ffeeb1a98238608f7f3fed2fc99
+          persist-credentials: false
+      - name: Verify passed tests and export only web source blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request, urllib.error
+          api = 'https://api.github.com/repos/senegrom/TheoreticalRacing/'
+          headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}
+          def request(path, data=None):
+              req = urllib.request.Request(api + path, headers=headers, data=None if data is None else json.dumps(data).encode())
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  print(error.read().decode(), flush=True)
+                  raise
+          job = request('actions/jobs/101458060484')
+          assert job['head_sha'] == '2b9672160b0c7d929c04da7a028c9410a4efe58d'
+          stages = {s['name']: s['conclusion'] for s in job['steps']}
+          for name in ['Materialize the exact reviewed edits', 'Original core tests and browser build', 'Full native parity, original goldens and adapter contracts', 'Icon dimensions, opacity, metadata and transport contracts', 'Five viewport UI regressions in both browser engines', 'Actual Java gameplay and icon downloads in both browsers']:
+              assert stages[name] == 'success', (name, stages[name])
+          parts = []
+          for sha in ['df3b64af84c19419c1fbf1be49fff9a471cc2537', 'bb31b8349bc7883815ffc56d9d4115a23875de60', '32d37735de6b9018f9c1cfcf5dd0c64a43c0bfa0', 'a7af83c78fedd719755a90772dee534532a221e6']:
+              raw = base64.b64decode(request('git/blobs/' + sha)['content'])
+              assert hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest() == sha
+              parts.append(raw)
+          payload = lzma.decompress(b''.join(parts))
+          assert hashlib.sha256(payload).hexdigest() == '52fcc30a0515251c16c90c3414a518de89ee413709468c8f97e3c0065ae658ff'
+          entries = []
+          for path, before, after, edits in json.loads(payload):
+              assert (path.startswith('web/') or path == '.github/workflows/browser.yml') and '..' not in pathlib.PurePosixPath(path).parts
+              target = pathlib.Path(path)
+              raw = target.read_bytes() if target.exists() else b''
+              assert hashlib.sha256(raw).hexdigest() == before, path
+              lines = raw.decode().splitlines(keepends=True)
+              for start, end, text in reversed(edits):
+                  lines[start:end] = text.splitlines(keepends=True)
+              raw = ''.join(lines).encode()
+              assert hashlib.sha256(raw).hexdigest() == after, path
+              target.parent.mkdir(parents=True, exist_ok=True)
+              target.write_bytes(raw)
+              sha = hashlib.sha1(b'blob ' + str(len(raw)).encode() + b'\0' + raw).hexdigest()
+              entries.append(dict(path=path, mode='100755' if path == 'web/build.sh' else '100644', type='blob', sha=sha))
+          subprocess.run(['git', 'add', 'web', '.github/workflows/browser.yml'], check=True)
+          tree = subprocess.check_output(['git', 'write-tree'], text=True).strip()
+          assert tree == '59ebecd47a7cda50b2a0c0ce0eabf8b91aa978a2', tree
+          # Workflow writes use the maintainer's connector, not the restricted
+          # Actions token. This job stores ordinary web source blobs only.
+          for entry in entries:
+              if not entry['path'].startswith('web/'):
+                  continue
+              raw = pathlib.Path(entry['path']).read_bytes()
+              stored = request('git/blobs', dict(encoding='base64', content=base64.b64encode(raw).decode()))['sha']
+              assert stored == entry['sha']
+              print('Stored', entry['path'], stored, flush=True)
+          pathlib.Path('validated-ui-files.json').write_text(json.dumps(dict(tree=tree, verified_job=job['id'], entries=entries), indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: validated-ui-source-objects
+          path: validated-ui-files.json
+          retention-days: 7
