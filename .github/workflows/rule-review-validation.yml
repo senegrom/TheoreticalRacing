@@ -1,0 +1,35 @@
+name: Rule review validation
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/rule-review-validation.yml']
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Prepare isolated validation inputs
+        run: |
+          git archive --format=tar HEAD -o "$RUNNER_TEMP/racing-source.tar"
+          git rev-parse HEAD > "$RUNNER_TEMP/racing-source-commit.txt"
+          tar -C "$JAVA_HOME" -czf "$RUNNER_TEMP/racing-jdk25.tar.gz" .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: racing-validation-source
+          path: |
+            ${{ runner.temp }}/racing-source.tar
+            ${{ runner.temp }}/racing-source-commit.txt
+          retention-days: 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: racing-validation-jdk25
+          path: ${{ runner.temp }}/racing-jdk25.tar.gz
+          compression-level: 0
+          retention-days: 1
