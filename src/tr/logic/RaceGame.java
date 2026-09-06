@@ -1651,6 +1651,7 @@ public final class RaceGame {
 	private boolean placementPollPending;
 	private String placementFailure;
 	private OptimalPotential startPotential;
+	private StartPlacement.Analysis startPlacementAnalysis;
 
 	/** Interactive games use computed starts; headless benchmarks retain their
 	 * historical sampling unless aiStartPlacement=informed is explicitly set. */
@@ -1677,9 +1678,11 @@ public final class RaceGame {
 						+ "Choose fewer laps/a smaller track, or explicitly choose legacy starts.");
 			startPotential = prepared;
 		}
+		if (startPlacementAnalysis == null) startPlacementAnalysis = StartPlacement.prepare(this);
 	}
 
 	OptimalPotential preparedStartPotential() { return startPotential; }
+	StartPlacement.Analysis preparedStartAnalysis() { return startPlacementAnalysis; }
 
 	private void autoPlaceAiPlayers() {
 		if (gamestate != GameState.PLACEPLAYERS || placementFailure != null

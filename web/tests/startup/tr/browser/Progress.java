@@ -8,6 +8,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class Progress {
     public static final CountDownLatch ENTERED = new CountDownLatch(1), RELEASE = new CountDownLatch(1);
     public static final CountDownLatch OPTIMAL_ENTERED = new CountDownLatch(1), OPTIMAL_RELEASE = new CountDownLatch(1);
+    public static final CountDownLatch ALTERNATIVES_ENTERED = new CountDownLatch(1), ALTERNATIVES_RELEASE = new CountDownLatch(1);
+    public static final AtomicInteger ALTERNATIVES = new AtomicInteger();
+    // Existing startup tests do not hold the new, independently tested barrier.
+    public static boolean holdAlternatives;
     public static final AtomicInteger BUILDS = new AtomicInteger(), DISTANCES = new AtomicInteger(), FINISHES = new AtomicInteger(), OPTIMAL = new AtomicInteger();
     private Progress() {}
     public static void geometry() { BUILDS.incrementAndGet(); }
@@ -25,6 +29,10 @@ public final class Progress {
             Thread.currentThread().interrupt();
             throw new AssertionError(ex);
         }
+    }
+    public static void alternatives() {
+        ALTERNATIVES.incrementAndGet();
+        if (holdAlternatives) block(ALTERNATIVES_ENTERED, ALTERNATIVES_RELEASE);
     }
     public static void begin(final String phase) {}
     public static void reused() {}

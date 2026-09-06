@@ -10,6 +10,7 @@ const PREPARATION_STAGES = [
   ['Lap safety', 'Checkpoint safety, repeated until its cycle converges'],
   ['Lap driving', 'Driving maps for the different coherent multi-lap state set'],
   ['Exact race map', 'Shared exact full-race solo potential, completed before computed AI placement'],
+  ['Starting alternatives', 'Analyse every starting cell and first move once; each AI then filters current occupancy in player order'],
 ];
 export class Activity {
   constructor(root) {
@@ -30,7 +31,7 @@ export class Activity {
   setPreparation(visible, progress = null, ready = false) {
     this.preparation.hidden = !visible;
     if (!visible) return;
-    if ([6, 9, 10].includes(progress?.stages)) this.stages = progress.stages;
+    if ([6, 7, 9, 10, 11].includes(progress?.stages)) this.stages = progress.stages;
     if (Number.isInteger(progress?.stage)) this.stage = Math.max(this.stage, Math.min(this.stages, progress.stage));
     if (ready || progress?.complete) this.stage = this.stages;
     this.cached ||= Boolean(progress?.cached);
@@ -38,15 +39,17 @@ export class Activity {
     this.stageBar.value = this.stage;
     this.stageBar.setAttribute('aria-label', `Preparation: ${this.stage} of ${this.stages} stages satisfied; not a time estimate`);
     this.stageSummary.textContent = this.stage === this.stages ? 'All preparation stages ready' : `${this.stage} / ${this.stages} stages complete`;
+    const plan = this.stages === 7 ? [...PREPARATION_STAGES.slice(0, 6), PREPARATION_STAGES[10]]
+      : PREPARATION_STAGES.slice(0, this.stages);
     if (this.stageList.children.length !== this.stages) {
-      this.stageList.replaceChildren(...PREPARATION_STAGES.slice(0, this.stages).map(([name, description]) => {
+      this.stageList.replaceChildren(...plan.map(([name, description]) => {
         const item = document.createElement('li'); item.textContent = name; item.title = description; return item;
       }));
     }
     for (const [i, item] of [...this.stageList.children].entries()) {
       const status = i < this.stage ? 'complete' : i === this.stage ? 'current' : 'pending';
       item.dataset.state = status;
-      item.setAttribute('aria-label', `${PREPARATION_STAGES[i][0]}: ${status}${this.cached && i >= 4 && i <= 5 && status === 'complete' ? ' (saved maps reused where available)' : ''}`);
+      item.setAttribute('aria-label', `${plan[i][0]}: ${status}${this.cached && i >= 4 && i <= 5 && status === 'complete' ? ' (saved maps reused where available)' : ''}`);
     }
   }
   show(key, label, progress = null) {

@@ -42,7 +42,7 @@ def main():
     run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'web/dist/racing.jar{os.pathsep}{build}', 'tr.logic.BrowserTests'], build / 'adapter-tests.log')
     print((build / 'adapter-tests.log').read_text(), flush=True)
     # A test-only telemetry observer holds distance BFS at its entry while
-    # unmodified Bridge/engine placement and AI auto-placement must complete.
+    # humans can place in order, but AI decisions must wait for all maps.
     startup = build / 'startup'
     startup.mkdir(exist_ok=True)
     run(['javac', '-encoding', 'UTF-8', '-Xlint:all', '-Werror', '-cp', 'web/dist/racing.jar', '-d', str(startup),
@@ -51,6 +51,13 @@ def main():
         output = build / f'startup-{players}-{laps}.log'
         run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'{startup}{os.pathsep}web/dist/racing.jar',
              'tr.logic.StartupTests', str(players), track, str(laps)], output)
+        print(output.read_text(), flush=True)
+    for roster, track, laps in [('AHHA', 'hairpin', 1), ('AAHA', 'hairpin', 1),
+                                ('HHAA', 'hairpin', 1), ('AAAA', 'hairpin', 1),
+                                ('AHAHAHAHA', 'monza', 2)]:
+        output = build / f'player-order-{roster}-{laps}.log'
+        run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'{startup}{os.pathsep}web/dist/racing.jar',
+             'tr.logic.PlayerOrderTests', roster, track, str(laps)], output)
         print(output.read_text(), flush=True)
     cases = json.loads((ROOT / 'tests/golden_races.json').read_text())['cases']
     if args.quick:

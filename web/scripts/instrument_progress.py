@@ -92,3 +92,21 @@ def instrument_optimal(source: str) -> str:
     if strip(result) != source:
         raise RuntimeError('Optimal-map instrumentation changed engine code')
     return result
+
+
+def instrument_placement(source: str) -> str:
+    """The shared candidate scan is the last finite preparation stage."""
+    result = source
+    hooks = [
+        ('    static Analysis prepare(final RaceGame game) {',
+         '        tr.browser.Progress.alternatives();'),
+        ('        for (int x = xMin; x <= xMax; x++) {',
+         '            tr.browser.Progress.scan(x - xMin, xMax - xMin + 1);'),
+    ]
+    for anchor, code in hooks:
+        if result.count(anchor) != 1:
+            raise RuntimeError(f'Starting-alternatives progress hook drift: {anchor!r}')
+        result = result.replace(anchor, anchor + '\n' + code + TAG)
+    if strip(result) != source:
+        raise RuntimeError('Starting-alternatives instrumentation changed engine code')
+    return result

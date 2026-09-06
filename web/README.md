@@ -214,7 +214,7 @@ its outcome. Deterministic clock tests cover the old five-minute race-loss bug,
 late completion, duplicate telemetry, cancellation and fatal failures.
 
 `instrument_progress.py` inserts only tagged, output-only statements in the
-browser copies of Reachability, OptimalPotential and geometry setup. Removing
+browser copies of Reachability, OptimalPotential, StartPlacement and geometry setup. Removing
 those lines and reversing the two audited startup-scheduling edits recovers the
 shared source exactly, which CI asserts. Instrumentation does not change AI
 policies, traversal order, bounds, geometry, caches or tracks. The full parity corpus still
@@ -243,8 +243,10 @@ with a second progress bar for **completed prerequisite stages**, not elapsed
 or remaining time. The actual Java geometry selects six stages for a single-lap
 course (runtime, geometry, distance map, cache check, finish routes, driving
 maps) or nine when lap maps are needed (lap routes, lap safety, lap driving).
-Computed placement on a checkpoint course adds a tenth stage, Exact race map;
-this was formerly a lazy calculation on the first AI driving turn.
+Computed placement on a checkpoint course adds an Exact race map stage;
+this was formerly a lazy calculation on the first AI driving turn. Computed
+starts also add a final Starting alternatives scan: seven stages on an open
+single-lap course, eleven when exact checkpoint-aware race maps are needed.
 Validated cache hits can satisfy stages without recomputation. Checkpoint
 convergence and the different braking/safety passes remain visible within their
 stage; there is no guessed time percentage or fixed number of convergence rounds.
@@ -260,10 +262,23 @@ exact original x-then-y cell order and checking occupancy on each snapshot.
 
 Starting-cell **selection** is now computed by default in interactive Java and
 browser games. Each AI waits for all shared maps (including the exact full-race
-potential on checkpoint courses), then scores the free cells against the live
-positions of cars already placed. Placement order and driving turn order remain
+potential on checkpoint courses AND the shared starting-alternative table),
+then scores the free cells against the live positions of cars already placed. Placement order and driving turn order remain
 the roster order: an AI cannot see a later player's future placement. Humans
-whose placement turn comes first can place while the maps are building.
+whose placement turn comes first can place while the maps are building. There
+is **no humans-first phase**. For example, AI / Human / AI / Human waits for
+analysis, places AI 1, waits for Human 2, places AI 3 using both earlier cells,
+and then lets Human 4 choose. No future positions are assumed or preselected.
+
+The preparation daemon analyses the geometry, gate transitions and exact solo
+continuation cost of every start/first-move alternative **once per race**. The
+result is an immutable table shared by all AIs. It does not read live players,
+so a human placing concurrently cannot contaminate it. Every viable alternative
+is retained, not just the empty-track winner: blocking the fastest first landing
+can make a slower one relevant. Each placement only filters occupied starts and
+landings and selects the best remaining score. Undo changes that filter, never
+prunes the base table permanently, and never launches another analysis build.
+Terminal finishes retain the original exemption from post-finish collisions.
 
 This is an intentional starting-policy change, not just rescheduling. The driving
 AI, track geometry, physics and finish rules are unchanged. The score is the
@@ -281,11 +296,13 @@ If the exact multi-lap map exceeds the existing memory budget, computed placemen
 fails visibly rather than silently switching to random starts; choose a smaller
 course/fewer laps or explicitly select the legacy policy.
 
-The startup regression blocks only the distance-entry telemetry observer and
-proves humans can place while BFS is blocked, while AIs remain unplaced until
-both distance and full-race potential barriers have been released. Mixed
-human/AI fields, nine-driver fields, undo and two-lap preparation are covered.
-There is still just one shared geometry/distance/potential build, not one per AI.
+Startup regressions independently block distance calculation, full-race potential
+and the starting-alternatives scan. An AI at the current slot prevents manual
+input and later humans/AIs from bypassing any barrier. AI-first, consecutive AIs,
+consecutive humans and interleaved nine-driver/two-lap rosters are covered. Every
+AI's result is checked again against exactly the earlier committed positions;
+Undo and replacement retain the same immutable table. There is still just one
+shared geometry/distance/potential/alternatives build, not one per AI.
 Browser regressions compare actual element bounds through human/AI transitions,
 thinking, pauses, warnings and continuation at five viewport sizes. The real
 Java browser golden race also records and checks stable bounds across AI turns.

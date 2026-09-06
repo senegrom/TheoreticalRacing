@@ -179,6 +179,13 @@ def main():
             assert page.locator('[data-preparation-progress]').get_attribute('max') == '9'
             assert page.locator('[data-preparation-stages] li').count() == 9
             assert page.locator('[data-preparation-stages] li[data-state="current"]').inner_text() == 'Driving maps'
+            for total, index in [(7, 6), (11, 10)]:
+                page.evaluate("""([total,index]) => window.testEngine.onStatus('', {
+                    kind:'preparation', phase:'Analysing starting alternatives for all AIs',
+                    done:2,total:4,unit:'scan',stage:index,stages:total})""", [total,index])
+                assert page.locator('[data-preparation-stages] li').count() == total
+                assert page.locator('[data-preparation-stages] li[data-state="current"]').inner_text() == 'Starting alternatives'
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'candidate stage overflows {width}'
             page.evaluate("window.testEngine.onStatus('', {stalled:true})")
             assert page.locator('[data-work-stalled]').is_visible()
             assert page.locator('#keep-waiting').is_visible()

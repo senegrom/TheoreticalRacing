@@ -240,9 +240,9 @@ def main():
                 page.locator('#start').click()
                 page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
                 page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=900_000)
-                assert page.locator('[data-preparation-progress]').get_attribute('max') == '10'
-                assert page.locator('[data-preparation-progress]').get_attribute('value') == '10'
-                assert page.locator('[data-preparation-stages] li[data-state="complete"]').count() == 10
+                assert page.locator('[data-preparation-progress]').get_attribute('max') == '11'
+                assert page.locator('[data-preparation-progress]').get_attribute('value') == '11'
+                assert page.locator('[data-preparation-stages] li[data-state="complete"]').count() == 11
                 assert page.locator('#standings .result').all_text_contents() == ['On grid', 'On grid']
                 page.screenshot(path=str(out / 'exact-map-before-starts.png'), full_page=True)
                 page.locator('#stop-work').click()

@@ -26,7 +26,7 @@ public final class Progress {
         begin("Building track geometry");
     }
     public static void plan(final boolean multiLap, final boolean informed) {
-        stages = multiLap ? (informed ? 10 : 9) : 6;
+        stages = multiLap ? (informed ? 11 : 9) : (informed ? 7 : 6);
         final Pass pass = CURRENT.get();
         pass.lastReport = 0;
         emit(pass, 0, 0);
@@ -36,6 +36,10 @@ public final class Progress {
         stage = step == 5 && stage >= 6 ? 8 : step;
         if (step == 2) DISTANCES.incrementAndGet();
         begin(phase);
+    }
+    public static void alternatives() {
+        stage = stages - 1;
+        begin("Analysing starting alternatives for all AIs");
     }
     public static void reused() { cached = true; }
     public static void complete() {

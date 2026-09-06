@@ -15,7 +15,8 @@ final class StartPlacementTests {
     private StartPlacementTests() {}
     static void run() {
         for (final boolean gated : new boolean[]{false, true}) testScoring(gated);
-        System.out.println("StartPlacementTests: exact solo/first-occupancy scoring, barriers and tie determinism OK");
+        testTerminalOccupancy();
+        System.out.println("StartPlacementTests: exact solo/first-occupancy scoring, shared alternatives, live occupancy, barriers and tie determinism OK");
     }
     private static void check(final boolean ok, final String message) {
         if (!ok) throw new AssertionError(message);
@@ -71,15 +72,34 @@ final class StartPlacementTests {
         }
         return Integer.MAX_VALUE;
     }
+    private static void testTerminalOccupancy() {
+        final RaceGame g = corridor(false);
+        g.finishLine = new Line2D.Double(5.5,0,5.5,4);
+        g.reach.computeDistMap(); g.reach.computeReachability(); g.prepareOptimalStartMap();
+        set(g.reach,"reachabilityReady",true);
+        // All three first-move destinations beyond the finish are occupied.
+        // Finishing ends the race before that landing: do not block the win.
+        for (int i=1;i<=3;i++) g.players[i].setPosition(new int[]{6,i});
+        check(StartPlacement.score(g,g.players[0],5,2)==1, "Post-finish occupancy blocked a legal immediate finish");
+        g.players[1].setPosition(new int[]{5,2});
+        check(StartPlacement.score(g,g.players[0],5,2)==Integer.MAX_VALUE, "Occupied starting cell accepted");
+        g.players[1].setFinishedPlace(1);
+        check(StartPlacement.score(g,g.players[0],5,2)==1, "Finished car still blocked a starting cell");
+    }
+
     private static void testScoring(final boolean gated) {
         final RaceGame g = corridor(gated); final Player ai = g.players[0];
         try { StartPlacement.choose(g,ai,null); throw new AssertionError("Incomplete maps accepted"); }
         catch (final IllegalStateException expected) { /* Readiness barrier. */ }
         if (gated) g.prepareOptimalStartMap();
-        else { g.reach.computeDistMap(); g.reach.computeReachability(); }
+        else { g.reach.computeDistMap(); g.reach.computeReachability(); g.prepareOptimalStartMap(); }
         // This unit fixture prepares only the map used by scoring. Full worker
         // readiness and ordering are tested separately against real game startup.
         set(g.reach,"reachabilityReady",true);
+        final StartPlacement.Analysis shared = g.preparedStartAnalysis();
+        check(shared != null, "Shared alternatives were not prepared");
+        g.prepareOptimalStartMap();
+        check(shared == g.preparedStartAnalysis(), "Repeated preparation rebuilt starting alternatives");
         final int[][] before = new int[6][4];
         for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
             before[x][y] = StartPlacement.score(g,ai,x,y);
@@ -96,7 +116,7 @@ final class StartPlacementTests {
             if (g.isCrashingPlayer(x,y,1)) check(score == Integer.MAX_VALUE, "Occupied start was accepted");
             else {
                 check(score == oracle(g,x,y), "First-step occupancy score differs from independent BFS");
-                blockedFirstMove |= score > before[x][y]; minimum = Math.min(minimum,score);
+                blockedFirstMove |= score > before[x][y] && score != Integer.MAX_VALUE; minimum = Math.min(minimum,score);
             }
         }
         check(blockedFirstMove, "Fixture did not exercise a blocked first landing");
@@ -108,6 +128,38 @@ final class StartPlacementTests {
             check(Arrays.equals(selected,StartPlacement.choose(g,ai,seed)), "Selection mutated its tie stream");
         }
         check(Arrays.deepEquals(positions,Arrays.stream(g.players).map(Player::getPosition).toArray(int[][]::new)), "Scoring mutated players");
+        // Every identity gets the same static analysis, but freshly filtered
+        // scores. A finished body is ignored just as it is by the live referee.
+        for (final Player player : g.players) {
+            final int[] selected = StartPlacement.choose(g, player, 3L);
+            check(selected != null && g.preparedStartAnalysis() == shared, "Analysis copied for another AI");
+            check(StartPlacement.score(g, player, selected[0], selected[1]) != Integer.MAX_VALUE,
+                    "Candidate came from another player's occupancy mask");
+        }
+        for (int i = 1; i < g.players.length; i++)
+            g.players[i].setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+        check(Arrays.equals(oldBest, StartPlacement.choose(g,ai,null)), "Undo left alternatives permanently pruned");
+        check(shared == g.preparedStartAnalysis(), "Undo rebuilt shared geometry analysis");
+        // Results are defensive values, never mutable coordinates in the table.
+        final int[] mutable = StartPlacement.choose(g,ai,null); mutable[0] = -100;
+        check(Arrays.equals(oldBest, StartPlacement.choose(g,ai,null)), "Caller corrupted the shared table");
+        for (final int[] invalid : new int[][]{{-1,1},{1,-1},{11,1},{1,5},{Integer.MAX_VALUE,1},{0,0}})
+            check(StartPlacement.score(g,ai,invalid[0],invalid[1]) == Integer.MAX_VALUE, "Invalid start admitted");
+        // The production cache builder ignores even an occupied complete start
+        // zone. Sharing must never bake the first player's occupancy into it.
+        g.players[1].setPosition(oldBest.clone());
+        final StartPlacement.Analysis withBodyPresent = StartPlacement.prepare(g);
+        g.players[1].setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+        set(g,"startPlacementAnalysis",withBodyPresent);
+        check(Arrays.equals(oldBest,StartPlacement.choose(g,ai,null)), "Live body contaminated base analysis");
+        set(g,"startPlacementAnalysis",null);
+        try { StartPlacement.choose(g,ai,null); throw new AssertionError("Missing alternatives accepted"); }
+        catch (final IllegalStateException expected) { /* Full-analysis barrier, not random fallback. */ }
+        set(g,"startPlacementAnalysis",shared);
+        ai.setVelocity(new int[]{1,0});
+        try { StartPlacement.choose(g,ai,null); throw new AssertionError("Reused starting analysis for a moving player"); }
+        catch (final IllegalStateException expected) { /* This table is only for fresh starts. */ }
+        ai.setVelocity(new int[]{0,0});
         if (gated) {
             set(g,"startPotential",null);
             try { StartPlacement.choose(g,ai,null); throw new AssertionError("Missing exact map silently fell back"); }
