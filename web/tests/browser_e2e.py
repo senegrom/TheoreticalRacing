@@ -116,8 +116,30 @@ def main():
                 page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS" || document.querySelector("#status").textContent.includes("could not start")', timeout=300_000)
                 assert page.locator('body').get_attribute('data-phase') == 'PLACEPLAYERS', page.locator('#notice').inner_text()
                 page.wait_for_function('!document.querySelector("#ok").disabled', timeout=600_000)
+                assert page.locator('[data-preparation-progress]').get_attribute('max') == '6'
+                assert page.locator('[data-preparation-progress]').get_attribute('value') == '6'
+                assert page.locator('[data-preparation-stages] li[data-state="complete"]').count() == 6
+                page.screenshot(path=str(out / 'preparation-ready.png'), full_page=True)
+                page.evaluate("""() => {
+                  window.raceLayouts=[];
+                  new MutationObserver(() => {
+                    if (document.body.dataset.phase !== 'PLAY') return;
+                    raceLayouts.push(Object.fromEntries(['#board','#moves','#confirm','#work-status'].map(k => {
+                      const r=document.querySelector(k).getBoundingClientRect();
+                      return [k,[r.x+scrollX,r.y+scrollY,r.width,r.height]];
+                    })));
+                  }).observe(document.body,{attributes:true,attributeFilter:['data-turn']});
+                }""")
                 page.locator('#ok').click()
                 page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=600_000)
+                layouts = page.evaluate('raceLayouts')
+                assert len(layouts) >= 10, 'insufficient actual AI turns to check layout'
+                # The entry frame may precede the initial race resize observer.
+                baseline = layouts[1]
+                for frame in layouts[2:]:
+                    for key in baseline:
+                        assert all(abs(a-b)<0.6 for a,b in zip(baseline[key],frame[key])), ('AI layout jump',key,baseline[key],frame[key])
+                (out / 'race-layouts.json').write_text(json.dumps(layouts))
                 assert page.locator('body').get_attribute('data-turn') == '33', 'wrong golden race length'
                 assert len(page.workers) >= 1, 'Java must run in a dedicated worker'
                 assert page.locator('iframe').count() == 0, 'Java still runs in an iframe'

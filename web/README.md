@@ -206,8 +206,8 @@ its outcome. Deterministic clock tests cover the old five-minute race-loss bug,
 late completion, duplicate telemetry, cancellation and fatal failures.
 
 `instrument_progress.py` inserts only tagged, output-only statements in the
-browser copy of Reachability. Removing those lines recovers the exact original
-source, which CI asserts. Original `src/`, AI policies, traversal order, bounds,
+browser copy of Reachability. Removing those lines and reversing the two audited startup-scheduling edits
+recovers the exact original source, which CI asserts. Original `src/`, AI policies, traversal order, bounds,
 geometry, caches and all tracks remain unchanged. The full parity corpus still
 checks complete desktop/browser race logs. Progress instrumentation is not used
 as an AI cutoff or a search budget. Readiness polling transfers only a small
@@ -218,3 +218,43 @@ iOS and tab icons do not depend solely on a query-string cache buster. The app I
 and start URL remain unchanged. This does not edit the separate PlateLoader app
 or clear another app's data. An existing Home Screen shortcut may still need to
 be removed and added again from the Racing page to refresh its saved icon.
+
+
+## Stable race layout and preparation stages
+
+The activity slot stays mounted during the whole race, including the delay
+between computer turns. Its title, progress, elapsed time and warning/Continue
+slots have fixed dimensions. The acceleration pad and confirmation button also
+stay mounted on AI turns (disabled), rather than changing the control layout.
+Driver names, status, telemetry, results and notifications cannot resize the
+board or move the pad. Normal resizing/rotation and explicit pan/zoom still work.
+
+Startup has two distinct indicators: the current scan/search, and a checklist
+with a second progress bar for **completed prerequisite stages**, not elapsed
+or remaining time. The actual Java geometry selects six stages for a single-lap
+course (runtime, geometry, distance map, cache check, finish routes, driving
+maps) or nine when lap maps are needed (lap routes, lap safety, lap driving).
+Validated cache hits can satisfy stages without recomputation. Checkpoint
+convergence and the different braking/safety passes remain visible within their
+stage; there is no guessed time percentage or fixed number of convergence rounds.
+
+One RaceGame owns one Reachability and one RaceAi controller, shared by all
+1–9 drivers. The map build does not depend on their chosen starting positions.
+A confirmed preset starts preparation immediately; a custom drawing starts it
+only after both valid borders are confirmed. Distance BFS now joins the existing
+background preparation thread, so it too can overlap car placement. No additional
+worker, per-driver map copy, geometry rebuild or weaker search is introduced.
+Start-cell display is cached once inside the start-zone bounds, retaining the
+exact original x-then-y cell order and checking occupancy on each snapshot.
+
+Starting-cell **selection** is separate: automatic placement still follows the
+original Java first-free/seeded-random policy, not a new supposedly optimal-start
+AI. The map build is exact for an empty track; the live AI still considers the
+other cars on its own turn. Changing that placement policy would change the game.
+
+The startup regression blocks only the distance-entry telemetry observer and
+proves that all car placements complete while BFS is still blocked, with one
+geometry/distance job for one or nine drivers (also tested with two laps).
+Browser regressions compare actual element bounds through human/AI transitions,
+thinking, pauses, warnings and continuation at five viewport sizes. The real
+Java browser golden race also records and checks stable bounds across AI turns.

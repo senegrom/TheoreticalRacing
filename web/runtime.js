@@ -28,8 +28,8 @@ self.addEventListener('unhandledrejection', event => {
     natives: {
       // Read-only telemetry. Never call back into a referee, change a score,
       // interrupt a search or return a value used in game decisions.
-      Java_tr_browser_Progress_report: (_lib, phase, done, total, pass) => {
-        send({progress: {phase, done, total, pass, kind: 'preparation', unit: total > 0 ? 'scan' : 'states explored'}});
+      Java_tr_browser_Progress_report: (_lib, phase, done, total, pass, stage, stages, complete, cached) => {
+        send({progress: {phase, done, total, pass, stage, stages, complete, cached, kind: 'preparation', unit: total > 0 ? 'scan' : 'states explored'}});
       }
     }
   });

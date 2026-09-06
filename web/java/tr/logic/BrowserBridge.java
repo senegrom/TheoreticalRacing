@@ -28,6 +28,8 @@ public final class BrowserBridge {
     private int selected = -1;
     private java.awt.geom.Area shownArea;
     private List<double[]> shownShape = List.of();
+    private java.awt.geom.Area startCellsArea;
+    private final List<int[]> startCells = new ArrayList<>();
     private final Map<Integer, String> outcomes = new LinkedHashMap<>();
     private int scannedLogLength;
     private void readOutcomes() {
@@ -64,7 +66,7 @@ public final class BrowserBridge {
     }
 
     public String create(final String track, final String configuration, final String seed) throws IOException {
-        // One JVM/iframe per session. Refuse to orphan a live reachability worker.
+        // One JVM/worker per session. Refuse to orphan a live reachability worker.
         if (game != null) throw new IllegalStateException("Create a fresh engine for a new race");
         if (configuration.length() > 100_000) throw new IllegalArgumentException("Configuration is too large");
         final Properties props = new Properties();
@@ -233,9 +235,22 @@ public final class BrowserBridge {
         out.put("moves", moves);
         final List<int[]> starts = new ArrayList<>();
         if (phase == GameState.PLACEPLAYERS && game.subgamestate < game.players.length) {
-            for (int x = 0; x <= game.gameCols; x++) for (int y = 0; y <= game.gameRows; y++) {
-                if (game.startZoneA.contains(x, y) && !game.isCrashingPlayer(x, y, game.players[game.subgamestate].getNumber()))
-                    starts.add(new int[]{x, y});
+            if (startCellsArea != game.startZoneA) {
+                startCells.clear();
+                final var bounds = game.startZoneA.getBounds2D();
+                // Same x-then-y enumeration as the full-grid scan, without testing
+                // the entire circuit again for each placement/snapshot.
+                final int maxX = Math.min(game.gameCols, (int) Math.ceil(bounds.getMaxX()));
+                final int maxY = Math.min(game.gameRows, (int) Math.ceil(bounds.getMaxY()));
+                for (int x = Math.max(0, (int) Math.floor(bounds.getMinX())); x <= maxX; x++) {
+                    for (int y = Math.max(0, (int) Math.floor(bounds.getMinY())); y <= maxY; y++) {
+                        if (game.startZoneA.contains(x, y)) startCells.add(new int[]{x, y});
+                    }
+                }
+                startCellsArea = game.startZoneA;
+            }
+            for (final int[] cell : startCells) {
+                if (!game.isCrashingPlayer(cell[0], cell[1], game.players[game.subgamestate].getNumber())) starts.add(cell);
             }
         }
         out.put("starts", starts);

@@ -41,6 +41,17 @@ def main():
          'tests/tr/logic/ReviewRuleTests.java', 'tests/tr/logic/FollowupRuleTests.java', 'web/tests/BrowserTests.java'], build / 'test-compile.log')
     run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'web/dist/racing.jar{os.pathsep}{build}', 'tr.logic.BrowserTests'], build / 'adapter-tests.log')
     print((build / 'adapter-tests.log').read_text(), flush=True)
+    # A test-only telemetry observer holds distance BFS at its entry while
+    # unmodified Bridge/engine placement and AI auto-placement must complete.
+    startup = build / 'startup'
+    startup.mkdir(exist_ok=True)
+    run(['javac', '-encoding', 'UTF-8', '-Xlint:all', '-Werror', '-cp', 'web/dist/racing.jar', '-d', str(startup),
+         *map(str, sorted((ROOT / 'web/tests/startup').rglob('*.java')))], build / 'startup-compile.log')
+    for players, track, laps in [(1, 'hairpin', 1), (9, 'hairpin', 1), (9, 'monza', 2)]:
+        output = build / f'startup-{players}-{laps}.log'
+        run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'{startup}{os.pathsep}web/dist/racing.jar',
+             'tr.logic.StartupTests', str(players), track, str(laps)], output)
+        print(output.read_text(), flush=True)
     cases = json.loads((ROOT / 'tests/golden_races.json').read_text())['cases']
     if args.quick:
         cases = [c for c in cases if c['name'] == 'hairpin-s1-2p']

@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="./icons/racing-apple-167-v3.png" sizes="167x167">
   <link rel="apple-touch-icon" href="./icons/racing-apple-180-v3.png" sizes="180x180">
   <link rel="manifest" href="./manifest.webmanifest?v=3">
-  <link rel="stylesheet" href="./app.css?v=4">
+  <link rel="stylesheet" href="./app.css?v=5">
 </head>
 <body>
   <a class="skip-link" href="#race-controls">Skip to race controls</a>
@@ -29,16 +29,19 @@
     <section class="race-heading" aria-label="Race status"><div><span id="phase" class="eyebrow">Ready on the grid</span><h2 id="track-title">Choose your circuit</h2></div><span id="race-meta">Original engine · original opponents</span></section>
     <div id="notice" role="alert" hidden><span id="notice-text"></span><button id="dismiss-notice" type="button" aria-label="Dismiss message">×</button></div>
     <section id="work-status" class="work-status" hidden aria-label="Engine activity">
-      <span class="work-spinner" aria-hidden="true"></span>
-      <div class="work-description"><strong data-work-label role="status" aria-live="polite"></strong>
+      <div class="work-main">
+        <div class="work-title"><span class="work-spinner" aria-hidden="true"></span><strong data-work-label role="status" aria-live="polite"></strong><span data-work-elapsed class="work-elapsed"></span></div>
         <span data-work-detail></span>
-        <progress max="1" aria-label="Engine progress"></progress>
-        <span data-work-stalled role="status" hidden>No new progress has been reported recently. The engine may still be working; your race has not been stopped.</span>
-        <span data-work-slow hidden>No completion estimate is available. You can stop this race without reloading the page.</span>
+        <progress data-work-progress max="1" aria-label="Current calculation progress"></progress>
+        <div class="work-hints"><span data-work-slow hidden>No time estimate. You can stop any time.</span><span data-work-stalled role="status" hidden>No recent progress. Keep waiting or stop.</span></div>
       </div>
-      <span data-work-elapsed class="work-elapsed"></span>
-      <button id="keep-waiting" type="button" hidden>Keep waiting</button>
-      <button id="stop-work" type="button">Stop race</button>
+      <div class="work-actions"><button id="keep-waiting" type="button" hidden>Keep waiting</button><button id="stop-work" type="button">Stop race</button></div>
+      <div data-preparation class="preparation-status" hidden>
+        <div class="preparation-heading"><strong>Overall preparation</strong><span data-preparation-summary role="status"></span></div>
+        <progress data-preparation-progress max="6" value="0" aria-label="Preparation stages"></progress>
+        <ol data-preparation-stages aria-label="Required preparation stages"></ol>
+        <p>Stages take different amounts of time; saved maps can skip work. You can place cars while maps are built.</p>
+      </div>
     </section>
     <div class="race-layout">
       <section class="track-panel" aria-label="Track">
@@ -82,5 +85,5 @@
     <p class="hint">Installation is a shortcut to this web app, not an offline download. Internet access is needed to load the Java runtime. An active race is not saved when you reload or leave this page.</p>
   </dialog>
   <noscript><p>JavaScript is required to run the racing engine in your browser.</p></noscript>
-  <script type="module" src="./app.js?v=4"></script>
+  <script type="module" src="./app.js?v=5"></script>
 </body></html>

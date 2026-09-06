@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate a browser build of the *same* engine. Never edit generated Java.
 
-Only Swing host imports and Java 21 sequenced-collection conveniences are
-adapted. RaceAi and MoveQueries are byte-for-byte copies. Reachability has only
+Swing host imports, Java 21 list conveniences and the distance-map thread
+schedule are adapted. Distance BFS runs first in the existing preparation job. RaceAi and MoveQueries are byte-for-byte copies. Reachability has only
 erasable, output-only progress hooks added to the browser copy. Every replacement is counted, so upstream drift fails the build.
 """
 from pathlib import Path
@@ -10,7 +10,8 @@ import argparse
 import hashlib
 import json
 import shutil
-from instrument_progress import instrument
+from instrument_progress import instrument, instrument_game
+from startup_schedule import adapt
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -50,6 +51,9 @@ def prepare(out: Path) -> None:
             if actual != count:
                 raise RuntimeError(f'{source.name}: expected {count} occurrences of {old!r}, found {actual}; audit the upstream change')
             content = content.replace(old, new)
+        content = adapt(source.name, content)
+        if source.name == 'RaceGame.java':
+            content = instrument_game(content)
         if source.name == 'Reachability.java':
             content = instrument(content)
         target = out / 'tr/logic' / source.name

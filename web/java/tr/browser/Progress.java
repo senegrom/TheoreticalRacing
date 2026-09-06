@@ -2,23 +2,55 @@ package tr.browser;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Optional, read-only browser telemetry. No value feeds back into the engine. */
+/** Output-only telemetry. Stage counts describe dependencies, never estimated time. */
 public final class Progress {
     private static final AtomicInteger PASSES = new AtomicInteger();
+    private static final AtomicInteger BUILDS = new AtomicInteger();
+    private static final AtomicInteger DISTANCES = new AtomicInteger();
     private static final ThreadLocal<Pass> CURRENT = ThreadLocal.withInitial(Pass::new);
     private static volatile boolean nativeAvailable = true;
+    private static volatile int stage = 1, stages = 6;
+    private static volatile boolean cached, complete;
     private Progress() {}
     private static final class Pass {
         String phase = "Preparing track";
-        int number, explored, lastDone = -1;
+        int number, lastDone = -1;
         long lastReport;
     }
-    private static native void report(String phase, int done, int total, int pass);
+    private static native void report(String phase, int done, int total, int pass,
+            int stage, int stages, boolean complete, boolean cached);
+    /** One geometry build owns one plan, irrespective of the number of drivers. */
+    public static void geometry() {
+        BUILDS.incrementAndGet();
+        stage = 1; stages = 6; cached = false; complete = false;
+        begin("Building track geometry");
+    }
+    public static void plan(final boolean multiLap) {
+        stages = multiLap ? 9 : 6;
+        final Pass pass = CURRENT.get();
+        pass.lastReport = 0;
+        emit(pass, 0, 0);
+    }
+    public static void begin(final String phase, final int step) {
+        // Safety sweeps run again over the different coherent multi-lap graph.
+        stage = step == 5 && stage >= 6 ? 8 : step;
+        if (step == 2) DISTANCES.incrementAndGet();
+        begin(phase);
+    }
+    public static void reused() { cached = true; }
+    public static void complete() {
+        complete = true;
+        stage = stages;
+        begin("Track preparation complete");
+    }
+    /** Read-only diagnostics used by startup regressions (not game decisions). */
+    public static int buildCount() { return BUILDS.get(); }
+    public static int distanceCount() { return DISTANCES.get(); }
+    public static int stageCount() { return stages; }
     public static void begin(final String phase) {
         final Pass pass = CURRENT.get();
         pass.phase = phase;
         pass.number = PASSES.incrementAndGet();
-        pass.explored = 0;
         pass.lastDone = -1;
         pass.lastReport = 0;
         emit(pass, 0, 0);
@@ -30,15 +62,10 @@ public final class Progress {
         emit(pass, done, total);
     }
     /** Searches do not know their final reachable-set size in advance. */
-    public static void explored(final int count) {
-        final Pass pass = CURRENT.get();
-        pass.explored = count;
-        emit(pass, count, 0);
-    }
+    public static void explored(final int count) { emit(CURRENT.get(), count, 0); }
     public static void searching() {
         final Pass pass = CURRENT.get();
         pass.phase += " — exploring paths";
-        pass.explored = 0;
         pass.lastReport = 0;
         emit(pass, 0, 0);
     }
@@ -48,7 +75,7 @@ public final class Progress {
         pass.lastReport = now;
         pass.lastDone = done;
         if (!nativeAvailable) return;
-        try { report(pass.phase, done, total, pass.number); }
+        try { report(pass.phase, done, total, pass.number, stage, stages, complete, cached); }
         catch (final UnsatisfiedLinkError unavailableOnDesktop) { nativeAvailable = false; }
     }
 }

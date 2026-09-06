@@ -16,14 +16,15 @@ export class Engine {
     this.ready.catch(() => {});
     this.armBoot();
     try {
-      this.worker = new Worker(new URL('./runtime.js?v=4', import.meta.url), {name: 'racing-java'});
+      this.worker = new Worker(new URL('./runtime.js?v=5', import.meta.url), {name: 'racing-java'});
       this.worker.onmessage = ({data: message}) => {
         if (this.dead || !message || message.scope !== 'theoretical-racing') return;
         if (message.fatal) { this.fail(new Error(message.fatal)); return; }
         // Repeated counters/heartbeats are not evidence that a search advanced.
         const signature = message.progress && JSON.stringify([
           message.progress.kind, message.progress.phase, message.progress.pass,
-          message.progress.done, message.progress.total
+          message.progress.done, message.progress.total, message.progress.stage,
+          message.progress.stages, message.progress.complete
         ]);
         const changedStatus = typeof message.status === 'string' && message.status && message.status !== this.lastStatus;
         const changedProgress = signature && signature !== this.lastProgress;

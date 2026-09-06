@@ -133,16 +133,49 @@ def main():
             page.locator('#moves button').nth(4).click()
             page.wait_for_function('document.querySelector("#driver").textContent.length === 40')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'long driver name overflows {width}'
+            # Human, AI idle, AI work, a slow-work hint and warning must all keep
+            # the board, pad, confirm button, standings and activity slot anchored.
+            def layout():
+                return page.evaluate("""() => Object.fromEntries(['#board','.track-panel','.decision','#moves','#confirm','.button-row','#standings','#work-status'].map(k => {
+                  const r=document.querySelector(k).getBoundingClientRect();
+                  return [k,[r.x+scrollX,r.y+scrollY,r.width,r.height]];
+                }))""")
+            baseline = layout()
+            def stable(label):
+                now = layout()
+                for selector in baseline:
+                    assert all(abs(a-b)<0.6 for a,b in zip(baseline[selector],now[selector])), (width,label,selector,baseline[selector],now[selector])
+            page.locator('#pause').click()
+            page.evaluate("window.testEngine.state.players[0].kind='AI2';window.testEngine.state.players[0].name='Computer';window.holdTick=true")
+            page.locator('#moves button').nth(4).click()
+            page.wait_for_function('document.querySelector("#confirm").textContent === "AI driving"')
+            stable('AI idle')
+            assert page.locator('#moves').is_visible() and page.locator('#confirm').is_disabled()
+            page.locator('#step').click()
+            page.wait_for_function('typeof window.releaseTick === "function"')
+            stable('AI thinking')
+            page.evaluate("document.querySelector('[data-work-slow]').hidden=false;window.testEngine.onStatus('',{stalled:true})")
+            stable('AI slow warning')
+            page.screenshot(path=str(out / f'stable-thinking-{width}.png'), full_page=True)
+            page.locator('#keep-waiting').click(); stable('Continue waiting')
+            page.evaluate("window.testEngine.state.players[0].kind='HUMAN';window.testEngine.state.players[0].name='Driver A';window.releaseTick();window.holdTick=false")
+            page.wait_for_function('document.querySelector("#moves button").disabled === false')
+            stable('Human again')
+            (out / f'layout-{width}.json').write_text(json.dumps({'before':baseline,'after':layout(),'passed':True}, indent=2))
             # Starting a new race clears stale previous-race controls even during a slow boot.
             page.locator('#new-race').click(); page.evaluate('window.holdCreate=true')
             page.once('dialog', lambda d: d.accept()); page.locator('#start').click()
             assert page.locator('#moves').is_hidden() and page.locator('#export').is_disabled()
             assert page.locator('#standings li').count() == 0
             assert page.locator('#work-status').is_visible()
-            assert page.locator('#work-status progress').get_attribute('value') is None
-            page.evaluate("window.testEngine.onStatus('', {kind:'preparation',phase:'Checking safe continuations',done:40,total:100,unit:'scan'})")
-            assert page.locator('#work-status progress').get_attribute('value') == '0.4'
+            assert page.locator('[data-work-progress]').get_attribute('value') is None
+            page.evaluate("window.testEngine.onStatus('', {kind:'preparation',phase:'Checking safe continuations',done:40,total:100,unit:'scan',stage:5,stages:9})")
+            assert page.locator('[data-work-progress]').get_attribute('value') == '0.4'
             assert '40% of this scan' in page.locator('[data-work-detail]').inner_text()
+            assert page.locator('[data-preparation-progress]').get_attribute('value') == '5'
+            assert page.locator('[data-preparation-progress]').get_attribute('max') == '9'
+            assert page.locator('[data-preparation-stages] li').count() == 9
+            assert page.locator('[data-preparation-stages] li[data-state="current"]').inner_text() == 'Driving maps'
             page.evaluate("window.testEngine.onStatus('', {stalled:true})")
             assert page.locator('[data-work-stalled]').is_visible()
             assert page.locator('#keep-waiting').is_visible()
@@ -169,7 +202,7 @@ def main():
         page.locator('#step').click()
         assert page.locator('#work-status').is_visible()
         assert 'thinking' in page.locator('[data-work-label]').inner_text()
-        assert page.locator('#work-status progress').get_attribute('value') is None
+        assert page.locator('[data-work-progress]').get_attribute('value') is None
         page.wait_for_function('document.querySelector("[data-work-elapsed]").textContent !== "0s elapsed"')
         page.once('dialog', lambda d:d.accept())
         page.locator('#stop-work').click()

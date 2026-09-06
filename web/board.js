@@ -10,9 +10,11 @@ export class Board {
     this.pointers = new Map();
     this.resize = new ResizeObserver(() => {
       const bounds = canvas.getBoundingClientRect();
+      const dpr = Math.min(devicePixelRatio || 1, 3);
+      // Position-only layout notifications must not clear/reallocate the canvas.
+      if (this.width === bounds.width && this.height === bounds.height && this.dpr === dpr) return;
       this.width = bounds.width;
       this.height = bounds.height;
-      const dpr = Math.min(devicePixelRatio || 1, 3);
       canvas.width = Math.round(bounds.width * dpr);
       canvas.height = Math.round(bounds.height * dpr);
       this.dpr = dpr;

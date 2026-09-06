@@ -1,6 +1,6 @@
-import {Engine} from './engine.js?v=4';
-import {Activity} from './activity.js?v=4';
-import {Board} from './board.js';
+import {Engine} from './engine.js?v=5';
+import {Activity} from './activity.js?v=5';
+import {Board} from './board.js?v=5';
 
 const $ = id => document.getElementById(id);
 const names = ['North-west', 'North', 'North-east', 'West', 'No acceleration', 'East', 'South-west', 'South', 'South-east'];
@@ -97,19 +97,31 @@ async function act(method, ...args) {
   }
 }
 function renderWork() {
-  if (failed || !engine) { activity.hide(); return; }
+  if (!engine) { activity.hide(); return; }
+  const preparing = !state || ['START', 'DRAWTRACK', 'PLACEPLAYERS'].includes(state.phase);
+  const plan = ['START', 'DRAWTRACK'].includes(state?.phase) && !preparation?.stage ? {stage:1, stages:6} : preparation;
+  activity.setPreparation(preparing, plan, state?.phase === 'PLACEPLAYERS' && state.ready && !failed);
+  if (failed) { activity.idle('Engine stopped', 'Start a new race to recover.'); return; }
   if (!state) {
-    activity.show(`boot-${generation}`, 'Preparing your race', preparation || {phase: bootStatus || 'Loading the Java runtime…'});
+    activity.show(`startup-${generation}`, 'Preparing your race', preparation || {phase: bootStatus || 'Loading the Java runtime…'});
   } else if (!state.ready) {
-    activity.show(`prepare-${generation}`, 'Computing the original track maps', preparation);
+    activity.show(`startup-${generation}`, 'Building shared track maps', preparation);
   } else if (busy) {
     const driver = state.players[state.current];
     const label = operation === 'tick' && !human() ? `${driver?.name || 'AI'} is thinking…` :
       ({preview:'Calculating move preview…', move:'Applying your move…', undo:'Restoring your turn…',
         ok:'Preparing the race…', click:'Updating the track…', log:'Preparing race log…'})[operation] || 'Engine working…';
     activity.show(`action-${generation}-${state.turn}-${operation}`, label,
-      preparation && operation === 'ok' ? preparation : {phase: operation === 'tick' ? 'Evaluating the original AI search. Its remaining work is not known in advance.' : 'Waiting for the original Java engine.'});
-  } else activity.hide();
+      preparation && operation === 'ok' ? preparation : {phase: operation === 'tick' ? 'Evaluating the original AI search. Remaining work is unknown.' : 'Waiting for the original Java engine.'});
+  } else if (state.phase === 'PLAY' && !human() && !paused) {
+    // Include the pacing gap in the AI-turn slot rather than flashing it off.
+    activity.show(`action-${generation}-${state.turn}-tick`, `${state.players[state.current].name} · AI turn`,
+      {phase: 'Next move will begin after the selected pacing delay.'});
+  } else {
+    const label = state.phase === 'PLAY' ? (human() ? 'Your turn' : 'AI paused') : state.phase === 'FINISHED' ? 'Race complete' : state.phase === 'PLACEPLAYERS' ? 'Track maps ready' : 'Draw your circuit';
+    const detail = state.phase === 'PLAY' ? (human() ? 'Choose an acceleration, then confirm.' : 'Choose Step or Resume AI.') : state.phase === 'PLACEPLAYERS' ? 'Maps are shared by all drivers. Finish placing cars, then start.' : state.phase === 'FINISHED' ? 'The final classifications are below.' : 'Preparation starts when both borders are confirmed.';
+    activity.idle(label, detail);
+  }
 }
 function render() {
   const s = state;
@@ -127,13 +139,16 @@ function render() {
   $('grid-label').textContent = `${s.cols} × ${s.rows} grid`;
   $('driver').textContent = s.phase === 'FINISHED' ? 'Race complete' : s.phase === 'START' ? 'Draw your circuit' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border' : 'Right border') : driver?.name ?? 'Ready to race';
   $('status').textContent = failed ? 'The engine stopped. Start a new race to recover.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? (busy ? 'Pausing after the current AI move…' : 'AI paused. Choose Step or Resume AI.') : s.status;
+  $('driver').title = $('driver').textContent;
+  $('status').title = $('status').textContent;
   $('telemetry').textContent = s.phase === 'PLAY' && driver ? `Position ${driver.position.join(', ')}  ·  Velocity ${driver.velocity.join(', ')}` : s.phase === 'DRAWTRACK' ? `${(s.current === 0 ? s.left : s.right).length} border points` : '';
   $('placement').hidden = !['DRAWTRACK', 'PLACEPLAYERS'].includes(s.phase) || (s.phase === 'PLACEPLAYERS' && s.current >= s.players.length);
   $('place-x').max = s.cols; $('place-y').max = s.rows;
   $('place').disabled = busy || failed;
   $('first-start').hidden = s.phase !== 'PLACEPLAYERS';
   $('first-start').disabled = busy || failed || !s.starts.length;
-  $('moves').hidden = !human();
+  document.querySelector('.decision').classList.toggle('driving', s.phase === 'PLAY');
+  $('moves').hidden = s.phase !== 'PLAY';
   for (const button of $('moves').children) {
     const index = Number(button.dataset.index), move = s.moves.find(m => m.index === index);
     button.disabled = busy || failed || !human();
@@ -144,30 +159,39 @@ function render() {
   }
   const chosen = s.moves.find(m => m.index === s.selected);
   $('move-detail').textContent = chosen ? `To (${chosen.position.join(', ')}) · velocity (${chosen.velocity.join(', ')}) · ${chosen.timeout ? 'race turn limit reached' : !chosen.legal ? 'crash' : chosen.finishes ? 'finish' : chosen.lap ? 'lap crossing' : 'legal move'}` : human() ? 'Select an acceleration, then confirm.' : 'Each move is decided by the original Java engine.';
-  $('confirm').hidden = !human();
-  $('confirm').disabled = busy || failed || !chosen;
+  $('confirm').hidden = s.phase !== 'PLAY';
+  $('confirm').disabled = busy || failed || !human() || !chosen;
   $('confirm').classList.toggle('danger', Boolean(chosen && !chosen.legal));
-  $('confirm').textContent = chosen && !chosen.legal ? 'Confirm crash…' : 'Confirm move';
+  $('confirm').textContent = !human() && s.phase === 'PLAY' ? 'AI driving' : chosen && !chosen.legal ? 'Confirm crash…' : 'Confirm move';
   $('ok').hidden = !s.ok || s.phase === 'PLAY' || s.phase === 'FINISHED';
   $('ok').disabled = busy || failed || (s.phase === 'PLACEPLAYERS' && !s.ready);
   $('ok').textContent = s.phase === 'START' ? 'Begin drawing' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border done →' : 'Complete track →') : 'Start race →';
   $('undo').disabled = busy || failed || !s.undo;
   $('undo').textContent = s.phase === 'DRAWTRACK' ? 'Undo point' : s.phase === 'PLACEPLAYERS' ? 'Undo placement' : 'Undo turn';
   $('pause').disabled = failed || s.phase !== 'PLAY';
-  $('pause').textContent = paused ? (busy && operation === 'tick' ? 'Pausing after move…' : 'Resume AI') : 'Pause AI';
+  $('pause').textContent = paused ? 'Resume AI' : 'Pause AI';
+  $('pause').title = paused && busy && operation === 'tick' ? 'Pauses after the current move completes' : $('pause').textContent;
   $('step').disabled = busy || failed || !s.ready || !paused || s.phase !== 'PLAY' || human();
-  $('standings').replaceChildren(...s.players.map((p, i) => {
-    const li = document.createElement('li');
+  renderStandings(s);
+}
+function renderStandings(s) {
+  if ($('standings').children.length !== s.players.length) $('standings').replaceChildren(...s.players.map(() => {
+    const row = document.createElement('li');
+    row.innerHTML = '<span class="badge"></span><span class="name"><span></span><small></small></span><span class="result"></span>';
+    return row;
+  }));
+  s.players.forEach((p, i) => {
+    const li = $('standings').children[i];
     li.classList.toggle('current', s.phase === 'PLAY' && i === s.current);
-    const badge = document.createElement('span'); badge.className = 'badge'; badge.style.backgroundColor = p.color;
-    const label = document.createElement('span'); label.className = 'name'; label.textContent = p.name;
-    const kind = document.createElement('small'); kind.textContent = `${i + 1} · ${p.kind === 'HUMAN' ? 'Human' : p.kind}`; label.append(kind);
-    const result = document.createElement('span'); result.className = 'result';
+    const badge = li.querySelector('.badge'); badge.style.backgroundColor = p.color;
+    const label = li.querySelector('.name'); label.firstElementChild.textContent = p.name;
+    const kind = label.querySelector('small'); kind.textContent = `${i + 1} · ${p.kind === 'HUMAN' ? 'Human' : p.kind}`;
+    const result = li.querySelector('.result');
     result.textContent = p.place > 0 ? `P${p.place} · ${p.outcome === 'CRASH' ? 'Crashed' : p.outcome === 'TIMEOUT' ? 'Retired' : p.outcome === 'FINISH' ? 'Finished' : 'Classified'}` : p.position[0] < -1000 ? 'To place' : s.phase === 'PLACEPLAYERS' ? 'On grid' : s.laps > 1 ? `Lap ${Math.min(p.lap + 1, s.laps)}/${s.laps}` : 'Racing';
     label.title = p.name;
     li.dataset.outcome = p.outcome ?? '';
-    li.append(badge, label, result); return li;
-  }));
+    result.title = result.textContent;
+  });
 }
 for (let i = 0; i < 9; i++) {
   const b = document.createElement('button'); b.dataset.index = i; b.textContent = arrows[i]; b.disabled = true;
@@ -175,7 +199,7 @@ for (let i = 0; i < 9; i++) {
 }
 $('confirm').addEventListener('click', () => {
   const move = state?.moves.find(m => m.index === state.selected);
-  if (!move || busy || failed) return;
+  if (!move || busy || failed || !human()) return;
   const confirmed = !move.legal && window.confirm('This move crashes your car. Take it anyway?');
   if (!move.legal && !confirmed) return;
   act('move', move.index, confirmed);
@@ -301,6 +325,7 @@ $('setup-form').addEventListener('submit', async e => {
   $('moves').hidden = true; $('placement').hidden = true; $('ok').hidden = true; $('confirm').hidden = true;
   $('telemetry').textContent = ''; $('standings').replaceChildren(); $('move-detail').textContent = 'Preparing the original engine…';
   document.body.classList.remove('loading');
+  document.querySelector('.decision').classList.remove('driving');
   busy = true; polling = false; failed = false; state = null; paused = false;
   operation = 'create'; preparation = null; bootStatus = 'Loading the Java runtime…'; activity.hide();
   $('setup-error').textContent = ''; $('setup').close(); notice();

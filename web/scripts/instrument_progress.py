@@ -9,31 +9,37 @@ TAG = ' // browser-progress'
 def instrument(source: str) -> str:
     result = source
 
-    def after(anchor, statement, count=1):
+    def after(anchor, statement, count=1, *, expression=False):
         nonlocal result
         actual = result.count(anchor)
         if actual != count:
             raise RuntimeError(f'Progress hook drift: {anchor!r}: expected {count}, found {actual}')
         indent = anchor.splitlines()[-1].split(anchor.splitlines()[-1].lstrip())[0]
-        result = result.replace(anchor, anchor + '\n' + indent + '\ttr.browser.Progress.' + statement + TAG)
+        code = statement if expression else 'tr.browser.Progress.' + statement
+        result = result.replace(anchor, anchor + '\n' + indent + '\t' + code + TAG)
 
-    for anchor, label in [
-        ('\tvoid computeDistMap() {', 'Mapping track distances'),
-        ('\tboolean tryLoadReachabilityCache() {', 'Checking saved track maps'),
-        ('\tvoid computeReachability() {', 'Scanning finish approaches'),
-        ('\tshort[] buildLegalAliveMask(final int total) {', 'Checking safe continuations'),
-        ('\tvoid sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {', 'Building manoeuvring maps'),
-        ('\tbyte[] initMinShed(final int total) {', 'Preparing braking maps'),
-        ('\tbyte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {', 'Computing braking maps'),
-        ('\tbyte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {', 'Certifying speed maps'),
-        ('\tprivate void saveDerived() {', 'Saving computed maps'),
-        ('\tvoid computeGateMaps(final java.awt.geom.Line2D[] gates) {', 'Resolving lap checkpoints'),
+    for anchor, label, stage in [
+        ('\tvoid computeDistMap() {', 'Mapping track distances', 2),
+        ('\tboolean tryLoadReachabilityCache() {', 'Checking saved track maps', 3),
+        ('\tvoid computeReachability() {', 'Scanning finish approaches', 4),
+        ('\tshort[] buildLegalAliveMask(final int total) {', 'Checking safe continuations', 5),
+        ('\tvoid sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {', 'Building manoeuvring maps', 5),
+        ('\tbyte[] initMinShed(final int total) {', 'Preparing braking maps', 5),
+        ('\tbyte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {', 'Computing braking maps', 5),
+        ('\tbyte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {', 'Certifying speed maps', 5),
+        ('\tprivate void saveDerived() {', 'Saving computed maps', 5),
+        ('\tvoid computeGateMaps(final java.awt.geom.Line2D[] gates) {', 'Resolving lap checkpoints', 6),
     ]:
-        after(anchor, f'begin("{label}");')
+        after(anchor, f'begin("{label}", {stage});')
+    after('\tprivate boolean tryLoadDerived() {', 'begin("Loading saved driving maps", 5);')
+    after('\t\taliveStates = alive;', 'reused();')
+    after('\t\tcertSq = (byte[]) m[10];', 'reused();')
+    after('\t\t\t\tgame.clearPointContainmentCacheForCurrentThread();',
+          'if (reachabilityFailure == null) tr.browser.Progress.complete();', expression=True)
     # Distinct signatures for each real checkpoint pass, including convergence.
-    after('\tprivate int[] computeGateMap(final int gate, final java.awt.geom.Line2D line,\n\t\t\tfinal int[] nextMap) {', 'begin("Checkpoint " + gate);')
+    after('\tprivate int[] computeGateMap(final int gate, final java.awt.geom.Line2D line,\n\t\t\tfinal int[] nextMap) {', 'begin(gate == 0 ? "Lap route to finish" : "Lap route to checkpoint " + gate);')
     after('\t\t\tfinal BitSet nextRobust, final int[] scratch, final byte[] arrivals) {',
-          'begin("Checkpoint safety " + gate);')
+          'begin(gate == 0 ? "Lap safety at finish" : "Lap safety at checkpoint " + gate, 7);')
     after('\t\tfor (int x = 0; x < aliveW; x++) {', 'scan(x, aliveW);', 3)
     after('\t\tfor (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {',
           'scan(idx, turnsArr.length);', 5)
@@ -54,3 +60,17 @@ def instrument(source: str) -> str:
 
 def strip(source: str) -> str:
     return ''.join(line for line in source.splitlines(keepends=True) if not line.rstrip('\n').endswith(TAG))
+
+
+def instrument_game(source: str) -> str:
+    result = source
+    for anchor, statement in [
+        ('\tprivate void buildTrackGeometry() {', 'geometry();'),
+        ('\t\tcomputeLapGates();', 'plan(lapGates != null);'),
+    ]:
+        if result.count(anchor) != 1:
+            raise RuntimeError(f'Geometry progress hook drift: {anchor!r}')
+        result = result.replace(anchor, anchor + '\n\t\ttr.browser.Progress.' + statement + TAG)
+    if strip(result) != source:
+        raise RuntimeError('Geometry progress instrumentation changed engine code')
+    return result
