@@ -78,6 +78,63 @@ class ArtifactTests(unittest.TestCase):
         self.assertEqual(manifest['files']['source.tar.gz'], artifact.digest(self.site / 'source.tar.gz'))
 
 
+    def test_every_required_asset_is_checked_without_checkout_fallback(self):
+        # A previous checkout may contain all missing files; it must never be read.
+        checkout = Path(self.temp.name) / 'old-checkout' / 'site'
+        for name in sorted(artifact.REQUIRED):
+            with self.subTest(asset=name):
+                staged = self.site / name
+                data = staged.read_bytes()
+                old = checkout / name
+                old.parent.mkdir(parents=True, exist_ok=True)
+                old.write_bytes(data)
+                staged.unlink()
+                try:
+                    with self.assertRaisesRegex(ValueError, 'missing='):
+                        artifact.verify(self.site, SHA, REPO)
+                finally:
+                    staged.write_bytes(data)
+        artifact.verify(self.site, SHA, REPO)
+
+    def test_source_link_identifies_the_exact_tested_revision(self):
+        page = (self.site / 'index.html').read_text()
+        self.assertIn(f'https://github.com/{REPO}/tree/{SHA}', page)
+        self.assertIn('href="./source.tar.gz"', page)
+        self.assertIn(f'https://github.com/{REPO}/tree/master', page)
+        other = 'b' * 40
+        artifact.seal(self.site, other, REPO)
+        page = (self.site / 'index.html').read_text()
+        self.assertIn(f'https://github.com/{REPO}/tree/{other}', page)
+        self.assertNotIn(f'https://github.com/{REPO}/tree/{SHA}', page)
+        artifact.verify(self.site, other, REPO)
+
+    def test_hash_consistent_wrong_source_link_is_rejected(self):
+        page = self.site / 'index.html'
+        page.write_text(page.read_text().replace('/tree/' + SHA, '/tree/' + 'b' * 40))
+        manifest_path = self.site / artifact.MANIFEST
+        manifest = json.loads(manifest_path.read_text())
+        manifest['files']['index.html'] = artifact.digest(page)
+        artifact.write_json(manifest_path, manifest)
+        with self.assertRaisesRegex(ValueError, 'source link'):
+            artifact.verify(self.site, SHA, REPO)
+
+    def test_source_template_drift_fails_closed(self):
+        page = self.site / 'index.html'
+        html = page.read_text()
+        for changed in [artifact.REVISION_LINK.sub('', html),
+                        html + artifact.revision_link(SHA, REPO)]:
+            with self.subTest(template=changed[-100:]):
+                page.write_text(changed)
+                with self.assertRaisesRegex(ValueError, 'exactly one'):
+                    artifact.seal(self.site, SHA, REPO)
+
+    def test_unversioned_local_build_does_not_invent_a_revision(self):
+        artifact.seal(self.site, None, REPO)
+        page = (self.site / 'index.html').read_text()
+        self.assertEqual(artifact.REVISION_LINK.findall(page),
+                         ['<a id="build-revision" hidden target="_blank" rel="noopener"></a>'])
+
+
 class DeploymentGuardTests(unittest.TestCase):
     def test_current_only(self):
         fetch = lambda url: dict(ref='refs/heads/master', object=dict(type='commit', sha=SHA))

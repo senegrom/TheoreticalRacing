@@ -10,9 +10,10 @@ on:
       - '.gitattributes'
       - '.gitignore'
       - '.github/dependabot.yml'
-      - 'tracks/*.track'
+      - 'tracks/**'
       - 'LICENSE'
       - '.github/workflows/browser.yml'
+      - '.github/workflows/ci.yml'
   pull_request:
     branches: [master]
     paths:
@@ -23,9 +24,10 @@ on:
       - '.gitattributes'
       - '.gitignore'
       - '.github/dependabot.yml'
-      - 'tracks/*.track'
+      - 'tracks/**'
       - 'LICENSE'
       - '.github/workflows/browser.yml'
+      - '.github/workflows/ci.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -33,6 +35,12 @@ concurrency:
   group: browser-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 jobs:
+  # Local reusable workflows and checkout both resolve to the caller's commit.
+  # No polling another run's status, moving branch refs, or duplicated test list.
+  engine-validation:
+    name: Required engine CI
+    uses: ./.github/workflows/ci.yml
+
   parity:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -118,7 +126,7 @@ jobs:
           retention-days: 7
   publish:
     name: Publish GitHub Pages
-    needs: [parity, browsers]
+    needs: [engine-validation, parity, browsers]
     if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30

@@ -10,6 +10,7 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 MANIFEST = 'asset-manifest.json'
+REVISION_LINK = re.compile(r'<a id="build-revision"[^>]*>[^<]*</a>')
 REQUIRED = {
     '.nojekyll', 'index.html', 'app.css', 'app.js', 'activity.js', 'board.js',
     'engine.js', 'runtime.js', 'runtime.html', 'racing.jar', 'tracks.json',
@@ -51,10 +52,24 @@ def write_json(path, value):
     path.write_text(json.dumps(value, indent=2, sort_keys=True) + '\n', encoding='utf-8')
 
 
+def revision_link(source, repository):
+    if source is None:
+        return '<a id="build-revision" hidden target="_blank" rel="noopener"></a>'
+    check_identity(source, repository)
+    return (f'<a id="build-revision" href="https://github.com/{repository}/tree/{source}" '
+            f'target="_blank" rel="noopener">Build {source[:7]}</a>')
+
+
 def seal(directory, source, repository):
     # Local source archives without .git may build, but cannot claim a revision.
     if source is not None:
         check_identity(source, repository)
+    # Stamp before hashing/testing, never modify tested HTML during publication.
+    page = directory / 'index.html'
+    html, count = REVISION_LINK.subn(revision_link(source, repository), page.read_text(encoding='utf-8'))
+    if count != 1:
+        raise ValueError('Expected exactly one build-revision source link')
+    page.write_text(html, encoding='utf-8')
     write_json(directory / 'deployment.json', dict(source=source, repository=repository))
     write_json(directory / MANIFEST, dict(schema=1, source=source, repository=repository, files=files(directory)))
 
@@ -81,6 +96,9 @@ def verify(directory, source, repository):
     marker = json.loads((directory / 'deployment.json').read_text(encoding='utf-8'))
     if marker != dict(source=source, repository=repository):
         raise ValueError('Deployment marker does not identify the tested commit')
+    links = REVISION_LINK.findall((directory / 'index.html').read_text(encoding='utf-8'))
+    if links != [revision_link(source, repository)]:
+        raise ValueError('Build source link does not identify the tested commit')
     # All bundled tracks and exported icons must be present, not just the entrypoint.
     tracks = json.loads((directory / 'track-hashes.json').read_text(encoding='utf-8'))
     icons = json.loads((directory / 'icon-hashes.json').read_text(encoding='utf-8'))['files']

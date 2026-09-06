@@ -3,6 +3,8 @@ name: CI
 on:
   push:
   pull_request:
+  # Also called locally by Browser app, so publication validates this exact SHA.
+  workflow_call:
 
 permissions:
   contents: read

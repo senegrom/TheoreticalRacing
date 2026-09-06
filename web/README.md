@@ -12,8 +12,14 @@ Players need no Java installation, account, game server or browser plugin.
 The site tracks `master`. A push that changes what the site contains -- the
 web app, the engine, the track files, shared tests/build scripts, dependency
 configuration, the licence or the workflow itself --
-runs `.github/workflows/browser.yml`; once native parity and both real browser
-suites pass, the exact tested artifact is deployed to GitHub Pages. Commits
+runs `.github/workflows/browser.yml`. Publication requires **all three gates**:
+full engine CI, native parity, and both real browser suites. Engine CI is a local
+reusable call to `.github/workflows/ci.yml` at the **same commit**; it includes
+JDK 25/26 builds and core tests, tooling checks, headless smoke, query replay,
+lap progression, the golden corpus, every champion regression pin, and benchmark
+failure propagation. A failed, skipped or cancelled gate prevents publication;
+a green browser parity result cannot override a failed engine test. The exact
+tested artifact is then deployed to GitHub Pages. Commits
 that touch none of those (a ledger entry, say) do not run it, and nothing is
 published that has not passed.
 
@@ -30,7 +36,16 @@ folder under `RUNNER_TEMP` before downloading the tested artifact. The build's
 `asset-manifest.json` binds every file to its SHA-256 digest and source commit;
 missing files, altered files, symlinks and leftovers fail publication. Matching
 source is archived from that exact checkout, then hashed into the manifest too.
-The page links both current `master` and the exact corresponding source archive.
+The page links current `master`, the exact corresponding source archive, and
+the immutable build commit. The commit link is stamped before the artifact is
+hashed and tested; publication does not rewrite the tested HTML. Local builds
+without revision metadata leave the commit link hidden rather than guessing.
+
+General CI and browser publication share one engine test definition through
+`workflow_call`. The browser job depends on its own validation result instead of
+polling unrelated CI runs. Changes to that definition or any track-tooling input
+also trigger browser validation. The expensive manual promotion battery remains
+separate; publication does not claim to have run it.
 
 Public verification first waits for a cache-busted `deployment.json` matching
 `--expected-sha` and the repository, then starts gameplay. An older functioning
