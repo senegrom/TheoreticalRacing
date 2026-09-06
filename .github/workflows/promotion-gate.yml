@@ -20,7 +20,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - run: sh ./run_tests.sh
@@ -86,7 +86,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - name: Build
