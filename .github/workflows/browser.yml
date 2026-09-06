@@ -1,0 +1,37 @@
+name: Browser app
+on:
+  push:
+    branches: [browser]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Compile browser-compatible Java baseline
+        run: |
+          mkdir -p /tmp/browser-baseline
+          find src -name '*.java' > /tmp/browser-sources.txt
+          javac --release 17 -d /tmp/browser-baseline @/tmp/browser-sources.txt
+          jar --create --file /tmp/browser-baseline.jar -C /tmp/browser-baseline .
+      - name: Preserve reproducible source baseline
+        if: always()
+        run: git archive --format=tar.gz -o /tmp/browser-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-baseline
+          path: |
+            /tmp/browser-source.tar.gz
+            /tmp/browser-baseline.jar
+          retention-days: 3
