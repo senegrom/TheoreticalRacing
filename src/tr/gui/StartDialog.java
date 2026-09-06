@@ -51,6 +51,7 @@ public final class StartDialog extends JFrame {
 	private final JComboBox<String>[]	cmbKind;
 	private final JButton				btnPlus;
 	private final JComboBox<String>		cmbTrack;
+	private final JComboBox<String> cmbStartPlacement;
 	private final TrackPreviewPanel		previewPanel;
 	private final GridBagLayout			gridBag;
 	private final JPanel				gridContainer;
@@ -92,6 +93,8 @@ public final class StartDialog extends JFrame {
 		txtSize = new JTextField[4];
 		pnlSize = new JPanel();
 		cmbTrack = new JComboBox<>();
+		cmbStartPlacement = new JComboBox<>(new String[]{"Computed AI starts", "Legacy benchmark starts"});
+		cmbStartPlacement.setSelectedIndex("legacy".equalsIgnoreCase(prop.getProperty("aiStartPlacement")) ? 1 : 0);
 		previewPanel = new TrackPreviewPanel();
 		populateTrackCombo();
 	}
@@ -177,6 +180,7 @@ public final class StartDialog extends JFrame {
 	 *  kind the user changed, but it must not commit a track either -- browsing
 	 *  the combo to look at a circuit is not choosing it. */
 	private void commitPlayerKinds() {
+		prop.setProperty("aiStartPlacement", cmbStartPlacement.getSelectedIndex() == 0 ? "informed" : "legacy");
 		for (int i = 0; i < maxPlayers; i++) {
 			final String sel = String.valueOf(cmbKind[i].getSelectedItem());
 			prop.put("player" + (i + 1) + "Kind", "Human".equals(sel) ? "HUMAN" : sel);
@@ -298,6 +302,7 @@ public final class StartDialog extends JFrame {
 		previewPanel.setPreferredSize(new Dimension(280, 200));
 		previewPanel.setBorder(BorderFactory.createLineBorder(new Color(180, 180, 180)));
 		trackPanel.add(previewPanel, BorderLayout.CENTER);
+		trackPanel.add(cmbStartPlacement, BorderLayout.SOUTH);
 
 		southContainer.setLayout(new BoxLayout(southContainer, BoxLayout.X_AXIS));
 		southContainer.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));

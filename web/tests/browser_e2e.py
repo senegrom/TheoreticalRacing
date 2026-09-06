@@ -109,6 +109,8 @@ def main():
                 row.locator('select').select_option('AI2')
                 row.locator('[data-name]').fill(chr(65 + i))
             page.locator('#seed').fill('1')
+            assert page.locator('#ai-start-policy').input_value() == 'informed'
+            page.locator('#ai-start-policy').select_option('legacy')
             page.screenshot(path=str(out / 'setup.png'), full_page=True)
             if not args.ui_only:
                 page.locator('#speed').select_option('0')
@@ -153,6 +155,26 @@ def main():
                 assert digest == fixture['sha256'], f'Browser JVM differs from original golden: {digest}'
                 page.screenshot(path=str(out / 'finished.png'), full_page=True)
                 print(f'{args.browser}: real Java golden race matched {digest}', flush=True)
+                # The default computed policy gets its own new, native-derived
+                # fixture; do not regenerate the historical random-start golden.
+                page.locator('#new-race').click()
+                page.locator('#ai-start-policy').select_option('informed')
+                page.locator('#start').click()
+                page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
+                page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=600_000)
+                assert page.locator('#standings .result').all_text_contents() == ['On grid', 'On grid']
+                page.screenshot(path=str(out / 'computed-starts.png'), full_page=True)
+                page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=600_000)
+                with page.expect_download() as computed_download:
+                    page.locator('#export').click()
+                computed_log = out / 'hairpin-informed-s1-2p.log'
+                computed_download.value.save_as(computed_log)
+                computed_fixture = json.loads((ROOT / 'web/tests/informed_races.json').read_text())['cases'][0]
+                computed_digest = hashlib.sha256(normalized_log(computed_log.read_text()).encode()).hexdigest()
+                assert computed_digest == computed_fixture['sha256'], 'Computed-start browser race diverged from native Java'
+                assert '# start-placement informed' in computed_log.read_text()
+                print(f'{args.browser}: computed-start full race matched native Java {computed_digest}', flush=True)
                 # A new worker must not receive events or callbacks from the old race.
                 page.locator('#new-race').click()
                 for row in page.locator('.roster-row').all():
@@ -205,6 +227,26 @@ def main():
                 page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"')
                 page.screenshot(path=str(out / 'custom-track.png'), full_page=True)
                 print(f'{args.browser}: custom circuit drawing completed through the original validator', flush=True)
+                # A closed one-lap course still uses the exact checkpoint-aware
+                # race potential. It must complete before the two AI cells appear.
+                page.locator('#new-race').click()
+                page.locator('#track').select_option('circle')
+                page.locator('#laps').fill('1')
+                page.locator('#player-count').fill('2')
+                page.locator('#ai-start-policy').select_option('informed')
+                for row in page.locator('.roster-row').all():
+                    row.locator('select').select_option('AI2')
+                page.once('dialog', lambda dialog: dialog.accept())
+                page.locator('#start').click()
+                page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
+                page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=900_000)
+                assert page.locator('[data-preparation-progress]').get_attribute('max') == '10'
+                assert page.locator('[data-preparation-progress]').get_attribute('value') == '10'
+                assert page.locator('[data-preparation-stages] li[data-state="complete"]').count() == 10
+                assert page.locator('#standings .result').all_text_contents() == ['On grid', 'On grid']
+                page.screenshot(path=str(out / 'exact-map-before-starts.png'), full_page=True)
+                page.locator('#stop-work').click()
+                print(f'{args.browser}: exact full-race potential completed before computed AI placement', flush=True)
             assert not errors, errors
             (out / 'result.json').write_text(json.dumps({'browser': args.browser, 'ui_only': args.ui_only, 'passed': True}))
         finally:

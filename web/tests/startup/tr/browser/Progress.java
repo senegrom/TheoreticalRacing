@@ -4,21 +4,23 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/** Test-only observer: blocks at distance entry, never substitutes any game logic. */
+/** Test-only observer: pause distance AND exact-potential work independently. */
 public final class Progress {
-    public static final CountDownLatch ENTERED = new CountDownLatch(1);
-    public static final CountDownLatch RELEASE = new CountDownLatch(1);
-    public static final AtomicInteger BUILDS = new AtomicInteger(), DISTANCES = new AtomicInteger(), FINISHES = new AtomicInteger();
+    public static final CountDownLatch ENTERED = new CountDownLatch(1), RELEASE = new CountDownLatch(1);
+    public static final CountDownLatch OPTIMAL_ENTERED = new CountDownLatch(1), OPTIMAL_RELEASE = new CountDownLatch(1);
+    public static final AtomicInteger BUILDS = new AtomicInteger(), DISTANCES = new AtomicInteger(), FINISHES = new AtomicInteger(), OPTIMAL = new AtomicInteger();
     private Progress() {}
     public static void geometry() { BUILDS.incrementAndGet(); }
-    public static void plan(final boolean multiLap) {}
+    public static void plan(final boolean multiLap, final boolean informed) {}
     public static void begin(final String phase, final int stage) {
         if (stage == 4) FINISHES.incrementAndGet();
-        if (stage != 2) return;
-        DISTANCES.incrementAndGet();
-        ENTERED.countDown();
+        if (stage == 2) { DISTANCES.incrementAndGet(); block(ENTERED, RELEASE); }
+        if (stage == 9) { OPTIMAL.incrementAndGet(); block(OPTIMAL_ENTERED, OPTIMAL_RELEASE); }
+    }
+    private static void block(final CountDownLatch entered, final CountDownLatch release) {
+        entered.countDown();
         try {
-            if (!RELEASE.await(20, TimeUnit.SECONDS)) throw new AssertionError("Distance job not released");
+            if (!release.await(30, TimeUnit.SECONDS)) throw new AssertionError("Preparation observer not released");
         } catch (final InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new AssertionError(ex);

@@ -1,6 +1,6 @@
-import {Engine} from './engine.js?v=5';
-import {Activity} from './activity.js?v=5';
-import {Board} from './board.js?v=5';
+import {Engine} from './engine.js?v=6';
+import {Activity} from './activity.js?v=6';
+import {Board} from './board.js?v=6';
 
 const $ = id => document.getElementById(id);
 const names = ['North-west', 'North', 'North-east', 'West', 'No acceleration', 'East', 'South-west', 'South', 'South-east'];
@@ -15,7 +15,7 @@ const board = new Board($('board'), p => {
   if (state.phase === 'PLAY') {
     const move = [...state.moves].sort((a, b) => distance(a.position, p) - distance(b.position, p))[0];
     if (move && distance(move.position, p) * board.scale <= Math.max(20, board.scale * .6)) act('preview', move.index);
-  } else if (['DRAWTRACK', 'PLACEPLAYERS'].includes(state.phase)) {
+  } else if (state.phase === 'DRAWTRACK' || (state.phase === 'PLACEPLAYERS' && state.players[state.current]?.kind === 'HUMAN')) {
     const [x, y] = p.map(Math.round);
     $('place-x').value = x; $('place-y').value = y;
     if (x >= 0 && y >= 0 && x <= state.cols && y <= state.rows) act('click', x, y);
@@ -33,7 +33,8 @@ function schedule() {
   clearTimeout(timer);
   if (!engine || !state || busy || polling || failed || modalOpen() || document.hidden || state.phase === 'FINISHED') return;
   const ai = state.phase === 'PLAY' && !human();
-  if (!state.ready || (ai && !paused)) {
+  const placingAi = state.phase === 'PLACEPLAYERS' && state.players[state.current]?.kind !== 'HUMAN' && state.current < state.players.length;
+  if (!state.ready || placingAi || (ai && !paused)) {
     timer = setTimeout(state.ready ? () => act('tick') : pollReadiness, !state.ready ? 400 : Number($('speed').value));
   }
 }
@@ -113,6 +114,9 @@ function renderWork() {
         ok:'Preparing the race…', click:'Updating the track…', log:'Preparing race log…'})[operation] || 'Engine working…';
     activity.show(`action-${generation}-${state.turn}-${operation}`, label,
       preparation && operation === 'ok' ? preparation : {phase: operation === 'tick' ? 'Evaluating the original AI search. Remaining work is unknown.' : 'Waiting for the original Java engine.'});
+  } else if (state.phase === 'PLACEPLAYERS' && state.players[state.current]?.kind !== 'HUMAN' && state.current < state.players.length) {
+    activity.show(`placement-${generation}-${state.current}`, `${state.players[state.current].name} · choosing starting cell`,
+      {phase: 'Scoring free cells using completed maps and cars already placed.'});
   } else if (state.phase === 'PLAY' && !human() && !paused) {
     // Include the pacing gap in the AI-turn slot rather than flashing it off.
     activity.show(`action-${generation}-${state.turn}-tick`, `${state.players[state.current].name} · AI turn`,
@@ -144,9 +148,10 @@ function render() {
   $('telemetry').textContent = s.phase === 'PLAY' && driver ? `Position ${driver.position.join(', ')}  ·  Velocity ${driver.velocity.join(', ')}` : s.phase === 'DRAWTRACK' ? `${(s.current === 0 ? s.left : s.right).length} border points` : '';
   $('placement').hidden = !['DRAWTRACK', 'PLACEPLAYERS'].includes(s.phase) || (s.phase === 'PLACEPLAYERS' && s.current >= s.players.length);
   $('place-x').max = s.cols; $('place-y').max = s.rows;
-  $('place').disabled = busy || failed;
+  const placingAi = s.phase === 'PLACEPLAYERS' && driver?.kind !== 'HUMAN';
+  $('place').disabled = busy || failed || placingAi;
   $('first-start').hidden = s.phase !== 'PLACEPLAYERS';
-  $('first-start').disabled = busy || failed || !s.starts.length;
+  $('first-start').disabled = busy || failed || placingAi || !s.starts.length;
   document.querySelector('.decision').classList.toggle('driving', s.phase === 'PLAY');
   $('moves').hidden = s.phase !== 'PLAY';
   for (const button of $('moves').children) {
@@ -312,14 +317,14 @@ $('setup-form').addEventListener('submit', async e => {
   catch { $('setup-error').textContent = 'The seed must be a signed 64-bit integer, or left blank.'; return; }
   readRoster();
   const count = Number($('player-count').value), track = $('track').value;
-  const config = {nPlayers: count, laps: Number($('laps').value), gameX: validDimension('cols', 86), gameY: validDimension('rows', 48)};
+  const config = {aiStartPlacement: $('ai-start-policy').value, nPlayers: count, laps: Number($('laps').value), gameX: validDimension('cols', 86), gameY: validDimension('rows', 48)};
   if (state && state.phase !== 'FINISHED' && !window.confirm('Replace the current race? Its progress is not saved.')) return;
   roster.slice(0, count).forEach((p, i) => {
     config[`player${i + 1}Name`] = p.name || `Player ${i + 1}`;
     config[`player${i + 1}Kind`] = p.kind;
     config[`player${i + 1}Color`] = [1, 3, 5].map(j => parseInt(p.color.slice(j, j + 2), 16)).join(' ');
   });
-  try { localStorage.setItem('theoretical-racing-setup-v1', JSON.stringify({track, count, laps: config.laps, cols: config.gameX, rows: config.gameY, seed, roster})); } catch { /* Private browsing must not prevent play. */ }
+  try { localStorage.setItem('theoretical-racing-setup-v1', JSON.stringify({aiStartPlacement: config.aiStartPlacement, track, count, laps: config.laps, cols: config.gameX, rows: config.gameY, seed, roster})); } catch { /* Private browsing must not prevent play. */ }
   clearTimeout(timer); engine?.destroy();
   const token = ++generation;
   $('moves').hidden = true; $('placement').hidden = true; $('ok').hidden = true; $('confirm').hidden = true;
@@ -377,6 +382,7 @@ async function init() {
         if (Number.isInteger(saved[id]) && saved[id] >= 2 && saved[id] <= 500) $(id).value = saved[id];
       }
       if (typeof saved.seed === 'string') $('seed').value = saved.seed.slice(0, 20);
+      if (['informed', 'legacy'].includes(saved.aiStartPlacement)) $('ai-start-policy').value = saved.aiStartPlacement;
     }
   } catch { /* Invalid or inaccessible settings are ignored. */ }
   $('track').disabled = false; $('start').disabled = false;

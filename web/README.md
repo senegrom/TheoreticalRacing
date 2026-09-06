@@ -234,6 +234,8 @@ with a second progress bar for **completed prerequisite stages**, not elapsed
 or remaining time. The actual Java geometry selects six stages for a single-lap
 course (runtime, geometry, distance map, cache check, finish routes, driving
 maps) or nine when lap maps are needed (lap routes, lap safety, lap driving).
+Computed placement on a checkpoint course adds a tenth stage, Exact race map;
+this was formerly a lazy calculation on the first AI driving turn.
 Validated cache hits can satisfy stages without recomputation. Checkpoint
 convergence and the different braking/safety passes remain visible within their
 stage; there is no guessed time percentage or fixed number of convergence rounds.
@@ -247,14 +249,34 @@ worker, per-driver map copy, geometry rebuild or weaker search is introduced.
 Start-cell display is cached once inside the start-zone bounds, retaining the
 exact original x-then-y cell order and checking occupancy on each snapshot.
 
-Starting-cell **selection** is separate: automatic placement still follows the
-original Java first-free/seeded-random policy, not a new supposedly optimal-start
-AI. The map build is exact for an empty track; the live AI still considers the
-other cars on its own turn. Changing that placement policy would change the game.
+Starting-cell **selection** is now computed by default in interactive Java and
+browser games. Each AI waits for all shared maps (including the exact full-race
+potential on checkpoint courses), then scores the free cells against the live
+positions of cars already placed. Placement order and driving turn order remain
+the roster order: an AI cannot see a later player's future placement. Humans
+whose placement turn comes first can place while the maps are building.
+
+This is an intentional starting-policy change, not just rescheduling. The driving
+AI, track geometry, physics and finish rules are unchanged. The score is the
+minimum finish time after a first move legal against current occupancy, followed
+by the exact solo route within the engine's velocity domain. It is not a proven
+multiplayer optimum: rivals can move before or after that first turn. Seeds break
+only equal-score ties, and each AI scores afresh after earlier placements.
+
+Legacy benchmark placement remains an explicit setup option and the default for
+headless benchmark runs. The aiStartPlacement=informed property enables computed
+starts in headless Java too; aiStartPlacement=legacy requests the historical
+first-free/seeded-random policy. Existing golden fixtures are tested in explicit
+legacy mode, unchanged, alongside new native/browser computed-start comparisons.
+If the exact multi-lap map exceeds the existing memory budget, computed placement
+fails visibly rather than silently switching to random starts; choose a smaller
+course/fewer laps or explicitly select the legacy policy.
 
 The startup regression blocks only the distance-entry telemetry observer and
-proves that all car placements complete while BFS is still blocked, with one
-geometry/distance job for one or nine drivers (also tested with two laps).
+proves humans can place while BFS is blocked, while AIs remain unplaced until
+both distance and full-race potential barriers have been released. Mixed
+human/AI fields, nine-driver fields, undo and two-lap preparation are covered.
+There is still just one shared geometry/distance/potential build, not one per AI.
 Browser regressions compare actual element bounds through human/AI transitions,
 thinking, pauses, warnings and continuation at five viewport sizes. The real
 Java browser golden race also records and checks stable bounds across AI turns.

@@ -1251,6 +1251,7 @@ final class Reachability {
 				// all, silently falling back to the finish map).
 				if (game.lapGates != null)
 					computeGateMaps(game.lapGates);
+				if (game.needsInformedStartMaps()) game.prepareOptimalStartMap();
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
 			} finally {

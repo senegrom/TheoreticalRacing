@@ -25,8 +25,8 @@ public final class Progress {
         stage = 1; stages = 6; cached = false; complete = false;
         begin("Building track geometry");
     }
-    public static void plan(final boolean multiLap) {
-        stages = multiLap ? 9 : 6;
+    public static void plan(final boolean multiLap, final boolean informed) {
+        stages = multiLap ? (informed ? 10 : 9) : 6;
         final Pass pass = CURRENT.get();
         pass.lastReport = 0;
         emit(pass, 0, 0);

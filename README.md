@@ -113,6 +113,23 @@ For a promotion candidate, run the manual **AI promotion battery** workflow in G
 4. **Race** — Pick NW/N/NE/W/-/E/SW/S/SE to adjust velocity by one unit per axis. Human moves are previewed before confirmation.
 5. **Finish** — Cross the finish in the forward racing direction. Leaving the corridor or colliding eliminates the car.
 
+## AI starting positions
+
+Interactive Java and browser races default to **computed AI starts**. A computer
+chooses on its placement turn, after all shared maps and the exact full-race
+potential (for checkpoint courses) are ready. It evaluates only free cells and
+uses current occupancy for the first move, then the solo map for continuation.
+This is an informed start score, not a proof of optimal play against moving
+rivals. Earlier human placements can overlap preparation; later players are not
+predicted, and the roster/turn order is unchanged.
+
+The setup offers **Legacy benchmark starts** to preserve old experiments.
+Headless benchmarking defaults to that historical policy; set
+`aiStartPlacement=informed` in a properties file to benchmark computed starts.
+In computed mode a seed breaks equal-score ties only. Exact-map budget failures
+are reported rather than replaced by random placement. See [web/README.md](web/README.md)
+for stages, memory limits and the independent placement tests.
+
 ## Configuration
 
 Personal settings are stored in `user.properties` next to the running JAR and are intentionally ignored by Git. Missing personal settings are filled from code defaults. Benchmark defaults live separately in `tracks/bench.properties`.

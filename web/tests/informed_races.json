@@ -1,0 +1,13 @@
+{
+  "cases": [
+    {
+      "name": "hairpin-informed-s1-2p",
+      "track": "hairpin",
+      "players": 2,
+      "seed": 1,
+      "laps": 1,
+      "policy": "informed",
+      "sha256": "f62bfcdbd84bcf1777383683c22a1e1040777c6c7a7c1bac1143903baf0e5456"
+    }
+  ]
+}

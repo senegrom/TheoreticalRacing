@@ -66,11 +66,29 @@ def instrument_game(source: str) -> str:
     result = source
     for anchor, statement in [
         ('\tprivate void buildTrackGeometry() {', 'geometry();'),
-        ('\t\tcomputeLapGates();', 'plan(lapGates != null);'),
+        ('\t\tcomputeLapGates();', 'plan(lapGates != null, needsInformedStartMaps());'),
     ]:
         if result.count(anchor) != 1:
             raise RuntimeError(f'Geometry progress hook drift: {anchor!r}')
         result = result.replace(anchor, anchor + '\n\t\ttr.browser.Progress.' + statement + TAG)
     if strip(result) != source:
         raise RuntimeError('Geometry progress instrumentation changed engine code')
+    return result
+
+
+def instrument_optimal(source: str) -> str:
+    """Output-only counters for the previously invisible full-race potential."""
+    result = source
+    hooks = [
+        ('\t\tfinal Line2D sf = game.lapGates[0];',
+         '\t\ttr.browser.Progress.begin("Exact full-race map — scanning finish approaches", 9);'),
+        ('\t\tfor (int read = 0; read < frontier.size; read++) {',
+         '\t\t\tif ((read & 2047) == 0) tr.browser.Progress.explored(read);'),
+    ]
+    for anchor, code in hooks:
+        if result.count(anchor) != 1:
+            raise RuntimeError(f'Optimal-map progress hook drift: {anchor!r}')
+        result = result.replace(anchor, anchor + '\n' + code + TAG)
+    if strip(result) != source:
+        raise RuntimeError('Optimal-map instrumentation changed engine code')
     return result

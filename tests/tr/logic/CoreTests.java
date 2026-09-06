@@ -18,6 +18,7 @@ public final class CoreTests {
     public static void main(final String[] args) {
         ReviewRuleTests.run();
         FollowupRuleTests.run();
+        StartPlacementTests.run();
         testDirections();
         testPlayerKinds();
         testDefaultProperties();

@@ -10,7 +10,7 @@ import argparse
 import hashlib
 import json
 import shutil
-from instrument_progress import instrument, instrument_game
+from instrument_progress import instrument, instrument_game, instrument_optimal
 from startup_schedule import adapt
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -56,6 +56,8 @@ def prepare(out: Path) -> None:
             content = instrument_game(content)
         if source.name == 'Reachability.java':
             content = instrument(content)
+        if source.name == 'OptimalPotential.java':
+            content = instrument_optimal(content)
         target = out / 'tr/logic' / source.name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding='utf-8')

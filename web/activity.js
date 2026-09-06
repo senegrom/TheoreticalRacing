@@ -9,6 +9,7 @@ const PREPARATION_STAGES = [
   ['Lap routes', 'Checkpoint routes, repeated until their cycle converges'],
   ['Lap safety', 'Checkpoint safety, repeated until its cycle converges'],
   ['Lap driving', 'Driving maps for the different coherent multi-lap state set'],
+  ['Exact race map', 'Shared exact full-race solo potential, completed before computed AI placement'],
 ];
 export class Activity {
   constructor(root) {
@@ -29,7 +30,7 @@ export class Activity {
   setPreparation(visible, progress = null, ready = false) {
     this.preparation.hidden = !visible;
     if (!visible) return;
-    if ([6, 9].includes(progress?.stages)) this.stages = progress.stages;
+    if ([6, 9, 10].includes(progress?.stages)) this.stages = progress.stages;
     if (Number.isInteger(progress?.stage)) this.stage = Math.max(this.stage, Math.min(this.stages, progress.stage));
     if (ready || progress?.complete) this.stage = this.stages;
     this.cached ||= Boolean(progress?.cached);

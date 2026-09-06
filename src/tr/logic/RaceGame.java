@@ -1648,15 +1648,80 @@ public final class RaceGame {
 
 	final RaceAi ai = new RaceAi(this);
 
+	private boolean placementPollPending;
+	private String placementFailure;
+	private OptimalPotential startPotential;
+
+	/** Interactive games use computed starts; headless benchmarks retain their
+	 * historical sampling unless aiStartPlacement=informed is explicitly set. */
+	boolean informedStartPlacement() {
+		final String mode = prop.getProperty("aiStartPlacement", autoMode ? "legacy" : "informed");
+		if ("informed".equalsIgnoreCase(mode)) return true;
+		if ("legacy".equalsIgnoreCase(mode)) return false;
+		throw new IllegalArgumentException("aiStartPlacement must be informed or legacy");
+	}
+
+	boolean needsInformedStartMaps() {
+		if (!informedStartPlacement() || players == null) return false;
+		for (final Player player : players) if (player.isAi()) return true;
+		return false;
+	}
+
+	/** Runs once in the existing preparation daemon, before ready is published.
+	 * Do not silently select random starts when the exact full-race map cannot fit. */
+	void prepareOptimalStartMap() {
+		if (lapGates != null) {
+			final OptimalPotential prepared = optimalPotential();
+			if (prepared == null)
+				throw new IllegalStateException("Exact full-race map exceeds the engine memory budget. "
+						+ "Choose fewer laps/a smaller track, or explicitly choose legacy starts.");
+			startPotential = prepared;
+		}
+	}
+
+	OptimalPotential preparedStartPotential() { return startPotential; }
+
 	private void autoPlaceAiPlayers() {
+		if (gamestate != GameState.PLACEPLAYERS || placementFailure != null
+				|| subgamestate >= players.length || !players[subgamestate].isAi()) return;
+		if (informedStartPlacement()) {
+			if (!reach.isReady()) {
+				if (!placementPollPending) {
+					placementPollPending = true;
+					final Timer poll = new Timer(150, event -> {
+						placementPollPending = false;
+						if (gamestate != GameState.PLACEPLAYERS) return;
+						autoPlaceAiPlayers();
+						updatePlaceStatus();
+						gameFrame.repaint();
+						if (autoMode && subgamestate == players.length) clickedOK();
+					});
+					poll.setRepeats(false);
+					poll.start();
+				}
+				return;
+			}
+			try { reach.ensureReachabilityReady(); }
+			catch (final RuntimeException | Error failure) {
+				placementFailure = "Track preparation failed: " + failure.getMessage();
+				if (autoMode) abortAutoRace(placementFailure);
+				else dispMessage(placementFailure);
+				return;
+			}
+		}
 		while (subgamestate < players.length && players[subgamestate].isAi()) {
-			final int[] pos = findStartPosition();
+			// Score immediately before committing this car, against the live positions
+			// of every earlier placement. Never preselect the entire field.
+			final int[] pos = informedStartPlacement()
+					? StartPlacement.choose(this, players[subgamestate], startSeed)
+					: findStartPosition();
 			if (pos == null) {
 				final String message = players[subgamestate].getName() + " (AI) couldn't find a start position.";
 				if (isAutoRace()) {
 					abortAutoRace(message);
 					return;
 				}
+				placementFailure = message;
 				dispMessage(message);
 				return;
 			}
@@ -1699,15 +1764,20 @@ public final class RaceGame {
 	 *  each AI gets a random free start cell instead of the first free one.
 	 *  Deterministic per seed; null (default) = legacy behavior. */
 	private java.util.Random startRng = null;
+	private Long startSeed;
 
 	public void setStartSeed(final long seed) {
 		this.startRng = new java.util.Random(seed);
+		this.startSeed = seed;
 	}
 
 	private void updatePlaceStatus() {
 		final boolean allPlaced = subgamestate >= players.length;
-		gameFrame.setOkEnabled(allPlaced);
-		gameFrame.setStatus(allPlaced ? "Click OK to confirm." : "Place player " + players[subgamestate].getName());
+		gameFrame.setOkEnabled(allPlaced && placementFailure == null);
+		gameFrame.setStatus(placementFailure != null ? placementFailure : allPlaced ? "Click OK to confirm."
+				: players[subgamestate].isAi() ? players[subgamestate].getName()
+						+ " (AI): waiting for complete maps before choosing a start."
+				: "Place player " + players[subgamestate].getName());
 	}
 
 	private boolean isTrackSelfIntersecting() {
@@ -1725,6 +1795,7 @@ public final class RaceGame {
 		gameLog.setLength(0);
 		turnCounter = 0;
 		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");
+		if (informedStartPlacement()) gameLog.append("# start-placement informed\n");
 		gameLog.append("# Grid ").append(gameCols).append("x").append(gameRows).append("\n");
 		if (totalLaps > 1)
 			gameLog.append("# laps ").append(totalLaps).append("\n");
@@ -1911,6 +1982,8 @@ public final class RaceGame {
 				dispMessage("No players left to place.");
 				return;
 			}
+			// Human input cannot bypass an AI's pending computation/placement turn.
+			if (players[subgamestate].isAi() || placementFailure != null) return;
 			if (!startZoneA.contains(x, y)) {
 				dispMessage("Player is not in the start zone.");
 				return;
@@ -1994,8 +2067,14 @@ public final class RaceGame {
 			else
 				track.removeLastRight();
 		} else if (gamestate == GameState.PLACEPLAYERS && subgamestate > 0) {
-			subgamestate--;
-			players[subgamestate].setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
+			// Undo one human placement AND any AI placements based on it. The next
+			// AI decision will read the replacement placement, not a stale candidate.
+			int previous = subgamestate - 1;
+			while (previous >= 0 && players[previous].isAi()) previous--;
+			if (previous < 0) return;
+			while (subgamestate > previous)
+				players[--subgamestate].setPosition(new int[]{Player.INIT_POS, Player.INIT_POS });
+			placementFailure = null;
 			updatePlaceStatus();
 		} else if (gamestate == GameState.PLAY) {
 			MoveSnapshot target = null;

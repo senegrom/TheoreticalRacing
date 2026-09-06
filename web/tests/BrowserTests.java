@@ -17,6 +17,7 @@ public final class BrowserTests {
     public static void main(final String[] args) throws Exception {
         ReviewRuleTests.run();
         FollowupRuleTests.run();
+        StartPlacementTests.run();
         final BrowserBridge b = new BrowserBridge();
         b.create("hairpin", "nPlayers=2\nplayer1Kind=HUMAN\nplayer2Kind=AI1\nlaps=1\n", "1");
         final RaceGame g = (RaceGame) get(b, "game");

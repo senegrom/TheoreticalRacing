@@ -169,6 +169,7 @@ public final class BrowserBridge {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("phase", phase.name());
         out.put("status", ui.status);
+        if (field("placementFailure") != null) out.put("failure", field("placementFailure"));
         out.put("cols", game.gameCols); out.put("rows", game.gameRows);
         out.put("current", game.subgamestate); out.put("turn", field("turnCounter"));
         out.put("laps", game.totalLaps); out.put("selected", selected);
@@ -234,7 +235,8 @@ public final class BrowserBridge {
         }
         out.put("moves", moves);
         final List<int[]> starts = new ArrayList<>();
-        if (phase == GameState.PLACEPLAYERS && game.subgamestate < game.players.length) {
+        if (phase == GameState.PLACEPLAYERS && game.subgamestate < game.players.length
+                && !game.players[game.subgamestate].isAi()) {
             if (startCellsArea != game.startZoneA) {
                 startCells.clear();
                 final var bounds = game.startZoneA.getBounds2D();
@@ -275,12 +277,16 @@ public final class BrowserBridge {
         if (args.length < 5) throw new IllegalArgumentException("track players laps seed output-log [kind]");
         final int count = Integer.parseInt(args[1]);
         final String kind = args.length > 5 ? args[5] : "AI2";
-        final StringBuilder config = new StringBuilder("nPlayers=" + count + "\nlaps=" + args[2] + "\n");
+        final String policy = args.length > 6 ? args[6] : "legacy";
+        final StringBuilder config = new StringBuilder("aiStartPlacement=" + policy + "\nnPlayers=" + count + "\nlaps=" + args[2] + "\n");
         for (int i = 1; i <= count; i++) config.append("player").append(i).append("Kind=").append(kind.split(",")[(i - 1) % kind.split(",").length])
                 .append("\nplayer").append(i).append("Name=").append((char) ('A' + i - 1)).append('\n');
         final BrowserBridge bridge = new BrowserBridge();
         bridge.create(args[0], config.toString(), args[3]);
         bridge.awaitReady();
+        while (bridge.game.subgamestate < bridge.game.players.length) {
+            if (!SwingUtilities.tick()) throw new IllegalStateException("No placement callback queued");
+        }
         bridge.ok();
         int steps = 0;
         while (bridge.phase() != GameState.FINISHED) {

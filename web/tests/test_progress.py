@@ -5,7 +5,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'web/scripts'))
-from instrument_progress import instrument, instrument_game, strip
+from instrument_progress import instrument, instrument_game, instrument_optimal, strip
 from startup_schedule import adapt
 
 
@@ -15,7 +15,11 @@ class ProgressTests(unittest.TestCase):
         generated = (ROOT / 'web/build/src/tr/logic/Reachability.java').read_text()
         self.assertEqual(generated, instrument(adapt("Reachability.java", source)))
         self.assertEqual(adapt("Reachability.java", strip(generated), reverse=True), source)
-        for name in ['RaceAi.java', 'MoveQueries.java', 'GateFixedPoint.java']:
+        original = (ROOT / 'src/tr/logic/OptimalPotential.java').read_text()
+        generated_optimal = (ROOT / 'web/build/src/tr/logic/OptimalPotential.java').read_text()
+        self.assertEqual(generated_optimal, instrument_optimal(original))
+        self.assertEqual(strip(generated_optimal), original)
+        for name in ['StartPlacement.java', 'RaceAi.java', 'MoveQueries.java', 'GateFixedPoint.java']:
             self.assertEqual((ROOT / 'src/tr/logic' / name).read_bytes(),
                              (ROOT / 'web/build/src/tr/logic' / name).read_bytes())
 

@@ -38,7 +38,7 @@ def main():
         (ref / 'tracks').symlink_to(ROOT / 'tracks', target_is_directory=True)
     # Original direct rule-contract tests are also run on the generated engine.
     run(['javac', '-encoding', 'UTF-8', '-Xlint:all', '-Werror', '-cp', 'web/dist/racing.jar', '-d', str(build),
-         'tests/tr/logic/ReviewRuleTests.java', 'tests/tr/logic/FollowupRuleTests.java', 'web/tests/BrowserTests.java'], build / 'test-compile.log')
+         'tests/tr/logic/ReviewRuleTests.java', 'tests/tr/logic/FollowupRuleTests.java', 'tests/tr/logic/StartPlacementTests.java', 'web/tests/BrowserTests.java'], build / 'test-compile.log')
     run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'web/dist/racing.jar{os.pathsep}{build}', 'tr.logic.BrowserTests'], build / 'adapter-tests.log')
     print((build / 'adapter-tests.log').read_text(), flush=True)
     # A test-only telemetry observer holds distance BFS at its entry while
@@ -47,7 +47,7 @@ def main():
     startup.mkdir(exist_ok=True)
     run(['javac', '-encoding', 'UTF-8', '-Xlint:all', '-Werror', '-cp', 'web/dist/racing.jar', '-d', str(startup),
          *map(str, sorted((ROOT / 'web/tests/startup').rglob('*.java')))], build / 'startup-compile.log')
-    for players, track, laps in [(1, 'hairpin', 1), (9, 'hairpin', 1), (9, 'monza', 2)]:
+    for players, track, laps in [(1, 'hairpin', 1), (4, 'hairpin', 1), (9, 'hairpin', 1), (9, 'monza', 2)]:
         output = build / f'startup-{players}-{laps}.log'
         run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'{startup}{os.pathsep}web/dist/racing.jar',
              'tr.logic.StartupTests', str(players), track, str(laps)], output)
@@ -59,14 +59,17 @@ def main():
         dict(name='hairpin-legacy-AI1', track='hairpin', seed='', players=3, kind='AI1'),
         dict(name='hairpin-negative-mixed', track='hairpin', seed=-7, players=4, kind='AI1,AI2'),
         dict(name='monza-two-laps', track='monza', seed=2, players=2, laps=2),
+        json.loads((ROOT / 'web/tests/informed_races.json').read_text())['cases'][0],
+        dict(name='monza-informed-two-laps', track='monza', seed=2, players=2, laps=2, policy='informed'),
     ]
     results = []
     for case in cases:
         name, track, count = case['name'], case['track'], case['players']
         seed, laps, kind = str(case['seed']), case.get('laps', 1), case.get('kind', 'AI2')
+        policy = case.get('policy', 'legacy')
         kinds = kind.split(',')
         props = build / (name + '.properties')
-        props.write_text(f'nPlayers={count}\nlaps={laps}\n' + ''.join(
+        props.write_text(f'aiStartPlacement={policy}\nnPlayers={count}\nlaps={laps}\n' + ''.join(
             f'player{i+1}Name={chr(65+i)}\nplayer{i+1}Kind={kinds[i % len(kinds)]}\n' for i in range(count)))
         reference = build / (name + '.desktop.log')
         browser = build / (name + '.browser.log')
@@ -74,7 +77,7 @@ def main():
         if seed:
             cmd += ['--seed', seed]
         run(cmd, build / (name + '.desktop.stdout'))
-        run(['java', '-Xmx2g', '-Djava.awt.headless=true', '-cp', 'web/dist/racing.jar', 'tr.logic.BrowserBridge', track, str(count), str(laps), seed, str(browser), kind], build / (name + '.browser.stdout'))
+        run(['java', '-Xmx2g', '-Djava.awt.headless=true', '-cp', 'web/dist/racing.jar', 'tr.logic.BrowserBridge', track, str(count), str(laps), seed, str(browser), kind, policy], build / (name + '.browser.stdout'))
         if reference.read_bytes() != browser.read_bytes():
             import difflib
             diff = ''.join(difflib.unified_diff(reference.read_text().splitlines(True), browser.read_text().splitlines(True)))
