@@ -2,14 +2,15 @@
 """Generate a browser build of the *same* engine. Never edit generated Java.
 
 Only Swing host imports and Java 21 sequenced-collection conveniences are
-adapted. In particular RaceAi, Reachability and MoveQueries are byte-for-byte
-copies. Every replacement is counted, so upstream drift fails the build.
+adapted. RaceAi and MoveQueries are byte-for-byte copies. Reachability has only
+erasable, output-only progress hooks added to the browser copy. Every replacement is counted, so upstream drift fails the build.
 """
 from pathlib import Path
 import argparse
 import hashlib
 import json
 import shutil
+from instrument_progress import instrument
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -49,6 +50,8 @@ def prepare(out: Path) -> None:
             if actual != count:
                 raise RuntimeError(f'{source.name}: expected {count} occurrences of {old!r}, found {actual}; audit the upstream change')
             content = content.replace(old, new)
+        if source.name == 'Reachability.java':
+            content = instrument(content)
         target = out / 'tr/logic' / source.name
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding='utf-8')

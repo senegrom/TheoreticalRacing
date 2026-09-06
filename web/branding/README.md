@@ -21,8 +21,8 @@ Python renderer nor its dependencies are downloaded by players.
 HTML explicitly links Apple 152/167/180 PNGs, classic PNG/ICO tab icons, Apple
 standalone/title/status-bar metadata and the web manifest. All URLs are relative
 to this project, not the shared github.io root. The manifest ID is explicitly
-`/TheoreticalRacing/`, distinct from `/mahjong/` and the other apps. Versioned
-URLs avoid reusing the previous icon. An existing Home Screen shortcut may need
+`/TheoreticalRacing/`, distinct from `/mahjong/` and the other apps. Distinct Racing-specific physical filenames with a revision, not only query
+strings, avoid reusing previous icon requests. An existing Home Screen shortcut may need
 to be removed and re-added on the device to refresh its cached icon.
 
 The build records source/export SHA-256 hashes. CI validates PNG integrity,

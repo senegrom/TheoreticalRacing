@@ -49,7 +49,13 @@ class IconTests(unittest.TestCase):
         expected = {'favicon-16x16.png': 16, 'favicon-32x32.png': 32, 'apple-touch-icon.png': 180,
                     'apple-touch-icon-152.png': 152, 'apple-touch-icon-167.png': 167,
                     'icons/racing-192.png': 192, 'icons/racing-512.png': 512, 'icons/racing-512-maskable.png': 512}
-        self.assertEqual(set(report['files']), set(expected) | {'favicon.ico'})
+        aliases = {'icons/racing-tab-16-v3.png': 16, 'icons/racing-tab-32-v3.png': 32,
+                   'icons/racing-apple-180-v3.png': 180, 'icons/racing-apple-152-v3.png': 152,
+                   'icons/racing-apple-167-v3.png': 167, 'icons/racing-app-192-v3.png': 192,
+                   'icons/racing-app-512-v3.png': 512, 'icons/racing-maskable-512-v3.png': 512}
+        expected.update(aliases)
+        self.assertEqual(set(report['files']), set(expected) | {'favicon.ico', 'icons/racing-favicon-v3.ico'})
+        self.assertEqual((SITE / 'favicon.ico').read_bytes(), (SITE / 'icons/racing-favicon-v3.ico').read_bytes())
         for name, digest in report['files'].items():
             data = (SITE / name).read_bytes()
             self.assertEqual(hashlib.sha256(data).hexdigest(), digest, name)
@@ -71,6 +77,7 @@ class IconTests(unittest.TestCase):
         self.assertEqual(head.meta['apple-mobile-web-app-title'], 'Racing')
         apple = [link for link in head.links if link.get('rel') == 'apple-touch-icon']
         self.assertEqual({link['sizes'] for link in apple}, {'152x152', '167x167', '180x180'})
+        self.assertTrue(all('/racing-apple-' in link['href'] for link in apple))
         self.assertTrue(any(link.get('rel') == 'manifest' for link in head.links))
         manifest = json.loads((SITE / 'manifest.webmanifest').read_text())
         self.assertEqual(manifest['id'], '/TheoreticalRacing/')

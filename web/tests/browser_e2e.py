@@ -54,6 +54,7 @@ def main():
         page.on('requestfailed', lambda r: messages.append(f'FAILED {r.url}: {r.failure}'))
         page.set_default_timeout(30_000)
         try:
+            page.add_init_script("window.workReports=[]; new MutationObserver(()=>{const e=document.querySelector('[data-work-detail]');if(e && e.textContent) workReports.push(e.textContent)}).observe(document,{subtree:true,childList:true,characterData:true})")
             page.goto(url)
             # Decode the real HTTP PNGs, including all Apple and manifest sizes.
             icons = page.evaluate("""async () => {
@@ -73,7 +74,7 @@ def main():
               }));
             }""")
             assert len(icons) == 8, 'Apple, browser or manifest icon missing'
-            ico = page.request.get(url.rstrip('/') + '/favicon.ico?v=2')
+            ico = page.request.get(page.locator('link[rel=icon][type="image/x-icon"]').evaluate('(e)=>e.href'))
             assert ico.ok and ico.body()[:6] == bytes([0, 0, 1, 0, 3, 0]), 'ICO fallback is not served'
             page.wait_for_function('document.querySelector("#setup").open')
             page.locator('#close-setup').click()
@@ -103,6 +104,9 @@ def main():
                 page.locator('#ok').click()
                 page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=600_000)
                 assert page.locator('body').get_attribute('data-turn') == '33', 'wrong golden race length'
+                assert len(page.workers) >= 1, 'Java must run in a dedicated worker'
+                assert page.locator('iframe').count() == 0, 'Java still runs in an iframe'
+                assert page.evaluate("workReports.some(s=>/Mapping track distances|Checking saved track maps|Scanning finish approaches/.test(s))"), 'no real Java progress telemetry received'
                 with page.expect_download() as downloaded:
                     page.locator('#export').click()
                 target = out / 'hairpin-s1-2p.log'
@@ -112,7 +116,7 @@ def main():
                 assert digest == fixture['sha256'], f'Browser JVM differs from original golden: {digest}'
                 page.screenshot(path=str(out / 'finished.png'), full_page=True)
                 print(f'{args.browser}: real Java golden race matched {digest}', flush=True)
-                # A new iframe must not receive events or callbacks from the old race.
+                # A new worker must not receive events or callbacks from the old race.
                 page.locator('#new-race').click()
                 for row in page.locator('.roster-row').all():
                     row.locator('select').select_option('HUMAN')

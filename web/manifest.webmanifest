@@ -11,19 +11,19 @@
   "theme_color": "#163e32",
   "icons": [
     {
-      "src": "./icons/racing-192.png?v=2",
+      "src": "./icons/racing-app-192-v3.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icons/racing-512.png?v=2",
+      "src": "./icons/racing-app-512-v3.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "./icons/racing-512-maskable.png?v=2",
+      "src": "./icons/racing-maskable-512-v3.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

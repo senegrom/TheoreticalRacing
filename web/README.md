@@ -60,14 +60,15 @@ is available from the workflow for other static hosts.
 
 The port does not modify `src/`. At build time, `scripts/prepare_sources.py`
 changes only the Swing presentation/scheduling imports and counted Java 21
-list conveniences into equivalent Java 17 expressions. Upstream drift fails
-that build. AI, reachability and move-query sources are byte-for-byte copies.
+list conveniences into equivalent Java 17 expressions, and adds erasable
+output-only reachability progress hooks. Upstream drift fails the build. AI and
+move-query sources are byte-for-byte copies. No game decisions are changed.
 
 `java/tr/logic/BrowserBridge.java` exports snapshots, queries the existing live
 referee for previews and forwards commands to the public methods used by Swing.
 Canvas renders Java's actual corridor and exact finish segment; it never decides
-legality. One hidden same-origin iframe owns each Java runtime. Starting a new
-race destroys the old realm and its workers.
+legality. One dedicated Web Worker owns each Java runtime. Starting a new race
+or stopping work terminates the old worker immediately.
 
 ## Interface
 
@@ -148,3 +149,28 @@ cancellation, errors, notification dismissal and icon declarations. Actual Java
 runtime gameplay is checked separately by `browser_e2e.py` on both browser engines
 and the deployed public site. Device-level iOS Home Screen installation cannot
 be automated by these desktop WebKit tests and should also be checked on an iPhone.
+
+
+## Responsiveness and honest progress
+
+The Java runtime now runs in a dedicated Web Worker, not on the page's event
+loop in an iframe. Each operation shows a spinner, an elapsed-time counter and a
+progress bar. Track preparation reports actual phases and percentages of the
+current finite scan. BFS and AI search have unknown final work sizes: they use
+indeterminate bars (with explored-state counts where available), never an
+invented percentage or ETA. Pause takes effect after the current AI turn; Stop
+race terminates it immediately and explicitly discards that race.
+
+`instrument_progress.py` inserts only tagged, output-only statements in the
+browser copy of Reachability. Removing those lines recovers the exact original
+source, which CI asserts. Original `src/`, AI policies, traversal order, bounds,
+geometry, caches and all tracks remain unchanged. The full parity corpus still
+checks complete desktop/browser race logs. Progress instrumentation is not used
+as an AI cutoff or a search budget. Readiness polling transfers only a small
+status object instead of repeatedly rebuilding/rendering full race snapshots.
+
+Physical icon filenames now include both the Racing name and a revision, so
+iOS and tab icons do not depend solely on a query-string cache buster. The app ID
+and start URL remain unchanged. This does not edit the separate PlateLoader app
+or clear another app's data. An existing Home Screen shortcut may still need to
+be removed and added again from the Racing page to refresh its saved icon.

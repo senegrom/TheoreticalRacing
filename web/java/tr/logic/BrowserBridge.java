@@ -92,6 +92,18 @@ public final class BrowserBridge {
     }
 
     private GameState phase() { return (GameState) field("gamestate"); }
+    /** Readiness polling must not rescan starts, geometry or histories. */
+    public String readiness() {
+        requireGame();
+        final boolean ready = game.trackA == null || game.reach.isReady();
+        final Map<String, Object> result = new LinkedHashMap<>();
+        result.put("ready", ready);
+        if (game.trackA != null && ready) {
+            try { game.reach.ensureReachabilityReady(); }
+            catch (final RuntimeException | Error error) { result.put("failure", error.toString()); }
+        }
+        return Json.encode(result);
+    }
     public String tick() {
         requireGame();
         // The real Java background worker does the work, unchanged. Never block

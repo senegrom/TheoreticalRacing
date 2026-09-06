@@ -16,7 +16,7 @@ from playwright.sync_api import sync_playwright
 WEB = Path(__file__).resolve().parents[1]
 MOCK = r'''
 class Engine {
-  constructor(onStatus) { this.dead = false; window.testEngine = this; onStatus('Loading the Java runtime…'); }
+  constructor(onStatus) { this.dead = false; this.onStatus = onStatus; window.testEngine = this; onStatus('Loading the Java runtime…'); }
   async call(method, ...args) {
     window.calls.push([method, ...args]);
     if (method === 'create') {
@@ -25,6 +25,7 @@ class Engine {
     }
     if (window.failNext) { const text = window.failNext; window.failNext = null; throw new Error(text); }
     if (this.dead) throw new DOMException('Race closed', 'AbortError');
+    if (window.holdTick && method === 'tick') await new Promise(resolve => window.releaseTick = resolve);
     const s = this.state;
     if (method === 'log') return await new Promise(resolve => window.releaseLog = resolve);
     if (method === 'preview') s.selected = args[0];
@@ -68,7 +69,7 @@ def load(page, state=None):
     controller = controller.replace("if (!/^https?:$/.test(location.protocol))", 'if (false)')
     controller = controller.replace('import.meta.url', "'https://example.invalid/TheoreticalRacing/app.js'")
     board = (WEB / 'board.js').read_text().replace('export class Board', 'class Board')
-    page.add_script_tag(type='module', content=MOCK + '\n' + board + '\n' + controller)
+    page.add_script_tag(type='module', content=MOCK + '\n' + board + '\n' + (WEB / 'activity.js').read_text().replace('export class Activity', 'class Activity') + '\n' + controller)
     page.wait_for_function('!document.querySelector("#track").disabled')
 
 
@@ -136,6 +137,11 @@ def main():
             page.once('dialog', lambda d: d.accept()); page.locator('#start').click()
             assert page.locator('#moves').is_hidden() and page.locator('#export').is_disabled()
             assert page.locator('#standings li').count() == 0
+            assert page.locator('#work-status').is_visible()
+            assert page.locator('#work-status progress').get_attribute('value') is None
+            page.evaluate("window.testEngine.onStatus('', {kind:'preparation',phase:'Checking safe continuations',done:40,total:100,unit:'scan'})")
+            assert page.locator('#work-status progress').get_attribute('value') == '0.4'
+            assert '40% of this scan' in page.locator('[data-work-detail]').inner_text()
             page.evaluate('window.releaseCreate()'); page.wait_for_function('document.body.dataset.phase === "PLAY"')
             page.evaluate("window.failNext='Simulated engine failure'")
             page.locator('#moves button').nth(4).click()
@@ -145,6 +151,22 @@ def main():
             assert 'stopped' in page.locator('#status').inner_text()
             page.locator('#dismiss-notice').click(); assert page.locator('#notice').is_hidden()
             page.close()
+        # Long AI work remains visible, indeterminate, timed, and cancellable.
+        page = browser.new_page(viewport={'width':390,'height':844})
+        load(page); start(page)
+        page.locator('#pause').click()
+        page.evaluate("window.testEngine.state.players[0].kind='AI2';window.holdTick=true")
+        page.locator('#moves button').nth(4).click()
+        page.locator('#step').click()
+        assert page.locator('#work-status').is_visible()
+        assert 'thinking' in page.locator('[data-work-label]').inner_text()
+        assert page.locator('#work-status progress').get_attribute('value') is None
+        page.wait_for_function('document.querySelector("[data-work-elapsed]").textContent !== "0s elapsed"')
+        page.once('dialog', lambda d:d.accept())
+        page.locator('#stop-work').click()
+        assert page.evaluate('window.testEngine.dead') and page.locator('#work-status').is_hidden()
+        assert page.locator('#setup').evaluate('(e)=>e.open')
+        page.close()
         # The same original drawing phase index is a border index, not a driver index.
         page = browser.new_page(viewport={'width':390,'height':844})
         drawing = fixture(); drawing.update(phase='DRAWTRACK', current=1, ok=True)

@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import io
 import json
+import shutil
 from pathlib import Path
 from PIL import Image
 import cairosvg
@@ -35,6 +36,22 @@ def export(output):
     mask.paste(master.resize((280, 280), Image.Resampling.LANCZOS), (116, 116))
     mask.save(output / 'icons/racing-512-maskable.png', optimize=True)
     files = [*SIZES, 'icons/racing-512-maskable.png', 'favicon.ico']
+    # Distinct physical URLs (not only query strings) avoid reusing old
+    # Home Screen/tab icon requests on the shared github.io origin.
+    aliases = {
+        'favicon.ico': 'icons/racing-favicon-v3.ico',
+        'favicon-16x16.png': 'icons/racing-tab-16-v3.png',
+        'favicon-32x32.png': 'icons/racing-tab-32-v3.png',
+        'apple-touch-icon.png': 'icons/racing-apple-180-v3.png',
+        'apple-touch-icon-152.png': 'icons/racing-apple-152-v3.png',
+        'apple-touch-icon-167.png': 'icons/racing-apple-167-v3.png',
+        'icons/racing-192.png': 'icons/racing-app-192-v3.png',
+        'icons/racing-512.png': 'icons/racing-app-512-v3.png',
+        'icons/racing-512-maskable.png': 'icons/racing-maskable-512-v3.png',
+    }
+    for source, target in aliases.items():
+        shutil.copyfile(output / source, output / target)
+        files.append(target)
     report = {'source': hashlib.sha256(svg).hexdigest(),
               'files': {n: hashlib.sha256((output / n).read_bytes()).hexdigest() for n in files}}
     (output / 'icon-hashes.json').write_text(json.dumps(report, indent=2) + '\n')

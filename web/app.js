@@ -1,4 +1,5 @@
-import {Engine} from './engine.js';
+import {Engine} from './engine.js?v=3';
+import {Activity} from './activity.js?v=3';
 import {Board} from './board.js';
 
 const $ = id => document.getElementById(id);
@@ -6,6 +7,8 @@ const names = ['North-west', 'North', 'North-east', 'West', 'No acceleration', '
 const arrows = ['↖', '↑', '↗', '←', '·', '→', '↙', '↓', '↘'];
 const colors = ['#0000ff', '#ff0000', '#00ff00', '#ffff00', '#00ffff', '#ffc800', '#808080', '#ff00ff', '#000000'];
 let catalog = [], engine = null, state = null, busy = false, polling = false, failed = false, paused = false, timer, generation = 0, raceName = '';
+let operation = '', preparation = null, bootStatus = '';
+const activity = new Activity($('work-status'));
 let roster = Array.from({length: 9}, (_, i) => ({name: `Player ${i + 1}`, kind: i === 0 ? 'HUMAN' : 'AI2', color: colors[i]}));
 const board = new Board($('board'), p => {
   if (!state || busy || failed) return;
@@ -38,13 +41,18 @@ async function pollReadiness() {
   const current = engine, token = generation;
   polling = true;
   try {
-    // Snapshot reads are serialized by the JVM transport but must not disable
-    // placement buttons between pointer-down and pointer-up. They run no AI.
-    const next = await current.call('snapshot');
-    if (token === generation) accept(next);
+    // A tiny readiness probe avoids repeatedly serializing the whole track,
+    // rescanning start cells and redrawing histories while Java is computing.
+    const ready = await current.call('readiness');
+    if (token !== generation) return;
+    if (ready.failure) throw new Error(ready.failure);
+    if (ready.ready) {
+      const next = await current.call('snapshot');
+      if (token === generation) accept(next);
+    }
   } catch (error) {
     if (token === generation && error.name !== 'AbortError') {
-      failed = true; notice(`${error.message} Start a new race to recover.`);
+      failed = true; current.destroy(); notice(`${error.message} Start a new race to recover.`);
     }
   } finally {
     if (token === generation) { polling = false; render(); schedule(); }
@@ -72,22 +80,40 @@ function accept(next) {
 async function act(method, ...args) {
   if (!engine || busy || failed) return;
   const current = engine, token = generation;
-  busy = true; clearTimeout(timer); render();
+  busy = true; operation = method;
+  if (method === 'ok') preparation = null;
+  clearTimeout(timer); render();
   try {
     const next = await current.call(method, ...args);
     if (token === generation) accept(next);
   } catch (error) {
     if (token === generation && error.name !== 'AbortError') {
-      failed = true;
+      failed = true; current.destroy();
       notice(`${error.message} Start a new race to recover.`);
     }
   } finally {
     if (token === generation) { busy = false; render(); schedule(); }
   }
 }
+function renderWork() {
+  if (failed || !engine) { activity.hide(); return; }
+  if (!state) {
+    activity.show(`boot-${generation}`, 'Preparing your race', preparation || {phase: bootStatus || 'Loading the Java runtime…'});
+  } else if (!state.ready) {
+    activity.show(`prepare-${generation}`, 'Computing the original track maps', preparation);
+  } else if (busy) {
+    const driver = state.players[state.current];
+    const label = operation === 'tick' && !human() ? `${driver?.name || 'AI'} is thinking…` :
+      ({preview:'Calculating move preview…', move:'Applying your move…', undo:'Restoring your turn…',
+        ok:'Preparing the race…', click:'Updating the track…', log:'Preparing race log…'})[operation] || 'Engine working…';
+    activity.show(`action-${generation}-${state.turn}-${operation}`, label,
+      preparation && operation === 'ok' ? preparation : {phase: operation === 'tick' ? 'Evaluating the original AI search. Its remaining work is not known in advance.' : 'Waiting for the original Java engine.'});
+  } else activity.hide();
+}
 function render() {
   const s = state;
   $('export').disabled = !s || busy || failed || s.turn === 0;
+  renderWork();
   document.querySelector('.decision').setAttribute('aria-busy', String(busy));
   if (!s) return;
   document.body.dataset.phase = s.phase;
@@ -99,7 +125,7 @@ function render() {
   $('race-meta').textContent = `${s.players.length} drivers · ${s.laps} ${s.laps === 1 ? 'lap' : 'laps'} · turn ${s.turn}`;
   $('grid-label').textContent = `${s.cols} × ${s.rows} grid`;
   $('driver').textContent = s.phase === 'FINISHED' ? 'Race complete' : s.phase === 'START' ? 'Draw your circuit' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border' : 'Right border') : driver?.name ?? 'Ready to race';
-  $('status').textContent = failed ? 'The engine stopped. Start a new race to recover.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? 'AI paused. Choose Step or Resume AI.' : s.status;
+  $('status').textContent = failed ? 'The engine stopped. Start a new race to recover.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? (busy ? 'Pausing after the current AI move…' : 'AI paused. Choose Step or Resume AI.') : s.status;
   $('telemetry').textContent = s.phase === 'PLAY' && driver ? `Position ${driver.position.join(', ')}  ·  Velocity ${driver.velocity.join(', ')}` : s.phase === 'DRAWTRACK' ? `${(s.current === 0 ? s.left : s.right).length} border points` : '';
   $('placement').hidden = !['DRAWTRACK', 'PLACEPLAYERS'].includes(s.phase) || (s.phase === 'PLACEPLAYERS' && s.current >= s.players.length);
   $('place-x').max = s.cols; $('place-y').max = s.rows;
@@ -127,7 +153,7 @@ function render() {
   $('undo').disabled = busy || failed || !s.undo;
   $('undo').textContent = s.phase === 'DRAWTRACK' ? 'Undo point' : s.phase === 'PLACEPLAYERS' ? 'Undo placement' : 'Undo turn';
   $('pause').disabled = failed || s.phase !== 'PLAY';
-  $('pause').textContent = paused ? 'Resume AI' : 'Pause AI';
+  $('pause').textContent = paused ? (busy && operation === 'tick' ? 'Pausing after move…' : 'Resume AI') : 'Pause AI';
   $('step').disabled = busy || failed || !s.ready || !paused || s.phase !== 'PLAY' || human();
   $('standings').replaceChildren(...s.players.map((p, i) => {
     const li = document.createElement('li');
@@ -168,6 +194,20 @@ $('fit').addEventListener('click', () => board.fit());
 $('focus-car').addEventListener('click', () => board.focus());
 $('zoom-in').addEventListener('click', () => board.zoom(1.4));
 $('zoom-out').addEventListener('click', () => board.zoom(1 / 1.4));
+$('stop-work').addEventListener('click', () => {
+  if (!engine || !window.confirm('Stop this race? Current race progress will be discarded.')) return;
+  ++generation; clearTimeout(timer); engine.destroy(); engine = null;
+  busy = false; polling = false; failed = false; state = null; preparation = null;
+  activity.hide(); document.body.classList.remove('loading'); document.body.dataset.phase = 'STOPPED';
+  document.querySelector('.decision').setAttribute('aria-busy', 'false');
+  window.removeEventListener('beforeunload', warnBeforeLeave);
+  for (const button of document.querySelectorAll('.pitwall button')) button.disabled = true;
+  $('moves').hidden = true; $('placement').hidden = true; $('confirm').hidden = true; $('ok').hidden = true;
+  $('phase').textContent = 'Race stopped'; $('race-meta').textContent = '';
+  $('export').disabled = true; $('driver').textContent = 'Race stopped';
+  $('status').textContent = 'Choose a new race to start again.';
+  $('setup').showModal(); preview.fit();
+});
 $('new-race').addEventListener('click', () => { clearTimeout(timer); $('setup').showModal(); preview.fit(); });
 $('close-setup').addEventListener('click', () => $('setup').close());
 $('setup').addEventListener('close', schedule);
@@ -178,7 +218,7 @@ $('install').addEventListener('click', () => { clearTimeout(timer); $('installat
 $('close-install').addEventListener('click', () => $('installation').close());
 $('installation').addEventListener('close', schedule);
 document.addEventListener('visibilitychange', schedule);
-window.addEventListener('pagehide', () => { clearTimeout(timer); engine?.destroy(); });
+window.addEventListener('pagehide', () => { clearTimeout(timer); activity.hide(); engine?.destroy(); });
 window.addEventListener('pageshow', event => { if (event.persisted) { engine = null; failed = true; notice('The engine was closed when you left this page. Start a new race.'); render(); } });
 window.addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || modalOpen() || e.target.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -194,7 +234,7 @@ window.addEventListener('keydown', e => {
 $('export').addEventListener('click', async () => {
   if (!engine || busy || failed) return;
   const current = engine, token = generation;
-  busy = true; clearTimeout(timer); render();
+  busy = true; operation = 'log'; clearTimeout(timer); render();
   try {
     const text = await current.call('log');
     if (token !== generation) return;
@@ -261,6 +301,7 @@ $('setup-form').addEventListener('submit', async e => {
   $('telemetry').textContent = ''; $('standings').replaceChildren(); $('move-detail').textContent = 'Preparing the original engine…';
   document.body.classList.remove('loading');
   busy = true; polling = false; failed = false; state = null; paused = false;
+  operation = 'create'; preparation = null; bootStatus = 'Loading the Java runtime…'; activity.hide();
   $('setup-error').textContent = ''; $('setup').close(); notice();
   raceName = catalog.find(t => t.id === track)?.name ?? 'Your circuit'; $('track-title').textContent = raceName;
   board.set(catalog.find(t => t.id === track) ?? {cols: config.gameX, rows: config.gameY}); board.fit();
@@ -268,7 +309,15 @@ $('setup-form').addEventListener('submit', async e => {
   $('phase').textContent = 'Preparing the engine'; document.body.dataset.phase = 'LOADING';
   for (const button of document.querySelectorAll('.pitwall button')) button.disabled = true;
   $('export').disabled = true; document.body.dataset.turn = '0';
-  const current = new Engine(text => { if (token === generation) $('status').textContent = text; }); engine = current;
+  const current = new Engine((text, progress) => {
+    if (token !== generation) return;
+    if (progress?.failure) { failed = true; notice(progress.failure); render(); return; }
+    if (text) { bootStatus = text; $('status').textContent = text; }
+    if (progress) preparation = progress;
+    renderWork();
+  });
+  engine = current;
+  renderWork();
   try {
     const properties = Object.entries(config).map(([k, v]) => `${k}=${property(v)}`).join('\n');
     const next = await current.call('create', track, properties, seed);
