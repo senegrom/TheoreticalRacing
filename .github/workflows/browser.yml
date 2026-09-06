@@ -148,7 +148,7 @@ jobs:
       - name: Verify the entire tested artifact and attach matching source
         run: python3 web/scripts/site_artifact.py prepare "$RUNNER_TEMP/racing-pages" --sha "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/racing-pages
       - name: Refuse superseded workflow reruns
