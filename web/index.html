@@ -42,7 +42,7 @@
   </main>
   <dialog id="setup" aria-labelledby="setup-title">
     <form id="setup-form"><div class="dialog-head"><div><span class="eyebrow">Build your race</span><h2 id="setup-title">A circuit. A vector. A finish line.</h2></div><button type="button" id="close-setup" aria-label="Close race setup">×</button></div>
-      <div class="setup-grid"><section><label>Circuit<select id="track" required disabled><option>Loading circuits…</option></select></label><canvas id="track-preview" aria-label="Selected circuit preview"></canvas><p id="track-info" class="hint"></p>
+      <div class="setup-grid"><section><label>Circuit<select id="track" disabled><option>Loading circuits…</option></select></label><canvas id="track-preview" aria-label="Selected circuit preview"></canvas><p id="track-info" class="hint"></p>
         <div class="three-fields"><label>Drivers<input id="player-count" type="number" min="1" max="9" value="4" required></label><label>Laps<input id="laps" type="number" min="1" max="99" value="1" required></label><label>Start seed<input id="seed" type="text" inputmode="numeric" maxlength="20" placeholder="Original order"></label></div>
         <div id="custom-size" class="two-fields" hidden><label>Grid width<input id="cols" type="number" min="2" max="500" value="86"></label><label>Grid height<input id="rows" type="number" min="2" max="500" value="48"></label></div>
         <p class="hint">AI1 and AI2 are the same promoted policy in the Java game. Closed circuits support laps; the original engine decides whether a drawing can loop.</p>

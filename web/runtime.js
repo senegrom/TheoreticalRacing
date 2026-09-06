@@ -5,6 +5,10 @@ const describe = async error => {
   catch { return 'The Java engine failed'; }
 };
 try {
+  const jar = new URL('./racing.jar', location.href);
+  const probe = await fetch(jar, {headers: {Range: 'bytes=0-0'}});
+  await probe.body?.cancel();
+  if (probe.status !== 206) throw new Error('The web host must support HTTP byte-range requests. For local play, use python3 web/serve.py rather than python -m http.server.');
   send({status: 'Loading the Java runtime…'});
   await new Promise((resolve, reject) => {
     const script = document.createElement('script');
@@ -15,7 +19,6 @@ try {
   });
   await cheerpjInit({version: 17, status: 'none', javaProperties: ['java.awt.headless=true', 'user.home=/files']});
   send({status: 'Loading the original racing engine…'});
-  const jar = new URL('./racing.jar', location.href);
   const library = await cheerpjRunLibrary(`/app${jar.pathname}`);
   const Bridge = await library.tr.logic.BrowserBridge;
   const bridge = await new Bridge();

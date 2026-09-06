@@ -6,7 +6,7 @@ The UI-only mode does not start the JVM; it is not a substitute for runtime test
 import argparse
 import functools
 import hashlib
-from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+from http.server import ThreadingHTTPServer
 import json
 from pathlib import Path
 import sys
@@ -19,7 +19,11 @@ sys.path.insert(0, str(ROOT / 'tests'))
 from golden_races import normalized_log  # noqa: E402
 
 
-class QuietHandler(SimpleHTTPRequestHandler):
+sys.path.insert(0, str(ROOT / 'web'))
+from serve import RangeHandler  # noqa: E402
+
+
+class QuietHandler(RangeHandler):
     def log_message(self, fmt, *args):
         pass
 
@@ -31,7 +35,7 @@ def main():
     args = parser.parse_args()
     out = ROOT / 'web/build/browser-tests' / args.browser
     out.mkdir(parents=True, exist_ok=True)
-    server = ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(QuietHandler, directory=str(ROOT / 'web/dist')))
+    server = ThreadingHTTPServer(('127.0.0.1', 0), functools.partial(QuietHandler, directory=str(ROOT / 'web')))
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     mobile = args.browser == 'webkit'
@@ -45,11 +49,13 @@ def main():
         page.on('requestfailed', lambda r: messages.append(f'FAILED {r.url}: {r.failure}'))
         page.set_default_timeout(30_000)
         try:
-            page.goto(f'http://127.0.0.1:{server.server_port}/')
+            page.goto(f'http://127.0.0.1:{server.server_port}/dist/')
             page.wait_for_function('!document.querySelector("#track").disabled')
             assert page.locator('#track option').count() == 85, 'missing original tracks or custom drawing'
             assert page.locator('#setup').evaluate('(d) => d.open')
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'horizontal page overflow'
+            page.locator('#track').select_option('')
+            assert page.locator('#setup-form').evaluate('(f) => f.checkValidity()'), 'custom-track option invalidates setup'
             page.locator('#track').select_option('hairpin')
             page.locator('#player-count').fill('2')
             for i, row in enumerate(page.locator('.roster-row').all()):
@@ -90,12 +96,34 @@ def main():
                     legal = page.locator('#moves button[data-legal="true"]').first
                     legal.click(); legal.click()
                     assert page.locator('body').get_attribute('data-turn') == '0', 'preview committed move'
+                    page.wait_for_function('!document.querySelector("#confirm").disabled')
                     page.keyboard.press('Enter')
                     page.wait_for_function('document.body.dataset.turn === "1"')
                     page.locator('#undo').click()
                     page.wait_for_function('document.body.dataset.turn === "0"')
                     page.screenshot(path=str(out / 'human.png'), full_page=True)
                     print('chromium: placement, repeated preview, keyboard confirm, undo and session replacement OK', flush=True)
+                    page.locator('#new-race').click()
+                    page.locator('#track').select_option('')
+                    page.locator('#player-count').fill('1')
+                    page.locator('#start').click()
+                    page.wait_for_function('document.body.dataset.phase === "START"', timeout=300_000)
+                    page.locator('#ok').click()
+                    page.wait_for_function('document.body.dataset.phase === "DRAWTRACK"')
+                    for x, y in [(5, 5), (30, 5)]:
+                        page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
+                        page.locator('#place').click()
+                        page.wait_for_function('!document.querySelector("#place").disabled')
+                    page.locator('#ok').click()
+                    page.wait_for_function('document.querySelector("#ok").textContent.includes("Complete")')
+                    for x, y in [(5, 10), (30, 10)]:
+                        page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
+                        page.locator('#place').click()
+                        page.wait_for_function('!document.querySelector("#place").disabled')
+                    page.locator('#ok').click()
+                    page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"')
+                    page.screenshot(path=str(out / 'custom-track.png'), full_page=True)
+                    print('chromium: custom circuit drawing completed through the original validator', flush=True)
             assert not errors, errors
             (out / 'result.json').write_text(json.dumps({'browser': args.browser, 'ui_only': args.ui_only, 'passed': True}))
         finally:
