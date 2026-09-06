@@ -87,14 +87,16 @@ is available from the workflow for other static hosts.
 * All 84 `.track` files are copied byte-for-byte. The original Java parser
   exports the catalogue. `track-hashes.json` and `engine-sources.json` allow
   independent audits.
-* Seeded placement uses the original Java RNG and start-cell enumeration.
-  A blank seed keeps the legacy first-free placement order.
+* Interactive AI starts use the completed shared maps and the positions already
+  placed. Seeded randomness breaks only equal-score ties. Explicit legacy
+  placement retains the historical random/first-free starts for benchmarks.
 
-The port does not modify `src/`. At build time, `scripts/prepare_sources.py`
-changes only the Swing presentation/scheduling imports and counted Java 21
-list conveniences into equivalent Java 17 expressions, and adds erasable
-output-only reachability progress hooks. Upstream drift fails the build. AI and
-move-query sources are byte-for-byte copies. No game decisions are changed.
+Both hosts compile the same shared `src/`, including the computed placement
+policy described below. At build time, `scripts/prepare_sources.py` adapts Swing
+hosts and counted Java 21 list conveniences to Java 17, schedules distance BFS
+in the preparation daemon, and adds erasable output-only map-progress hooks.
+Upstream drift fails the build. Driving AI, placement scoring and move-query
+sources are byte-for-byte copies; the browser does not substitute its own policy.
 
 `java/tr/logic/BrowserBridge.java` exports snapshots, queries the existing live
 referee for previews and forwards commands to the public methods used by Swing.
@@ -132,14 +134,19 @@ python3 web/tests/browser_e2e.py --browser chromium --url https://senegrom.githu
 ```
 
 Parity compares complete desktop/adapter logs byte-for-byte for all 12 existing
-golden races plus unseeded AI1, negative-seed mixed AI1/AI2 and multi-lap races.
+golden races plus unseeded AI1, negative-seed mixed AI1/AI2 and multi-lap races
+in explicit legacy mode, and two computed-start races (17 complete pairs).
 It checks original golden hashes, original finish/checkpoint/rollout/geometry
 contracts, repeated previews, crash consent, undo including AI replies, drawing
-and validation. Existing fixtures are not rewritten. Track/source hashes are
-verified, and the publisher has offline transport-contract tests.
+and validation. Existing fixtures are not rewritten. Computed placement also
+has an independent forward-search oracle and deliberately delayed preparation
+tests, including a mixed human/AI roster. Track/source hashes are verified,
+and the publisher has offline transport-contract tests.
 
 Chromium and phone-sized touch WebKit run the actual CheerpJ JVM and match a
-complete race against an existing Java golden. Both exercise human placement,
+complete legacy race against its existing Java golden and a computed-start race
+against a separate native-derived fixture. Both check the exact full-race map
+barrier on a closed course and exercise human placement,
 repeated previews, confirmation, undo, session replacement and custom drawing.
 Mobile tests also check that confirmation is visible on the initial screen.
 Screenshots and logs are saved on success or failure. `--ui-only` is explicitly
@@ -164,10 +171,11 @@ Game and adapter retain AGPL-3.0. CheerpJ has its separate
 and FOSS projects with attribution; other uses or runtime self-hosting may need
 a commercial licence. Keep the app's runtime credit and game-source links.
 
-The port started from `b9471692e748c7a6c9d509e6b5992d1f7e8d8268` and incorporates
-master `fcee261ea27fb17b971819d573b8272f502a4f82`, including its lap-aware AI and
-exact finish-geometry fixes, without changing those sources. Engine/track edits
-must rerun the differential and real-browser checks before publication.
+The port started from `b9471692e748c7a6c9d509e6b5992d1f7e8d8268`. It now follows
+the shared engine on `master`; its immutable build-source link identifies the
+precise revision. Computed starting placement is an intentional shared policy
+change, not a browser-only optimisation. Engine/track edits must rerun the
+differential and real-browser checks before publication.
 
 ## UI and installed-app review
 
@@ -206,9 +214,10 @@ its outcome. Deterministic clock tests cover the old five-minute race-loss bug,
 late completion, duplicate telemetry, cancellation and fatal failures.
 
 `instrument_progress.py` inserts only tagged, output-only statements in the
-browser copy of Reachability. Removing those lines and reversing the two audited startup-scheduling edits
-recovers the exact original source, which CI asserts. Original `src/`, AI policies, traversal order, bounds,
-geometry, caches and all tracks remain unchanged. The full parity corpus still
+browser copies of Reachability, OptimalPotential and geometry setup. Removing
+those lines and reversing the two audited startup-scheduling edits recovers the
+shared source exactly, which CI asserts. Instrumentation does not change AI
+policies, traversal order, bounds, geometry, caches or tracks. The full parity corpus still
 checks complete desktop/browser race logs. Progress instrumentation is not used
 as an AI cutoff or a search budget. Readiness polling transfers only a small
 status object instead of repeatedly rebuilding/rendering full race snapshots.

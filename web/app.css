@@ -45,6 +45,8 @@ button:disabled {
 }
 input,select {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 42px;
   border: 1px solid #b7c2b6;
   border-radius: 6px;

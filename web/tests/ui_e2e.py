@@ -97,6 +97,9 @@ def main():
             page.screenshot(path=str(out / f'setup-{width}.png'), full_page=True)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'setup page overflows {width}'
             assert page.locator('#setup').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'setup content overflows {width}'
+            for policy in ['legacy', 'informed']:
+                page.locator('#ai-start-policy').select_option(policy)
+                assert page.locator('#setup').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'{policy} selector overflows {width}'
             page.locator('#track').select_option('')
             page.locator('#cols').fill('501')
             assert not page.locator('#setup-form').evaluate('(f)=>f.checkValidity()')
