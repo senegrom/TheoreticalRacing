@@ -10,14 +10,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      EXPECTED_TREE: 26755f1f24f1a00becc597662f0ca03f23af5b4d
+      EXPECTED_TREE: 646d041b2ce79179490bab69addd946a8cbc3a77
       JAVA_TOOL_OPTIONS: -Xmx2g
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: 8db66b3b87bcd3957e5fc595de09641699308879
+          ref: ea6aadd95262256f009d8d736141a49b590319d5
           persist-credentials: false
-      - name: Materialize hash-verified source
+      - name: Materialize source while preserving computed starts
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -33,7 +33,14 @@ jobs:
           assert hashlib.sha256(patch).hexdigest() == 'ca394df02bbafae9499797dbac9ed7b547d01328aef58be44c74b9e0bb5f881a'
           path = pathlib.Path(os.environ['RUNNER_TEMP'], 'racecraft.patch')
           path.write_bytes(patch)
-          subprocess.run(['git', 'apply', '--index', str(path)], check=True)
+          subprocess.run(['git', 'apply', '--index', '--exclude=tests/tr/logic/CoreTests.java', str(path)], check=True)
+          core = pathlib.Path('tests/tr/logic/CoreTests.java')
+          text = core.read_text()
+          anchor = '        FollowupRuleTests.run();'
+          assert text.count(anchor) == 1 and 'StartPlacementTests.run();' in text
+          core.write_text(text.replace(anchor, anchor + '\n        RaceAiTacticsTests.run();'))
+          pathlib.Path('.github/workflows/materialize-racecraft.yml').unlink()
+          subprocess.run(['git', 'add', '-A'], check=True)
           subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
           assert subprocess.check_output(['git', 'write-tree'], text=True).strip() == os.environ['EXPECTED_TREE']
           PY
@@ -60,7 +67,7 @@ jobs:
         run: |
           sh run_tests.sh
           sh build_main.sh
-      - name: Store tested source objects without changing a branch
+      - name: Store integrated source objects without changing a branch
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -68,19 +75,20 @@ jobs:
           import json, os, pathlib, subprocess, urllib.request
           assert subprocess.check_output(['git', 'write-tree'], text=True).strip() == os.environ['EXPECTED_TREE']
           assert not subprocess.check_output(['git', 'diff', '--name-only'], text=True).strip(), 'tests changed source'
-          paths = subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines()
+          paths = subprocess.check_output(['git', 'diff', '--cached', '--name-only', '--diff-filter=AM'], text=True).splitlines()
           entries = []
           for name in paths:
               assert name.startswith(('src/', 'tests/', 'docs/')) and '..' not in pathlib.PurePosixPath(name).parts
               mode = subprocess.check_output(['git', 'ls-files', '-s', '--', name], text=True).split()[0]
               entries.append(dict(path=name, mode=mode, type='blob', content=pathlib.Path(name).read_text()))
           headers = {'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json'}
-          data = dict(base_tree='1f8275000c93cbba2bf7eb7ffa92c43d52121ced', tree=entries)
+          # Upstream placement tree, with only our temporary workflow removed.
+          data = dict(base_tree='4986368164afc36c61cff1368af001d5b9d754f6', tree=entries)
           url = 'https://api.github.com/repos/senegrom/TheoreticalRacing/git/trees'
           with urllib.request.urlopen(urllib.request.Request(url, data=json.dumps(data).encode(), headers=headers, method='POST'), timeout=60) as response:
               tree = json.load(response)['sha']
           assert tree == os.environ['EXPECTED_TREE'], tree
-          report = dict(base='8db66b3b87bcd3957e5fc595de09641699308879', tree=tree, files=paths)
+          report = dict(base='ea6aadd95262256f009d8d736141a49b590319d5', tree=tree, files=paths)
           pathlib.Path(os.environ['RUNNER_TEMP'], 'racecraft-validated-tree.json').write_text(json.dumps(report, indent=2))
           print('Validated source tree:', tree)
           PY
