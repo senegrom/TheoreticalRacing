@@ -1,9 +1,21 @@
 name: Browser app
 on:
   push:
-    branches: [browser]
+    branches: [master]
+    paths:
+      - 'web/**'
+      - 'src/**'
+      - 'tracks/*.track'
+      - 'LICENSE'
+      - '.github/workflows/browser.yml'
   pull_request:
-    branches: [browser]
+    branches: [master]
+    paths:
+      - 'web/**'
+      - 'src/**'
+      - 'tracks/*.track'
+      - 'LICENSE'
+      - '.github/workflows/browser.yml'
   workflow_dispatch:
 permissions:
   contents: read
@@ -95,12 +107,16 @@ jobs:
   publish:
     name: Publish GitHub Pages
     needs: [parity, browsers]
-    if: github.ref == 'refs/heads/browser' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
       pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     concurrency:
       group: github-pages-publication
       cancel-in-progress: false
@@ -112,29 +128,32 @@ jobs:
         with:
           name: browser-webapp
           path: site
-      - name: Publish the verified build
-        id: publish
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 web/scripts/publish_pages.py site
-      - uses: actions/upload-artifact@v4
-        if: always()
+      - name: Ship the corresponding AGPL source with the binary
+        run: |
+          git archive --format=tar.gz --output=site/source.tar.gz "$GITHUB_SHA"
+          echo "{\"source\": \"$GITHUB_SHA\", \"repository\": \"$GITHUB_REPOSITORY\"}" > site/deployment.json
+      - name: Refuse an incomplete artifact
+        run: |
+          for required in index.html racing.jar runtime.js tracks.json .nojekyll; do
+            [ -f "site/$required" ] || { echo "Incomplete tested artifact: $required is missing" >&2; exit 1; }
+          done
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
-          name: pages-publication
-          path: pages-publication.json
-          if-no-files-found: error
+          path: site
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
       - name: Install live-site test browser
-        if: steps.publish.outputs.published == 'true'
         run: |
           python3 -m pip install playwright==1.57.0
           python3 -m playwright install --with-deps chromium
       - name: Verify gameplay on the public site
-        if: steps.publish.outputs.published == 'true'
         env:
-          PAGE_URL: ${{ steps.publish.outputs.page_url }}
+          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
         run: python3 web/tests/browser_e2e.py --browser chromium --url "$PAGE_URL"
       - uses: actions/upload-artifact@v4
-        if: always() && steps.publish.outputs.published == 'true'
+        if: always()
         with:
           name: live-pages-evidence
           path: web/build/browser-tests/

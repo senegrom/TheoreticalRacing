@@ -9,23 +9,24 @@ Players need no Java installation, account, game server or browser plugin.
 
 ## Hosting and automatic updates
 
-Application source stays on `browser`. After the native parity and both real
-browser test suites pass, `.github/workflows/browser.yml` publishes the exact
-tested static artifact to the generated `gh-pages` branch and requests a Pages
-build. Nothing is pushed or merged to `master`.
+The site tracks `master`. A push that changes what the site contains -- the
+web app, the engine, the track files, the licence or the workflow itself --
+runs `.github/workflows/browser.yml`; once native parity and both real browser
+suites pass, the exact tested artifact is deployed to GitHub Pages. Commits
+that touch none of those (a ledger entry, say) do not run it, and nothing is
+published that has not passed.
 
-The repository's Pages publishing source is **Deploy from a branch → gh-pages
-→ / (root)**. Do not edit the generated branch by hand: a successful browser
-build replaces its contents. The site includes `source.tar.gz` (corresponding
-AGPL source) and `deployment.json` (the source commit). The publisher rejects
-stale source commits and unexpected publishing-source changes, uses non-force
-updates, and verifies the deployed commit before running real Java gameplay
-against the public URL. Evidence is saved as `live-pages-evidence` in Actions.
+The repository's Pages publishing source is **GitHub Actions**. There is no
+generated branch to edit: the artifact is served straight from the run that
+built it, which is why deleting the old `gh-pages` branch cost the site
+nothing. The published site still includes `source.tar.gz` (corresponding AGPL
+source for the exact commit) and `deployment.json` (that commit and the
+repository). After deployment the workflow plays a real Java race against the
+public URL, and saves the evidence as `live-pages-evidence` in Actions.
 
-On initial setup, the publisher stages a complete site commit and records it
-in the `pages-publication` artifact. Creating `gh-pages` at that commit through
-the maintainer connection initializes project Pages. Subsequent publications
-are automatic; no personal access token is stored in the repository.
+No personal access token is stored in the repository: deployment uses the
+run's own OIDC identity, so the workflow needs `pages: write` and
+`id-token: write` and no write access to repository contents.
 
 ## Build and play locally
 
