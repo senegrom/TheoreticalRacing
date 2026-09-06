@@ -81,49 +81,52 @@ def main():
                 assert digest == fixture['sha256'], f'Browser JVM differs from original golden: {digest}'
                 page.screenshot(path=str(out / 'finished.png'), full_page=True)
                 print(f'{args.browser}: real Java golden race matched {digest}', flush=True)
-                if not mobile:
-                    # A new iframe must not receive events or callbacks from the old race.
-                    page.locator('#new-race').click()
-                    for row in page.locator('.roster-row').all():
-                        row.locator('select').select_option('HUMAN')
-                    page.locator('#start').click()
-                    page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
-                    page.locator('#first-start').click()
-                    page.wait_for_function('document.querySelector("#driver").textContent === "B"')
-                    page.locator('#first-start').click()
-                    page.wait_for_function('!document.querySelector("#ok").disabled', timeout=600_000)
-                    page.locator('#ok').click()
-                    legal = page.locator('#moves button[data-legal="true"]').first
-                    legal.click(); legal.click()
-                    assert page.locator('body').get_attribute('data-turn') == '0', 'preview committed move'
-                    page.wait_for_function('!document.querySelector("#confirm").disabled')
+                # A new iframe must not receive events or callbacks from the old race.
+                page.locator('#new-race').click()
+                for row in page.locator('.roster-row').all():
+                    row.locator('select').select_option('HUMAN')
+                page.locator('#start').click()
+                page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
+                page.locator('#first-start').click()
+                page.wait_for_function('document.querySelector("#driver").textContent === "B"')
+                page.locator('#first-start').click()
+                page.wait_for_function('document.querySelector("#placement").hidden')
+                page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=600_000)
+                page.locator('#ok').click()
+                legal = page.locator('#moves button[data-legal="true"]').first
+                legal.click(); legal.click()
+                assert page.locator('body').get_attribute('data-turn') == '0', 'preview committed move'
+                page.wait_for_function('!document.querySelector("#confirm").disabled')
+                if mobile:
+                    page.locator('#confirm').tap()
+                else:
                     page.keyboard.press('Enter')
-                    page.wait_for_function('document.body.dataset.turn === "1"')
-                    page.locator('#undo').click()
-                    page.wait_for_function('document.body.dataset.turn === "0"')
-                    page.screenshot(path=str(out / 'human.png'), full_page=True)
-                    print('chromium: placement, repeated preview, keyboard confirm, undo and session replacement OK', flush=True)
-                    page.locator('#new-race').click()
-                    page.locator('#track').select_option('')
-                    page.locator('#player-count').fill('1')
-                    page.locator('#start').click()
-                    page.wait_for_function('document.body.dataset.phase === "START"', timeout=300_000)
-                    page.locator('#ok').click()
-                    page.wait_for_function('document.body.dataset.phase === "DRAWTRACK"')
-                    for x, y in [(5, 5), (30, 5)]:
-                        page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
-                        page.locator('#place').click()
-                        page.wait_for_function('!document.querySelector("#place").disabled')
-                    page.locator('#ok').click()
-                    page.wait_for_function('document.querySelector("#ok").textContent.includes("Complete")')
-                    for x, y in [(5, 10), (30, 10)]:
-                        page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
-                        page.locator('#place').click()
-                        page.wait_for_function('!document.querySelector("#place").disabled')
-                    page.locator('#ok').click()
-                    page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"')
-                    page.screenshot(path=str(out / 'custom-track.png'), full_page=True)
-                    print('chromium: custom circuit drawing completed through the original validator', flush=True)
+                page.wait_for_function('document.body.dataset.turn === "1"')
+                page.locator('#undo').click()
+                page.wait_for_function('document.body.dataset.turn === "0"')
+                page.screenshot(path=str(out / 'human.png'), full_page=True)
+                print(f'{args.browser}: placement, repeated preview, confirmation, undo and session replacement OK', flush=True)
+                page.locator('#new-race').click()
+                page.locator('#track').select_option('')
+                page.locator('#player-count').fill('1')
+                page.locator('#start').click()
+                page.wait_for_function('document.body.dataset.phase === "START"', timeout=300_000)
+                page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "DRAWTRACK"')
+                for x, y in [(5, 5), (30, 5)]:
+                    page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
+                    page.locator('#place').click()
+                    page.wait_for_function('!document.querySelector("#place").disabled')
+                page.locator('#ok').click()
+                page.wait_for_function('document.querySelector("#ok").textContent.includes("Complete")')
+                for x, y in [(5, 10), (30, 10)]:
+                    page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
+                    page.locator('#place').click()
+                    page.wait_for_function('!document.querySelector("#place").disabled')
+                page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"')
+                page.screenshot(path=str(out / 'custom-track.png'), full_page=True)
+                print(f'{args.browser}: custom circuit drawing completed through the original validator', flush=True)
             assert not errors, errors
             (out / 'result.json').write_text(json.dumps({'browser': args.browser, 'ui_only': args.ui_only, 'passed': True}))
         finally:

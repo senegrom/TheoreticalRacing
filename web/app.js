@@ -5,7 +5,7 @@ const $ = id => document.getElementById(id);
 const names = ['North-west', 'North', 'North-east', 'West', 'No acceleration', 'East', 'South-west', 'South', 'South-east'];
 const arrows = ['↖', '↑', '↗', '←', '·', '→', '↙', '↓', '↘'];
 const colors = ['#0000ff', '#ff0000', '#00ff00', '#ffff00', '#00ffff', '#ffc800', '#808080', '#ff00ff', '#000000'];
-let catalog = [], engine = null, state = null, busy = false, failed = false, paused = false, timer, generation = 0, raceName = '';
+let catalog = [], engine = null, state = null, busy = false, polling = false, failed = false, paused = false, timer, generation = 0, raceName = '';
 let roster = Array.from({length: 9}, (_, i) => ({name: `Player ${i + 1}`, kind: i === 0 ? 'HUMAN' : 'AI2', color: colors[i]}));
 const board = new Board($('board'), p => {
   if (!state || busy || failed) return;
@@ -26,10 +26,27 @@ function human() { return state?.phase === 'PLAY' && state.players[state.current
 function modalOpen() { return $('setup').open || $('instructions').open; }
 function schedule() {
   clearTimeout(timer);
-  if (!engine || !state || busy || failed || modalOpen() || document.hidden || state.phase === 'FINISHED') return;
+  if (!engine || !state || busy || polling || failed || modalOpen() || document.hidden || state.phase === 'FINISHED') return;
   const ai = state.phase === 'PLAY' && !human();
   if (!state.ready || (ai && !paused)) {
-    timer = setTimeout(() => act('tick'), !state.ready ? 400 : Number($('speed').value));
+    timer = setTimeout(state.ready ? () => act('tick') : pollReadiness, !state.ready ? 400 : Number($('speed').value));
+  }
+}
+async function pollReadiness() {
+  if (!engine || busy || polling || failed) return;
+  const current = engine, token = generation;
+  polling = true;
+  try {
+    // Snapshot reads are serialized by the JVM transport but must not disable
+    // placement buttons between pointer-down and pointer-up. They run no AI.
+    const next = await current.call('snapshot');
+    if (token === generation) accept(next);
+  } catch (error) {
+    if (token === generation && error.name !== 'AbortError') {
+      failed = true; notice(`${error.message} Start a new race to recover.`);
+    }
+  } finally {
+    if (token === generation) { polling = false; render(); schedule(); }
   }
 }
 function accept(next) {
@@ -220,7 +237,7 @@ $('setup-form').addEventListener('submit', async e => {
   try { localStorage.setItem('theoretical-racing-setup-v1', JSON.stringify({track, count, laps: config.laps, seed, roster})); } catch { /* Private browsing must not prevent play. */ }
   clearTimeout(timer); engine?.destroy();
   const token = ++generation;
-  busy = true; failed = false; state = null; paused = false;
+  busy = true; polling = false; failed = false; state = null; paused = false;
   $('setup-error').textContent = ''; $('setup').close(); notice();
   raceName = catalog.find(t => t.id === track)?.name ?? 'Your circuit'; $('track-title').textContent = raceName;
   board.set(catalog.find(t => t.id === track) ?? {cols: config.gameX, rows: config.gameY}); board.fit();
