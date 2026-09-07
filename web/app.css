@@ -1112,3 +1112,111 @@ body[data-phase="PLAY"] .preparation-status { display:none !important; }
   min-width: 0;
   max-width: 100%;
 }
+
+
+/* 2026-09 responsive setup and chrome polish. */
+html, body { background:var(--paper); }
+html { scrollbar-color:#aeb9b1 var(--paper); }
+
+/* Idle means ready, not warning: preserve the fixed race footprint but quiet it visually. */
+body[data-phase="PLAY"] .work-status[data-active="false"] {
+  background:#fffdf7;
+  border-color:var(--line);
+  box-shadow:none;
+}
+body[data-phase="PLAY"] .work-status[data-active="false"] .work-title strong,
+body[data-phase="PLAY"] .work-status[data-active="false"] [data-work-detail],
+body[data-phase="PLAY"] .work-status[data-active="false"] .work-hints { color:var(--muted); }
+
+/* Tablet widths get the same intentional More treatment as phones instead of wrapping header actions. */
+@media(max-width:900px) {
+  .masthead nav { flex-wrap:nowrap; }
+  .masthead nav > #export,.masthead nav > #install { display:none; }
+  .header-more { display:block; }
+}
+@media(min-width:721px) and (max-width:900px) {
+  .masthead { padding:16px 18px; gap:12px; }
+  .brand { gap:10px; }
+  .brand img { width:42px; height:42px; flex-basis:42px; }
+  .masthead h1 { font-size:1.55rem; white-space:nowrap; }
+  .masthead .eyebrow { font-size:.6rem; margin-bottom:4px; }
+  .masthead nav { gap:5px; }
+  .masthead nav button,.header-more summary { min-height:42px; padding:6px 9px; font-size:.78rem; }
+}
+
+/* On phones setup is a proper sheet: fixed header/CTA with only the form body scrolling. */
+@media(max-width:720px) {
+  #setup {
+    width:100%;
+    max-width:none;
+    height:100dvh;
+    max-height:100dvh;
+    margin:0;
+    padding:0;
+    border:0;
+    border-radius:0;
+    overflow:hidden;
+  }
+  #setup form { height:100%; min-height:0; display:flex; flex-direction:column; }
+  #setup .dialog-head {
+    flex:none;
+    margin:0;
+    padding:calc(12px + env(safe-area-inset-top, 0px)) 14px 12px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+    z-index:2;
+  }
+  #setup .setup-grid {
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    overscroll-behavior:contain;
+    padding:14px 14px 22px;
+    align-content:start;
+  }
+  #setup-error { flex:none; margin:0; background:var(--paper); }
+  #setup-error:not(:empty) { padding:8px 14px 0; }
+  #setup .dialog-actions {
+    flex:none;
+    position:relative;
+    margin:0;
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+    border-top:1px solid var(--line);
+    background:var(--paper);
+    box-shadow:0 -7px 18px #20382f12;
+    flex-direction:row;
+    align-items:center;
+    gap:8px;
+    z-index:2;
+  }
+  #setup .dialog-actions > span { display:none; }
+  #setup #start { width:100%; min-height:46px; }
+
+  /* Pacing remains available, but it is a secondary control rather than a second CTA. */
+  .decision.driving .speed-label {
+    display:flex;
+    justify-content:flex-end;
+    align-items:center;
+    gap:5px;
+    font-size:.66rem;
+    line-height:1;
+    white-space:nowrap;
+  }
+  .decision.driving .speed-label select {
+    width:78px;
+    min-height:32px;
+    height:32px;
+    margin:0;
+    padding:3px 5px;
+    font-size:.72rem;
+  }
+}
+
+/* Secondary information should remain readable on a physical phone. */
+#standings small { font-size:.72rem; }
+#standings .result { font-size:.75rem; }
+footer { font-size:.75rem; }
+@media(max-width:720px) {
+  body[data-phase="PLAY"] #standings .result { font-size:.72rem; }
+  footer { font-size:.74rem; }
+}

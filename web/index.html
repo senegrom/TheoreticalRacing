@@ -17,7 +17,7 @@
   <link rel="apple-touch-icon" href="./icons/racing-apple-167-v3.png" sizes="167x167">
   <link rel="apple-touch-icon" href="./icons/racing-apple-180-v3.png" sizes="180x180">
   <link rel="manifest" href="./manifest.webmanifest?v=3">
-  <link rel="stylesheet" href="./app.css?v=7">
+  <link rel="stylesheet" href="./app.css?v=8">
 </head>
 <body>
   <a class="skip-link" href="#race-controls">Skip to race controls</a>
@@ -67,7 +67,7 @@
     <footer>Rules, geometry and AI run locally in Java. <a href="https://github.com/senegrom/TheoreticalRacing/tree/master" target="_blank" rel="noopener">Source · AGPL-3.0</a> <a href="./source.tar.gz" download>Source for this build</a> <a id="build-revision" hidden target="_blank" rel="noopener"></a> <span>Powered by <a href="https://cheerpj.com" target="_blank" rel="noopener">CheerpJ</a> · runtime downloaded on first use.</span></footer>
   </main>
   <dialog id="setup" aria-labelledby="setup-title">
-    <form id="setup-form"><div class="dialog-head"><div><span class="eyebrow">Build your race</span><h2 id="setup-title">A circuit. A vector. A finish line.</h2></div><button type="button" id="close-setup" aria-label="Close race setup">×</button></div>
+    <form id="setup-form"><div class="dialog-head"><div><span class="eyebrow">Build your race</span><h2 id="setup-title" tabindex="-1" autofocus>A circuit. A vector. A finish line.</h2></div><button type="button" id="close-setup" aria-label="Close race setup">×</button></div>
       <div class="setup-grid"><section><label>Circuit<select id="track" disabled><option>Loading circuits…</option></select></label><canvas id="track-preview" aria-label="Selected circuit preview"></canvas><p id="track-info" class="hint"></p>
         <div class="three-fields"><label>Drivers<input id="player-count" type="number" min="1" max="9" value="4" required></label><label>Laps<input id="laps" type="number" min="1" max="99" value="1" required></label><label>Start seed<input id="seed" type="text" inputmode="numeric" maxlength="20" placeholder="Tie-break seed"></label></div>
         <p class="hint setup-primary-hint"><strong>Computed AI starts — recommended.</strong> AIs wait for full track analysis and choose in player order using cars already placed.</p>

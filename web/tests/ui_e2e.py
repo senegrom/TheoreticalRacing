@@ -97,6 +97,10 @@ def main():
             page.screenshot(path=str(out / f'setup-{width}.png'), full_page=True)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'setup page overflows {width}'
             assert page.locator('#setup').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'setup content overflows {width}'
+            assert page.evaluate('document.activeElement.id') == 'setup-title', 'setup heading should receive initial focus'
+            if width <= 720:
+                start_box = page.locator('#start').bounding_box()
+                assert start_box and start_box['y'] >= 0 and start_box['y'] + start_box['height'] <= height, f'start action not visible/sticky {width}'
             assert not page.locator('.advanced-setup').evaluate('(e)=>e.open')
             assert 'recommended' in page.locator('.setup-primary-hint').inner_text().lower()
             page.locator('.advanced-setup summary').click()
@@ -114,13 +118,15 @@ def main():
             start(page)
             page.screenshot(path=str(out / f'race-{width}.png'), full_page=True)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'race overflows {width}'
-            if width <= 720:
+            if width <= 900:
                 assert page.locator('#export').is_hidden() and page.locator('#install').is_hidden()
                 assert page.locator('#header-more').is_visible()
-                assert page.locator('.masthead nav').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'mobile nav wraps/overflows {width}'
-                assert page.locator('#work-status').evaluate('(e)=>e.getBoundingClientRect().height <= 80'), f'activity rail too tall {width}'
+                assert page.locator('.masthead nav').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'compact nav wraps/overflows {width}'
             else:
                 assert page.locator('#header-more').is_hidden()
+            if width <= 720:
+                assert page.locator('#work-status').evaluate('(e)=>e.getBoundingClientRect().height <= 80'), f'activity rail too tall {width}'
+                assert page.locator('.decision.driving .speed-label select').evaluate('(e)=>e.getBoundingClientRect().width <= 90'), f'pacing control too prominent {width}'
             for key, expected in [('Q', 0), ('w', 1), ('ArrowRight', 5), ('Numpad1', 6)]:
                 page.locator('#confirm').focus()  # Native focused button must not swallow letter shortcuts.
                 page.keyboard.press(key)
@@ -140,7 +146,7 @@ def main():
             assert page.locator('#setup').evaluate('(e)=>e.open')
             assert not page.evaluate('window.testEngine.dead')
             page.locator('#close-setup').click()
-            if width <= 720:
+            if width <= 900:
                 page.locator('#header-more summary').click(); page.locator('#more-install').click()
             else:
                 page.locator('#install').click()
