@@ -1,0 +1,67 @@
+name: Finalize narrow WebKit UI
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/finalize-ui-webkit.yml']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Apply tested narrow-screen fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          index = Path('web/index.html')
+          s = index.read_text()
+          old = '<option value="informed">Computed — recommended</option><option value="legacy">Legacy benchmark starts</option>'
+          new = '<option value="informed">Computed</option><option value="legacy">Legacy</option>'
+          assert s.count(old) == 1
+          index.write_text(s.replace(old, new))
+
+          css = Path('web/app.css')
+          s = css.read_text()
+          old = '''/* WebKit narrow-form intrinsic-size guard. */\n#setup-form,\n#setup .setup-grid,\n#setup .setup-grid > section,\n.advanced-setup,\n.advanced-setup-body,\n.advanced-setup label {\n  min-width: 0;\n  max-width: 100%;\n}\n.advanced-setup { width: 100%; }\n#ai-start-policy {\n  width: 0;\n  min-width: 100%;\n  max-width: 100%;\n}\n'''
+          new = '''/* WebKit narrow-form intrinsic-size guard. */\n#setup-form,\n#setup .setup-grid,\n#setup .setup-grid > section,\n.advanced-setup,\n.advanced-setup-body,\n.advanced-setup label {\n  min-width: 0;\n  max-width: 100%;\n}\n.advanced-setup { width: 100%; }\n.advanced-setup summary {\n  min-width: 0;\n  max-width: 100%;\n  white-space: normal;\n  overflow-wrap: anywhere;\n}\n#ai-start-policy {\n  width: 100%;\n  min-width: 0;\n  max-width: 100%;\n}\n'''
+          assert s.count(old) == 1
+          css.write_text(s.replace(old, new))
+
+          test = Path('web/tests/browser_e2e.py')
+          s = test.read_text()
+          anchor = '''def click_install(page):\n    # Desktop exposes Install directly; phone layouts intentionally move it\n    # into More. Exercise whichever real control is visible.\n    if page.locator('#install').is_visible():\n        page.locator('#install').click()\n    else:\n        page.locator('#header-more').evaluate('(element) => { element.open = true; }')\n        page.locator('#more-install').click()\n\n\n'''
+          helper = anchor + '''def click_export(page):\n    # Save log follows the same responsive header path as Install.\n    if page.locator('#export').is_visible():\n        page.locator('#export').click()\n    else:\n        page.locator('#header-more').evaluate('(element) => { element.open = true; }')\n        page.locator('#more-export').click()\n\n\n'''
+          assert s.count(anchor) == 1
+          assert s.count("page.locator('#export').click()") == 2
+          s = s.replace(anchor, helper)
+          pre, marker, post = s.partition('def main():')
+          assert marker and post.count("page.locator('#export').click()") == 2
+          post = post.replace("page.locator('#export').click()", 'click_export(page)')
+          s = pre + marker + post
+          assert s.count("page.locator('#export').click()") == 1
+          assert s.count('click_export(page)') == 3
+          test.write_text(s)
+          PY
+          python3 -m py_compile web/tests/browser_e2e.py web/tests/ui_e2e.py
+          node --check web/app.js
+          git diff --check
+          rm .github/workflows/finalize-ui-webkit.yml
+          git add web/index.html web/app.css web/tests/browser_e2e.py .github/workflows/finalize-ui-webkit.yml
+      - name: Commit without overwriting concurrent work
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch origin master
+          test "$(git rev-parse origin/master)" = "$GITHUB_SHA" || { echo 'master advanced; refusing to overwrite'; exit 1; }
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "fix(browser): finish compact WebKit mobile UI"
+          git push origin HEAD:master
+          curl --fail-with-body -L -X POST -H "Accept: application/vnd.github+json" -H "Authorization: Bearer $GH_TOKEN" -H "X-GitHub-Api-Version: 2022-11-28" https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/browser.yml/dispatches -d '{"ref":"master"}'
