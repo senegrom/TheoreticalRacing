@@ -6,6 +6,65 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Master reviewed at 9618234: the engine since round 224, read and raced
+
+The user asked for another review of master. The surface is everything that
+touched src/ since round 224: the two-car tactic (RaceAiTactics), computed start
+placement (StartPlacement), the map/search speed-ups, this round's start modes,
+and the newest commit -- exact preparation in parallel with reachability plus
+a finish-edge cache. 857 lines added, 130 removed, over seven files.
+
+RACED FIRST. 9618234 on the fleet, tuning seeds, against the last measured
+head in each mode:
+
+    random starts     vs eec1882 (random)    730 of 730 races byte-identical
+    computed starts   vs base225 (computed)  730 of 730 races byte-identical
+    corpus            24 of 24 (12 goldens, 22 pins, the racecraft pin)
+
+So "no decision change" holds for the parallel preparation and the finish
+cache, at the fleet's 8 GB heap. The other agent's own evidence was two-seed
+batches on two tracks; now it is 1460 races.
+
+READ. What was checked and found sound:
+  - The finish-edge cache writes a 2-bit verdict into a shared int word without
+    a lock, from the preparation daemon, the potential worker and the AI at
+    once. The race is the same as the legality table's and benign for the same
+    reason: a stale writer can only put back UNKNOWN for another edge, never a
+    wrong verdict, because a verdict is pure geometry and never flips. The
+    table is not persisted, so a lap-mode file never serves a point-to-point
+    game's crossings.
+  - The gate-map seed loops were rewritten to evaluate each geometric edge
+    once and distribute it to its nine predecessors. Set-equivalent to the old
+    per-predecessor scan (the union over accelerations is the same), and the
+    convergence census still reads pass 3 everywhere.
+  - optimalPotential() is now a start-once, wait-for-completion latch; the
+    worker completes in a finally, so a failing build cannot strand a waiter,
+    and the daemon that prepares the start analysis joins it rather than
+    building twice. Parallel preparation is only attempted with computed
+    starts and only when a deterministic estimate of both products fits under
+    max heap minus a fixed reserve.
+  - The in-process reachability memo is now byte-bounded with LRU eviction and
+    carries the lap bundle; adoption shares immutable arrays, eviction never
+    drops the entry being extended, and every access is under the map's lock.
+  - The tactic runs at the top of the scorer, so nested rival computes model
+    rivals that block too -- consistent with self-play and with the user's
+    rule. The GUI setup offers computed and legacy starts; scatter stays a
+    headless instrument, and an unknown mode string is rejected.
+
+ONE RISK, NOT A BUG. Whether a board gets its exact potential now depends on
+the JVM's maximum heap: the builder's frontier is a bounded circular queue
+whose allowance is min(heap - reserve, distance + 64 MiB) - distance, and
+overflowing it returns null exactly as "over budget" does. At 8 GB every lap
+track but the Nordschleife builds, as before, and nothing moved. On a small
+heap -- a desktop launched with the default quarter-of-RAM, or the browser --
+a mid-size board could lose its potential and race on the gate maps instead,
+a decision change the log would report only as SKIPPED (over budget). Worth
+a distinct log line when the frontier, not the distance table, is what did
+not fit; not changed here because it changes no fleet result.
+
+DEBLOAT. Nothing worth a commit: a three-argument build overload kept for the
+tests, and a double-typed crossesFinish retained for geometric callers.
+
 ## Round 225, second part: the defence measured in three start modes, and none of it ships
 
 The user's rule (first part above) made the block correct and put the burden
