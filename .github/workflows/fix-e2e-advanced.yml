@@ -32,7 +32,7 @@ jobs:
           s = s.replace(legacy, "select_ai_start_policy(page, 'legacy')")
           s = s.replace(informed, "select_ai_start_policy(page, 'informed')")
           assert legacy not in s and informed not in s
-          assert s.count('select_ai_start_policy(page,') == 3
+          assert s.count('select_ai_start_policy(page,') == 4
           p.write_text(s)
           PY
           python3 -m py_compile web/tests/browser_e2e.py
