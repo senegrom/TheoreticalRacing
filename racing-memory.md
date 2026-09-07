@@ -57,6 +57,64 @@ them. The uncommitted candidateSlots instrument in the working tree (RaceAi,
 RaceGame, tracks/head_to_head.py) is someone else's work in progress and was
 left untouched.
 
+## Round 226, first part: the head-to-head instrument, and a dominant strategy
+
+The user asked whether racecraft can improve. Under the rule written into
+CLAUDE.md -- own place first, own time second, no cooperation -- nothing had
+ever been measured: every round since 216 scored summed moves and field
+crashes, and that metric sits at a measured optimum. So the round's first
+deliverable is the instrument.
+
+THE INSTRUMENT. A properties key, candidateSlots=1,3,5,7, names the roster
+slots that run the CANDIDATE branch of the scorer; every other car runs the
+champion, in the same race. Unset, the switch is a pure read: the
+instrumented jar with slots set and no arm is byte-identical to eec1882 on
+all 730 random-start races, and the corpus is 24 of 24. Each seed is raced
+twice, candidate in the odd slots then in the even ones, so grid advantage
+cancels -- it has to: in the champion's own grid slot 1 finishes 2.73 on
+average and slot 8 6.10, odd slots 4.249 against even 4.751, and a null
+candidate raced only in the odd slots reads 0.5 places "better". Mirrored, a
+null candidate reads 0.000. tracks/head_to_head.py reads the logs of both
+grids (the header carries "# candidate-slots") and reports mean place, wins,
+crashes and the paired difference over mirrored races. It is exactly the
+mixed_h2h census of the round-100s, rebuilt for one policy with a switch.
+
+THREE CANDIDATES THE OLD METRIC COULD NOT CREDIT, 1680 races each (840
+mirrored pairs, tuning seeds, random starts), candidate minus champion mean
+place, negative favours the candidate:
+
+  C1  never brake for a car behind on the road (round 217 B, +0.01% then)
+        -0.026 +- 0.019   wins 839 vs 841   crashes 7 vs 0    37/34 tracks
+        A wash that costs the candidate seven crashes. Not shipped.
+  C2  the multi-rival block when I stay ahead of everyone (round 225 g)
+        -0.000            wins 840 vs 840   crashes 1 vs 1    one race +3 moves
+        Inert: the position does not arise. Not shipped.
+  C3  the needle surcharge at 1 instead of 12 (round 218's tie-break setting)
+        -0.576 +- 0.030   wins 1024 vs 656  crashes 0 vs 0    67/5 tracks
+        Nineteen standard errors. The candidate cars win 56% more races and
+        never crash; the field runs 0.30% faster and its one crash is gone.
+
+WHAT C3 IS. Round 218 swept the surcharge and found a veto: anything above 1
+exceeds every candidate gap, 1 is a tie-break toward thick states, 0 removes
+the term. At 0 the fleet died (six crashes in 283 races, two in every monza
+seed); at 1, raced as a WHOLE FIELD, it was 0.72% faster with seven crashes
+in 2190 races against the champion's one, and was reverted because crashes
+decide first. Head-to-head the same setting is the strongest racecraft result
+the campaign has ever measured -- and the two readings are not in conflict.
+A lone car that prices needles at 1 takes the thin lanes that its cautious
+rivals yield, and profits; a field of them contests the same lanes, and
+collides. Hawk among doves, hawks among hawks.
+
+So the head-to-head verdict is necessary and not sufficient. A promotion
+under the lexicographic rule needs two answers: the candidate beats the
+champion in a mixed field, AND a field made entirely of the candidate does
+not crash more than the champion's field -- because a car's own crash is its
+own last place. The second answer for C3 on the CURRENT champion is being
+raced as this entry is written (second part below).
+
+WHAT SHIPS HERE. The instrument (the switch, the header line, the scorer)
+and nothing else: decision-free by construction and by measurement.
+
 ## Master reviewed at 9618234: the engine since round 224, read and raced
 
 The user asked for another review of master. The surface is everything that

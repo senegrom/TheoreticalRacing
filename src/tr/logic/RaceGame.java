@@ -166,7 +166,49 @@ public final class RaceGame {
 			prop.put(prefix + "Kind", Player.Kind.parse(prop.getProperty(prefix + "Kind")).name());
 		}
 
+		candidateSlots = parseCandidateSlots(prop.getProperty("candidateSlots"), maxPlayers);
 		gameFrame = new GameUI(NAME + " " + VERSION, maxPlayers);
+	}
+
+	/** Round 226: roster slots (1-based) that run the CANDIDATE branch of the
+	 *  scorer in a mixed field; every other car runs the champion. Unset means
+	 *  no candidate anywhere. The head-to-head instrument races each seed twice
+	 *  with the assignment mirrored, so grid advantage cancels. */
+	private final boolean[] candidateSlots;
+
+	static boolean[] parseCandidateSlots(final String spec, final int maxPlayers) {
+		final boolean[] slots = new boolean[maxPlayers + 1];
+		if (spec == null || spec.trim().isEmpty())
+			return slots;
+		for (final String part : spec.split(",")) {
+			final String s = part.trim();
+			if (s.isEmpty())
+				continue;
+			final int n;
+			try {
+				n = Integer.parseInt(s);
+			} catch (final NumberFormatException e) {
+				throw new IllegalArgumentException("candidateSlots must list player numbers: " + spec);
+			}
+			if (n < 1 || n > maxPlayers)
+				throw new IllegalArgumentException("candidateSlots entry out of range: " + n);
+			slots[n] = true;
+		}
+		return slots;
+	}
+
+	/** Does this player run the candidate branch? Pure read; false everywhere
+	 *  unless candidateSlots is set. */
+	boolean candidatePolicy(final int playerNum) {
+		return playerNum > 0 && playerNum < candidateSlots.length && candidateSlots[playerNum];
+	}
+
+	private String candidateSlotList() {
+		final StringBuilder sb = new StringBuilder();
+		for (int n = 1; n < candidateSlots.length; n++)
+			if (candidateSlots[n])
+				sb.append(sb.length() == 0 ? "" : ",").append(n);
+		return sb.toString();
 	}
 
 	private int sanitizeIntProp(final String key, final int def, final int min, final int max) {
@@ -2063,6 +2105,8 @@ public final class RaceGame {
 		gameLog.setLength(0);
 		turnCounter = 0;
 		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");
+		if (!candidateSlotList().isEmpty())
+			gameLog.append("# candidate-slots ").append(candidateSlotList()).append("\n");
 		if (scatterStartPlacement())
 			gameLog.append("# start-placement scatter\n");
 		if (informedStartPlacement())

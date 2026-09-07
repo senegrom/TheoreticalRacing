@@ -2000,8 +2000,14 @@ final class RaceAi {
 				true, true, true, true, true, true, faithfulCap, null, null, null);
 	}
 
+	/** Round 226: the mover whose decision this is, for candidate gating inside
+	 *  pricing helpers that have no player argument. Part of the decision frame:
+	 *  a nested rival compute sets its own and scorerMoveOverState restores it. */
+	private int moverNumber;
+
 	/** Identical frame preparation for normal decisions and standalone sim queries. */
 	private void prepareDecisionFrame(final int[] pos, final int[] vel, final int playerNum) {
+		moverNumber = playerNum;
 		lapGate = game.nextGateOf(playerNum);
 		lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
 		final int robustSp = Math.max(Math.abs(vel[0]), Math.abs(vel[1]));
@@ -3483,6 +3489,7 @@ final class RaceAi {
 		// back afterwards, or the rest of this decision is priced on the
 		// rival's map.
 		final int outerLapGate = lapGate, outerExactRemaining = exactRemaining;
+		final int outerMoverNumber = moverNumber;
 		final boolean outerLapAware = lapAware, outerRobustMode = robustMode;
 		final int[] outerFrameGate = frameGate, outerFrameRemaining = frameRemaining;
 		final boolean[] outerFrameLapAware = frameLapAware;
@@ -3522,6 +3529,7 @@ final class RaceAi {
 			lapAware = outerLapAware;
 			robustMode = outerRobustMode;
 			exactRemaining = outerExactRemaining;
+			moverNumber = outerMoverNumber;
 			frameGate = outerFrameGate;
 			frameRemaining = outerFrameRemaining;
 			frameLapAware = outerFrameLapAware;
@@ -4784,6 +4792,12 @@ final class RaceAi {
 		if (nx < 0 || ny < 0 || nx > game.gameCols || ny > game.gameRows)
 			return false;
 		return liveOccupancy[nx * (game.gameRows + 1) + ny] != 0;
+	}
+
+	/** Round 226: does this car run the candidate branch of a mixed field? False
+	 *  for every car unless the game's candidateSlots property names its slot. */
+	private boolean candidate(final int playerNum) {
+		return game.candidatePolicy(playerNum);
 	}
 
 	/** Number of rivals still racing (not finished, not crashed). */
