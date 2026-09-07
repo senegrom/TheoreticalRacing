@@ -6,6 +6,57 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Master reviewed at bc53377: the day's UI polish, the whole repository, the browser app
+
+The user asked for a review of the commits since 9618234 and of the whole
+repository including the web app. READ: everything under src/ (referee, maps,
+the AI with every arm, placement, the tactic, the GUI), tests/tr, every
+Python tool under tracks/ and tests/, the browser edition (app.js, engine.js,
+board.js, activity.js, runtime.js, BrowserBridge, the build and site scripts,
+the Playwright suites, app.css, index.html), the workflows and the docs.
+
+RAN, on a clean worktree of bc53377 (Windows, JDK 26 on PATH): build_main.sh,
+run_tests.sh (CoreTests with the 84 bundled tracks, MainTests), headless
+smoke, query replay (163 moves), lap progress, the 12 goldens and all 22 ai1
+pins -- every one OK, nothing on stderr. Of the 49 Python unit tests 39 pass;
+the 10 FleetRunnerTests fail only on Windows (their fake `java` is a shebang
+script shutil.which cannot see) and are green on CI. The web build needs
+CairoSVG here, so parity and the browser suites were read, not run: the
+Browser app run on 819de48 -- the same web content as this head -- is green,
+and CI on bc53377 is green.
+
+THE DAY'S COMMITS (44a421e, dbce4ca, 819de48, a59cf42, bc53377) are the
+responsive polish -- the idle activity rail quieted in PLAY, a More menu at
+<= 900 px, the setup dialog as a full-height sheet on phones, the compact
+pacing select, setup-title autofocus, app.css?v=8 -- with the CSS/HTML
+contract pinned in web/tests/test_ui_polish.py and measured by ui_e2e.py at
+five viewports; the racecraft rule in CLAUDE.md/AGENTS.md; two ledger
+entries. No engine source changed since 9618234, so no decision could move,
+and none did.
+
+FOUND, and changed here: `.github/workflows/materialize-ui-fix2.yml`, the
+other agent's one-shot applicator, was deleted by its own run (1e8f659) and
+then restored by hand (2a33716). It fires on any push that touches it, holds
+`contents: write` and `actions: write`, and its payload is the 08:58 state
+of app.css, app.js and ui_e2e.py -- all three have moved since, so a rerun
+would roll the polish back and force-dispatch a publish. Removed; the
+provenance it documented is the commit history 458a35e..2a33716.
+
+NOTED, not changed. ci.yml's concurrency group cancels the previous push's
+run when two pushes land within minutes (a59cf42 and 44a421e carry no
+verdict; the head does): only the branch head is ever certified, fine for a
+linear master, worth knowing when bisecting. `web/runtime.html` pins
+`runtime.js?v=3` on purpose -- it is the compatibility host for an old
+cached engine.js, and the old worker is what that client should keep
+getting -- so it is not a stale cache-buster. In the AI, the maps and the
+referee nothing was found that would change a decision: the nested-frame
+save/restore around a rival's compute, the rollout's own lap ledger and
+clock, the tactic at the top of the scorer, the byte-bounded reach memo and
+the finish-edge cache's benign race all hold as the 9618234 entry describes
+them. The uncommitted candidateSlots instrument in the working tree (RaceAi,
+RaceGame, tracks/head_to_head.py) is someone else's work in progress and was
+left untouched.
+
 ## Master reviewed at 9618234: the engine since round 224, read and raced
 
 The user asked for another review of master. The surface is everything that
