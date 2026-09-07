@@ -128,10 +128,21 @@ rivals. Earlier human placements can overlap preparation; later players are not
 predicted, and the roster/turn order is unchanged.
 
 The setup offers **Legacy benchmark starts** to preserve old experiments.
-Headless benchmarking defaults to that historical policy; set
-`aiStartPlacement=informed` in a properties file to benchmark computed starts.
-In computed mode a seed breaks equal-score ties only. Exact-map budget failures
-are reported rather than replaced by random placement. See [web/README.md](web/README.md)
+Headless benchmarking defaults to that historical policy, because racecraft is
+measured from varied starts and the pinned corpus is frozen on them. A
+properties file selects the other two modes:
+
+* `aiStartPlacement=informed` benchmarks computed starts (a seed breaks
+  equal-score ties only). Where the exact full-race map is over its budget
+  (the Nordschleife) the AI takes a random start instead and the log header
+  says `start-placement legacy (exact full-race map over budget)`.
+* `aiStartPlacement=scatter` is a racecraft instrument: every AI starts at a
+  seeded random alive, robust state anywhere on the course, at speed, owing
+  the gate ahead of it, so traffic is measured from mid-race configurations.
+  Each start line then carries `vel=vx,vy gate=g`, which the offline board
+  parser reads.
+
+See [web/README.md](web/README.md)
 for stages, memory limits and the independent placement tests.
 
 ## Configuration

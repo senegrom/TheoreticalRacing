@@ -1695,14 +1695,34 @@ public final class RaceGame {
 	private String placementFailure;
 	private OptimalPotential startPotential;
 	private StartPlacement.Analysis startPlacementAnalysis;
+	/** Set by the preparation daemon when the exact full-race map is over budget:
+	 *  informed placement is impossible there, so the AI takes a random start cell
+	 *  instead of refusing to race. Published through reachability readiness. */
+	private volatile boolean startPlacementFallback;
+	boolean startPlacementFellBack() { return startPlacementFallback; }
 
-	/** Interactive games use computed starts; headless benchmarks retain their
-	 * historical sampling unless aiStartPlacement=informed is explicitly set. */
+	/** Interactive games compute their starts. Headless benchmarks keep the seeded
+	 * random sampling by default -- racecraft is measured from varied starts and the
+	 * pinned corpus is frozen on them -- and ask for computed starts explicitly with
+	 * aiStartPlacement=informed when the placement itself is what is measured. */
 	boolean informedStartPlacement() {
-		final String mode = prop.getProperty("aiStartPlacement", autoMode ? "legacy" : "informed");
-		if ("informed".equalsIgnoreCase(mode)) return true;
-		if ("legacy".equalsIgnoreCase(mode)) return false;
-		throw new IllegalArgumentException("aiStartPlacement must be informed or legacy");
+		return "informed".equals(startPlacementMode());
+	}
+
+	/** Round 225: informed | legacy | scatter. Scatter is a benchmark mode: every AI
+	 *  starts at a seeded random alive, robust state anywhere on the course, at
+	 *  speed, owing the gate ahead of it -- racecraft measured from mid-race
+	 *  configurations instead of the grid. */
+	String startPlacementMode() {
+		final String mode = prop.getProperty("aiStartPlacement", autoMode ? "legacy" : "informed")
+				.trim().toLowerCase(java.util.Locale.ROOT);
+		if ("informed".equals(mode) || "legacy".equals(mode) || "scatter".equals(mode))
+			return mode;
+		throw new IllegalArgumentException("aiStartPlacement must be informed, legacy or scatter");
+	}
+
+	boolean scatterStartPlacement() {
+		return "scatter".equals(startPlacementMode());
 	}
 
 	boolean needsInformedStartMaps() {
@@ -1712,13 +1732,17 @@ public final class RaceGame {
 	}
 
 	/** Runs once in the existing preparation daemon, before ready is published.
-	 * Do not silently select random starts when the exact full-race map cannot fit. */
+	 * A board too large for the exact full-race map falls back to random starts
+	 * and says so in the log; it does not refuse to race. */
 	void prepareOptimalStartMap() {
 		if (lapGates != null) {
 			final OptimalPotential prepared = optimalPotential();
-			if (prepared == null)
-				throw new IllegalStateException("Exact full-race map exceeds the engine memory budget. "
-						+ "Choose fewer laps/a smaller track, or explicitly choose legacy starts.");
+			if (prepared == null) {
+				startPlacementFallback = true;
+				if (autoMode)
+					System.out.println("[start] exact full-race map over budget; random placement");
+				return;
+			}
 			startPotential = prepared;
 		}
 		if (startPlacementAnalysis == null) startPlacementAnalysis = StartPlacement.prepare(this);
@@ -1730,7 +1754,7 @@ public final class RaceGame {
 	private void autoPlaceAiPlayers() {
 		if (gamestate != GameState.PLACEPLAYERS || placementFailure != null
 				|| subgamestate >= players.length || !players[subgamestate].isAi()) return;
-		if (informedStartPlacement()) {
+		if (informedStartPlacement() || scatterStartPlacement()) {
 			if (!reach.isReady()) {
 				if (!placementPollPending) {
 					placementPollPending = true;
@@ -1758,7 +1782,8 @@ public final class RaceGame {
 		while (subgamestate < players.length && players[subgamestate].isAi()) {
 			// Score immediately before committing this car, against the live positions
 			// of every earlier placement. Never preselect the entire field.
-			final int[] pos = informedStartPlacement()
+			final int[] pos = scatterStartPlacement() ? scatterStart(players[subgamestate])
+					: informedStartPlacement() && !startPlacementFallback
 					? StartPlacement.choose(this, players[subgamestate], startSeed)
 					: findStartPosition();
 			if (pos == null) {
@@ -1774,6 +1799,58 @@ public final class RaceGame {
 			players[subgamestate].setPosition(pos);
 			subgamestate++;
 		}
+	}
+
+	/** Round 225 benchmark mode: a seeded random alive, robust state anywhere on
+	 *  the course, at speed, owing the gate ahead. Needles (fewer than two legal
+	 *  alive continuations) are rejected so no car is doomed at the flag. Sets the
+	 *  player's velocity and next gate; returns the cell, or null after too many
+	 *  rejected draws. */
+	private static final int SCATTER_SPEED_CAP = 6;
+	private static final int SCATTER_TRIES = 4000;
+
+	private int[] scatterStart(final Player player) {
+		final java.util.Random rng = startRng != null ? startRng
+				: new java.util.Random(7L * player.getNumber());
+		final int number = player.getNumber();
+		for (int attempt = 0; attempt < SCATTER_TRIES; attempt++) {
+			final int x = rng.nextInt(gameCols + 1), y = rng.nextInt(gameRows + 1);
+			if (!containsTrackOrStart(x, y) || isCrashingPlayer(x, y, number))
+				continue;
+			final int vx = rng.nextInt(2 * SCATTER_SPEED_CAP + 1) - SCATTER_SPEED_CAP;
+			final int vy = rng.nextInt(2 * SCATTER_SPEED_CAP + 1) - SCATTER_SPEED_CAP;
+			if (!reach.isAlive(x, y, vx, vy))
+				continue;
+			int gate = 0;
+			if (lapGates != null) {
+				int best = Integer.MAX_VALUE;
+				for (final int g : new int[]{1, 2, 0 }) {
+					final int t = reach.turnsToGate(g, x, y, vx, vy);
+					if (t < best) {
+						best = t;
+						gate = g;
+					}
+				}
+				if (best == Integer.MAX_VALUE || !reach.isRobust(gate, x, y, vx, vy))
+					continue;
+			}
+			int continuations = 0;
+			for (final Direction d : Direction.values()) {
+				final int nvx = vx + d.dx, nvy = vy + d.dy;
+				if (aiVelocityOutOfRange(nvx, nvy))
+					continue;
+				final int nx = x + nvx, ny = y + nvy;
+				if (isMoveLegalGeometry(x, y, nx, ny) && !isCrashingPlayer(nx, ny, number)
+						&& reach.isAlive(nx, ny, nvx, nvy))
+					continuations++;
+			}
+			if (continuations < 2)
+				continue;
+			player.setVelocity(new int[]{vx, vy });
+			player.setNextGate(gate);
+			return new int[]{x, y };
+		}
+		return null;
 	}
 
 	private int[] findStartPosition() {
@@ -1841,7 +1918,12 @@ public final class RaceGame {
 		gameLog.setLength(0);
 		turnCounter = 0;
 		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");
-		if (informedStartPlacement()) gameLog.append("# start-placement informed\n");
+		if (scatterStartPlacement())
+			gameLog.append("# start-placement scatter\n");
+		if (informedStartPlacement())
+			gameLog.append(startPlacementFallback
+					? "# start-placement legacy (exact full-race map over budget)\n"
+					: "# start-placement informed\n");
 		gameLog.append("# Grid ").append(gameCols).append("x").append(gameRows).append("\n");
 		if (totalLaps > 1)
 			gameLog.append("# laps ").append(totalLaps).append("\n");
@@ -1849,8 +1931,11 @@ public final class RaceGame {
 		gameLog.append("trackRight=").append(TrackIO.pointListToString(track.getRight())).append("\n");
 		for (final Player pl : players) {
 			gameLog.append("player").append(pl.getNumber()).append(" name=").append(pl.getName()).append(" kind=")
-					.append(pl.getKind().name()).append(" start=").append(pl.getPosition()[0]).append(",").append(pl.getPosition()[1])
-					.append("\n");
+					.append(pl.getKind().name()).append(" start=").append(pl.getPosition()[0]).append(",").append(pl.getPosition()[1]);
+			if (scatterStartPlacement())
+				gameLog.append(" vel=").append(pl.getVelocity()[0]).append(",")
+						.append(pl.getVelocity()[1]).append(" gate=").append(pl.getNextGate());
+			gameLog.append("\n");
 		}
 		gameLog.append("# turns: turn player kind dir vBefore→vAfter pos→newPos outcome\n");
 	}

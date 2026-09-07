@@ -94,7 +94,8 @@ def parse_log(path):
     counters = dict(fin=0, crash=0, timeout=0, moves=0)
     results = False
     for line in Path(path).read_text(encoding='utf-8').splitlines():
-        start = re.fullmatch(r'player(\d+) name=.* kind=\S+ start=-?\d+,-?\d+', line)
+        start = re.fullmatch(
+            r'player(\d+) name=.* kind=\S+ start=-?\d+,-?\d+(?: vel=-?\d+,-?\d+ gate=\d)?', line)
         if start:
             if results or int(start[1]) in players:
                 raise ValueError('duplicate/late player declaration')

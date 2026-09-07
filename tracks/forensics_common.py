@@ -29,7 +29,10 @@ MOVE_LINE = re.compile(
     r"\((-?\d+),(-?\d+)\)\S\((-?\d+),(-?\d+)\) "
     r"(ok|CRASH|FINISH|TIMEOUT|LAP \d+/\d+)(.*)$"
 )
-START_LINE = re.compile(r"^player(\d+) name=.*? kind=\S+ start=(\d+),(\d+)")
+START_LINE = re.compile(
+    r"^player(\d+) name=.*? kind=\S+ start=(\d+),(\d+)"
+    r"(?: vel=(-?\d+),(-?\d+) gate=(\d))?"
+)
 ORACLE_ANSWER = re.compile(r"^(-?\d+),(-?\d+);([FXBDA]{9})$")
 
 
@@ -252,9 +255,13 @@ def reconstruct_board(log, target, player_count=8, *, complete=False):
             if start is not None:
                 player = int(start.group(1))
                 if 1 <= player <= player_count:
+                    # A scattered start (round 225) carries its velocity and gate.
+                    vx = int(start.group(4) or 0)
+                    vy = int(start.group(5) or 0)
+                    gate = int(start.group(6) or 1)
                     cars[player - 1] = [
-                        int(start.group(2)), int(start.group(3)), 0, 0, 0
-                    ] + ([0, 1] if complete else [])
+                        int(start.group(2)), int(start.group(3)), vx, vy, 0
+                    ] + ([0, gate] if complete else [])
                 continue
 
             move = parse_move(line)

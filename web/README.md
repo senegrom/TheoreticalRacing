@@ -290,7 +290,10 @@ only equal-score ties, and each AI scores afresh after earlier placements.
 Legacy benchmark placement remains an explicit setup option and the default for
 headless benchmark runs. The aiStartPlacement=informed property enables computed
 starts in headless Java too; aiStartPlacement=legacy requests the historical
-first-free/seeded-random policy. Existing golden fixtures are tested in explicit
+first-free/seeded-random policy, and aiStartPlacement=scatter (headless only in
+practice) starts every AI mid-course at speed for racecraft measurement. A board
+whose exact full-race map is over budget falls back to random starts in every
+host and says so in the log. Existing golden fixtures are tested in explicit
 legacy mode, unchanged, alongside new native/browser computed-start comparisons.
 If the exact multi-lap map exceeds the existing memory budget, computed placement
 fails visibly rather than silently switching to random starts; choose a smaller

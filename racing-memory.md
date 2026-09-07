@@ -6,6 +6,62 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 225, first part: three ways to start, and a rule about crashes
+
+THE RULE, from the user, after the 18-commit measurement above found the
+two-car tactic manufacturing a crash: a crash now is better than an uncertain
+outcome later. Forcing the last rival's retirement is correct, and the burden
+is on every car never to be in a position where it can be forced. The tactic
+stays. What follows from the rule is a DEFENCE -- a car must not land where a
+rival can occupy its only continuation -- and that is round 225's racing
+question, measured below in its second part.
+
+THE START, three modes, chosen by aiStartPlacement in a properties file:
+
+  legacy    the seeded random grid start. Still the headless default: racecraft
+            is measured from varied starts and the pinned corpus is frozen on
+            them. (A first cut of this round made informed the headless default;
+            the corpus answered with the goldens and 17 of 22 pins moving, and
+            the user's revision -- benchmarks need BOTH -- put it back.)
+  informed  the other agent's computed start: each AI takes the best free cell
+            by exact solo continuation, in roster order, seeds breaking ties.
+            The desktop and browser default. Where the exact full-race map is
+            over its 1.5 GiB budget -- the Nordschleife -- it used to throw
+            and refuse to race; it now falls back to a random start and the
+            log header says "start-placement legacy (exact full-race map over
+            budget)", so a log never claims a computed start it did not have.
+  scatter   NEW, a racecraft instrument. Every AI starts at a seeded random
+            state anywhere on the course: a track cell, a speed up to six per
+            axis, the gate ahead of it as its next gate; the state must be
+            alive, robust for that gate and have at least two legal alive
+            continuations, so nobody is doomed at the flag. Traffic is then
+            measured from mid-race configurations -- cars at speed, anywhere --
+            instead of from the grid alone. Each start line carries
+            "vel=vx,vy gate=g"; the offline board parser and the fleet runner
+            read it (the runner's full-match start line would otherwise call
+            the first move "invalid move ordering", which is how the first
+            scatter grid died).
+
+THE INFORMED START, MEASURED PROPERLY (730 races a slice, the Nordschleife on
+its random fallback), against round 224:
+
+    seeds 1-10   crashes 0 -> 2   moves 1853764 -> 1851489 (-0.12%)
+    seeds 11-20  crashes 1 -> 1   moves 1853338 -> 1852144 (-0.06%)
+
+Faster on both slices, the largest gain since round 216; the two extra
+crashes are the first-lap pack crashes described in the entry above.
+
+WHAT CANNOT MOVE A RACE. The fallback only acts where informed placement
+used to abort, and scatter only acts when asked for, so with the headless
+default every benchmark race is byte-identical to the head before this
+commit: the corpus is 24 of 24 on this tree (12 goldens, 22 pins, the
+racecraft pin) with no digest re-frozen.
+
+OPERATIONS. The fleet runner binds its own file and the log parser into a
+grid's manifest; copying either into tracks/ on the box while a grid runs
+invalidates that grid ("benchmark inputs changed during the run"). It cost one
+scatter baseline here. Update tooling between grids, never during.
+
 ## The 18 commits after round 224, measured: a tactic that manufactures a crash, and a start that is faster and less safe
 
 Another agent pushed 18 commits to master on 2026-09-06 (eec1882 at the top)
