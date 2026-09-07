@@ -1,0 +1,10 @@
+name: UI fix materializer serialization guard
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo 'superseded by verified UI payload'
