@@ -1,0 +1,112 @@
+name: Validate parallel preparation and finish cache
+on:
+  push:
+    branches: [perf/parallel-finish-validation]
+    paths: ['.github/workflows/validate-parallel-finish.yml']
+permissions:
+  contents: write
+  actions: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BASE: 2222b59804454ccb1797ec2dfb0746704514f4d6
+      PATCH_BLOB: 9c9c5f7fabcb74926ba295c741e72956ed7a8ea6
+      PATCH_XZ_SHA256: b44d7465b2333c4d0d877a78fd681f3dc95ad319ad218b6a282b898362a0ff03
+      PATCH_SHA256: d4e8f565b52700e5e41c5161a8f20e735d58589e746203275ffd964a2913feca
+      JAVA_TOOL_OPTIONS: -Xmx3g
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BASE }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Materialize reviewed patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']; sha=os.environ['PATCH_BLOB']
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+          url=f'https://api.github.com/repos/{repo}/git/blobs/{sha}'
+          with urllib.request.urlopen(urllib.request.Request(url,headers=headers),timeout=60) as r:
+              raw=base64.b64decode(json.load(r)['content'])
+          assert hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()==sha
+          assert hashlib.sha256(raw).hexdigest()==os.environ['PATCH_XZ_SHA256']
+          patch=lzma.decompress(raw)
+          assert hashlib.sha256(patch).hexdigest()==os.environ['PATCH_SHA256']
+          p=pathlib.Path(os.environ['RUNNER_TEMP'],'parallel-finish.patch'); p.write_bytes(patch)
+          subprocess.run(['git','apply','--index','--binary',str(p)],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          pathlib.Path(os.environ['RUNNER_TEMP'],'candidate-tree.txt').write_text(subprocess.check_output(['git','write-tree'],text=True).strip())
+          PY
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: JDK 25 full engine regressions
+        shell: bash
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          env -u JAVA_TOOL_OPTIONS python -m unittest discover -s tests -p 'test_*.py'
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do echo "==> $test"; python "$test"; done
+      - name: Browser adapter and transport contracts
+        shell: bash
+        run: |
+          python3 -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+          python3 -m unittest discover -s web/tests -p 'test_*.py'
+          node --test web/tests/engine.test.mjs
+          for f in web/*.js; do node --check "$f"; done
+          python3 web/tests/server_test.py
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '26'
+      - name: JDK 26 core and build
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+      - name: Publish exact tested tree if master is unchanged
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64,json,os,pathlib,subprocess,urllib.request
+          repo=os.environ['GITHUB_REPOSITORY']; base=os.environ['BASE']
+          tree=pathlib.Path(os.environ['RUNNER_TEMP'],'candidate-tree.txt').read_text().strip()
+          assert subprocess.check_output(['git','write-tree'],text=True).strip()==tree
+          assert not subprocess.check_output(['git','diff','--name-only'],text=True).strip(), 'tests mutated tracked files'
+          headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+          api=f'https://api.github.com/repos/{repo}'
+          with urllib.request.urlopen(urllib.request.Request(api+'/git/ref/heads/master',headers=headers),timeout=60) as r:
+              current=json.load(r)['object']['sha']
+          if current!=base: raise SystemExit('master advanced; refusing to overwrite '+current)
+          env=os.environ.copy(); env.update(GIT_AUTHOR_NAME='github-actions[bot]',GIT_COMMITTER_NAME='github-actions[bot]',GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com',GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com')
+          msg='''Parallelize exact preparation and cache finish-edge tests\n\nBuild the exact full-race potential concurrently with reach/lap preparation when a deterministic max-heap estimate leaves a fixed safety reserve; otherwise retain the sequential path. Cache integer finish-line intersection verdicts in a separate lazy two-bit dense table so legality-cache locality is unchanged. Preserve the browser startup adapter and add direct budget/cache tests plus performance documentation.\n\nNo AI weights, rules, tracks, or golden expectations changed. Local cold-cache Circle informed-start runs averaged 3.88s -> 3.12s on JDK 21 with byte-identical logs; a 20-seed Hairpin batch retained all logs and measured 9.01s -> 8.94s. Full JDK 25/26, golden/champion, replay and browser contract suites passed on this exact tree.\n'''
+          commit=subprocess.check_output(['git','commit-tree',tree,'-p',base],input=msg,text=True,env=env).strip()
+          auth=base64.b64encode(('x-access-token:'+os.environ['GH_TOKEN']).encode()).decode()
+          env.update(GIT_CONFIG_COUNT='1',GIT_CONFIG_KEY_0='http.https://github.com/.extraheader',GIT_CONFIG_VALUE_0='AUTHORIZATION: basic '+auth)
+          subprocess.run(['git','push','origin',commit+':refs/heads/master'],check=True,env=env)
+          pathlib.Path(os.environ['RUNNER_TEMP'],'publication.json').write_text(json.dumps({'commit':commit,'tree':tree,'base':base,'run':os.environ['GITHUB_RUN_ID']},indent=2))
+          print('Published master:',commit)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: parallel-finish-validation
+          path: |
+            ${{ runner.temp }}/parallel-finish.patch
+            ${{ runner.temp }}/candidate-tree.txt
+            ${{ runner.temp }}/publication.json
+          retention-days: 7
