@@ -1101,8 +1101,14 @@ body[data-phase="PLAY"] .preparation-status { display:none !important; }
   max-width: 100%;
 }
 .advanced-setup { width: 100%; }
+.advanced-setup summary {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 #ai-start-policy {
-  width: 0;
-  min-width: 100%;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
 }

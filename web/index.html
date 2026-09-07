@@ -72,7 +72,7 @@
         <div class="three-fields"><label>Drivers<input id="player-count" type="number" min="1" max="9" value="4" required></label><label>Laps<input id="laps" type="number" min="1" max="99" value="1" required></label><label>Start seed<input id="seed" type="text" inputmode="numeric" maxlength="20" placeholder="Tie-break seed"></label></div>
         <p class="hint setup-primary-hint"><strong>Computed AI starts — recommended.</strong> AIs wait for full track analysis and choose in player order using cars already placed.</p>
         <details class="advanced-setup"><summary>Advanced setup</summary><div class="advanced-setup-body">
-          <label>AI starting positions<select id="ai-start-policy"><option value="informed">Computed — recommended</option><option value="legacy">Legacy benchmark starts</option></select></label>
+          <label>AI starting positions<select id="ai-start-policy"><option value="informed">Computed</option><option value="legacy">Legacy</option></select></label>
           <p class="hint">The seed only breaks equally scored computed starts. Legacy mode preserves the historical first-free/seeded-random benchmark placement.</p>
         </div></details>
         <div id="custom-size" class="two-fields" hidden><label>Grid width<input id="cols" required type="number" min="2" max="500" value="86"></label><label>Grid height<input id="rows" required type="number" min="2" max="500" value="48"></label></div>

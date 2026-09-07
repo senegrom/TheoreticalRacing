@@ -46,6 +46,15 @@ def click_install(page):
         page.locator('#more-install').click()
 
 
+def click_export(page):
+    # Save log follows the same responsive header path as Install.
+    if page.locator('#export').is_visible():
+        page.locator('#export').click()
+    else:
+        page.locator('#header-more').evaluate('(element) => { element.open = true; }')
+        page.locator('#more-export').click()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--browser', choices=['chromium', 'webkit'], default='chromium')
@@ -164,7 +173,7 @@ def main():
                 assert page.locator('iframe').count() == 0, 'Java still runs in an iframe'
                 assert page.evaluate("workReports.some(s=>/Mapping track distances|Checking saved track maps|Scanning finish approaches/.test(s))"), 'no real Java progress telemetry received'
                 with page.expect_download() as downloaded:
-                    page.locator('#export').click()
+                    click_export(page)
                 target = out / 'hairpin-s1-2p.log'
                 downloaded.value.save_as(target)
                 digest = hashlib.sha256(normalized_log(target.read_text()).encode()).hexdigest()
@@ -184,7 +193,7 @@ def main():
                 page.locator('#ok').click()
                 page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=600_000)
                 with page.expect_download() as computed_download:
-                    page.locator('#export').click()
+                    click_export(page)
                 computed_log = out / 'hairpin-informed-s1-2p.log'
                 computed_download.value.save_as(computed_log)
                 computed_fixture = json.loads((ROOT / 'web/tests/informed_races.json').read_text())['cases'][0]
