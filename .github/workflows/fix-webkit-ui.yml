@@ -24,31 +24,25 @@ jobs:
           s = css.read_text()
           marker = '/* WebKit narrow-form intrinsic-size guard. */'
           assert marker not in s
-          s += '''
-
-/* WebKit narrow-form intrinsic-size guard. */
-#setup-form,
-#setup .setup-grid,
-#setup .setup-grid > section,
-.advanced-setup,
-.advanced-setup-body,
-.advanced-setup label {
-  min-width: 0;
-  max-width: 100%;
-}
-.advanced-setup {
-  width: 100%;
-}
-#ai-start-policy {
-  /* WebKit otherwise lets the native select's option text contribute an
-     intrinsic width wider than a 320px dialog. A zero preferred width plus
-     a 100% minimum keeps the rendered control full-width but shrinkable. */
-  width: 0;
-  min-width: 100%;
-  max-width: 100%;
-}
-'''
-          css.write_text(s)
+          block = (
+              '\n\n/* WebKit narrow-form intrinsic-size guard. */\n'
+              '#setup-form,\n'
+              '#setup .setup-grid,\n'
+              '#setup .setup-grid > section,\n'
+              '.advanced-setup,\n'
+              '.advanced-setup-body,\n'
+              '.advanced-setup label {\n'
+              '  min-width: 0;\n'
+              '  max-width: 100%;\n'
+              '}\n'
+              '.advanced-setup { width: 100%; }\n'
+              '#ai-start-policy {\n'
+              '  width: 0;\n'
+              '  min-width: 100%;\n'
+              '  max-width: 100%;\n'
+              '}\n'
+          )
+          css.write_text(s + block)
 
           test = Path('web/tests/browser_e2e.py')
           s = test.read_text()
@@ -58,7 +52,7 @@ jobs:
           assert s.count("page.locator('#install').click()") == 1
           s = s.replace(anchor, helper)
           s = s.replace("page.locator('#install').click()", "click_install(page)")
-          assert s.count('click_install(page)') == 2  # definition + call
+          assert s.count('click_install(page)') == 2
           test.write_text(s)
           PY
           python3 -m py_compile web/tests/browser_e2e.py
