@@ -86,7 +86,7 @@ export class Activity {
     this.root.hidden = false; this.root.dataset.active = 'false';
     this.label.textContent = label; this.label.title = label;
     this.detail.textContent = detail; this.detail.title = detail;
-    this.elapsed.textContent = 'Ready';
+    this.elapsed.textContent = ''; this.elapsed.removeAttribute('title');
     this.bar.value = 1; this.bar.setAttribute('aria-label', 'No calculation pending');
     this.slow.hidden = true;
     this.setStalled(false);

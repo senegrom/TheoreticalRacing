@@ -951,6 +951,225 @@ body[data-phase="PLAY"] #standings .name>span { display:block; overflow:hidden; 
 }
 @media(max-width:360px) {
   .decision.driving { grid-template-rows:14px 24px 54px 37px 44px 44px 50px; grid-template-areas:'eyebrow moves' 'driver moves' 'status moves' 'telemetry moves' 'detail detail' 'confirm confirm' 'actions pacing'; }
-  .preparation-heading { font-size:.7rem; }
-  [data-preparation-stages] { font-size:.65rem; gap:5px; }
+}
+
+/* Activity copy stays inside the same fixed slot during browser-sized races. */
+body[data-phase="PLAY"] .work-status { height:118px; min-height:118px; max-height:118px; overflow:hidden; }
+body[data-phase="PLAY"] .work-main { min-height:0; }
+body[data-phase="PLAY"] .work-title strong { max-height:22px; }
+body[data-phase="PLAY"] [data-work-detail] { max-height:34px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+body[data-phase="PLAY"] .work-hints { max-height:30px; }
+@media(max-width:720px) {
+  body[data-phase="PLAY"] .work-status { height:108px; min-height:108px; max-height:108px; }
+}
+
+/* Final UI pass: keep engine status compact, move advanced setup out of the main path, and give finish its own state. */
+.header-more {
+  display: none;
+  position: relative;
+  color: var(--ivory);
+}
+.header-more summary {
+  list-style: none;
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #5b7867;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: .78rem;
+  user-select: none;
+}
+.header-more summary::-webkit-details-marker {
+  display: none;
+}
+.header-moremenu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 160px;
+  padding: 6px;
+  background: var(--felt);
+  border: 1px solid #5b7867;
+  border-radius: 8px;
+  box-shadow: 0 10px 30px #0005;
+  display: grid;
+  gap: 4px;
+}
+.header-more-menu button,.header-more-menu a {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  text-align: left;
+  color: var(--ivory);
+  background: transparent;
+  border: 10px solid transparent;
+}
+.header-more-menu a:hover,.deader-more-menu button:hover:not(:disabled) {
+  background: #315847;
+}
+.advanced-setup {
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fffdf8;
+}
+.advanced-setup summary {
+  cursor: pointer;
+  padding: 10px 12px;
+  font-weight: 600;
+  user-select: none;
+}
+.advanced-setup-body {
+  padding: 0 12px 12px;
+}
+.setup-primary-hint {
+  margin: 10px 0 4px;
+}
+.finish-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.finish-actions button {
+  flex: 1;
+  min-width: 0;
+}
+.focus-short {
+  display: none;
+}
+.decision.finished #placement,
+.decision.finished #moves,
+.decision.finished #move-detail,
+.decision.finished #confirm,
+.decision.finished #ok,
+.decision.finished .button-row,
+.decision.finished .speed-label,
+.decision.finished #telemetry {
+  display: none !important;
+}
+.decision.finished {
+  min-height: 0;
+}
+body[data-phase="FINISHED"] #standings li {
+  height: auto;
+  min-height: 54px;
+}
+body[data-phase="FINISHED"] #race-heading {
+  height: auto;
+}
+/* In-race engine status: smaller than the preparation panel, but a stable footprint across every turn. */
+body[data-phase="PLAY"] .work-status {
+  height: 78px;
+  min-height: 78px;
+  max-height: 78px;
+  grid-template-columns: minmax(0,1fr) 104px;
+  padding: 8px 10px;
+  gap: 8px;
+}
+body[data-phase="PLAY"] .work-main {
+  grid-template-rows: 20px 17px 6px 15px;
+  gap: 1px;
+}
+body[data-phase="PLAY"] .work-title strong {
+  font-size: .82rem;
+}
+body[data-phase="PLAY"] [three-work-detail] {
+  font-size: .72rem;
+  line-height: 17px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+body[data-phase="PLAY"] .work-hints {
+  line-height: 15px;
+  white-space: nowrap;
+}
+body[data-phase="PLAY"] .work-actions {
+  grid-template-rows: 1fr;
+  align-items: center;
+}
+body[data-phase="PLAY"] #keep-waiting {
+  grid-row: 1;
+}
+body[data-phase="PLAY"] #stop-work {
+  grid-row: 1;
+}
+body[data-phase="PLAY"] .work-actions button {
+  min-height: 36px;
+}
+body[data-phase="PLAY"] .preparation-status {
+  display: none !important;
+}
+[data-preparation-stages] li[data-state="current"] {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+@media (max-width: 720px) {
+  .masthead nav {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  .masthead nav > #export,
+  .masthead nav > #install {
+    display: none;
+  }
+  .header-more {
+    display: block;
+    margin-left: auto;
+  }
+  .header-more summary {
+    color: var(--ivory);
+  }
+  .race-heading {
+    margin: 12px 0;
+  }
+  #track-preview {
+    height: 148px;
+  }
+  .setup-primary-hint {
+    line-height: 1.44;
+  }
+  [data-preparation-stages] {
+    grid-template-columns: repeat(2,`minmax(0,1fr));
+    gap: 4px 8px;
+  }
+  [data-preparation-stages] li {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  body[data-phase="PLAY"] .work-status {
+    height: 74px;
+    min-height: 74px;
+    max-height: 74px;
+  }
+  body[data-phase="PLAY"] #board {
+    height: 24svh;
+  }
+  .finish-actions {
+    margin-top: 8px;
+  }
+}
+@media (max-width: 360px) {
+  .three-fields {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  .three-fields label:last-child {
+    grid-column: 1 / -1;
+  }
+  [data-preparation-stages] {
+    grid-template-columns: 100%;
+  }
+  .focus-long {
+    display: none;
+  }
+  .focus-short {
+    display: inline;
+  }
+  .decision.driving .button-row button {
+    padding: 5px 2px;
+  }
 }

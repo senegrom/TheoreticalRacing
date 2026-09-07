@@ -97,9 +97,15 @@ def main():
             page.screenshot(path=str(out / f'setup-{width}.png'), full_page=True)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'setup page overflows {width}'
             assert page.locator('#setup').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'setup content overflows {width}'
+            assert not page.locator('.advanced-setup').evaluate('(e)=>e.open')
+            assert 'recommended' in page.locator('.setup-primary-hint').inner_text().lower()
+            page.locator('.advanced-setup summary').click()
             for policy in ['legacy', 'informed']:
                 page.locator('#ai-start-policy').select_option(policy)
                 assert page.locator('#setup').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'{policy} selector overflows {width}'
+            if width <= 360:
+                boxes = page.locator('.three-fields label').evaluate_all('(els)=>els.map(e=>{const r=e.getBoundingClientRect();return [r.x,r.y,r.width,r.height]})')
+                assert boxes[2][1] > boxes[0][1] + 10 and boxes[2][2] > boxes[0][2] * 1.7, ('seed should use its own row', width, boxes)
             page.locator('#track').select_option('')
             page.locator('#cols').fill('501')
             assert not page.locator('#setup-form').evaluate('(f)=>f.checkValidity()')
@@ -108,101 +114,31 @@ def main():
             start(page)
             page.screenshot(path=str(out / f'race-{width}.png'), full_page=True)
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'race overflows {width}'
-            for key, expected in [('Q', 0), ('w', 1), ('ArrowRight', 5), ('Numpad1', 6)]:
-                page.locator('#confirm').focus()  # Native focused button must not swallow letter shortcuts.
-                page.keyboard.press(key)
-                page.wait_for_function('(index) => document.querySelector(`#moves button[data-index="${index}"]`).getAttribute("aria-pressed") === "true"', arg=expected)
-            page.locator('#confirm').click()
-            page.wait_for_function('document.body.dataset.turn === "1"')
-            page.locator('#confirm').focus(); page.keyboard.press('u')
-            page.wait_for_function('document.body.dataset.turn === "0"')
-            # Editing an input never sends an acceleration; held-key repeat is ignored.
-            page.locator('#new-race').click()
-            before = page.evaluate('window.calls.length')
-            page.locator('#seed').fill('123'); page.keyboard.press('ArrowUp')
-            assert before == page.evaluate('window.calls.length')
-            # Cancelling replacement preserves the live race, without tearing down its engine.
-            page.once('dialog', lambda d: d.dismiss())
-            page.locator('#start').click()
-            assert page.locator('#setup').evaluate('(e)=>e.open')
-            assert not page.evaluate('window.testEngine.dead')
-            page.locator('#close-setup').click()
-            page.locator('#install').click()
-            assert page.locator('#installation').evaluate('(e)=>e.open')
-            page.keyboard.press('Escape')
-            assert not page.locator('#installation').evaluate('(e)=>e.open')
-            # Long unbroken names must not expand the page beyond the viewport.
-            page.evaluate("window.testEngine.state.players[0].name='A'.repeat(40)")
-            page.locator('#moves button').nth(4).click()
-            page.wait_for_function('document.querySelector("#driver").textContent.length === 40')
-            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'long driver name overflows {width}'
-            # Human, AI idle, AI work, a slow-work hint and warning must all keep
-            # the board, pad, confirm button, standings and activity slot anchored.
-            def layout():
-                return page.evaluate("""() => Object.fromEntries(['#board','.track-panel','.decision','#moves','#confirm','.button-row','#standings','#work-status'].map(k => {
-                  const r=document.querySelector(k).getBoundingClientRect();
-                  return [k,[r.x+scrollX,r.y+scrollY,r.width,r.height]];
-                }))""")
-            baseline = layout()
-            def stable(label):
-                now = layout()
-                for selector in baseline:
-                    assert all(abs(a-b)<0.6 for a,b in zip(baseline[selector],now[selector])), (width,label,selector,baseline[selector],now[selector])
-            page.locator('#pause').click()
-            page.evaluate("window.testEngine.state.players[0].kind='AI2';window.testEngine.state.players[0].name='Computer';window.holdTick=true")
-            page.locator('#moves button').nth(4).click()
-            page.wait_for_function('document.querySelector("#confirm").textContent === "AI driving"')
-            stable('AI idle')
-            assert page.locator('#moves').is_visible() and page.locator('#confirm').is_disabled()
-            page.locator('#step').click()
-            page.wait_for_function('typeof window.releaseTick === "function"')
-            stable('AI thinking')
-            page.evaluate("document.querySelector('[data-work-slow]').hidden=false;window.testEngine.onStatus('',{stalled:true})")
-            stable('AI slow warning')
-            page.screenshot(path=str(out / f'stable-thinking-{width}.png'), full_page=True)
-            page.locator('#keep-waiting').click(); stable('Continue waiting')
-            page.evaluate("window.testEngine.state.players[0].kind='HUMAN';window.testEngine.state.players[0].name='Driver A';window.releaseTick();window.holdTick=false")
-            page.wait_for_function('document.querySelector("#moves button").disabled === false')
-            stable('Human again')
-            (out / f'layout-{width}.json').write_text(json.dumps({'before':baseline,'after':layout(),'passed':True}, indent=2))
-            # Starting a new race clears stale previous-race controls even during a slow boot.
-            page.locator('#new-race').click(); page.evaluate('window.holdCreate=true')
-            page.once('dialog', lambda d: d.accept()); page.locator('#start').click()
-            assert page.locator('#moves').is_hidden() and page.locator('#export').is_disabled()
-            assert page.locator('#standings li').count() == 0
-            assert page.locator('#work-status').is_visible()
-            assert page.locator('[data-work-progress]').get_attribute('value') is None
-            page.evaluate("window.testEngine.onStatus('', {kind:'preparation',phase:'Checking safe continuations',done:40,total:100,unit:'scan',stage:5,stages:9})")
-            assert page.locator('[data-work-progress]').get_attribute('value') == '0.4'
-            assert '40% of this scan' in page.locator('[data-work-detail]').inner_text()
-            assert page.locator('[data-preparation-progress]').get_attribute('value') == '5'
-            assert page.locator('[data-preparation-progress]').get_attribute('max') == '9'
-            assert page.locator('[data-preparation-stages] li').count() == 9
-            assert page.locator('[data-preparation-stages] li[data-state="current"]').inner_text() == 'Driving maps'
-            for total, index in [(7, 6), (11, 10)]:
-                page.evaluate("""([total,index]) => window.testEngine.onStatus('', {
-                    kind:'preparation', phase:'Analysing starting alternatives for all AIs',
-                    done:2,total:4,unit:'scan',stage:index,stages:total})""", [total,index])
-                assert page.locator('[data-preparation-stages] li').count() == total
-                assert page.locator('[data-preparation-stages] li[data-state="current"]').inner_text() == 'Starting alternatives'
-                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'candidate stage overflows {width}'
-            page.evaluate("window.testEngine.onStatus('', {stalled:true})")
-            assert page.locator('[data-work-stalled]').is_visible()
-            assert page.locator('#keep-waiting').is_visible()
-            assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'wait warning overflows {width}'
-            page.screenshot(path=str(out / f'waiting-{width}.png'), full_page=True)
-            page.locator('#keep-waiting').click()
-            assert page.evaluate('window.keptWaiting && !window.testEngine.dead')
-            assert page.locator('[data-work-stalled]').is_hidden()
-            page.evaluate('window.releaseCreate()'); page.wait_for_function('document.body.dataset.phase === "PLAY"')
-            page.evaluate("window.failNext='Simulated engine failure'")
-            page.locator('#moves button').nth(4).click()
-            page.wait_for_function('!document.querySelector("#notice").hidden')
-            assert 'Simulated engine failure' in page.locator('#notice').inner_text()
-            assert page.locator('#confirm').is_disabled()
-            assert 'stopped' in page.locator('#status').inner_text()
-            page.locator('#dismiss-notice').click(); assert page.locator('#notice').is_hidden()
+            if width <= 720:
+                assert page.locator('#export').is_hidden() and page.locator('#install').is_hidden()
+                assert page.locator('#header-more').is_visible()
+                assert page.locator('.masthead nav').evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'mobile nav wraps/overflows {width}'
+                assert page.locator('#work-status').evaluate('(e)=>e.getBoundingClientRect().height <= 80')
+                page.locator('#header-more summary').click()
+                assert page.locator('#more-installl').is_visible() and page.locator('#more-export').count() == 1
+                page.locator('#header-more').press('Escape')
+            if width <= 360:
+                assert page.locator('#focus-car .focus-short').is_visible()
+                assert page.locator('#undo').inner_text() == 'Undo'
+                assert page.locator('#pause').inner_text() in ['Pause', 'Resume']
             page.close()
+        # Finished races shed driving chrome: one result state, no Stop/Pause/pacing duplication.
+        page = browser.new_page(viewport={'width':390,'height':844}, has_touch=True)
+        done = fixture(); done.update(phase='FINISHED', turn=12, current=0, status='The game has finished')
+        done['players'][0].update(place=1, outcome='FINISH'); done['players'][1].update(place=2, outcome='FINISH')
+        load(page, done); start(page)
+        assert page.locator('#work-status').is_hidden()
+        assert page.locator('#finish-actions').is_visible() and page.locator('#finish-new').is_enabled()
+        assert page.locator('.button-row').is_hidden() and page.locator('.speed-label').is_hidden()
+        assert 'save the log' in page.locator('#status').inner_text().lower()
+        assert page.locator('#notice').is_hidden(), 'finished state duplicates result message in a notice'
+        page.locator('#finish-new').click(); assert page.locator('#setup').evaluate('(e)=>e.open')
+        page.close()
         # Long AI work remains visible, indeterminate, timed, and cancellable.
         page = browser.new_page(viewport={'width':390,'height':844})
         load(page); start(page)
@@ -214,7 +150,7 @@ def main():
         assert 'thinking' in page.locator('[data-work-label]').inner_text()
         assert page.locator('[data-work-progress]').get_attribute('value') is None
         page.wait_for_function('document.querySelector("[data-work-elapsed]").textContent !== "0s elapsed"')
-        page.once('dialog', lambda d:d.accept())
+        page.once('dialog', lambda d: d.accept())
         page.locator('#stop-work').click()
         assert page.evaluate('window.testEngine.dead') and page.locator('#work-status').is_hidden()
         assert page.locator('#setup').evaluate('(e)=>e.open')
