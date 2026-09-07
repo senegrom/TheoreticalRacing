@@ -123,15 +123,16 @@ function renderWork() {
     activity.show(`action-${generation}-${state.turn}-tick`, `${state.players[state.current].name} · AI turn`,
       {phase: 'Next move will begin after the selected pacing delay.'});
   } else {
-    const label = state.phase === 'PLAY' ? (paused ? 'AI paused' : 'Ready') : state.phase === 'PLACEPLAYERS' ? 'Track maps ready' : 'Draw your circuit';
-    const detail = state.phase === 'PLAY' ? (paused ? 'Choose Step or Resume AI.' : 'Engine ready.') : state.phase === 'PLACEPLAYERS' ? 'Maps are shared by all drivers. Finish placing cars, then start.' : 'Preparation starts when both borders are confirmed.';
+    const label = state.phase === 'PLAY' ? (human() ? 'Ready' : 'AI paused') : state.phase === 'PLACEPLAYERS' ? 'Track maps ready' : 'Draw your circuit';
+    const detail = state.phase === 'PLAY' ? (human() ? 'Engine ready.' : 'Choose Step or Resume AI.') : state.phase === 'PLACEPLAYERS' ? 'Maps are shared by all drivers. Finish placing cars, then start.' : 'Preparation starts when both borders are confirmed.';
     activity.idle(label, detail);
   }
 }
 function render() {
   const s = state;
   const exportDisabled = !s || busy || failed || s.turn === 0;
-  $('export').disabled = exportDisabled; $('more-export').disabled = exportDisabled;
+  $('export').disabled = exportDisabled;
+  $('more-export').disabled = exportDisabled;
   renderWork();
   document.querySelector('.decision').setAttribute('aria-busy', String(busy));
   if (!s) return;
@@ -143,7 +144,8 @@ function render() {
   $('phase').textContent = phaseNames[s.phase] ?? s.phase;
   $('race-meta').textContent = `${s.players.length} drivers · ${s.laps} ${s.laps === 1 ? 'lap' : 'laps'} · turn ${s.turn}`;
   $('grid-label').textContent = `${s.cols} × ${s.rows} grid`;
- $('driver').textContent = s.phase === 'FINISHED' ? 'Final classification' : s.phase === 'START' ? 'Draw your circuit' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border' : 'Right border') : driver?.name ?? 'Ready to race';
+  $('decision-eyebrow').textContent = s.phase === 'FINISHED' ? 'Results' : 'At the wheel';
+  $('driver').textContent = s.phase === 'FINISHED' ? 'Final classification' : s.phase === 'START' ? 'Draw your circuit' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border' : 'Right border') : driver?.name ?? 'Ready to race';
   $('status').textContent = failed ? 'The engine stopped. Start a new race to recover.' : s.phase === 'FINISHED' ? 'Race complete. Save the log or start another race.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? (busy ? 'Pausing after the current AI move…' : 'AI paused. Choose Step or Resume AI.') : s.status;
   $('driver').title = $('driver').textContent;
   $('status').title = $('status').textContent;
@@ -154,9 +156,9 @@ function render() {
   $('place').disabled = busy || failed || placingAi;
   $('first-start').hidden = s.phase !== 'PLACEPLAYERS';
   $('first-start').disabled = busy || failed || placingAi || !s.starts.length;
-  document.querySelector('.decision').classList.toggle('driving', s.phase === 'PLAY');
-  document.querySelector('.decision').classList.toggle('finished', s.phase === 'FINISHED');
-  $('decision-eyebrow').textContent = s.phase === 'FINISHED' ? 'Results' : 'At the wheel';
+  const decision = document.querySelector('.decision');
+  decision.classList.toggle('driving', s.phase === 'PLAY');
+  decision.classList.toggle('finished', s.phase === 'FINISHED');
   $('finish-actions').hidden = s.phase !== 'FINISHED';
   $('finish-export').disabled = exportDisabled;
   $('finish-new').disabled = false;
@@ -167,26 +169,27 @@ function render() {
     button.dataset.legal = move ? String(move.legal) : '';
     button.setAttribute('aria-pressed', String(s.selected === index));
     button.setAttribute('aria-label', names[index] + (move ? `: to ${move.position.join(', ')}, ${move.legal ? move.finishes ? 'finish' : 'legal' : 'crash'}` : ''));
-    button.lastElementChild.textContent = move && !move.legal ? '×’ : '';
+    button.lastElementChild.textContent = move && !move.legal ? '×' : '';
   }
   const chosen = s.moves.find(m => m.index === s.selected);
   $('move-detail').textContent = chosen ? `To (${chosen.position.join(', ')}) · velocity (${chosen.velocity.join(', ')}) · ${chosen.timeout ? 'race turn limit reached' : !chosen.legal ? 'crash' : chosen.finishes ? 'finish' : chosen.lap ? 'lap crossing' : 'legal move'}` : human() ? 'Select an acceleration, then confirm.' : 'Each move is decided by the original Java engine.';
   $('confirm').hidden = s.phase !== 'PLAY';
   $('confirm').disabled = busy || failed || !human() || !chosen;
   $('confirm').classList.toggle('danger', Boolean(chosen && !chosen.legal));
-  $('confirm').textContent = !human() && s.phase === 'PLAY' ? 'AI driving : chosen && !chosen.legal ? 'Confirm crash…' : 'Confirm move';
+  $('confirm').textContent = !human() && s.phase === 'PLAY' ? 'AI driving' : chosen && !chosen.legal ? 'Confirm crash…' : 'Confirm move';
   $('ok').hidden = !s.ok || s.phase === 'PLAY' || s.phase === 'FINISHED';
   $('ok').disabled = busy || failed || (s.phase === 'PLACEPLAYERS' && !s.ready);
   $('ok').textContent = s.phase === 'START' ? 'Begin drawing' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border done →' : 'Complete track →') : 'Start race →';
-  const undoLabel = s.phase === 'DRAWTRACK' ? 'Undo point' : s.phase === 'PLACEPLAYERS' ? 'Undo placement' : 'Undo turn';
+  const compact = matchMedia('(max-width: 360px)').matches;
   $('undo').disabled = busy || failed || !s.undo;
-  $('undo').textContent = matchMedia('(max-width: 360px)').matches ? 'Undo' : undoLabel;
-  $('undo').setAttribute('aria-label', undoLabel);
+  const undoLong = s.phase === 'DRAWTRACK' ? 'Undo point' : s.phase === 'PLACEPLAYERS' ? 'Undo placement' : 'Undo turn';
+  $('undo').textContent = compact ? 'Undo' : undoLong;
+  $('undo').setAttribute('aria-label', undoLong);
   $('pause').disabled = failed || s.phase !== 'PLAY';
-  const pauseLabel = paused ? 'Resume AI' : 'Pause AI';
-  $('pause').textContent = matchMedia('(max-width: 360px)').matches ? (paused ? 'Resume' : 'Pause') : pauseLabel;
-  $('pause').setAttribute('aria-label', pauseLabel);
-  $('pause').title = paused && busy && operation === 'tick' ? 'Pauses after the current move completes' : pauseLabel;
+  const pauseLong = paused ? 'Resume AI' : 'Pause AI';
+  $('pause').textContent = compact ? (paused ? 'Resume' : 'Pause') : pauseLong;
+  $('pause').setAttribute('aria-label', pauseLong);
+  $('pause').title = paused && busy && operation === 'tick' ? 'Pauses after the current move completes' : pauseLong;
   $('step').disabled = busy || failed || !s.ready || !paused || s.phase !== 'PLAY' || human();
   $('step').setAttribute('aria-label', 'Step AI once');
   renderStandings(s);
@@ -216,69 +219,99 @@ for (let i = 0; i < 9; i++) {
 }
 $('confirm').addEventListener('click', () => {
   const move = state?.moves.find(m => m.index === state.selected);
-  if (!move) return;
-  if (!move.legal && !window.confirm('This move crashes the car. Make the crash move?')) return;
-  act('move');
+  if (!move || busy || failed || !human()) return;
+  const confirmed = !move.legal && window.confirm('This move crashes your car. Take it anyway?');
+  if (!move.legal && !confirmed) return;
+  act('move', move.index, confirmed);
 });
-$('undo').addEventListener('click', () => act('undo'));
 $('ok').addEventListener('click', () => act('ok'));
-$('speed').addEventListener('change', schedule);
-$('pause').addEventListener('click', () => { paused = !paused; render(); schedule(); });
-$('step').addEventListener('click', () => act('tick'));
+$('undo').addEventListener('click', () => act('undo'));
 $('place').addEventListener('click', () => {
   const x = $('place-x').valueAsNumber, y = $('place-y').valueAsNumber;
-  if (Number.isInteger(x) && Number.isInteger(y)) act('click', x, y);
+  if (state && Number.isInteger(x) && Number.isInteger(y) && x >= 0 && y >= 0 && x <= state.cols && y <= state.rows) act('click', x, y);
+  else notice('Enter grid coordinates within the track dimensions.');
 });
-$('first-start').addEventListener('click', () => {
-  if (state?.starts[4]) act('click', ...state.starts[4]); else if (state?.starts[0]) act('click', ...state.starts[0]);
+$('first-start').addEventListener('click', () => { if (state?.starts.length) act('click', ...state.starts[0]); });
+$('pause').addEventListener('click', () => { paused = !paused; render(); schedule(); });
+$('step').addEventListener('click', () => act('tick'));
+$('speed').addEventListener('change', schedule);
+$('fit').addEventListener('click', () => board.fit());
+$('focus-car').addEventListener('click', () => board.focus());
+$('zoom-in').addEventListener('click', () => board.zoom(1.4));
+$('zoom-out').addEventListener('click', () => board.zoom(1 / 1.4));
+$('stop-work').addEventListener('click', () => {
+  if (!engine || !window.confirm('Stop this race? Current race progress will be discarded.')) return;
+  ++generation; clearTimeout(timer); engine.destroy(); engine = null;
+  busy = false; polling = false; failed = false; state = null; preparation = null;
+  activity.hide(); document.body.classList.remove('loading'); document.body.dataset.phase = 'STOPPED';
+  document.querySelector('.decision').setAttribute('aria-busy', 'false');
+  window.removeEventListener('beforeunload', warnBeforeLeave);
+  for (const button of document.querySelectorAll('.pitwall button')) button.disabled = true;
+  $('moves').hidden = true; $('placement').hidden = true; $('confirm').hidden = true; $('ok').hidden = true;
+  $('phase').textContent = 'Race stopped'; $('race-meta').textContent = '';
+  $('export').disabled = true; $('more-export').disabled = true; $('driver').textContent = 'Race stopped';
+  $('status').textContent = 'Choose a new race to start again.';
+  $('setup').showModal(); preview.fit();
 });
-$('zoom-in').addEventListener('click', () => board.zoom(1.25)); $('zoom-out').addEventListener('click', () => board.zoom(.8));
-$('fit').addEventListener('click', () => board.fit()); $('focus-car').addEventListener('click', () => board.focus());
-
-function isTypingTarget(target) { return ['INPUT','TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable; }
-document.addEventListener('keydown', e => {
-  if (modalOpen() || isTypingTarget(e.target)) return;
-  const key = e.key.toLowerCase();
-  if (key === 'u' && state?.undo && !busy && !failed) { e.preventDefault(); act('undo'); return; }
-  if (!human() || busy || failed) return;
-  const keys = {q:0, w:1, e:2, a:3, s:4, d:5, z:6, x:7, c:8, '7':0, '8':1, '9':2, '4':3, '5':4, '6':5, '1':6, '2':7, '3':8, ' ':4};
-  const arrowsMap = {ArrowUp:1, ArrowLeft:3, ArrowRight:5, ArrowDown:7};
-  const i = key === 'Enter' ? null : (e.key in arrowsMap ? arrowsMap[e.key] : keys[key]);
-  if (key === 'Enter' && state.selected != null) { e.preventDefault(); $('confirm').click(); }
-  else if (i != null && i != undefined) { e.preventDefault(); act('preview', i); }
-});
-$('new-race').addEventListener('click', () => {
-  $('header-more').open = false;
-  if (!state || state.phase === 'FINISHED' || window.confirm('Replace the current race? Its progress is not saved.')) $('setup').showModal();
-});
+$('new-race').addEventListener('click', () => { clearTimeout(timer); $('header-more').open = false; $('setup').showModal(); preview.fit(); });
 $('finish-new').addEventListener('click', () => $('new-race').click());
-$('help').addEventListener('click', () => $('instructions').showModal());
-$('install').addEventListener('click', () => $('installation').showModal());
-$('more-install').addEventListener('click', () => { $('header-more').open = false; $('installation').showModal(); });
 $('close-setup').addEventListener('click', () => $('setup').close());
+$('setup').addEventListener('close', schedule);
+$('help').addEventListener('click', () => { clearTimeout(timer); $('instructions').showModal(); });
 $('close-help').addEventListener('click', () => $('instructions').close());
+$('instructions').addEventListener('close', schedule);
+$('install').addEventListener('click', () => { clearTimeout(timer); $('header-more').open = false; $('installation').showModal(); });
+$('more-install').addEventListener('click', () => $('install').click());
+$('more-export').addEventListener('click', () => { $('header-more').open = false; $('export').click(); });
+$('finish-export').addEventListener('click', () => $('export').click());
 $('close-install').addEventListener('click', () => $('installation').close());
-
+$('installation').addEventListener('close', schedule);
+document.addEventListener('visibilitychange', schedule);
+window.addEventListener('pagehide', () => { clearTimeout(timer); activity.hide(); engine?.destroy(); });
+window.addEventListener('pageshow', event => { if (event.persisted) { engine = null; failed = true; notice('The engine was closed when you left this page. Start a new race.'); render(); } });
+window.addEventListener('keydown', e => {
+  if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || modalOpen() || e.target.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  // Preserve native activation of focused buttons and links, not letter shortcuts.
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button, a') && !e.target.closest('#moves')) return;
+  const map = {q:0,w:1,e:2,a:3,s:4,d:5,z:6,x:7,c:8,ArrowUp:1,ArrowLeft:3,ArrowRight:5,ArrowDown:7,' ':4};
+  const keypad = {Numpad7:0,Numpad8:1,Numpad9:2,Numpad4:3,Numpad5:4,Numpad6:5,Numpad1:6,Numpad2:7,Numpad3:8};
+  const index = keypad[e.code] ?? map[e.key.length === 1 ? e.key.toLowerCase() : e.key];
+  if (index !== undefined && human()) { e.preventDefault(); act('preview', index); }
+  else if (e.key === 'Enter') { e.preventDefault(); if (human()) $('confirm').click(); else if (!$('ok').hidden) $('ok').click(); }
+  else if (e.key.toLowerCase() === 'u') { e.preventDefault(); $('undo').click(); }
+});
+$('export').addEventListener('click', async () => {
+  if (!engine || busy || failed) return;
+  const current = engine, token = generation;
+  busy = true; operation = 'log'; clearTimeout(timer); render();
+  try {
+    const text = await current.call('log');
+    if (token !== generation) return;
+    const url = URL.createObjectURL(new Blob([text], {type: 'text/plain;charset=utf-8'}));
+    const a = document.createElement('a'); a.href = url; a.download = 'theoretical-racing.log'; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  } catch (e) { if (token === generation && e.name !== 'AbortError') notice(e.message); }
+  finally { if (current === engine) { busy = false; render(); schedule(); } }
+});
 function readRoster() {
-  for (const [row, p] of [...$('roster').children].map((r, i) => [r, roster[i]])) {
-    p.name = row.querySelector('input[data-name]').value.trim() || p.name;
-    p.kind = row.querySelector('select').value;
-    p.color = row.querySelector('input[type=color]').value;
+  for (const [i, row] of [...$('roster').children].entries()) {
+    roster[i] = {name: row.querySelector('[data-name]').value, kind: row.querySelector('select').value, color: row.querySelector('[type=color]').value};
   }
 }
 function drawRoster() {
+  readRoster();
   const count = Math.max(1, Math.min(9, Number($('player-count').value) || 1));
   $('roster').replaceChildren(...roster.slice(0, count).map((p, i) => {
     const row = document.createElement('div'); row.className = 'roster-row';
     const n = document.createElement('span'); n.textContent = String(i + 1).padStart(2, '0');
     const name = document.createElement('input'); name.value = p.name; name.maxLength = 40; name.dataset.name = ''; name.setAttribute('aria-label', `Driver ${i + 1} name`);
     const kind = document.createElement('select'); kind.setAttribute('aria-label', `Driver ${i + 1} type`);
-    for (const [value, label] of [['HUMAN', 'Human'], ['AI1', 'AI1',], ['AI2', 'AI2']]) kind.add(new Option(label, value));
+    for (const [value, label] of [['HUMAN', 'Human'], ['AI1', 'AI1'], ['AI2', 'AI2']]) kind.add(new Option(label, value));
     kind.value = p.kind;
-    const color = document.createElement('input'); color.type = 'color'; color.value = p.color; color.setAttribute('aria-label', `Driver ${i + 1} color`);
+    const color = document.createElement('input'); color.type = 'color'; color.value = p.color; color.setAttribute('aria-label', `Driver ${i + 1} colour`);
     row.append(n, name, kind, color); return row;
   }));
-  }
+}
 $('player-count').addEventListener('input', drawRoster);
 function validDimension(id, fallback) {
   const value = $(id).valueAsNumber;

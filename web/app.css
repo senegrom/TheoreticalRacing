@@ -951,94 +951,73 @@ body[data-phase="PLAY"] #standings .name>span { display:block; overflow:hidden; 
 }
 @media(max-width:360px) {
   .decision.driving { grid-template-rows:14px 24px 54px 37px 44px 44px 50px; grid-template-areas:'eyebrow moves' 'driver moves' 'status moves' 'telemetry moves' 'detail detail' 'confirm confirm' 'actions pacing'; }
+  .preparation-heading { font-size:.7rem; }
+  [data-preparation-stages] { font-size:.65rem; gap:5px; }
 }
 
-/* Activity copy stays inside the same fixed slot during browser-sized races. */
-body[data-phase="PLAY"] .work-status { height:118px; min-height:118px; max-height:118px; overflow:hidden; }
-body[data-phase="PLAY"] .work-main { min-height:0; }
-body[data-phase="PLAY"] .work-title strong { max-height:22px; }
-body[data-phase="PLAY"] [data-work-detail] { max-height:34px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
-body[data-phase="PLAY"] .work-hints { max-height:30px; }
-@media(max-width:720px) {
-  body[data-phase="PLAY"] .work-status { height:108px; min-height:108px; max-height:108px; }
-}
-
-/* Final UI pass: keep engine status compact, move advanced setup out of the main path, and give finish its own state. */
-.header-more {
-  display: none;
-  position: relative;
-  color: var(--ivory);
-}
+/* 2026-09 UI pass: compact race chrome without reintroducing turn-to-turn layout shifts. */
+.header-more { display:none; position:relative; }
 .header-more summary {
-  list-style: none;
-  min-height: 44px;
-  padding: 9px 12px;
-  border: 1px solid #5b7867;
-  border-radius: 7px;
-  cursor: pointer;
-  font-size: .78rem;
-  user-select: none;
+  list-style:none;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  border:1px solid #5b7867;
+  border-radius:7px;
+  padding:8px 13px;
+  cursor:pointer;
+  user-select:none;
 }
-.header-more summary::-webkit-details-marker {
-  display: none;
-}
-.header-moremenu {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: 20;
-  min-width: 160px;
-  padding: 6px;
-  background: var(--felt);
-  border: 1px solid #5b7867;
-  border-radius: 8px;
-  box-shadow: 0 10px 30px #0005;
-  display: grid;
-  gap: 4px;
+.header-more summary::-webkit-details-marker { display:none; }
+.header-more[open] summary { background:#315847; }
+.header-more-menu {
+  position:absolute;
+  z-index:30;
+  right:0;
+  top:calc(100% + 6px);
+  min-width:160px;
+  padding:6px;
+  display:grid;
+  gap:4px;
+  border:1px solid #5b7867;
+  border-radius:9px;
+  background:var(--felt);
+  box-shadow:0 12px 28px #09271d55;
 }
 .header-more-menu button,.header-more-menu a {
-  width: 100%;
-  min-height: 44px;
-  padding: 8px 10px;
-  border-radius: 6px;
-  text-align: left;
-  color: var(--ivory);
-  background: transparent;
-  border: 10px solid transparent;
+  width:100%;
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  padding:7px 10px;
+  border-radius:6px;
+  color:var(--ivory);
+  text-decoration:none;
+  text-align:left;
+  white-space:nowrap;
 }
-.header-more-menu a:hover,.deader-more-menu button:hover:not(:disabled) {
-  background: #315847;
-}
+.header-more-menu a:hover { background:#315847; }
+
 .advanced-setup {
-  margin-top: 12px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fffdf8;
+  margin:10px 0;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:#fffaf0;
 }
 .advanced-setup summary {
-  cursor: pointer;
-  padding: 10px 12px;
-  font-weight: 600;
-  user-select: none;
+  padding:9px 11px;
+  cursor:pointer;
+  font-size:.8rem;
+  font-weight:700;
 }
 .advanced-setup-body {
-  padding: 0 12px 12px;
+  padding:0 11px 10px;
+  border-top:1px solid var(--line);
 }
-.setup-primary-hint {
-  margin: 10px 0 4px;
-}
-.finish-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-}
-.finish-actions button {
-  flex: 1;
-  min-width: 0;
-}
-.focus-short {
-  display: none;
-}
+.setup-primary-hint { margin:9px 0 6px; }
+.focus-short { display:none; }
+.finish-actions { display:flex; gap:8px; margin-top:10px; }
+.finish-actions button { flex:1; }
 .decision.finished #placement,
 .decision.finished #moves,
 .decision.finished #move-detail,
@@ -1046,130 +1025,66 @@ body[data-phase="PLAY"] .work-hints { max-height:30px; }
 .decision.finished #ok,
 .decision.finished .button-row,
 .decision.finished .speed-label,
-.decision.finished #telemetry {
-  display: none !important;
-}
-.decision.finished {
-  min-height: 0;
-}
-body[data-phase="FINISHED"] #standings li {
-  height: auto;
-  min-height: 54px;
-}
-body[data-phase="FINISHED"] #race-heading {
-  height: auto;
-}
-/* In-race engine status: smaller than the preparation panel, but a stable footprint across every turn. */
+.decision.finished #telemetry { display:none !important; }
+.decision.finished #status { min-height:0; margin:8px 0 0; }
+
+/* During PLAY the activity rail keeps one fixed compact footprint. */
 body[data-phase="PLAY"] .work-status {
-  height: 78px;
-  min-height: 78px;
-  max-height: 78px;
-  grid-template-columns: minmax(0,1fr) 104px;
-  padding: 8px 10px;
-  gap: 8px;
+  height:78px;
+  min-height:78px;
+  padding:7px 9px;
+  margin-bottom:10px;
+  grid-template-columns:minmax(0,1fr) 104px;
+  gap:9px;
+  overflow:hidden;
 }
 body[data-phase="PLAY"] .work-main {
-  grid-template-rows: 20px 17px 6px 15px;
-  gap: 1px;
+  grid-template-rows:20px 17px 6px 17px;
+  gap:1px;
 }
-body[data-phase="PLAY"] .work-title strong {
-  font-size: .82rem;
-}
-body[data-phase="PLAY"] [three-work-detail] {
-  font-size: .72rem;
-  line-height: 17px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-body[data-phase="PLAY"] .work-hints {
-  line-height: 15px;
-  white-space: nowrap;
-}
-body[data-phase="PLAY"] .work-actions {
-  grid-template-rows: 1fr;
-  align-items: center;
-}
-body[data-phase="PLAY"] #keep-waiting {
-  grid-row: 1;
-}
-body[data-phase="PLAY"] #stop-work {
-  grid-row: 1;
-}
-body[data-phase="PLAY"] .work-actions button {
-  min-height: 36px;
-}
-body[data-phase="PLAY"] .preparation-status {
-  display: none !important;
-}
-[data-preparation-stages] li[data-state="current"] {
-  white-space: normal;
-  overflow: visible;
-  text-overflow: clip;
-}
-@media (max-width: 720px) {
-  .masthead nav {
-    display: flex;
-    flex-wrap: nowrap;
-    align-items: center;
-  }
-  .masthead nav > #export,
-  .masthead nav > #install {
-    display: none;
-  }
-  .header-more {
-    display: block;
-    margin-left: auto;
-  }
-  .header-more summary {
-    color: var(--ivory);
-  }
-  .race-heading {
-    margin: 12px 0;
-  }
-  #track-preview {
-    height: 148px;
-  }
-  .setup-primary-hint {
-    line-height: 1.44;
-  }
-  [data-preparation-stages] {
-    grid-template-columns: repeat(2,`minmax(0,1fr));
-    gap: 4px 8px;
-  }
-  [data-preparation-stages] li {
-    white-space: normal;
-    overflow: visible;
-    text-overflow: clip;
-  }
+body[data-phase="PLAY"] .work-title strong { font-size:.8rem; }
+body[data-phase="PLAY"] .work-elapsed { flex-basis:54px; font-size:.68rem; }
+body[data-phase="PLAY"] [data-work-detail] { font-size:.71rem; line-height:17px; white-space:nowrap; text-overflow:ellipsis; }
+body[data-phase="PLAY"] .work-hints { font-size:.67rem; line-height:17px; white-space:nowrap; text-overflow:ellipsis; }
+body[data-phase="PLAY"] .work-actions { grid-template-rows:1fr 1fr; gap:4px; }
+body[data-phase="PLAY"] .work-actions button { min-height:29px; height:29px; padding:2px 5px; font-size:.72rem; }
+body[data-phase="PLAY"] .work-spinner { width:15px; height:15px; }
+body[data-phase="PLAY"] .preparation-status { display:none !important; }
+
+/* Preparation names are information, not decorative labels: do not truncate the current stage. */
+[data-preparation-stages] li[data-state="current"] { white-space:normal; text-overflow:clip; }
+
+@media(max-width:720px) {
+  .masthead nav { flex-wrap:nowrap; }
+  .masthead nav > #export,.masthead nav > #install { display:none; }
+  .header-more { display:block; }
+  .header-more summary { min-height:44px; padding:6px 9px; font-size:.78rem; }
+  .header-more-menu { min-width:150px; }
+  .setup-primary-hint { font-size:.75rem; }
+  [data-preparation-stages] { grid-template-columns:repeat(2,minmax(0,1fr)); font-size:.7rem; }
+  [data-preparation-stages] li { white-space:normal; text-overflow:clip; line-height:1.3; }
   body[data-phase="PLAY"] .work-status {
-    height: 74px;
-    min-height: 74px;
-    max-height: 74px;
+    height:74px;
+    min-height:74px;
+    grid-template-columns:minmax(0,1fr) 86px;
+    padding:6px 8px;
+    gap:7px;
   }
-  body[data-phase="PLAY"] #board {
-    height: 24svh;
-  }
-  .finish-actions {
-    margin-top: 8px;
-  }
+  body[data-phase="PLAY"] .work-main { grid-template-rows:19px 16px 6px 16px; }
+  body[data-phase="PLAY"] .work-actions button { min-height:27px; height:27px; font-size:.68rem; }
 }
-@media (max-width: 360px) {
-  .three-fields {
-    grid-template-columns: repeat(2,minmax(0,1fr));
-  }
-  .three-fields label:last-child {
-    grid-column: 1 / -1;
-  }
-  [data-preparation-stages] {
-    grid-template-columns: 100%;
-  }
-  .focus-long {
-    display: none;
-  }
-  .focus-short {
-    display: inline;
-  }
-  .decision.driving .button-row button {
-    padding: 5px 2px;
-  }
+@media(max-width:420px) {
+  .race-heading { margin:8px 0; }
+  .race-heading .eyebrow { margin-bottom:3px; }
+  .advanced-setup { margin:7px 0; }
+  #track-preview { height:140px; }
+}
+@media(max-width:360px) {
+  .three-fields { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+  .three-fields label:nth-child(3) { grid-column:1 / -1; }
+  .focus-long { display:none; }
+  .focus-short { display:inline; }
+  [data-preparation-stages] { grid-template-columns:1fr; font-size:.7rem; }
+  .masthead nav button,.header-more summary { padding-left:8px; padding-right:8px; }
+  .decision.driving .button-row button { font-size:.7rem; }
 }
