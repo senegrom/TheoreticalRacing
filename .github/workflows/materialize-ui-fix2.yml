@@ -20,7 +20,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import base64, hashlib, json, lzma, os, pathlib, tarfile, urllib.request, io
-          sha='REPLACE_BLOB_SHA'
+          sha='4650bce099f24b9061ea47b10bee7e697fbdf63c'
           url='https://api.github.com/repos/'+os.environ['GITHUB_REPOSITORY']+'/git/blobs/'+sha
           req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
           with urllib.request.urlopen(req,timeout=30) as r: obj=json.load(r)
@@ -38,8 +38,8 @@ jobs:
           PY
           node --check web/app.js
           python3 -m py_compile web/tests/ui_e2e.py
-          rm -f .github/workflows/materialize-ui-fix.yml .github/workflows/materialize-ui-local.yml .github/workflows/materialize-ui-fix2.yml
-          git add web/app.css web/app.js web/tests/ui_e2e.py .github/workflows/materialize-ui-fix.yml .github/workflows/materialize-ui-local.yml .github/workflows/materialize-ui-fix2.yml
+          rm -f .github/workflows/materialize-ui-fix.yml .github/workflows/materialize-ui-local.yml .github/workflows/materialize-ui-fix2.yml tmp_ui_payload.b64
+          git add web/app.css web/app.js web/tests/ui_e2e.py .github/workflows/materialize-ui-fix.yml .github/workflows/materialize-ui-local.yml .github/workflows/materialize-ui-fix2.yml tmp_ui_payload.b64
           git diff --cached --check
       - uses: actions/setup-python@v5
         with:
