@@ -1305,6 +1305,20 @@ final class Reachability {
 	static void clearReachMemoForTests() { synchronized (REACH_MEMO) { REACH_MEMO.clear(); reachMemoBytes = 0; } }
 	static long reachMemoBytesForTests() { synchronized (REACH_MEMO) { return reachMemoBytes; } }
 
+	/** Conservative deterministic peak used only for deciding whether the exact
+	 * full-race potential may build beside reachability. It includes the finish
+	 * closure, all three lap maps, robust/product scratch and queue headroom.
+	 * The normal reachability allocator keeps its own stricter live guard. */
+	long estimatedConcurrentPreparationBytes() {
+		final long states = (long) (game.gameCols + 1) * (game.gameRows + 1)
+				* (2L * RaceGame.AI_MAX_SPEED + 1) * (2L * RaceGame.AI_MAX_SPEED + 1);
+		if (states <= 0 || states > Long.MAX_VALUE / 32L) return Long.MAX_VALUE;
+		final long arrays = states * 32L;
+		final long queueAndObjectHeadroom = 64L << 20;
+		return arrays > Long.MAX_VALUE - queueAndObjectHeadroom
+				? Long.MAX_VALUE : arrays + queueAndObjectHeadroom;
+	}
+
 	/** Kick off reverse-BFS reachability on a daemon thread so it doesn't block the UI. */
 	void startReachabilityCompute() {
 		reachabilityFailure = null;

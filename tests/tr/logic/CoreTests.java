@@ -30,6 +30,7 @@ public final class CoreTests {
         testBorderValidation();
         testEdgeLegalCache();
         testDenseEdgeLegalCache();
+        testParallelPreparationBudget();
         testSharedDenseEdgeLegalCache();
         testSharedRasterMaps();
         testPointContainmentCache();
@@ -370,6 +371,30 @@ public final class CoreTests {
         check(cache.index(0, 0, 13, 0) == -1, "overspeed delta entered dense cache");
         check(RaceGame.DenseEdgeLegalCache.create(500, 500, 1_000) == null,
                 "dense cache ignored its memory cap");
+
+        check(cache.getFinish(zero) == RaceGame.DenseEdgeLegalCache.UNKNOWN,
+                "finish cache was not lazy/unknown");
+        cache.putFinish(zero, true);
+        cache.putFinish(max, false);
+        check(cache.getFinish(zero) == RaceGame.DenseEdgeLegalCache.LEGAL,
+                "finish true verdict was lost");
+        check(cache.getFinish(max) == RaceGame.DenseEdgeLegalCache.ILLEGAL,
+                "finish false verdict was lost");
+        check(cache.get(zero) == RaceGame.DenseEdgeLegalCache.ILLEGAL
+                && cache.get(max) == RaceGame.DenseEdgeLegalCache.LEGAL,
+                "finish verdicts corrupted legality verdicts");
+    }
+
+    private static void testParallelPreparationBudget() {
+        final long mib = 1L << 20;
+        check(RaceGame.parallelPreparationFits(2_048 * mib, 170 * mib, 360 * mib),
+                "safe parallel preparation was rejected");
+        check(!RaceGame.parallelPreparationFits(1_024 * mib, 260 * mib, 300 * mib),
+                "parallel preparation ignored the fixed heap reserve");
+        check(!RaceGame.parallelPreparationFits(2_048 * mib, Long.MAX_VALUE, 1),
+                "parallel preparation accepted an overflow estimate");
+        check(!RaceGame.parallelPreparationFits(2_048 * mib, Long.MAX_VALUE - 10, 20),
+                "parallel preparation accepted an addition overflow");
     }
 
     private static void testSharedDenseEdgeLegalCache() {

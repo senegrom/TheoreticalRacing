@@ -64,6 +64,23 @@ final class OptimalPotential {
 		return (((x * h + y) * span + vx + vmax) * span + vy + vmax) * stages + remaining - 1;
 	}
 
+	/** Deterministic retained-distance estimate used to decide whether the exact
+	 * potential can be prepared concurrently with reachability. Returning MAX
+	 * means the indexed state space cannot be represented safely. */
+	static long estimatedDistanceBytes(final RaceGame game, final int totalLaps) {
+		if (game.lapGates == null || totalLaps <= 0) return 0;
+		final long w = (long) game.gameCols + 1, h = (long) game.gameRows + 1;
+		final long span = 2L * RaceGame.AI_MAX_SPEED + 1;
+		final long stages = 3L * totalLaps;
+		try {
+			final long entries = Math.multiplyExact(Math.multiplyExact(Math.multiplyExact(w, h),
+					Math.multiplyExact(span, span)), stages);
+			if (entries > Integer.MAX_VALUE) return Long.MAX_VALUE;
+			return Math.multiplyExact(entries, Short.BYTES);
+		} catch (final ArithmeticException overflow) {
+			return Long.MAX_VALUE;
+		}
+	}
 
 	/**
 	 * Build the potential, or return null when the board is too large for the

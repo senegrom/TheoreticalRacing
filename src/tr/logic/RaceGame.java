@@ -792,6 +792,10 @@ public final class RaceGame {
 		final int height;
 		final int entries;
 		final int[] states;
+		/** Finish-crossing verdicts are separate from legality so the hot legality
+		 * table stays at two bits/edge and remains cache-friendly. Allocated lazily
+		 * because point-to-point and setup-only games may never ask for them. */
+		private volatile int[] finishStates;
 		private java.nio.file.Path persistPath;
 		private boolean dirty;
 
@@ -814,6 +818,32 @@ public final class RaceGame {
 			final int word = index >>> 4;
 			states[word] = states[word] & ~mask | (legal ? LEGAL : ILLEGAL) << shift;
 			dirty = true;
+		}
+
+		int getFinish(final int index) {
+			final int[] table = finishStates;
+			if (table == null) return UNKNOWN;
+			final int shift = (index & 15) << 1;
+			return table[index >>> 4] >>> shift & 3;
+		}
+
+		void putFinish(final int index, final boolean finishes) {
+			int[] table = finishStates;
+			if (table == null) {
+				synchronized (this) {
+					table = finishStates;
+					if (table == null) {
+						table = new int[states.length];
+						finishStates = table;
+					}
+				}
+			}
+			final int shift = (index & 15) << 1;
+			final int mask = 3 << shift;
+			final int word = index >>> 4;
+			// As with legality, a stale concurrent write can at worst erase another
+			// cached verdict and force a recomputation; it cannot invent one.
+			table[word] = table[word] & ~mask | (finishes ? LEGAL : ILLEGAL) << shift;
 		}
 
 		static DenseEdgeLegalCache create(final int width, final int height,
@@ -1105,7 +1135,10 @@ public final class RaceGame {
 	 *  current free heap and includes its pending-state FIFO in the budget. */
 	private static final long OPTIMAL_BUDGET_BYTES = 1536L << 20;
 	private OptimalPotential optimalPotential;
-	private boolean optimalPotentialBuilt;
+	private final Object optimalPotentialLock = new Object();
+	private boolean optimalPotentialStarted;
+	private boolean optimalPotentialReady;
+	private Throwable optimalPotentialFailure;
 
 	private static long optimalMemoLimit() {
 		final long adaptive = Math.min(OPTIMAL_MEMO_MAX_BYTES, Math.max(32L << 20, Runtime.getRuntime().maxMemory() / 4));
@@ -1141,38 +1174,150 @@ public final class RaceGame {
 				Long.getLong("tr.optimalBuildBytes", OPTIMAL_BUDGET_BYTES)));
 	}
 
-	private static long optimalTotalBuildBudget(final long distanceBudget) {
+	private static long optimalTotalBuildBudget(final long distanceBytes) {
+		if (distanceBytes < 0 || distanceBytes == Long.MAX_VALUE
+				|| distanceBytes > Long.MAX_VALUE - OPTIMAL_FRONTIER_BUDGET_BYTES) return 0;
 		final long heap = Runtime.getRuntime().maxMemory();
 		final long reserve = Math.max(512L << 20, heap / 4);
 		final long usable = Math.max(0, heap - reserve);
-		return Math.min(usable, distanceBudget + OPTIMAL_FRONTIER_BUDGET_BYTES);
+		return Math.min(usable, distanceBytes + OPTIMAL_FRONTIER_BUDGET_BYTES);
+	}
+
+	private OptimalPotential computeOptimalPotentialNow() {
+		if (lapGates == null) return null;
+		final String key = reach.geometryCacheKey() + "-laps" + totalLaps;
+		OptimalPotential prepared;
+		synchronized (OPTIMAL_MEMO) { prepared = OPTIMAL_MEMO.get(key); }
+		if (prepared != null) return prepared;
+		final long t0 = System.nanoTime();
+		final long distanceBudget = optimalDistanceBudget();
+		final long distanceBytes = OptimalPotential.estimatedDistanceBytes(this, totalLaps);
+		final long totalBudget = optimalTotalBuildBudget(distanceBytes);
+		prepared = distanceBudget <= 0 || distanceBytes > distanceBudget || totalBudget < distanceBytes
+				? null : OptimalPotential.build(this, totalLaps, distanceBudget, totalBudget);
+		cacheOptimal(key, prepared);
+		if (autoMode)
+			System.out.printf("[optimal] potential %s in %.1fs (distance %.0f MiB, total %.0f MiB)%n",
+					prepared == null ? "SKIPPED (over budget)" : "built",
+					(System.nanoTime() - t0) / 1e9, distanceBudget / (double) (1 << 20),
+					totalBudget / (double) (1 << 20));
+		return prepared;
+	}
+
+	private void completeOptimalPotential(final OptimalPotential prepared, final Throwable failure) {
+		synchronized (optimalPotentialLock) {
+			optimalPotential = prepared;
+			optimalPotentialFailure = failure;
+			optimalPotentialReady = true;
+			optimalPotentialLock.notifyAll();
+		}
+	}
+
+	private static void rethrowOptimalFailure(final Throwable failure) {
+		if (failure instanceof RuntimeException runtimeFailure) throw runtimeFailure;
+		if (failure instanceof Error errorFailure) throw errorFailure;
+		if (failure != null) throw new IllegalStateException("Exact potential preparation failed", failure);
+	}
+
+	/** Exact-potential and reachability construction are independent after track
+	 * geometry is frozen. Run them beside each other only when a conservative,
+	 * deterministic max-heap estimate leaves the same fixed reserve used by the
+	 * exact builder; current GC occupancy never influences this decision. */
+	static boolean parallelPreparationFits(final long heap, final long optimalBytes, final long reachBytes) {
+		if (heap <= 0 || optimalBytes < 0 || reachBytes < 0 || optimalBytes == Long.MAX_VALUE
+				|| reachBytes == Long.MAX_VALUE || optimalBytes > Long.MAX_VALUE - reachBytes) return false;
+		final long reserve = Math.max(512L << 20, heap / 4);
+		final long usable = Math.max(0, heap - reserve);
+		return optimalBytes + reachBytes <= usable;
+	}
+
+	private boolean canPrepareOptimalInParallel() {
+		if (lapGates == null || !needsInformedStartMaps()) return false;
+		final long distanceBytes = OptimalPotential.estimatedDistanceBytes(this, totalLaps);
+		final long distanceBudget = optimalDistanceBudget();
+		if (distanceBytes <= 0 || distanceBytes == Long.MAX_VALUE || distanceBytes > distanceBudget) return false;
+		final long optimalBytes = distanceBytes > Long.MAX_VALUE - OPTIMAL_FRONTIER_BUDGET_BYTES
+				? Long.MAX_VALUE : distanceBytes + OPTIMAL_FRONTIER_BUDGET_BYTES;
+		return parallelPreparationFits(Runtime.getRuntime().maxMemory(), optimalBytes,
+				reach.estimatedConcurrentPreparationBytes());
+	}
+
+	void startOptimalPotentialCompute() {
+		if (!canPrepareOptimalInParallel()) return;
+		final Thread worker;
+		synchronized (optimalPotentialLock) {
+			if (optimalPotentialStarted) return;
+			optimalPotentialStarted = true;
+			worker = new Thread(() -> {
+				OptimalPotential prepared = null;
+				Throwable failure = null;
+				try { prepared = computeOptimalPotentialNow(); }
+				catch (final RuntimeException | Error problem) { failure = problem; }
+				finally {
+					clearPointContainmentCacheForCurrentThread();
+					completeOptimalPotential(prepared, failure);
+				}
+			}, "optimal-potential-compute");
+			worker.setDaemon(true);
+		}
+		worker.start();
 	}
 
 	OptimalPotential optimalPotential() {
-		if (optimalPotentialBuilt) return optimalPotential;
-		optimalPotentialBuilt = true;
-		if (lapGates != null) {
-			final String key = reach.geometryCacheKey() + "-laps" + totalLaps;
-			synchronized (OPTIMAL_MEMO) { optimalPotential = OPTIMAL_MEMO.get(key); }
-			if (optimalPotential == null) {
-				final long t0 = System.nanoTime();
-				final long distanceBudget = optimalDistanceBudget();
-				final long totalBudget = optimalTotalBuildBudget(distanceBudget);
-				optimalPotential = distanceBudget <= 0 ? null
-						: OptimalPotential.build(this, totalLaps, distanceBudget, totalBudget);
-				cacheOptimal(key, optimalPotential);
-				if (autoMode)
-					System.out.printf("[optimal] potential %s in %.1fs (distance %.0f MiB, total %.0f MiB)%n",
-							optimalPotential == null ? "SKIPPED (over budget)" : "built",
-							(System.nanoTime() - t0) / 1e9, distanceBudget / (double) (1 << 20),
-							totalBudget / (double) (1 << 20));
+		boolean buildHere = false;
+		synchronized (optimalPotentialLock) {
+			if (!optimalPotentialStarted) {
+				optimalPotentialStarted = true;
+				buildHere = true;
+			}
+			while (!buildHere && !optimalPotentialReady) {
+				try { optimalPotentialLock.wait(); }
+				catch (final InterruptedException e) {
+					Thread.currentThread().interrupt();
+					throw new IllegalStateException("Interrupted while computing exact potential", e);
+				}
+			}
+			if (!buildHere) {
+				rethrowOptimalFailure(optimalPotentialFailure);
+				return optimalPotential;
 			}
 		}
-		return optimalPotential;
+		OptimalPotential prepared = null;
+		Throwable failure = null;
+		try { prepared = computeOptimalPotentialNow(); }
+		catch (final RuntimeException | Error problem) { failure = problem; }
+		finally { completeOptimalPotential(prepared, failure); }
+		rethrowOptimalFailure(failure);
+		return prepared;
 	}
 
 	final Reachability reach = new Reachability(this);
+
+	/** Hot integer edge path used by every solver. Finish intersection is a pure
+	 * geometry predicate for a loaded course, so memoize it by the same dense
+	 * edge index as legality. This removes repeated Line2D intersection work in
+	 * AI rollouts without changing which crossings count. */
+	boolean crossesFinish(final int x1, final int y1, final int x2, final int y2) {
+		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
+		final int index = dense == null ? -1 : dense.index(x1, y1, x2, y2);
+		if (index >= 0) {
+			final int cached = dense.getFinish(index);
+			if (cached == DenseEdgeLegalCache.LEGAL) return true;
+			if (cached == DenseEdgeLegalCache.ILLEGAL) return false;
+			final boolean finishes = crossesFinishUncached(x1, y1, x2, y2);
+			dense.putFinish(index, finishes);
+			return finishes;
+		}
+		return crossesFinishUncached(x1, y1, x2, y2);
+	}
+
+	/** Retain the double overload for geometric callers/tests that are not on
+	 * lattice cells. Integer game moves select the cached overload above. */
 	boolean crossesFinish(final double x1, final double y1, final double x2, final double y2) {
+		return crossesFinishUncached(x1, y1, x2, y2);
+	}
+
+	private boolean crossesFinishUncached(final double x1, final double y1, final double x2, final double y2) {
 		// Multi-lap: the real line is the short boundary-gap gate -- the raw
 		// endpoint segment can slice diagonally through the infield and
 		// produce phantom re-crossings. laps=1 keeps exact legacy semantics.
@@ -2020,6 +2165,7 @@ public final class RaceGame {
 			System.exit(0);
 		}
 		reach.computeDistMap();
+		startOptimalPotentialCompute();
 		reach.startReachabilityCompute();
 		if (dumpReachPath != null) {
 			reach.ensureReachabilityReady();

@@ -36,6 +36,40 @@ the existing over-budget behavior applies instead of risking the whole JVM.
 `-Dtr.optimalMemoBytes=N` controls the byte-bounded LRU memo of completed exact
 potentials; zero disables retention.
 
+## Parallel exact/start preparation
+
+When informed starts need the exact full-race potential, that potential is now
+launched independently of reachability after the immutable track geometry is
+frozen. The browser startup adapter keeps the same overlap while moving only the
+distance BFS into the reachability worker. A conservative max-heap estimate
+allows concurrency only when the exact distance map, bounded FIFO, reach/lap
+products and a fixed reserve fit together. The decision never depends on current
+heap occupancy or GC timing, so identical races cannot change policy because of
+thread scheduling or collection timing. If the estimate is too large, the old
+sequential preparation path is retained.
+
+On local JDK 21 cold-cache Circle runs with eight AI1 cars, three laps and
+informed starts, three paired runs averaged 3.88 s before and 3.12 s after
+parallel preparation (about 20% lower elapsed time), with byte-identical race
+logs. Lobe2 was effectively neutral in a small two-run sample because the two
+heavy jobs contend for the same cores/cache there; the gate is therefore a
+correctness/memory gate rather than a claim that every track will speed up.
+
+## Finish-edge memoization
+
+Integer race moves cache the pure forward finish-line intersection verdict by
+the existing dense edge index. The finish table is a separate lazily allocated
+two-bit array, so the hot legality table remains at two bits per edge and keeps
+its previous cache footprint. Concurrent stale writes have the same benign
+semantics as legality caching: they may erase a cached verdict and cause
+recomputation, but cannot manufacture a different result. Non-lattice double
+geometry callers retain the uncached predicate.
+
+A 20-seed Hairpin AI1 batch on local JDK 21 retained byte-identical logs and
+changed elapsed time from 9.01 s to 8.94 s in that run. This is deliberately a
+small optimization; its main value is removing repeated Line2D intersection
+work inside deeper AI rollouts.
+
 ## Browser snapshots
 
 The first engine state and explicit resynchronizations are full snapshots.
