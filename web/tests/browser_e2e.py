@@ -36,6 +36,16 @@ def select_ai_start_policy(page, value):
     page.locator('#ai-start-policy').select_option(value)
 
 
+def click_install(page):
+    # Desktop exposes Install directly; phone layouts intentionally move it
+    # into More. Exercise whichever real control is visible.
+    if page.locator('#install').is_visible():
+        page.locator('#install').click()
+    else:
+        page.locator('#header-more').evaluate('(element) => { element.open = true; }')
+        page.locator('#more-install').click()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--browser', choices=['chromium', 'webkit'], default='chromium')
@@ -100,7 +110,7 @@ def main():
             assert ico.ok and ico.body()[:6] == bytes([0, 0, 1, 0, 3, 0]), 'ICO fallback is not served'
             page.wait_for_function('document.querySelector("#setup").open')
             page.locator('#close-setup').click()
-            page.locator('#install').click()
+            click_install(page)
             assert page.locator('#installation').is_visible()
             page.locator('#close-install').click()
             page.locator('#new-race').click()

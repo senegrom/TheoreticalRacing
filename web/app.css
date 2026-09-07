@@ -1088,3 +1088,21 @@ body[data-phase="PLAY"] .preparation-status { display:none !important; }
   .masthead nav button,.header-more summary { padding-left:8px; padding-right:8px; }
   .decision.driving .button-row button { font-size:.7rem; }
 }
+
+
+/* WebKit narrow-form intrinsic-size guard. */
+#setup-form,
+#setup .setup-grid,
+#setup .setup-grid > section,
+.advanced-setup,
+.advanced-setup-body,
+.advanced-setup label {
+  min-width: 0;
+  max-width: 100%;
+}
+.advanced-setup { width: 100%; }
+#ai-start-policy {
+  width: 0;
+  min-width: 100%;
+  max-width: 100%;
+}
