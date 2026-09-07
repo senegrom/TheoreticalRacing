@@ -11,10 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      BASE: 2222b59804454ccb1797ec2dfb0746704514f4d6
-      PATCH_BLOB: 9c9c5f7fabcb74926ba295c741e72956ed7a8ea6
-      PATCH_XZ_SHA256: b44d7465b2333c4d0d877a78fd681f3dc95ad319ad218b6a282b898362a0ff03
-      PATCH_SHA256: d4e8f565b52700e5e41c5161a8f20e735d58589e746203275ffd964a2913feca
+      BASE: 1c8101d40a8da58ae246137420a9a4159d8f02c1
+      PATCH_BLOB: 6192730acb48e34856a2634b5debbcc4835d9c45
+      PATCH_XZ_SHA256: cce757172240c83694817d829131540287754a4fc063a16a75f60583247a065e
+      PATCH_SHA256: e769b64ce09d571673d8028766dd8cb8758b373cba9ea6ef870da48311bd6746
       JAVA_TOOL_OPTIONS: -Xmx3g
     steps:
       - uses: actions/checkout@v5
@@ -93,7 +93,7 @@ jobs:
               current=json.load(r)['object']['sha']
           if current!=base: raise SystemExit('master advanced; refusing to overwrite '+current)
           env=os.environ.copy(); env.update(GIT_AUTHOR_NAME='github-actions[bot]',GIT_COMMITTER_NAME='github-actions[bot]',GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com',GIT_COMMITTER_EMAIL='41898282+github-actions[bot]@users.noreply.github.com')
-          msg='''Parallelize exact preparation and cache finish-edge tests\n\nBuild the exact full-race potential concurrently with reach/lap preparation when a deterministic max-heap estimate leaves a fixed safety reserve; otherwise retain the sequential path. Cache integer finish-line intersection verdicts in a separate lazy two-bit dense table so legality-cache locality is unchanged. Preserve the browser startup adapter and add direct budget/cache tests plus performance documentation.\n\nNo AI weights, rules, tracks, or golden expectations changed. Local cold-cache Circle informed-start runs averaged 3.88s -> 3.12s on JDK 21 with byte-identical logs; a 20-seed Hairpin batch retained all logs and measured 9.01s -> 8.94s. Full JDK 25/26, golden/champion, replay and browser contract suites passed on this exact tree.\n'''
+          msg='''Parallelize exact preparation and cache finish-edge tests\n\nBuild the exact full-race potential concurrently with reach/lap preparation when a deterministic max-heap estimate leaves a fixed safety reserve; otherwise retain the sequential path. Cap the exact frontier to the actual distance-array size plus 64 MiB. Cache integer finish-line intersection verdicts in a separate lazy two-bit dense table so legality-cache locality is unchanged. Preserve the browser startup adapter and add direct budget/cache tests plus performance documentation.\n\nNo AI weights, rules, tracks, or golden expectations changed. Local cold-cache Circle informed-start runs averaged 3.88s -> 3.12s on JDK 21 with byte-identical logs; a 20-seed Hairpin batch retained all logs and measured 9.01s -> 8.94s. Full JDK 25/26, golden/champion, replay and browser contract suites passed on this exact tree.\n'''
           commit=subprocess.check_output(['git','commit-tree',tree,'-p',base],input=msg,text=True,env=env).strip()
           auth=base64.b64encode(('x-access-token:'+os.environ['GH_TOKEN']).encode()).decode()
           env.update(GIT_CONFIG_COUNT='1',GIT_CONFIG_KEY_0='http.https://github.com/.extraheader',GIT_CONFIG_VALUE_0='AUTHORIZATION: basic '+auth)
