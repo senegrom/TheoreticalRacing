@@ -6,6 +6,58 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## Round 225, second part: the defence measured in three start modes, and none of it ships
+
+The user's rule (first part above) made the block correct and put the burden
+on the other car. Four arms tried to carry that burden, each raced on the
+tuning seeds in all three start modes -- random (vs eec1882 on random starts),
+computed (vs this round's informed baseline) and scattered (vs the new
+scatter baseline: 730 races, 0 crashes, 1473298 moves, 721 distinct
+outcomes in 730 rows, the most varied grid the campaign has).
+
+  d2  never offer a forced retirement, two live cars only (the tactic's mirror)
+  dN  the same against any live rival
+  g   the block with several rivals, when my landing stays alive and I remain
+      strictly ahead of every other rival by exact distance-to-finish
+  dd  dN with one move of lookahead
+
+    arm   random starts              computed starts           scattered starts
+    d2    730/730 identical          730/730 identical         730/730 identical
+    dN    730/730 identical          730/730 identical         730/730 identical
+    g     729/730, one race +3       730/730 identical         730/730 identical
+    dd    +0.01%, crash MOVED        +0.03%, crashes 2 -> 3    -0.005%, 0 -> 0
+          (rand14 s9 -> s7)          (cog, rand3 +1; zandvoort -1)   613/730
+
+WHY THE DEPTH-1 DEFENCES ARE INERT. In 2190 races no chosen landing was ever a
+blockable needle: the trap ladder's tier 1 and the needle surcharge already
+keep cars out of single-continuation states in traffic. The oracle explains
+the one race the block won: on rand14 s9 p3 had three alive options at move
+1618 and one at 1621 -- the trap is set the move BEFORE the needle, where the
+landing itself still has continuations. So dd, the two-ply version, acts (it
+changes 676 of 730 random-start races) and does save p3 on seed 9 -- and on
+seed 7 a different car takes the same needle two moves later and is blocked
+there, because when it chose, the blocker was still out of reach. Rivals
+held still is the tactic's own approximation and it is exactly what fails: to
+avoid the rand14 finish needle a car must see the rival's motion three or more
+moves out, which is the needle problem rounds 210-221 measured from every
+side. The generalised block found one qualifying position in 2190 races.
+
+VERDICT. Nothing ships: dd is a wash on random and scattered starts and worse
+on computed ones, and the others do nothing. The block stays, unopposed,
+because it is right by the user's rule; the field simply cannot see it
+coming with a two-move horizon, and the campaign's evidence says a longer one
+costs more than it saves.
+
+THE RULE, WRITTEN DOWN. The user's evaluation rule is now in CLAUDE.md and
+AGENTS.md at the repository root: lexicographic performance -- own place
+first, own time second; a winner's move that slows the second is not
+punished, nor is forcing a rival into a crash; no active cooperation, the car
+behind never lets the car ahead win. For measurement that means the summed
+field counters are a safety instrument, and racecraft candidates are to be
+compared by the finishing places of the cars that run them, in mixed fields.
+The next racecraft round should be built on that instrument, not on summed
+moves.
+
 ## Round 225, first part: three ways to start, and a rule about crashes
 
 THE RULE, from the user, after the 18-commit measurement above found the
