@@ -46,13 +46,15 @@ jobs:
 
           test = Path('web/tests/browser_e2e.py')
           s = test.read_text()
-          anchor = "def select_ai_start_policy(page, value):\n    # The policy selector intentionally lives in the collapsed Advanced setup.\n    # Open that disclosure before interacting with the real form control.\n    page.locator('.advanced-setup').evaluate('(element) => { element.open = true; }')\n    page.locator('#ai-start-policy').select_option(value)\n\n\n"
-          helper = anchor + "def click_install(page):\n    # Desktop exposes Install directly; phone layouts intentionally move it\n    # into More. Exercise whichever real control is visible.\n    if page.locator('#install').is_visible():\n        page.locator('#install').click()\n    else:\n        page.locator('#header-more').evaluate('(element) => { element.open = true; }')\n        page.locator('#more-install').click()\n\n\n"
-          assert s.count(anchor) == 1
-          assert s.count("page.locator('#install').click()") == 1
-          s = s.replace(anchor, helper)
-          s = s.replace("page.locator('#install').click()", "click_install(page)")
-          assert s.count('click_install(page)') == 2
+          main_anchor = '\ndef main():\n'
+          call = "            page.locator('#install').click()\n            assert page.locator('#installation').is_visible()\n"
+          helper = "\ndef click_install(page):\n    # Desktop exposes Install directly; phone layouts intentionally move it\n    # into More. Exercise whichever real control is visible.\n    if page.locator('#install').is_visible():\n        page.locator('#install').click()\n    else:\n        page.locator('#header-more').evaluate('(element) => { element.open = true; }')\n        page.locator('#more-install').click()\n\n"
+          assert s.count(main_anchor) == 1
+          assert s.count(call) == 1
+          s = s.replace(call, "            click_install(page)\n            assert page.locator('#installation').is_visible()\n")
+          s = s.replace(main_anchor, helper + main_anchor)
+          assert s.count('def click_install(page):') == 1
+          assert s.count('            click_install(page)') == 1
           test.write_text(s)
           PY
           python3 -m py_compile web/tests/browser_e2e.py
