@@ -29,6 +29,13 @@ class QuietHandler(RangeHandler):
         pass
 
 
+def select_ai_start_policy(page, value):
+    # The policy selector intentionally lives in the collapsed Advanced setup.
+    # Open that disclosure before interacting with the real form control.
+    page.locator('.advanced-setup').evaluate('(element) => { element.open = true; }')
+    page.locator('#ai-start-policy').select_option(value)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--browser', choices=['chromium', 'webkit'], default='chromium')
@@ -110,7 +117,7 @@ def main():
                 row.locator('[data-name]').fill(chr(65 + i))
             page.locator('#seed').fill('1')
             assert page.locator('#ai-start-policy').input_value() == 'informed'
-            page.locator('#ai-start-policy').select_option('legacy')
+            select_ai_start_policy(page, 'legacy')
             page.screenshot(path=str(out / 'setup.png'), full_page=True)
             if not args.ui_only:
                 page.locator('#speed').select_option('0')
@@ -158,7 +165,7 @@ def main():
                 # The default computed policy gets its own new, native-derived
                 # fixture; do not regenerate the historical random-start golden.
                 page.locator('#new-race').click()
-                page.locator('#ai-start-policy').select_option('informed')
+                select_ai_start_policy(page, 'informed')
                 page.locator('#start').click()
                 page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
                 page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=600_000)
@@ -233,7 +240,7 @@ def main():
                 page.locator('#track').select_option('circle')
                 page.locator('#laps').fill('1')
                 page.locator('#player-count').fill('2')
-                page.locator('#ai-start-policy').select_option('informed')
+                select_ai_start_policy(page, 'informed')
                 for row in page.locator('.roster-row').all():
                     row.locator('select').select_option('AI2')
                 page.once('dialog', lambda dialog: dialog.accept())
