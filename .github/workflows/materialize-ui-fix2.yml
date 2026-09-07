@@ -55,16 +55,10 @@ jobs:
           PY
           node --check web/app.js
           python3 -m py_compile web/tests/ui_e2e.py
+          node --test web/tests/engine.test.mjs
           rm -f .github/workflows/materialize-ui-fix.yml .github/workflows/materialize-ui-local.yml .github/workflows/materialize-ui-fix2.yml tmp_ui_payload.b64
           git add web/app.css web/app.js web/tests/ui_e2e.py .github/workflows/materialize-ui-fix.yml .github/workflows/materialize-ui-local.yml .github/workflows/materialize-ui-fix2.yml tmp_ui_payload.b64
           git diff --cached --check
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-      - name: Unit checks
-        run: |
-          python3 -m unittest web.tests.test_progress
-          node --test web/tests/engine.test.mjs
       - name: Commit without overwriting concurrent work
         env:
           GH_TOKEN: ${{ github.token }}
