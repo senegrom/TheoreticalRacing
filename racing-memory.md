@@ -6,6 +6,81 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+## The 18 commits after round 224, measured: a tactic that manufactures a crash, and a start that is faster and less safe
+
+Another agent pushed 18 commits to master on 2026-09-06 (eec1882 at the top)
+with no ledger entry. Three change the engine: a two-car endgame tactic
+(RaceAiTactics.winNow, called before the ordinary scorer), informed start
+placement (StartPlacement: each AI takes the best free cell by exact solo
+continuation, in roster order, seeds breaking only ties), and a speed-up of
+map preparation and the exact search. Their own evidence is 74 paired races
+with identical logs. The fleet was run, in two modes, because headless races
+default to the OLD random starts and the optimised start has to be asked for
+(aiStartPlacement=informed).
+
+LEGACY STARTS (the benchmark default), eec1882 vs round 224, seeds 1-10:
+
+    crashes 0 -> 1   finishers 5110 -> 5109   moves 1853764 -> 1853763 (-1)
+    729 of 730 races byte-identical
+
+The one race is the tactic doing exactly what it says. rand14 s9: two cars
+left, p8 (moving first) plays NE into p3's only legal landing instead of NW
+to the flag; p3 has no legal move and crashes; the race ends with p8
+classified seventh without crossing the line. Before, p8 finished seventh and
+p3 was simply the unfinished eighth car. The classification is IDENTICAL
+either way -- the block gained no place -- so in the only race where it
+fired, the tactic bought nothing and cost a crash. Its precondition asks
+whether the rival can be trapped, never whether a place is at stake. By this
+campaign's counters (crashes decide first) that is a regression; by the
+tactic's own frame (secure the best remaining place) it is a win. That is a
+design decision, recorded here and not taken.
+
+INFORMED STARTS vs round 224 (the Nordschleife cannot run this mode, see
+below, so 720 races a slice):
+
+    seeds 1-10   crashes 0 -> 2   finishers 5040 -> 5038
+                 moves 1784893 -> 1782618 (-0.13%)   34 of 720 identical
+                 50 tracks faster, 22 slower, median -0.06%
+    seeds 11-20  crashes 1 -> 1 (hybrid15 s13 gained, fractal3 s17 gone)
+                 moves 1784398 -> 1783204 (-0.07%)
+    both         1440 races   crashes 1 -> 3   moves -0.10%
+                 48 tracks faster, 24 slower
+
+The pace is real -- the largest gain since round 216 -- and it is broad
+(hybrid15 -1.2%, zandvoort -1.1%, fractal17 -0.7%, hungaroring -0.6%, spa
+-0.5%). The three crashes are all first-lap pack crashes with all eight cars
+alive (moves 256 of 1946, 334 of 2946, 424 of 1977), none of them the
+tactic. Two are hybrid15, both p8 -- the car placed LAST. On hybrid15 s5 the
+first seven cars took cells inside a four-by-three box (x 140-143, y 57-59)
+and the eighth got (146,55), the leftover; under legacy starts the same seed
+spread the field over 142-146. Overall packing is only marginally tighter
+(mean pairwise Chebyshev 2.79 vs 2.95; tighter in 483 of 830 races), so the
+mechanism is not density but the sequential greedy order handing the last
+car the worst cell behind a field already on the line. Three events in 1440
+races cannot settle whether that is a rate or a run of luck; the champion's
+own rate over its history is about one crash per thousand races, so it is
+at the edge of what the instrument can see. The seeds do NOT collapse under
+informed placement (558 distinct per-track outcomes in 720 rows against 579
+in 730 for round 224), so the 1440 races are real measurements.
+
+THE NORDSCHLEIFE CANNOT START INFORMED. StartPlacement needs the exact
+full-race potential, the Nordschleife's is over the 1.5 GiB budget, and the
+preparation daemon throws "Exact full-race map exceeds the engine memory
+budget. Choose fewer laps/a smaller track, or explicitly choose legacy
+starts." The fleet marks the track ERROR. The desktop and browser games
+default to informed placement, so on that track an AI field now fails to
+place there unless aiStartPlacement=legacy is set -- a user-facing gap the
+published site carries, since it ships the track.
+
+WHAT STANDS. Corpus on the head with default starts: 24 of 24 (goldens, 22
+pins, the new racecraft pin). The speed-up is real at grid scale: the legacy
+grid took 14 minutes against 17-19 for every grid before it, and the informed
+grid 6 minutes without the Nordschleife. Nothing ships from this entry: the
+headless default is unchanged, the tactic and the informed start each need a
+decision -- gate the block on a place actually being at stake; fall back to
+legacy placement instead of failing when the potential is over budget; and
+whether a -0.10% start is worth two crashes in 1440 races.
+
 ## Round 224: the last frame-blind predictor, and what a re-freeze costs
 
 The peer review of round 222 sent ten findings. Three were already closed by
