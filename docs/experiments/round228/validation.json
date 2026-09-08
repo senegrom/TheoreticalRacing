@@ -1,0 +1,550 @@
+{
+  "base_commit": "649776467534e9dcdb6e924fd4281e37ff81c5d7",
+  "candidate_commit": "4294df4bb95ab459c2c681d6651a75dd5508065f",
+  "production_patch_commit": "cbea62dea90e231e29e0ad0c3831bc2fe3deb1b5",
+  "fixtures_commit": "34cbe1626aadb116f9a2576abfc1a476078e3770",
+  "runs": {
+    "fleet": 34268684443,
+    "nordschleife": 34270749090,
+    "initial_pins": 34269106700,
+    "refreshed_pins": 34271580481
+  },
+  "initial_jobs": [
+    {
+      "id": 102205867188,
+      "name": "core",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867632,
+      "name": "ai1_private_slack_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205867653,
+      "name": "ai1_esc_true_confirm_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867673,
+      "name": "ai1_fast_funnel_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867677,
+      "name": "ai1_finish_sprint_true_confirm_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205867681,
+      "name": "ai1_energy_pace_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205867703,
+      "name": "ai1_bounded_uncertain_field_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205867705,
+      "name": "ai1_cross_model_pace_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867708,
+      "name": "ai1_equal_speed_veto_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867710,
+      "name": "ai1_field_neutral_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205867735,
+      "name": "ai1_pace_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205867770,
+      "name": "ai1_finish_frontier_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867781,
+      "name": "ai1_graduated_field_accel_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867784,
+      "name": "ai1_early_round_trap_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867918,
+      "name": "ai1_finish_denial_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867919,
+      "name": "ai1_mixed_safety_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205867930,
+      "name": "ai1_immediate_finish_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205869145,
+      "name": "ai1_six_ahead_accel_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205869195,
+      "name": "ai1_six_ahead_high_speed_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205869366,
+      "name": "ai1_thread_fragility_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205869384,
+      "name": "ai1_thin_ridge_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205869389,
+      "name": "ai1_staged_pace_regression",
+      "conclusion": "failure"
+    },
+    {
+      "id": 102205869403,
+      "name": "ai1_vmax_deep_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205869576,
+      "name": "golden_races",
+      "conclusion": "success"
+    },
+    {
+      "id": 102205869594,
+      "name": "ai1_racecraft_regression",
+      "conclusion": "success"
+    }
+  ],
+  "refreshed_jobs": [
+    {
+      "id": 102214200578,
+      "name": "ai1_energy_pace_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200684,
+      "name": "ai1_field_neutral_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200740,
+      "name": "ai1_private_slack_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200745,
+      "name": "ai1_staged_pace_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200753,
+      "name": "ai1_thin_ridge_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200910,
+      "name": "ai1_finish_sprint_true_confirm_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200931,
+      "name": "ai1_pace_regression",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200942,
+      "name": "golden_races",
+      "conclusion": "success"
+    },
+    {
+      "id": 102214200997,
+      "name": "ai1_bounded_uncertain_field_regression",
+      "conclusion": "success"
+    }
+  ],
+  "artifact_sha256": [
+    {
+      "id": 10074193840,
+      "name": "round228-informed-all",
+      "sha256": "99a8469ba70c7a5847c8940e176431f5825bfe3d03a348cb27d172616a8baab1",
+      "bytes": 17581936,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10074095777,
+      "name": "round228-scatter-all",
+      "sha256": "338c7b0b4705154a6ff20875930402c1e15af2154f40822aadcbec6ed159dc85",
+      "bytes": 14192487,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10074048687,
+      "name": "round228-legacy-all",
+      "sha256": "70d06979bf62918481c2f8b84d1b0d4e982f099aef67ed7b4394f7a845ff8b8b",
+      "bytes": 17689967,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10073738448,
+      "name": "round228-informed-even",
+      "sha256": "d1668cbadc574329e723f78d2f4e922dbc44017789dde637dd9f5cbc746ae7e8",
+      "bytes": 18309506,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10073667145,
+      "name": "round228-informed-odd",
+      "sha256": "3b164006c0323b18062a1eeda5751b16541f5bf56faa082511c1feff33d4107a",
+      "bytes": 18270703,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10073530739,
+      "name": "round228-legacy-even",
+      "sha256": "4a54918a90eedd70e1ebb48af088ab7298423e82ade7d788e487eaa23c3c4600",
+      "bytes": 18332248,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10073454435,
+      "name": "round228-legacy-odd",
+      "sha256": "b313a7ddb9daf768655bb4400efed7b830ea83865f8471d701101f1a2c3856fd",
+      "bytes": 18276607,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10073399679,
+      "name": "round228-scatter-odd",
+      "sha256": "f0b267be1766337fdc31055513769848cda808fde6762a3523d0cb0864107a14",
+      "bytes": 14422042,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10073383312,
+      "name": "round228-scatter-even",
+      "sha256": "a8a5d04b86fb84fbde233858df62b259e684eb469e34d4ed912ad49b1d997a18",
+      "bytes": 14425530,
+      "run_id": 34268684443
+    },
+    {
+      "id": 10074311460,
+      "name": "round228-nordschleife-legacy-all",
+      "sha256": "7aa5bd89d6fac237ad1d4efbd3051db5db974b02c1575bdc12379326847ec2c5",
+      "bytes": 617131,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10074149220,
+      "name": "round228-nordschleife-scatter-all",
+      "sha256": "b798f04100807f3ee3fd4838a779e1e3a6d720f19bfd9e57532e3eb7d8a3eab9",
+      "bytes": 533677,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10074121638,
+      "name": "round228-nordschleife-informed-all",
+      "sha256": "7c923298e7f1475c282905e902cc002160f7fd15d3f3e11cab5230b001b0d73b",
+      "bytes": 617909,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073955680,
+      "name": "round228-nordschleife-scatter-even",
+      "sha256": "7cbe62d42396afd9039a39ef5a47be10cb7b78442d3908b4188f76eda7ee5733",
+      "bytes": 537563,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073935978,
+      "name": "round228-nordschleife-informed-odd",
+      "sha256": "f2e35084f6f1159fc8d09690cf28f4bbab7697300021eb7a92da994e456d6c5e",
+      "bytes": 626110,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073926981,
+      "name": "round228-nordschleife-legacy-even",
+      "sha256": "ca7f109fe63f4c533b9d5c5d208cf2ef96fdb2eb3c6160d3e456f69ba3b2a4af",
+      "bytes": 626558,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073917054,
+      "name": "round228-nordschleife-scatter-odd",
+      "sha256": "d2c77fc6afab0cc23415fddc7cd8f7954626fdeb79460f37343c92643fea14a6",
+      "bytes": 536713,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073890833,
+      "name": "round228-nordschleife-informed-even",
+      "sha256": "fbf143322671944694fb07caeb02f1c560816b1761591f3938f9627619100abf",
+      "bytes": 627331,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073888596,
+      "name": "round228-nordschleife-legacy-odd",
+      "sha256": "b92c61a8dded4cfa7174d2025e025036ad8fd75845bd8d6b7ed1153faf478a03",
+      "bytes": 625324,
+      "run_id": 34270749090
+    },
+    {
+      "id": 10073173816,
+      "name": "round228-pin-golden_races",
+      "sha256": "c546d0b06eab4e9b814fb36b4f76d91eab8463e8a3b86a71c960ec6b6cb41f06",
+      "bytes": 119056,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073144304,
+      "name": "round228-pin-ai1_private_slack_regression",
+      "sha256": "ff4ba2bc8357cf8024025e1cf854bafedcd6ccc6e8b2b71d4332c5ccfda73a9d",
+      "bytes": 210997,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073135738,
+      "name": "round228-pin-ai1_thread_fragility_regression",
+      "sha256": "4a71c2cc1377626c772592cbf63902477048cbeba7ed13349105ca4a313aecf2",
+      "bytes": 3951,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073126892,
+      "name": "round228-pin-ai1_thin_ridge_regression",
+      "sha256": "b51d94c86fbe5060e22b437a2f9bde9636de8ce3db234580b585272ddd82f106",
+      "bytes": 25781,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073126493,
+      "name": "round228-pin-ai1_six_ahead_high_speed_regression",
+      "sha256": "8cca48206268dae550e3087ef4da02e290e2db92b7c188f5ff9bd35d184fcc90",
+      "bytes": 184614,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073124698,
+      "name": "round228-pin-ai1_vmax_deep_regression",
+      "sha256": "8ff129c01c85aae0d743133460a036e0611eff197ca0d69d09df408e7f3e199b",
+      "bytes": 33753,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073119145,
+      "name": "round228-pin-ai1_staged_pace_regression",
+      "sha256": "c8cc60fcf11aa853b5e9b3dcedca18ea58e1b05d74acd7eb5ea0d68be883b278",
+      "bytes": 39498,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073107651,
+      "name": "round228-pin-ai1_six_ahead_accel_regression",
+      "sha256": "27e67bd63b225b8dd84dbf94015ff95e6927d7731e07971500621ab0df5b03f5",
+      "bytes": 46973,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073103067,
+      "name": "round228-pin-ai1_pace_regression",
+      "sha256": "9c6cabc31d4f65b8db289b4f791b8732391df22160f777d2a0029e00c81694c3",
+      "bytes": 34932,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073098316,
+      "name": "round228-pin-ai1_mixed_safety_regression",
+      "sha256": "2af71a42cbcc0116ecf565605aa86ab2593ca641e49118f8e7aa70b3b3827660",
+      "bytes": 37295,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073096507,
+      "name": "round228-pin-ai1_racecraft_regression",
+      "sha256": "f4155fc5f65ddb3fd6ab1fc78d6fd6bbafcea2e3b2d80506f7d8a4692656870a",
+      "bytes": 4579,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073094863,
+      "name": "round228-pin-ai1_graduated_field_accel_regression",
+      "sha256": "9dfc4aa0722cc08be66b7ce10bd9989ee2fa52459ad3590566ac1d10961d7083",
+      "bytes": 46781,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073088600,
+      "name": "round228-pin-ai1_immediate_finish_regression",
+      "sha256": "70ba1254e8b4f1df570aba4a8e24d71efb6e8c04ca296cdf64aef768aab6cec2",
+      "bytes": 296,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073084117,
+      "name": "round228-pin-ai1_finish_sprint_true_confirm_regression",
+      "sha256": "96f3a4cfe5bbfb90fd5ea07b41042608b21100692225b7180740397663f49f5b",
+      "bytes": 17409,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073083993,
+      "name": "round228-pin-ai1_finish_denial_regression",
+      "sha256": "3e6ea7575d8f72d840e7f63a3cca59d00c2b05a98d27374a6eb098fff22030ef",
+      "bytes": 14201,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073082314,
+      "name": "round228-pin-ai1_field_neutral_regression",
+      "sha256": "ea66b57a6eab413cef5022373b3a2cce0ac0fbcf852490d52fd3fd1a36506d08",
+      "bytes": 31190,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073076956,
+      "name": "round228-pin-ai1_finish_frontier_regression",
+      "sha256": "47f078b0d12f6ea551640f3ea66922b36abe742d28d0a6c9db3ee0073ccc2522",
+      "bytes": 46080,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073075061,
+      "name": "round228-pin-ai1_fast_funnel_regression",
+      "sha256": "7d0afa9769bba216ac42690615af2ee72ac7be506f07e2ac5bc5bb5d54c85fe8",
+      "bytes": 16472,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073075004,
+      "name": "round228-pin-ai1_bounded_uncertain_field_regression",
+      "sha256": "92225afd9ae29593fdcf49f03fe5bbd45f7887b54926e10da4cf2d02f7dfce13",
+      "bytes": 161021,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073064586,
+      "name": "round228-pin-ai1_energy_pace_regression",
+      "sha256": "049a109cdda4fb57756304c2e6e71c7bd50925b673a19a0df86206219f828d62",
+      "bytes": 11350,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073062079,
+      "name": "round228-pin-ai1_esc_true_confirm_regression",
+      "sha256": "185aafd57fc1d2389317f70432ff345356c80f4ad5133a0753945e2f960dfce8",
+      "bytes": 11625,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073060473,
+      "name": "round228-pin-ai1_equal_speed_veto_regression",
+      "sha256": "5cb68371d7e3174e980423dcb95405961a9b1b55223e6888799530bb295c2d93",
+      "bytes": 25337,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073060175,
+      "name": "round228-pin-ai1_early_round_trap_regression",
+      "sha256": "6a8360e001d09d0e027c3d7a8868a8ec20152cac0240843ba321a332a87ffa77",
+      "bytes": 19822,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10073058220,
+      "name": "round228-pin-ai1_cross_model_pace_regression",
+      "sha256": "4dd50bd2e56368075c25bf2abc0e365b75be0c8bdd4f99053d385b9c50e3d900",
+      "bytes": 20154,
+      "run_id": 34269106700
+    },
+    {
+      "id": 10074106997,
+      "name": "round228-verified-golden_races",
+      "sha256": "b5a278ad3e36f1488f54a4da258c05d07707b819f4e2f9eaba64bfee4e2d77d1",
+      "bytes": 119088,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074074779,
+      "name": "round228-verified-ai1_private_slack_regression",
+      "sha256": "80c5b841efe786c1e6b697080e79b66acc0f500bcc4c6caabe7387d3a97cfe7d",
+      "bytes": 210975,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074060546,
+      "name": "round228-verified-ai1_staged_pace_regression",
+      "sha256": "6769b95eef0bbe8d5552406e69d60c979b712765e44cb21e2ed425b729811f36",
+      "bytes": 128100,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074047277,
+      "name": "round228-verified-ai1_thin_ridge_regression",
+      "sha256": "7efaec68c1d857542e6d08e6923894d163857a19fa9722d047d5e7af1c7a93aa",
+      "bytes": 35004,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074043361,
+      "name": "round228-verified-ai1_bounded_uncertain_field_regression",
+      "sha256": "c9b41f96139d551ee4aa4e74b7cddad42c7af4abf6b23fd7b87d5ba7040f969f",
+      "bytes": 161093,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074032823,
+      "name": "round228-verified-ai1_energy_pace_regression",
+      "sha256": "3a23492b1bd779b66fb46cb4c67ac304ff1df298bc0d10f4cdb6f725515bf4dc",
+      "bytes": 56216,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074030759,
+      "name": "round228-verified-ai1_pace_regression",
+      "sha256": "b73a41d1db398ccb356a075bc30f0b59458d3a53e0fb5d27abeb363ec489a96c",
+      "bytes": 34947,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074026617,
+      "name": "round228-verified-ai1_field_neutral_regression",
+      "sha256": "882a601cb0c8bcf070eb91b321b381152a75723111555fab02b1cf2fa12e3eef",
+      "bytes": 31191,
+      "run_id": 34271580481
+    },
+    {
+      "id": 10074024934,
+      "name": "round228-verified-ai1_finish_sprint_true_confirm_regression",
+      "sha256": "ffe397e1842ecd0646345ac77a6f39a4596f52ee8f616a7eb3a4c5d2e6cbd57c",
+      "bytes": 17403,
+      "run_id": 34271580481
+    }
+  ],
+  "notes": [
+    "Initial pin failures are the eight historical expectations re-frozen from captured completed races; the final verification checks these without update mode.",
+    "The main fleet workflow fails only for Nordschleife's heap-reserve guard. Disjoint successful 83-track records and the complete 8 GiB Nordschleife rerun cover all 84 tracks in every cell.",
+    "The final production policy removes candidate gating and uses the candidate pricing for every AI label."
+  ]
+}

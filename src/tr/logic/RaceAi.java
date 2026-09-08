@@ -448,9 +448,8 @@ final class RaceAi {
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
-	private final static int		AI1_ROBUST_RANGE	= 12;	// round 210: a live rival AHEAD or beside within this Chebyshev radius turns the needle surcharge on (only such a rival can reach my one cell)
+	private final static int		AI1_ROBUST_RANGE	= 12;	// a live rival ahead or beside requires robust checkpoint/crossing continuations
 	private final static int		AI1_ROBUST_KIN_CAP	= 24;	// round 212: the needle gate reaches as far as my stopping distance s(s+1)/2, capped here -- the rand6 long needle was entered at speed 7 with the parked pack 13 cells ahead, one outside the fixed radius
-	private final static int		AI1_ROBUST_SURCHARGE	= 1;	// round 210: turns a needle state (no 1-fault-tolerant path to the gate) costs on top of its plain value in traffic. Round 218 measured 12 as a veto and 1 as a tie-break toward thick states; round 226 (the head-to-head instrument) found 1 beats 12 by 0.576 places in a mixed field and does not crash more as a whole field on today's champion
 	private final static int		AI1_KIN_HORIZON_CAP	= 10;	// round 205: kinematic DJS horizon cap (rounds-to-stop, lap mode)
 	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7)
 	private final static int		AI1_DEEP_PACK	= 3;	// round 65: escalate only with >= this many rivals within AI1_DEEP_PACK_R of the landing (the doom class lives in packs; solo tunnels excluded)
@@ -2031,9 +2030,8 @@ final class RaceAi {
 	private boolean lapAware;
 	/** Multi-lap: the mover's next gate (0=S/F, 1=CP1, 2=CP2). */
 	private int lapGate;
-	/** Round 210: a live rival within AI1_ROBUST_RANGE -- the lap potential
-	 *  surcharges needle states (single-thread continuations); alone, the
-	 *  plain map keeps the solo line. Set beside lapAware at entry. */
+	/** In nearby traffic, checkpoint/crossing precedence needs a robust
+	 *  continuation. Race-distance pricing itself stays opponent-independent. */
 	private boolean robustMode;
 	/** Round 216: the exact distance-to-finish map, and the gate events this
 	 *  mover still owes. Null on a board too large for the potential's budget
@@ -2070,22 +2068,14 @@ final class RaceAi {
 		}
 	}
 
-	/** Round 222: ttf() in player {@code idx}'s own frame -- its gate, its
-	 *  remaining events, its lap-awareness. Robust mode stays the mover's:
-	 *  it describes the traffic, not the car. */
+	/** Round 222: ttf() in player {@code idx}'s own frame -- its gate,
+	 *  remaining events and lap-awareness. */
 	private int ttfFor(final int idx, final int x, final int y, final int vx, final int vy) {
-		if (exactPot != null) {
-			final int v = exactPot.movesToFinish(frameRemaining[idx], x, y, vx, vy);
-			if (v == Integer.MAX_VALUE)
-				return Integer.MAX_VALUE;
-			return robustMode && !reach.isRobust(frameGate[idx], x, y, vx, vy)
-					? v + AI1_ROBUST_SURCHARGE : v;
-		}
+		if (exactPot != null)
+			return exactPot.movesToFinish(frameRemaining[idx], x, y, vx, vy);
 		if (!frameLapAware[idx])
 			return reach.turnsToFinish(x, y, vx, vy);
-		return robustMode
-				? reach.turnsToGateNeedleAware(frameGate[idx], x, y, vx, vy, AI1_ROBUST_SURCHARGE)
-				: reach.turnsToGate(frameGate[idx], x, y, vx, vy);
+		return reach.turnsToGate(frameGate[idx], x, y, vx, vy);
 	}
 
 	/** Round 222: the crossing rule of the rollout's move models, in player
@@ -2102,20 +2092,14 @@ final class RaceAi {
 		// The gate maps answer "how far to the NEXT gate", which is not what a
 		// race minimises -- arriving at a gate in a poor state is paid for after
 		// it, and measurement put half the pace given up on landings the policy
-		// would happily take beyond what the gate map can see. The round-210
-		// needle surcharge still rides on top, so robust mode prices
-		// single-thread states exactly as it did.
-		if (exactPot != null) {
-			final int v = exactPot.movesToFinish(exactRemaining, x, y, vx, vy);
-			if (v == Integer.MAX_VALUE)
-				return Integer.MAX_VALUE;
-			return robustMode && !reach.isRobust(lapGate, x, y, vx, vy)
-					? v + AI1_ROBUST_SURCHARGE : v;
-		}
+		// would happily take beyond what the gate map can see. Round 228:
+		// narrow lanes carry their real distance too. Collision, headway,
+		// seal and rollout checks price the actual traffic around that line.
+		if (exactPot != null)
+			return exactPot.movesToFinish(exactRemaining, x, y, vx, vy);
 		if (!lapAware)
 			return reach.turnsToFinish(x, y, vx, vy);
-		return robustMode ? reach.turnsToGateNeedleAware(lapGate, x, y, vx, vy, AI1_ROBUST_SURCHARGE)
-				: reach.turnsToGate(lapGate, x, y, vx, vy);
+		return reach.turnsToGate(lapGate, x, y, vx, vy);
 	}
 
 	/** Whether every live rival runs the mover's policy. Since the 2026-09-04

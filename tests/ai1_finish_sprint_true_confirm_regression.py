@@ -15,10 +15,12 @@ TARGET = ("rand3", 1)
 # Round 226 re-froze this from measurement: the needle surcharge became a
 # tie-break (12 -> 1), which is worth 0.58-0.60 places head-to-head. Finishers
 # and crashes are unchanged; the move counts are the faster lines.
-PROMOTED =(7, 0, [62, 63, 64, 65, 67, 67, 67])
-PROMOTED_FINISHERS =[(3, 62), (5, 63), (7, 64), (8, 65), (1, 67), (2, 67), (4, 67)]
-PROMOTED_ALL_MOVES ={1: 67, 2: 67, 3: 62, 4: 67, 5: 63, 6: 66, 7: 64, 8: 65}
-PROMOTED_SHA256 = "b2266ef56b82da976a0f1bf418a6caaef4d42d11d3c3dc579ede0844245888a7"
+# Round 228: re-frozen from complete recorded races after removing the
+# narrow-lane distance surcharge: seven finishers and no crashes in every case.
+PROMOTED = (7, 0, [61, 62, 63, 64, 65, 65, 66])
+PROMOTED_FINISHERS = [(1, 61), (3, 62), (4, 63), (5, 64), (7, 65), (8, 65), (2, 66)]
+PROMOTED_ALL_MOVES = {1: 61, 2: 66, 3: 62, 4: 63, 5: 64, 6: 65, 7: 65, 8: 65}
+PROMOTED_SHA256 = '7c3744f55b153d971d049419d17ffbc68ca148898d6bc00d5625b86f897a5524'
 
 
 def main() -> int:

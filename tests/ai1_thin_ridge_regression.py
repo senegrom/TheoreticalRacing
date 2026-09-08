@@ -90,12 +90,13 @@ def main() -> int:
             # What the round-185 rescue bought is that p7 survives the ridge at
             # all -- its old line crashes three turns later -- so the pin still
             # asserts a finish, at the place the faster pace term now earns.
+            # Round 228: p7 still finishes, now sixth in the faster field.
             if not any(
-                " p7 " in line and f" {target_kind} " in line and "FINISH place=5" in line
+                " p7 " in line and f" {target_kind} " in line and "FINISH place=6" in line
                 for line in lines
             ):
                 raise SystemExit(
-                    "Round-185 width-three ridge regression did not finish p7 fifth "
+                    "Round-185 width-three ridge regression did not finish p7 sixth "
                     f"for kind {target_kind}"
                 )
     print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4 both kinds)")

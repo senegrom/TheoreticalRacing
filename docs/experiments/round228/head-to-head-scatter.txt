@@ -1,0 +1,26 @@
+6720 candidate car-races, 6720 champion car-races over 1680 races
+mean place   candidate 4.455   champion 4.545   (lower is better; 4.500 is a tie in an 8-car field)
+race wins    candidate 871   champion 809
+crashes      candidate 2   champion 0
+mirrored races 840: candidate minus champion mean place -0.090  (standard error 0.007; negative favours the candidate)
+
+tracks where the candidate gains most (mean place difference, candidate car-races):
+    rand19         -0.400  (80)
+    fractal1       -0.325  (80)
+    lobe3          -0.325  (80)
+    rand8          -0.325  (80)
+    rand3          -0.300  (80)
+    hybrid2        -0.275  (80)
+    lobe2          -0.275  (80)
+    fractal18      -0.250  (80)
+tracks where it loses most:
+    weave5         +0.000  (80)
+    weave7         +0.000  (80)
+    zigzag         +0.000  (80)
+    hybrid7        +0.025  (80)
+    weave2         +0.025  (80)
+    weave8         +0.025  (80)
+    fractal3       +0.050  (80)
+    weave6         +0.075  (80)
+
+61 tracks favour the candidate, 5 the champion, 18 tied

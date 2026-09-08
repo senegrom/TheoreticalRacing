@@ -5,9 +5,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai
 EXPECTED = {
- ("nurburgring",1): [92, 95, 98, 100, 100, 101, 103],
- ("interlagos",29): [125, 131, 133, 136, 137, 139, 140],
- ("interlagos",47): [127, 131, 133, 134, 136, 139, 140],
+ # Round 228: measured raw-distance policy, seven finishers and no crashes.
+ ("nurburgring",1): [92, 94, 96, 97, 98, 100, 102],
+ ("interlagos",29): [125, 126, 129, 131, 132, 134, 136],
+ ("interlagos",47): [125, 126, 127, 128, 129, 130, 132],
  ("spa",17): [78,80,82,83,84,84,86],
  ("zandvoort",44): [139,140,141,142,143,144,146],
 }

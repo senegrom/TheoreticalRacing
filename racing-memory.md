@@ -1,5 +1,47 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 228: remove the remaining narrow-lane distance surcharge
+
+The shared AI now uses raw distance in ttf() and ttfFor(), removing the
+one-turn surcharge on narrow lanes in traffic. Existing collision, headway,
+seal, rollout and robust checkpoint/crossing checks remain. This lets cars
+contest faster lines without a blanket extra distance price. Both AI labels
+run the same policy; the mixed-field candidate instrument is retained.
+
+Full 84-track seeds 1-10, with complementary candidate slots 1/3/5/7 and
+2/4/6/8: 840 mirrored pairs and 6,720 car-races per policy in each start mode.
+Candidate minus champion mean place: legacy -1.139881 (SE 0.039726), informed
+-1.151190 (SE 0.039210), scatter -0.090476 (SE 0.007422). Wins C/H: 1066/614,
+1079/601, 871/809. Crashes C/H: 17/4, 9/4, 2/0; these already count in place.
+Tracks favoring candidate/champion/tied: 70/3/11, 69/4/11, 61/5/18. The
+candidate clears the owner's head-to-head place criterion in every mode.
+
+Candidate-only full fleets also complete in all three modes. Per 730 lap
+races, legacy has 29 crashes and 1,810,581 moves; informed 37 and 1,806,934;
+scatter 5 and 1,461,772. All have zero timeouts. These field counters are
+descriptive, with no separate champion-only comparison in this round.
+Including the no-lap courses, the nine grids contain 7,560 validated races.
+
+The original 4 GiB grids each preserve 83 complete tracks and the explicit
+Nordschleife heap-reserve failure. Separate 8 GiB, one-worker Nordschleife
+shards supply every missing seed/assignment; the guard was not weakened.
+Every included record passes manifest, input, raw-log hash, terminal-result,
+counter, coverage and complementary-slot checks. Full head_to_head.py reports,
+compact per-race outcomes, hashes, profiles, replay instructions and run links
+are committed in docs/experiments/round228/. The source patch reverses cleanly
+from the final source, establishing identity with the regression build.
+
+JDK 25 warnings-as-errors build and core tests pass, as do all 23 AI1 regression
+scripts and all 12 goldens. Eight scripts re-freeze measured move/order/hash
+expectations without relaxing their safety or AI1/AI2 identity assertions.
+New golden JSON matches between local and GitHub measurements; Nurburgring
+seed 19 gains a seventh finisher and removes its crash. The refreshed eight
+scripts and golden checker pass in ordinary check mode (run 34271580481).
+The 15 unchanged scripts and core passed run 34269106700. Mixed and whole-field
+fleets are runs 34268684443 plus the completed 34270749090 Nordschleife shards.
+Temporary validation workflows and patch carriers are removed from the final
+tree and preserved in its parent commits, as the experiment README records.
+
 ## Round 228: verify the measured regression expectations
 
 The production candidate passed core tests and 15 of 23 existing AI1 regression

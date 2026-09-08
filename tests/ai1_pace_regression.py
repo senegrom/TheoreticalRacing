@@ -27,7 +27,8 @@ MAX_FINISH_MOVE_SUM = 891
 # broad experiment's sole slower race.
 FINISH_EXPECTED = {
     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 23],
-    ("lemans", 12):[69, 72, 74, 75, 78, 80, 82],
+    # Round 228: measured without the narrow-lane distance surcharge.
+    ("lemans", 12): [69, 70, 72, 73, 74, 76, 78],
 }
 
 

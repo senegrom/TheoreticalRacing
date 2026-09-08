@@ -12,7 +12,8 @@ import bench_ai  # noqa: E402
 
 EXPECTED = {
     ("zigzag", 1): [65, 65, 66, 66, 67, 68, 68],
-    ("cog", 1):[47, 49, 49, 50, 51, 52, 52],
+    # Round 228: the raw-distance policy saves eight finisher moves in this race.
+    ("cog", 1): [47, 48, 48, 49, 49, 50, 51],
 }
 
 
