@@ -1,5 +1,18 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 228: verify the measured regression expectations
+
+The production candidate passed core tests and 15 of 23 existing AI1 regression
+scripts. Eight scripts pinned the previous policy's move counts, hashes or
+finishing order; their recorded failures had no additional crashes. Re-freeze
+only those measured expectations, preserving the safety assertions and AI1/AI2
+identity checks. All twelve new golden measurements match byte-for-byte between
+local and GitHub runs; Nurburgring seed 19 gains a finisher and loses its crash.
+Local complete energy-pace, staged-pace and thin-ridge checks now pass. A separate
+verification job applies both preserved patches and checks all eight updated
+scripts plus the golden suite without update mode. The application source on
+this validation branch is still the champion until the full grids clear.
+
 ## Round 228: complete the largest track with its required heap
 
 The first completed 4 GiB grids each have 83 valid tracks and one failed track,
