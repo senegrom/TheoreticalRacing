@@ -7,6 +7,16 @@ continue from this file alone. Long-form history: see
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
 
+
+## 2026-09-08: branch retirement completed
+
+The exact-tip maintenance job succeeded: browser and
+perf/parallel-finish-validation are retired, and the latter's complete history
+is retained at archive/2026-09-08-parallel-finish-validation. Removed the
+completed maintenance job. The final CI graph passed all nine release-gate
+and browser-scope tests; the engine/build measurements in the preceding
+consolidation entry still apply to the unchanged application sources.
+
 ## 2026-09-08: consolidate CI and retire obsolete branch carriers
 
 CI is now the single push/PR/manual entry point. It runs JDK 25/26, frozen AI2
