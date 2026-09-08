@@ -1,0 +1,93 @@
+name: Round 228 regression measurements
+on:
+  push:
+    branches: [codex/racecraft-zero-validation]
+    paths:
+      - .github/workflows/racecraft-zero-pins.yml
+      - docs/experiments/round228/production.patch
+      - docs/experiments/round228/capture.py
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: round228-pins-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: git apply docs/experiments/round228/production.patch
+      - run: sh build_main.sh
+      - run: sh run_tests.sh
+  pins:
+    name: ${{ matrix.test }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        test:
+          - ai1_bounded_uncertain_field_regression
+          - ai1_cross_model_pace_regression
+          - ai1_early_round_trap_regression
+          - ai1_energy_pace_regression
+          - ai1_equal_speed_veto_regression
+          - ai1_esc_true_confirm_regression
+          - ai1_fast_funnel_regression
+          - ai1_field_neutral_regression
+          - ai1_finish_denial_regression
+          - ai1_finish_frontier_regression
+          - ai1_finish_sprint_true_confirm_regression
+          - ai1_graduated_field_accel_regression
+          - ai1_immediate_finish_regression
+          - ai1_mixed_safety_regression
+          - ai1_pace_regression
+          - ai1_private_slack_regression
+          - ai1_racecraft_regression
+          - ai1_six_ahead_accel_regression
+          - ai1_six_ahead_high_speed_regression
+          - ai1_staged_pace_regression
+          - ai1_thin_ridge_regression
+          - ai1_thread_fragility_regression
+          - ai1_vmax_deep_regression
+          - golden_races
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build production candidate
+        run: |
+          git apply --check docs/experiments/round228/production.patch
+          git apply docs/experiments/round228/production.patch
+          sh build_main.sh
+          mkdir -p results
+          sha256sum theoreticRacing.jar docs/experiments/round228/production.patch > results/build-sha256.txt
+      - name: Measure regression
+        env:
+          TEST: ${{ matrix.test }}
+          JAVA_TOOL_OPTIONS: -Xmx4g -XX:ActiveProcessorCount=2
+        run: |
+          if [ "$TEST" = golden_races ]; then
+            python -u docs/experiments/round228/capture.py tests/golden_races.py results --update
+            cp tests/golden_races.json results/golden_races.json
+          else
+            python -u docs/experiments/round228/capture.py "tests/$TEST.py" results
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round228-pin-${{ matrix.test }}
+          path: results
+          if-no-files-found: error
+          retention-days: 7

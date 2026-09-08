@@ -1,5 +1,14 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 228: parallel regression measurements
+
+Preserve the production candidate as a separate patch, and run the core suite,
+all 23 ai1 regression scripts and the 12 golden measurements on bounded
+GitHub workers. Capture the complete race logs, profiles, build hashes and
+original test results so any changed pins can be reviewed from actual races.
+These measurements run independently of the ongoing full-fleet validation;
+source files and default behavior on the branch remain the champion.
+
 ## Round 228: zero narrow-lane surcharge, validation in progress
 
 Candidate cars use the raw race-distance potential, keeping the existing
