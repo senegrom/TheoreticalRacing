@@ -1,0 +1,76 @@
+name: Round 227 mirrored racecraft
+on:
+  push:
+    branches: [racecraft-round227-validation]
+    paths: ['.github/workflows/round227-h2h.yml']
+permissions:
+  contents: read
+jobs:
+  h2h:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [legacy, informed, scatter]
+    env:
+      BASE: f63cf1c3c87b7677a29c3c9f15a6ddbed49a090e
+      PATCH_BLOB: 95cfcd1870b0c14a37e26660eb0584b724f974a1
+      PATCH_XZ_SHA256: d693f4bf136e0ecc9ec1af669bdabc12ec797a859739cbb158f4484436eb160e
+      PATCH_SHA256: 858b6ffa851c33a1c0245ac0920dc7c6de398417d9189d632c760272a6550f97
+      JAVA_TOOL_OPTIONS: -Xmx8g
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.BASE }}
+          persist-credentials: false
+      - name: Materialize hash-verified candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, pathlib, subprocess, urllib.request
+          sha=os.environ['PATCH_BLOB']; repo=os.environ['GITHUB_REPOSITORY']
+          h={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'}
+          u=f'https://api.github.com/repos/{repo}/git/blobs/{sha}'
+          with urllib.request.urlopen(urllib.request.Request(u,headers=h),timeout=60) as r:
+              raw=base64.b64decode(json.load(r)['content'])
+          assert hashlib.sha1(b'blob '+str(len(raw)).encode()+b'\0'+raw).hexdigest()==sha
+          assert hashlib.sha256(raw).hexdigest()==os.environ['PATCH_XZ_SHA256']
+          patch=lzma.decompress(raw)
+          assert hashlib.sha256(patch).hexdigest()==os.environ['PATCH_SHA256']
+          p=pathlib.Path(os.environ['RUNNER_TEMP'],'round227.patch'); p.write_bytes(patch)
+          subprocess.run(['git','apply','--index','--binary',str(p)],check=True)
+          subprocess.run(['git','diff','--cached','--check'],check=True)
+          PY
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Build candidate
+        run: sh build_main.sh
+      - name: Full mirrored head-to-head
+        env:
+          MODE: ${{ matrix.mode }}
+        run: |
+          set -eu
+          for slots in 1357 2468; do
+            props="$RUNNER_TEMP/$MODE-$slots.properties"
+            cp tracks/lap_bench.properties "$props"
+            printf '\naiStartPlacement=%s\ncandidateSlots=%s\n' "$MODE" "$( [ "$slots" = 1357 ] && echo '1,3,5,7' || echo '2,4,6,8' )" >> "$props"
+            RACING_PROPS="$props" RACING_HEAP='-Xmx8g' python3 tracks/fleet_grid.py 1-10 2 "$RUNNER_TEMP/$MODE-$slots"
+          done
+          python3 tracks/head_to_head.py "$RUNNER_TEMP/$MODE-1357" "$RUNNER_TEMP/$MODE-2468" | tee "$RUNNER_TEMP/$MODE-score.txt"
+          grep -q 'mirrored races 840:' "$RUNNER_TEMP/$MODE-score.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round227-${{ matrix.mode }}
+          path: |
+            ${{ runner.temp }}/${{ matrix.mode }}-score.txt
+            ${{ runner.temp }}/${{ matrix.mode }}-1357/fleet.txt
+            ${{ runner.temp }}/${{ matrix.mode }}-2468/fleet.txt
+          retention-days: 7
