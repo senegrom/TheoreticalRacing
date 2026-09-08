@@ -1,0 +1,84 @@
+{
+  "branch": "racecraft-round227-validation",
+  "branch_tip": "1e0512b4c86271dcffc7bf86a4c8d5c512df0bae",
+  "base_commit": "f63cf1c3c87b7677a29c3c9f15a6ddbed49a090e",
+  "workflow_run_id": 34208227582,
+  "patch_blob": "95cfcd1870b0c14a37e26660eb0584b724f974a1",
+  "artifact_ids": {
+    "legacy": 10050064254,
+    "informed": 10049769390,
+    "scatter": 10049810971
+  },
+  "files": [
+    {
+      "path": "candidate.patch",
+      "bytes": 21962,
+      "sha256": "858b6ffa851c33a1c0245ac0920dc7c6de398417d9189d632c760272a6550f97"
+    },
+    {
+      "path": "candidate.patch.xz",
+      "bytes": 5308,
+      "sha256": "d693f4bf136e0ecc9ec1af669bdabc12ec797a859739cbb158f4484436eb160e"
+    },
+    {
+      "path": "results/informed/informed-1357/fleet.txt",
+      "bytes": 33042,
+      "sha256": "281abeae0afacec388ad057a282a28a7129efee707735a649ccbac5405e0d204"
+    },
+    {
+      "path": "results/informed/informed-2468/fleet.txt",
+      "bytes": 33042,
+      "sha256": "c88ee497b30690b21d215c3c916ee19ded948872269b1e82f4876382a9c11477"
+    },
+    {
+      "path": "results/informed/informed-score.txt",
+      "bytes": 1046,
+      "sha256": "336557573d3280b3ababecbc188e01a5397f69760ca786092303008b000e5e3d"
+    },
+    {
+      "path": "results/legacy/legacy-1357/fleet.txt",
+      "bytes": 33042,
+      "sha256": "45fef61ab103155107f8d39b41f9630cebfc3acf84e8f71a71ea0b91ad0d798e"
+    },
+    {
+      "path": "results/legacy/legacy-2468/fleet.txt",
+      "bytes": 33042,
+      "sha256": "738b4835f6261f04a29299517e2ad91f8a77d4a3b8e4f457adbea51b8d22f843"
+    },
+    {
+      "path": "results/legacy/legacy-score.txt",
+      "bytes": 1046,
+      "sha256": "d22edaa59d4df3ee71a750d62a333e5eafca1bb8d297fe1f7507bd2c8ffcd1b8"
+    },
+    {
+      "path": "results/scatter/scatter-1357/fleet.txt",
+      "bytes": 33017,
+      "sha256": "d25c8936ebf22b1d805c625a4c0ff807956ef6625a04d00c8109f686c2342e45"
+    },
+    {
+      "path": "results/scatter/scatter-2468/fleet.txt",
+      "bytes": 33017,
+      "sha256": "e3c5a44144bd0966801513e8b517d757cdc1ddd876cb556097ca1218f49a225a"
+    },
+    {
+      "path": "results/scatter/scatter-score.txt",
+      "bytes": 1046,
+      "sha256": "4dcab9ac4f125e4e5fbb4bc152c3b5b29f37ac581c5571625804b3ccd02e3581"
+    },
+    {
+      "path": "round227-informed.zip",
+      "bytes": 8567,
+      "sha256": "825041b1e8eb3f3393c89ac9eb25cf316979e6e772fb2aec18a1c8250fbaed31"
+    },
+    {
+      "path": "round227-legacy.zip",
+      "bytes": 8719,
+      "sha256": "77708703921ecb440c9f1cae5455e810d086c7b08c89b71af5897261aeef4eae"
+    },
+    {
+      "path": "round227-scatter.zip",
+      "bytes": 8880,
+      "sha256": "a9b65d9092537ef5ee64155cd7d576ccacadbef7cde974e8f5c7c9375477ce10"
+    }
+  ]
+}

@@ -1,5 +1,20 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## 2026-09-08: preserve the completed Round 227 experiment
+
+The archive tag archive/2026-09-08-round227-validation retains validation tip
+1e0512b4c86271dcffc7bf86a4c8d5c512df0bae and its full parent history. The
+archive/round227 directory adds the original candidate patch blob, its decoded
+patch, all three final artifact ZIPs, extracted fleet/score files and a hash
+manifest. The candidate remains unpromoted; no application source changed.
+
+Measured in completed run 34208227582: candidate minus champion mean place
+legacy -0.004 (SE 0.003), informed -0.005 (SE 0.003), scatter -0.000 (SE 0.001),
+each over 840 mirrored race pairs. Preserved files reproduce those summaries.
+Verified both patch hashes against the workflow, every extracted ZIP member,
+the manifest hashes, and patch applicability to f63cf1c3. This records and
+preserves the experiment for retirement without discarding candidate work.
+
 Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see

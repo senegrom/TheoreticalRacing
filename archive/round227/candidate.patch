@@ -1,0 +1,517 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index 1dabd09..ae005f8 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -1034,6 +1034,8 @@ final class RaceAi {
+ 			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,
+ 					trapByDir, uncByDir, poTByDir);
+ 		}
++		if (chosen != null && candidate(playerNum) && !inScorerSim && simDepth == 0)
++			chosen = racecraftCandidateOverride(pos, vel, playerNum, chosen, scoreByDir);
+ 		if (chosen != null) {
+ 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
+ 			// matching, legality-checked covers). If the chosen landing is
+@@ -2320,14 +2322,17 @@ final class RaceAi {
+ 				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
+ 						fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+ 				chosenField = rolloutFieldCost[0];
+-				if (chosenFinal < 0 || chosenField >= ROLLOUT_FAILURE_COST)
++				if (chosenFinal < 0 || !candidate(playerNum) && chosenField >= ROLLOUT_FAILURE_COST)
+ 					return chosen;
+ 			}
+ 			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+ 					fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
+ 			final long candidateField = rolloutFieldCost[0];
++			final boolean selfishPlaceGain = candidate(playerNum)
++					&& racecraftProjectedRankForLanding(nx, ny, nvx, nvy, playerNum)
++							< racecraftProjectedRankForLanding(chosenX, chosenY, chosenVx, chosenVy, playerNum);
+ 			if (candidateFinal < 0 || candidateFinal >= chosenFinal
+-					|| candidateField >= chosenField)
++					|| !selfishPlaceGain && candidateField >= chosenField)
+ 				continue;
+ 			if (boundedUncertainModerateGain) {
+ 				if (uncertainBest == null || candidateFinal < uncertainBestFinal
+@@ -4794,6 +4799,367 @@ final class RaceAi {
+ 		return liveOccupancy[nx * (game.gameRows + 1) + ny] != 0;
+ 	}
+ 
++	private static final long RACECRAFT_INF = Long.MAX_VALUE / 8;
++	private static final int RACECRAFT_MAX_RIVALS = 2;
++	private static final int RACECRAFT_NEAR_TTF = 18;
++	private static final int RACECRAFT_PLACE3_ETA = 8;
++	private static final int RACECRAFT_PLACE3_DEPTH = 7;
++	private static final int RACECRAFT_PLACE3_NODES = 60000;
++	private int racecraftPlaceNodes;
++
++	/** A stage-aware cost used only by the candidate race-position layer. With an
++	 * exact potential this is full-race moves remaining. Without one, remaining
++	 * gate events dominate the local turns-to-next-gate value. */
++	private long racecraftCost(final int remaining, final int gate, final boolean aware,
++			final int x, final int y, final int vx, final int vy) {
++		if (exactPot != null) {
++			final int t = exactPot.movesToFinish(remaining, x, y, vx, vy);
++			return t == Integer.MAX_VALUE ? RACECRAFT_INF : t;
++		}
++		final int t = aware ? reach.turnsToGate(gate, x, y, vx, vy)
++				: reach.turnsToFinish(x, y, vx, vy);
++		if (t == Integer.MAX_VALUE)
++			return RACECRAFT_INF;
++		return ((long) remaining << 32) | t & 0xffffffffL;
++	}
++
++	private long racecraftCostForPlayer(final int i) {
++		final Player p = game.players[i];
++		final int[] q = p.getPosition(), v = p.getVelocity();
++		return racecraftCost(frameRemaining[i], frameGate[i], frameLapAware[i],
++				q[0], q[1], v[0], v[1]);
++	}
++
++	private long racecraftCostAfter(final RaceGame.MoveResult move,
++			final int x, final int y, final int vx, final int vy) {
++		if (move.finishes())
++			return 0;
++		final int remaining = game.lapGates == null ? 0
++				: OptimalPotential.remainingEvents(move.gateAfter(), move.lapAfter(), game.totalLaps);
++		final boolean aware = game.lapGates != null
++				&& (move.lapAfter() + 1 < game.totalLaps || move.gateAfter() != 0);
++		return racecraftCost(remaining, game.lapGates == null ? 0 : move.gateAfter(), aware,
++				x, y, vx, vy);
++	}
++
++	/** Best immediate race-progress reply available to a rival after I occupy
++	 * (blockX,blockY). A forced crash is +INF, hence safely behind in the rank. */
++	private long racecraftBestReply(final int ri, final int blockX, final int blockY,
++			final int playerNum) {
++		final Player rival = game.players[ri];
++		final int[] rp = rival.getPosition(), rv = rival.getVelocity();
++		long best = RACECRAFT_INF;
++		for (final Direction d : DIRECTIONS) {
++			final int nvx = rv[0] + d.dx, nvy = rv[1] + d.dy;
++			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
++				continue;
++			final int nx = rp[0] + nvx, ny = rp[1] + nvy;
++			boolean occupied = nx == blockX && ny == blockY;
++			if (!occupied)
++				for (final Player q : game.players) {
++					if (q.isFinished() || q.getNumber() == playerNum || q.getNumber() == rival.getNumber())
++						continue;
++					final int[] qp = q.getPosition();
++					if (qp[0] == nx && qp[1] == ny) {
++						occupied = true;
++						break;
++					}
++				}
++			final RaceGame.MoveResult move = game.evaluateMove(rival.getLap(), rival.getNextGate(),
++					rp[0], rp[1], nx, ny, occupied);
++			if (!move.legal())
++				continue;
++			final long cost = racecraftCostAfter(move, nx, ny, nvx, nvy);
++			if (cost < best)
++				best = cost;
++		}
++		return best;
++	}
++
++	/** How many live rivals are projected ahead after their best one-move reply.
++	 * Every rival is counted: a duel gain may never be bought by losing a place
++	 * to the third car. Ties fail closed in the rival's favour. */
++	private int racecraftProjectedRank(final long myCost, final int blockX, final int blockY,
++			final int playerNum) {
++		int rank = 1;
++		for (int i = 0; i < game.players.length; i++) {
++			final Player p = game.players[i];
++			if (p.getNumber() == playerNum || p.isFinished())
++				continue;
++			if (racecraftBestReply(i, blockX, blockY, playerNum) <= myCost)
++				rank++;
++		}
++		return rank;
++	}
++
++	private int racecraftProjectedRankForLanding(final int x, final int y, final int vx,
++			final int vy, final int playerNum) {
++		final Player me = game.players[game.subgamestate];
++		final RaceGame.MoveResult move = game.evaluateMove(me.getLap(), me.getNextGate(),
++				me.getPosition()[0], me.getPosition()[1], x, y,
++				game.isCrashingPlayer(x, y, playerNum));
++		if (!move.legal())
++			return Integer.MAX_VALUE;
++		return racecraftProjectedRank(racecraftCostAfter(move, x, y, vx, vy), x, y, playerNum);
++	}
++
++	/** Dynamic lane tie-break: count next-turn cells that I and any live rival
++	 * can both reach. Fewer conflicts means the actually open side of the track,
++	 * rather than a fixed left/right convention. */
++	private int racecraftFutureConflicts(final int x, final int y, final int vx, final int vy,
++			final int playerNum) {
++		int conflicts = 0;
++		for (final Direction md : DIRECTIONS) {
++			final int mvx = vx + md.dx, mvy = vy + md.dy;
++			if (RaceGame.aiVelocityOutOfRange(mvx, mvy))
++				continue;
++			final int mx = x + mvx, my = y + mvy;
++			if (!game.isMoveLegalGeometryCached(x, y, mx, my))
++				continue;
++			for (final Player r : game.players) {
++				if (r.getNumber() == playerNum || r.isFinished())
++					continue;
++				final int[] rp = r.getPosition(), rv = r.getVelocity();
++				boolean shared = false;
++				for (final Direction rd : DIRECTIONS) {
++					final int rvx = rv[0] + rd.dx, rvy = rv[1] + rd.dy;
++					if (RaceGame.aiVelocityOutOfRange(rvx, rvy))
++						continue;
++					if (rp[0] + rvx == mx && rp[1] + rvy == my
++							&& game.isMoveLegalGeometryCached(rp[0], rp[1], mx, my)) {
++						shared = true;
++						break;
++					}
++				}
++				if (shared)
++					conflicts++;
++			}
++		}
++		return conflicts;
++	}
++
++	private int racecraftNextAlive(final boolean[] alive, final int current) {
++		for (int k = 1; k <= alive.length; k++) {
++			final int i = (current + k) % alive.length;
++			if (alive[i])
++				return i;
++		}
++		return -1;
++	}
++
++	private int racecraftLiveRivals(final boolean[] alive, final int me) {
++		int n = 0;
++		for (int i = 0; i < alive.length; i++)
++			if (i != me && alive[i])
++				n++;
++		return n;
++	}
++
++	private boolean racecraftOccupied(final boolean[] alive, final int[] x, final int[] y,
++			final int mover, final int nx, final int ny) {
++		for (int i = 0; i < alive.length; i++)
++			if (i != mover && alive[i] && x[i] == nx && y[i] == ny)
++				return true;
++		return false;
++	}
++
++	/** Paranoid final-lap 3-car search. Relative place is exact only when the
++	 * horizon resolves it; unresolved/budget states return rootLive+1. */
++	private int racecraftPlaceSearch(final int[] x, final int[] y, final int[] vx, final int[] vy,
++			final boolean[] alive, final int mover, final int me, final int depth,
++			final int ahead, final int behind, final int rootLive) {
++		if (++racecraftPlaceNodes > RACECRAFT_PLACE3_NODES || depth <= 0)
++			return rootLive + 1;
++		if (!alive[me])
++			return rootLive - behind;
++		if (racecraftLiveRivals(alive, me) == 0)
++			return ahead + 1;
++		boolean any = false;
++		int value = mover == me ? rootLive + 1 : 0;
++		for (final Direction d : DIRECTIONS) {
++			final int nvx = vx[mover] + d.dx, nvy = vy[mover] + d.dy;
++			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
++				continue;
++			final int nx = x[mover] + nvx, ny = y[mover] + nvy;
++			final RaceGame.MoveResult move = game.evaluateMove(game.totalLaps - 1, 0,
++					x[mover], y[mover], nx, ny, racecraftOccupied(alive, x, y, mover, nx, ny));
++			if (!move.legal())
++				continue;
++			if (mover == me && !move.finishes() && !reach.isAlive(nx, ny, nvx, nvy))
++				continue;
++			any = true;
++			final int ox = x[mover], oy = y[mover], ovx = vx[mover], ovy = vy[mover];
++			final boolean oa = alive[mover];
++			int nahead = ahead, nbehind = behind;
++			int child;
++			if (move.finishes()) {
++				alive[mover] = false;
++				if (mover == me)
++					child = ahead + 1;
++				else {
++					nahead++;
++					final int next = racecraftNextAlive(alive, mover);
++					child = racecraftLiveRivals(alive, me) == 0 ? nahead + 1
++							: racecraftPlaceSearch(x, y, vx, vy, alive, next, me, depth - 1,
++									nahead, nbehind, rootLive);
++				}
++			} else {
++				x[mover] = nx; y[mover] = ny; vx[mover] = nvx; vy[mover] = nvy;
++				final int next = racecraftNextAlive(alive, mover);
++				child = racecraftPlaceSearch(x, y, vx, vy, alive, next, me, depth - 1,
++						nahead, nbehind, rootLive);
++			}
++			x[mover] = ox; y[mover] = oy; vx[mover] = ovx; vy[mover] = ovy; alive[mover] = oa;
++			if (mover == me) {
++				if (child < value) value = child;
++				if (value == 1) break;
++			} else {
++				if (child > value) value = child;
++				if (value > rootLive) break;
++			}
++		}
++		if (any)
++			return value;
++		// Forced crash: no legal move. Already-crashed rivals finish behind me;
++		// a crash by me gets the worst still-unclaimed relative place.
++		if (mover == me)
++			return rootLive - behind;
++		alive[mover] = false;
++		final int next = racecraftNextAlive(alive, mover);
++		final int result = racecraftLiveRivals(alive, me) == 0 ? ahead + 1
++				: racecraftPlaceSearch(x, y, vx, vy, alive, next, me, depth - 1,
++						ahead, behind + 1, rootLive);
++		alive[mover] = true;
++		return result;
++	}
++
++	private int racecraftPlaceGuarantee(final int[] pos, final int[] vel, final int playerNum,
++			final Direction root, final int rootLive) {
++		final int me = game.subgamestate;
++		final int[] x = new int[game.players.length], y = new int[game.players.length];
++		final int[] vx = new int[game.players.length], vy = new int[game.players.length];
++		final boolean[] alive = new boolean[game.players.length];
++		for (int i = 0; i < game.players.length; i++) {
++			final Player p = game.players[i];
++			final int[] q = p.getPosition(), v = p.getVelocity();
++			x[i] = q[0]; y[i] = q[1]; vx[i] = v[0]; vy[i] = v[1]; alive[i] = !p.isFinished();
++		}
++		final int nvx = vel[0] + root.dx, nvy = vel[1] + root.dy;
++		if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
++			return rootLive + 1;
++		final int nx = pos[0] + nvx, ny = pos[1] + nvy;
++		final RaceGame.MoveResult move = game.evaluateMove(game.totalLaps - 1, 0, pos[0], pos[1],
++				nx, ny, racecraftOccupied(alive, x, y, me, nx, ny));
++		if (!move.legal())
++			return rootLive;
++		if (move.finishes())
++			return 1;
++		if (!reach.isAlive(nx, ny, nvx, nvy))
++			return rootLive + 1;
++		x[me] = nx; y[me] = ny; vx[me] = nvx; vy[me] = nvy;
++		final int next = racecraftNextAlive(alive, me);
++		return racecraftPlaceSearch(x, y, vx, vy, alive, next, me,
++				RACECRAFT_PLACE3_DEPTH - 1, 0, 0, rootLive);
++	}
++
++	private Direction racecraftPlaceOverride(final int[] pos, final int[] vel, final int playerNum,
++			final Direction chosen, final double[] scoreByDir) {
++		if (liveRivalsRemaining(playerNum) != 2)
++			return chosen;
++		for (int i = 0; i < game.players.length; i++)
++			if (!game.players[i].isFinished() && frameLapAware[i])
++				return chosen;
++		for (int i = 0; i < game.players.length; i++) {
++			final Player p = game.players[i];
++			if (p.isFinished()) continue;
++			final int[] q = p.getPosition(), v = p.getVelocity();
++			if (ttfFor(i, q[0], q[1], v[0], v[1]) > RACECRAFT_PLACE3_ETA)
++				return chosen;
++		}
++		racecraftPlaceNodes = 0;
++		final int rootLive = 3;
++		final int chosenPlace = racecraftPlaceGuarantee(pos, vel, playerNum, chosen, rootLive);
++		Direction best = chosen;
++		int bestPlace = chosenPlace;
++		long bestCost = RACECRAFT_INF;
++		for (final Direction d : DIRECTIONS) {
++			if (d == chosen || scoreByDir[d.ordinal()] == Double.MAX_VALUE) continue;
++			final int place = racecraftPlaceGuarantee(pos, vel, playerNum, d, rootLive);
++			if (racecraftPlaceNodes > RACECRAFT_PLACE3_NODES) return chosen;
++			if (!(place == 1 && chosenPlace != 1 || chosenPlace <= rootLive && place < chosenPlace))
++				continue;
++			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
++			final Player me = game.players[game.subgamestate];
++			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
++			final RaceGame.MoveResult move = game.evaluateMove(me.getLap(), me.getNextGate(),
++					pos[0], pos[1], nx, ny, game.isCrashingPlayer(nx, ny, playerNum));
++			final long cost = move.legal() ? racecraftCostAfter(move, nx, ny, nvx, nvy) : RACECRAFT_INF;
++			if (place < bestPlace || place == bestPlace && cost < bestCost) {
++				best = d; bestPlace = place; bestCost = cost;
++			}
++		}
++		return best;
++	}
++
++	/** Candidate-only selfish place objective. It may reverse an old field-welfare
++	 * veto, but only in a genuinely late 2/3-car fight. Existing seal/danger
++	 * guards run after this method. Objective: projected own place, own race cost,
++	 * then dynamic open-lane conflicts. */
++	private Direction racecraftCandidateOverride(final int[] pos, final int[] vel,
++			final int playerNum, final Direction chosen, final double[] scoreByDir) {
++		final int rivals = liveRivalsRemaining(playerNum);
++		if (rivals < 1 || rivals > RACECRAFT_MAX_RIVALS)
++			return chosen;
++		final Direction placeMove = racecraftPlaceOverride(pos, vel, playerNum, chosen, scoreByDir);
++		if (placeMove != chosen)
++			return placeMove;
++		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
++		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
++		final Player me = game.players[game.subgamestate];
++		final RaceGame.MoveResult chosenMove = game.evaluateMove(me.getLap(), me.getNextGate(),
++				pos[0], pos[1], cx, cy, game.isCrashingPlayer(cx, cy, playerNum));
++		if (!chosenMove.legal() || chosenMove.finishes())
++			return chosen;
++		final long chosenCost = racecraftCostAfter(chosenMove, cx, cy, cvx, cvy);
++		if (chosenCost >= RACECRAFT_INF || exactPot != null && chosenCost > RACECRAFT_NEAR_TTF)
++			return chosen;
++		if (exactPot == null && (frameRemaining[game.subgamestate] > 1
++				|| (chosenCost & 0xffffffffL) > RACECRAFT_NEAR_TTF))
++			return chosen;
++		int bestRank = racecraftProjectedRank(chosenCost, cx, cy, playerNum);
++		long bestCost = chosenCost;
++		int bestConflicts = racecraftFutureConflicts(cx, cy, cvx, cvy, playerNum);
++		Direction best = chosen;
++		for (final Direction d : DIRECTIONS) {
++			if (d == chosen || scoreByDir[d.ordinal()] == Double.MAX_VALUE)
++				continue;
++			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
++			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
++				continue;
++			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
++			final RaceGame.MoveResult move = game.evaluateMove(me.getLap(), me.getNextGate(),
++					pos[0], pos[1], nx, ny, game.isCrashingPlayer(nx, ny, playerNum));
++			if (!move.legal() || move.finishes() || !reach.isAlive(nx, ny, nvx, nvy)
++					|| sealable(nx, ny, nvx, nvy, playerNum))
++				continue;
++			final long cost = racecraftCostAfter(move, nx, ny, nvx, nvy);
++			if (cost >= RACECRAFT_INF)
++				continue;
++			final int rank = racecraftProjectedRank(cost, nx, ny, playerNum);
++			if (rank > bestRank)
++				continue;
++			final int conflicts = racecraftFutureConflicts(nx, ny, nvx, nvy, playerNum);
++			if (rank < bestRank || rank == bestRank && (cost < bestCost
++					|| cost == bestCost && conflicts < bestConflicts)) {
++				best = d;
++				bestRank = rank;
++				bestCost = cost;
++				bestConflicts = conflicts;
++			}
++		}
++		return best;
++	}
++
+ 	/** Round 226: does this car run the candidate branch of a mixed field? False
+ 	 *  for every car unless the game's candidateSlots property names its slot. */
+ 	private boolean candidate(final int playerNum) {
+@@ -4809,56 +5175,68 @@ final class RaceAi {
+ 		return n;
+ 	}
+ 
+-	/** The decisive rival to pressure: the live rival nearest the finish (the
+-	 *  one to beat; in 1v1 the sole rival). Array index, or -1 if none. */
++	/** The decisive rival to pressure: the live rival furthest through the race,
++	 *  not merely nearest the physical finish line. In lap mode fewer remaining
++	 *  gate events dominates local distance; within a stage use that rival's own
++	 *  stage-aware TTF. */
+ 	private int decisiveRival(final int playerNum) {
+-		int best = -1, bestDist = Integer.MAX_VALUE;
++		int best = -1, bestRemaining = Integer.MAX_VALUE, bestT = Integer.MAX_VALUE;
+ 		for (int i = 0; i < game.players.length; i++) {
+ 			final Player p = game.players[i];
+ 			if (p.getNumber() == playerNum || p.isFinished())
+ 				continue;
+-			final int[] pp = p.getPosition();
+-			final int dd = reach.distAt(pp[0], pp[1]);
+-			if (dd < bestDist) {
+-				bestDist = dd;
++			final int gate = game.lapGates == null ? 0 : game.nextGateOf(p.getNumber());
++			final int remaining = game.lapGates == null ? 0
++					: OptimalPotential.remainingEvents(gate, p.getLap(), game.totalLaps);
++			final boolean aware = game.lapGates != null
++					&& (p.getLap() + 1 < game.totalLaps || gate != 0);
++			final int[] pp = p.getPosition(), pv = p.getVelocity();
++			final int turns;
++			if (frameRemaining.length > i)
++				turns = ttfFor(i, pp[0], pp[1], pv[0], pv[1]);
++			else if (exactPot != null)
++				turns = exactPot.movesToFinish(remaining, pp[0], pp[1], pv[0], pv[1]);
++			else
++				turns = aware ? reach.turnsToGate(gate, pp[0], pp[1], pv[0], pv[1])
++						: reach.turnsToFinish(pp[0], pp[1], pv[0], pv[1]);
++			if (remaining < bestRemaining || remaining == bestRemaining && turns < bestT) {
++				bestRemaining = remaining;
++				bestT = turns;
+ 				best = i;
+ 			}
+ 		}
+ 		return best;
+ 	}
+ 
+-	/** Count rival {@code ri}'s viable immediate moves: geometry-legal next
+-	 *  cells, not my landing (blockX,blockY), not occupied by another live car.
+-	 *  0 => the rival has no legal move and must crash; 99 => it can finish
+-	 *  (unsealable). Uses the rival's CURRENT velocity, so it is exact only for
+-	 *  a rival that has not moved yet this round. */
++	/** Count rival {@code ri}'s viable immediate moves under the referee's own
++	 *  lap/gate transition. A non-final S/F crossing is an ordinary escape, not
++	 *  an unsealable finish. 0 => forced crash; 99 => genuine finish. */
+ 	private int rivalEscapes(final int ri, final int blockX, final int blockY, final int playerNum) {
+-		final int[] rp = game.players[ri].getPosition();
+-		final int[] rv = game.players[ri].getVelocity();
+-		final int riNum = game.players[ri].getNumber();
++		final Player rival = game.players[ri];
++		final int[] rp = rival.getPosition(), rv = rival.getVelocity();
++		final int riNum = rival.getNumber();
+ 		int n = 0;
+ 		for (final Direction d : DIRECTIONS) {
+ 			final int nvx = rv[0] + d.dx, nvy = rv[1] + d.dy;
+ 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+ 				continue;
+ 			final int nx = rp[0] + nvx, ny = rp[1] + nvy;
+-			if (game.crossesFinishLegally(rp[0], rp[1], nx, ny))
+-				return 99;
+-			if (!game.isMoveLegalGeometryCached(rp[0], rp[1], nx, ny))
+-				continue;
+-			if (nx == blockX && ny == blockY)
+-				continue;
+-			boolean blocked = false;
+-			for (final Player q : game.players) {
+-				if (q.isFinished() || q.getNumber() == playerNum || q.getNumber() == riNum)
+-					continue;
+-				final int[] qp = q.getPosition();
+-				if (qp[0] == nx && qp[1] == ny) {
+-					blocked = true;
+-					break;
++			boolean occupied = nx == blockX && ny == blockY;
++			if (!occupied)
++				for (final Player q : game.players) {
++					if (q.isFinished() || q.getNumber() == playerNum || q.getNumber() == riNum)
++						continue;
++					final int[] qp = q.getPosition();
++					if (qp[0] == nx && qp[1] == ny) {
++						occupied = true;
++						break;
++					}
+ 				}
+-			}
+-			if (!blocked)
++			final RaceGame.MoveResult reply = game.evaluateMove(rival.getLap(), rival.getNextGate(),
++					rp[0], rp[1], nx, ny, occupied);
++			if (reply.finishes())
++				return 99;
++			if (reply.legal())
+ 				n++;
+ 		}
+ 		return n;
+@@ -4986,11 +5364,10 @@ final class RaceAi {
+ 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+ 				continue;
+ 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+-			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+-				continue;
+-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+-				continue;
+-			if (game.isCrashingPlayer(nx, ny, playerNum))
++			final Player me = game.players[game.subgamestate];
++			final RaceGame.MoveResult move = game.evaluateMove(me.getLap(), me.getNextGate(),
++					pos[0], pos[1], nx, ny, game.isCrashingPlayer(nx, ny, playerNum));
++			if (move.finishes() || !move.legal())
+ 				continue;
+ 			if (!reach.isAlive(nx, ny, nvx, nvy))
+ 				continue;
