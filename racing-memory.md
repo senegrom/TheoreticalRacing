@@ -1,5 +1,83 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 229, first part: the caution stack by places, and round 228 confirmed
+
+Numbering. A peer agent's ledger entry "Round 227 archived" (6497764) records
+an archived NULL candidate (-0.004 places), and its branch "Round 228"
+removed the needle surcharge. This session's caution-stack sweep ran in
+parallel on the round-226 champion and is recorded here as round 229.
+
+THE SWEEP. Round-226 champion (surcharge 1), random starts, seeds 1-10, all
+84 tracks, candidate slots 1/3/5/7 then 2/4/6/8: 840 mirrored pairs, 6720
+car-races per policy per arm. Candidate cars only; champion cars unchanged.
+
+    arm                               cand-champ place  wins C/H  crashes C/H  tracks C/H/tie
+    s05  whole soft stack x0.5         -0.037 +- 0.022   845/835     2/2        45/34/5
+    s00  whole soft stack x0           -1.117 +- 0.036  1044/636    15/5        79/5/0
+    f00  car-following law off         -0.358 +- 0.028   865/815    12/1        62/10/12
+    t05  trap tiers L1 0.5, L2 0.125   +0.034 +- 0.017   849/831     3/2        38/41/5
+
+A step, not a slope. Halving the stack moves nothing -- round 217's
+"nearly weightless" verdict by summed moves holds at x0.5 -- and removing it
+is worth over a place. The soft terms are vetoes over the one-move quantum,
+exactly what round 218 found for the needle surcharge: at x0.5 the trap tier
+L1 (2.0 -> 1.0) still outweighs a move, at x0 the faster landing wins. The
+trap tiers themselves carry nothing (t05); the following law carries a third
+of it (f00); the rest sits in the speed cap, the corner-entry brake and the
+brake proofs inside uncertified, or in their interaction -- asked next.
+
+ROUND 228, CONFIRMED. The peer's mixed grids (docs/experiments/round228)
+recomputed from their per-race table give legacy -1.140 +- 0.040 and
+informed -1.151 +- 0.039 (E:/tmp-claude/h2h_tracks.py, the scorer's
+arithmetic). Independent confirmation on the box with the same candidate
+patch (docs/experiments/round228/candidate.patch applied by anchor,
+E:/tmp-claude/arm228_zero.py) on FRESH seeds 11-20, random starts:
+-1.101 +- 0.041, wins 1105/575, crashes 13/10, 69/4/11 tracks; the per-track
+gains correlate 0.946 with seeds 1-10, so the gain is structural, not the
+seeds'. Local battery on the branch: core tests, 12/12 goldens, 23/23 pins
+(eight re-frozen from measurement; finishers and crashes unchanged in every
+one). Master fast-forwarded to 36a6434: the champion is the surcharge-free
+car. build_main.sh and the scratch builder produce the same jar
+(549d27f5cac2ec86).
+
+Where the gain lives: a zero surcharge changes nothing on the 11 no-lap
+courses (robustMode is lap-aware; those tracks read +0.000 in every grid),
+and everything on the lap circuits.
+
+THE WHOLE FIELD, described, never a veto. A field made only of
+surcharge-free cars (the peer's candidate-only grids): random starts 29
+crashes per 730 lap races and 1,810,581 moves against 0 crashes and
+1,840,167 for the round-226 champion (-1.6%); computed starts 37 crashes /
+1,806,934 against 4 / 1,838,225; scattered 5 / 1,461,772 against 0 /
+1,468,307. Eleven of the 29 are Monza (a crash in 9 of 10 seeds), then
+Nordschleife 5, Spielberg, Monaco and Hungaroring 2 each -- the
+hawk-against-hawk deaths round 218 saw at surcharge 0 and round 219 audited:
+the lane closes from beside (the closing car 1-3 cells from the landing) or
+from ahead (a slowing car 11-18 cells up a single lane). In the MIXED field
+Monza is among the surcharge-free car's best tracks (-2.2 places): it takes
+the lane the cautious car concedes; two surcharge-free cars contest it and
+one dies. That is the round-230 question, the aimed gate re-asked by places.
+
+STACKING. s00 on top of the surcharge-free champion (zs: surcharge off for
+every car, soft stack off for candidate cars; seeds 1-10, mirrored):
+-0.788 +- 0.038, wins 997/683, tracks 75/9/0 -- and crashes 139 against 30.
+The candidate crashes 2.1% of its car-races (Hungaroring 26, Spa 14,
+Spielberg 13, Monza 9 against the champion's 10 there) and still gains most
+of a place, because a crash costs it one last place while the lane it takes
+everywhere else pays in places. The two removals overlap (their per-track
+gains on the old champion correlate 0.65) and their crashes multiply.
+
+NEXT, queued on the box (E:/tmp-claude/grid229d.sh): the stack term by term
+on the surcharge-free champion -- uncertified brake (unc0), corner entry
+(cor0), speed cap (cap0), trap ladder including the dead-fan 50 (tr0),
+E:/tmp-claude/arm229_terms.py -- to see which term carries the places and
+which the crashes; then the aimed needle gate (round 230,
+E:/tmp-claude/arm230_aimed.py: round 219's v2 gate, +1 on a thin state only
+when a rival can close its lane, rivals modelled raw); then the two hawks
+against each other (sz: s00 cars against z00 cars). Rows and reports:
+E:/tmp-claude/g227/ (the sweep), E:/tmp-claude/g228/ (round 228's table,
+the fresh-seed and stacking rows); instruments h2h_dump.py, h2h_tracks.py.
+
 ## Round 228: remove the remaining narrow-lane distance surcharge
 
 The shared AI now uses raw distance in ttf() and ttfFor(), removing the
