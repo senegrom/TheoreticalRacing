@@ -1,5 +1,15 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 228: complete the largest track with its required heap
+
+The first completed 4 GiB grids each have 83 valid tracks and one failed track,
+Nordschleife. Its first seed completes, but the next seed's reachability build
+hits the memory-reserve guard. Do not count those grids as complete, suppress
+the error, or weaken the guard. Run only Nordschleife in separate manifests at
+8 GiB with one worker, for every start mode and slot assignment. Both policies
+use the same per-track budget. Score the disjoint 83-track and one-track logs
+together only after every pair is present and every shard validates.
+
 ## Round 228: parallel regression measurements
 
 Preserve the production candidate as a separate patch, and run the core suite,
