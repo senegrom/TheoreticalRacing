@@ -152,16 +152,16 @@ class DeploymentGuardTests(unittest.TestCase):
             is_current(SHA, REPO, unavailable)
 
     def test_publish_staging_and_validation_inputs(self):
-        workflow = (WEB.parent / '.github/workflows/browser.yml').read_text()
+        workflow = (WEB.parent / '.github/workflows/ci.yml').read_text()
         self.assertLess(workflow.index('rm -rf -- "$RUNNER_TEMP/racing-pages"'), workflow.index('uses: actions/download-artifact'))
         self.assertIn('path: ${{ runner.temp }}/racing-pages', workflow)
         self.assertNotIn('path: site', workflow)
         self.assertLess(workflow.index('deployment_guard.py'), workflow.index('uses: actions/deploy-pages'))
         self.assertIn('queue: max', workflow)
         self.assertIn('--expected-sha "$GITHUB_SHA"', workflow)
-        self.assertIn('group: browser-${{ github.ref }}-${{ github.sha }}', workflow)
-        for path in ['tests/**', '*.sh', '.gitattributes', '.gitignore']:
-            self.assertEqual(workflow.count("- '" + path + "'"), 2)
+        browser = (WEB.parent / '.github/workflows/browser.yml').read_text()
+        self.assertIn('group: browser-${{ github.ref }}', browser)
+        self.assertNotIn('group: browser-${{ github.ref }}-${{ github.sha }}', browser)
         self.assertIn('/site/', (WEB.parent / '.gitignore').read_text().splitlines())
         self.assertFalse((WEB.parent / 'site').exists())
 

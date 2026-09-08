@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
+    branches: [master]
   pull_request:
-  # Also called locally by Browser app, so publication validates this exact SHA.
-  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -64,11 +64,141 @@ jobs:
   tooling:
     name: Tooling checks
     runs-on: ubuntu-latest
+    outputs:
+      browser: ${{ steps.scope.outputs.browser }}
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Select browser coverage
+        id: scope
+        run: python3 web/scripts/ci_scope.py
       - uses: actions/setup-python@v6
         with:
           python-version: '3.13'
       - run: python -m compileall -q tracks tests
       - run: python -m unittest discover -s tests -p 'test_*.py'
       - run: sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+
+  # Local calls and checkout resolve to this workflow's exact triggering commit.
+  browser:
+    needs: tooling
+    if: needs.tooling.outputs.browser == 'true'
+    uses: ./.github/workflows/browser.yml
+
+  publish:
+    name: Publish GitHub Pages
+    needs: [java, frozen-ai2, tooling, browser]
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: github-pages-publication
+      cancel-in-progress: false
+      queue: max
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Empty the publication staging directory
+        run: |
+          rm -rf -- "$RUNNER_TEMP/racing-pages"
+          mkdir -p "$RUNNER_TEMP/racing-pages"
+      - uses: actions/download-artifact@v4
+        with:
+          name: browser-webapp
+          path: ${{ runner.temp }}/racing-pages
+      - name: Verify the entire tested artifact and attach matching source
+        run: python3 web/scripts/site_artifact.py prepare "$RUNNER_TEMP/racing-pages" --sha "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/racing-pages
+      - name: Refuse superseded workflow reruns
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 web/scripts/deployment_guard.py --sha "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
+      - name: Deploy to GitHub Pages
+        if: steps.current.outputs.allowed == 'true'
+        id: deploy
+        uses: actions/deploy-pages@v4
+      - name: Install live-site test browser
+        if: steps.current.outputs.allowed == 'true'
+        run: |
+          python3 -m pip install playwright==1.57.0
+          python3 -m playwright install --with-deps chromium
+      - name: Verify gameplay on the public site
+        if: steps.current.outputs.allowed == 'true'
+        env:
+          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
+        run: python3 web/tests/browser_e2e.py --browser chromium --url "$PAGE_URL" --expected-sha "$GITHUB_SHA" --expected-repository "$GITHUB_REPOSITORY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: live-pages-evidence
+          path: web/build/browser-tests/
+          retention-days: 7
+
+  # Temporary: remove this job after the audited branch retirement completes.
+  retire-audited-branches:
+    if: github.repository == 'senegrom/TheoreticalRacing' && github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Preserve staging records and retire unchanged branches
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          repository = 'senegrom/TheoreticalRacing'
+          candidates = [['browser', '40d64d95cd05feed146e25a6e3acf94eaca338ab', None], ['perf/parallel-finish-validation', '40acab3b20e09099b95065131b18f494b20852df', 'archive/2026-09-08-parallel-finish-validation']]
+          import json, os, subprocess, urllib.parse, urllib.request
+
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+
+          assert os.environ['GITHUB_REPOSITORY'] == repository
+          leases, refspecs = [], []
+          for branch, expected, archive in candidates:
+              ref = 'refs/heads/' + branch
+              current = git('ls-remote', '--refs', 'origin', ref)
+              if not current:
+                  print('Already retired:', branch)
+                  continue
+              assert current.split() == [expected, ref], 'Branch advanced: ' + branch
+              query = urllib.parse.urlencode({'state': 'open', 'head': repository.split('/')[0] + ':' + branch, 'per_page': 100})
+              request = urllib.request.Request('https://api.github.com/repos/' + repository + '/pulls?' + query,
+                  headers={'Authorization': 'Bearer ' + os.environ['GH_TOKEN'], 'Accept': 'application/vnd.github+json'})
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  prs = json.load(response)
+              assert isinstance(prs, list) and not prs, 'Branch has an open PR: ' + branch
+              git('fetch', '--no-tags', 'origin', expected)
+              if archive:
+                  tag = 'refs/tags/' + archive
+                  existing = git('ls-remote', '--refs', 'origin', tag)
+                  if existing:
+                      assert existing.split() == [expected, tag], 'Archive tag differs: ' + archive
+                  else:
+                      leases.append('--force-with-lease=' + tag + ':')
+                      refspecs.append(expected + ':' + tag)
+              else:
+                  subprocess.run(['git', 'merge-base', '--is-ancestor', expected, 'HEAD'], check=True)
+              leases.append('--force-with-lease=' + ref + ':' + expected)
+              refspecs.append(':' + ref)
+              print('Retire verified branch:', branch, expected, 'archive:', archive or 'already in default history')
+          if refspecs:
+              subprocess.run(['git', 'push', '--atomic', *leases, 'origin', *refspecs], check=True)

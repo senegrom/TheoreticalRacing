@@ -1,46 +1,12 @@
 name: Browser app
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'web/**'
-      - 'src/**'
-      - 'tests/**'
-      - '*.sh'
-      - '.gitattributes'
-      - '.gitignore'
-      - '.github/dependabot.yml'
-      - 'tracks/**'
-      - 'LICENSE'
-      - '.github/workflows/browser.yml'
-      - '.github/workflows/ci.yml'
-  pull_request:
-    branches: [master]
-    paths:
-      - 'web/**'
-      - 'src/**'
-      - 'tests/**'
-      - '*.sh'
-      - '.gitattributes'
-      - '.gitignore'
-      - '.github/dependabot.yml'
-      - 'tracks/**'
-      - 'LICENSE'
-      - '.github/workflows/browser.yml'
-      - '.github/workflows/ci.yml'
-  workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:
-  group: browser-${{ github.ref }}-${{ github.sha }}
+  group: browser-${{ github.ref }}
   cancel-in-progress: true
 jobs:
-  # Local reusable workflows and checkout both resolve to the caller's commit.
-  # No polling another run's status, moving branch refs, or duplicated test list.
-  engine-validation:
-    name: Required engine CI
-    uses: ./.github/workflows/ci.yml
-
   parity:
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -59,8 +25,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Original core tests
-        run: sh run_tests.sh
       - name: Install icon build dependencies
         run: python3 -m pip install -r web/requirements-icons.txt
       - name: Build the same engine for browsers
@@ -122,65 +86,5 @@ jobs:
         if: always()
         with:
           name: browser-${{ matrix.browser }}-evidence
-          path: web/build/browser-tests/
-          retention-days: 7
-  publish:
-    name: Publish GitHub Pages
-    needs: [engine-validation, parity, browsers]
-    if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    concurrency:
-      group: github-pages-publication
-      cancel-in-progress: false
-      queue: max
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Empty the publication staging directory
-        run: |
-          rm -rf -- "$RUNNER_TEMP/racing-pages"
-          mkdir -p "$RUNNER_TEMP/racing-pages"
-      - uses: actions/download-artifact@v4
-        with:
-          name: browser-webapp
-          path: ${{ runner.temp }}/racing-pages
-      - name: Verify the entire tested artifact and attach matching source
-        run: python3 web/scripts/site_artifact.py prepare "$RUNNER_TEMP/racing-pages" --sha "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: ${{ runner.temp }}/racing-pages
-      - name: Refuse superseded workflow reruns
-        id: current
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 web/scripts/deployment_guard.py --sha "$GITHUB_SHA" --repository "$GITHUB_REPOSITORY"
-      - name: Deploy to GitHub Pages
-        if: steps.current.outputs.allowed == 'true'
-        id: deploy
-        uses: actions/deploy-pages@v4
-      - name: Install live-site test browser
-        if: steps.current.outputs.allowed == 'true'
-        run: |
-          python3 -m pip install playwright==1.57.0
-          python3 -m playwright install --with-deps chromium
-      - name: Verify gameplay on the public site
-        if: steps.current.outputs.allowed == 'true'
-        env:
-          PAGE_URL: ${{ steps.deploy.outputs.page_url }}
-        run: python3 web/tests/browser_e2e.py --browser chromium --url "$PAGE_URL" --expected-sha "$GITHUB_SHA" --expected-repository "$GITHUB_REPOSITORY"
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: live-pages-evidence
           path: web/build/browser-tests/
           retention-days: 7

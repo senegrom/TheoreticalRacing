@@ -10,6 +10,10 @@ import subprocess
 import tempfile
 import textwrap
 import unittest
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'web/scripts'))
+from ci_scope import browser_path, changed_paths, needs_browser
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -40,22 +44,26 @@ class ReleaseGateTests(unittest.TestCase):
         cls.browser = (workflows / 'browser.yml').read_text()
 
     def test_browser_requires_full_ci_at_the_callers_commit(self):
-        self.assertIn('  workflow_call:', block(self.ci, 'on:'))
-        job = block(self.browser, '  engine-validation:')
-        self.assertIn('    uses: ./.github/workflows/ci.yml', job)
-        self.assertNotRegex(job, r'(?m)^\s+(if|continue-on-error|with):')
+        self.assertEqual(block(self.browser, 'on:').strip(), 'on:\n  workflow_call:')
+        job = block(self.ci, '  browser:')
+        self.assertIn('    uses: ./.github/workflows/browser.yml', job)
+        self.assertIn("    if: needs.tooling.outputs.browser == 'true'", job)
+        self.assertNotRegex(job, r'(?m)^\s+(continue-on-error|with):')
         # Checkout defaults to the triggering commit; never a moving branch.
-        for ref in re.findall(r'(?m)^\s+ref:\s*(.+)$', self.ci):
+        for ref in re.findall(r'(?m)^\s+ref:\s*(.+)$', self.ci + self.browser):
             self.assertEqual(ref, '${{ github.sha }}')
-        self.assertNotIn('continue-on-error:', self.ci)
-        self.assertNotRegex(self.ci, r'(?m)^\s+if:')
+        for name in ('java', 'frozen-ai2', 'tooling'):
+            engine = block(self.ci, '  ' + name + ':')
+            self.assertNotRegex(engine, r'(?m)^\s+(if|continue-on-error):')
+        self.assertNotIn('engine-validation:', self.browser)
+        self.assertNotIn('sh run_tests.sh', self.browser)
 
     def test_failed_skipped_or_cancelled_gate_cannot_publish(self):
-        publish = block(self.browser, '  publish:')
+        publish = block(self.ci, '  publish:')
         needs = re.findall(r'(?m)^    needs: \[([^\]]+)\]$', publish)
         self.assertEqual(len(needs), 1)
         self.assertEqual({item.strip() for item in needs[0].split(',')},
-                         {'engine-validation', 'parity', 'browsers'})
+                         {'java', 'frozen-ai2', 'tooling', 'browser'})
         condition = re.findall(r'(?m)^    if: (.+)$', publish)
         self.assertEqual(len(condition), 1)
         # Without status overrides GitHub applies success() to all needs.
@@ -102,19 +110,72 @@ class ReleaseGateTests(unittest.TestCase):
             self.assertEqual(calls.read_text().splitlines(), ['tests/ai1_00broken_regression.py'])
 
     def test_gate_and_tooling_edits_trigger_browser_validation(self):
-        triggers = block(self.browser, 'on:')
-        for event in ('push', 'pull_request'):
-            event_block = block(triggers, '  ' + event + ':')
-            for path in ['web/**', 'src/**', 'tests/**', 'tracks/**', '*.sh',
-                         '.github/workflows/browser.yml', '.github/workflows/ci.yml']:
-                self.assertIn("      - '" + path + "'", event_block)
+        for path in ['web/app.js', 'src/tr/Main.java', 'tests/test_release_gate.py',
+                     'tracks/bench_ai.py', 'build_main.sh', '.gitattributes', '.gitignore',
+                     '.github/dependabot.yml', 'LICENSE',
+                     '.github/workflows/browser.yml', '.github/workflows/ci.yml']:
+            with self.subTest(path=path):
+                self.assertTrue(browser_path(path))
+        tooling = block(self.ci, '  tooling:')
+        self.assertIn('fetch-depth: 0', tooling)
+        self.assertIn('run: python3 web/scripts/ci_scope.py', tooling)
+        self.assertIn('browser: ${{ steps.scope.outputs.browser }}', tooling)
+        self.assertNotIn('paths:', block(self.ci, 'on:'))
 
-    def test_reusable_ci_cannot_cancel_its_browser_caller(self):
+    def test_browser_cannot_cancel_its_ci_caller_but_superseded_commits_can_cancel(self):
         ci_group = block(self.ci, 'concurrency:')
         browser_group = block(self.browser, 'concurrency:')
         self.assertIn('group: ci-${{ github.workflow }}-', ci_group)
         self.assertIn('group: browser-', browser_group)
         self.assertNotIn('group: browser-', ci_group)
+        self.assertNotIn('github.sha', ci_group + browser_group)
+
+
+class BrowserScopeTests(unittest.TestCase):
+    SHA = 'a' * 40
+
+    def test_documentation_only_skips_browsers_and_mixed_changes_run(self):
+        for event, data in [('push', {'before': self.SHA}),
+                            ('pull_request', {'pull_request': {'base': {'sha': self.SHA}}})]:
+            with self.subTest(event=event):
+                def docs(base, is_pr):
+                    self.assertEqual(base, self.SHA)
+                    self.assertEqual(is_pr, event == 'pull_request')
+                    return ['README.md', 'racing-memory.md']
+                self.assertFalse(needs_browser(event, data, docs))
+                self.assertTrue(needs_browser(event, data, lambda *_: ['README.md', 'web/app.js']))
+
+    def test_manual_new_branch_missing_data_and_failed_diff_run_browsers(self):
+        for event, data in [('workflow_dispatch', {}), ('unknown', {}), ('push', {}),
+                            ('push', {'before': '0' * 40}), ('push', {'before': '--help'}),
+                            ('pull_request', {'pull_request': {}})]:
+            self.assertTrue(needs_browser(event, data))
+        def unavailable(*args):
+            raise subprocess.CalledProcessError(128, 'git')
+        self.assertTrue(needs_browser('push', {'before': self.SHA}, unavailable))
+
+    def test_diff_keeps_deleted_or_renamed_browser_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.check_output(['git', '-C', temp, *args], stderr=subprocess.DEVNULL).decode().strip()
+            git('init')
+            git('config', 'user.name', 'Test')
+            git('config', 'user.email', 'test@example.invalid')
+            (root / 'web').mkdir()
+            (root / 'web/old file.js').write_text('old')
+            git('add', '.')
+            git('commit', '-m', 'base')
+            base = git('rev-parse', 'HEAD')
+            git('mv', 'web/old file.js', 'README.md')
+            git('commit', '-m', 'move')
+            previous = Path.cwd()
+            try:
+                os.chdir(root)
+                for is_pr in (False, True):
+                    self.assertIn('web/old file.js', changed_paths(base, is_pr))
+            finally:
+                os.chdir(previous)
 
 
 if __name__ == '__main__':

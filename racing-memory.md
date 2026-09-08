@@ -6,6 +6,28 @@ continue from this file alone. Long-form history: see
 `C:\Users\carlg\.claude\projects\E--OneDrive-Coding-Java-theoreticRacing\memory\project_ai_architecture.md`
 (auto-memory, ~2000 lines, every round's laws and rejections).
 
+
+## 2026-09-08: consolidate CI and retire obsolete branch carriers
+
+CI is now the single push/PR/manual entry point. It runs JDK 25/26, frozen AI2
+and tooling once, calls the browser checks from the same commit when relevant
+paths change, and publishes only after every engine and browser dependency
+succeeds. Browser scope preserves the former path coverage, handles deletions
+and renames, and runs all checks when the diff is unavailable. Concurrency now
+cancels superseded browser commits. The duplicate JDK 25 core invocation in
+browser parity was removed; native parity and both real-browser suites remain.
+
+Measured locally with JDK 25: build_main.sh, run_tests.sh, all 12 golden races
+and all 22 ai1 regression pins passed. All 52 tooling unit tests and all 29
+web unit tests passed after building web/dist, including publication guards,
+artifact integrity and the new path-selection cases. No AI decision code or
+race artifacts changed. GitHub validates the resulting workflow execution.
+
+The audited browser branch is already in master. The obsolete
+perf/parallel-finish-validation carrier will be preserved under
+archive/2026-09-08-parallel-finish-validation and retired by an exact-tip,
+open-PR-checked maintenance job; remove that temporary job after completion.
+
 ## Master reviewed at bc53377: the day's UI polish, the whole repository, the browser app
 
 The user asked for a review of the commits since 9618234 and of the whole
