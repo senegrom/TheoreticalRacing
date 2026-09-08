@@ -14,9 +14,12 @@ from forensics_common import normalized_lines, normalized_sha256, race_events  #
 
 TARGET = ("lemans", 29)
 PROOF_VETO = ("lemans", 87)
-PROMOTED =(7, 0, [68, 72, 75, 77, 79, 81, 83])
-PROMOTED_FINISHERS =[(1, 68), (3, 72), (5, 75), (6, 77), (7, 79), (2, 81), (4, 83)]
-PROMOTED_ALL_MOVES ={1: 68, 2: 81, 3: 72, 4: 83, 5: 75, 6: 77, 7: 79, 8: 82}
+# Round 226 re-froze this from measurement: the needle surcharge became a
+# tie-break (12 -> 1), which is worth 0.58-0.60 places head-to-head. Finishers
+# and crashes are unchanged; the move counts are the faster lines.
+PROMOTED =(7, 0, [68, 71, 73, 74, 77, 79, 81])
+PROMOTED_FINISHERS =[(5, 68), (1, 71), (3, 73), (6, 74), (7, 77), (8, 79), (4, 81)]
+PROMOTED_ALL_MOVES ={1: 71, 2: 81, 3: 73, 4: 81, 5: 68, 6: 74, 7: 77, 8: 79}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -24,14 +27,15 @@ PROMOTED_ALL_MOVES ={1: 68, 2: 81, 3: 72, 4: 83, 5: 75, 6: 77, 7: 79, 8: 82}
 # cover every redistribution/slowdown class shared with the older broad arm.
 # Every complete trajectory must remain the current champion.
 RETENTION_CASES = {
-    PROOF_VETO: ((7, 0, [69, 73, 75, 77, 78, 80, 82]),
-        "c812b6136b457d64e59a0be7c30d20b58908dc9514d10c7358bb2f7cc0a852d0",
+    PROOF_VETO: ((7, 0, [69, 71, 73, 75, 77, 79, 81]),
+        "98056f2bfa56b6764bde86c10f3a811c7102fdb8dd7cfb430700e89de7095ad4",
     ),
-    ("lemans", 93): ((7, 0, [69, 73, 75, 77, 78, 79, 80]),
-        "2820ed08785f0e62ff7bcf5c2062936a436c28ae647321f053718219db22b25d",
+    # Round 226 (the needle tie-break): re-frozen from measurement.
+    ("lemans", 93): ((7, 0, [69, 71, 73, 75, 76, 77, 78]),
+        "6691cea58471909d57b7cd840ccf1076813188c2f58e351f9d3ff5bd19cd9ed6",
     ),
-    ("lemans", 14): ((7, 0, [69, 73, 76, 79, 80, 81, 83]),
-        "3deb93bac4828fddcd947328f0f260a09ec9a3a214f7a74c3d39810a3dfff02c",
+    ("lemans", 14): ((7, 0, [68, 70, 72, 73, 74, 75, 77]),
+        "4eb1f316f1f634daa76bc0933c28aedf540ceaca769ba4bb414a3297d1692f46",
     ),
     ("silverstone", 78): (
         (7, 0, [81, 82, 83, 84, 85, 85, 86]),

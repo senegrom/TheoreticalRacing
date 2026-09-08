@@ -12,10 +12,13 @@ import bench_ai  # noqa: E402
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("rand3", 1)
-PROMOTED =(7, 0, [61, 62, 64, 64, 65, 66, 68])
-PROMOTED_FINISHERS =[(5, 61), (8, 62), (1, 64), (7, 64), (4, 65), (6, 66), (2, 68)]
-PROMOTED_ALL_MOVES ={1: 64, 2: 68, 3: 67, 4: 65, 5: 61, 6: 66, 7: 64, 8: 62}
-PROMOTED_SHA256 = "366e42f211febe0e042c4b9a5281008fa6d3344eecf6b3f3452234bd526c6b21"
+# Round 226 re-froze this from measurement: the needle surcharge became a
+# tie-break (12 -> 1), which is worth 0.58-0.60 places head-to-head. Finishers
+# and crashes are unchanged; the move counts are the faster lines.
+PROMOTED =(7, 0, [62, 63, 64, 65, 67, 67, 67])
+PROMOTED_FINISHERS =[(3, 62), (5, 63), (7, 64), (8, 65), (1, 67), (2, 67), (4, 67)]
+PROMOTED_ALL_MOVES ={1: 67, 2: 67, 3: 62, 4: 67, 5: 63, 6: 66, 7: 64, 8: 65}
+PROMOTED_SHA256 = "b2266ef56b82da976a0f1bf418a6caaef4d42d11d3c3dc579ede0844245888a7"
 
 
 def main() -> int:

@@ -89,6 +89,113 @@ them. The uncommitted candidateSlots instrument in the working tree (RaceAi,
 RaceGame, tracks/head_to_head.py) is someone else's work in progress and was
 left untouched.
 
+## Round 226, the promotion: the needle surcharge becomes a tie-break
+
+THE RULE, SHARPENED BY THE USER (2026-09-08). I had proposed a second gate on
+top of the head-to-head test: a candidate must also not crash more as a whole
+field. The user struck it down -- "if the first car finishes faster but the
+second car now crashes that is an improvement". A crash already scores as that
+car's last place, so mean place prices safety; a homogeneous-field crash count
+is a FIELD metric and the rule forbids field metrics as vetoes. CLAUDE.md and
+AGENTS.md now say so.
+
+With that gate gone the answer was already measured. AI1_ROBUST_SURCHARGE goes
+from 12 to 1: a thin state (no 1-fault-tolerant path to the gate) is a
+tie-break toward thick states, not a veto.
+
+    head-to-head, random starts, seeds 1-10   -0.576 +- 0.030   wins 1024 vs 656
+    head-to-head, random starts, seeds 11-20  -0.597 +- 0.030   wins 1045 vs 635
+                                              72 tracks to 1, 11 tied
+    head-to-head, computed starts, seeds 1-10 -0.543 +- 0.030   wins 1006 vs 674
+
+Twenty standard errors, on the seeds that chose it and on the seeds that did
+not, in both start modes. It is the largest racecraft gain the campaign has
+measured, and it comes from a constant round 218 had already found and
+rejected -- on summed moves and field crashes, the metrics the rule now
+forbids.
+
+AS A WHOLE FIELD (description, not a gate):
+
+    random starts    1-10  crashes 1 -> 0   moves -0.73%
+                     11-20 crashes 1 -> 3   moves -0.74%
+    computed starts  1-10  crashes 2 -> 4   moves -0.72%   (all four the same
+                           Nurburgring needle: (70,143) v(1,-5) plays W and
+                           dies beside a rival at (67,143); seeds 3, 7, 9, 10)
+    scattered starts 1-10  crashes 0 -> 0   moves -0.34%
+
+Everyone is about three quarters of a percent faster and two more cars die per
+1460 races. Round 218 measured the same trade at seven deaths against one and
+reverted; the difference is not the measurement, it is which number decides.
+
+TWO REFINEMENTS TRIED AND DROPPED, both of which keep the veto in contested
+lanes and pay one turn elsewhere:
+  the aimed gate (round 219 v2: a rival beside the state or ahead in it within
+    stopping range)                 -0.016 random, +0.001 computed
+  the right of way (yield only to a contesting rival that is ahead on the road)
+                                    -0.034 random, -0.031 computed
+Both keep almost none of the gain, which locates it exactly: the value is in
+CONTESTED lanes -- round 220 already measured that 92% of the lanes the veto
+refuses are contested. A car that will not contest a lane gains nothing.
+The right-of-way variant also carried a roster-number tie-break for exactly
+level cars, and that clause had no self-interested justification -- every rival
+moves once between my landing and my next move, so roster order decides
+nothing about who reaches the cell first. It was a convention, and conventions
+are what "no cooperation" forbids. Dropped with the rest.
+
+THE COST, RECORDED. The corpus moves: seven of twelve goldens and eight of
+twenty-three pins, every one re-frozen from measurement. Each pin keeps its
+finishers and its crashes; what moves is move counts and place sums. One
+golden does change its outcome -- nurburgring s19 goes from seven finishers
+and no crash to six and one. That is the promotion's character, not an
+accident: the cars take thin lanes now.
+
+## Round 226, second part: the whole field, the aimed gate, and the right of way
+
+C3 -- the needle surcharge as a tie-break (1) instead of a veto (12) -- beat
+the champion head-to-head by 0.576 places on random starts and 0.543 on
+computed starts. The rule's second question is whether a FIELD of such cars
+crashes more than the champion's, because a car's own crash is its own last
+place. Raced on today's champion in all three start modes:
+
+    random starts, seeds 1-10   crashes 1 -> 0   moves -0.73%   (rand14's block gone)
+    random starts, seeds 11-20  crashes 1 -> 3   moves -0.74%   (monza, nurburgring +1)
+    computed starts, seeds 1-10 crashes 2 -> 4   moves -0.72%   (nurburgring 0 -> 4)
+    scattered starts, seeds 1-10 crashes 0 -> 0  moves -0.34%
+
+Milder than round 218's seven-against-one, and the two random-start slices
+together (2 -> 3) are inside Poisson noise. The computed-start slice is not
+noise: four crashes, all on the Nurburgring, all the SAME event -- a car at
+(70,143) with velocity (1,-5) plays W to (70,138) and dies, side by side with
+a rival at (67,143) v(-1,-5), in seeds 3, 7, 9 and 10 (and again on seed 19
+random). The oracle at move 814 of seed 3 shows the car with zero alive
+options one move earlier: it entered a thin lane at speed beside a rival and
+the rival's landing closed the one thread. That is the needle the veto
+exists to refuse, and the desktop and browser default to computed starts, so
+the plain promotion would ship a repeatable death on one real circuit.
+
+C3b, THE AIMED GATE (round 219 v2, revived): candidate cars keep the veto
+only when a rival can close the lane -- beside the priced state within its
+next-move envelope plus two cells, or ahead of it on the road within stopping
+range -- and pay one turn for every other thin state.
+
+    head-to-head, random starts   -0.016 +- 0.008   wins 848 vs 832   crashes 1 vs 1
+    head-to-head, computed starts +0.001 +- 0.008   wins 848 vs 832   crashes 3 vs 2
+    whole field: random 1-10 -0.02%, 11-20 -0.01%, computed -0.03% (+1 crash,
+    rand14), scattered -0.10%; 57 of 84 tracks tied
+
+It keeps almost nothing of C3's gain. So the gain is not in uncontested thin
+states -- round 220 already said 92% of the lanes the veto refuses are
+contested -- it is in CONTESTED lanes: the aggressive car takes the lane the
+cautious rival yields. Which is exactly where a field of aggressive cars
+meets in the needle and one of them dies.
+
+C3c, THE RIGHT OF WAY: in a contested thin lane the car that is AHEAD on the
+road among the contestants takes it (one turn); the car behind yields
+(twelve), because the follower is the one that can be force-crashed and, by
+the user's rule, the one that must avoid the state. Level cars break the tie
+by roster number, so two such cars never both claim the lane. Uncontested
+thin states are a tie-break for everyone. Measured below.
+
 ## Round 226, first part: the head-to-head instrument, and a dominant strategy
 
 The user asked whether racecraft can improve. Under the rule written into

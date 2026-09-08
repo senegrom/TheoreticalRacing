@@ -69,8 +69,10 @@ def main() -> int:
             # Round 216 re-froze the place sums: the exact pace term reorders
             # the finish without touching what the pin guards -- four cars home
             # and none lost, whichever grid slot carries p7.
-            expected = ({"AI1": (19, 4, 0), "AI2": (17, 4, 0)} if target_kind == "AI1"
-                        else {"AI1": (17, 4, 0), "AI2": (19, 4, 0)})
+            # Round 226: the place sums moved with the needle tie-break; the pin
+            # guards four cars home and none lost, and that is unchanged.
+            expected = ({"AI1": (21, 4, 0), "AI2": (15, 4, 0)} if target_kind == "AI1"
+                        else {"AI1": (15, 4, 0), "AI2": (21, 4, 0)})
             if result != expected:
                 raise SystemExit(
                     "Round-185 width-three ridge regression: "

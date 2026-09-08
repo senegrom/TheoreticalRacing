@@ -18,13 +18,18 @@ cars running it finish, not by the field's summed moves.
 - **No active cooperation.** The car behind must never let the car ahead win;
   no yielding, no waiting, no team play of any kind.
 
-Consequences for measurement: the fleet's summed-moves and crash counters are
-field metrics and must not on their own reject a candidate whose winners cost
-their followers time or crashes. Where a change touches how cars interact,
-compare lexicographically -- finishing places of the cars that run the
-candidate against cars that run the champion, in the same races -- and read
-the field counters only as a safety instrument (a crash the candidate's own
-car suffers is still a loss for that car).
+Consequences for measurement. Where a change touches how cars interact, the
+criterion is the head-to-head place comparison: run candidate cars and champion
+cars in the SAME races, mirror the slot assignment so grid advantage cancels,
+and compare their finishing places (`tracks/head_to_head.py`). A car that
+crashes already scores as that car's last place, so mean place prices safety
+correctly and needs no separate gate.
+
+The fleet's summed-moves and crash counters are FIELD metrics. They never
+veto a candidate. In particular a faster leading car whose pace costs the
+second car a crash is an improvement, and a field made entirely of the
+candidate is allowed to crash more often than the champion's field. Report
+those numbers as description, never as a rejection.
 
 ## Measurement discipline (unchanged)
 
