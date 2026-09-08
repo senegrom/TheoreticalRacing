@@ -1,5 +1,28 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## 2026-09-08: Round 227 archived and validation branch retired
+
+The completed racecraft-round227-validation branch and its complete parent
+history are retained under archive/2026-09-08-round227-validation at commit
+deea889375cb147661824308f55062f8d3ebcb01. The tag also contains the original
+candidate patch blob, decoded patch, all three final result ZIPs, extracted
+fleet/score files and a SHA-256 manifest in archive/round227. The candidate
+remains unpromoted; no application source or decision logic changed.
+
+Recorded run 34208227582: candidate minus champion mean place legacy -0.004
+(SE 0.003), informed -0.005 (SE 0.003), scatter -0.000 (SE 0.001), each over
+840 mirrored race pairs. Verified both patch hashes against the workflow,
+every extracted ZIP member, manifest hashes, patch applicability to f63cf1c3,
+and equality of the uploaded archive tree to the verified local tree.
+
+Cleanup run 34256372560 succeeded. It checked branch tips, protection, open
+PRs and completed validation runs, created and verified the archive tag,
+then atomically retired the unchanged validation and temporary maintenance
+branches with Git leases. Both branches are now absent; all seven existing
+Dependabot PR branches remain. No temporary cleanup workflow was added to
+master. This ledger-only change records the preserved experiment.
+
+
 Written 2026-07-21 at the end of the round-40 session (session id
 749c6115-9b8c-4154-9f26-d8f380240d27). A fresh agent should be able to
 continue from this file alone. Long-form history: see
