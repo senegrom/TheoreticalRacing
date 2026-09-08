@@ -1,5 +1,28 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 228: zero narrow-lane surcharge, validation in progress
+
+Candidate cars use the raw race-distance potential, keeping the existing
+collision, headway, seal and rollout checks. The champion retains its one-turn
+needle surcharge. The experiment is gated by candidateSlots in the preserved
+patch; this validation branch does not change the application's default policy.
+
+Local screen on ten real circuits, seeds 1-3, both slot assignments: 60 races,
+240 car-races per policy. Candidate mean place 3.575 versus champion 5.425
+(difference -1.850, paired SE 0.102), wins 39 versus 21, crashes 2 versus 0.
+All ten tracks favor the candidate. Crashes are included in finishing places,
+as the owner's rule requires. This screen ranks the candidate; it does not
+clear promotion. The gated build also passed core tests and all 12 goldens
+with candidateSlots unset, preserving the champion control.
+
+The local full-fleet attempt was interrupted by the execution service while
+several JVMs were running. Completed track records remain available, but no
+incomplete grid is claimed as validation. GitHub runs the full 84-track,
+10-seed grid for mirrored mixed fields and candidate-only fields in legacy,
+informed and scatter placement modes, with two JVM workers per runner.
+Final artifacts retain logs, manifests, profiles and runtime/build hashes.
+The candidate remains unpromoted until the results and regression pins clear.
+
 ## 2026-09-08: Round 227 archived and validation branch retired
 
 The completed racecraft-round227-validation branch and its complete parent

@@ -1,0 +1,47 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index 1dabd09..e9e4bb6 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -2074,16 +2074,17 @@ final class RaceAi {
+ 	 *  remaining events, its lap-awareness. Robust mode stays the mover's:
+ 	 *  it describes the traffic, not the car. */
+ 	private int ttfFor(final int idx, final int x, final int y, final int vx, final int vy) {
++		final boolean priceNeedle = robustMode && !candidate(moverNumber);
+ 		if (exactPot != null) {
+ 			final int v = exactPot.movesToFinish(frameRemaining[idx], x, y, vx, vy);
+ 			if (v == Integer.MAX_VALUE)
+ 				return Integer.MAX_VALUE;
+-			return robustMode && !reach.isRobust(frameGate[idx], x, y, vx, vy)
++			return priceNeedle && !reach.isRobust(frameGate[idx], x, y, vx, vy)
+ 					? v + AI1_ROBUST_SURCHARGE : v;
+ 		}
+ 		if (!frameLapAware[idx])
+ 			return reach.turnsToFinish(x, y, vx, vy);
+-		return robustMode
++		return priceNeedle
+ 				? reach.turnsToGateNeedleAware(frameGate[idx], x, y, vx, vy, AI1_ROBUST_SURCHARGE)
+ 				: reach.turnsToGate(frameGate[idx], x, y, vx, vy);
+ 	}
+@@ -2098,6 +2099,7 @@ final class RaceAi {
+ 	}
+ 
+ 	private int ttf(final int x, final int y, final int vx, final int vy) {
++		final boolean priceNeedle = robustMode && !candidate(moverNumber);
+ 		// Round 216: the exact remaining distance whenever the potential exists.
+ 		// The gate maps answer "how far to the NEXT gate", which is not what a
+ 		// race minimises -- arriving at a gate in a poor state is paid for after
+@@ -2109,12 +2111,12 @@ final class RaceAi {
+ 			final int v = exactPot.movesToFinish(exactRemaining, x, y, vx, vy);
+ 			if (v == Integer.MAX_VALUE)
+ 				return Integer.MAX_VALUE;
+-			return robustMode && !reach.isRobust(lapGate, x, y, vx, vy)
++			return priceNeedle && !reach.isRobust(lapGate, x, y, vx, vy)
+ 					? v + AI1_ROBUST_SURCHARGE : v;
+ 		}
+ 		if (!lapAware)
+ 			return reach.turnsToFinish(x, y, vx, vy);
+-		return robustMode ? reach.turnsToGateNeedleAware(lapGate, x, y, vx, vy, AI1_ROBUST_SURCHARGE)
++		return priceNeedle ? reach.turnsToGateNeedleAware(lapGate, x, y, vx, vy, AI1_ROBUST_SURCHARGE)
+ 				: reach.turnsToGate(lapGate, x, y, vx, vy);
+ 	}
+ 
