@@ -61,7 +61,7 @@ jobs:
             props="$RUNNER_TEMP/$MODE-$slots.properties"
             cp tracks/lap_bench.properties "$props"
             printf '\naiStartPlacement=%s\ncandidateSlots=%s\n' "$MODE" "$( [ "$slots" = 1357 ] && echo '1,3,5,7' || echo '2,4,6,8' )" >> "$props"
-            RACING_PROPS="$props" RACING_HEAP='-Xmx8g' python3 tracks/fleet_grid.py 1-10 2 "$RUNNER_TEMP/$MODE-$slots"
+            RACING_PROPS="$props" RACING_HEAP='-Xmx8g' python3 tracks/fleet_grid.py 1-10 4 "$RUNNER_TEMP/$MODE-$slots"
           done
           python3 tracks/head_to_head.py "$RUNNER_TEMP/$MODE-1357" "$RUNNER_TEMP/$MODE-2468" | tee "$RUNNER_TEMP/$MODE-score.txt"
           grep -q 'mirrored races 840:' "$RUNNER_TEMP/$MODE-score.txt"
