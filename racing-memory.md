@@ -1,5 +1,21 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 232 energy tie-break validation queued
+
+The lower-speed checkpoint tie keeps the same exact remaining distance.
+The three targeted suites ESC true-confirm, mixed safety and pace pass
+unchanged; every measured golden retains its terminal counts. Wider-exit
+and fast-exit ties both make frozen Le Mans seeds 2/12 crash; the former
+also changes Hungaroring s144 to 6/1. These are reported counterexamples,
+not automatic field-crash vetoes: compare ordered results as above.
+
+Now validate the energy tie on all 84 tracks, seeds 21-30, three start
+modes, both candidate-only and mirrored mixed fields. Candidate-only grids
+use the exact production patch (JAR e0a8ec2d); mixed grids use the screening
+patch with arm 3 and complementary slot guards. The earlier two-arm full
+comparison is still running and its results will be retained. Baseline
+remains branch 53fb3e4. No production change has yet been selected.
+
 ## Round 232 full comparison queued
 
 Screen 34332651261 completed successfully: 24 tracks, seeds 31-33,

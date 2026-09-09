@@ -1,0 +1,34 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index 9a6054d..02dbf6c 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -4780,12 +4780,12 @@ final class RaceAi {
+ 	}
+ 
+ 	/** Round 231: rank the already-permitted checkpoint touches in the successor's own lap
+-	 * frame. Preserve enum order on equal values and the old choice when the
+-	 * exact potential cannot price any qualifying continuation. */
++	 * frame. Among equally fast touches, prefer lower speed squared
++	 * (Round 232); keep enum ties and the old choice if every value is infinite. */
+ 	private Direction bestCheckpointMove(final int[] pos, final int[] vel,
+ 			final int playerNum, final int mask, final Direction fallback) {
+ 		Direction best = fallback;
+-		int bestValue = Integer.MAX_VALUE;
++		int bestValue = Integer.MAX_VALUE, bestRoom = -1;
+ 		final int nextGate = lapGate == 1 ? 2 : 0;
+ 		for (final Direction d : DIRECTIONS) {
+ 			final int bit = 1 << d.ordinal();
+@@ -4802,8 +4802,12 @@ final class RaceAi {
+ 				continue;
+ 			final int events = game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny);
+ 			final int value = exactPot.movesToFinish(exactRemaining - events, nx, ny, nvx, nvy);
+-			if (value < bestValue) {
++			if (value == Integer.MAX_VALUE || value > bestValue)
++				continue;
++			final int room = -speedSquared(nvx, nvy);
++			if (value < bestValue || room > bestRoom) {
+ 				bestValue = value;
++				bestRoom = room;
+ 				best = d;
+ 			}
+ 		}
