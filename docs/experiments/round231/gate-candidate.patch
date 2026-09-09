@@ -1,0 +1,75 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index e6e564f..9708dbf 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -715,7 +715,9 @@ final class RaceAi {
+ 						&& (!robustMode || reach.isRobust(1, newX, newY, newVx, newVy)))) {
+ 					if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+ 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
+-					return d;
++					return candidate(playerNum) && (GATE_CHOICE_EXPERIMENT & 2) != 0
++							&& lapAware && exactPot != null
++							? bestGateProgressMove(pos, vel, playerNum, sm, d) : d;
+ 				}
+ 				// Stray or unshedable crossing: an ordinary legal move (cars
+ 				// spawn BEHIND the line -- excluding these walls them in).
+@@ -742,7 +744,9 @@ final class RaceAi {
+ 							|| reach.isRobust(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy))) {
+ 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+ 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
+-				return d;
++				return candidate(playerNum) && (GATE_CHOICE_EXPERIMENT & 1) != 0
++						&& exactPot != null
++						? bestGateProgressMove(pos, vel, playerNum, sm, d) : d;
+ 			}
+ 			if ((sm & bit) == 0) {
+ 				fallbackIllegalMask |= bit;
+@@ -4780,6 +4784,48 @@ final class RaceAi {
+ 
+ 	/** Round 226: does this car run the candidate branch of a mixed field? False
+ 	 *  for every car unless the game's candidateSlots property names its slot. */
++	// Round 231 experiment: bit 1 ranks checkpoint touches; bit 2 ranks lap
++	// crossings. The same existing eligibility checks precede every choice.
++	private static final int GATE_CHOICE_EXPERIMENT =
++			Integer.getInteger("ai.experiment.gateChoice", 3);
++
++	/** Rank the already-permitted gate advances in the successor's own lap
++	 * frame. Preserve enum order on equal values and the old choice when the
++	 * exact potential cannot price any qualifying continuation. */
++	private Direction bestGateProgressMove(final int[] pos, final int[] vel,
++			final int playerNum, final int mask, final Direction fallback) {
++		Direction best = fallback;
++		int bestValue = Integer.MAX_VALUE;
++		final int nextGate = lapGate == 1 ? 2 : lapGate == 2 ? 0 : 1;
++		for (final Direction d : DIRECTIONS) {
++			final int bit = 1 << d.ordinal();
++			if ((mask & bit << 16) == 0 || (mask & bit) == 0)
++				continue;
++			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
++			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
++			final boolean progress = lapGate == 0
++					? game.crossesFinishLegally(pos[0], pos[1], nx, ny)
++							&& reach.shedableLanding(nx, ny, nvx, nvy)
++					: game.touchesGate(lapGate, pos[0], pos[1], nx, ny)
++							&& reach.isAlive(nx, ny, nvx, nvy);
++			if (!progress || game.isCrashingPlayer(nx, ny, playerNum)
++					|| reach.turnsToGate(nextGate, nx, ny, nvx, nvy) == Integer.MAX_VALUE
++					|| !needleHeadway(nx, ny, nvx, nvy, playerNum, nextGate)
++					|| robustMode && !reach.isRobust(nextGate, nx, ny, nvx, nvy))
++				continue;
++			final int events = game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny);
++			final int value = exactPot.movesToFinish(exactRemaining - events, nx, ny, nvx, nvy);
++			if (value < bestValue) {
++				bestValue = value;
++				best = d;
++			}
++		}
++		if (best != fallback && AI_DEBUG_DJS)
++			System.err.println("AIDBG GATE-CHOICE p=" + playerNum + " gate=" + lapGate
++					+ " " + fallback + " -> " + best + " remaining=" + bestValue);
++		return best;
++	}
++
+ 	private boolean candidate(final int playerNum) {
+ 		return game.candidatePolicy(playerNum);
+ 	}

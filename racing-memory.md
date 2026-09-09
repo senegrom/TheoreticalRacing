@@ -1,5 +1,26 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 231 continued: null own-progress screen; gate-choice test queued
+
+On the Round-228 champion (18ef55e, RaceAi e6e564f), the first 24-track,
+seeds 11-13 legacy-start mirrored screen was essentially null. Field-veto
+removal: candidate-minus-champion place -0.006944, paired SE 0.011,
+wins 72/72, crashes 8/7. Wider finish window: exactly zero, wins 72/72,
+crashes 7/7. Both matched field-veto. All 432 races and their manifests,
+terminal records, hashes and slot assignments were verified; no promotion.
+Run: https://github.com/senegrom/TheoreticalRacing/actions/runs/34320631936
+
+Next isolated screen: rank the existing eligible checkpoint touches and
+non-final S/F crossings by exact post-transition moves remaining. Preserve
+all existing crossing eligibility checks, enum-order ties and the original
+fallback when no exact value exists. Opponent predictions remain unchanged.
+Arms: checkpoint only, lap crossing only, both; same 24-track seeds 11-13
+screen with mirrored slots. Applied as a patch in CI; default application
+source remains the champion. This is a screen, not fleet clearance. Promote
+only after the full 84-track, three-start-mode mixed and all-candidate grids
+and required core/golden/AI-pin regression gates. Places first, own time
+second; whole-field moves and crashes are descriptive, never vetoes.
+
 ## Round 231: independent own-progress and finish-window screen
 
 Round 229's term-by-term caution-stack tests and Round 230's aimed lane gate
