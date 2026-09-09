@@ -912,6 +912,20 @@ final class RaceAi {
 			// (- momentum - robustness, two subtractions): folding them into
 			// one subtraction is a one-ULP change that flips near-exact ties
 			// (monza s30 trajectory pin caught it).
+			// Round 229: the soft caution stack -- trap ladder, speed cap,
+			// uncertified brake, corner-entry brake -- no longer prices a landing.
+			// Measured by places on the surcharge-free champion (candidate cars
+			// without it against champion cars with it, mirrored): -0.788 places
+			// on seeds 1-10, and its own crashes are in that number. Term by term:
+			// uncertified -0.292, corner entry -0.152, trap ladder -0.102, speed
+			// cap byte-identical (it never decided). Halving the stack had moved
+			// nothing: every term was a veto over the one-move quantum, like the
+			// needle surcharge before it. The ladder still feeds trapByDir for
+			// the gates that read it; uncByDir reads zero.
+			trapPenalty = 0.0;
+			speedCap = 0.0;
+			uncertified = 0.0;
+			cornerEntry = 0.0;
 			final double score;
 			if (game.lapGates != null && playerNum > 0) {
 				final double f = 1.0 + AI1_LANE_STYLE * ((playerNum % 3) - 1);

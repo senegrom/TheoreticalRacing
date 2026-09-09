@@ -37,7 +37,8 @@ RESCUED_FINISHERS = [
 RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 19, 6: 18, 7: 19, 8: 19}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 RESCUED_DECISION = "104 p8 AI W v(7,0)→(6,0) (41,6)→(47,6) ok"
-RESCUED_SHA256 = "802fef7f56604ece09ab89ae6bf332d5f858dfd18a8d216e119e8ce7d1f452e4"
+# Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+RESCUED_SHA256 = "72906a22b87096467093493de6e0b7fe48efd03b42b6564d21bf7df4417ea43e"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

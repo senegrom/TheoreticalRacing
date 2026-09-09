@@ -71,8 +71,9 @@ def main() -> int:
             # and none lost, whichever grid slot carries p7.
             # Round 226: the place sums moved with the needle tie-break; the pin
             # guards four cars home and none lost, and that is unchanged.
-            expected = ({"AI1": (21, 4, 0), "AI2": (15, 4, 0)} if target_kind == "AI1"
-                        else {"AI1": (15, 4, 0), "AI2": (21, 4, 0)})
+            # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+            expected = ({"AI1": (16, 4, 0), "AI2": (20, 4, 0)} if target_kind == "AI1"
+                        else {"AI1": (20, 4, 0), "AI2": (16, 4, 0)})
             if result != expected:
                 raise SystemExit(
                     "Round-185 width-three ridge regression: "
@@ -91,12 +92,13 @@ def main() -> int:
             # all -- its old line crashes three turns later -- so the pin still
             # asserts a finish, at the place the faster pace term now earns.
             # Round 228: p7 still finishes, now sixth in the faster field.
+            # Round 229: p7 still finishes, seventh, on the same move (565) for both kinds.
             if not any(
-                " p7 " in line and f" {target_kind} " in line and "FINISH place=6" in line
+                " p7 " in line and f" {target_kind} " in line and "FINISH place=7" in line
                 for line in lines
             ):
                 raise SystemExit(
-                    "Round-185 width-three ridge regression did not finish p7 sixth "
+                    "Round-185 width-three ridge regression did not finish p7 seventh "
                     f"for kind {target_kind}"
                 )
     print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4 both kinds)")

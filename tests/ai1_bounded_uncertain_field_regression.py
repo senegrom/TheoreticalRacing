@@ -24,9 +24,14 @@ PROOF_VETO = ("lemans", 87)
 # Le Mans s87 now has six finishers and p6 crashes on its 36th move.
 # This self-play result is recorded, not vetoed by a field-crash metric;
 # promotion is decided by mirrored own-place performance (AGENTS.md).
-PROMOTED = (7, 0, [67, 70, 73, 75, 76, 78, 79])
-PROMOTED_FINISHERS = [(1, 67), (5, 70), (3, 73), (6, 75), (8, 76), (2, 78), (7, 79)]
-PROMOTED_ALL_MOVES = {1: 67, 2: 78, 3: 73, 4: 79, 5: 70, 6: 75, 7: 79, 8: 76}
+# Round 229 (the soft caution stack left the score, -0.82 places head-to-head):
+# Le Mans s29 now has six finishers and p4 crashes on its 42nd move, under
+# both labels. Recorded, not vetoed (AGENTS.md); the finisher list, the crash
+# list and every move count are the measured race.
+PROMOTED = (6, 1, [66, 70, 71, 72, 74, 75])
+PROMOTED_FINISHERS = [(1, 66), (3, 70), (5, 71), (6, 72), (2, 74), (7, 75)]
+PROMOTED_CRASHES = [(4, 42)]
+PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 70, 4: 42, 5: 71, 6: 72, 7: 75, 8: 74}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -36,32 +41,34 @@ PROMOTED_ALL_MOVES = {1: 67, 2: 78, 3: 73, 4: 79, 5: 70, 6: 75, 7: 79, 8: 76}
 RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
-    PROOF_VETO: ((6, 1, [67, 71, 72, 73, 74, 77]),
-                 '579be7ce43b6eadf7680227d327d7620168567cbd718fc6a395579d271de8f30'),
+    # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
+    PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 74, 76]),
+                 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+                 '6816975356b7edf83646c59d3ee16499a57807b9e76f40046b368ef6c1fba5d2'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
-    ("lemans", 93): ((7, 0, [67, 70, 71, 73, 74, 76, 77]),
-                     'c09640db6d2cc64e3d59cd028cf3da1c6cfe8825a216acf0edde0fabbefdea7e'),
-    ("lemans", 14): ((7, 0, [67, 70, 71, 73, 74, 75, 78]),
-                     'a9ea0e5af2d1c13480df11a3cc39344ad7d24c25564e8cfa709c82524fd93c7f'),
+    ("lemans", 93): ((7, 0, [66, 70, 71, 72, 73, 75, 75]),
+                     '6d2edb0996c298afe83d5a25b74afe6a778495f25f3454aaedf47d323e0dea21'),
+    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 72, 74]),
+                     '9a370f17c8305f27cad00b47767753d87cb64d8080911e21804f504639d388f4'),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 84, 85, 85, 86]),
-        "edeb00d8d0c3f9fa663c985fa5f25b8418531496901122b7a4313c031bd05319",
+        (7, 0, [81, 82, 83, 84, 85, 86, 86]),
+        "7fa26b8f8a7b1a43a067446e369e1f4cb87ab1d126be6bdbefb05b7bfc826ed6",
     ),
     ("spa", 12): (
-        (7, 0, [78, 80, 81, 83, 84, 86, 87]),
-        "3b01039fc229cf6eee764de05bb1db44abebe3277fff15510b030836331c2c0b",
+        (7, 0, [78, 80, 81, 84, 84, 85, 86]),
+        "a59cfd048f950cd5a4a510c5d7eb24121420b64dafe0dd97daf452422ba6e33d",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 84, 85, 86, 87]),
-        "225fbbec666667f3f06e323c5c1cdfebb5f59739227bae9682bc229274b3b2c9",
+        (7, 0, [78, 79, 81, 82, 82, 83, 84]),
+        "0bb27e99e78382229716b21e11d058833644c80bdb2904c6402682b55efbe26a",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 82, 83, 85, 86]),
-        "112ed0304e28eb10166641deb14bfa4c1da754982af3f28ccd99ccac652e799d",
+        (7, 0, [78, 79, 80, 81, 81, 82, 84]),
+        "cb9bfc27705040dbbb0725cdd2b802e630920005542e0982a6acf7a58192ccae",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 83, 85, 87, 87]),
-        "b570b1736f4afb13052e1271cde1a53dd23938c1bd7445c7cb994d5ee24f1642",
+        (7, 0, [78, 80, 81, 82, 84, 85, 87]),
+        "b73c9481046b9462f3ecab3759c88af35b72fcdea5974c85f03fccfabcb2c206",
     ),
 }
 
@@ -159,10 +166,10 @@ def main() -> int:
                 f"bounded uncertain-field Le Mans seed-29 {kind} finisher regression: "
                 f"{finishers}, expected {PROMOTED_FINISHERS}"
             )
-        if crashes:
+        if crashes != PROMOTED_CRASHES:
             raise SystemExit(
                 f"bounded uncertain-field Le Mans seed-29 {kind} crash regression: "
-                f"{crashes}"
+                f"{crashes}, expected {PROMOTED_CRASHES}"
             )
         if moves != PROMOTED_ALL_MOVES:
             raise SystemExit(

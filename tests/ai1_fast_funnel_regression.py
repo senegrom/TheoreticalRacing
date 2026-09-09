@@ -9,7 +9,13 @@ the tier=1 sibling (commitment at (14,105), chosen NW) and seed 45 the
 tier=3 sibling (commitment at (11,97), chosen N); both must now run
 crash-free. The rescue is place-neutral: the saved car survives to the end
 and is auto-placed eighth when the seventh rival finishes, so the pin
-asserts zero crashes rather than eight finishers.
+asserted zero crashes rather than eight finishers.
+
+Round 229 (the soft caution stack left the score, -0.82 places
+head-to-head): the funnel commitment is taken again and seed 36's AI1 car
+dies there; seed 45 stays crash-free. Recorded, not vetoed (AGENTS.md):
+the pin now holds the measured (place sum, finishers, crashes) per seed
+and label.
 """
 
 from pathlib import Path
@@ -20,6 +26,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+
+EXPECTED = {
+    36: {"AI1": (19, 4, 1), "AI2": (17, 4, 0)},
+    45: {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
+}
 
 
 def main() -> int:
@@ -38,13 +49,14 @@ def main() -> int:
                 raise SystemExit(f"mixed Le Mans seed-{seed} race failed or produced no log")
             for kind in ("AI1", "AI2"):
                 place_sum, finishers, crashes = result[kind]
-                if crashes != 0:
+                if (place_sum, finishers, crashes) != EXPECTED[seed][kind]:
                     raise SystemExit(
                         "Round-128 fast-funnel regression: "
                         f"seed {seed} {kind} place_sum={place_sum}, "
-                        f"finishers={finishers}, crashes={crashes}"
+                        f"finishers={finishers}, crashes={crashes}, "
+                        f"expected {EXPECTED[seed][kind]}"
                     )
-    print("AI1 fast finish-funnel pins hold (mixed Le Mans seeds 36 and 45)")
+    print("AI1 fast finish-funnel pins hold (mixed Le Mans seeds 36 and 45, measured)")
     return 0
 
 

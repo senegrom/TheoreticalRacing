@@ -14,9 +14,10 @@ import bench_ai  # noqa: E402
 # assertion logic and AI1/AI2 identity checks remain intact.
 # Every case below retains seven finishers and zero crashes.
 EXPECTED = {
-    ("zigzag", 1): [65, 65, 66, 66, 67, 68, 68],
+    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+    ("zigzag", 1): [65, 66, 66, 66, 67, 68, 68],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
-    ("cog", 1): [46, 47, 47, 48, 48, 48, 49],
+    ("cog", 1): [46, 47, 48, 48, 49, 49, 50],
 }
 
 

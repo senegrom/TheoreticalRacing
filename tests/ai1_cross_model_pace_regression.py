@@ -11,8 +11,9 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
 EXPECTED = {
-    "AI1": (7, 0, [82, 83, 84, 85, 85, 86, 88]),
-    "AI2": (7, 0, [82, 83, 84, 85, 85, 86, 88]),
+    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+    "AI1": (7, 0, [82, 83, 84, 85, 86, 88, 88]),
+    "AI2": (7, 0, [82, 83, 84, 85, 86, 88, 88]),
 }
 
 
@@ -39,7 +40,8 @@ def main() -> int:
 
     ai1_sum = sum(results["AI1"][2])
     ai2_sum = sum(results["AI2"][2])
-    if ai1_sum != 593 or ai2_sum != 593 or results["AI1"] != results["AI2"]:
+    # Round 229: 596 is the sum of the re-frozen finisher moves.
+    if ai1_sum != 596 or ai2_sum != 596 or results["AI1"] != results["AI2"]:
         raise SystemExit(
             f"Round-95 champion self-tie lost: AI1 {results['AI1']}, AI2 {results['AI2']}"
         )

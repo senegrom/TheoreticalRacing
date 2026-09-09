@@ -45,15 +45,17 @@ def main() -> int:
         # Round 215: the orderings are mirror images now -- one policy, two grid
         # slots -- so each carries its own totals instead of sharing one.
         expected_by_label = {
-            "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
-            "reverse": {"AI1": (22, 4, 0), "AI2": (14, 4, 0)},
+            # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+            "front": {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
+            "reverse": {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
             ("reverse", ["AI2"] * 4 + ["AI1"] * 4),
         )
         # Round 215: the move index moved with the rules, the placing did not.
-        finish = re.compile(r"^\d+ p6 AI[12] .* FINISH place=5$")
+        # Round 229: p6 comes home fourth now, on the same move (565) in both orderings.
+        finish = re.compile(r"^\d+ p6 AI[12] .* FINISH place=4$")
         for label, kinds in orderings:
             bench_ai.set_kinds(kinds)
             result = bench_ai.run_track_h2h("lemans", timeout=600, seed=7)
@@ -73,7 +75,7 @@ def main() -> int:
         # fleet grid and the exact-optimum check.
             if sum(bool(finish.match(line)) for line in log_lines) != 1:
                 raise SystemExit(
-                    f"Round-93 mixed Le Mans seed-7 {label} did not finish player 6 in place 5"
+                    f"Round-93 mixed Le Mans seed-7 {label} did not finish player 6 in place 4"
                 )
 
         # Round 94's longer finish sprint is homogeneous-only. The unrestricted

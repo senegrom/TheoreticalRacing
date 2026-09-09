@@ -1,5 +1,110 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 229, second part: the stack term by term, the aimed gate, and the promotion
+
+All on the surcharge-free champion (36a6434), random starts, seeds 1-10,
+mirrored, 840 pairs, candidate cars only, unless stated.
+
+THE TERMS (E:/tmp-claude/arm229_terms.py, one term at zero each):
+
+    arm                                cand-champ place  wins C/H   crashes C/H  tracks C/H/tie
+    unc0  uncertified brake off          -0.292 +- 0.030   878/802     62/24       60/18/6
+    cor0  corner-entry brake off         -0.152 +- 0.020   868/812     40/45       56/17/11
+    tr0   trap ladder off (50 included)  -0.102 +- 0.030   900/780     39/20       45/37/2
+    cap0  speed cap off                  +0.000, byte-identical: 840/840 wins, 29/29 crashes, 84 tied
+    zs    all four off (first part)      -0.788 +- 0.038   997/683    139/30       75/9/0
+
+The speed cap never decided a move in 1,680 races: dead code. The three live
+terms add to -0.55 and interact to -0.79 when removed together; their crashes
+add (62+40+39 = 141 against 139). The corner-entry brake is the clean one --
+places gained with fewer own crashes than the champion (Monza 13/13, Monaco
+6/11). The uncertified brake, the following law inside it, buys the most and
+crashes the most (Monza 14/3, Spielberg 14/5).
+
+THE TWO HAWKS (sz: s00 cars -- surcharge 1, soft stack off -- against z00
+cars -- surcharge 0, stack on): +0.184 +- 0.040, wins 753/927, crashes 16/20.
+The surcharge removal was the better first step; the stack comes on top.
+
+THE AIMED GATE (round 230, E:/tmp-claude/arm230_aimed.py: round 219's v2
+gate, +1 on a thin state only when a rival stands beside its lane or ahead in
+it within stopping range, rivals modelled raw): +1.133 +- 0.039, wins
+654/1026, crashes 7/4, 2 tracks for / 71 against. On a hawk champion whoever
+declines a contested lane loses it; the needle surcharge is a yield in any
+form. Round 219 measured this gate flat by summed moves against a
+surcharge-12 champion; by places against a surcharge-0 one it is a full
+place behind. Closed.
+
+CONFIRMATION of the whole-stack removal, the round-226/228 standard:
+seeds 11-20 random starts -0.821 +- 0.039 (wins 1009/671, crashes 103/22);
+seeds 1-10 computed starts -0.755 +- 0.038 (wins 990/690, crashes 122/25).
+Twenty standard errors in every slice.
+
+THE WHOLE FIELD, described. A field made only of stack-free cars on random
+starts, seeds 1-10 (g229_zs_all): 116 crashes per 730 lap races and
+1,781,724 moves against 29 and 1,810,581 for the surcharge-free champion
+(-1.6%) and 0 / 1,840,167 for the round-226 car. Spa 1 -> 14, Interlagos
+0 -> 11, Monaco 2 -> 18, Spielberg 2 -> 10, Monza 11 -> 9. Of the twelve
+golden races four now carry a crash (monaco s9 4p, monaco s16, nurburgring
+s19 with two, interlagos s10); no golden and no pinned race loses a
+finisher beyond its crash count. Sixteen per cent of self-play races see a
+crash. The rule prices a car's own crash as its last place and calls a field
+of candidates that crashes more an improvement when the mixed field says so;
+the mixed field says so by twenty standard errors, and this entry is where the
+number lives for whoever wants to revisit the rule.
+
+ON THE ROUND-231 CHAMPION. PR 18 (ranked checkpoint crossings, next entry
+up) shipped first; the stack removal re-measured on top of it, candidate
+cars = PR 18 without the stack against champion cars = PR 18, random starts,
+mirrored: seeds 1-10 -0.820 +- 0.037 (wins 997/683, crashes 131/34,
+77/6/1 tracks), seeds 11-20 -0.753 +- 0.037 (wins 977/703, crashes 108/28,
+71/11/2). The same number as before PR 18: the two gains add. The
+homogeneous stack-free field on that base (g231_zs231_all): 127 crashes and
+1,759,597 moves per 730 lap races against PR 18's own 38 / 1,782,051
+(-1.3%); Hungaroring 27/3 and Spa 13/1 are where the candidate dies in the
+mixed field. Goldens re-frozen from measurement: three of twelve now carry
+crashes (monaco s9 4p one, monaco s16 two, nurburgring s19 two), the
+Interlagos golden is back to seven finishers.
+
+PROMOTION MECHANICS. The promoted patch (E:/tmp-claude/promote229.py) zeroes
+the four terms unconditionally at the point where the candidate arm scaled
+them, so trapByDir keeps the ladder's value for the gates that read it,
+cornerEntry's computation still arms queueBox (line 878), and uncByDir reads
+zero. Raced as a plain homogeneous field the promoted jar reproduced the
+measured candidate's field on every counter -- on the surcharge-free base
+(prom_all against g229_zs_all) and on the round-231 base (prom229b_all
+against g231_zs231_all). Pins re-frozen from measurement with
+E:/tmp-claude/refreeze_loop.py, which rewrites only moves, orders and
+trajectory digests and stops if a finisher or crash count moves.
+
+## Round 231 verified and merged: ranked checkpoint crossings (PR 18)
+
+The peer's PR 18 (branch codex/racecraft-own-progress, head 53fb3e4) ranks
+the eligible checkpoint-crossing moves by exact remaining distance after the
+gate transition instead of returning the first qualifying direction in enum
+order -- a precedence rule that bypassed the scorer, so an arbitrary choice
+was being made at every checkpoint. Its own evidence (docs/experiments/
+round231): seeds 21-30, all 84 tracks, mirrored, -1.343 +- 0.047 places on
+random starts, -1.343 +- 0.048 computed, -0.312 +- 0.016 scattered; wins
+1183/497; candidate crashes 40 against 28; seven pins and seven goldens
+re-frozen, one pinned Le Mans race (seed 87) now 6 finishers / 1 crash.
+
+Verified here before merging. Local battery on the branch: core tests, 12/12
+goldens, 23/23 pins. On the box, the peer's own candidate-gated patch
+(docs/experiments/round231/checkpoint-candidate.patch, built by
+E:/tmp-claude/apply_patch.py on the surcharge-free champion) on seeds 1-10,
+random starts, mirrored: -1.328 +- 0.047, wins 1190/490, crashes 28 against
+31 (Monza 14/11, Nordschleife 5/5) -- the candidate crashes less than the
+champion while taking 1.3 places. Master fast-forwarded to 53fb3e4. The
+peer's candidate-only field on random starts: 38 crashes and 1,782,051 moves
+per 730 lap races against the surcharge-free champion's 29 and 1,810,581
+(-1.6%).
+
+Ordering. The stack removal (round 229) and this change were measured
+against the same champion and are independent in code (the score assembly
+against the checkpoint scan). PR 18 shipped first because its artifacts were
+complete; the stack removal was then re-measured on top of it and reads the
+same (next entry), so the two gains add.
+
 ## Round 231: choose the faster eligible checkpoint crossing
 
 The tested PR candidate ranks the existing eligible CP touches by exact

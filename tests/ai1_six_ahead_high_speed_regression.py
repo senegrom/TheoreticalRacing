@@ -12,22 +12,24 @@ import bench_ai  # noqa: E402
 from forensics_common import finishers, normalized_lines, normalized_sha256, player_moves  # noqa: E402
 
 TARGET = ("spa", 83)
-PROMOTED = (7, 0, [79, 80, 81, 84, 84, 85, 87])
+# Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+PROMOTED = (7, 0, [79, 80, 81, 83, 84, 84, 86])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
 PROMOTED_FINISHERS = [
     (3, 79),
     (4, 80),
     (5, 81),
-    (6, 84),
+    (6, 83),
     (7, 84),
-    (8, 85),
-    (1, 87),
+    (8, 84),
+    (1, 86),
 ]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
-PROMOTED_ALL_MOVES = {1: 87, 2: 86, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 85}
-PROMOTED_SHA256 = "286c77fc280d55d8e7ea3e8dd82ae7d8a79c124231af37571f3fa32640da3494"
+PROMOTED_ALL_MOVES = {1: 86, 2: 85, 3: 79, 4: 80, 5: 81, 6: 83, 7: 84, 8: 84}
+PROMOTED_SHA256 = "462ca020c2815ca6b50e0af10076fe56c8b1b202679eda027fc4b245e794637a"
 PROMOTED_DECISION = (
-    "201 p1 {kind} W v(1,7)→(0,7) (101,126)→(101,133) ok"
+    # Round 229: re-frozen from measurement (the soft caution stack left the score).
+    "201 p1 {kind} NW v(1,8)→(0,7) (101,128)→(101,135) ok"
 )
 
 # These cases cover every redistribution or slowdown exposed by the historical
@@ -35,40 +37,40 @@ PROMOTED_DECISION = (
 # complete trajectory equal to the champion.
 VETO_CASES = {
     ("spa", 27): (
-        (7, 0, [78, 79, 81, 83, 85, 85, 87]),
-        "22139927cb20e3a445bb6888c5cbc961789a382e440ea4ace8c7dbcd585b4fa7",
+        (7, 0, [78, 79, 81, 82, 84, 85, 86]),
+        "a1dfbf0a34021b484805f14ea50f12b6ccc1887311bfb6cfbd8d9197a71d45d0",
     ),
     ("spa", 57): (
-        (7, 0, [78, 80, 81, 84, 85, 86, 87]),
-        "76c0345a51b61c46cb93c17f0864b460e8cd9d60f6617c866a7ea8f468906653",
+        (7, 0, [78, 80, 81, 82, 83, 86, 88]),
+        "9067e9d91b179a555a893a15684d1c5f64f48d2f6b81862132a4aa3e87e6c933",
     ),
     ("spa", 12): (
-        (7, 0, [78, 80, 81, 83, 84, 86, 87]),
-        "3b01039fc229cf6eee764de05bb1db44abebe3277fff15510b030836331c2c0b",
+        (7, 0, [78, 80, 81, 84, 84, 85, 86]),
+        "a59cfd048f950cd5a4a510c5d7eb24121420b64dafe0dd97daf452422ba6e33d",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 84, 85, 86, 87]),
-        "225fbbec666667f3f06e323c5c1cdfebb5f59739227bae9682bc229274b3b2c9",
+        (7, 0, [78, 79, 81, 82, 82, 83, 84]),
+        "0bb27e99e78382229716b21e11d058833644c80bdb2904c6402682b55efbe26a",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 82, 83, 85, 86]),
-        "112ed0304e28eb10166641deb14bfa4c1da754982af3f28ccd99ccac652e799d",
+        (7, 0, [78, 79, 80, 81, 81, 82, 84]),
+        "cb9bfc27705040dbbb0725cdd2b802e630920005542e0982a6acf7a58192ccae",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 83, 85, 87, 87]),
-        "b570b1736f4afb13052e1271cde1a53dd23938c1bd7445c7cb994d5ee24f1642",
+        (7, 0, [78, 80, 81, 82, 84, 85, 87]),
+        "b73c9481046b9462f3ecab3759c88af35b72fcdea5974c85f03fccfabcb2c206",
     ),
     ("coil", 5): (
-        (7, 0, [58, 59, 60, 61, 62, 62, 62]),
-        "2a5e77b94114ad52d9db18cec6e7eaefa56c1f163c8a89c030ca3c08d79f564d",
+        (7, 0, [58, 58, 59, 59, 60, 62, 62]),
+        "f8427669146975630095b98c8b77b0259b62be917e344d7879ebcfbffc7c6657",
     ),
     ("coil", 22): (
-        (7, 0, [58, 59, 60, 61, 61, 62, 63]),
-        "5f38ce668d1c704f19898e8a15aa881d8b8ccf0c3c7541e03894da36ed960f6b",
+        (7, 0, [58, 59, 59, 59, 60, 61, 61]),
+        "5822f9dc12715733ab7e46406cf214594be8cf7eec7466c0dfb9c07a572c7c85",
     ),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 84, 85, 85, 86]),
-        "edeb00d8d0c3f9fa663c985fa5f25b8418531496901122b7a4313c031bd05319",
+        (7, 0, [81, 82, 83, 84, 85, 86, 86]),
+        "7fa26b8f8a7b1a43a067446e369e1f4cb87ab1d126be6bdbefb05b7bfc826ed6",
     ),
 }
 

@@ -16,9 +16,10 @@ CASES = {
     ("interlagos", 3): 948,
     ("lemans", 3): 536,
     ("lemans", 11): 537,
-    ("spa", 11): 572,
-    ("silverstone", 15): 584,
-    ("silverstone", 18): 589,
+    # Round 229: re-anchored from measurement (the soft caution stack left the score).
+    ("spa", 11): 576,
+    ("silverstone", 15): 591,  # Round 229: re-anchored from measurement
+    ("silverstone", 18): 590,  # Round 229: re-anchored from measurement
     ("coil", 18): 425,
     ("hungaroring", 8): 957,
     ("hungaroring", 10): 960,
@@ -32,8 +33,9 @@ CASES = {
 # Every case below retains seven finishers and zero crashes.
 EXACT_MOVES = {
     # Round 228: the raw-distance policy changes the order and saves four moves.
-    ("lemans", 3): [67, 70, 72, 74, 75, 76, 77],
-    ("silverstone", 15): [81, 82, 83, 84, 84, 85, 85],
+    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+    ("lemans", 3): [66, 70, 71, 72, 73, 74, 75],
+    ("silverstone", 15): [82, 83, 84, 85, 85, 86, 86],
 }
 
 

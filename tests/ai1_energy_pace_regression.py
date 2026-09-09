@@ -9,11 +9,12 @@ import bench_ai
 # Every case below retains seven finishers and zero crashes.
 EXPECTED = {
  # Round 228: measured raw-distance policy, seven finishers and no crashes.
- ("nurburgring",1): [92, 92, 95, 95, 97, 99, 100],
- ("interlagos",29): [124, 125, 127, 128, 130, 132, 133],
- ("interlagos",47): [124, 125, 127, 128, 129, 131, 133],
- ("spa",17): [78,80,82,83,84,84,86],
- ("zandvoort",44): [139,140,141,142,143,144,146],
+ # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+ ("nurburgring",1): [92, 92, 93, 94, 96, 97, 98],
+ ("interlagos",29): [124, 125, 127, 129, 130, 132, 133],
+ ("interlagos",47): [124, 125, 126, 128, 129, 130, 132],
+ ("spa",17): [78, 79, 80, 82, 83, 84, 85],
+ ("zandvoort",44): [137, 138, 139, 140, 142, 143, 144],
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

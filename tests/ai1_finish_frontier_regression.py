@@ -12,23 +12,25 @@ import bench_ai  # noqa: E402
 from forensics_common import finishers, normalized_lines  # noqa: E402
 
 EXPECTED = {
-    6: (7, 0, [58, 59, 59, 60, 61, 62, 62]),
-    47: (7, 0, [58, 60, 60, 61, 61, 62, 63]),
-    49: (7, 0, [58, 59, 60, 61, 61, 62, 63]),
+    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+    6: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    47: (7, 0, [58, 59, 59, 59, 60, 61, 61]),
+    49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
     (1, 58),
-    (3, 59),
-    (5, 59),
-    (4, 60),
-    (2, 61),
-    (6, 62),
-    (7, 62),
+    (2, 59),
+    (4, 59),
+    (3, 60),
+    (6, 60),
+    (5, 61),
+    (7, 61),
 ]
 EXPECTED_DECISION = {
-    6: "299 p3 {kind} W v(1,-6)→(0,-6) (65,49)→(65,43) ok",
-    47: "298 p2 {kind} SW v(1,-6)→(0,-5) (65,49)→(65,44) ok",
-    49: "308 p4 {kind} SW v(1,-5)→(0,-4) (67,49)→(67,45) ok",
+    # Round 229: re-frozen from measurement (the soft caution stack left the score).
+    6: "299 p3 {kind} W v(2,-6)→(1,-6) (66,53)→(67,47) ok",
+    47: "298 p2 {kind} SW v(1,-6)→(0,-5) (66,47)→(66,42) ok",
+    49: "308 p4 {kind} W v(1,-6)→(0,-6) (67,49)→(67,43) ok",
 }
 
 
@@ -75,7 +77,8 @@ def main() -> int:
         kind: sum(summaries[(kind, 6)][2])
         for kind in ("AI1", "AI2")
     }
-    if any(move_sum != 421 or move_sum >= 426 for move_sum in move_sums.values()):
+    # Round 229: 418 is the re-frozen seed-6 sum (the soft caution stack left the score).
+    if any(move_sum != 418 or move_sum >= 426 for move_sum in move_sums.values()):
         raise SystemExit(f"Round-96 Coil seed-6 pace gain lost: {move_sums}")
 
     print(

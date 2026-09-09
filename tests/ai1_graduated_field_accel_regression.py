@@ -9,9 +9,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
 PROMOTED = {
-    1: (7, 0, [58, 59, 60, 61, 62, 62, 63]),
-    38: (7, 0, [58, 59, 61, 61, 62, 62, 62]),
-    106: (7, 0, [58, 59, 60, 62, 62, 63, 63]),
+    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+    1: (7, 0, [58, 59, 60, 61, 61, 61, 62]),
+    38: (7, 0, [58, 59, 59, 59, 60, 60, 61]),
+    106: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 LEGACY_CHAMPION = {
     1: (7, 0, [58, 59, 60, 62, 62, 63, 63]),

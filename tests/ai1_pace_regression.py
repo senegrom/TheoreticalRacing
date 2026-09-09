@@ -31,7 +31,8 @@ MAX_FINISH_MOVE_SUM = 891
 FINISH_EXPECTED = {
     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 23],
     # Round 228: measured without the narrow-lane distance surcharge.
-    ("lemans", 12): [67, 70, 72, 73, 74, 77, 79],
+    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+    ("lemans", 12): [66, 70, 71, 72, 74, 76, 77],
 }
 
 
