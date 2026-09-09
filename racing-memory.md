@@ -1,6 +1,19 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
-## Round 232 in progress: equal-pace checkpoint continuations
+## Round 232 full comparison queued
+
+Screen 34332651261 completed successfully: 24 tracks, seeds 31-33,
+72 paired races per arm, 288 races total. Ordered-result better/worse/tied:
+free continuing exits 13/14/45; exact descents 20/14/38; lower energy
+12/12/48. First-finisher faster/slower: 5/0, 2/0, 3/0 respectively.
+There are later-place regressions: these are not per-race dominance claims.
+Full comparison now tests free exits and exact descents on all 84 tracks,
+all three modes, held-out seeds 21-30. The baseline is Round 231's retained
+exact-production all-car grids from run 34322144366 on these same inputs.
+No production policy is selected yet; lexicographic.py retains each result
+and the first differing place. Its six ordering checks pass.
+
+## Round 232 initial screen: equal-pace checkpoint continuations
 
 Owner clarification (2026-09-09, current session): compare results in
 finishing order. The first finisher's time has priority; if unchanged,

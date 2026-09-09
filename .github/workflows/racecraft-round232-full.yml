@@ -1,0 +1,62 @@
+name: Round 232 checkpoint full comparison
+on:
+  push:
+    branches: [codex/racecraft-own-progress]
+    paths:
+      - .github/workflows/racecraft-round232-full.yml
+      - docs/experiments/round232/screen.patch
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  screen:
+    name: ${{ matrix.mode }} / ${{ matrix.arm }} / ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        arm: [1, 2]
+        mode: [legacy, informed, scatter]
+        shard: [regular, nordschleife]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build and record
+        run: |
+          git apply --check docs/experiments/round232/screen.patch
+          git apply docs/experiments/round232/screen.patch
+          sh build_main.sh
+          mkdir results
+          java --version > results/java-version.txt 2>&1
+          sha256sum theoreticRacing.jar docs/experiments/round232/screen.patch > results/build-sha256.txt
+          cp tracks/lap_bench.properties results/profile.properties
+          printf '\naiStartPlacement=${{ matrix.mode }}\ncandidateSlots=1,2,3,4,5,6,7,8\n' >> results/profile.properties
+      - name: Select disjoint track shard
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          python - <<'PYCODE'
+          import os
+          from pathlib import Path
+          tracks = sorted(p.stem for p in Path('tracks').glob('*.track'))
+          selected = [t for t in tracks if (t == 'nordschleife') == (os.environ['SHARD'] == 'nordschleife')]
+          assert len(selected) == (1 if os.environ['SHARD'] == 'nordschleife' else 83)
+          with open(os.environ['GITHUB_ENV'], 'a') as out:
+              out.write('RACING_TRACKS=' + ' '.join(selected) + '\n')
+          PYCODE
+      - name: Race held-out seeds 21-30
+        env:
+          RACING_PROPS: ${{ github.workspace }}/results/profile.properties
+          RACING_HEAP: ${{ matrix.shard == 'nordschleife' && '-Xmx8g' || '-Xmx4g' }} -XX:ActiveProcessorCount=2 -Dai.experiment.checkpointTie=${{ matrix.arm }}
+        run: sh tracks/fleet_grid.sh 21-30 ${{ matrix.shard == 'nordschleife' && '1' || '2' }} results/fleet
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: round232-full-${{ matrix.mode }}-${{ matrix.arm }}-${{ matrix.shard }}
+          path: results
+          if-no-files-found: error
+          retention-days: 14
