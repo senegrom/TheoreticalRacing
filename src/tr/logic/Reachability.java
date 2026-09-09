@@ -239,24 +239,6 @@ final class Reachability {
 		return robustReach[gate].get(aliveIdx(x, y, vx, vy));
 	}
 
-	/** Round 210: the plain lap potential with needle states surcharged --
-	 *  the gradient stays the fast line (the full robust-distance gradient
-	 *  cost 4% of pace in traffic); only a state whose continuation is a
-	 *  single thread is worth {@code surcharge} more turns. */
-	int turnsToGateNeedleAware(final int gate, final int x, final int y, final int vx, final int vy,
-			final int surcharge) {
-		if (robustReach == null || robustReach[gate] == null)
-			return turnsToGate(gate, x, y, vx, vy);
-		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH
-				|| vx < -aliveVMAX || vx > aliveVMAX || vy < -aliveVMAX || vy > aliveVMAX)
-			return Integer.MAX_VALUE;
-		final int idx = aliveIdx(x, y, vx, vy);
-		final int pt = gateTurns[gate][idx];
-		if (pt == Integer.MAX_VALUE || robustReach[gate].get(idx))
-			return pt;
-		return pt + surcharge;
-	}
-
 	/** Round 208: a crossing landing is ROBUST when at least two of its
 	 *  successors are legal-edge, alive, and continue the lap on the next
 	 *  gate map (alive alone before the product fixpoint has a next map). */

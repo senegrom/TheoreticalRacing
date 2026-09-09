@@ -76,6 +76,22 @@ against g231_zs231_all). Pins re-frozen from measurement with
 E:/tmp-claude/refreeze_loop.py, which rewrites only moves, orders and
 trajectory digests and stops if a finisher or crash count moves.
 
+CLEANUP (the commit after the promotion, behaviour-identical). Deleted: the
+speed cap and its pace waiver, the uncertified brake and its converging-rival
+test, the car-following law (followingExcess, AI1_FOLLOW_W), countBrakeProofs
+and hasConvergingOpponentAhead (only they called them), widthBudget, the four
+terms in both score expressions, the zeroing block, the round-62 certified
+UNC override (its loop could never select once uncByDir read zero), and
+Reachability.turnsToGateNeedleAware (no caller since round 228). Kept: the
+trap ladder (trapByDir feeds the pace recoveries and the DJS gates) and the
+corner-entry computation (it arms queueBox), neither in the score. Verified
+before shipping: the cleaned jar raced as a homogeneous field on random
+starts, seeds 1-10, reproduced the promoted jar's 730 races on every counter
+(E:/tmp-claude/cleanup229a.py, clean1_all against g231_zs231_all), and the
+corpus passes unchanged. Still to do in a second step: uncByDir is now a
+zero-filled array threaded through the three pace overrides and
+finishDenialOverride; removing it means simplifying each reader.
+
 ## Round 231 verified and merged: ranked checkpoint crossings (PR 18)
 
 The peer's PR 18 (branch codex/racecraft-own-progress, head 53fb3e4) ranks

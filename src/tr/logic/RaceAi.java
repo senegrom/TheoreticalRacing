@@ -556,7 +556,6 @@ final class RaceAi {
 	private final static double	AI1_PO_ROOM_MID	= 0.78;	// paceOverride: mid-roominess clause (slow landings)
 	private final static int		AI1_PO_SPD_MAX	= 4;		// paceOverride: max |v| component for the mid clause
 	private final static double	AI1_BRAKE_SPEED	= 4.0;	// arming gate + slope base of the speed brakes
-	private final static double	AI1_FOLLOW_W	= 1.0;	// round 206: surcharge per cell of stopping-distance excess behind a leader
 	private final static double	AI1_FOLLOW_LAT	= 1.5;	// round 206: lateral half-width of the following cone (2.5 cured monaco 10 -> 0 but braked for adjacent-lane leaders on open track: four clean guards dirtied; 1.5 = same lane only)
 	private final static double	AI1_FOLLOW_RANGE	= 40.0;	// round 206: look-ahead along my heading
 	private final static int		AI1_PACK_R2		= 36;	// cornerEntry pack radius^2
@@ -815,41 +814,6 @@ final class RaceAi {
 				trapPenalty = Math.max(trapPenalty, AI1_NEEDLE_TRAP);
 			trapByDir[d.ordinal()] = trapPenalty;
 			final double speed = Math.hypot(newVx, newVy);
-			// Per-state certified budget with a legacy floor: the map-certified
-			// minimal target T (>= 2 independent blind braking descents reach
-			// |v| <= T from this candidate state) governs above the floor; the
-			// floor preserves the zero-penalty regime at low speed.
-			final int widthBudget = Math.max(5, reach.certBudget(newX, newY, newVx, newVy)) + d2SafeCount;
-			final double overSpeed = Math.max(0.0, speed - widthBudget);
-			double speedCap = overSpeed * overSpeed * 0.4;
-			double uncertified = 0.0;
-			if (speed > AI1_BRAKE_SPEED) {
-				// Pace waiver: >= 2 alive braking descents prove the over-budget speed
-				// is sheddable on the empty track -- waive the penalty entirely.
-				if (overSpeed > 0 && countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predictedOccupancy, null, false) >= 2)
-					speedCap = 0.0;
-				// Trap surcharge, graded by certified escape count: zero roomy
-				// escapes is a genuine trap; a single knife-edge escape is
-				// survivable and only worth a mild detour.
-				if (hasConvergingOpponentAhead(newX, newY, playerNum, speed)) {
-					final int proofs = countBrakeProofs(newX, newY, newVx, newVy, widthBudget, predictedOccupancy, null, true);
-					if (proofs < 2)
-						uncertified = (speed - AI1_BRAKE_SPEED) * (proofs == 0 ? 2.5 : 1.0);
-				}
-			}
-			// Car-following law (round 206, Gipps): in lap traffic a landing's
-			// stopping distance must fit inside the gap to the leader ahead on my
-			// heading plus the leader's own stopping distance. Continuous (no
-			// trap cliff), directional (forward cone on my route, not radial),
-			// speed-relative (a fast leader's stopping distance lets me follow
-			// fast; a parked one does not) -- exactly the headway the 1-cell
-			// trains violated in the pocket dooms, and exactly what the radial
-			// stalled-rival probe lacked when it braked for flowing traffic.
-			if (game.lapGates != null) {
-				final double excess = followingExcess(newX, newY, newVx, newVy, playerNum);
-				if (excess > 0.0)
-					uncertified += AI1_FOLLOW_W * excess;
-			}
 			// Pack-gated knife-edge corner-entry brake: price roomy-successor
 			// scarcity when a pack is packed at a corner entry (>= 2 rivals
 			// within squared distance 36 and <= 1 roomy escape) -- fires where
@@ -913,40 +877,29 @@ final class RaceAi {
 			// one subtraction is a one-ULP change that flips near-exact ties
 			// (monza s30 trajectory pin caught it).
 			// Round 229: the soft caution stack -- trap ladder, speed cap,
-			// uncertified brake, corner-entry brake -- no longer prices a landing.
-			// Measured by places on the surcharge-free champion (candidate cars
-			// without it against champion cars with it, mirrored): -0.788 places
-			// on seeds 1-10, and its own crashes are in that number. Term by term:
-			// uncertified -0.292, corner entry -0.152, trap ladder -0.102, speed
-			// cap byte-identical (it never decided). Halving the stack had moved
-			// nothing: every term was a veto over the one-move quantum, like the
-			// needle surcharge before it. The ladder still feeds trapByDir for
-			// the gates that read it; uncByDir reads zero.
-			trapPenalty = 0.0;
-			speedCap = 0.0;
-			uncertified = 0.0;
-			cornerEntry = 0.0;
+			// uncertified brake, corner-entry brake -- no longer prices a landing:
+			// measured by places, every term was a veto over the one-move quantum
+			// (-0.82 places without it). The ladder still feeds trapByDir and the
+			// corner-entry brake still arms queueBox; the score is the exact race
+			// distance, the traffic gates, the lane spread and the tie-breaks.
 			final double score;
 			if (game.lapGates != null && playerNum > 0) {
 				final double f = 1.0 + AI1_LANE_STYLE * ((playerNum % 3) - 1);
-				score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry
-						+ queueBox + spread - (momentum * f + robustness * (2.0 - f));
+				score = costToFinish + queueBox + spread - (momentum * f + robustness * (2.0 - f));
 			} else {
-				score = costToFinish + trapPenalty + speedCap + uncertified + cornerEntry
-						+ queueBox + spread - momentum - robustness;
+				score = costToFinish + queueBox + spread - momentum - robustness;
 			}
 			final int poT = ownTurns;
 			if (AI_DEBUG_COMP)
 				System.err.println("R49C p=" + playerNum + " pos=(" + pos[0] + "," + pos[1] + ") vel=("
 						+ vel[0] + "," + vel[1] + ") d=" + d + " land=(" + newX + "," + newY + ") ttf=" + poT
 						+ " score=" + score + " cost=" + costToFinish + " trap=" + trapPenalty
-						+ " cap=" + speedCap + " unc=" + uncertified + " ce=" + cornerEntry
+						+ " ce=" + cornerEntry
 						+ " qb=" + queueBox + " spread=" + spread + " mom=" + momentum
 						+ " rob=" + robustness);
 			scoreNSByDir[d.ordinal()] = score - spread;
 			poTByDir[d.ordinal()] = poT;
 			scoreByDir[d.ordinal()] = score;
-			uncByDir[d.ordinal()] = uncertified;
 			if (poT < poBestT) {
 				if (paceMobility == null)
 					paceMobility = mobilitySearch(playerNum, true, AI1_MOBILITY_DEPTH);
@@ -994,40 +947,6 @@ final class RaceAi {
 				if (sealable(nx, ny, nvx, nvy, playerNum))
 					continue;
 				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_ROUNDS, true, true, false, false) < 0)
-					continue;
-				fast = d;
-				fastT = poTByDir[d.ordinal()];
-			}
-			if (fast != null)
-				best = fast;
-		}
-		// round 62 (AI1): certified UNC override. The counterfactual on the
-		// r61 equilibrium still attributes the largest recoverable pool to
-		// `uncertified` (monaco s1: 50 ttf, deep search agreeing 48/48), and
-		// rounds 49-53 proved the surcharge is load-bearing insurance that
-		// must NOT be cut by predicate alone. Pay it everywhere EXCEPT where
-		// a strictly faster line wins the unc-free comparison AND passes the
-		// strongest proof owned: zero trap, not sealable, and survival in the
-		// round-59 scorer-rival world (the proof round 52 lacked). Solo flips
-		// have empty scorer sets, so their proofs cost nothing.
-		if (best != null && !inScorerSim) {
-			final double bestNU = scoreByDir[best.ordinal()] - uncByDir[best.ordinal()];
-			int fastT = poTByDir[best.ordinal()];
-			Direction fast = null;
-			for (final Direction d : DIRECTIONS) {
-				if (d == best || poTByDir[d.ordinal()] >= fastT)
-					continue;
-				if (uncByDir[d.ordinal()] <= 0.0 || scoreByDir[d.ordinal()] == Double.MAX_VALUE)
-					continue;
-				if (scoreByDir[d.ordinal()] - uncByDir[d.ordinal()] > bestNU + 1e-9)
-					continue;
-				if (trapByDir[d.ordinal()] != 0.0)
-					continue;
-				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-				if (sealable(nx, ny, nvx, nvy, playerNum))
-					continue;
-				if (simOutcome(nx, ny, nvx, nvy, playerNum, AI1_DJS_SLOW_ROUNDS, true, true, true, true) < 0)
 					continue;
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
@@ -4633,48 +4552,6 @@ final class RaceAi {
 		return count;
 	}
 
-	/** True iff a live opponent genuinely threatens my escape thread at cell
-	 *  (x,y): spatially near (squared distance <= 144), at similar track
-	 *  progress (|distAt difference| <= 15 -- not merely across a wall on
-	 *  another part of the circuit), and at-or-ahead
-	 *  in track progress (smaller-or-similar distAt): a chaser behind cannot
-	 *  occupy my escape thread ahead of me, so it shouldn't trigger the trap
-	 *  surcharge. The +3 slack keeps side-by-side cars counted. Blockers moving
-	 *  at similar-or-higher speed than {@code mySpeed} on open road (roomy
-	 *  state, {@link #isRoomy}) are receding -- the gap stays stable and they
-	 *  vacate the thread before I arrive -- so they don't count either; a
-	 *  same-speed blocker threading a knife-edge stretch still does, because
-	 *  it is about to brake (corner-entry compression). */
-	private boolean hasConvergingOpponentAhead(final int x, final int y, final int playerNum, final double mySpeed) {
-		final int myDist = reach.distAt(x, y);
-		if (myDist == Integer.MAX_VALUE)
-			return true; // off-map: be conservative
-		for (final Player p : game.players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pp = p.getPosition();
-			final int dx = x - pp[0];
-			final int dy = y - pp[1];
-			if (distanceSquared(dx, dy) > 144L)
-				continue;
-			final int oDist = reach.distAt(pp[0], pp[1]);
-			if (oDist == Integer.MAX_VALUE || Math.abs(oDist - myDist) > 15 || oDist > myDist + 3)
-				continue;
-			final int[] pv = p.getVelocity();
-			final double oSpeed = Math.hypot(pv[0], pv[1]);
-			// Receding blockers don't block: at similar-or-higher speed on
-			// OPEN ROAD (roomy state) the gap stays stable and they vacate
-			// the thread before I arrive. A blocker threading a knife-edge
-			// stretch is about to brake -- compression -- and still counts,
-			// whatever its current speed (round-6 lesson: lemans corner-entry
-			// packs crash when equal-speed blockers are treated as receding).
-			if (oSpeed >= 3.0 && oSpeed >= mySpeed - 1.0 && isRoomy(pp[0], pp[1], pv[0], pv[1], 1))
-				continue;
-			return true;
-		}
-		return false;
-	}
-
 	/** Tiny penalty for ending up close to other live game.players, breaks lateral ties. */
 	private double opponentSpreadPenalty(final int x, final int y, final int playerNum) {
 		double penalty = 0;
@@ -4955,45 +4832,6 @@ final class RaceAi {
 				return n;
 		}
 		return n;
-	}
-
-	/** Round 206 (Gipps): the largest stopping-distance excess against any
-	 *  live rival ahead in my heading cone from the candidate landing.
-	 *  Along-heading integer-shed physics: stopping from speed s covers
-	 *  s(s+1)/2 cells. The leader is credited its own along-heading stopping
-	 *  distance plus this round's advance; one cell of occupancy is taken
-	 *  off the gap. Oncoming rivals (adjacent hairpin leg) are ignored. */
-	private double followingExcess(final int nx, final int ny, final int nvx, final int nvy,
-			final int playerNum) {
-		final double sp = Math.hypot(nvx, nvy);
-		if (sp < 1.0)
-			return 0.0;
-		final double ux = nvx / sp, uy = nvy / sp;
-		final double myStop = sp * (sp + 1.0) / 2.0;
-		double worst = 0.0;
-		for (final Player r : game.players) {
-			if (r.getNumber() == playerNum || r.isFinished())
-				continue;
-			final int[] rp = r.getPosition();
-			final double dx = rp[0] - nx, dy = rp[1] - ny;
-			final double along = dx * ux + dy * uy;
-			if (along <= 0.0 || along > AI1_FOLLOW_RANGE)
-				continue;
-			final double lat = Math.abs(dx * uy - dy * ux);
-			if (lat > AI1_FOLLOW_LAT)
-				continue;
-			final int[] rv = r.getVelocity();
-			final double rAlong = rv[0] * ux + rv[1] * uy;
-			if (rAlong < -0.5)
-				continue; // oncoming: another leg of the corridor, not my leader
-			final double lead = Math.max(0.0, rAlong);
-			final double leadStop = lead * (lead + 1.0) / 2.0;
-			final double gap = along + lead - 1.0;
-			final double excess = myStop - gap - leadStop;
-			if (excess > worst)
-				worst = excess;
-		}
-		return worst;
 	}
 
 	/** Finish precedence mirrors the main candidate scan: a velocity-range-valid
@@ -5559,66 +5397,6 @@ final class RaceAi {
 		if (t3 != Integer.MAX_VALUE)
 			block[count++] = ((long) x3 << 32) | (y3 & 0xffffffffL);
 		return writeMove(out, x1, y1, vx1, vy1) ? count : -1;
-	}
-
-	/** Count certified braking descents from (x,y,vx,vy) down to targetSpeed
-	 *  (see canShedSpeed); proofs are first braking moves that are geometry-legal,
-	 *  alive, not on a predicted opponent cell, recursively roomy when
-	 *  {@code requireRoomy}, and complete the descent within 2 more moves. If
-	 *  bestBrake is non-null, the accel of the proof move with the lowest
-	 *  resulting speed (ties: Direction order) is written to it. Stops counting
-	 *  at 2 (only "< 2" vs ">= 2" matters).
-	 */
-	private int countBrakeProofs(final int x, final int y, final int vx, final int vy,
-			final double targetSpeed, final CellOccupancy predicted,
-			final int[] bestBrake, final boolean requireRoomy) {
-		int proofs = 0;
-		double bestSpeed = Double.MAX_VALUE;
-		final double speed = Math.hypot(vx, vy);
-		for (final Direction bd : DIRECTIONS) {
-			final int bvx = vx + bd.dx;
-			final int bvy = vy + bd.dy;
-			if (RaceGame.aiVelocityOutOfRange(bvx, bvy))
-				continue;
-			final double bSpeed = Math.hypot(bvx, bvy);
-			if (bSpeed > speed)
-				continue; // braking cone only
-			final int bx = x + bvx;
-			final int by = y + bvy;
-			if (!game.isMoveLegalGeometryCached(x, y, bx, by))
-				continue;
-			if (!reach.isAlive(bx, by, bvx, bvy))
-				continue;
-			if (predicted.contains(bx, by))
-				continue;
-			if (requireRoomy && !isRoomy(bx, by, bvx, bvy, 1))
-				continue;
-			// O(1) fast path via the precomputed min-|v|^2 maps:
-			// canShedSpeed(..., 2, ...) succeeds iff SOME state on a <=2-step
-			// braking chain has hypot <= targetSpeed, i.e. iff the minimum
-			// |v|^2 over those chains is <= targetSpeed^2. Exact for the
-			// integral targetSpeed of all callers (the widthBudget <= 14):
-			// while targetSpeed^2 < 255 the clamp can't flip the compare.
-			// Anything else falls back to the recursive reference code. The
-			// aliveIdx access is in range: isAlive above returned true.
-			final byte[] shedMap = requireRoomy ? reach.minShed2Roomy : reach.minShed2;
-			final boolean shed;
-			if (shedMap != null && targetSpeed >= 0 && targetSpeed == Math.rint(targetSpeed) && targetSpeed * targetSpeed < 255.0)
-				shed = (shedMap[reach.aliveIdx(bx, by, bvx, bvy)] & 0xFF) <= targetSpeed * targetSpeed;
-			else
-				shed = canShedSpeed(bx, by, bvx, bvy, targetSpeed, 2, requireRoomy);
-			if (shed) {
-				proofs++;
-				if (bestBrake != null && bSpeed < bestSpeed) {
-					bestSpeed = bSpeed;
-					bestBrake[0] = bd.dx;
-					bestBrake[1] = bd.dy;
-				}
-				if (proofs >= 2 && bestBrake == null)
-					break;
-			}
-		}
-		return proofs;
 	}
 
 	/** True iff speed can be reduced to <= targetSpeed within {@code depth} moves
