@@ -1,0 +1,50 @@
+{
+  "informed": {
+    "all_tracks": {
+      "crash": 41,
+      "fin": 5839,
+      "moves": 1833439,
+      "timeout": 0
+    },
+    "lap_races": 730,
+    "lap_tracks": {
+      "crash": 40,
+      "fin": 5070,
+      "moves": 1780339,
+      "timeout": 0
+    },
+    "races": 840
+  },
+  "legacy": {
+    "all_tracks": {
+      "crash": 38,
+      "fin": 5842,
+      "moves": 1835386,
+      "timeout": 0
+    },
+    "lap_races": 730,
+    "lap_tracks": {
+      "crash": 38,
+      "fin": 5072,
+      "moves": 1782051,
+      "timeout": 0
+    },
+    "races": 840
+  },
+  "scatter": {
+    "all_tracks": {
+      "crash": 5,
+      "fin": 5875,
+      "moves": 1469671,
+      "timeout": 0
+    },
+    "lap_races": 730,
+    "lap_tracks": {
+      "crash": 5,
+      "fin": 5105,
+      "moves": 1442035,
+      "timeout": 0
+    },
+    "races": 840
+  }
+}

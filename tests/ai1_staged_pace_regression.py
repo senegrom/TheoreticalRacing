@@ -27,9 +27,12 @@ CASES = {
 
 # A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
 # the three-ahead class must retain the exact integrated-frontier finish list.
+# Round 231: re-frozen from recorded checkpoint-choice races; the existing
+# assertion logic and AI1/AI2 identity checks remain intact.
+# Every case below retains seven finishers and zero crashes.
 EXACT_MOVES = {
     # Round 228: the raw-distance policy changes the order and saves four moves.
-    ("lemans", 3): [69, 71, 72, 73, 74, 75, 77],
+    ("lemans", 3): [67, 70, 72, 74, 75, 76, 77],
     ("silverstone", 15): [81, 82, 83, 84, 84, 85, 85],
 }
 

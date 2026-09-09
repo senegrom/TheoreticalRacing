@@ -1,98 +1,61 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
-## Round 231 regression measurements: seven changed scripts, seven goldens
+## Round 231: choose the faster eligible checkpoint crossing
 
-The production patch builds and passes core. Sixteen of 23 original AI
-scripts pass unchanged. Seven stop on changed recorded trajectories; their
-complete races were captured locally before updating constants. All function
-bodies and explicit safety/AI-label identity checks are unchanged.
+The tested PR candidate ranks the existing eligible CP touches by exact
+distance left AFTER all ordered gate events on the move. Enum-order ties,
+the old fallback when no exact value is finite, velocity/geometry/body
+checks, continuing-map checks, needle headway and robust landing remain.
+Immediate finishes, non-final S/F precedence and the pure opponent predictor
+keep their rules. Both AI labels run the new policy without a switch.
 
-Exception in the recorded self-play counters: frozen Le Mans seed 87 now has
-six finishers and p6 crashes on its 36th move, under both AI labels. Its exact
-retention snapshot is updated to 6/1 with that reason next to the numbers.
-The remaining measured cases retain 7/0. No whole-field crash veto is added:
-the owner's own-place-first rule still decides promotion. All golden cases
-retain their finisher/crash counts; seven trajectories change. Local golden
-measurements match the initial CI mismatches exactly.
+FULL HEAD-TO-HEAD: 84 tracks, fresh seeds 21-30, candidate slots 1/3/5/7
+then 2/4/6/8. Each mode: 840 mirrored pairs, 1,680 races, 6,720 car-races
+per policy. Baseline 18ef55e, RaceAi e6e564f (Round-228 champion).
 
-The seven updated scripts and ordinary golden checking are now queued in a
-separate verification workflow. Full 84-track grids remain in progress at
-run 34322144366. These are measured expectations, not evidence of promotion
-until the complete head-to-head comparison is audited.
+    starts     cand/champ place  difference  paired SE  wins C/H   crashes C/H
+    legacy       3.829 / 5.171     -1.343       0.047    1183/497      40/28
+    informed     3.829 / 5.171     -1.343       0.048    1204/476      33/35
+    scatter      4.344 / 4.656     -0.3125      0.016     967/713       5/4
 
-## Round 231: checkpoint choice wins the screen; full fleet queued
+Tracks C/H/tied: 69/2/13, 68/2/14, 64/2/18. Crashes already receive
+their recorded last place. The candidate wins own-place performance in
+all three modes; these are corpus measurements, not universal guarantees.
 
-The gate-choice screen (run 34321589460) completed all 432 races with
-verified manifests, terminal records, hashes and complementary slots.
-24 tracks, seeds 11-13, legacy starts, 72 mirrored pairs per arm:
+CANDIDATE-ONLY, descriptive, 730 lap races per mode: legacy 5072 finishers,
+38 crashes, 1,782,051 moves; informed 5070/40/1,780,339; scatter
+5105/5/1,442,035. Zero timeouts. The 110 no-lap races per mode are also
+complete (informed has one additional no-lap crash). The nine grids total
+7,560 audited races. All-candidate fields use the exact production patch;
+the mixed patch adds only the slot guard. Nordschleife is a separate
+8 GiB single-worker shard; 83 other tracks use 4 GiB and two workers.
+Every manifest, terminal record, hash, counter and pair was checked.
+All 18 fleet jobs succeeded. No whole-field counter vetoes promotion.
 
-    arm              cand-champ place  paired SE  wins C/H  crashes C/H
-    checkpoint             -0.53125       0.105      86/58       8/5
-    lap crossing           +0.04167       0.020      70/74       8/7
-    both                   -0.56250       0.105      87/57       8/5
+VALIDATION: warnings-as-errors build, core, 12 goldens, all 23 AI scripts,
+headless smoke, full-state query replay and lap-progress checks pass.
+Sixteen AI scripts pass unchanged. Seven scripts and seven goldens have
+measured snapshot updates; all AI test function bodies are unchanged.
+67 refreshed CI race recordings match local measurements; the production
+JAR and golden JSON agree too. Frozen Le Mans s87 now has six finishers
+and p6 crashing on its 36th move under both labels. Its exact retention
+snapshot is re-frozen to 6/1 and documented beside the value. Other
+measured regression cases retain 7/0. Every golden retains its terminal
+counts. Explicit safety and AI-label identity checks remain intact.
 
-Checkpoint ranking carries the gain (13/2/9 tracks). Select checkpoint only:
-lap-crossing alone loses and its incremental combined change is small.
-The production candidate ranks the same eligible CP touches by exact moves
-left AFTER all ordered gate events on the move. Enum-order ties, finite
-continuation, headway, robust landing and occupied-cell checks stay intact.
-Immediate finishes and S/F precedence are unchanged.
+SCREENING: own-field pace-veto removal and wider finish window were null
+(-0.00694 and 0.000). The 24-track gate screen, seeds 11-13: CP ranking
+-0.53125, lap crossing +0.04167, both -0.56250. Select CP only: it carries
+the gain; isolated lap crossing loses. Fresh full-fleet seeds confirm it.
+Both screens' 864 races are preserved alongside the full-fleet evidence.
 
-Full validation now tests fresh seeds 21-30, all 84 tracks, legacy/informed/
-scatter, mirrored candidate slots and all-candidate fields. Nordschleife is
-a separate 8 GiB single-worker shard; the other 83 tracks use 4 GiB and two
-workers. All-candidate grids run the exact production patch, with no switch
-needed. Mixed grids differ only in the candidate-slot activation guard.
-Also queued: core, 12 original goldens and all 23 original AI regression
-scripts. No production promotion until the full results have been audited.
-The first null screen and this screening selection will be preserved with
-the full results; screening evidence alone is not clearance.
-
-## Round 231 continued: null own-progress screen; gate-choice test queued
-
-On the Round-228 champion (18ef55e, RaceAi e6e564f), the first 24-track,
-seeds 11-13 legacy-start mirrored screen was essentially null. Field-veto
-removal: candidate-minus-champion place -0.006944, paired SE 0.011,
-wins 72/72, crashes 8/7. Wider finish window: exactly zero, wins 72/72,
-crashes 7/7. Both matched field-veto. All 432 races and their manifests,
-terminal records, hashes and slot assignments were verified; no promotion.
-Run: https://github.com/senegrom/TheoreticalRacing/actions/runs/34320631936
-
-Next isolated screen: rank the existing eligible checkpoint touches and
-non-final S/F crossings by exact post-transition moves remaining. Preserve
-all existing crossing eligibility checks, enum-order ties and the original
-fallback when no exact value exists. Opponent predictions remain unchanged.
-Arms: checkpoint only, lap crossing only, both; same 24-track seeds 11-13
-screen with mirrored slots. Applied as a patch in CI; default application
-source remains the champion. This is a screen, not fleet clearance. Promote
-only after the full 84-track, three-start-mode mixed and all-candidate grids
-and required core/golden/AI-pin regression gates. Places first, own time
-second; whole-field moves and crashes are descriptive, never vetoes.
-
-## Round 231: independent own-progress and finish-window screen
-
-Round 229's term-by-term caution-stack tests and Round 230's aimed lane gate
-are already queued by a peer. This separate experiment starts from the merged
-surcharge-free champion 18ef55e (same RaceAi source as Round 228), without
-altering their work.
-
-Arm 1 removes aggregate-rival and componentwise-rival vetoes from existing
-pace proofs, while retaining their strict mover-progress and survival checks.
-Arm 2 opens the dual-model final-lap finish certificate through TTF 30, with
-the seal veto and existing faithful narrow-line confirmation. It does not
-require the old adjacent-peer/field-improvement formation in the new band.
-Arm 3 combines them. candidateSlots alone selects the experimental cars;
-ai.experiment.ownProgress selects the arm. Unselected cars remain the champion.
-
-Screen protocol: 24 fixed real/synthetic tracks, random starts, fresh seeds
-11-13, both complementary four-car assignments, 72 mirrored pairs per arm.
-The screen ranks candidates only. Any promotion still requires all 84 tracks
-and all three placement modes plus the core, golden and all 23 AI pin suites.
-The current champion core tests and experimental warnings-as-errors build
-pass locally. The workflow also verifies the no-candidate control against
-core and the existing goldens. No performance improvement is claimed yet.
-Only the experimental patch, workflow and this ledger entry are pushed;
-application sources on this branch remain the champion until validation.
+See docs/experiments/round231/README.md for CSVs, manifests, checksums,
+native head_to_head reports and replay. Full run 34322144366 retains its
+initial historical-pin failures; refreshed verification 34322910098 passes.
+Replay commit 319e2d9; verification b897c6f. Temporary workflows and patch
+carriers remain in history. Integration also preserves master's f37ce13
+icon-dependency update; the racing engine, tests and fleet inputs there
+are unchanged. This records the tested PR candidate, not a master merge.
 
 ## Round 229, first part: the caution stack by places, and round 228 confirmed
 

@@ -25,10 +25,13 @@ MAX_FINISH_MOVE_SUM = 891
 # in mover-kind homogeneous fields. Big Oval seed 7 is the smallest active
 # gain; Le Mans seed 12 pins the extended-band NONE veto that removed the
 # broad experiment's sole slower race.
+# Round 231: re-frozen from recorded checkpoint-choice races; the existing
+# assertion logic and AI1/AI2 identity checks remain intact.
+# Every case below retains seven finishers and zero crashes.
 FINISH_EXPECTED = {
     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 23],
     # Round 228: measured without the narrow-lane distance surcharge.
-    ("lemans", 12): [69, 70, 72, 73, 74, 76, 78],
+    ("lemans", 12): [67, 70, 72, 73, 74, 77, 79],
 }
 
 

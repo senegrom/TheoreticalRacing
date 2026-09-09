@@ -19,9 +19,14 @@ PROOF_VETO = ("lemans", 87)
 # and crashes are unchanged; the move counts are the faster lines.
 # Round 228: measured again after removing the remaining narrow-lane
 # distance surcharge. Both labels retain seven finishers and no crashes.
-PROMOTED = (7, 0, [69, 71, 73, 74, 75, 76, 78])
-PROMOTED_FINISHERS = [(1, 69), (5, 71), (3, 73), (6, 74), (7, 75), (8, 76), (2, 78)]
-PROMOTED_ALL_MOVES = {1: 69, 2: 78, 3: 73, 4: 77, 5: 71, 6: 74, 7: 75, 8: 76}
+# Round 231: re-frozen from recorded checkpoint-choice races; the existing
+# assertion logic and AI1/AI2 identity checks remain intact.
+# Le Mans s87 now has six finishers and p6 crashes on its 36th move.
+# This self-play result is recorded, not vetoed by a field-crash metric;
+# promotion is decided by mirrored own-place performance (AGENTS.md).
+PROMOTED = (7, 0, [67, 70, 73, 75, 76, 78, 79])
+PROMOTED_FINISHERS = [(1, 67), (5, 70), (3, 73), (6, 75), (8, 76), (2, 78), (7, 79)]
+PROMOTED_ALL_MOVES = {1: 67, 2: 78, 3: 73, 4: 79, 5: 70, 6: 75, 7: 79, 8: 76}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -31,16 +36,13 @@ PROMOTED_ALL_MOVES = {1: 69, 2: 78, 3: 73, 4: 77, 5: 71, 6: 74, 7: 75, 8: 76}
 RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
-    PROOF_VETO: ((7, 0, [68, 71, 72, 73, 74, 75, 78]),
-        "ca54df3680a0f523caf1073b9f153fe95051cd5465139654e0f72176be31c5d4",
-    ),
+    PROOF_VETO: ((6, 1, [67, 71, 72, 73, 74, 77]),
+                 '579be7ce43b6eadf7680227d327d7620168567cbd718fc6a395579d271de8f30'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
-    ("lemans", 93): ((7, 0, [68, 70, 71, 73, 74, 75, 77]),
-        "449d06293c8a042cd7e763200c8eda757020193fd273adc70201855fe2750ee9",
-    ),
-    ("lemans", 14): ((7, 0, [68, 70, 71, 73, 74, 77, 79]),
-        "20cc7b1e606bcfb4cffe738874d8d5c2a811c101f822b43cfd6f3cd4c0fa8478",
-    ),
+    ("lemans", 93): ((7, 0, [67, 70, 71, 73, 74, 76, 77]),
+                     'c09640db6d2cc64e3d59cd028cf3da1c6cfe8825a216acf0edde0fabbefdea7e'),
+    ("lemans", 14): ((7, 0, [67, 70, 71, 73, 74, 75, 78]),
+                     'a9ea0e5af2d1c13480df11a3cc39344ad7d24c25564e8cfa709c82524fd93c7f'),
     ("silverstone", 78): (
         (7, 0, [81, 82, 83, 84, 85, 85, 86]),
         "edeb00d8d0c3f9fa663c985fa5f25b8418531496901122b7a4313c031bd05319",

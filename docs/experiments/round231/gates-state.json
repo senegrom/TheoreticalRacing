@@ -1,0 +1,46 @@
+{
+  "base": "18ef55eb22dad4c5a955b59cf65410e7d86b9e8e",
+  "screen_commit": "238f9317cb9e2841af1cfecb760c618855a10241",
+  "branch": "codex/racecraft-own-progress",
+  "patch_sha256": "e10524b0c777931ed5404f72c0051c46919d2e3e517052155d1d50ed59102935",
+  "candidate_jar_sha256": "43588f6631ea90b3fdb05a8d40119da741d296ade5a2a1b5e3d10b573cd80b40",
+  "screen_tracks": [
+    "silverstone",
+    "monza",
+    "spa",
+    "monaco",
+    "spielberg",
+    "nurburgring",
+    "lemans",
+    "interlagos",
+    "zandvoort",
+    "hungaroring",
+    "coil",
+    "cog",
+    "chicane",
+    "gear",
+    "hairpin",
+    "serpentine",
+    "serpentine2",
+    "zigzag",
+    "lobe5",
+    "weave3",
+    "fractal8",
+    "rand6",
+    "rand13",
+    "rand16"
+  ],
+  "screen_seeds": [
+    11,
+    12,
+    13
+  ],
+  "arms": {
+    "1": "checkpoint",
+    "2": "lap-crossing",
+    "3": "both-gates"
+  },
+  "screen_run": 34321589460,
+  "experiment_property": "ai.experiment.gateChoice",
+  "artifact_prefix": "round231-gates-"
+}

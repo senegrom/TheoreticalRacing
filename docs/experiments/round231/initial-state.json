@@ -1,0 +1,45 @@
+{
+  "base": "18ef55eb22dad4c5a955b59cf65410e7d86b9e8e",
+  "screen_commit": "38d6fa474e87c14e70cf693b08ca6fca9f860294",
+  "branch": "codex/racecraft-own-progress",
+  "patch_sha256": "bc5e8cf8f83d58a567d3a7280d7f50ab0757a2aac9069ff21c70219f9ed133ca",
+  "candidate_jar_sha256": "77445f5b4c78cdbee7b73a8acbb7a859a2b946aee7d6bf01b33f97173acbbe99",
+  "screen_tracks": [
+    "silverstone",
+    "monza",
+    "spa",
+    "monaco",
+    "spielberg",
+    "nurburgring",
+    "lemans",
+    "interlagos",
+    "zandvoort",
+    "hungaroring",
+    "coil",
+    "cog",
+    "chicane",
+    "gear",
+    "hairpin",
+    "serpentine",
+    "serpentine2",
+    "zigzag",
+    "lobe5",
+    "weave3",
+    "fractal8",
+    "rand6",
+    "rand13",
+    "rand16"
+  ],
+  "screen_seeds": [
+    11,
+    12,
+    13
+  ],
+  "arms": {
+    "1": "field-veto",
+    "2": "finish-window",
+    "3": "both"
+  },
+  "experiment_property": "ai.experiment.ownProgress",
+  "artifact_prefix": "round231-screen-"
+}

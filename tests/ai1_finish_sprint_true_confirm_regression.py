@@ -17,10 +17,13 @@ TARGET = ("rand3", 1)
 # and crashes are unchanged; the move counts are the faster lines.
 # Round 228: re-frozen from complete recorded races after removing the
 # narrow-lane distance surcharge: seven finishers and no crashes in every case.
-PROMOTED = (7, 0, [61, 62, 63, 64, 65, 65, 66])
-PROMOTED_FINISHERS = [(1, 61), (3, 62), (4, 63), (5, 64), (7, 65), (8, 65), (2, 66)]
-PROMOTED_ALL_MOVES = {1: 61, 2: 66, 3: 62, 4: 63, 5: 64, 6: 65, 7: 65, 8: 65}
-PROMOTED_SHA256 = '7c3744f55b153d971d049419d17ffbc68ca148898d6bc00d5625b86f897a5524'
+# Round 231: re-frozen from recorded checkpoint-choice races; the existing
+# assertion logic and AI1/AI2 identity checks remain intact.
+# Every case below retains seven finishers and zero crashes.
+PROMOTED = (7, 0, [60, 61, 62, 64, 64, 66, 66])
+PROMOTED_FINISHERS = [(1, 60), (3, 61), (4, 62), (5, 64), (7, 64), (2, 66), (6, 66)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 66, 3: 61, 4: 62, 5: 64, 6: 66, 7: 64, 8: 65}
+PROMOTED_SHA256 = '595497b685651032a45f42d7b56cd940c5de709cc29ef2dd0115a53d57a42e21'
 
 
 def main() -> int:

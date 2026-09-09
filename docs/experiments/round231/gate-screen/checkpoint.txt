@@ -1,0 +1,26 @@
+576 candidate car-races, 576 champion car-races over 144 races
+mean place   candidate 4.234   champion 4.766   (lower is better; 4.500 is a tie in an 8-car field)
+race wins    candidate 86   champion 58
+crashes      candidate 8   champion 5
+mirrored races 72: candidate minus champion mean place -0.531  (standard error 0.105; negative favours the candidate)
+
+tracks where the candidate gains most (mean place difference, candidate car-races):
+    lobe5          -2.833  (24)
+    cog            -2.250  (24)
+    weave3         -2.083  (24)
+    spielberg      -1.583  (24)
+    rand6          -1.167  (24)
+    rand13         -0.917  (24)
+    gear           -0.833  (24)
+    lemans         -0.667  (24)
+tracks where it loses most:
+    monza          +0.000  (24)
+    serpentine     +0.000  (24)
+    serpentine2    +0.000  (24)
+    silverstone    +0.000  (24)
+    zandvoort      +0.000  (24)
+    zigzag         +0.000  (24)
+    monaco         +0.083  (24)
+    spa            +0.250  (24)
+
+13 tracks favour the candidate, 2 the champion, 9 tied

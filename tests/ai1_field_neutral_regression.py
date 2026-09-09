@@ -10,10 +10,13 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
+# Round 231: re-frozen from recorded checkpoint-choice races; the existing
+# assertion logic and AI1/AI2 identity checks remain intact.
+# Every case below retains seven finishers and zero crashes.
 EXPECTED = {
     ("zigzag", 1): [65, 65, 66, 66, 67, 68, 68],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
-    ("cog", 1): [47, 48, 48, 49, 49, 50, 51],
+    ("cog", 1): [46, 47, 47, 48, 48, 48, 49],
 }
 
 

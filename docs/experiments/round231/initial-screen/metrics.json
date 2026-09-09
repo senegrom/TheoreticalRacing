@@ -1,0 +1,140 @@
+{
+  "both": {
+    "difference": -0.006944444444444444,
+    "mirrored_pairs": 72,
+    "paired_standard_error": 0.010949587921541958,
+    "per_track": {
+      "chicane": 0.0,
+      "cog": 0.0,
+      "coil": -0.16666666666666666,
+      "fractal8": 0.0,
+      "gear": 0.0,
+      "hairpin": 0.0,
+      "hungaroring": 0.0,
+      "interlagos": 0.0,
+      "lemans": 0.0,
+      "lobe5": 0.0,
+      "monaco": 0.16666666666666666,
+      "monza": 0.0,
+      "nurburgring": 0.0,
+      "rand13": 0.0,
+      "rand16": -0.08333333333333333,
+      "rand6": 0.0,
+      "serpentine": 0.0,
+      "serpentine2": -0.08333333333333333,
+      "silverstone": 0.0,
+      "spa": 0.0,
+      "spielberg": 0.0,
+      "weave3": 0.0,
+      "zandvoort": 0.0,
+      "zigzag": 0.0
+    },
+    "policies": {
+      "candidate": {
+        "car_races": 576,
+        "crashes": 8,
+        "mean_place": 4.496527777777778,
+        "wins": 72
+      },
+      "champion": {
+        "car_races": 576,
+        "crashes": 7,
+        "mean_place": 4.503472222222222,
+        "wins": 72
+      }
+    },
+    "races": 144
+  },
+  "field-veto": {
+    "difference": -0.006944444444444444,
+    "mirrored_pairs": 72,
+    "paired_standard_error": 0.010949587921541958,
+    "per_track": {
+      "chicane": 0.0,
+      "cog": 0.0,
+      "coil": -0.16666666666666666,
+      "fractal8": 0.0,
+      "gear": 0.0,
+      "hairpin": 0.0,
+      "hungaroring": 0.0,
+      "interlagos": 0.0,
+      "lemans": 0.0,
+      "lobe5": 0.0,
+      "monaco": 0.16666666666666666,
+      "monza": 0.0,
+      "nurburgring": 0.0,
+      "rand13": 0.0,
+      "rand16": -0.08333333333333333,
+      "rand6": 0.0,
+      "serpentine": 0.0,
+      "serpentine2": -0.08333333333333333,
+      "silverstone": 0.0,
+      "spa": 0.0,
+      "spielberg": 0.0,
+      "weave3": 0.0,
+      "zandvoort": 0.0,
+      "zigzag": 0.0
+    },
+    "policies": {
+      "candidate": {
+        "car_races": 576,
+        "crashes": 8,
+        "mean_place": 4.496527777777778,
+        "wins": 72
+      },
+      "champion": {
+        "car_races": 576,
+        "crashes": 7,
+        "mean_place": 4.503472222222222,
+        "wins": 72
+      }
+    },
+    "races": 144
+  },
+  "finish-window": {
+    "difference": 0.0,
+    "mirrored_pairs": 72,
+    "paired_standard_error": 0.0,
+    "per_track": {
+      "chicane": 0.0,
+      "cog": 0.0,
+      "coil": 0.0,
+      "fractal8": 0.0,
+      "gear": 0.0,
+      "hairpin": 0.0,
+      "hungaroring": 0.0,
+      "interlagos": 0.0,
+      "lemans": 0.0,
+      "lobe5": 0.0,
+      "monaco": 0.0,
+      "monza": 0.0,
+      "nurburgring": 0.0,
+      "rand13": 0.0,
+      "rand16": 0.0,
+      "rand6": 0.0,
+      "serpentine": 0.0,
+      "serpentine2": 0.0,
+      "silverstone": 0.0,
+      "spa": 0.0,
+      "spielberg": 0.0,
+      "weave3": 0.0,
+      "zandvoort": 0.0,
+      "zigzag": 0.0
+    },
+    "policies": {
+      "candidate": {
+        "car_races": 576,
+        "crashes": 7,
+        "mean_place": 4.5,
+        "wins": 72
+      },
+      "champion": {
+        "car_races": 576,
+        "crashes": 7,
+        "mean_place": 4.5,
+        "wins": 72
+      }
+    },
+    "races": 144
+  }
+}
