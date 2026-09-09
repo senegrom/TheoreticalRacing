@@ -1,0 +1,55 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index e6e564f..9a6054d 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -742,7 +742,8 @@ final class RaceAi {
+ 							|| reach.isRobust(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy))) {
+ 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
+ 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
+-				return d;
++				return exactPot != null
++						? bestCheckpointMove(pos, vel, playerNum, sm, d) : d;
+ 			}
+ 			if ((sm & bit) == 0) {
+ 				fallbackIllegalMask |= bit;
+@@ -4778,6 +4779,40 @@ final class RaceAi {
+ 		return liveOccupancy[nx * (game.gameRows + 1) + ny] != 0;
+ 	}
+ 
++	/** Round 231: rank the already-permitted checkpoint touches in the successor's own lap
++	 * frame. Preserve enum order on equal values and the old choice when the
++	 * exact potential cannot price any qualifying continuation. */
++	private Direction bestCheckpointMove(final int[] pos, final int[] vel,
++			final int playerNum, final int mask, final Direction fallback) {
++		Direction best = fallback;
++		int bestValue = Integer.MAX_VALUE;
++		final int nextGate = lapGate == 1 ? 2 : 0;
++		for (final Direction d : DIRECTIONS) {
++			final int bit = 1 << d.ordinal();
++			if ((mask & bit << 16) == 0 || (mask & bit) == 0)
++				continue;
++			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
++			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
++			final boolean progress = game.touchesGate(lapGate, pos[0], pos[1], nx, ny)
++					&& reach.isAlive(nx, ny, nvx, nvy);
++			if (!progress || game.isCrashingPlayer(nx, ny, playerNum)
++					|| reach.turnsToGate(nextGate, nx, ny, nvx, nvy) == Integer.MAX_VALUE
++					|| !needleHeadway(nx, ny, nvx, nvy, playerNum, nextGate)
++					|| robustMode && !reach.isRobust(nextGate, nx, ny, nvx, nvy))
++				continue;
++			final int events = game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny);
++			final int value = exactPot.movesToFinish(exactRemaining - events, nx, ny, nvx, nvy);
++			if (value < bestValue) {
++				bestValue = value;
++				best = d;
++			}
++		}
++		if (best != fallback && AI_DEBUG_DJS)
++			System.err.println("AIDBG CHECKPOINT-CHOICE p=" + playerNum + " gate=" + lapGate
++					+ " " + fallback + " -> " + best + " remaining=" + bestValue);
++		return best;
++	}
++
+ 	/** Round 226: does this car run the candidate branch of a mixed field? False
+ 	 *  for every car unless the game's candidateSlots property names its slot. */
+ 	private boolean candidate(final int playerNum) {

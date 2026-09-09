@@ -1,5 +1,33 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 231: checkpoint choice wins the screen; full fleet queued
+
+The gate-choice screen (run 34321589460) completed all 432 races with
+verified manifests, terminal records, hashes and complementary slots.
+24 tracks, seeds 11-13, legacy starts, 72 mirrored pairs per arm:
+
+    arm              cand-champ place  paired SE  wins C/H  crashes C/H
+    checkpoint             -0.53125       0.105      86/58       8/5
+    lap crossing           +0.04167       0.020      70/74       8/7
+    both                   -0.56250       0.105      87/57       8/5
+
+Checkpoint ranking carries the gain (13/2/9 tracks). Select checkpoint only:
+lap-crossing alone loses and its incremental combined change is small.
+The production candidate ranks the same eligible CP touches by exact moves
+left AFTER all ordered gate events on the move. Enum-order ties, finite
+continuation, headway, robust landing and occupied-cell checks stay intact.
+Immediate finishes and S/F precedence are unchanged.
+
+Full validation now tests fresh seeds 21-30, all 84 tracks, legacy/informed/
+scatter, mirrored candidate slots and all-candidate fields. Nordschleife is
+a separate 8 GiB single-worker shard; the other 83 tracks use 4 GiB and two
+workers. All-candidate grids run the exact production patch, with no switch
+needed. Mixed grids differ only in the candidate-slot activation guard.
+Also queued: core, 12 original goldens and all 23 original AI regression
+scripts. No production promotion until the full results have been audited.
+The first null screen and this screening selection will be preserved with
+the full results; screening evidence alone is not clearance.
+
 ## Round 231 continued: null own-progress screen; gate-choice test queued
 
 On the Round-228 champion (18ef55e, RaceAi e6e564f), the first 24-track,
