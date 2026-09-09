@@ -1,5 +1,30 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 231: independent own-progress and finish-window screen
+
+Round 229's term-by-term caution-stack tests and Round 230's aimed lane gate
+are already queued by a peer. This separate experiment starts from the merged
+surcharge-free champion 18ef55e (same RaceAi source as Round 228), without
+altering their work.
+
+Arm 1 removes aggregate-rival and componentwise-rival vetoes from existing
+pace proofs, while retaining their strict mover-progress and survival checks.
+Arm 2 opens the dual-model final-lap finish certificate through TTF 30, with
+the seal veto and existing faithful narrow-line confirmation. It does not
+require the old adjacent-peer/field-improvement formation in the new band.
+Arm 3 combines them. candidateSlots alone selects the experimental cars;
+ai.experiment.ownProgress selects the arm. Unselected cars remain the champion.
+
+Screen protocol: 24 fixed real/synthetic tracks, random starts, fresh seeds
+11-13, both complementary four-car assignments, 72 mirrored pairs per arm.
+The screen ranks candidates only. Any promotion still requires all 84 tracks
+and all three placement modes plus the core, golden and all 23 AI pin suites.
+The current champion core tests and experimental warnings-as-errors build
+pass locally. The workflow also verifies the no-candidate control against
+core and the existing goldens. No performance improvement is claimed yet.
+Only the experimental patch, workflow and this ledger entry are pushed;
+application sources on this branch remain the champion until validation.
+
 ## Round 229, first part: the caution stack by places, and round 228 confirmed
 
 Numbering. A peer agent's ledger entry "Round 227 archived" (6497764) records
