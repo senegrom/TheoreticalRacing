@@ -1,5 +1,25 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 231 regression measurements: seven changed scripts, seven goldens
+
+The production patch builds and passes core. Sixteen of 23 original AI
+scripts pass unchanged. Seven stop on changed recorded trajectories; their
+complete races were captured locally before updating constants. All function
+bodies and explicit safety/AI-label identity checks are unchanged.
+
+Exception in the recorded self-play counters: frozen Le Mans seed 87 now has
+six finishers and p6 crashes on its 36th move, under both AI labels. Its exact
+retention snapshot is updated to 6/1 with that reason next to the numbers.
+The remaining measured cases retain 7/0. No whole-field crash veto is added:
+the owner's own-place-first rule still decides promotion. All golden cases
+retain their finisher/crash counts; seven trajectories change. Local golden
+measurements match the initial CI mismatches exactly.
+
+The seven updated scripts and ordinary golden checking are now queued in a
+separate verification workflow. Full 84-track grids remain in progress at
+run 34322144366. These are measured expectations, not evidence of promotion
+until the complete head-to-head comparison is audited.
+
 ## Round 231: checkpoint choice wins the screen; full fleet queued
 
 The gate-choice screen (run 34321589460) completed all 432 races with

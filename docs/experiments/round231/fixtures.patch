@@ -1,0 +1,364 @@
+diff --git a/tests/ai1_bounded_uncertain_field_regression.py b/tests/ai1_bounded_uncertain_field_regression.py
+index 7d91b70..849cad0 100644
+--- a/tests/ai1_bounded_uncertain_field_regression.py
++++ b/tests/ai1_bounded_uncertain_field_regression.py
+@@ -19,9 +19,14 @@ PROOF_VETO = ("lemans", 87)
+ # and crashes are unchanged; the move counts are the faster lines.
+ # Round 228: measured again after removing the remaining narrow-lane
+ # distance surcharge. Both labels retain seven finishers and no crashes.
+-PROMOTED = (7, 0, [69, 71, 73, 74, 75, 76, 78])
+-PROMOTED_FINISHERS = [(1, 69), (5, 71), (3, 73), (6, 74), (7, 75), (8, 76), (2, 78)]
+-PROMOTED_ALL_MOVES = {1: 69, 2: 78, 3: 73, 4: 77, 5: 71, 6: 74, 7: 75, 8: 76}
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Le Mans s87 now has six finishers and p6 crashes on its 36th move.
++# This self-play result is recorded, not vetoed by a field-crash metric;
++# promotion is decided by mirrored own-place performance (AGENTS.md).
++PROMOTED = (7, 0, [67, 70, 73, 75, 76, 78, 79])
++PROMOTED_FINISHERS = [(1, 67), (5, 70), (3, 73), (6, 75), (8, 76), (2, 78), (7, 79)]
++PROMOTED_ALL_MOVES = {1: 67, 2: 78, 3: 73, 4: 79, 5: 70, 6: 75, 7: 79, 8: 76}
+ 
+ # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
+ # early-round trajectory-only class excluded by the last-three-movers gate;
+@@ -31,16 +36,13 @@ PROMOTED_ALL_MOVES = {1: 69, 2: 78, 3: 73, 4: 77, 5: 71, 6: 74, 7: 75, 8: 76}
+ RETENTION_CASES = {
+     # Round 228: these three Le Mans trajectories changed; the five other
+     # retention trajectories remain byte-identical.
+-    PROOF_VETO: ((7, 0, [68, 71, 72, 73, 74, 75, 78]),
+-        "ca54df3680a0f523caf1073b9f153fe95051cd5465139654e0f72176be31c5d4",
+-    ),
++    PROOF_VETO: ((6, 1, [67, 71, 72, 73, 74, 77]),
++                 '579be7ce43b6eadf7680227d327d7620168567cbd718fc6a395579d271de8f30'),
+     # Round 226 (the needle tie-break): re-frozen from measurement.
+-    ("lemans", 93): ((7, 0, [68, 70, 71, 73, 74, 75, 77]),
+-        "449d06293c8a042cd7e763200c8eda757020193fd273adc70201855fe2750ee9",
+-    ),
+-    ("lemans", 14): ((7, 0, [68, 70, 71, 73, 74, 77, 79]),
+-        "20cc7b1e606bcfb4cffe738874d8d5c2a811c101f822b43cfd6f3cd4c0fa8478",
+-    ),
++    ("lemans", 93): ((7, 0, [67, 70, 71, 73, 74, 76, 77]),
++                     'c09640db6d2cc64e3d59cd028cf3da1c6cfe8825a216acf0edde0fabbefdea7e'),
++    ("lemans", 14): ((7, 0, [67, 70, 71, 73, 74, 75, 78]),
++                     'a9ea0e5af2d1c13480df11a3cc39344ad7d24c25564e8cfa709c82524fd93c7f'),
+     ("silverstone", 78): (
+         (7, 0, [81, 82, 83, 84, 85, 85, 86]),
+         "edeb00d8d0c3f9fa663c985fa5f25b8418531496901122b7a4313c031bd05319",
+diff --git a/tests/ai1_energy_pace_regression.py b/tests/ai1_energy_pace_regression.py
+index e432fd9..9f6924d 100755
+--- a/tests/ai1_energy_pace_regression.py
++++ b/tests/ai1_energy_pace_regression.py
+@@ -4,11 +4,14 @@ import sys, tempfile
+ ROOT = Path(__file__).resolve().parents[1]
+ sys.path.insert(0, str(ROOT / "tracks"))
+ import bench_ai
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Every case below retains seven finishers and zero crashes.
+ EXPECTED = {
+  # Round 228: measured raw-distance policy, seven finishers and no crashes.
+- ("nurburgring",1): [92, 94, 96, 97, 98, 100, 102],
+- ("interlagos",29): [125, 126, 129, 131, 132, 134, 136],
+- ("interlagos",47): [125, 126, 127, 128, 129, 130, 132],
++ ("nurburgring",1): [92, 92, 95, 95, 97, 99, 100],
++ ("interlagos",29): [124, 125, 127, 128, 130, 132, 133],
++ ("interlagos",47): [124, 125, 127, 128, 129, 131, 133],
+  ("spa",17): [78,80,82,83,84,84,86],
+  ("zandvoort",44): [139,140,141,142,143,144,146],
+ }
+diff --git a/tests/ai1_field_neutral_regression.py b/tests/ai1_field_neutral_regression.py
+index 9f825c2..a713447 100755
+--- a/tests/ai1_field_neutral_regression.py
++++ b/tests/ai1_field_neutral_regression.py
+@@ -10,10 +10,13 @@ sys.path.insert(0, str(ROOT / "tracks"))
+ 
+ import bench_ai  # noqa: E402
+ 
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Every case below retains seven finishers and zero crashes.
+ EXPECTED = {
+     ("zigzag", 1): [65, 65, 66, 66, 67, 68, 68],
+     # Round 228: the raw-distance policy saves eight finisher moves in this race.
+-    ("cog", 1): [47, 48, 48, 49, 49, 50, 51],
++    ("cog", 1): [46, 47, 47, 48, 48, 48, 49],
+ }
+ 
+ 
+diff --git a/tests/ai1_finish_sprint_true_confirm_regression.py b/tests/ai1_finish_sprint_true_confirm_regression.py
+index fbae0bd..da6fdad 100644
+--- a/tests/ai1_finish_sprint_true_confirm_regression.py
++++ b/tests/ai1_finish_sprint_true_confirm_regression.py
+@@ -17,10 +17,13 @@ TARGET = ("rand3", 1)
+ # and crashes are unchanged; the move counts are the faster lines.
+ # Round 228: re-frozen from complete recorded races after removing the
+ # narrow-lane distance surcharge: seven finishers and no crashes in every case.
+-PROMOTED = (7, 0, [61, 62, 63, 64, 65, 65, 66])
+-PROMOTED_FINISHERS = [(1, 61), (3, 62), (4, 63), (5, 64), (7, 65), (8, 65), (2, 66)]
+-PROMOTED_ALL_MOVES = {1: 61, 2: 66, 3: 62, 4: 63, 5: 64, 6: 65, 7: 65, 8: 65}
+-PROMOTED_SHA256 = '7c3744f55b153d971d049419d17ffbc68ca148898d6bc00d5625b86f897a5524'
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Every case below retains seven finishers and zero crashes.
++PROMOTED = (7, 0, [60, 61, 62, 64, 64, 66, 66])
++PROMOTED_FINISHERS = [(1, 60), (3, 61), (4, 62), (5, 64), (7, 64), (2, 66), (6, 66)]
++PROMOTED_ALL_MOVES = {1: 60, 2: 66, 3: 61, 4: 62, 5: 64, 6: 66, 7: 64, 8: 65}
++PROMOTED_SHA256 = '595497b685651032a45f42d7b56cd940c5de709cc29ef2dd0115a53d57a42e21'
+ 
+ 
+ def main() -> int:
+diff --git a/tests/ai1_pace_regression.py b/tests/ai1_pace_regression.py
+index 8d58ef2..8dcee1e 100755
+--- a/tests/ai1_pace_regression.py
++++ b/tests/ai1_pace_regression.py
+@@ -25,10 +25,13 @@ MAX_FINISH_MOVE_SUM = 891
+ # in mover-kind homogeneous fields. Big Oval seed 7 is the smallest active
+ # gain; Le Mans seed 12 pins the extended-band NONE veto that removed the
+ # broad experiment's sole slower race.
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Every case below retains seven finishers and zero crashes.
+ FINISH_EXPECTED = {
+     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 23],
+     # Round 228: measured without the narrow-lane distance surcharge.
+-    ("lemans", 12): [69, 70, 72, 73, 74, 76, 78],
++    ("lemans", 12): [67, 70, 72, 73, 74, 77, 79],
+ }
+ 
+ 
+diff --git a/tests/ai1_private_slack_regression.py b/tests/ai1_private_slack_regression.py
+index d22483a..7779f4e 100644
+--- a/tests/ai1_private_slack_regression.py
++++ b/tests/ai1_private_slack_regression.py
+@@ -14,14 +14,23 @@ from forensics_common import finishers, normalized_lines, normalized_sha256, pla
+ HUNGARORING_SEED = 12
+ # Round 228: re-frozen from complete recorded races after removing the
+ # narrow-lane distance surcharge: seven finishers and no crashes in every case.
+-HUNGARORING_PROMOTED = (7, 0, [123, 125, 127, 130, 132, 133, 135])
+-HUNGARORING_PROMOTED_FINISHERS = [(3, 123), (4, 125), (6, 127), (5, 130), (7, 132), (8, 133), (1, 135)]
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Every case below retains seven finishers and zero crashes.
++HUNGARORING_PROMOTED = (7, 0, [122, 125, 127, 129, 131, 132, 134])
++HUNGARORING_PROMOTED_FINISHERS = [(3, 122),
++                                  (4, 125),
++                                  (6, 127),
++                                  (5, 129),
++                                  (7, 131),
++                                  (8, 132),
++                                  (1, 134)]
+ HUNGARORING_ALL_MOVES = {
+-    "AI1": {1: 135, 2: 134, 3: 123, 4: 125, 5: 130, 6: 127, 7: 132, 8: 133},
+-    "AI2": {1: 135, 2: 134, 3: 123, 4: 125, 5: 130, 6: 127, 7: 132, 8: 133},
++    "AI1": {1: 134, 2: 133, 3: 122, 4: 125, 5: 129, 6: 127, 7: 131, 8: 132},
++    "AI2": {1: 134, 2: 133, 3: 122, 4: 125, 5: 129, 6: 127, 7: 131, 8: 132},
+ }
+ HUNGARORING_NORMALIZED_SHA256 = (
+-    "4723c65135a987f2b7f4e8b99d284e4e14dd4bbe5a87d107e5fbe28862c91c2c"
++    '917bec22d4d80668c4f0c442b96eb1621b9d953ff4a18a378dd7c97e88ab6862'
+ )
+ 
+ # Each case pins one false-positive class from the broader score-slack screens:
+@@ -31,20 +40,20 @@ HUNGARORING_NORMALIZED_SHA256 = (
+ # trajectory equal to the current champion.
+ VETO_CASES = {
+     # Round 226 (the needle tie-break): re-frozen from measurement.
+-    ("lemans", 2): ((7, 0, [68, 70, 72, 74, 75, 77, 78]),
++    ("lemans", 2): ((7, 0, [67, 70, 72, 74, 75, 78, 80]),
+         "311 p7 {kind} N v(1,5)→(1,4) (82,144)→(83,148) ok",
+     ),
+     ("spa", 1): (
+         (7, 0, [78, 79, 80, 82, 83, 84, 86]),
+         "163 p3 {kind} NW v(4,9)→(3,8) (95,95)→(98,103) ok",
+     ),
+-    ("hungaroring", 40): ((7, 0, [124, 126, 128, 129, 131, 133, 134]),
++    ("hungaroring", 40): ((7, 0, [123, 126, 127, 128, 130, 132, 133]),
+         "352 p8 {kind} NONE v(3,2)→(3,2) (49,110)→(52,112) ok",
+     ),
+-    ("interlagos", 47): ((7, 0, [125, 126, 127, 128, 129, 130, 132]),
++    ("interlagos", 47): ((7, 0, [124, 125, 127, 128, 129, 131, 133]),
+         "175 p7 {kind} SW v(6,-3)→(5,-2) (35,8)→(40,6) ok",
+     ),
+-    ("monza", 30): ((7, 0, [79, 80, 81, 82, 83, 83, 83]),
++    ("monza", 30): ((7, 0, [78, 79, 80, 82, 82, 83, 84]),
+         "238 p6 {kind} E v(-9,0)→(-8,0) (125,69)→(117,69) ok",
+     ),
+     # Round 224 moved this race: still seven finishers and no crash, but the
+@@ -67,23 +76,23 @@ VETO_CASES = {
+ }
+ VETO_NORMALIZED_SHA256 = {
+     # Round 224 (rival predictor in its own lap frame): trajectory only.
+-    ("lemans", 2): "aeefa6f156c09f1536b95aed8cd2bb412a4be65241c4f9012762dfb675f53456",
++    ("lemans", 2): '95b273dd9c4cdab6aaf579bceec13627e51071c69574adf06249924028e930c4',
+     ("spa", 1): "9b9d38ea1a2e6c50f7a425849cba5ef97e0b0ba53726fe15936e0d3c33a433cb",
+     # Round 224: same finishing order and same per-car move counts, new route.
+-    ("hungaroring", 40): "6cbb93bc77cb363359357c4015c1e4c0072150d598aca0763d5975f1e006b3c8",
++    ("hungaroring", 40): '1516d65de711c095c9347cac7df85dfa6fd1036b031602be916facac8331ca65',
+     # Round 224: same finishing order and same per-car move counts, new route.
+-    ("interlagos", 47): "e5dbe8d280688a537742d80b427687b000c10b6ecff0b26108346f445b68d23f",
++    ("interlagos", 47): 'a632c3775a8fdfe0effd2be52a612d7a09c1dd2f75217ee46dd827ec22956748',
+     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
+     # every earlier move, race total and finishing place is unchanged.
+-    ("monza", 30): "9e356e7136f5c4f7a7f1cde9df0ecde442e60e90b051bfd72f0c37f6a0716d9f",
++    ("monza", 30): '1a7156887bc59302570a382cf1ab81d09868216d2575a72ce6a09967273b0b60',
+     # Round 224, the one case that changes its result: still seven finishers,
+     # but car 1 finishes seventh where car 7 used to, and the race is nine
+     # moves longer. The fleet cleared the change on 1460 races either side
+     # (no crash moved, +19 and +133 moves in 1.85M).
+-    ("monaco", 35): "c1fd38a72115d8620ee877fc5e8a2b67bb769a27a77704d89845fcbc74210f09",
++    ("monaco", 35): 'd2b55c84f18743cefd183e8dab580a4585783a3b5a147bdbeabcdcdcef4e17a1',
+     ("zandvoort", 34): "fd46bc1213512c6acaafa7e7783fad19db44667bcc84dad0fcb69b8d68acec58",
+     # Same illegal finishing vector at turn 640; legal N preserves all counters.
+-    ("monza", 145): "933139f310c4f65a9ac7da84af6f71634efc8cfb2ca65fae31e0485877819781",
++    ("monza", 145): 'c586dbb97939587d4d5d839dfc71a9e1a43ef9912a40d817239c18704ab38428',
+     # Reject p3's wall-overlap finish at turn 819: its last two approach moves
+     # and p6's nearby response move, but the full field's outcome counters do not.
+     ("serpentine", 38): "82de9001dbb13f1ee6fce99387032658ac199c9dc977f3ca05e679e48bd44b0a",
+diff --git a/tests/ai1_staged_pace_regression.py b/tests/ai1_staged_pace_regression.py
+index eefb82c..2ed7f4a 100644
+--- a/tests/ai1_staged_pace_regression.py
++++ b/tests/ai1_staged_pace_regression.py
+@@ -27,9 +27,12 @@ CASES = {
+ 
+ # A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
+ # the three-ahead class must retain the exact integrated-frontier finish list.
++# Round 231: re-frozen from recorded checkpoint-choice races; the existing
++# assertion logic and AI1/AI2 identity checks remain intact.
++# Every case below retains seven finishers and zero crashes.
+ EXACT_MOVES = {
+     # Round 228: the raw-distance policy changes the order and saves four moves.
+-    ("lemans", 3): [69, 71, 72, 73, 74, 75, 77],
++    ("lemans", 3): [67, 70, 72, 74, 75, 76, 77],
+     ("silverstone", 15): [81, 82, 83, 84, 84, 85, 85],
+ }
+ 
+diff --git a/tests/golden_races.json b/tests/golden_races.json
+index 9c461d4..bfd5a60 100644
+--- a/tests/golden_races.json
++++ b/tests/golden_races.json
+@@ -50,9 +50,9 @@
+       "track": "hungaroring",
+       "seed": 13,
+       "players": 8,
+-      "sha256": "72ca44ccaa036996ecaae171998da7f2aa699c5f817e81323db53ec6d97edb26",
++      "sha256": "1cfcaf0bc44fa0095952a810ecbb2f56b029f25c0144d732f48ae3fedf8d5768",
+       "summary": {
+-        "turns": 939,
++        "turns": 931,
+         "finishes": 7,
+         "crashes": 0,
+         "results": [
+@@ -72,18 +72,18 @@
+       "track": "lemans",
+       "seed": 4,
+       "players": 8,
+-      "sha256": "645b800602fa02a0eeecde66897b82b469279a4eec4be56779298fe4b2110840",
++      "sha256": "896a475b1f0da99ff43438a7aef894e9eb2f496625968ad6efe0af1953c31bc3",
+       "summary": {
+-        "turns": 1225,
++        "turns": 1220,
+         "finishes": 7,
+         "crashes": 0,
+         "results": [
+           "B",
+           "F",
+-          "H",
+-          "E",
+           "D",
++          "E",
+           "G",
++          "H",
+           "C",
+           "A"
+         ]
+@@ -128,20 +128,20 @@
+       "track": "monaco",
+       "seed": 16,
+       "players": 8,
+-      "sha256": "a65fcf47eddbdbcd04df3e89c365834f4c712c58b13fc8e16655a0835f1ee74b",
++      "sha256": "8deb5eb9d3fa40350c77dc0180d1af0d714b4beb81efdd192e3b3dcc1e88b9ef",
+       "summary": {
+-        "turns": 1138,
++        "turns": 1129,
+         "finishes": 7,
+         "crashes": 0,
+         "results": [
+           "A",
+           "B",
+           "C",
+-          "E",
+           "D",
++          "E",
++          "F",
+           "G",
+-          "H",
+-          "F"
++          "H"
+         ]
+       }
+     },
+@@ -150,9 +150,9 @@
+       "track": "nurburgring",
+       "seed": 19,
+       "players": 8,
+-      "sha256": "f924e5f5e1d2499017abb6b3c79c1bef86123be3d84ca4f9606fa2bbd037d40a",
++      "sha256": "f968c739ac0b53035649d6450944fab33cb901928cf63d98149d10a105a7c744",
+       "summary": {
+-        "turns": 1159,
++        "turns": 1144,
+         "finishes": 7,
+         "crashes": 0,
+         "results": [
+@@ -172,18 +172,18 @@
+       "track": "interlagos",
+       "seed": 10,
+       "players": 8,
+-      "sha256": "ae7074c09be523897a53f718ab759136be2619303a34788e3644d34b853bec2e",
++      "sha256": "43e9b2286a255c74f48dc95149f0ca5fbd20f87d13ac912c9afa252de440dd8c",
+       "summary": {
+-        "turns": 1014,
++        "turns": 1005,
+         "finishes": 7,
+         "crashes": 0,
+         "results": [
+           "A",
+           "D",
+-          "F",
+           "G",
+           "H",
+           "B",
++          "F",
+           "C",
+           "E"
+         ]
+@@ -216,16 +216,16 @@
+       "track": "zandvoort",
+       "seed": 45,
+       "players": 8,
+-      "sha256": "2874cdbbee2b8ba550d9aa337e171c879cabf81c648a5a39c4bf5a4a62d8908f",
++      "sha256": "912a8913b2c1b8de709adcef951a64b2371316ae3e86b7bd61313b38f1e1a840",
+       "summary": {
+-        "turns": 1133,
++        "turns": 1135,
+         "finishes": 7,
+         "crashes": 0,
+         "results": [
+           "D",
+           "A",
+-          "F",
+           "B",
++          "F",
+           "C",
+           "E",
+           "G",
+@@ -238,9 +238,9 @@
+       "track": "lemans",
+       "seed": 1,
+       "players": 4,
+-      "sha256": "a76a6d408feada70c5ec9eb970a973f7b53740445f33fc5349731e3a2170aaf0",
++      "sha256": "d4501b4785c97243cd6b1cdd4a8e2577cce76fb9ec87ad588140cf840467b717",
+       "summary": {
+-        "turns": 594,
++        "turns": 591,
+         "finishes": 3,
+         "crashes": 0,
+         "results": [
