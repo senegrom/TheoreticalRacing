@@ -31,6 +31,18 @@ second car a crash is an improvement, and a field made entirely of the
 candidate is allowed to crash more often than the champion's field. Report
 those numbers as description, never as a rejection.
 
+## Owner clarification (2026-09-09)
+
+For this branch's subsequent improvements, also compare paired complete-field
+results lexicographically in finishing order: first finisher's own move count,
+then second, then third, and so on. An unchanged earlier result permits a
+faster or newly finishing later result. A later gain cannot compensate an
+earlier slowdown. Missing finishes follow completed finishes; do not count
+fewer moves caused by a crash as faster. This ordered comparison takes priority
+over mean-place or summed-moves claims when deciding these improvements.
+Continue to report mirrored mixed-field places as opponent-strength evidence.
+The prohibitions on yielding and active cooperation remain.
+
 ## Measurement discipline (unchanged)
 
 - Any change that can alter a decision gets its own fleet grid before it

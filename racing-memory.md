@@ -1,5 +1,25 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 232 in progress: equal-pace checkpoint continuations
+
+Owner clarification (2026-09-09, current session): compare results in
+finishing order. The first finisher's time has priority; if unchanged,
+improving the second result (including preventing a crash) counts, then
+the third, and so on. Use paired candidate-only/baseline races to retain
+this ordered vector. A later gain must not compensate an earlier loss.
+Keep each car competitive; no yielding or active cooperation is introduced.
+Mixed-field own-place performance remains an opponent-strength measurement;
+mean place and total field moves do not replace the ordered-time comparison.
+
+Baseline is branch 53fb3e4 (Round 231), not master. This screening carrier
+leaves production RaceAi unchanged. It compares checkpoint tie-breaks only
+AFTER exact remaining distance is equal: (1) body-free continuing successors,
+(2) body-free exact descents, (3) lower velocity energy. Arm 0 is the branch
+policy. All preserve checkpoint eligibility and enum ties after the new key.
+Screen: same 24 tracks and seeds 31-33 for every arm, legacy starts, all eight
+slots. No selection or performance claim yet. The workflow and patch record
+all inputs. Full three-mode fleet validation remains required before selection.
+
 ## Round 231: choose the faster eligible checkpoint crossing
 
 The tested PR candidate ranks the existing eligible CP touches by exact

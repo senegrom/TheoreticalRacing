@@ -1,0 +1,65 @@
+diff --git a/src/tr/logic/RaceAi.java b/src/tr/logic/RaceAi.java
+index 9a6054d..590bbad 100644
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -4785,7 +4785,8 @@ final class RaceAi {
+ 	private Direction bestCheckpointMove(final int[] pos, final int[] vel,
+ 			final int playerNum, final int mask, final Direction fallback) {
+ 		Direction best = fallback;
+-		int bestValue = Integer.MAX_VALUE;
++		int bestValue = Integer.MAX_VALUE, bestRoom = -1;
++		final int experiment = candidate(playerNum) ? CHECKPOINT_TIE_EXPERIMENT : 0;
+ 		final int nextGate = lapGate == 1 ? 2 : 0;
+ 		for (final Direction d : DIRECTIONS) {
+ 			final int bit = 1 << d.ordinal();
+@@ -4802,8 +4803,16 @@ final class RaceAi {
+ 				continue;
+ 			final int events = game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny);
+ 			final int value = exactPot.movesToFinish(exactRemaining - events, nx, ny, nvx, nvy);
+-			if (value < bestValue) {
++			if (value == Integer.MAX_VALUE || value > bestValue)
++				continue;
++			final int room = experiment == 1
++					? currentFreeContinuingSuccessors(nx, ny, nvx, nvy, playerNum, nextGate, 9)
++					: experiment == 2 ? checkpointFastExits(nx, ny, nvx, nvy, playerNum,
++							(exactRemaining - events), value)
++					: experiment == 3 ? -speedSquared(nvx, nvy) : 0;
++			if (value < bestValue || room > bestRoom) {
+ 				bestValue = value;
++				bestRoom = room;
+ 				best = d;
+ 			}
+ 		}
+@@ -4813,6 +4822,32 @@ final class RaceAi {
+ 		return best;
+ 	}
+ 
++	private static final int CHECKPOINT_TIE_EXPERIMENT =
++			Integer.getInteger("ai.experiment.checkpointTie", 0);
++
++	/** Count body-free exact descents in the successor's gate frame. */
++	private int checkpointFastExits(final int x, final int y, final int vx, final int vy,
++			final int playerNum, final int remaining, final int value) {
++		final int gate = remaining % 3 == 0 ? 1 : remaining % 3 == 2 ? 2 : 0;
++		int count = 0;
++		for (final Direction d : DIRECTIONS) {
++			final int nvx = vx + d.dx, nvy = vy + d.dy;
++			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
++				continue;
++			final int nx = x + nvx, ny = y + nvy;
++			final int after = remaining - game.gateEventsOnMove(gate, x, y, nx, ny);
++			if (after <= 0) {
++				count++;
++				continue;
++			}
++			if (game.isMoveLegalGeometryCached(x, y, nx, ny)
++					&& !game.isCrashingPlayer(nx, ny, playerNum)
++					&& exactPot.movesToFinish(after, nx, ny, nvx, nvy) == value - 1)
++				count++;
++		}
++		return count;
++	}
++
+ 	/** Round 226: does this car run the candidate branch of a mixed field? False
+ 	 *  for every car unless the game's candidateSlots property names its slot. */
+ 	private boolean candidate(final int playerNum) {
