@@ -236,11 +236,11 @@ def bench(tracks):
         if not tracks or len(set(tracks)) != len(tracks) or not SEEDS:
             raise ValueError('benchmark requires unique tracks and a nonempty seed set')
         set_all_to('AI2')
-        if baseline_path:
-            candidate_digest = digest(candidate_jar)
-            manifest = baseline_manifest(tracks, champion_jar, candidate_jar)
-            if Path(baseline_path).exists():
-                baseline = load_baseline(baseline_path, manifest)
+        # Experiment identity is mandatory even when no cache is requested.
+        candidate_digest = digest(candidate_jar)
+        manifest = baseline_manifest(tracks, champion_jar, candidate_jar)
+        if baseline_path and Path(baseline_path).exists():
+            baseline = load_baseline(baseline_path, manifest)
         kinds = ('AI1',) if baseline is not None else ('AI1', 'AI2')
         results = {}
         for kind in kinds:
@@ -297,18 +297,17 @@ def bench(tracks):
                 tm += avg
                 nt += 1
             results[kind] = (tf, tc, tm / max(1, nt), rows)
-        if baseline_path:
-            set_all_to('AI2')
-            if (digest(candidate_jar) != candidate_digest
-                    or baseline_manifest(tracks, champion_jar, candidate_jar) != manifest):
-                raise ValueError('benchmark inputs changed during the run')
-            if baseline is None and valid:
-                rows = results['AI2'][3]
-                atomic_text(baseline_path, json_text({
-                    'manifest': manifest, 'rows': rows,
-                    'rows_sha256': hashlib.sha256(json_text(rows).encode()).hexdigest(),
-                }))
-                print(f'# seeded champion baseline -> {os.path.basename(baseline_path)}')
+        set_all_to('AI2')
+        if (digest(candidate_jar) != candidate_digest
+                or baseline_manifest(tracks, champion_jar, candidate_jar) != manifest):
+            raise ValueError('benchmark inputs changed during the run')
+        if baseline_path and baseline is None and valid:
+            rows = results['AI2'][3]
+            atomic_text(baseline_path, json_text({
+                'manifest': manifest, 'rows': rows,
+                'rows_sha256': hashlib.sha256(json_text(rows).encode()).hexdigest(),
+            }))
+            print(f'# seeded champion baseline -> {os.path.basename(baseline_path)}')
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         print('benchmark: ' + str(error), file=sys.stderr)
         return False

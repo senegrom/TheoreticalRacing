@@ -27,6 +27,7 @@ jobs:
           distribution: temurin
           java-version: ${{ matrix.java }}
       - run: sh ./run_tests.sh
+      - run: python3 tests/cross_era_referee_regression.py
       - run: sh ./build_main.sh
       - run: java -Djava.awt.headless=true -jar theoreticRacing.jar --list-tracks | grep -q '^silverstone$'
 

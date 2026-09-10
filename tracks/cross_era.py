@@ -1,31 +1,30 @@
-"""Cross-era exhibition referee: race the champions of any two commits.
-
-Build an era jar from a historic commit, then race it against the current
-champion through dual --query-moves oracles -- each era's brain answers only
-for its own four cars on a shared board; the CURRENT jar's candidate mask is
-the rulebook (rules are era-invariant).
-
-Era jar recipe (example, round-60 champion at commit 886fab9):
-  git archive 886fab9 src | tar -x -C /tmp/era
-  find /tmp/era/src -name '*.java' | sort > /tmp/era/srcs.txt
-  javac --release 25 -encoding UTF-8 -d /tmp/era/classes @/tmp/era/srcs.txt
-  jar --create --file era60.jar --main-class tr.main.Main -C /tmp/era/classes .
-Place the era jar in the repo root (track files resolve against the jar's
-directory) and set OLD_JAR below or via the OLD_JAR environment variable.
+"""Cross-era exhibition on non-checkpoint, single-lap courses.
 
 Usage: cross_era.py track1,track2,... seed1,seed2,...
-Each (track, seed) runs twice with grid slots swapped so grid advantage
-cancels; the report gives mean place and crashes per era.
 
-First result on record (round 109 vs round 60, 24 races, 6 tracks):
-NEW 4.438 vs OLD 4.562 mean place, both crash-free -- the edge lives
-entirely on tracks where overtaking exists.
+NEW_JAR is the current build; OLD_JAR selects a preserved historic JAR. Track
+files resolve beside each JAR. RACING_WORK_DIR holds era_AI1.properties and
+era_AI2.properties, each with an eight-AI roster. Every track/seed is mirrored.
+The current oracle is the referee; the old oracle supplies only its own moves.
+
+The legacy five-field protocol cannot carry checkpoint or lap progress. Such
+courses, multi-lap profiles and scattered starts are rejected, not approximated.
+Use both policies in one modern binary and head_to_head.py for those races.
+A search horizon is not a finish: any incomplete race fails the entire report.
 """
-import os, sys
+from contextlib import ExitStack
+import os
+from pathlib import Path
+import re
+import subprocess
+import sys
+import tempfile
 
 if __package__:
+    from .benchmark_io import configured_players, read_race
     from .forensics_common import DIRS, Oracle, START_LINE
 else:
+    from benchmark_io import configured_players, read_race
     from forensics_common import DIRS, Oracle, START_LINE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -34,88 +33,128 @@ S = os.environ.get('RACING_WORK_DIR', HERE)
 NEW_JAR = os.path.join(ROOT, 'theoreticRacing.jar')
 OLD_JAR = os.environ.get('OLD_JAR', os.path.join(ROOT, 'era60.jar'))
 
-def start_positions(track, seed):
-    """Ask the new jar for a real race's initial board by parsing a 0-move log?
-    Simpler: run one race with --seed and read the start= lines from its log."""
-    import subprocess
-    log = os.path.join(S, 'cross_start_%s_%d.log' % (track, seed))
-    subprocess.run(['java', '-jar', NEW_JAR, '--auto', '--track', track,
-                    '--props', os.path.join(S, 'era_AI2.properties'),
-                    '--seed', str(seed), '--log', log],
-                   capture_output=True, timeout=300)
-    starts = []
-    for ln in open(log, encoding='utf-8', errors='replace'):
-        m = START_LINE.match(ln)
-        if m:
-            starts.append((int(m.group(2)), int(m.group(3))))
-    return starts
 
-def race(track, seed, new_slots):
-    starts = start_positions(track, seed)
-    assert len(starts) == 8, starts
+def start_positions(track, seed):
+    """Extract numbered starts only from this invocation's completed race."""
+    props = os.path.join(S, 'era_AI2.properties')
+    # Never reuse cross_start_<track>_<seed>.log: a failed process must have no
+    # previous output to fall back to, and concurrent invocations stay isolated.
+    with tempfile.TemporaryDirectory(prefix='racing-cross-start-') as directory:
+        log = Path(directory) / 'start.log'
+        result = subprocess.run(
+            ['java', '-jar', NEW_JAR, '--auto', '--track', track,
+             '--props', props, '--seed', str(seed), '--log', str(log)],
+            capture_output=True, text=True, encoding='utf-8', errors='replace',
+            timeout=300, check=True,
+        )
+        race = read_race(log, configured_players(props))
+        if len(race.players) != 8 or any(kind == 'HUMAN' for _, kind in race.players.values()):
+            raise ValueError('cross-era requires an eight-AI roster')
+        text = log.read_text(encoding='utf-8')
+        if (race.profile['laps'] != '1' or race.profile['start-placement'] == 'scatter'
+                or re.search(r'^\[laps\] gate geometry:', result.stdout, re.MULTILINE)
+                or re.search(r' (?:cp1|cp2)(?: |$)', text, re.MULTILINE)):
+            raise ValueError('legacy cross-era queries cannot carry checkpoint/lap or scattered-start state')
+        starts = {}
+        for line in text.splitlines():
+            match = START_LINE.fullmatch(line)
+            if match:
+                if int(match[4] or 0) or int(match[5] or 0):
+                    raise ValueError('legacy cross-era requires stationary starts')
+                starts[int(match[1])] = (int(match[2]), int(match[3]))
+        if set(starts) != set(race.players) or len(set(starts.values())) != 8:
+            raise ValueError('incomplete or overlapping cross-era starts')
+        return [starts[n] for n in sorted(starts)]
+
+
+def classify(new_o, old_o, starts, new_slots, *, max_rounds=400):
+    """Live-referee place ordering, with current-engine legality for both eras."""
+    if (len(starts) != 8 or len(set(starts)) != 8 or max_rounds < 1
+            or len(new_slots) != 4 or not set(new_slots) <= set(range(8))):
+        raise ValueError('cross-era requires eight distinct starts, four new slots and a positive horizon')
     cars = [[x, y, 0, 0, 0] for x, y in starts]
-    new_o = Oracle(track, NEW_JAR, os.path.join(S, 'era_AI2.properties'))
-    old_o = Oracle(track, OLD_JAR, os.path.join(S, 'era_AI1.properties'))
-    place = [0] * 8
-    next_place = 1
-    turns = 0
-    try:
-        while turns < 400:
-            turns += 1
-            for i in range(8):
-                if cars[i][4] != 0:
-                    continue
-                is_new = i in new_slots
-                dx, dy, mask = (new_o if is_new else old_o).ask(i, cars)
-                ref_mask = mask if is_new else new_o.ask(i, cars)[2]
-                ci = DIRS.index((dx, dy))
-                c = ref_mask[ci]
+    places = [0] * 8
+    finished = crashed = 0
+    for _ in range(max_rounds):
+        for i in range(8):
+            if cars[i][4] != 0:
+                continue
+            is_new = i in new_slots
+            dx, dy, mask = (new_o if is_new else old_o).ask(i, cars)
+            ref_mask = mask if is_new else new_o.ask(i, cars)[2]
+            if not re.fullmatch(r'[FXBDA]{9}', ref_mask):
+                raise ValueError('invalid legacy referee mask')
+            outcome = ref_mask[DIRS.index((dx, dy))]
+            if outcome == 'F':
+                finished += 1
+                places[i] = finished
+                cars[i] = [-100000, -100000, 0, 0, 90]
+            elif outcome in 'XB':
+                places[i] = 8 - crashed
+                crashed += 1
+                cars[i] = [-100000, -100000, 0, 0, 99]
+            else:
                 x, y, vx, vy, _ = cars[i]
-                if c == 'F':
-                    cars[i][4] = 90
-                    place[i] = next_place; next_place += 1
-                    continue
-                if c in 'XB':
-                    cars[i][4] = 99
-                    continue
                 nvx, nvy = vx + dx, vy + dy
                 cars[i] = [x + nvx, y + nvy, nvx, nvy, 0]
-            live = [i for i in range(8) if cars[i][4] == 0]
-            if len(live) <= 1:
-                for i in live:
-                    cars[i][4] = 90
-                    place[i] = next_place; next_place += 1
-                break
-    finally:
-        new_o.close(); old_o.close()
-    # Crashed cars share the tail places (by crash order ~ position: give max place).
-    for i in range(8):
-        if place[i] == 0:
-            place[i] = 8 if cars[i][4] == 99 else next_place
-    return place, [cars[i][4] for i in range(8)]
+            # The referee ends immediately after the seventh retirement, not
+            # after the remaining slots have had a chance to crash or finish.
+            if finished + crashed == 7:
+                survivor = next(n for n, car in enumerate(cars) if car[4] == 0)
+                places[survivor] = finished + 1
+                cars[survivor][4] = 90
+                return places, [car[4] for car in cars]
+    raise ValueError('cross-era race incomplete after %d rounds; no classification' % max_rounds)
 
-def main():
-    tracks = sys.argv[1].split(',') if len(sys.argv) > 1 else ['monza']
-    seeds = [int(s) for s in sys.argv[2].split(',')] if len(sys.argv) > 2 else [1]
-    tot_new, tot_old, n_new, n_old, crash_new, crash_old = 0, 0, 0, 0, 0, 0
-    for track in tracks:
-        for seed in seeds:
-            for swap in (False, True):
-                new_slots = {0, 2, 4, 6} if not swap else {1, 3, 5, 7}
-                place, fate = race(track, seed, new_slots)
-                np_, op_ = [], []
-                for i in range(8):
-                    (np_ if i in new_slots else op_).append(place[i])
-                    if fate[i] == 99:
-                        if i in new_slots: crash_new += 1
-                        else: crash_old += 1
-                tot_new += sum(np_); n_new += 4
-                tot_old += sum(op_); n_old += 4
-                print('%s s%d swap=%d  NEW places=%s  OLD places=%s' % (
-                    track, seed, swap, sorted(np_), sorted(op_)))
-    print('=' * 60)
-    print('NEW (r109 champion): mean place %.3f  crashes %d' % (tot_new / n_new, crash_new))
-    print('OLD (r60 champion):  mean place %.3f  crashes %d' % (tot_old / n_old, crash_old))
+
+def race(track, seed, new_slots, *, max_rounds=400):
+    starts = start_positions(track, seed)
+    with ExitStack() as cleanup:
+        new_o = Oracle(track, NEW_JAR, os.path.join(S, 'era_AI2.properties'))
+        cleanup.callback(new_o.close)
+        old_o = Oracle(track, OLD_JAR, os.path.join(S, 'era_AI1.properties'))
+        cleanup.callback(old_o.close)
+        return classify(new_o, old_o, starts, new_slots, max_rounds=max_rounds)
+
+
+def main(argv=None):
+    args = list(sys.argv[1:] if argv is None else argv)
+    try:
+        if len(args) > 2:
+            raise ValueError('usage: cross_era.py track1,track2,... seed1,seed2,...')
+        tracks = args[0].split(',') if args else ['hairpin']
+        seeds = [int(s) for s in args[1].split(',')] if len(args) > 1 else [1]
+        if (not tracks or any(not re.fullmatch(r'[A-Za-z0-9_-]+', t) for t in tracks)
+                or len(set(tracks)) != len(tracks) or not seeds or len(set(seeds)) != len(seeds)):
+            raise ValueError('tracks and seeds must be nonempty and unique')
+        totals = {'new': [0, 0, 0], 'old': [0, 0, 0]}
+        rows = []
+        for track in tracks:
+            for seed in seeds:
+                for swap in (False, True):
+                    new_slots = {0, 2, 4, 6} if not swap else {1, 3, 5, 7}
+                    places, fates = race(track, seed, new_slots)
+                    rows.append('%s s%d swap=%d  NEW places=%s  OLD places=%s' % (
+                        track, seed, swap, sorted(places[i] for i in new_slots),
+                        sorted(places[i] for i in range(8) if i not in new_slots)))
+                    for i, place in enumerate(places):
+                        total = totals['new' if i in new_slots else 'old']
+                        total[0] += place
+                        total[1] += 1
+                        total[2] += fates[i] == 99
+        # Nothing is reported as a performance result unless every pair finished.
+        print('\n'.join(rows))
+        print('=' * 60)
+        for label, key, jar in (('NEW', 'new', NEW_JAR), ('OLD', 'old', OLD_JAR)):
+            places, count, crashes = totals[key]
+            print('%s (%s): mean place %.3f  crashes %d' %
+                  (label, Path(jar).name, places / count, crashes))
+        return 0
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        detail = error.stderr.strip() if isinstance(error, subprocess.CalledProcessError) and error.stderr else str(error)
+        print('cross-era: ' + detail, file=sys.stderr)
+        return 2
+
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())
