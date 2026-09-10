@@ -7,7 +7,8 @@
       "seed": 1,
       "laps": 1,
       "policy": "informed",
-      "sha256": "f62bfcdbd84bcf1777383683c22a1e1040777c6c7a7c1bac1143903baf0e5456"
+      "sha256": "978446be4a76a37684b8363b57b9fb55a01da2e737613840119811bbe934d103",
+      "note": "Round 233 policy at 06280d78: refrozen from byte-identical desktop/browser logs (31 moves, A wins, no crashes). Native CI artifact 10163663595 and fresh local runs agree; no engine or placement change."
     }
   ]
 }
