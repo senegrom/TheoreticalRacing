@@ -39,7 +39,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - run: sh ./build_main.sh
@@ -73,7 +73,7 @@ jobs:
       - name: Select browser coverage
         id: scope
         run: python3 web/scripts/ci_scope.py
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
       - run: python -m compileall -q tracks tests
