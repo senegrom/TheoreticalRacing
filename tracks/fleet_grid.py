@@ -19,8 +19,10 @@ import tempfile
 
 if __package__:
     from .forensics_common import parse_move
+    from .benchmark_io import comparison_profile
 else:
     from forensics_common import parse_move
+    from benchmark_io import comparison_profile
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -135,7 +137,9 @@ def parse_log(path):
 
 def manifest_for(jar, props, java, heap, tracks, lo, hi):
     return {
-        'schema': 1, 'runner': digest(Path(__file__)),
+        'schema': 2, 'runner': digest(Path(__file__)),
+        'comparison': comparison_profile(props),
+        'benchmark_parser': digest(Path(__file__).with_name('benchmark_io.py')),
         'log_parser': digest(Path(__file__).with_name('forensics_common.py')),
         'jar': digest(jar), 'properties': digest(props),
         'java': str(java), 'java_sha256': digest(java), 'heap': heap,
