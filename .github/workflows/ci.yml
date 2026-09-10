@@ -140,7 +140,7 @@ jobs:
         env:
           PAGE_URL: ${{ steps.deploy.outputs.page_url }}
         run: python3 web/tests/browser_e2e.py --browser chromium --url "$PAGE_URL" --expected-sha "$GITHUB_SHA" --expected-repository "$GITHUB_REPOSITORY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: live-pages-evidence
