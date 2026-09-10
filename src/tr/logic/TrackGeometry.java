@@ -3,6 +3,7 @@ package tr.logic;
 import java.awt.BasicStroke;
 import java.awt.Shape;
 import java.awt.geom.Area;
+import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -248,6 +249,31 @@ final class TrackGeometry {
 			prev = cur;
 		}
 		return false;
+	}
+
+	/** First touch of a gate at or after a fraction of the move, or NaN.
+	 * Collinear overlap remains a touch while the car is on the gate; a
+	 * checkpoint touched only earlier cannot be banked after a later one. */
+	static double gateTouchAfter(final Line2D gate, final int x, final int y,
+			final int nx, final int ny, final double after) {
+		final double dx = (double) nx - x, dy = (double) ny - y;
+		final double gx = gate.getX2() - gate.getX1(), gy = gate.getY2() - gate.getY1();
+		final double qx = gate.getX1() - x, qy = gate.getY1() - y;
+		final double cross = dx * gy - dy * gx;
+		if (cross != 0) {
+			final double t = (qx * gy - qy * gx) / cross;
+			final double u = (qx * dy - qy * dx) / cross;
+			return t >= after && t <= 1 && u >= 0 && u <= 1 ? t : Double.NaN;
+		}
+		if (dx == 0 && dy == 0)
+			return gate.ptSegDistSq(x, y) == 0 ? after : Double.NaN;
+		if (qx * dy - qy * dx != 0)
+			return Double.NaN;
+		final double lengthSquared = dx * dx + dy * dy;
+		final double first = (qx * dx + qy * dy) / lengthSquared;
+		final double last = ((gate.getX2() - x) * dx + (gate.getY2() - y) * dy) / lengthSquared;
+		final double touch = Math.max(after, Math.min(first, last));
+		return touch <= 1 && touch <= Math.max(first, last) ? touch : Double.NaN;
 	}
 
 }

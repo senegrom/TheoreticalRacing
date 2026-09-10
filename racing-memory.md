@@ -1,5 +1,33 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review fixes: checkpoint travel order, placement undo, and starting-zone updates
+
+Based on the round-232 champion, `2a2725c`. The shared referee now consumes
+checkpoint and finish intersections in travel order. The existing valid custom
+track fixture has CP1 at x=6 and CP2 at x=13: the legal move (14,2)->(5,2)
+previously banked both despite touching CP2 first. It now banks only CP1 and
+still owes CP2. A finish touched before the required checkpoints cannot end
+the race. Collinear overlap and stationary checkpoint touches retain their
+existing meaning. Both exact solvers use this same event function.
+
+Placement status now enables Undo when an earlier human placement exists;
+the browser command removes that placement and its dependent AI placements.
+The starting-zone overlay is sent with ordinary state deltas, so departure
+hides it and undo restores it without resending the track geometry.
+
+Local checks passed: JDK 25 build and core tests; all 12 unchanged goldens;
+all 23 unchanged AI regression scripts; headless smoke, query replay and lap
+progression; 52 Python tooling tests; 29 browser tooling tests; HTTP range
+tests; seven JavaScript tests; browser adapter and placement barrier/order
+tests; six complete desktop/browser parity pairs including computed starts
+and two-lap races. New regressions cover the reported failures through the
+referee and browser commands, including the real-browser placement control.
+
+The full 1-10 fleet slice on all 84 tracks is running in legacy, informed and
+scatter modes. Real Chromium/WebKit gameplay checks will run in GitHub CI;
+the local Playwright browser download failed. Keep the PR in draft until the
+remaining verification is recorded here.
+
 ## Round 232: the followers get safer -- the kinematic confirm
 
 The owner's question after round 229: the leading car is faster now; can the

@@ -17,6 +17,7 @@ final class FollowupRuleTests {
 
     static void run() {
         testCombinedEvents();
+        testGateTravelOrder();
         testTerminalGridExit();
         testRendererUsesRefereeGeometry();
         testAutomaticGateGeometry();
@@ -128,6 +129,32 @@ final class FollowupRuleTests {
         check(!g.evaluateMove(0, 0, 9, 2, 13, 2, false).legal(), "mid-race grid exit became legal");
     }
 
+    private static void testGateTravelOrder() {
+        final RaceGame g = corridor(10, 9, 3, 6);
+        final RaceGame.MoveResult reverse = g.evaluateMove(0, 1, 7, 2, 2, 2, false);
+        check(reverse.legal() && reverse.passCp1() && !reverse.passCp2() && reverse.gateAfter() == 2,
+                "CP2 crossed before CP1 was credited retroactively");
+        check(g.gateEventsOnMove(1, 3, 2, 3, 2) == 1, "stationary checkpoint touch was lost");
+        g.lapGates[2] = new Line2D.Double(1, 2, 4, 2);
+        check(g.gateEventsOnMove(1, 0, 2, 5, 2) == 2, "ongoing collinear gate touch was lost");
+        g.lapGates[2] = new Line2D.Double(1, 2, 2, 2);
+        check(g.gateEventsOnMove(1, 0, 2, 5, 2) == 1, "earlier collinear touch was credited");
+
+        final RaceGame finishFirst = corridor(8, 4, 5, 6);
+        for (final int pending : new int[]{1, 2}) {
+            final RaceGame.MoveResult result = finishFirst.evaluateMove(0, pending, 3, 2, 7, 2, false);
+            check(result.legal() && result.passCp2() && !result.finishes() && result.gateAfter() == 0,
+                    "finish crossed before the owed checkpoints ended the race");
+        }
+        final OptimalPotential potential = OptimalPotential.build(finishFirst, 1, 16L << 20);
+        check(potential != null, "small ordered-gate potential was skipped");
+        final int expected = referenceBfs(finishFirst, 2, 2);
+        check(expected > 0 && OptimalLap.solve(finishFirst, 2, 2, 1) == expected,
+                "forward solver disagrees with ordered referee");
+        check(potential.movesToFinish(3, 2, 2, 0, 0) == expected,
+                "reverse solver disagrees with ordered referee");
+    }
+
     private static void testRendererUsesRefereeGeometry() {
         final RaceUI ui = new RaceUI(20, 20);
         final Area annulus = new Area(new Rectangle2D.Double(1, 1, 18, 18));
@@ -176,6 +203,9 @@ final class FollowupRuleTests {
             throw new AssertionError(error);
         }
         check(g.lapGates != null, "actual gate generator rejected fixture");
+        final RaceGame.MoveResult reverse = g.evaluateMove(0, 1, 14, 2, 5, 2, false);
+        check(reverse.legal() && reverse.passCp1() && !reverse.passCp2() && reverse.gateAfter() == 2,
+                "valid custom circuit credited checkpoints in reverse travel order");
         final Line2D actual = (Line2D) get(g, "lapCrossGate");
         final Line2D painted = (Line2D) get(ui, "finishLine");
         check(painted.getX1() == actual.getX1() * RaceUI.GRID_DIST

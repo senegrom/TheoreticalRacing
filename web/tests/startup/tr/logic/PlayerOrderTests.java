@@ -92,7 +92,7 @@ public final class PlayerOrderTests {
             }
             final int lastHuman=roster.lastIndexOf('H');
             if (lastHuman>=0) {
-                g.clickedUndo(); prefix(g);
+                bridge.undo(); prefix(g);
                 check(g.subgamestate==lastHuman, "Undo retained dependent choices");
                 final int[] replacement=free(g,positions[lastHuman]);
                 bridge.click(replacement[0],replacement[1]); drain(bridge,g);

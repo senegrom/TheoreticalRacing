@@ -106,7 +106,7 @@ test('snapshot deltas reconstruct exact state with structural sharing and full r
   const first = await pending(e, 'create');
   worker.send({id: first.id, result: {
     _snapshot: 'full', _revision: 1, phase: 'PLAY', turn: 0,
-    left: [[0,0]], shape: [[0,1,2]], messages: [], moves: [], starts: [],
+    left: [[0,0]], shape: [[0,1,2]], messages: [], moves: [], starts: [], startZone: [[0,1,1,0],[0,0,1,1]],
     players: [
       {name: 'A', position: [1,1], velocity: [0,0], history: [[1,1]], outcome: ''},
       {name: 'B', position: [2,2], velocity: [0,0], history: [[2,2]], outcome: ''}
@@ -119,11 +119,13 @@ test('snapshot deltas reconstruct exact state with structural sharing and full r
   const step = await pending(e, 'tick');
   worker.send({id: step.id, result: {
     _snapshot: 'delta', _base: 1, _revision: 2,
-    set: {turn: 1, messages: ['moved'], moves: [], starts: []},
+    set: {turn: 1, messages: ['moved'], moves: [], starts: [], startZone: null},
     players: [{index: 0, set: {position: [2,1], velocity: [1,0]}, historyAppend: [[2,1]]}]
   }});
   const s2 = await step.result;
   assert.equal(s2.turn, 1);
+  assert.equal(s2.startZone, null, 'departed starting zone remains visible');
+  assert.deepEqual(s1.startZone, [[0,1,1,0],[0,0,1,1]], 'hiding the zone mutated an earlier snapshot');
   assert.deepEqual(s2.players[0].history, [[1,1],[2,1]]);
   assert.equal(s2.shape, oldGeometry, 'unchanged geometry should be shared');
   assert.equal(s2.players[1], oldSecond, 'unchanged player should be shared');
@@ -133,10 +135,12 @@ test('snapshot deltas reconstruct exact state with structural sharing and full r
   const undo = await pending(e, 'undo');
   worker.send({id: undo.id, result: {
     _snapshot: 'delta', _base: 2, _revision: 3,
-    set: {turn: 0, messages: [], moves: [], starts: []},
+    set: {turn: 0, messages: [], moves: [], starts: [], startZone: s1.startZone},
     players: [{index: 0, set: {position: [1,1], velocity: [0,0]}, history: [[1,1]]}]
   }});
-  assert.deepEqual((await undo.result).players[0].history, [[1,1]]);
+  const restored = await undo.result;
+  assert.deepEqual(restored.players[0].history, [[1,1]]);
+  assert.deepEqual(restored.startZone, s1.startZone, 'undo failed to restore the starting zone');
 
   const resync = await pending(e, 'snapshot');
   worker.send({id: resync.id, result: {
