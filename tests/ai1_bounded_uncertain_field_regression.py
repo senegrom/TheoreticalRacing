@@ -28,10 +28,12 @@ PROOF_VETO = ("lemans", 87)
 # Le Mans s29 now has six finishers and p4 crashes on its 42nd move, under
 # both labels. Recorded, not vetoed (AGENTS.md); the finisher list, the crash
 # list and every move count are the measured race.
-PROMOTED = (6, 1, [66, 70, 71, 72, 74, 75])
-PROMOTED_FINISHERS = [(1, 66), (3, 70), (5, 71), (6, 72), (2, 74), (7, 75)]
-PROMOTED_CRASHES = [(4, 42)]
-PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 70, 4: 42, 5: 71, 6: 72, 7: 75, 8: 74}
+# Round 232 (the kinematic confirm): p4 no longer dies on its 42nd move --
+# seven finishers and no crash again, the outcome round 229 had lost here.
+PROMOTED = (7, 0, [66, 70, 71, 72, 73, 75, 76])
+PROMOTED_FINISHERS = [(1, 66), (3, 70), (5, 71), (6, 72), (7, 73), (2, 75), (4, 76)]
+PROMOTED_CRASHES = []
+PROMOTED_ALL_MOVES = {1: 66, 2: 75, 3: 70, 4: 76, 5: 71, 6: 72, 7: 73, 8: 75}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -44,10 +46,13 @@ RETENTION_CASES = {
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
     PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 74, 76]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-                 '6816975356b7edf83646c59d3ee16499a57807b9e76f40046b368ef6c1fba5d2'),
+                 '6b9ba867e3280c99b7a5dd38ad5ea3446af3f704268e5b2c058f54a263555709'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
-    ("lemans", 93): ((7, 0, [66, 70, 71, 72, 73, 75, 75]),
-                     '6d2edb0996c298afe83d5a25b74afe6a778495f25f3454aaedf47d323e0dea21'),
+    # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
+    # perturbation this fixture's frozen geometry keeps giving back, while the
+    # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
+    ("lemans", 93): ((6, 1, [66, 70, 71, 72, 73, 75]),
+                     '0d9082782b4dda104c6177e4e6cbd8881681281c8f4499b66078e87ab9983192'),
     ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 72, 74]),
                      '9a370f17c8305f27cad00b47767753d87cb64d8080911e21804f504639d388f4'),
     ("silverstone", 78): (

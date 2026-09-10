@@ -1,5 +1,123 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 232: the followers get safer -- the kinematic confirm
+
+The owner's question after round 229: the leading car is faster now; can the
+followers be made safer? By the rule the answer has to be a candidate that
+does not lose places head-to-head and crashes less in the same races.
+
+THE FORENSICS. The champion's self-play field on random starts (127 crashes
+in 730 lap races) was fetched from the box and twelve deaths audited move by
+move with tracks/needle_audit.py -- the game's own oracle answering, per
+step, how many landings were alive, how wide the lane the car chose was, and
+where the nearest rival stood. Every audited death is one shape: a car beside
+or behind a rival at speed 5-11 takes a single-lane landing forty to sixty
+cells before a merge, and three to eight rounds later the rival takes the
+merge and the car has no move. Monaco kills three cars per race at the SAME
+two cells in every seed -- (12,123) v(1,-5) and (7,136) v(0,-8), the magnet
+the round-205 entry already names; Spa kills two per race just after the
+start line behind a leader crawling through the hairpin; lobe5 kills two at
+(20,114) on the final lap.
+
+THE TRACES. A new instrument (E:/tmp-claude/probe_debug.py) rebuilds the
+board before any logged move and decides it again with -Dai.debug.player and
+-Dai.debug.djs, over the V2 oracle protocol so laps and gates are right. It
+shows the guards working exactly as designed and still losing the car:
+
+  * Monaco 923: the round-93 FAST-FRAGILE leg fires, the cheap 3-round world
+    reads the pick fragile, the faithful 4-round world kills it -- and the
+    switch goes to the fastest alternative that survives FOUR rounds, which
+    dies in seven.
+  * lobe5 1057, Spa 775: the landing's ladder tier is 30, round 197's
+    "unstoppable, no headway". No leg admits that tier; only the cheap world
+    runs, and it reads alive.
+  * Hungaroring 152: the corridor leg's true-rival confirm keeps a tier-1
+    pick that dies eight rounds later.
+  * Spa 767: the move crosses the start line, and every guard skips crossing
+    moves -- exclusions that predate lap mode.
+
+Round 205 gave the CHEAP world a kinematic horizon (rounds-to-stop, capped at
+ten) for exactly this magnet. The faithful legs kept their fixed three and
+four: they certify with worlds that end before the car could stop.
+
+THE ARMS (candidate cars only, random starts, seeds 1-10, mirrored, 840
+pairs; race time unchanged at about five seconds a race):
+
+    arm                                          place C-H    crashes C/H  field
+    A  fast-fragile leg to the kinematic horizon  -0.002+-.002   117/124     116
+    B  A, tier L1 and any pack size admitted      +0.001+-.003   121/123     120
+    C  one faithful search at the stopping        -0.015+-.006    90/125      99
+       distance, on the move about to be made
+    C2 C, the "unstoppable" tier admitted         -0.024+-.010    72/125      79
+    C3 C2, crossing moves admitted                -0.024+-.010    72/125      79
+    F  C3, also armed by a slower leader ahead    -0.010+-.012    71/122      69
+
+Lengthening the existing legs is worth nothing (A, B). The fix had to be a
+guard that runs on the move actually being made, after every other leg has
+had its say, with the horizon set by the rounds the landing needs to stop.
+C3 is BYTE-IDENTICAL to C2 over 730 races -- the crossing admission never
+changed a decision, so it is not in the promotion. F cuts the most crashes
+and gives the places back: its extra arm is "a slower leader ahead in my
+lane", which is the round-206 following law again, and the rule forbids
+buying safety by conceding to the car in front. Safety bought by not entering
+a lane a rival can close is the kind that keeps its places.
+
+THE PROMOTED ARM, C2. After every guard leg, if the chosen landing's ladder
+tier is L1, L2 or the needle trap AND a live rival stands within three cells
+of it (the audited closers stood one to three away), run one faithful joint
+search -- exact self, real scorer rivals -- to min(10, max(3, landing speed))
+rounds. Survival-only, like every other guard: the pick is kept unless it
+provably dies and an alternative survives.
+
+    slice                       place C-H        wins C/H   crashes C/H
+    random, seeds 1-10          -0.024 +- 0.010   839/841     72/125
+    random, seeds 11-20         -0.016 +- 0.010   841/839     78/135
+    computed, seeds 1-10        -0.016 +- 0.009   840/840     69/114
+    scattered, seeds 1-10       -0.000 +- 0.001   840/840      5/8
+
+Never worse on places in any start mode, and two cars in five that used to
+die now finish. Scattered starts spread the field so thin that the guard
+almost never arms, which is the right shape for a traffic guard.
+
+THE WHOLE FIELD, described, never a veto. A field made only of these cars,
+seeds 1-10: random starts 79 crashes per 730 lap races against the champion's
+127 and +0.50% moves (1,768,322 against 1,759,597); computed starts 70 and
+1,768,445; scattered 5 and 1,436,408. The round-229 entry recorded 127 as the
+price of a scorer with no caution terms at all. This buys 38% of it back for
+half a percent of pace, and the mixed field says the buyer GAINS places doing
+it -- which is the whole point: the safety is bought by not entering a lane a
+rival can close, not by lifting for the car in front.
+
+Per track, in the mixed field, the guard is worth its keep exactly where the
+forensics said it would be: Monaco 21 crashes -> 0 (the (12,123) magnet is
+gone), fractal8 7 -> 2, Monza 6 -> 2, Interlagos 4 -> 1, Spielberg 13 -> 10,
+Le Mans 2 -> 0. It costs a little on four boards: lobe5 12 -> 13, lobe2
+4 -> 6, Nurburgring 3 -> 4, rand14 1 -> 2.
+
+THE CORPUS. Byte-identity first: the promoted jar, raced as a plain
+homogeneous field with no instrument, reproduces the measured candidate's 730
+races on every counter. Core tests, 12 goldens and 23 pins pass after
+re-freezing six races from measurement -- and the re-freeze is the round's
+best summary, because it goes both ways. Whole again: golden monaco-s9-4p
+(2 finishers and a crash -> 3 and none), golden monaco-s16-8p (5 and two ->
+7 and none), the bounded-field Le Mans s29 pin (6 and one -> 7 and none, the
+car round 229 lost at this exact race). Lost: the mixed-safety Le Mans s2
+pin, the private-slack Le Mans s2 and Monaco s35 cases, and the bounded-field
+Le Mans s93 case each give a car back. Three of those four are the frozen
+pre-2026-08-29 Le Mans geometry the fixtures pin -- a different circuit from
+the fleet's lemans, where the guard takes crashes from two to zero. The
+mixed-safety death was traced move by move: the guard switches p1's line at
+(78,128), and five hundred moves later, with six cars already home, p1 dies
+ALONE in clear air at (9,56). That is round 45's perturbation class, not a
+traffic death, and it is why the pin now holds the measured outcome rather
+than a blanket zero-crash rule. Net over the pinned set: four crashes gone,
+four gained. Over the fleet: 53 gone out of 125.
+
+The round-185 ridge pin changed shape rather than value: p7 still survives
+the ridge -- what round 185 bought, since its old line crashed three turns
+later -- but no longer beats the seventh finisher to the line, so the pin now
+asserts the survival directly and holds the measured places beside it.
+
 ## Round 229, second part: the stack term by term, the aimed gate, and the promotion
 
 All on the surcharge-free champion (36a6434), random starts, seeds 1-10,

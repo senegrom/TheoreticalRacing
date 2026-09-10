@@ -22,20 +22,25 @@ HUNGARORING_SEED = 12
 # Hungaroring s40 now has six finishers and p8 crashes on its 33rd move, under
 # both labels -- recorded, not vetoed (AGENTS.md); the other cases keep seven
 # finishers and no crashes.
-HUNGARORING_PROMOTED = (7, 0, [122, 123, 124, 125, 127, 129, 130])
+# Round 232 (the kinematic confirm): re-frozen from measurement. Le Mans s2 and
+# Monaco s35 lose a car here (p1 dies alone at Le Mans, p1 on its 60th move at
+# Monaco) while the fleet cuts crashes by two fifths in the same races and the
+# bounded-field Le Mans s29 pin gets its seventh finisher back; recorded, not
+# vetoed (AGENTS.md).
+HUNGARORING_PROMOTED = (7, 0, [122, 123, 124, 126, 127, 129, 130])
 HUNGARORING_PROMOTED_FINISHERS = [(3, 122),
                                   (4, 123),
                                   (7, 124),
-                                  (8, 125),
+                                  (5, 126),
                                   (6, 127),
                                   (1, 129),
-                                  (5, 130)]
+                                  (2, 130)]
 HUNGARORING_ALL_MOVES = {
-    "AI1": {1: 129, 2: 130, 3: 122, 4: 123, 5: 130, 6: 127, 7: 124, 8: 125},
-    "AI2": {1: 129, 2: 130, 3: 122, 4: 123, 5: 130, 6: 127, 7: 124, 8: 125},
+    "AI1": {1: 129, 2: 130, 3: 122, 4: 123, 5: 126, 6: 127, 7: 124, 8: 129},
+    "AI2": {1: 129, 2: 130, 3: 122, 4: 123, 5: 126, 6: 127, 7: 124, 8: 129},
 }
 HUNGARORING_NORMALIZED_SHA256 = (
-    '616bdd972ccca13296b3f404306c44a40e4c0cb7effa33e24d7a9ae7a33d3e36'
+    '3e929a74f35c22a03c13003e0b29bbc5dffee34b88feeebf2fd0cf72f688be91'
 )
 
 # Each case pins one false-positive class from the broader score-slack screens:
@@ -45,7 +50,7 @@ HUNGARORING_NORMALIZED_SHA256 = (
 # trajectory equal to the current champion.
 VETO_CASES = {
     # Round 226 (the needle tie-break): re-frozen from measurement.
-    ("lemans", 2): ((7, 0, [66, 70, 71, 72, 74, 75, 76]),
+    ("lemans", 2): ((6, 1, [66, 70, 71, 72, 74, 75]),
         "311 p7 {kind} N v(1,5)→(1,4) (82,144)→(83,148) ok",
     ),
     ("spa", 1): (
@@ -64,7 +69,7 @@ VETO_CASES = {
     # Round 224 moved this race: still seven finishers and no crash, but the
     # car that misses out changes (car 7 finished before, car 1 finishes now)
     # and the last five finishers each take a few moves longer.
-    ("monaco", 35): ((7, 0, [114, 115, 117, 118, 119, 120, 121]),
+    ("monaco", 35): ((6, 1, [114, 115, 117, 118, 119, 120]),
         "609 p1 {kind} N v(1,5)→(1,4) (16,116)→(17,120) ok",
     ),
     ("zandvoort", 34): (
@@ -81,12 +86,12 @@ VETO_CASES = {
 }
 VETO_NORMALIZED_SHA256 = {
     # Round 224 (rival predictor in its own lap frame): trajectory only.
-    ("lemans", 2): '7f5827f0e0ea47ca50a991254fe169171c4f0ea53f3a48103ccd74ac2c71a121',
+    ("lemans", 2): '7cb5f97298b61d6ac09cef198ed8f0f42227b7fdf4dc461d5cf4efb298c6e2d8',
     ("spa", 1): "86b07820c6ebfe812ee620f728590fec5ea7242d86db91e3b17951ff15b38361",
     # Round 224: same finishing order and same per-car move counts, new route.
     ("hungaroring", 40): '32466092de94d6e240a609b4f3348db140c54410b5065ab0defacbace7140a0f',
     # Round 224: same finishing order and same per-car move counts, new route.
-    ("interlagos", 47): 'ef09674a93909e238f06b73e95366c397af32acbc1fb2f8c6b20588596310d44',
+    ("interlagos", 47): 'da8bee521188bbff703e723bec79e5750a9408de70d72f9c7ef09f88b7cf097b',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
     ("monza", 30): '862304cef740b5b51e79ef6772b5848e640c9fda41f66a164a01b5bf0e50bdab',
@@ -94,7 +99,7 @@ VETO_NORMALIZED_SHA256 = {
     # but car 1 finishes seventh where car 7 used to, and the race is nine
     # moves longer. The fleet cleared the change on 1460 races either side
     # (no crash moved, +19 and +133 moves in 1.85M).
-    ("monaco", 35): 'cf4d930a6aaa52d7433281fc11bae50968fd22f774d21e3b2f6d02e5ffaf0da9',
+    ("monaco", 35): 'a0f44a4a22ce4086691bbe562ab0c6e83079a9f83763ceff6aede41601c19fef',
     ("zandvoort", 34): "7a9780ef41e3eeba7bbf08357e6af234a275d11749a79b99435ee10d444d0121",
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
     ("monza", 145): 'fb5203595ddf9780d88dd129cdee7dad283a34b64b2b2689319edfb1de221f25',

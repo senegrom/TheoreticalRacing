@@ -450,6 +450,7 @@ final class RaceAi {
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
 	private final static int		AI1_ROBUST_RANGE	= 12;	// a live rival ahead or beside requires robust checkpoint/crossing continuations
 	private final static int		AI1_ROBUST_KIN_CAP	= 24;	// round 212: the needle gate reaches as far as my stopping distance s(s+1)/2, capped here -- the rand6 long needle was entered at speed 7 with the parked pack 13 cells ahead, one outside the fixed radius
+	private final static int		AI1_KIN_CONFIRM_R	= 3;	// round 232: a live rival within this Chebyshev radius of the thin landing arms the kinematic confirm (the audited closers stood 1-3 cells away)
 	private final static int		AI1_KIN_HORIZON_CAP	= 10;	// round 205: kinematic DJS horizon cap (rounds-to-stop, lap mode)
 	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7)
 	private final static int		AI1_DEEP_PACK	= 3;	// round 65: escalate only with >= this many rivals within AI1_DEEP_PACK_R of the landing (the doom class lives in packs; solo tunnels excluded)
@@ -966,6 +967,40 @@ final class RaceAi {
 					trapByDir, uncByDir, poTByDir);
 			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,
 					trapByDir, uncByDir, poTByDir);
+		}
+		// Round 232: the last-resort kinematic confirm. Every guard leg above
+		// certifies the chosen move with a world that ends BEFORE the car could
+		// stop -- the round-93 fast-fragile leg looks four rounds ahead and
+		// switches to a line that dies in seven; the round-197 'unstoppable, no
+		// headway' tier arms no leg at all. The audited self-play deaths are all
+		// one shape: a thin landing taken beside a rival 40-60 cells before a
+		// merge, closed three to eight rounds later. So after every leg has had
+		// its say, run ONE faithful joint search on the move about to be made,
+		// with the horizon round 205 gave the cheap world: the rounds this
+		// landing needs to stop. Survival-only, like every other guard -- the
+		// pick is kept unless it provably dies and an alternative survives.
+		// Measured head-to-head (mirrored, 840 pairs a slice): -0.024 places
+		// with 72 candidate crashes against the champion's 125 in the same
+		// races; a whole field of these cars crashes 79 times per 730 races
+		// against 127, for half a percent of moves. Lengthening the existing
+		// legs instead moved nothing (-0.002); arming it on a slower leader
+		// ahead in the lane cut more crashes but gave the places back, which is
+		// the round-206 following law again and the rule forbids it.
+		if (!inScorerSim && chosen != null && game.lapGates != null) {
+			final int kvx = vel[0] + chosen.dx, kvy = vel[1] + chosen.dy;
+			final int kx = pos[0] + kvx, ky = pos[1] + kvy;
+			final int kspd = Math.max(Math.abs(kvx), Math.abs(kvy));
+			if (trapByDir[chosen.ordinal()] >= AI1_TRAP_L2 && trapByDir[chosen.ordinal()] <= AI1_NEEDLE_TRAP
+					&& !game.crossesFinishLegally(pos[0], pos[1], kx, ky)
+					&& countRivalsWithinCheb(kx, ky, playerNum, AI1_KIN_CONFIRM_R) >= 1) {
+				final int kRounds = Math.min(AI1_KIN_HORIZON_CAP, Math.max(AI1_DJS_ROUNDS, kspd));
+				final Direction kChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
+						true, kRounds);
+				if (AI_DEBUG_DJS && kChoice != chosen)
+					System.err.println("AIDBG KINCONF p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
+							+ ") " + chosen + " -> " + kChoice + " r" + kRounds);
+				chosen = kChoice;
+			}
 		}
 		if (chosen != null) {
 			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
