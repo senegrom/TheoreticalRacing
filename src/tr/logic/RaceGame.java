@@ -381,7 +381,12 @@ public final class RaceGame {
 			if (autoMode) {
 				final Runnable hook = autoRaceEndHook;
 				autoRaceEndHook = null;
-				SwingUtilities.invokeLater(hook != null ? hook : () -> System.exit(0));
+				// A missing result is a failed headless run, including in a batch.
+				// Never release the next seed through the success hook on failure.
+				if (!logWritten)
+					SwingUtilities.invokeLater(() -> System.exit(3));
+				else
+					SwingUtilities.invokeLater(hook != null ? hook : () -> System.exit(0));
 			}
 			return true;
 		}

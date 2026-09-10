@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""End-to-end smoke test for genuine headless auto-play and relative log paths."""
+"""Headless auto-play, batch memory recovery, and result-write failures."""
 
 from pathlib import Path
+import os
 import shutil
 import subprocess
 import tempfile
@@ -10,11 +11,73 @@ ROOT = Path(__file__).resolve().parents[1]
 JAR = ROOT / "theoreticRacing.jar"
 
 
+def run_solo(work: Path, seed: str, log: str, *, heap: str = "256m",
+             cache: Path | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["java", f"-Xms{heap}", f"-Xmx{heap}", "-XX:+UseSerialGC",
+         "-XX:ActiveProcessorCount=1", "-Dtr.reachMemoBytes=0",
+         "-jar", str(JAR), "--auto", "--track", "chicane",
+         "--props", "solo.properties", "--seed", seed, "--log", log],
+        cwd=work, capture_output=True, text=True, timeout=180,
+        env=dict(os.environ, RACING_REACH_CACHE=str(cache or work / "reach-cache")),
+    )
+
+
+def check_batch_memory(work: Path) -> None:
+    # With a disabled memo, each seed must allocate maps again. Before the fix,
+    # discarded earlier races made the 64 MiB guard reject later seeds without a GC.
+    batch = run_solo(work, "1-12", "batch.log", heap="64m")
+    if batch.returncode != 0:
+        raise SystemExit(f"low-memory batch failed\n{batch.stdout}\n{batch.stderr}")
+    if "cache-hit" not in batch.stdout:
+        raise SystemExit("batch did not exercise cached map loading")
+    for seed in range(1, 13):
+        single = run_solo(work, str(seed), "single.log", heap="64m")
+        if single.returncode != 0:
+            raise SystemExit(f"fresh seed {seed} failed\n{single.stdout}\n{single.stderr}")
+        expected = (work / "single.log").read_bytes()
+        actual = (work / f"batch_s{seed}.log").read_bytes()
+        if b"# results" not in actual or b" FINISH " not in actual or actual != expected:
+            raise SystemExit(f"batch seed {seed} differs from the complete fresh-JVM race")
+
+    # An unavailable optional cache exercises the same guard on the compute
+    # path, rather than only validating the disk-load preflight.
+    unavailable_cache = work / "cache-is-a-file"
+    unavailable_cache.write_text("not a directory", encoding="utf-8")
+    uncached = run_solo(work, "1-12", "uncached.log", heap="64m", cache=unavailable_cache)
+    if uncached.returncode != 0:
+        raise SystemExit(f"uncached low-memory batch failed\n{uncached.stdout}\n{uncached.stderr}")
+    for seed in range(1, 13):
+        if (work / f"uncached_s{seed}.log").read_bytes() != (work / f"batch_s{seed}.log").read_bytes():
+            raise SystemExit(f"uncached batch seed {seed} changed the race")
+
+    insufficient = run_solo(work, "1", "insufficient.log", heap="16m")
+    if insufficient.returncode == 0 or "Reachability needs roughly" not in insufficient.stderr:
+        raise SystemExit(f"insufficient heap was not rejected clearly\n{insufficient.stdout}\n{insufficient.stderr}")
+    if (work / "insufficient.log").exists():
+        raise SystemExit("insufficient-memory run wrote a successful result")
+
+
+def check_log_failures(work: Path) -> None:
+    # A regular file as the parent fails consistently, even when CI runs as root.
+    (work / "blocked").write_text("not a directory", encoding="utf-8")
+    for seed in ("1", "1-2"):
+        failed = run_solo(work, seed, "blocked/race.log")
+        if failed.returncode != 3 or failed.stdout.count("Could not write log") != 1:
+            raise SystemExit(f"log failure was not propagated once for {seed}\n{failed.stdout}\n{failed.stderr}")
+    if (work / "blocked/race.log").exists():
+        raise SystemExit("failed log-write fixture unexpectedly created a result")
+
+
 def main() -> int:
     if not JAR.is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-headless-") as directory:
         work = Path(directory)
+        (work / "solo.properties").write_text(
+            "nPlayers=1\nplayer1Kind=AI2\nlaps=1\naiStartPlacement=legacy\n",
+            encoding="utf-8",
+        )
         shutil.copyfile(ROOT / "tracks" / "bench.properties", work / "bench.properties")
         result = subprocess.run(
             [
@@ -111,6 +174,8 @@ def main() -> int:
             raise SystemExit(
                 f"insufficient-start-grid auto race failed unclearly:\n{narrow.stdout}\n{narrow.stderr}"
             )
+        check_log_failures(work)
+        check_batch_memory(work)
     print("HeadlessSmoke: OK")
     return 0
 

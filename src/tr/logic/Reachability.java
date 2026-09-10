@@ -538,6 +538,18 @@ final class Reachability {
 		return in;
 	}
 
+	/** Reclaim discarded races before refusing a large preparation allocation.
+	 * Ordinary builds with enough headroom do not request a collection. */
+	private static long availablePreparationMemory(final long estimatedBytes) {
+		final Runtime runtime = Runtime.getRuntime();
+		long available = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+		if (estimatedBytes > available * 3 / 4) {
+			runtime.gc();
+			available = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+		}
+		return available;
+	}
+
 	/**
 	 * Reverse-BFS from finish-line-crossing states: computes both the alive set
 	 * AND the exact minimum number of turns from each state to crossing the finish.
@@ -553,8 +565,7 @@ final class Reachability {
 		if (stateCount > Integer.MAX_VALUE)
 			throw new IllegalStateException("Reachability state space is too large: " + stateCount);
 		final long estimatedBytes = stateCount * 12L;
-		final Runtime runtime = Runtime.getRuntime();
-		final long availableBytes = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+		final long availableBytes = availablePreparationMemory(estimatedBytes);
 		if (estimatedBytes > availableBytes * 3 / 4)
 			throw new IllegalStateException("Reachability needs roughly " + (estimatedBytes >> 20)
 					+ " MiB but the JVM has only " + (availableBytes >> 20) + " MiB available");
@@ -1445,8 +1456,7 @@ final class Reachability {
 		} catch (final IOException e) {
 			return false;
 		}
-		final Runtime runtime = Runtime.getRuntime();
-		final long availableBytes = runtime.maxMemory() - (runtime.totalMemory() - runtime.freeMemory());
+		final long availableBytes = availablePreparationMemory(stateCount * 12L);
 		if (stateCount * 12L > availableBytes * 3 / 4)
 			return false; // let computeReachability raise its descriptive error
 		final int total = (int) stateCount;

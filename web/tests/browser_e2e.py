@@ -237,6 +237,31 @@ def main():
                 page.wait_for_function('document.body.dataset.turn === "0"')
                 page.screenshot(path=str(out / 'human.png'), full_page=True)
                 print(f'{args.browser}: placement, repeated preview, confirmation, undo and session replacement OK', flush=True)
+                # Human-first placement leaves the desktop centering callback
+                # queued. One paused Step must still execute exactly one AI move.
+                page.locator('#new-race').click()
+                page.locator('#player-count').fill('3')
+                for i, row in enumerate(page.locator('.roster-row').all()):
+                    row.locator('select').select_option('HUMAN' if i == 0 else 'AI2')
+                    row.locator('[data-name]').fill(chr(65 + i))
+                select_ai_start_policy(page, 'legacy')
+                page.once('dialog', lambda dialog: dialog.accept())
+                page.locator('#start').click()
+                page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS" && !document.body.classList.contains("loading")', timeout=600_000)
+                page.locator('#first-start').click()
+                page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden')
+                page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "PLAY"')
+                page.locator('#pause').click()
+                page.locator('#moves button[data-legal="true"]').first.click()
+                page.locator('#confirm').click()
+                page.wait_for_function('document.body.dataset.turn === "1" && !document.querySelector("#step").disabled')
+                for turn, driver in [(2, 'C'), (3, 'A')]:
+                    page.locator('#step').click()
+                    page.wait_for_function(f'document.body.dataset.turn === "{turn}" && document.querySelector("#driver").textContent === "{driver}"', timeout=120_000)
+                assert page.locator('#step').is_disabled(), 'Step remained available on the human turn'
+                page.screenshot(path=str(out / 'step-ai-once.png'), full_page=True)
+                print(f'{args.browser}: first paused Step made one AI move; consecutive Step returned the human turn', flush=True)
                 page.locator('#new-race').click()
                 page.locator('#track').select_option('')
                 page.locator('#player-count').fill('1')

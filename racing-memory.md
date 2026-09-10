@@ -1,5 +1,51 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Follow-up review fixes: batch memory, failed logs, and one-move browser steps
+
+Based on master `022f4bd`, after the checkpoint/undo/overlay fixes. Both
+reachability preflights now request garbage collection and recheck available
+heap only when their existing 75% headroom check would reject an allocation.
+Discarded earlier races no longer cause false memory failures in a seed batch;
+the conservative guard still rejects genuinely insufficient heaps. Map
+algorithms, memo limits and exact-potential budgets are unchanged.
+
+Headless result-write failures now exit with code 3. A batch does not invoke
+its success hook or start the next seed when the requested log could not be
+written. Interactive play retains the existing failure message and log export.
+
+During browser play, a tick drains pending administrative callbacks until one
+move completes, then leaves the next AI reply queued. The drain is bounded by
+the callbacks pending at entry; readiness polls cannot reschedule indefinitely.
+Preparation retains its existing one-callback scheduling and full-map barrier.
+
+The headless regression completes seeds 1-12 in one 64 MiB Serial GC JVM with
+the reachability memo disabled, through both cached and uncached preparation.
+All 24 batch logs are byte-identical to the 12 corresponding fresh-JVM logs.
+A 16 MiB heap still fails with the descriptive reachability error. Single and
+two-seed log-write failure fixtures both exit 3 after exactly one write failure;
+the previous jar exits 0 and continues the failed batch. The previous jar also
+reproduced the low-memory batch failure with the same test configuration.
+
+The original large-track reproducer also clears: the standard fleet runner
+completed Nordschleife seeds 1-10 in one 8 GiB JVM with the existing mixed
+AI1/AI2, three-lap, legacy-start profile. All ten logs are byte-identical to
+the previous fresh-JVM runs. Field counters: 66,946 moves, one crash, zero
+timeouts and zero incomplete races. No per-seed restart was needed.
+
+Local validation passed: JDK 25 build and core/Main tests; all 12 unchanged
+goldens and all 23 unchanged AI regression scripts; headless smoke, query replay
+and lap progression; 52 Python tooling tests; 29 browser tooling tests; seven
+JavaScript tests; browser build, native adapter and all nine startup/order
+fixtures; six byte-identical complete desktop/browser parity races and all 84
+track hashes. New browser regressions cover the first Step after a human move,
+consecutive AI-only steps, and an idle human turn. The real-browser suite also
+checks the paused Step control through two consecutive AI replies.
+
+These changes affect resource recovery, command failure reporting and browser
+pacing, not move selection, placement, physics or car interaction. No AI pin
+was re-frozen. Tested jar SHA-256:
+`86e4108400d4ef88ec71e9fde753c43f2023a09ddcacbf6b26b4ff6a4b0eb875`.
+
 ## Review fixes: checkpoint travel order, placement undo, and starting-zone updates
 
 Based on the round-232 champion, `2a2725c`. The shared referee now consumes

@@ -117,7 +117,17 @@ public final class BrowserBridge {
         requireGame();
         // The real Java background worker does the work, unchanged. Never block
         // the browser transport by joining it, and never substitute a weaker AI.
-        if (game.trackA == null || game.reach.isReady()) SwingUtilities.tick();
+        if (game.trackA == null || game.reach.isReady()) {
+            final int turn = game.turnCount();
+            // During play, administrative callbacks (such as viewport centering)
+            // must not consume a Step. Stop after one move and leave its AI reply
+            // queued. Bound the drain to callbacks already pending, so a polling
+            // callback cannot keep the transport busy by rescheduling itself.
+            int remaining = phase() == GameState.PLAY ? SwingUtilities.pendingCount() : 1;
+            while (remaining-- > 0 && SwingUtilities.tick()) {
+                if (game.turnCount() != turn || phase() == GameState.FINISHED) break;
+            }
+        }
         return transportSnapshot();
     }
     public String click(final int x, final int y) {

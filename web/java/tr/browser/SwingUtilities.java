@@ -8,6 +8,7 @@ public final class SwingUtilities {
     private SwingUtilities() {}
     public static synchronized void invokeLater(final Runnable task) { QUEUE.addLast(task); }
     public static synchronized void clear() { QUEUE.clear(); }
+    public static synchronized int pendingCount() { return QUEUE.size(); }
     public static boolean tick() {
         final Runnable task;
         synchronized (SwingUtilities.class) { task = QUEUE.pollFirst(); }

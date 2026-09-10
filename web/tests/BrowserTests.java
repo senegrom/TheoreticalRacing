@@ -55,9 +55,12 @@ public final class BrowserTests {
         check(originalLog.equals(b.log()), "preview changed race log");
         b.move(legal.ordinal(), false);
         check(!Arrays.equals(g.players[0].getPosition(), start), "confirm did not execute move");
-        int ticks = 0;
-        while (g.players[g.subgamestate].isAi() && ++ticks < 10) b.tick();
-        check(!g.players[g.subgamestate].isAi(), "AI replies did not return human turn");
+        final int beforeReply = g.turnCount();
+        b.tick();
+        check(g.turnCount() == beforeReply + 1, "first Step consumed a viewport callback instead of an AI move");
+        check(!g.players[g.subgamestate].isAi(), "one Step did not return the human turn");
+        b.tick();
+        check(g.turnCount() == beforeReply + 1, "idle Step advanced a human turn");
         final String undoDelta = b.undo();
         check(undoDelta.contains("\"history\":"), "undo did not send a history replacement delta");
         final String resync = b.snapshot();
@@ -90,7 +93,22 @@ public final class BrowserTests {
         custom.ok();
         check(drawing.subgamestate == 0, "short border accepted");
         testStartingZoneDeltas();
-        System.out.println("BrowserTests: previews, consent, original rules, AI replies, undo, drawing and validation OK");
+        testOneAiMovePerStep();
+        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, drawing and validation OK");
+    }
+
+    private static void testOneAiMovePerStep() throws Exception {
+        final BrowserBridge bridge = new BrowserBridge();
+        bridge.create("hairpin", "nPlayers=3\nplayer1Kind=AI2\nplayer2Kind=AI2\nplayer3Kind=AI2\naiStartPlacement=legacy\nlaps=1\n", "1");
+        bridge.awaitReady();
+        final RaceGame game = (RaceGame) get(bridge, "game");
+        for (int i = 0; i < 10 && game.subgamestate < game.players.length; i++) bridge.tick();
+        check(game.subgamestate == game.players.length, "AI-only field did not finish placement");
+        bridge.ok();
+        for (int turn = 1; turn <= 6; turn++) {
+            bridge.tick();
+            check(game.turnCount() == turn, "Step ran more or less than one move in an AI-only field");
+        }
     }
 
     private static void testStartingZoneDeltas() throws Exception {
