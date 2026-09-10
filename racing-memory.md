@@ -98,6 +98,13 @@ verdict for a different reason: not distinguishable from zero on its own, and
 in combination with the spread removal (-0.659 against -0.641) it adds
 nothing measurable. It stays in the score.
 
+THE WHOLE FIELD, described. A field made only of spread-free cars, random
+starts, seeds 1-10: 60 crashes per 730 lap races and 1,761,496 moves against
+the round-232 champion's 79 and 1,768,322 -- fewer crashes AND 0.4% fewer
+moves, which is the first time in this sequence a promotion has moved both
+counters the friendly way. The caution the campaign has been deleting was
+not buying safety at any point; it was buying position for the other car.
+
 THE CORPUS. The promoted jar, raced as a plain homogeneous field, reproduces
 the measured candidate's 730 races on every counter. Core tests, 12 goldens
 and 23 pins pass after re-freezing from measurement -- and this is the widest
