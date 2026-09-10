@@ -22,6 +22,9 @@ If no track args are given, runs DEFAULT_TRACKS (or SLOW_TRACKS with --slow).
 """
 
 import argparse
+import hashlib
+import json
+import math
 import os
 from pathlib import Path
 import re
@@ -29,6 +32,16 @@ import shutil
 import subprocess
 import sys
 import tempfile
+
+if __package__:
+    from .benchmark_io import configured_players, read_race
+    from .fleet_grid import atomic_text, digest, json_text
+else:
+    # bench_iso loads this file by path rather than as a package.
+    if str(Path(__file__).resolve().parent) not in sys.path:
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from benchmark_io import configured_players, read_race
+    from fleet_grid import atomic_text, digest, json_text
 
 # lemans is back now that build_lemans.py uses angular ordering (clean loop,
 # honest ~72-84 move laps) instead of the old greedy stitch that tangled.
@@ -112,29 +125,12 @@ def set_nplayers(n):
 SEEDS = [None]   # --seeds N -> [1..N]: randomized start grids (statistical bench)
 
 
-def parse_race_log(path):
-    """Parse one race log -> (finishes, crashes, per-finisher move counts),
-    or None if the log is absent/incomplete."""
-    if not os.path.exists(path):
+def parse_race_log(path, expected_players=None):
+    """Return finishes/crashes/finisher moves only for a complete classification."""
+    try:
+        return read_race(path, expected_players).self_play()
+    except (OSError, ValueError):
         return None
-    moves, crashes, finishes = {}, set(), []
-    saw_results = False
-    with open(path, encoding='utf-8') as f:
-        for line in f:
-            if line.startswith('# results'):
-                saw_results = True
-            m = re.match(r'^(\d+) p(\d+) ', line)
-            if not m:
-                continue
-            pn = int(m.group(2))
-            moves[pn] = moves.get(pn, 0) + 1
-            if 'CRASH' in line:
-                crashes.add(pn)
-            elif 'FINISH' in line:
-                finishes.append((pn, moves[pn]))
-    if not saw_results:
-        return None
-    return len(finishes), len(crashes), [m for _, m in finishes]
 
 
 def run_track(track, timeout=240, seed=None):
@@ -149,7 +145,7 @@ def run_track(track, timeout=240, seed=None):
         if r.stderr.strip():
             print(r.stderr.rstrip(), file=sys.stderr)
         return None
-    return parse_race_log(LOG)
+    return parse_race_log(LOG, configured_players(PROPS))
 
 
 def run_track_batch(track, seeds, timeout=None):
@@ -173,35 +169,82 @@ def run_track_batch(track, seeds, timeout=None):
         return None
     out = []
     for p in per_seed:
-        parsed = parse_race_log(p)
+        parsed = parse_race_log(p, configured_players(PROPS))
         if parsed is None:
             return None
         out.append(parsed)
     return out
 
 
+def baseline_manifest(tracks, champion_jar, candidate_jar):
+    """Bind a baseline to its actual frozen binary, not the candidate build."""
+    java = shutil.which('java')
+    if java is None:
+        raise ValueError('Java executable not found')
+    version = subprocess.run([java, '-version'], capture_output=True, text=True, check=True, timeout=15)
+    track_hashes = {}
+    for track in tracks:
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', track):
+            raise ValueError('invalid track name: ' + track)
+        champion_track = Path(champion_jar).parent / 'tracks' / (track + '.track')
+        candidate_track = Path(candidate_jar).parent / 'tracks' / (track + '.track')
+        track_hashes[track] = digest(champion_track)
+        if digest(candidate_track) != track_hashes[track]:
+            raise ValueError('candidate/champion track data differ: ' + track)
+    return {
+        'schema': 1, 'champion_jar': digest(champion_jar),
+        'seeds': list(SEEDS), 'properties': digest(PROPS), 'tracks': track_hashes,
+        'runner': digest(Path(__file__)),
+        'parsers': {name: digest(Path(__file__).with_name(name))
+                    for name in ('benchmark_io.py', 'forensics_common.py')},
+        'java': str(Path(java).resolve()), 'java_sha256': digest(java),
+        'java_version_sha256': hashlib.sha256((version.stdout + version.stderr).encode()).hexdigest(),
+        'java_environment': {key: hashlib.sha256(os.environ.get(key, '').encode()).hexdigest() for key in
+                             ('JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS')},
+    }
+
+
+def load_baseline(path, manifest):
+    data = json.loads(Path(path).read_text(encoding='utf-8'))
+    if not isinstance(data, dict) or data.get('manifest') != manifest:
+        raise ValueError('baseline manifest differs or is missing; use a new BENCH_BASELINE file')
+    rows = data.get('rows')
+    if not isinstance(rows, dict) or set(rows) != set(manifest['tracks']):
+        raise ValueError('baseline has incomplete track results')
+    if data.get('rows_sha256') != hashlib.sha256(json_text(rows).encode()).hexdigest():
+        raise ValueError('baseline results checksum mismatch')
+    for row in rows.values():
+        if (not isinstance(row, list) or len(row) != 3
+                or any(type(v) is not int or v < 0 for v in row[:2])
+                or type(row[2]) not in (int, float) or not math.isfinite(row[2]) or row[2] < 0
+                or row[0] + row[1] > 7 * len(SEEDS)):
+            raise ValueError('invalid baseline result row')
+    return rows
+
+
 def bench(tracks):
-    # Backup props once before doing anything
+    global JAR
     require_runtime()
-    with open(PROPS, encoding='utf-8') as f:
-        backup = f.read()
-    # Frozen-champion cache: AI2 is the promoted standard and is IDENTICAL on
-    # every candidate run, so re-benching it doubles wall time for nothing. Set
-    # BENCH_BASELINE=<file> to run only the AI1 (candidate) column and read AI2
-    # from the cache; the first run with no cache seeds it. Delete the file when
-    # the champion changes (a new promotion).
+    backup = Path(PROPS).read_text(encoding='utf-8')
+    candidate_jar = JAR
+    champion_jar = str(Path(os.environ.get('BENCH_CHAMPION_JAR', JAR)).resolve())
     baseline_path = os.environ.get('BENCH_BASELINE')
-    baseline = None
-    if baseline_path and os.path.exists(baseline_path):
-        import json
-        with open(baseline_path) as f:
-            baseline = {k: tuple(v) if v else None for k, v in json.load(f).items()}
-    kinds = ('AI1',) if baseline is not None else ('AI1', 'AI2')
+    baseline = manifest = None
     valid = True
     try:
         set_nplayers(8)   # canonical full field; robust to a prior killed bench
+        if not tracks or len(set(tracks)) != len(tracks) or not SEEDS:
+            raise ValueError('benchmark requires unique tracks and a nonempty seed set')
+        set_all_to('AI2')
+        if baseline_path:
+            candidate_digest = digest(candidate_jar)
+            manifest = baseline_manifest(tracks, champion_jar, candidate_jar)
+            if Path(baseline_path).exists():
+                baseline = load_baseline(baseline_path, manifest)
+        kinds = ('AI1',) if baseline is not None else ('AI1', 'AI2')
         results = {}
         for kind in kinds:
+            JAR = champion_jar if kind == 'AI2' else candidate_jar
             set_all_to(kind)
             rows = {}
             tf = tc = 0
@@ -254,25 +297,29 @@ def bench(tracks):
                 tm += avg
                 nt += 1
             results[kind] = (tf, tc, tm / max(1, nt), rows)
+        if baseline_path:
+            set_all_to('AI2')
+            if (digest(candidate_jar) != candidate_digest
+                    or baseline_manifest(tracks, champion_jar, candidate_jar) != manifest):
+                raise ValueError('benchmark inputs changed during the run')
+            if baseline is None and valid:
+                rows = results['AI2'][3]
+                atomic_text(baseline_path, json_text({
+                    'manifest': manifest, 'rows': rows,
+                    'rows_sha256': hashlib.sha256(json_text(rows).encode()).hexdigest(),
+                }))
+                print(f'# seeded champion baseline -> {os.path.basename(baseline_path)}')
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print('benchmark: ' + str(error), file=sys.stderr)
+        return False
     finally:
-        with open(PROPS, 'w', encoding='utf-8') as f:
-            f.write(backup)
+        JAR = candidate_jar
+        Path(PROPS).write_text(backup, encoding='utf-8')
 
     if baseline is not None:
-        # Reconstruct the AI2 column from the cache (per-track rows + totals).
-        r2rows = {t: baseline.get(t) for t in tracks}
-        if any(value is None for value in r2rows.values()):
-            valid = False
-        tf2 = sum(v[0] for v in r2rows.values() if v)
-        tc2 = sum(v[1] for v in r2rows.values() if v)
-        nt2 = sum(1 for v in r2rows.values() if v)
-        tm2 = sum(v[2] for v in r2rows.values() if v) / max(1, nt2)
-        results['AI2'] = (tf2, tc2, tm2, r2rows)
-    elif baseline_path:
-        import json
-        with open(baseline_path, 'w') as f:
-            json.dump(results['AI2'][3], f)
-        print(f'# seeded champion baseline -> {os.path.basename(baseline_path)}')
+        rows = {t: baseline[t] for t in tracks}
+        results['AI2'] = (sum(v[0] for v in rows.values()), sum(v[1] for v in rows.values()),
+                          sum(v[2] for v in rows.values()) / len(rows), rows)
 
     # Report
     print()
@@ -289,6 +336,9 @@ def bench(tracks):
         diff = m1 - m2
         print(f'{t:18} | {f1}/{c1} mv={m1:7.3f} | {f2}/{c2} mv={m2:7.3f} | {diff:+.3f}')
     print('-' * 70)
+    if not valid:
+        print('TOTAL: INVALID (incomplete experiment)')
+        return False
     f1, c1, m1, _ = results['AI1']
     f2, c2, m2, _ = results['AI2']
     print(f'{"TOTAL":18} | f={f1} c={c1} mv={m1:.3f} | f={f2} c={c2} mv={m2:.3f} | {m1-m2:+.3f}')
@@ -309,34 +359,19 @@ def run_track_h2h(track, timeout=240, seed=None):
         if r.stderr.strip():
             print(r.stderr.rstrip(), file=sys.stderr)
         return None
-    name_kind = {}
-    place_name = {}
-    crashes = {'AI1': 0, 'AI2': 0}
-    in_results = False
-    with open(LOG, encoding='utf-8') as f:
-        for line in f:
-            m = re.match(r'^player\d+ name=(.*?) kind=(AI[12]) ', line)
-            if m:
-                name_kind[m.group(1)] = m.group(2)
-                continue
-            m = re.match(r'^\d+ p\d+ (AI[12]) .*CRASH', line)
-            if m:
-                crashes[m.group(1)] += 1
-                continue
-            if line.startswith('# results'):
-                in_results = True
-                continue
-            if in_results:
-                m = re.match(r'^(\d+)\. (.*)$', line)
-                if m:
-                    place_name[int(m.group(1))] = m.group(2)
-    if not in_results:
+    try:
+        race = read_race(LOG, configured_players(PROPS))
+        out = {}
+        for kind in ('AI1', 'AI2'):
+            numbers = [n for n, (_, k) in race.players.items() if k == kind]
+            if not numbers:
+                raise ValueError('mixed benchmark requires both AI cohorts')
+            out[kind] = (sum(race.places[n] for n in numbers), len(numbers),
+                         sum(n in race.crashed for n in numbers))
+        return out
+    except (OSError, ValueError) as error:
+        print('benchmark log: ' + str(error), file=sys.stderr)
         return None
-    out = {}
-    for kind in ('AI1', 'AI2'):
-        places = [p for p, n in place_name.items() if name_kind.get(n) == kind]
-        out[kind] = (sum(places), len(places), crashes[kind])
-    return out
 
 
 def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
@@ -346,6 +381,8 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
     nplayers+1) + crashes. nplayers=2 is the 1v1 endgame (forcing the sole
     rival to crash = a win), 4 is 2v2, 8 is 4v4."""
     require_runtime()
+    if not tracks or not SEEDS or not 0 < ai1n < nplayers <= 9:
+        raise ValueError('mixed benchmark requires tracks, seeds and two nonempty cohorts')
     valid = True
     with open(PROPS, encoding='utf-8') as f:
         backup = f.read()
@@ -364,7 +401,8 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
                         r = run_track_h2h(t, seed=seed)
                     except subprocess.TimeoutExpired:
                         r = None
-                    if r is None:
+                    if (r is None or r['AI1'][1] != ai1n
+                            or r['AI2'][1] != nplayers - ai1n):
                         ok = False
                         break
                     for kind in ('AI1', 'AI2'):
@@ -396,12 +434,15 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
         if agg is None:
             print(f'{t:18} | {"INVALID":>14} | {"INVALID":>14}')
             continue
-        p1 = agg['AI1'][0] / max(1, agg['AI1'][1])
-        p2 = agg['AI2'][0] / max(1, agg['AI2'][1])
+        p1 = agg['AI1'][0] / agg['AI1'][1]
+        p2 = agg['AI2'][0] / agg['AI2'][1]
         print(f'{t:18} | {p1:6.2f} c={agg["AI1"][2]}    | {p2:6.2f} c={agg["AI2"][2]}')
     print('-' * 56)
-    p1 = tot['AI1'][0] / max(1, tot['AI1'][1])
-    p2 = tot['AI2'][0] / max(1, tot['AI2'][1])
+    if not valid:
+        print('TOTAL mean place: INVALID (incomplete experiment)')
+        return False
+    p1 = tot['AI1'][0] / tot['AI1'][1]
+    p2 = tot['AI2'][0] / tot['AI2'][1]
     print(f'{"TOTAL mean place":18} | {p1:6.3f} c={tot["AI1"][2]}   | {p2:6.3f} c={tot["AI2"][2]}')
     return valid
 
