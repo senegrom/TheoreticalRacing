@@ -1,75 +1,140 @@
 #!/usr/bin/env python3
-"""Score a mixed field by finishing places: candidate cars against champion cars.
+"""Score complete mirrored fleet pairs by each policy's finishing places.
 
-The racecraft rule (CLAUDE.md) is lexicographic: a car's own place first, its
-own time second. A fleet grid raced with candidateSlots=1,3,5,7 and another
-with candidateSlots=2,4,6,8 puts the candidate in every slot exactly once per
-seed, so grid advantage cancels. This reads the race logs of both grids and
-reports, per policy, the mean finishing place, race wins, crashes, and the
-per-track picture, plus the paired difference over mirrored races.
+Usage: head_to_head.py ODD_GRID EVEN_GRID [ODD_GRID EVEN_GRID ...]
 
-    python tracks/head_to_head.py <grid dir> [<grid dir> ...]
-
-Every log carries '# candidate-slots a,b,c' (written by the game when the
-property is set) and a '# results' section '1. NAME' ... in finishing order.
-The unfinished eighth car of an eight-car race holds place 8; a crashed car
-holds its crash place.
+Every grid must have a schema-2 fleet manifest and validated completion markers.
+Assignments must be complementary, configurations/builds identical apart from
+candidateSlots, and every expected log present. Old unmanifested logs cannot
+serve as promotion evidence; rerun them in fresh fleet output directories.
 """
 from __future__ import annotations
 
+import argparse
 import collections
+from contextlib import ExitStack
+import hashlib
+import json
 import math
 import pathlib
 import re
 import statistics
 import sys
 
-PLAYER = re.compile(r"^player(\d+) name=(\S+) kind=\S+ start=")
-RESULT = re.compile(r"^(\d+)\.\s+(\S+)\s*$")
-SLOTS = re.compile(r"^# candidate-slots ([0-9,]+)")
-MOVE = re.compile(r"^(\d+) p(\d+) \S+ \S+ .*?(ok|CRASH|FINISH|TIMEOUT|LAP \d+/\d+)")
+if __package__:
+    from .benchmark_io import read_race
+    from .fleet_grid import completed, directory_lock, json_text, seed_range
+else:
+    from benchmark_io import read_race
+    from fleet_grid import completed, directory_lock, json_text, seed_range
 
 
 def read(path):
-    names, places, slots, crashed = {}, {}, set(), set()
-    in_results = False
-    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        m = PLAYER.match(line)
-        if m:
-            names[m.group(2)] = int(m.group(1))
-            continue
-        s = SLOTS.match(line)
-        if s:
-            slots = {int(x) for x in s.group(1).split(",") if x}
-            continue
-        if line.startswith("# results"):
-            in_results = True
-            continue
-        if in_results:
-            r = RESULT.match(line)
-            if r and r.group(2) in names:
-                places[names[r.group(2)]] = int(r.group(1))
-            continue
-        mv = MOVE.match(line)
-        if mv and mv.group(3) == "CRASH":
-            crashed.add(int(mv.group(2)))
-    if not names or len(places) != len(names):
-        return None
-    return places, slots, crashed
+    """Read a single complete result; never silently discard a malformed log."""
+    race = read_race(path)
+    return race.places, race.slots, race.crashed
 
 
-def main() -> int:
-    races = {}   # (track, seed) -> list of (places, slots, crashed) over the given grids
-    for grid in sys.argv[1:]:
-        for log in sorted(pathlib.Path(grid).glob("*_s*.log")):
-            parsed = read(log)
-            if parsed is None or not parsed[1]:
-                continue
-            track, seed = log.name[:-4].rsplit("_s", 1)
-            races.setdefault((track, int(seed)), []).append(parsed)
+def load_grid(directory):
+    manifest = json.loads((directory / 'manifest.json').read_text(encoding='utf-8'))
+    required = {'schema', 'runner', 'log_parser', 'benchmark_parser', 'jar', 'properties',
+                'comparison', 'java', 'java_sha256', 'heap', 'java_environment', 'seeds', 'tracks'}
+    if not isinstance(manifest, dict) or not required <= manifest.keys() or manifest['schema'] != 2:
+        raise ValueError('grid requires a schema-2 fleet manifest; rerun into a fresh directory')
+    comparison = manifest['comparison']
+    if (not isinstance(comparison, dict) or set(comparison) != {'properties', 'candidate_slots'}
+            or not isinstance(comparison['candidate_slots'], list) or not comparison['candidate_slots']
+            or any(type(n) is not int for n in comparison['candidate_slots'])
+            or len(set(comparison['candidate_slots'])) != len(comparison['candidate_slots'])):
+        raise ValueError('manifest has no valid candidate assignment')
+    if (not isinstance(manifest['tracks'], dict) or not manifest['tracks']
+            or any(not re.fullmatch(r'[A-Za-z0-9_-]+', t) for t in manifest['tracks'])):
+        raise ValueError('manifest has invalid tracks')
+    seeds = manifest['seeds']
+    if not isinstance(seeds, list) or len(seeds) != 2 or any(type(n) is not int for n in seeds):
+        raise ValueError('manifest has invalid seeds')
+    lo, hi = seed_range('%d-%d' % tuple(seeds))
+    seeds = range(lo, hi + 1)
+    run_id = hashlib.sha256(json_text(manifest).encode()).hexdigest()
+    races, expected_logs = {}, set()
+    for track in sorted(manifest['tracks']):
+        record = completed(directory, track, run_id, seeds)
+        if record is None:
+            raise ValueError('%s: missing, incomplete or corrupt completed track %s' % (directory, track))
+        for seed in seeds:
+            name = '%s_s%d.log' % (track, seed)
+            expected_logs.add(name)
+            race = read_race(directory / name)
+            if race.slots != set(comparison['candidate_slots']):
+                raise ValueError('candidate assignment differs between log and manifest: ' + name)
+            if not {'grid', 'trackLeft', 'trackRight'} <= race.profile.keys():
+                raise ValueError('missing race geometry: ' + name)
+            races[track, seed] = race
+    if {p.name for p in directory.glob('*_s*.log')} != expected_logs:
+        raise ValueError('unexpected or missing race logs in ' + str(directory))
+    return manifest, races
+
+
+def comparison_key(manifest):
+    # Seed windows and selected track subsets may vary across independent pairs.
+    key = {k: v for k, v in manifest.items() if k not in ('properties', 'comparison', 'seeds', 'tracks')}
+    key['properties'] = manifest['comparison']['properties']
+    return key
+
+
+def paired_races(directories):
+    paths = [pathlib.Path(d).resolve() for d in directories]
+    if len(paths) < 2 or len(paths) % 2:
+        raise ValueError('supply complete pairs of mirrored grid directories')
+    if len(set(paths)) != len(paths):
+        raise ValueError('duplicate input grid directory')
+    races, track_hashes = {}, {}
+    common_key = common_roster = None
+    with ExitStack() as locks:
+        for path in sorted(paths):
+            if not path.is_dir():
+                raise ValueError('grid directory not found: ' + str(path))
+            locks.enter_context(directory_lock(path))
+        for offset in range(0, len(paths), 2):
+            left, lr = load_grid(paths[offset])
+            right, rr = load_grid(paths[offset + 1])
+            key = comparison_key(left)
+            if (key != comparison_key(right) or left['seeds'] != right['seeds']
+                    or left['tracks'] != right['tracks'] or set(lr) != set(rr)
+                    or common_key is not None and key != common_key):
+                raise ValueError('incompatible mirrored build, runtime, configuration, tracks or seeds')
+            common_key = key
+            for track, digest in left['tracks'].items():
+                if track in track_hashes and track_hashes[track] != digest:
+                    raise ValueError('track changed between seed slices: ' + track)
+                track_hashes[track] = digest
+            for identity, a in lr.items():
+                b = rr[identity]
+                if identity in races:
+                    raise ValueError('duplicate track/seed pair: %s %s' % identity)
+                roster = set(a.players)
+                if (a.players != b.players or a.profile != b.profile
+                        or common_roster is not None and a.players != common_roster):
+                    raise ValueError('incompatible mirrored roster or race geometry/profile')
+                common_roster = a.players
+                if (a.slots & b.slots or a.slots | b.slots != roster
+                        or len(a.slots) != len(b.slots)):
+                    raise ValueError('candidate assignments must be complementary balanced cohorts')
+                races[identity] = [(r.places, r.slots, r.crashed) for r in (a, b)]
     if not races:
-        print("no mixed-field logs found (is candidateSlots set?)")
-        return 1
+        raise ValueError('no complete mixed-field pairs')
+    return races
+
+
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('grids', nargs='+')
+    args = parser.parse_args(argv)
+    try:
+        races = paired_races(args.grids)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print('head-to-head: ' + str(error), file=sys.stderr)
+        return 2
     cand, champ = [], []
     cand_wins = champ_wins = cand_crash = champ_crash = 0
     per_track = collections.defaultdict(lambda: [[], []])
@@ -91,14 +156,15 @@ def main() -> int:
         if len(runs) >= 2:
             paired.append(statistics.mean(diff))
     n = len(cand)
+    tie = (len(next(iter(races.values()))[0][0]) + 1) / 2
     print("%d candidate car-races, %d champion car-races over %d races" % (n, len(champ), sum(len(r) for r in races.values())))
     mc, mh = statistics.mean(cand), statistics.mean(champ)
-    print("mean place   candidate %.3f   champion %.3f   (lower is better; 4.500 is a tie in an 8-car field)" % (mc, mh))
+    print("mean place   candidate %.3f   champion %.3f   (lower is better; %.3f is a tie)" % (mc, mh, tie))
     print("race wins    candidate %d   champion %d" % (cand_wins, champ_wins))
     print("crashes      candidate %d   champion %d" % (cand_crash, champ_crash))
     if paired:
         m = statistics.mean(paired)
-        se = statistics.pstdev(paired) / math.sqrt(len(paired)) if len(paired) > 1 else float("nan")
+        se = statistics.stdev(paired) / math.sqrt(len(paired)) if len(paired) > 1 else float("nan")
         print("mirrored races %d: candidate minus champion mean place %+.3f  (standard error %.3f; negative favours the candidate)"
               % (len(paired), m, se))
     rows = sorted(((statistics.mean(c) - statistics.mean(h), t, len(c)) for t, (c, h) in per_track.items() if c and h))
