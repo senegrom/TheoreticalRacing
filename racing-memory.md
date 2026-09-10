@@ -1,5 +1,44 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review fixes: duplicate drawing points and recoverable browser placement
+
+Based on master `40fd9cd`. The incremental drawing validator now rejects a
+zero-length segment even when it is the first segment of a border. Clicking
+the initial point twice leaves one point, so the left border cannot be
+confirmed prematurely and trap the editor on an impossible right border.
+Both borders can still be completed normally after the rejected duplicate.
+
+Browser snapshots now carry `placementFailure` separately from fatal engine
+`failure`, including an explicit null in Undo deltas. A blocked AI start keeps
+placement Undo available, stops automatic placement ticks, and explains how
+to recover. Undo clears the notice even though the race turn remains zero.
+Without an earlier human placement, the message suggests fewer drivers or a
+different track. Actual preparation failures still stop the browser engine.
+
+The regression circuit uses left (7,10)->(6,6) and right (6,8)->(5,7), with
+a human followed by AI2 and informed starts. Human placement at (6,8) occupies
+the only viable AI start. Undo followed by human placement at (7,8) now lets
+the AI take (6,8), and the race starts. The new native drawing and placement
+regressions both failed against the previous browser jar and pass after the
+fixes. A Node probe using the real controller and native snapshots also
+verified Undo, same-turn notice clearing, idle scheduling, the no-Undo case,
+and preservation of fatal preparation errors.
+
+Local validation passed: JDK 25 build and core/Main tests; all 12 unchanged
+goldens and all 23 unchanged AI regression scripts; headless smoke, query
+replay and lap progression; 52 Python tooling tests; 29 browser tooling tests;
+eight JavaScript tests; HTTP range tests; browser build, native adapter and
+all nine startup/order fixtures; six byte-identical complete desktop/browser
+parity races and all 84 track hashes. The Chromium/WebKit suites now exercise
+duplicate first points on both borders and recovery through the real Undo
+control, alongside isolated recoverable/fatal UI fixtures; these run in CI.
+
+The changes affect drawing input and browser recovery only. AI move selection,
+start selection, physics, maps and car interaction are unchanged, so the fleet
+and mirrored head-to-head policy gates do not apply. No AI pin was re-frozen.
+Tested jar SHA-256:
+`36bf4b6c63bbd445cad7bfaf5f8069007f6bdfe736e68c1b1b57f1ea24aec86a`.
+
 ## Follow-up review fixes: batch memory, failed logs, and one-move browser steps
 
 Based on master `022f4bd`, after the checkpoint/undo/overlay fixes. Both

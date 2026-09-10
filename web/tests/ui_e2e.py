@@ -30,7 +30,13 @@ class Engine {
     if (method === 'log') return await new Promise(resolve => window.releaseLog = resolve);
     if (method === 'preview') s.selected = args[0];
     if (method === 'move') { s.turn++; s.current = 1; s.selected = -1; }
-    if (method === 'undo') { s.turn = 0; s.current = 0; s.selected = -1; }
+    if (method === 'undo') {
+      s.turn = 0; s.current = 0; s.selected = -1;
+      if (s.placementFailure) {
+        s.placementFailure = null; s.messages = []; s.undo = false;
+        s.status = 'Place player Driver A'; s.starts = [[7, 8]];
+      }
+    }
     if (method === 'click') s.lastClick = args;
     if (method === 'tick') s.turn++;
     return structuredClone(s);
@@ -257,6 +263,44 @@ def main():
         page.locator('#stop-work').click()
         assert page.evaluate('window.testEngine.dead') and page.locator('#work-status').is_hidden()
         assert page.locator('#setup').evaluate('(e)=>e.open')
+        page.close()
+        # A blocked AI start is recoverable at turn zero; it is not an engine
+        # crash and must not keep scheduling failed placement attempts.
+        for can_undo in [True, False]:
+            page = browser.new_page(viewport={'width':390,'height':844})
+            blocked = fixture()
+            message = "Driver B (AI) couldn't find a start position."
+            blocked.update(phase='PLACEPLAYERS', current=1, undo=can_undo, starts=[], moves=[],
+                           status=message, placementFailure=message, messages=[message])
+            blocked['players'][1]['kind'] = 'AI2'
+            load(page, blocked)
+            start(page)
+            page.locator('#speed').select_option('0')
+            assert page.locator('#undo').is_enabled() == can_undo
+            assert page.locator('#work-status').get_attribute('data-active') == 'false'
+            assert 'Starting grid blocked' in page.locator('[data-work-label]').inner_text()
+            assert 'Engine error' not in page.locator('#notice').inner_text()
+            page.wait_for_timeout(150)
+            assert page.evaluate('window.calls.every(([method]) => method !== "tick")'), 'blocked placement kept ticking'
+            assert not page.evaluate('window.testEngine.dead')
+            if can_undo:
+                assert 'Undo' in page.locator('#notice').inner_text()
+                page.locator('#undo').click()
+                page.wait_for_function('!document.querySelector("#place").disabled')
+                assert page.locator('#notice').is_hidden(), 'placement error survived undo at turn zero'
+                assert page.locator('#first-start').is_enabled()
+                assert page.locator('#status').inner_text() == 'Place player Driver A'
+                assert page.locator('#undo').is_disabled()
+            else:
+                assert 'fewer drivers or a different track' in page.locator('#notice').inner_text()
+            page.close()
+        # A fatal preparation error on the same grid must still disable Undo.
+        page = browser.new_page(viewport={'width':390,'height':844})
+        blocked.update(undo=True, failure='Expected preparation failure')
+        load(page, blocked); start(page)
+        assert page.locator('#undo').is_disabled()
+        assert 'Engine error' in page.locator('#notice').inner_text()
+        assert 'stopped' in page.locator('#status').inner_text()
         page.close()
         # The same original drawing phase index is a border index, not a driver index.
         page = browser.new_page(viewport={'width':390,'height':844})

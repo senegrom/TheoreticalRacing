@@ -154,3 +154,33 @@ test('snapshot deltas reconstruct exact state with structural sharing and full r
   worker.send({id: bad.id, result: {_snapshot:'delta', _base: 1, _revision:5, set:{turn:10}}});
   await assert.rejects(bad.result, /lost synchronization/);
 });
+
+test('placement failure arrives and clears through deltas without advancing the race turn', async t => {
+  const {e, worker} = harness(t);
+  worker.send({ready: true});
+  const created = await pending(e, 'create');
+  worker.send({id: created.id, result: {
+    _snapshot: 'full', _revision: 1, phase: 'PLACEPLAYERS', turn: 0,
+    placementFailure: null, current: 0, undo: false, players: []
+  }});
+  await created.result;
+  const click = await pending(e, 'click');
+  worker.send({id: click.id, result: {
+    _snapshot: 'delta', _base: 1, _revision: 2,
+    set: {placementFailure: 'No free AI start', failure: null, current: 1, undo: true}
+  }});
+  const blocked = await click.result;
+  assert.equal(blocked.placementFailure, 'No free AI start');
+  assert.equal(blocked.failure, null);
+  assert.equal(blocked.undo, true);
+  const undo = await pending(e, 'undo');
+  worker.send({id: undo.id, result: {
+    _snapshot: 'delta', _base: 2, _revision: 3,
+    set: {placementFailure: null, current: 0, undo: false}
+  }});
+  const recovered = await undo.result;
+  assert.equal(recovered.turn, 0);
+  assert.equal(recovered.placementFailure, null);
+  assert.equal(recovered.current, 0);
+  assert.equal(blocked.placementFailure, 'No free AI start', 'undo mutated the earlier snapshot');
+});

@@ -186,7 +186,9 @@ public final class BrowserBridge {
         final Map<String, Object> out = new LinkedHashMap<>();
         out.put("phase", phase.name());
         out.put("status", ui.status);
-        if (field("placementFailure") != null) out.put("failure", field("placementFailure"));
+        // A blocked start can be recovered through placement Undo. Reserve
+        // failure for engine/preparation errors that require a new session.
+        out.put("placementFailure", field("placementFailure"));
         out.put("cols", game.gameCols); out.put("rows", game.gameRows);
         out.put("current", game.subgamestate); out.put("turn", field("turnCounter"));
         out.put("laps", game.totalLaps); out.put("selected", selected);
@@ -296,7 +298,7 @@ public final class BrowserBridge {
 
         final Map<String, Object> set = new LinkedHashMap<>();
         for (final String key : new String[]{"phase", "status", "cols", "rows", "current", "turn",
-                "laps", "selected", "ok", "undo", "ready", "messages", "prePath", "moves", "starts", "startZone"})
+                "laps", "selected", "ok", "undo", "ready", "messages", "prePath", "moves", "starts", "startZone", "placementFailure"})
             set.put(key, full.get(key));
         set.put("failure", full.getOrDefault("failure", null));
         delta.put("set", set);

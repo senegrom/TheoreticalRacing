@@ -270,20 +270,60 @@ def main():
                 page.wait_for_function('document.body.dataset.phase === "START"', timeout=300_000)
                 page.locator('#ok').click()
                 page.wait_for_function('document.body.dataset.phase === "DRAWTRACK"')
-                for x, y in [(5, 5), (30, 5)]:
+                for x, y, points in [(5, 5, 1), (5, 5, 1), (30, 5, 2)]:
                     page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
                     page.locator('#place').click()
                     page.wait_for_function('!document.querySelector("#place").disabled')
+                    assert page.locator('#telemetry').inner_text() == f'{points} border points'
                 page.locator('#ok').click()
                 page.wait_for_function('document.querySelector("#ok").textContent.includes("Complete")')
-                for x, y in [(5, 10), (30, 10)]:
+                for x, y, points in [(5, 10, 1), (5, 10, 1), (30, 10, 2)]:
                     page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
                     page.locator('#place').click()
                     page.wait_for_function('!document.querySelector("#place").disabled')
+                    assert page.locator('#telemetry').inner_text() == f'{points} border points'
                 page.locator('#ok').click()
                 page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"')
                 page.screenshot(path=str(out / 'custom-track.png'), full_page=True)
-                print(f'{args.browser}: custom circuit drawing completed through the original validator', flush=True)
+                print(f'{args.browser}: duplicate first points rejected on both borders; corrected custom circuit completed', flush=True)
+                # Occupy the only viable AI start on a valid tiny circuit, then
+                # recover through the actual Undo control and choose another cell.
+                page.locator('#new-race').click()
+                page.locator('#player-count').fill('2')
+                select_ai_start_policy(page, 'informed')
+                page.locator('#cols').fill('20'); page.locator('#rows').fill('20')
+                page.locator('#laps').fill('1'); page.locator('#seed').fill('1')
+                for i, row in enumerate(page.locator('.roster-row').all()):
+                    row.locator('select').select_option('HUMAN' if i == 0 else 'AI2')
+                page.once('dialog', lambda dialog: dialog.accept())
+                page.locator('#start').click()
+                page.wait_for_function('document.body.dataset.phase === "START"', timeout=300_000)
+                page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "DRAWTRACK"')
+                for border in [[(7, 10), (6, 6)], [(6, 8), (5, 7)]]:
+                    for x, y in border:
+                        page.locator('#place-x').fill(str(x)); page.locator('#place-y').fill(str(y))
+                        page.locator('#place').click()
+                        page.wait_for_function('!document.querySelector("#place").disabled')
+                    page.locator('#ok').click()
+                    page.wait_for_function('document.querySelector(".decision").getAttribute("aria-busy") === "false"')
+                page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS" && !document.body.classList.contains("loading")', timeout=300_000)
+                page.locator('#place-x').fill('6'); page.locator('#place-y').fill('8')
+                page.locator('#place').click()
+                page.wait_for_function('!document.querySelector("#undo").disabled && document.querySelector("#notice-text").textContent.includes("couldn\'t find a start position")')
+                assert 'Undo' in page.locator('#notice').inner_text()
+                assert page.locator('#work-status').get_attribute('data-active') == 'false'
+                page.screenshot(path=str(out / 'placement-blocked.png'), full_page=True)
+                page.locator('#undo').click()
+                page.wait_for_function('!document.querySelector("#place").disabled')
+                assert page.locator('#notice').is_hidden(), 'recoverable placement error stayed visible after Undo'
+                page.locator('#place-x').fill('7'); page.locator('#place-y').fill('8')
+                page.locator('#place').click()
+                page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden')
+                assert page.locator('#standings .result').all_text_contents() == ['On grid', 'On grid']
+                page.locator('#ok').click()
+                page.wait_for_function('document.body.dataset.phase === "PLAY"')
+                print(f'{args.browser}: blocked AI placement recovered through Undo and a replacement human start', flush=True)
                 # A closed one-lap course still uses the exact checkpoint-aware
                 # race potential. It must complete before the two AI cells appear.
                 page.locator('#new-race').click()

@@ -85,16 +85,65 @@ public final class BrowserTests {
         final String crashed = b.move(Direction.NW.ordinal(), true);
         check(crashed.contains("\"outcome\":\"CRASH\""), "snapshot loses recorded crash outcome");
         check(g.players[0].getFinishedPlace() == 2 && b.log().contains(" CRASH place=2"), "confirmed crash did not use referee");
-        final BrowserBridge custom = new BrowserBridge();
-        custom.create("", "nPlayers=1\nplayer1Kind=HUMAN\n", "");
-        custom.ok(); custom.undo(); custom.click(5, 5); custom.click(15, 5); custom.undo();
-        final RaceGame drawing = (RaceGame) get(custom, "game");
-        check(drawing.track.getLeft().size() == 1, "drawing undo differs");
-        custom.ok();
-        check(drawing.subgamestate == 0, "short border accepted");
+        testCustomTrackDrawing();
+        testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
-        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, drawing and validation OK");
+        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points and placement recovery OK");
+    }
+
+    private static void testCustomTrackDrawing() throws Exception {
+        final BrowserBridge bridge = new BrowserBridge();
+        bridge.create("", "nPlayers=1\nplayer1Kind=HUMAN\ngameX=20\ngameY=20\n", "1");
+        bridge.ok(); bridge.undo(); bridge.click(5, 5); bridge.click(5, 5);
+        final RaceGame game = (RaceGame) get(bridge, "game");
+        check(game.track.getLeft().size() == 1, "duplicate first left point accepted");
+        bridge.ok();
+        check(game.subgamestate == 0, "short left border accepted");
+        bridge.click(15, 5); bridge.undo();
+        check(game.track.getLeft().size() == 1, "drawing undo differs");
+        bridge.click(15, 5); bridge.ok();
+        check(game.subgamestate == 1, "valid left border rejected");
+        bridge.click(5, 10); bridge.click(5, 10);
+        check(game.track.getRight().size() == 1, "duplicate first right point accepted");
+        bridge.ok();
+        check(get(game, "gamestate") == GameState.DRAWTRACK, "short right border accepted");
+        bridge.click(15, 10); bridge.ok(); bridge.awaitReady();
+        check(get(game, "gamestate") == GameState.PLACEPLAYERS,
+                "duplicate clicks prevented completion of a corrected custom circuit");
+    }
+
+    private static void testPlacementFailureRecovery() throws Exception {
+        final BrowserBridge bridge = new BrowserBridge();
+        bridge.create("", "nPlayers=2\nplayer1Kind=HUMAN\nplayer2Kind=AI2\naiStartPlacement=informed\ngameX=20\ngameY=20\n", "1");
+        bridge.ok(); bridge.click(7, 10); bridge.click(6, 6); bridge.ok();
+        bridge.click(6, 8); bridge.click(5, 7); bridge.ok(); bridge.awaitReady();
+        final RaceGame game = (RaceGame) get(bridge, "game");
+        // This valid small circuit has only one viable AI start. A human can
+        // occupy it, then undo and leave it free by choosing another legal cell.
+        final String blocked = bridge.click(6, 8);
+        final String message = "Player 2 (AI) couldn't find a start position.";
+        check(message.equals(get(game, "placementFailure")), "fixture did not block AI placement");
+        check(blocked.contains("\"placementFailure\":\"" + message + "\"")
+                        && blocked.contains("\"failure\":null") && blocked.contains("\"undo\":true"),
+                "placement error was not recoverable in the action delta");
+        final String full = bridge.snapshot();
+        check(full.contains("\"placementFailure\":\"" + message + "\"") && !full.contains("\"failure\":"),
+                "placement error became fatal in the full snapshot");
+        final String undone = bridge.undo();
+        check(undone.contains("\"placementFailure\":null") && game.subgamestate == 0,
+                "undo did not explicitly clear the placement error at the same turn");
+        bridge.click(7, 8);
+        check(get(game, "placementFailure") == null && game.subgamestate == 2
+                        && Arrays.equals(game.players[1].getPosition(), new int[]{6, 8}),
+                "replacement human placement did not free the viable AI start");
+        bridge.ok();
+        check(get(game, "gamestate") == GameState.PLAY, "recovered race could not start");
+        final Field failure = Reachability.class.getDeclaredField("reachabilityFailure");
+        failure.setAccessible(true);
+        failure.set(game.reach, new IllegalStateException("expected preparation failure"));
+        check(bridge.snapshot().contains("\"failure\":\"java.lang.IllegalStateException: expected preparation failure\""),
+                "actual preparation error was downgraded to a recoverable placement error");
     }
 
     private static void testOneAiMovePerStep() throws Exception {

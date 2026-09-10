@@ -116,6 +116,9 @@ final class TrackGeometry {
 			return false;
 		final int[] a2 = active.getLast();
 		final int[] a1 = active.get(active.size() - 2);
+		// The first segment has no older segments to expose a duplicate click.
+		if (Arrays.equals(a1, a2))
+			return true;
 		// Against earlier segments of active itself (skip the adjacent one)
 		int[] prev = null;
 		final Iterator<int[]> it = active.iterator();

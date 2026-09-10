@@ -943,6 +943,16 @@ public final class CoreTests {
                 "T-junction detection should be orientation independent");
         check(!TrackGeometry.checkIntersect(p(0, 0), p(10, 0), p(10, 0), p(20, 0), (byte) 2),
                 "allowed adjacent endpoint should not count as self-intersection");
+        check(TrackGeometry.lastSegmentIntersects(List.of(p(5, 5), p(5, 5)), List.of()),
+                "duplicate first point created a zero-length left border segment");
+        final List<int[]> left = List.of(p(5, 5), p(15, 5));
+        check(!TrackGeometry.lastSegmentIntersects(left, List.of()), "valid first segment rejected");
+        check(TrackGeometry.lastSegmentIntersects(List.of(p(5, 10), p(5, 10)), left),
+                "duplicate first point created a zero-length right border segment");
+        check(!TrackGeometry.lastSegmentIntersects(List.of(p(5, 10), p(15, 10)), left),
+                "valid parallel border rejected");
+        check(TrackGeometry.lastSegmentIntersects(List.of(p(5, 5), p(15, 5), p(15, 5)), List.of()),
+                "duplicate later point accepted");
     }
 
     private static void testStartZone() {

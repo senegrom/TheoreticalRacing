@@ -31,7 +31,7 @@ function human() { return state?.phase === 'PLAY' && state.players[state.current
 function modalOpen() { return $('setup').open || $('instructions').open || $('installation').open; }
 function schedule() {
   clearTimeout(timer);
-  if (!engine || !state || busy || polling || failed || modalOpen() || document.hidden || state.phase === 'FINISHED') return;
+  if (!engine || !state || busy || polling || failed || state.placementFailure || modalOpen() || document.hidden || state.phase === 'FINISHED') return;
   const ai = state.phase === 'PLAY' && !human();
   const placingAi = state.phase === 'PLACEPLAYERS' && state.players[state.current]?.kind !== 'HUMAN' && state.current < state.players.length;
   if (!state.ready || placingAi || (ai && !paused)) {
@@ -67,9 +67,10 @@ function accept(next) {
   window.removeEventListener('beforeunload', warnBeforeLeave);
   if (next.phase !== 'FINISHED') window.addEventListener('beforeunload', warnBeforeLeave);
   if (next.failure) { failed = true; notice(`Engine error: ${next.failure}. No replacement AI has been substituted. Start a new race to recover.`); }
+  else if (next.placementFailure) notice(`${next.placementFailure} ${placementRecovery(next)}`);
   else if (next.phase === 'FINISHED') notice();
   else if (next.messages?.length) notice(next.messages.join(' '));
-  else if (old?.turn !== next.turn) notice();
+  else if (old?.placementFailure || old?.turn !== next.turn) notice();
   board.set(next);
   const driver = next.players[next.current];
   if (next.phase === 'FINISHED' && old?.phase !== 'FINISHED') board.fit();
@@ -98,6 +99,9 @@ async function act(method, ...args) {
     if (token === generation) { busy = false; render(); schedule(); }
   }
 }
+function placementRecovery(s) {
+  return s.undo ? 'Undo the last placement and choose a different starting cell.' : 'Start a new race with fewer drivers or a different track.';
+}
 function renderWork() {
   if (!engine || state?.phase === 'FINISHED') { activity.hide(); return; }
   const preparing = !state || ['START', 'DRAWTRACK', 'PLACEPLAYERS'].includes(state.phase);
@@ -115,6 +119,8 @@ function renderWork() {
         ok:'Preparing the race…', click:'Updating the track…', log:'Preparing race log…'})[operation] || 'Engine working…';
     activity.show(`action-${generation}-${state.turn}-${operation}`, label,
       preparation && operation === 'ok' ? preparation : {phase: operation === 'tick' ? 'Evaluating the original AI search. Remaining work is unknown.' : 'Waiting for the original Java engine.'});
+  } else if (state.placementFailure) {
+    activity.idle('Starting grid blocked', placementRecovery(state));
   } else if (state.phase === 'PLACEPLAYERS' && state.players[state.current]?.kind !== 'HUMAN' && state.current < state.players.length) {
     activity.show(`placement-${generation}-${state.current}`, `${state.players[state.current].name} · choosing starting cell`,
       {phase: 'Scoring free cells using completed maps and cars already placed.'});
