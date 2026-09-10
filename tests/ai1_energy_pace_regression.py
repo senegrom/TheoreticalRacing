@@ -10,10 +10,10 @@ import bench_ai
 EXPECTED = {
  # Round 228: measured raw-distance policy, seven finishers and no crashes.
  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
- ("nurburgring",1): [92, 92, 93, 94, 96, 97, 98],
- ("interlagos",29): [124, 125, 127, 129, 130, 132, 133],
- ("interlagos",47): [124, 125, 126, 128, 129, 130, 132],
- ("spa",17): [78, 79, 80, 82, 83, 84, 85],
+ ("nurburgring",1): [91, 92, 92, 93, 95, 96, 96],
+ ("interlagos",29): [124, 125, 126, 128, 129, 131, 132],
+ ("interlagos",47): [124, 125, 126, 127, 128, 129, 131],
+ ("spa",17): [78, 79, 80, 81, 83, 84, 85],
  ("zandvoort",44): [137, 138, 139, 140, 142, 143, 144],
 }
 def main():

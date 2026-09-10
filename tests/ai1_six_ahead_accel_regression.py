@@ -10,9 +10,9 @@ import bench_ai  # noqa: E402
 
 PROMOTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    5: (7, 0, [58, 58, 59, 59, 60, 62, 62]),
-    22: (7, 0, [58, 59, 59, 59, 60, 61, 61]),
-    86: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
+    5: (7, 0, [58, 59, 59, 60, 61, 62, 62]),
+    22: (7, 0, [58, 59, 60, 61, 61, 61, 61]),
+    86: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in ("AI1", "AI2")}

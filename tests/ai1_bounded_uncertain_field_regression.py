@@ -28,12 +28,15 @@ PROOF_VETO = ("lemans", 87)
 # Le Mans s29 now has six finishers and p4 crashes on its 42nd move, under
 # both labels. Recorded, not vetoed (AGENTS.md); the finisher list, the crash
 # list and every move count are the measured race.
+# Round 233 (the lane spread left the score): Le Mans s93 is whole again --
+# seven finishers and no crash, the car round 232 lost there. s29 keeps its
+# seven; every case below is re-frozen from measurement.
 # Round 232 (the kinematic confirm): p4 no longer dies on its 42nd move --
 # seven finishers and no crash again, the outcome round 229 had lost here.
-PROMOTED = (7, 0, [66, 70, 71, 72, 73, 75, 76])
-PROMOTED_FINISHERS = [(1, 66), (3, 70), (5, 71), (6, 72), (7, 73), (2, 75), (4, 76)]
+PROMOTED = (7, 0, [66, 70, 71, 72, 73, 74, 76])
+PROMOTED_FINISHERS = [(1, 66), (3, 70), (5, 71), (6, 72), (7, 73), (8, 74), (2, 76)]
 PROMOTED_CRASHES = []
-PROMOTED_ALL_MOVES = {1: 66, 2: 75, 3: 70, 4: 76, 5: 71, 6: 72, 7: 73, 8: 75}
+PROMOTED_ALL_MOVES = {1: 66, 2: 76, 3: 70, 4: 75, 5: 71, 6: 72, 7: 73, 8: 74}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -44,36 +47,36 @@ RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
-    PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 74, 76]),
+    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 70, 72, 73]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-                 '6b9ba867e3280c99b7a5dd38ad5ea3446af3f704268e5b2c058f54a263555709'),
+                 '8c5ae32c743c678dc2c6db9aa49e50381316e852817182f204766f66b1d53dbb'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
-    ("lemans", 93): ((6, 1, [66, 70, 71, 72, 73, 75]),
-                     '0d9082782b4dda104c6177e4e6cbd8881681281c8f4499b66078e87ab9983192'),
-    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 72, 74]),
-                     '9a370f17c8305f27cad00b47767753d87cb64d8080911e21804f504639d388f4'),
+    ("lemans", 93): ((7, 0, [66, 67, 69, 70, 72, 73, 74]),
+                     '7f9f6dedc2d2921b67f2e845afb47189bc9066f454167370d3958d0ef25bf04e'),
+    ("lemans", 14): ((7, 0, [66, 68, 69, 71, 72, 73, 75]),
+                     '1451355641a78318350710326d7283281228b248647a5063e1efac8fb2e320ce'),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 84, 85, 86, 86]),
-        "7fa26b8f8a7b1a43a067446e369e1f4cb87ab1d126be6bdbefb05b7bfc826ed6",
+        (7, 0, [81, 82, 83, 84, 85, 85, 86]),
+        "263e16a09260d42b9946a0856d5766ccd439aa1f612ff4ca7409242838b77754",
     ),
     ("spa", 12): (
-        (7, 0, [78, 80, 81, 84, 84, 85, 86]),
-        "a59cfd048f950cd5a4a510c5d7eb24121420b64dafe0dd97daf452422ba6e33d",
+        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
+        "1609c7a24beb61682243b288825ccc294c7059f5a8eb61446c97dbaf9f656684",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 82, 82, 83, 84]),
-        "0bb27e99e78382229716b21e11d058833644c80bdb2904c6402682b55efbe26a",
+        (7, 0, [78, 79, 80, 81, 83, 85, 85]),
+        "14b49b5cffbb2ec3c880686ec2b19b77d36415b962a560060f023adaefc43997",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 81, 82, 84]),
-        "cb9bfc27705040dbbb0725cdd2b802e630920005542e0982a6acf7a58192ccae",
+        (7, 0, [78, 79, 80, 81, 82, 82, 84]),
+        "7586d94de7b1be9777d0b6fd39e1b382fcdd408639d866b2db9e340ecb914d5f",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 82, 84, 85, 87]),
-        "b73c9481046b9462f3ecab3759c88af35b72fcdea5974c85f03fccfabcb2c206",
+        (7, 0, [78, 80, 81, 82, 83, 84, 85]),
+        "44866af4395dc232c6b6a67794e7ca2ef2c667cfca9077d05fe787fc9c9d2c07",
     ),
 }
 

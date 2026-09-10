@@ -28,8 +28,9 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
 EXPECTED = {
-    36: {"AI1": (19, 4, 1), "AI2": (17, 4, 0)},
-    45: {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
+    # Round 233: seed 36 is crash-free again -- the round-232 loss here is back.
+    36: {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
+    45: {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
 }
 
 

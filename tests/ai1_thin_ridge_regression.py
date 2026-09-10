@@ -73,8 +73,8 @@ def main() -> int:
             # guards four cars home and none lost, and that is unchanged.
             # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
             # Round 232 (the kinematic confirm): re-frozen from measurement.
-            expected = ({"AI1": (22, 4, 0), "AI2": (14, 4, 0)} if target_kind == "AI1"
-                        else {"AI1": (14, 4, 0), "AI2": (22, 4, 0)})
+            expected = ({"AI1": (20, 4, 0), "AI2": (16, 4, 0)} if target_kind == "AI1"
+                        else {"AI1": (16, 4, 0), "AI2": (20, 4, 0)})
             if result != expected:
                 raise SystemExit(
                     "Round-185 width-three ridge regression: "

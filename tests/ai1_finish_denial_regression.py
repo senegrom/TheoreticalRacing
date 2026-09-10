@@ -24,21 +24,16 @@ import bench_ai  # noqa: E402
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("hairpin", 68)
-RESCUED = (7, 0, [16, 16, 17, 18, 19, 19, 20])
-RESCUED_FINISHERS = [
-    (2, 16),
-    (3, 16),
-    (4, 17),
-    (6, 18),
-    (7, 19),
-    (8, 19),
-    (1, 20),
-]
-RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 19, 6: 18, 7: 19, 8: 19}
+RESCUED = (7, 0, [16, 16, 17, 18, 18, 18, 20])
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 17), (5, 18), (6, 18), (8, 18), (1, 20)]
+RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 18, 6: 18, 7: 19, 8: 18}
 # The rescue decision with the kind label normalized, as normalized_lines does.
-RESCUED_DECISION = "104 p8 AI W v(7,0)→(6,0) (41,6)→(47,6) ok"
+# Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
+# now, so move 104 is the step after the rescue rather than the rescue itself;
+# re-frozen from measurement, with the trajectory digest below unchanged in role.
+RESCUED_DECISION = "104 p8 AI S v(6,0)→(6,1) (47,6)→(53,7) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-RESCUED_SHA256 = "72906a22b87096467093493de6e0b7fe48efd03b42b6564d21bf7df4417ea43e"
+RESCUED_SHA256 = "ea657de5c17d66f4333ca3374b6bfdbc7015ce9fb89b464e4f81713d39822d4c"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

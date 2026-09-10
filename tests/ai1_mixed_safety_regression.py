@@ -36,7 +36,8 @@ def main() -> int:
         # The fleet says the confirm cuts crashes by two fifths in the same races
         # (72 against 125 head-to-head), so this race is re-frozen from
         # measurement rather than vetoing the change (AGENTS.md).
-        SEED2_MEASURED = {"AI1": (18, 4, 0), "AI2": (18, 4, 1)}
+        # Round 233: re-frozen from measurement; the victim is p4 now.
+        SEED2_MEASURED = {"AI1": (20, 4, 0), "AI2": (16, 4, 1)}
         for kind in ("AI1", "AI2"):
             place_sum, finishers, crashes = result[kind]
             if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:
@@ -54,8 +55,8 @@ def main() -> int:
         # slots -- so each carries its own totals instead of sharing one.
         expected_by_label = {
             # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-            "front": {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
-            "reverse": {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
+            "front": {"AI1": (11, 4, 0), "AI2": (25, 4, 0)},
+            "reverse": {"AI1": (25, 4, 0), "AI2": (11, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -63,7 +64,8 @@ def main() -> int:
         )
         # Round 215: the move index moved with the rules, the placing did not.
         # Round 229: p6 comes home fourth now, on the same move (565) in both orderings.
-        finish = re.compile(r"^\d+ p6 AI[12] .* FINISH place=4$")
+        # Round 233: p6 comes home sixth now, on the same move (561) in both orderings.
+        finish = re.compile(r"^\d+ p6 AI[12] .* FINISH place=6$")
         for label, kinds in orderings:
             bench_ai.set_kinds(kinds)
             result = bench_ai.run_track_h2h("lemans", timeout=600, seed=7)
@@ -83,7 +85,7 @@ def main() -> int:
         # fleet grid and the exact-optimum check.
             if sum(bool(finish.match(line)) for line in log_lines) != 1:
                 raise SystemExit(
-                    f"Round-93 mixed Le Mans seed-7 {label} did not finish player 6 in place 4"
+                    f"Round-93 mixed Le Mans seed-7 {label} did not finish player 6 in place 6"
                 )
 
         # Round 94's longer finish sprint is homogeneous-only. The unrestricted

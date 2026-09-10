@@ -10,9 +10,10 @@ import bench_ai  # noqa: E402
 
 PROMOTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    1: (7, 0, [58, 59, 60, 61, 61, 61, 62]),
-    38: (7, 0, [58, 59, 59, 59, 60, 60, 61]),
-    106: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    # Round 233: re-frozen from measurement (the lane spread left the score).
+    1: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    38: (7, 0, [58, 59, 59, 60, 61, 62, 62]),
+    106: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
 }
 LEGACY_CHAMPION = {
     1: (7, 0, [58, 59, 60, 62, 62, 63, 63]),

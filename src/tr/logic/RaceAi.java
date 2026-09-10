@@ -859,7 +859,19 @@ final class RaceAi {
 				}
 			}
 			// AI2.9 intentionally has no soft conflict term; the hard live-body check remains.
-			final double spread = opponentSpreadPenalty(newX, newY, playerNum);
+			// Round 233: the round-201 lane spread no longer prices a landing. It
+			// charged 0.3 for every rival within two cells of the landing and 0.1
+			// within three, and it was tuned on the multi-seed CRASH census. Asked
+			// by places it is the same mistake as the car-following law: a car that
+			// steers away from company concedes the position it is racing for.
+			// Head-to-head, mirrored, 840 pairs a slice: -0.641 +- 0.035 on seeds
+			// 1-10 and -0.655 +- 0.035 on seeds 11-20, and the candidate crashes no
+			// more than the champion doing it (77 against 92, 75 against 77). The
+			// term is still computed: the round-201 census stands as the record of
+			// what a shared geodesic costs, and zeroing here keeps scoreNSByDir --
+			// the round-49 tie-break's non-spread score -- exactly what the measured
+			// candidate used.
+			final double spread = 0.0 * opponentSpreadPenalty(newX, newY, playerNum);
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
 			// prefer the one carrying more usable speed.
 			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;

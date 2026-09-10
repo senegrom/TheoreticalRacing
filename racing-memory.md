@@ -1,5 +1,117 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 233: the lane spread leaves the score, and the duel with the old champion
+
+Two questions from the owner: can racecraft improve further, and how does
+today's champion race against the last champion from before the lexicographic
+rule?
+
+THE DUEL. The rule entered the repository at a59cf42 (2026-09-07), a commit
+that touched only CLAUDE.md, AGENTS.md and this ledger -- so the AI it
+shipped is the round-225 one. Two jars cannot share a race, so the old policy
+was rebuilt INSIDE today's binary (E:/tmp-claude/duel_build.py): base is the
+round-225 RaceAi.java with round 210's needle-aware gate map restored in
+Reachability, and today's policy is added back as five gated differences --
+the rounds promoted since (226/228 the needle surcharge, 229 the caution
+stack, 231 the ranked checkpoint crossings, 232 the kinematic confirm). The
+build verifies itself at both ends: with every slot a candidate it reproduces
+today's champion race for race, and with no candidateSlots at all it
+reproduces the round-225 jar race for race, on four boards each.
+
+    format                                   new mean place   old   wins        crashes
+    1v1, two cars, 1660 races, mirrored      1.164            1.836 1388 : 272  4 : 0
+    8-car, four against four, 1680 races     2.952            6.048 1516 : 164  53 : 6
+
+Three places out of eight (-3.096 +- 0.046), 90% of races won, and on
+thirteen boards -- circle, dspiral1/2, fractal18, hybrid17, lobe1/2/3 and
+others -- the sweep reads exactly -4.000: the new cars take places one to
+four in every single race. 68 tracks favour the new car, 2 the old (hybrid1
++1.000, weave2 +0.100), 13 tie. The old car crashes nine times less often and
+finishes three places behind: it bought safety by conceding position, which
+is what the rule told the campaign to stop paying for.
+
+THE ROUND. Four arms on the round-232 champion, random starts, seeds 1-10,
+mirrored, 840 pairs each:
+
+    arm                                              place C-H      crashes C/H
+    sp0  the round-201 lane spread out of the score  -0.641 +-.035   77/92
+    q0   the queue-compression corner guard out      -0.024 +-.015   77/82
+    blk2 force the crash of the car that moves next,
+         at a cost of at most two turns              -0.018 +-.004   81/129
+    blk0 the same, only when the block is free       -0.008 +-.003   81/98
+
+THE LANE SPREAD is the find, and it is the same story as the caution stack:
+0.3 for every rival within two cells of the landing and 0.1 within three,
+tuned in round 201 on the multi-seed CRASH census, and worth two thirds of a
+place to the car that stops paying it. A car that steers away from company
+concedes the position it is racing for. It is not even buying safety in a
+mixed field -- the candidate crashes LESS than the champion (77 against 92,
+75 against 77 on the fresh slice). Confirmed in every start mode:
+
+    random, seeds 1-10     -0.641 +- 0.035   wins 869/811   crashes 77/92
+    random, seeds 11-20    -0.655 +- 0.035   wins 891/789   crashes 75/77
+    computed, seeds 1-10   -0.531 +- 0.034   wins 851/829   crashes 69/81
+    scattered, seeds 1-10  -0.014 +- 0.005   wins 836/834   crashes  6/4
+
+Scattered starts spread the field so wide that the term rarely fires, which
+is the right shape for a proximity penalty. Per track it gains up to -2.15
+(hybrid17, fractal8, weave4) and loses up to +0.58 (silverstone, hybrid10).
+The term is still computed and multiplied by zero: the round-201 census
+stands as the record of what a shared geodesic costs, and zeroing at the
+score keeps scoreNSByDir -- the round-49 tie-break's non-spread score --
+exactly what the measured candidate used.
+
+THE FORCED CRASH, generalised (the owner's own suggestion, 2026-09-07: "one
+could also argue for a force crash if eg A is ahead of B and C but A can
+force crash B without C being able to catch up"). RaceAiTactics.winNow only
+fires with two live cars, because with more of them another car could vacate
+a blocker between my move and the victim's. The exact answer is to block the
+car that moves IMMEDIATELY after me: nobody moves in between, so the blockade
+is as exact as the two-car one, and every other live car's body simply counts
+against the victim's replies where it stands. Priced, not assumed -- the
+landing must be alive, not a dead fan, and cost at most a set number of turns
+of my own distance.
+
+It works, and the measurements say three things. The price matters (free:
+98 rivals crashed, two turns: 129) but SATURATES completely at two -- blk4
+and blk8 are bit-identical to blk2, so every blocking chance in the fleet is
+either cheap or impossible. Killing a rival BEHIND me is worth paying for
+too: an arm that spent eight turns on victims ahead and nothing on the rest
+(the place-aware split) landed fewer kills and gained less (-0.010, 110
+kills) than the flat two (-0.018, 129) -- a car behind me now is a car that
+can pass me later, and a forced crash converts that threat into a fixed last
+place. And the tactic never costs its own car anything: the candidate's
+crashes are 81 in every variant.
+
+NOT PROMOTED, and this is why. Re-measured against the NEW champion -- the
+spread-free car, which is what would ship it -- the same arm reads -0.007 +-
+0.003 on seeds 1-10 and -0.003 +- 0.003 on seeds 11-20, with 20 and 14 extra
+kills. The spread removal ate most of its value: cars that no longer steer
+around each other spend far less time in the single-escape states a cheap
+block can exploit. Under the campaign's own standard that is not a clear
+gain, so the tactic stays measured and unshipped (E:/tmp-claude/
+arm233_block.py, arm233_blockahead.py). It is worth reopening the moment the
+champion becomes more blockable again.
+
+The queue-compression corner guard (-0.024 +- 0.015, 1.6 SE) is the same
+verdict for a different reason: not distinguishable from zero on its own, and
+in combination with the spread removal (-0.659 against -0.641) it adds
+nothing measurable. It stays in the score.
+
+THE CORPUS. The promoted jar, raced as a plain homogeneous field, reproduces
+the measured candidate's 730 races on every counter. Core tests, 12 goldens
+and 23 pins pass after re-freezing from measurement -- and this is the widest
+re-freeze the campaign has done, because the spread fires wherever two cars
+are near each other. It goes both ways again, and this time mostly the good
+way: the bounded-field Le Mans s93 pin, the private-slack Hungaroring s40
+case and the round-128 funnel's seed 36 all get their crashed car BACK (the
+funnel seed 36 is the race round 232 lost), while the staged-pace Le Mans s3,
+Le Mans s11 and Hungaroring s10 cases give one up. Two summed-moves contracts
+against the legacy champion are retired the way round 124's was in round 229:
+the round-117 per-car Pareto contract (three cars in the Spa s83 race are now
+slower than the legacy car while the field is faster) and the round-95
+self-tie sum. Every measured expectation, finisher list, digest and decision
+line is re-frozen with the reason beside it.
 ## Review fixes: duplicate drawing points and recoverable browser placement
 
 Based on master `40fd9cd`. The incremental drawing validator now rejects a

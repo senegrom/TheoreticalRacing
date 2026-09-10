@@ -21,10 +21,10 @@ TARGET = ("rand3", 1)
 # assertion logic and AI1/AI2 identity checks remain intact.
 # Every case below retains seven finishers and zero crashes.
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-PROMOTED = (7, 0, [60, 61, 62, 63, 66, 67, 67])
-PROMOTED_FINISHERS = [(1, 60), (5, 61), (8, 62), (4, 63), (3, 66), (6, 67), (7, 67)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 67, 3: 66, 4: 63, 5: 61, 6: 67, 7: 67, 8: 62}
-PROMOTED_SHA256 = '618e829b2a82c603a6dd45e2767176e0f8f2827a7f0ed594fa8ace1b815d9bc4'
+PROMOTED = (7, 0, [60, 61, 62, 63, 63, 65, 65])
+PROMOTED_FINISHERS = [(1, 60), (3, 61), (4, 62), (5, 63), (6, 63), (2, 65), (8, 65)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 65, 3: 61, 4: 62, 5: 63, 6: 63, 7: 65, 8: 65}
+PROMOTED_SHA256 = '447303a25c7db856efa8944970d4b041e60e8ed476fa70f44e37e36d04dbac84'
 
 
 def main() -> int:
