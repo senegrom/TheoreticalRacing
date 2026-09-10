@@ -1583,17 +1583,25 @@ public final class RaceGame {
 	 * grant credit: callers must still check continuing/terminal legality. */
 	int gateEventsOnMove(final int nextGate, final int x, final int y,
 			final int nx, final int ny) {
-		int pending = lapGates == null ? 0 : nextGate;
+		if (lapGates == null)
+			return crossesFinish(x, y, nx, ny) ? 1 : 0;
+		int pending = nextGate;
 		int events = 0;
-		if (pending == 1 && touchesGate(1, x, y, nx, ny)) {
+		double after = 0;
+		if (pending == 1) {
+			after = TrackGeometry.gateTouchAfter(lapGates[1], x, y, nx, ny, after);
+			if (Double.isNaN(after)) return events;
 			pending = 2;
 			events++;
 		}
-		if (pending == 2 && touchesGate(2, x, y, nx, ny)) {
+		if (pending == 2) {
+			after = TrackGeometry.gateTouchAfter(lapGates[2], x, y, nx, ny, after);
+			if (Double.isNaN(after)) return events;
 			pending = 0;
 			events++;
 		}
-		if (pending == 0 && crossesFinish(x, y, nx, ny))
+		if (pending == 0 && crossesFinish(x, y, nx, ny)
+				&& (events == 0 || !Double.isNaN(TrackGeometry.gateTouchAfter(lapCrossGate, x, y, nx, ny, after))))
 			events++;
 		return events;
 	}
@@ -2083,6 +2091,10 @@ public final class RaceGame {
 
 	private void updatePlaceStatus() {
 		final boolean allPlaced = subgamestate >= players.length;
+		boolean canUndo = false;
+		for (int i = 0; i < subgamestate; i++)
+			if (!players[i].isAi()) canUndo = true;
+		gameFrame.setUndoEnabled(canUndo);
 		gameFrame.setOkEnabled(allPlaced && placementFailure == null);
 		gameFrame.setStatus(placementFailure != null ? placementFailure : allPlaced ? "Click OK to confirm."
 				: players[subgamestate].isAi() ? players[subgamestate].getName()

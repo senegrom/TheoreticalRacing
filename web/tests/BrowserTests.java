@@ -24,6 +24,7 @@ public final class BrowserTests {
                 "initial browser state is not a complete resynchronization");
         final RaceGame g = (RaceGame) get(b, "game");
         b.awaitReady();
+        check(b.snapshot().contains("\"undo\":false"), "placement undo enabled before any human placement");
         int[] start = null;
         outer: for (int x = 0; x <= g.gameCols; x++) for (int y = 0; y <= g.gameRows; y++) {
             if (g.startZoneA.contains(x, y)) { start = new int[]{x, y}; break outer; }
@@ -31,6 +32,13 @@ public final class BrowserTests {
         check(start != null, "human start missing");
         b.click(start[0], start[1]);
         check(g.players[1].getPosition()[0] != Player.INIT_POS, "AI not auto-placed after human");
+        check(b.snapshot().contains("\"undo\":true"), "bundled-track human placement cannot be undone through the UI");
+        b.undo();
+        check(g.subgamestate == 0 && g.players[0].getPosition()[0] == Player.INIT_POS
+                && g.players[1].getPosition()[0] == Player.INIT_POS,
+                "browser placement undo did not remove the human and dependent AI placements");
+        check(b.snapshot().contains("\"undo\":false"), "placement undo stayed enabled after restoring the first turn");
+        b.click(start[0], start[1]);
         b.ok();
         final String originalLog = b.log();
         final int[][] originalPositions = {g.players[0].getPosition().clone(), g.players[1].getPosition().clone()};
@@ -81,6 +89,26 @@ public final class BrowserTests {
         check(drawing.track.getLeft().size() == 1, "drawing undo differs");
         custom.ok();
         check(drawing.subgamestate == 0, "short border accepted");
+        testStartingZoneDeltas();
         System.out.println("BrowserTests: previews, consent, original rules, AI replies, undo, drawing and validation OK");
+    }
+
+    private static void testStartingZoneDeltas() throws Exception {
+        final BrowserBridge bridge = new BrowserBridge();
+        bridge.create("hairpin", "nPlayers=1\nplayer1Kind=HUMAN\n", "1");
+        bridge.awaitReady();
+        final RaceGame game = (RaceGame) get(bridge, "game");
+        // This border-adjacent start has a legal northward exit from the zone.
+        bridge.click(5, 27);
+        bridge.ok();
+        final String moved = bridge.move(Direction.N.ordinal(), false);
+        check((int) get(game, "turnCounter") == 1, "start-zone fixture did not move");
+        check(get(get(bridge, "scene"), "startZone") == null, "referee did not hide the start zone");
+        check(moved.contains("\"startZone\":null") && !moved.contains("\"shape\":"),
+                "hiding the start zone was omitted from the ordinary action delta");
+        final String undone = bridge.undo();
+        check(get(get(bridge, "scene"), "startZone") != null, "undo did not restore the start zone");
+        check(undone.contains("\"startZone\":[") && !undone.contains("\"shape\":"),
+                "restoring the start zone was omitted from the undo delta");
     }
 }

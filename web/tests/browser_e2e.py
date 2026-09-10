@@ -209,6 +209,12 @@ def main():
                 page.wait_for_function('document.body.dataset.phase === "PLACEPLAYERS"', timeout=300_000)
                 page.locator('#first-start').click()
                 page.wait_for_function('document.querySelector("#driver").textContent === "B"')
+                page.locator('#undo').click()
+                page.wait_for_function('document.querySelector("#driver").textContent === "A"')
+                assert page.locator('#standings .result').all_text_contents() == ['To place', 'To place']
+                assert page.locator('#undo').is_disabled(), 'placement undo stayed enabled with no human placement'
+                page.locator('#first-start').click()
+                page.wait_for_function('document.querySelector("#driver").textContent === "B"')
                 page.locator('#first-start').click()
                 page.wait_for_function('document.querySelector("#placement").hidden')
                 page.wait_for_function('!document.querySelector("#ok").disabled && !document.querySelector("#ok").hidden', timeout=600_000)

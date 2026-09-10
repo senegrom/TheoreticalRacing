@@ -1,5 +1,60 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review fixes: checkpoint travel order, placement undo, and starting-zone updates
+
+Based on the round-232 champion, `2a2725c`. The shared referee now consumes
+checkpoint and finish intersections in travel order. The existing valid custom
+track fixture has CP1 at x=6 and CP2 at x=13: the legal move (14,2)->(5,2)
+previously banked both despite touching CP2 first. It now banks only CP1 and
+still owes CP2. A finish touched before the required checkpoints cannot end
+the race. Collinear overlap and stationary checkpoint touches retain their
+existing meaning. Both exact solvers use this same event function.
+
+Placement status now enables Undo when an earlier human placement exists;
+the browser command removes that placement and its dependent AI placements.
+The starting-zone overlay is sent with ordinary state deltas, so departure
+hides it and undo restores it without resending the track geometry.
+
+Local checks passed: JDK 25 build and core tests; all 12 unchanged goldens;
+all 23 unchanged AI regression scripts; headless smoke, query replay and lap
+progression; 52 Python tooling tests; 29 browser tooling tests; HTTP range
+tests; seven JavaScript tests; browser adapter and placement barrier/order
+tests; six complete desktop/browser parity pairs including computed starts
+and two-lap races. New regressions cover the reported failures through the
+referee and browser commands, including the real-browser placement control.
+
+The full seeds 1-10 slice cleared all 84 tracks in all three start modes:
+840 validated races per mode (730 lap races and 110 no-loop races), 2,520
+total, with zero timeouts and no incomplete results. The lap-race field
+counters match round 232's recorded baseline in every mode:
+
+| Start mode | Lap races | Field crashes | Timeouts | Field moves |
+| --- | ---: | ---: | ---: | ---: |
+| legacy | 730 | 79 | 0 | 1,768,322 |
+| informed | 730 | 70 | 0 | 1,768,445 |
+| scatter | 730 | 5 | 0 | 1,436,408 |
+
+The 110 no-loop races per mode also completed with no crashes or timeouts;
+their move totals were 53,227 / 53,217 / 28,053 respectively. These are
+descriptive field metrics; no AI policy or pinned expectation was changed.
+
+Resource retries: the initial concurrent 3 GiB runs exhausted memory on
+Nordschleife and interrupted scatter/dspiral1. The spiral batch cleared when
+resumed under its original manifest with less concurrency. Nordschleife's
+8 GiB batch completed four races before its between-seed available-memory
+check failed, so all ten seeds in each mode were validated in fresh 8 GiB
+JVMs using the unchanged fleet runner. All completion markers, log hashes,
+and terminal results were revalidated against the same jar, profiles and
+track inputs. Tested jar SHA-256:
+`6831e2e06893dde099932486a0b8b758aae2a31f2f8a268828fba8b764fc6fa7`.
+
+[CI run 34451158126](https://github.com/senegrom/TheoreticalRacing/actions/runs/34451158126)
+passed on code commit `4ab83c2`: JDK 25/26, all goldens and AI pins, full
+native parity, and real Chromium/WebKit worker, layout and gameplay tests.
+CodeQL reported no new alerts. The separate Copilot scan could not start
+because the account lacks a Copilot license. This follow-up records results
+only; the tested executable sources and regression tests are unchanged.
+
 ## Round 232: the followers get safer -- the kinematic confirm
 
 The owner's question after round 229: the leading car is faster now; can the
