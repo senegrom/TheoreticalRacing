@@ -1,0 +1,88 @@
+name: Validate reviewed fixes before publication
+on:
+  push:
+    branches: [work/review-fixes-20260911-935ef47]
+permissions:
+  contents: read
+concurrency:
+  group: review-fixes-935ef47
+  cancel-in-progress: false
+jobs:
+  validate:
+    name: Review validation JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 935ef474bf465038a2a6fef7e7abe54cdee17ba3
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply the exact locally tested patch
+        shell: bash
+        run: |
+          git show "$GITHUB_SHA":.github/review-fixes-935ef47.patch.gz | gzip -dc > "$RUNNER_TEMP/review-fixes.patch"
+          echo "a9e1bd7b52b48c2d0c730d1e273d2746b77d1b0b699949f2168d1f7dbb154da4  $RUNNER_TEMP/review-fixes.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/review-fixes.patch"
+          git diff --cached --check
+      - name: Java contracts and strict supported-release build
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/cross_era_referee_regression.py
+      - name: Python tooling and shell checks
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python -m compileall -q tracks tests
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Headless, replay, goldens and every champion regression
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python "$test"
+          done
+      - name: Assert tests did not modify tracked inputs
+        run: git diff --exit-code
+  prepare:
+    name: Prepare validated commit
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 935ef474bf465038a2a6fef7e7abe54cdee17ba3
+          fetch-depth: 0
+      - name: Commit only the validated patch on its original parent
+        shell: bash
+        run: |
+          git show "$GITHUB_SHA":.github/review-fixes-935ef47.patch.gz | gzip -dc > "$RUNNER_TEMP/review-fixes.patch"
+          echo "a9e1bd7b52b48c2d0c730d1e273d2746b77d1b0b699949f2168d1f7dbb154da4  $RUNNER_TEMP/review-fixes.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/review-fixes.patch"
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix lap memo publication and fail-closed benchmark validation' -m 'Hold the lap bundle reader under the publication monitor. Publish fleet completion only after final identity validation and invalidate failed reads. Bind mixed comparisons to course, binary, profile, roster, seeds and runtime inputs.' -m 'Add 13 Python boundary tests and a deterministic JDI concurrency regression. Validate JDK 25/26 builds and Java/referee tests, 127 Python tests, headless/replay checks, all 12 frozen goldens and all 23 champion regression scripts before preparing this commit. No policy, referee, track, persisted map format or golden-pin changes.'
+          test "$(git rev-parse HEAD^)" = 935ef474bf465038a2a6fef7e7abe54cdee17ba3
+          git push origin HEAD:refs/heads/work/review-fixes-20260911-935ef47-prepared
+          echo "Prepared commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
