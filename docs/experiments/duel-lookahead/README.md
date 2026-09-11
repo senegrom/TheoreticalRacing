@@ -3,9 +3,34 @@
 Baseline: `7220dd5784d1ae6cb8833616a819c11d7c3243e9` (round-233 champion).
 Branch: `racecraft/two-move-duel-proofs`.
 
-**Status: implemented, tested as an opt-in candidate, not promoted.** The
-bounded mixed-field screen found no finishing-place gain. The complete fleet
-promotion battery and the required JDK 25 release build have not been cleared.
+**Status: merged as an opt-in candidate. Still gated on `candidateSlots`, so no
+shipped car changes behaviour.**
+
+> **Correction, 2026-09-11 — the screen below is invalid, and its conclusion is
+> wrong.** It ran at `--heap=-Xmx768m`. Exact-potential eligibility depends on
+> `-Xmx` (the bounded frontier queue is sized from it), so under a small heap
+> the champion is silently demoted to a non-exact policy and the comparison is
+> between two cars nobody ships. The **same jar and seeds** at the fleet default
+> (`-Xmx8g`, which is `tracks/fleet_grid.py`'s own default and what every number
+> in `racing-memory.md` is measured at), over 84 tracks, seeds 1-10, 840
+> mirrored pairs:
+>
+> | roster | place C−H | wins | crashes C:H | tracks C/H/tied |
+> | --- | ---: | ---: | ---: | ---: |
+> | 2 cars | **−0.029 ± 0.006** | 864 : 816 | 8 : 55 | 4 / 0 / 80 |
+> | 8 cars | +0.001 ± 0.001 | 840 : 840 | 61 : 61 | 0 / 2 / 82 |
+>
+> An all-champion two-car fleet over the same 730 lap races crashes 8 times; one
+> candidate in the field takes that to 27 and 36 while total moves *fall*. Per
+> car-race the champion's crash rate goes 0.55% → 3.27% while the candidate's
+> stays at the baseline 0.48%: it wins by forcing the other car into the wall,
+> which the racecraft rule endorses, and −0.029 is exactly the 47 crashes it
+> forces (47/1680 = 0.028). In an eight-car field it is inert because `winNow`
+> abstains while a third car is racing. **JDK 25 is also cleared now**:
+> `build_main.sh` clean under `--release 25 -Xlint:all -Werror` plus
+> `jar --validate`, and the full suite green including `RaceAiDuelSearchTests`.
+> Full account in `racing-memory.md`, round 236.
+
 No champion/golden expectation, track, physics, map or `user.properties` changed.
 
 ## Ideas implemented
@@ -57,6 +82,10 @@ separate properties file with `candidateSlots=1,3,5,7`, then mirror with
 The proof still waits until only two cars are live.
 
 ## Measured results
+
+**Superseded — see the correction at the top. Everything in this section was
+measured at `-Xmx768m` and describes a policy that is not the champion.** It is
+kept as the experiment journal, not as evidence.
 
 The completed screen uses seven tracks (Hairpin, Chicane, Big Oval, Circle,
 Gear, Silverstone and Zigzag), seeds 1-2, both mirrored cohorts, two/eight-car
