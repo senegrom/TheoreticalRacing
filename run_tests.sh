@@ -13,3 +13,5 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.main.MainTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.PreparationSafetyTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.TrackImportTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RaceAiDuelSearchTests
+
+java -ea --add-modules jdk.jdi -cp test-bin tr.logic.LapMemoPublicationTests src/tr/logic/Reachability.java

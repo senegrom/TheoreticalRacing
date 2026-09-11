@@ -200,7 +200,7 @@ def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout):
             name = '%s_s%d.log' % (track, seed)
             os.replace(work / name, out / name)
         record = dict(run_id=run_id, seeds=list(seeds), no_loop=no_loop, logs=logs)
-        atomic_text(out / (track + '.complete.json'), json_text(record))
+        # main publishes resumable completion only after input revalidation.
         return record
 
 
@@ -256,12 +256,20 @@ def main(argv=None):
                     except (OSError, ValueError, subprocess.SubprocessError) as error:
                         failures[track] = str(error)
                         print('%s: %s' % (track, error), file=sys.stderr)
-            # Detect an input changed while the JVMs were running, not just on resume.
-            if manifest_for(jar, props, java, heap, tracks, lo, hi) != manifest:
-                for track in tracks:
-                    (out / (track + '.complete.json')).unlink(missing_ok=True)
-                    (out / (track + '.row')).unlink(missing_ok=True)
-                raise ValueError('benchmark inputs changed during the run; results are not valid')
+            # A missing/malformed input is just as invalid as a changed hash.
+            # Do not leave either resumable markers or an old report behind when
+            # validation raises (including interruption), rather than returning.
+            inputs_valid = False
+            try:
+                inputs_valid = manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
+                if not inputs_valid:
+                    raise ValueError('benchmark inputs changed during the run; results are not valid')
+            finally:
+                if not inputs_valid:
+                    for track in tracks:
+                        (out / (track + '.complete.json')).unlink(missing_ok=True)
+                        (out / (track + '.row')).unlink(missing_ok=True)
+                    (out / 'fleet.txt').unlink(missing_ok=True)
             lines = []
             total = dict(crash=0, timeout=0, moves=0)
             races = 0
@@ -270,6 +278,7 @@ def main(argv=None):
                     lines.append(t + ' ERROR\n')
                     continue
                 record = results[t]
+                atomic_text(out / (t + '.complete.json'), json_text(record))
                 rows = []
                 if record['no_loop']:
                     rows.append(t + ' NOLOOP\n')

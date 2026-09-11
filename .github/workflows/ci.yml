@@ -47,6 +47,7 @@ jobs:
       - run: python tests/headless_smoke.py
       - run: python tests/query_replay_regression.py
       - run: python tests/lap_progress_regression.py
+      - run: python tests/selfplay_profile_regression.py
       - run: python tests/golden_races.py
       - name: Run every champion AI regression pin
         shell: bash

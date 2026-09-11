@@ -46,7 +46,6 @@ def main(argv):
         'RACING_PROPS', os.path.join(REPO, 'tracks', 'bench.properties')
     )
     shutil.copy(base, m.PROPS)
-    original_set_nplayers = m.set_nplayers
     try:
         if mode == 'slow':
             m.SEEDS = [None]
@@ -60,22 +59,11 @@ def main(argv):
         if mode == 'h2h':
             return m.bench_field(tracks, 8, 4, 'h2h')
         if mode == '4car':
-            original = m.set_nplayers
-
-            def force(_n, setter=original):
-                setter(4)
-            m.set_nplayers = force
-            return m.bench(tracks)
+            return m.bench(tracks, nplayers=4)
         if mode == '2car':
-            original = m.set_nplayers
-
-            def force2(_n, setter=original):
-                setter(2)
-            m.set_nplayers = force2
-            return m.bench(tracks)
+            return m.bench(tracks, nplayers=2)
         raise SystemExit('unknown mode ' + mode)
     finally:
-        m.set_nplayers = original_set_nplayers
         for path in (m.PROPS, m.LOG):
             if os.path.exists(path):
                 os.remove(path)
