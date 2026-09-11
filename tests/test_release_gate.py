@@ -134,16 +134,49 @@ class ReleaseGateTests(unittest.TestCase):
 class BrowserScopeTests(unittest.TestCase):
     SHA = 'a' * 40
 
-    def test_documentation_only_skips_browsers_and_mixed_changes_run(self):
-        for event, data in [('push', {'before': self.SHA}),
-                            ('pull_request', {'pull_request': {'base': {'sha': self.SHA}}})]:
-            with self.subTest(event=event):
-                def docs(base, is_pr):
-                    self.assertEqual(base, self.SHA)
-                    self.assertEqual(is_pr, event == 'pull_request')
-                    return ['README.md', 'racing-memory.md']
-                self.assertFalse(needs_browser(event, data, docs))
-                self.assertTrue(needs_browser(event, data, lambda *_: ['README.md', 'web/app.js']))
+    def test_only_documentation_pull_requests_may_skip_browsers(self):
+        data = {'pull_request': {'base': {'sha': self.SHA}}}
+        def docs(base, is_pr):
+            self.assertEqual(base, self.SHA)
+            self.assertTrue(is_pr)
+            return ['README.md', 'racing-memory.md']
+        self.assertFalse(needs_browser('pull_request', data, docs))
+        self.assertTrue(needs_browser('pull_request', data, lambda *_: ['README.md', 'web/app.js']))
+
+    def test_push_always_builds_even_when_diff_is_docs_only_or_unavailable(self):
+        def forbidden_diff(*args):
+            self.fail('push coverage must not depend on the immediately preceding diff')
+        self.assertTrue(needs_browser('push', {'before': self.SHA}, forbidden_diff))
+        self.assertTrue(needs_browser('push', {'before': self.SHA}, lambda *_: ['README.md']))
+
+    def test_code_then_docs_push_cannot_lose_an_unpublished_release(self):
+        from deployment_guard import is_current
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            def git(*args):
+                return subprocess.check_output(['git', '-C', temp, *args], stderr=subprocess.DEVNULL).decode().strip()
+            git('init')
+            git('config', 'user.name', 'Test')
+            git('config', 'user.email', 'test@example.invalid')
+            (root / 'src').mkdir()
+            engine = root / 'src/Engine.java'
+            engine.write_text('published')
+            git('add', '.')
+            git('commit', '-m', 'published revision')
+            deployed = git('rev-parse', 'HEAD')
+            engine.write_text('new engine')
+            git('commit', '-am', 'code push, publication cancelled by successor')
+            code = git('rev-parse', 'HEAD')
+            (root / 'README.md').write_text('documentation successor')
+            git('add', '.')
+            git('commit', '-m', 'docs push')
+            current = git('rev-parse', 'HEAD')
+            self.assertEqual(git('diff', '--name-only', code, current), 'README.md')
+            self.assertIn('src/Engine.java', git('diff', '--name-only', deployed, current))
+            self.assertTrue(needs_browser('push', {'before': code}, lambda *_: ['README.md']))
+            fetch = lambda _: {'ref': 'refs/heads/master', 'object': {'type': 'commit', 'sha': current}}
+            self.assertFalse(is_current(code, 'owner/repo', fetch), 'old run must remain blocked')
+            self.assertTrue(is_current(current, 'owner/repo', fetch), 'successor has the recovery path')
 
     def test_manual_new_branch_missing_data_and_failed_diff_run_browsers(self):
         for event, data in [('workflow_dispatch', {}), ('unknown', {}), ('push', {}),

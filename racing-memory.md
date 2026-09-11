@@ -1,5 +1,25 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review follow-up (2026-09-11): publish successors and measure actual candidate slots
+
+The two workflow findings from `59a5530` are corrected on top of `5aa9c8b`;
+round 234 and the regenerated pins are preserved. Every master push, including
+documentation-only successors of cancelled code runs, now builds a tested browser
+artifact. PR path filtering and the full publication/freshness gates remain.
+
+The manual promotion battery now runs candidateSlots mirror pairs, not label-only
+benchmarks: all-AI1 fields of 2/4/8 cars, all three start modes, seed windows 1–5,
+6–10 and 11–15, all bundled tracks and the explicit -Xmx8g reference heap. Both
+policy cohorts must appear in complete, manifest-validated logs; head_to_head.py
+scores places. Profiles, manifests and raw logs accompany reports. Ambient JVM
+option overrides fail closed. See docs/workflow-publication-promotion-review.md.
+
+Regression checks cover lost-release sequencing, profile/cohort validation,
+changed inputs and failure publication; the production runner's real-JVM test
+covers 36 positive races (168 car-races) and rejects missing candidate metadata.
+These are workflow/measurement checks, not a new AI promotion or fleet campaign.
+No policy, referee, map, course, user setting or golden expectation was changed.
+
 ## Round 236: overtaking by forcing the crash -- what it is worth, and where
 
 The owner asked for cars that overtake, and that may overtake by crashing the
