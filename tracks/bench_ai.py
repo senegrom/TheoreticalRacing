@@ -34,13 +34,13 @@ import sys
 import tempfile
 
 if __package__:
-    from .benchmark_io import configured_players, read_properties, read_race
+    from .benchmark_io import configured_players, fingerprint, read_properties, read_race, update_properties
     from .fleet_grid import atomic_text, digest, json_text
 else:
     # bench_iso loads this file by path rather than as a package.
     if str(Path(__file__).resolve().parent) not in sys.path:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from benchmark_io import configured_players, read_properties, read_race
+    from benchmark_io import configured_players, fingerprint, read_properties, read_race, update_properties
     from fleet_grid import atomic_text, digest, json_text
 
 # lemans is back now that build_lemans.py uses angular ordering (clean loop,
@@ -92,34 +92,39 @@ def require_runtime():
         raise RuntimeError('benchmark runtime is not configured')
 
 
+def require_roster(kinds, label='benchmark'):
+    players = configured_players(PROPS)
+    if [kind for _, kind in players.values()] != list(kinds):
+        raise ValueError(label + ' roster differs from the requested assignment')
+
+
 def set_all_to(kind):
+    """Assign every active slot, including slots absent from the source profile."""
     require_runtime()
-    with open(PROPS, encoding='utf-8') as f:
-        text = f.read()
-    text = re.sub(r'^(player[1-8]Kind=).*$', r'\1' + kind, text, flags=re.MULTILINE)
-    with open(PROPS, 'w', encoding='utf-8') as f:
-        f.write(text)
+    set_kinds([kind] * len(configured_players(PROPS)))
 
 
 def set_kinds(kinds):
-    """kinds: list of 8 'AI1'/'AI2' strings for slots 1..8."""
+    """Assign the complete active roster by decoded Java-properties keys."""
     require_runtime()
-    with open(PROPS, encoding='utf-8') as f:
-        text = f.read()
-    for i, k in enumerate(kinds, start=1):
-        text = re.sub(r'^(player%dKind=).*$' % i, r'\g<1>' + k, text, flags=re.MULTILINE)
-    with open(PROPS, 'w', encoding='utf-8') as f:
-        f.write(text)
+    kinds = list(kinds)
+    if not 1 <= len(kinds) <= 9 or any(kind not in ('AI1', 'AI2') for kind in kinds):
+        raise ValueError('benchmark requires 1-9 AI1/AI2 controllers')
+    if len(configured_players(PROPS)) != len(kinds):
+        raise ValueError('benchmark field size differs from the requested assignment')
+    update_properties(PROPS, {'player%dKind' % n: kind
+                              for n, kind in enumerate(kinds, 1)})
+    require_roster(kinds)
 
 
 def set_nplayers(n):
-    """Set the active field size (players 1..n race)."""
+    """Set the active field size and reject a profile that clamps it away."""
     require_runtime()
-    with open(PROPS, encoding='utf-8') as f:
-        text = f.read()
-    text = re.sub(r'nPlayers=\d+', 'nPlayers=%d' % n, text)
-    with open(PROPS, 'w', encoding='utf-8') as f:
-        f.write(text)
+    if type(n) is not int or not 1 <= n <= 9:
+        raise ValueError('benchmark requires a field size from 1 to 9')
+    update_properties(PROPS, {'nPlayers': str(n)})
+    if len(configured_players(PROPS)) != n:
+        raise ValueError('benchmark field size differs from the requested assignment (check maxPlayers)')
 
 
 SEEDS = [None]   # --seeds N -> [1..N]: randomized start grids (statistical bench)
@@ -217,35 +222,63 @@ def load_baseline(path, manifest):
         if (not isinstance(row, list) or len(row) != 3
                 or any(type(v) is not int or v < 0 for v in row[:2])
                 or type(row[2]) not in (int, float) or not math.isfinite(row[2]) or row[2] < 0
-                or row[0] + row[1] > 7 * len(SEEDS)):
+                or row[0] + row[1] > max(1, manifest.get('nplayers', 8) - 1) * len(SEEDS)):
             raise ValueError('invalid baseline result row')
     return rows
 
 
-def bench(tracks):
+def self_play_manifest(tracks, champion_jar, candidate_jar, nplayers, kind):
+    """Bind self-play to the requested field, excluding only active AI labels."""
+    require_roster([kind] * nplayers, 'self-play benchmark')
+    expected_jar = champion_jar if kind == 'AI2' else candidate_jar
+    if Path(JAR).resolve() != Path(expected_jar).resolve():
+        raise ValueError('benchmark binary changed during the run')
+    manifest = baseline_manifest(tracks, champion_jar, candidate_jar)
+    properties = read_properties(PROPS)
+    # Normalize only after verifying the effective assignment. Inactive slots,
+    # names, maxPlayers and all other settings remain bound to the experiment.
+    properties.update({'player%dKind' % n: 'AI2' for n in range(1, nplayers + 1)})
+    manifest.update(schema=2, nplayers=nplayers, properties=fingerprint(properties))
+    return manifest
+
+
+def bench(tracks, nplayers=8):
     global JAR
     require_runtime()
-    backup = Path(PROPS).read_text(encoding='utf-8')
+    backup = None
     candidate_jar = JAR
     champion_jar = str(Path(os.environ.get('BENCH_CHAMPION_JAR', JAR)).resolve())
     baseline_path = os.environ.get('BENCH_BASELINE')
     baseline = manifest = None
     valid = True
     try:
-        set_nplayers(8)   # canonical full field; robust to a prior killed bench
+        backup = Path(PROPS).read_bytes()
+        set_nplayers(nplayers)
         if not tracks or len(set(tracks)) != len(tracks) or not SEEDS:
             raise ValueError('benchmark requires unique tracks and a nonempty seed set')
         set_all_to('AI2')
         # Experiment identity is mandatory even when no cache is requested.
         candidate_digest = digest(candidate_jar)
-        manifest = baseline_manifest(tracks, champion_jar, candidate_jar)
+        JAR = champion_jar
+        manifest = self_play_manifest(tracks, champion_jar, candidate_jar, nplayers, 'AI2')
+
+        def verify(kind):
+            if (digest(candidate_jar) != candidate_digest
+                    or self_play_manifest(tracks, champion_jar, candidate_jar, nplayers, kind) != manifest):
+                raise ValueError('benchmark inputs changed during the run')
+
         if baseline_path and Path(baseline_path).exists():
             baseline = load_baseline(baseline_path, manifest)
         kinds = ('AI1',) if baseline is not None else ('AI1', 'AI2')
         results = {}
+        current_kind = 'AI2'
         for kind in kinds:
+            # Never let rewriting a roster hide an unexpected prior assignment.
+            verify(current_kind)
             JAR = champion_jar if kind == 'AI2' else candidate_jar
             set_all_to(kind)
+            current_kind = kind
+            verify(kind)
             rows = {}
             tf = tc = 0
             tm = 0.0
@@ -260,7 +293,9 @@ def bench(tracks):
                 bad = False
                 if batched:
                     try:
+                        verify(kind)
                         rs = run_track_batch(t, list(SEEDS))
+                        verify(kind)
                     except subprocess.TimeoutExpired:
                         rs = None
                     if rs is None:
@@ -274,7 +309,9 @@ def bench(tracks):
                 else:
                     for seed in SEEDS:
                         try:
+                            verify(kind)
                             r = run_track(t, seed=seed)
+                            verify(kind)
                         except subprocess.TimeoutExpired:
                             r = None
                         if r is None:
@@ -297,10 +334,7 @@ def bench(tracks):
                 tm += avg
                 nt += 1
             results[kind] = (tf, tc, tm / max(1, nt), rows)
-        set_all_to('AI2')
-        if (digest(candidate_jar) != candidate_digest
-                or baseline_manifest(tracks, champion_jar, candidate_jar) != manifest):
-            raise ValueError('benchmark inputs changed during the run')
+        verify(current_kind)
         if baseline_path and baseline is None and valid:
             rows = results['AI2'][3]
             atomic_text(baseline_path, json_text({
@@ -313,7 +347,8 @@ def bench(tracks):
         return False
     finally:
         JAR = candidate_jar
-        Path(PROPS).write_text(backup, encoding='utf-8')
+        if backup is not None:
+            Path(PROPS).write_bytes(backup)
 
     if baseline is not None:
         rows = {t: baseline[t] for t in tracks}
@@ -375,9 +410,7 @@ def run_track_h2h(track, timeout=240, seed=None):
 
 def field_manifest(tracks, kinds):
     """Bind a mixed experiment, permitting only the intended active-slot mirror."""
-    players = configured_players(PROPS)
-    if [kind for _, kind in players.values()] != list(kinds):
-        raise ValueError('mixed benchmark roster differs from the requested assignment')
+    require_roster(kinds, 'mixed benchmark')
     manifest = baseline_manifest(tracks, JAR, JAR)
     properties = read_properties(PROPS)
     # Check the actual roster before excluding its intentionally varying labels.
@@ -399,9 +432,9 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
             or not 0 < ai1n < nplayers <= 9):
         raise ValueError('mixed benchmark requires unique tracks, seeds and two nonempty cohorts')
     valid = True
-    with open(PROPS, encoding='utf-8') as f:
-        backup = f.read()
+    backup = None
     try:
+        backup = Path(PROPS).read_bytes()
         set_nplayers(nplayers)
         front = ['AI1'] * ai1n + ['AI2'] * (nplayers - ai1n)
         set_kinds(front)
@@ -452,8 +485,8 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
         print('benchmark: ' + str(error), file=sys.stderr)
         return False
     finally:
-        with open(PROPS, 'w', encoding='utf-8') as f:
-            f.write(backup)
+        if backup is not None:
+            Path(PROPS).write_bytes(backup)
 
     print()
     print(f'# {label}: {ai1n}x AI1 vs {nplayers - ai1n}x AI2 ({nplayers}-car field), mean place lower=better')

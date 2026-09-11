@@ -1,5 +1,22 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review follow-up (2026-09-11): self-play configures the field it reports
+
+Follow-up to `fce7170c`: benchmark setters update decoded Java-properties keys,
+not raw-line regex matches. Self-play takes an explicit field-size argument and
+verifies each active controller/count before and after racing, including cached
+comparisons. The isolated 2car/4car wrapper no longer monkeypatches setters.
+Unrelated effective values and original profile bytes are preserved; clamped or
+malformed profiles fail closed. Old self-play baselines require a fresh schema-2
+file, with the field size bound explicitly. See `docs/selfplay-profile-review.md`.
+
+Sixteen new Python tests bring the suite to 143. An independent Java-properties
+oracle and 45 real-JVM races verify decoded-key updates, all CLI field modes,
+correct controller arms, baseline creation/reuse and rejection before racing.
+Supported-JDK/golden/champion validation is recorded in the commit's CI evidence.
+No policy, referee, map, course, saved user settings or golden pins are changed;
+this is not a fleet campaign or policy promotion.
+
 ## Review follow-up (2026-09-11): coherent lap memo and validated benchmark publication
 
 Follow-up to the review at `935ef474`. The lap memo reader now holds the same

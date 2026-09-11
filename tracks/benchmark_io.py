@@ -191,6 +191,35 @@ def _property_line(properties, line):
     properties[_unescape(line[:end])] = _unescape(tail)
 
 
+def update_properties(path, changes):
+    """Update decoded Java keys in an isolated profile, preserving other values.
+
+    Canonical ASCII output avoids encoding changes under Properties.load(InputStream).
+    Reading first resolves alternate separators, continuations, duplicate keys and
+    escaped aliases. Malformed input is rejected before the file is touched.
+    """
+    properties = read_properties(path)
+    properties.update(changes)
+
+    def escape(text):
+        parts = []
+        for char in text:
+            if char in '\\ =:#!':
+                parts.append('\\' + char)
+            elif ' ' <= char <= '~':
+                parts.append(char)
+            else:
+                # Java Unicode escapes encode UTF-16 code units, not code points.
+                units = char.encode('utf-16-be', 'surrogatepass')
+                parts.extend('\\u%04x' % int.from_bytes(units[i:i + 2], 'big')
+                             for i in range(0, len(units), 2))
+        return ''.join(parts)
+
+    text = ''.join('%s=%s\n' % (escape(key), escape(value))
+                   for key, value in sorted(properties.items()))
+    Path(path).write_bytes(text.encode('ascii'))
+
+
 def configured_players(path):
     props = read_properties(path)
     def bounded(key, default, high):
