@@ -1,0 +1,104 @@
+name: Validate publication and promotion fixes
+on:
+  push:
+    branches: [work/publication-promotion-20260911-5aa9c8b]
+permissions:
+  contents: read
+concurrency:
+  group: publication-promotion-validation-5aa9c8b
+  cancel-in-progress: false
+jobs:
+  validate:
+    name: Workflow fix validation JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 5aa9c8b41434bd1ac401919d9bf541025a68d595
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply and verify the exact locally tested tree
+        shell: bash
+        run: |
+          for n in 0 1 2 3; do git show "$GITHUB_SHA":.github/workflow-fixes.patch.gz.$n; done | gzip -dc > "$RUNNER_TEMP/fixes.patch"
+          echo "4e058f5023c859e058ed26cb8493a9b8417ae30af4db33f1b0dfc44cb682abf5  $RUNNER_TEMP/fixes.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/fixes.patch"
+          git diff --cached --check
+          test "$(git write-tree)" = 6381d774e0a68d1d72d7ba7610e4177187349f73
+      - name: Java contracts and strict release build
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/cross_era_referee_regression.py
+      - name: Real candidate-slot fleet entry point
+        run: python tests/promotion_pair_regression.py
+      - name: Python and shell tooling
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python -m compileall -q tracks tests web/scripts
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Browser artifact tooling and worker contracts
+        if: matrix.java == '25'
+        run: |
+          python -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+          python -m unittest discover -s web/tests -p 'test_*.py'
+          node --test web/tests/engine.test.mjs
+      - name: Headless replay goldens and all champion pins
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python "$test"
+          done
+      - name: Assert tracked inputs were preserved
+        run: git diff --exit-code
+  prepare:
+    name: Transport validated source tree
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 5aa9c8b41434bd1ac401919d9bf541025a68d595
+          fetch-depth: 0
+      - name: Stage source without changing workflow permissions
+        shell: bash
+        run: |
+          for n in 0 1 2 3; do git show "$GITHUB_SHA":.github/workflow-fixes.patch.gz.$n; done | gzip -dc > "$RUNNER_TEMP/fixes.patch"
+          echo "4e058f5023c859e058ed26cb8493a9b8417ae30af4db33f1b0dfc44cb682abf5  $RUNNER_TEMP/fixes.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/fixes.patch"
+          git diff --cached --check
+          test "$(git write-tree)" = 6381d774e0a68d1d72d7ba7610e4177187349f73
+          # This token does not have workflows permission. The connected account
+          # publishes both reviewed workflow files and verifies the final tree.
+          # This source-only transport branch is never merged into master.
+          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml .github/workflows/promotion-gate.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Transport validated publication and promotion sources (not a release)'
+          test "$(git rev-parse HEAD^)" = 5aa9c8b41434bd1ac401919d9bf541025a68d595
+          git push origin HEAD:refs/heads/work/publication-promotion-20260911-source
+          echo "Source tree: $(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
