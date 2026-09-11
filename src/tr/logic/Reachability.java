@@ -1257,14 +1257,18 @@ final class Reachability {
 	}
 
 	private boolean adoptLapMemo(final String key) {
-		final ReachMemoEntry m;
-		synchronized (REACH_MEMO) { m = key == null ? null : REACH_MEMO.get(key); }
-		if (m == null || m.gateTurns == null) return false;
-		gateTurns = m.gateTurns; robustReach = m.robustReach; aliveStates = m.lapAlive;
-		roomy0 = m.lapRoomy0; roomy1 = m.lapRoomy1; minShed2 = m.lapShed2;
-		minShed2Roomy = m.lapShed2Roomy; certSq = m.lapCert;
-		robustSeedFallback = m.robustSeedFallback; phantomAlive = m.phantomAlive;
-		return true;
+		// Unlike the final base fields, the lap bundle extends an existing entry.
+		// Keep its check and entire copy under the publisher's monitor: gateTurns
+		// alone must never make a partially published bundle appear ready.
+		synchronized (REACH_MEMO) {
+			final ReachMemoEntry m = key == null ? null : REACH_MEMO.get(key);
+			if (m == null || m.gateTurns == null) return false;
+			gateTurns = m.gateTurns; robustReach = m.robustReach; aliveStates = m.lapAlive;
+			roomy0 = m.lapRoomy0; roomy1 = m.lapRoomy1; minShed2 = m.lapShed2;
+			minShed2Roomy = m.lapShed2Roomy; certSq = m.lapCert;
+			robustSeedFallback = m.robustSeedFallback; phantomAlive = m.phantomAlive;
+			return true;
+		}
 	}
 
 	private void publishLapMemo(final String key) {

@@ -1,5 +1,23 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review follow-up (2026-09-11): coherent lap memo and validated benchmark publication
+
+Follow-up to the review at `935ef474`. The lap memo reader now holds the same
+monitor as its publisher through readiness and the complete bundle copy. A
+JDK-debugger-controlled regression demonstrates exclusion of a concurrent
+publisher and verifies all fields, certified speed, shedable landing and byte
+accounting on retry; it fails against the reviewed code. No map algorithms,
+policy scores, referee rules, track data, persisted cache format or pins change.
+
+Fleet completion markers now publish only after final identity validation;
+missing/malformed final inputs also invalidate old markers, rows and reports.
+Mixed-field comparisons bind binary/course/settings/seeds/runtime throughout
+both mirrors, checking the roster before rewriting it. Thirteen Python boundary
+tests were added. Supplementary real-JVM checks reject altered comparisons,
+accept a clean 1.500/1.500 mirror and rerun a restored fleet input rather than
+reusing its unvalidated race. See `docs/lap-memo-benchmark-review.md` and the
+commit's validation evidence. This is not a new AI promotion or full fleet run.
+
 ## Round 233: the lane spread leaves the score, and the duel with the old champion
 
 Two questions from the owner: can racecraft improve further, and how does

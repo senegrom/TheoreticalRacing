@@ -69,12 +69,21 @@ class CompletedLogTests(unittest.TestCase):
     def test_incomplete_mixed_benchmark_returns_failure(self):
         bench_ai.configure_runtime(self.tmp.name)
         self.addCleanup(setattr, bench_ai, 'SEEDS', bench_ai.SEEDS)
+        jar = Path(self.tmp.name) / 'race.jar'
+        jar.write_bytes(b'fixture binary')
+        (jar.parent / 'tracks').mkdir()
+        (jar.parent / 'tracks/example.track').write_bytes(b'fixture course')
+        bench_ai.JAR = str(jar)
+        races = []
         def fake_java(command, **kwargs):
-            Path(bench_ai.LOG).write_text('# results\n')
+            if '--auto' in command:
+                races.append(command)
+                Path(bench_ai.LOG).write_text('# results\n')
             return subprocess.CompletedProcess(command, 0, '', '')
         with mock.patch.object(bench_ai.subprocess, 'run', side_effect=fake_java), \
                 contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
             self.assertFalse(bench_ai.main(['--h2h', '--seeds', '1', 'example']))
+        self.assertEqual(1, len(races), 'preflight must not hide the incomplete-log assertion')
 
     def test_corrupt_classifications_and_terminal_sequences_are_rejected(self):
         good = race_log()

@@ -34,13 +34,13 @@ import sys
 import tempfile
 
 if __package__:
-    from .benchmark_io import configured_players, read_race
+    from .benchmark_io import configured_players, read_properties, read_race
     from .fleet_grid import atomic_text, digest, json_text
 else:
     # bench_iso loads this file by path rather than as a package.
     if str(Path(__file__).resolve().parent) not in sys.path:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from benchmark_io import configured_players, read_race
+    from benchmark_io import configured_players, read_properties, read_race
     from fleet_grid import atomic_text, digest, json_text
 
 # lemans is back now that build_lemans.py uses angular ordering (clean loop,
@@ -373,6 +373,21 @@ def run_track_h2h(track, timeout=240, seed=None):
         return None
 
 
+def field_manifest(tracks, kinds):
+    """Bind a mixed experiment, permitting only the intended active-slot mirror."""
+    players = configured_players(PROPS)
+    if [kind for _, kind in players.values()] != list(kinds):
+        raise ValueError('mixed benchmark roster differs from the requested assignment')
+    manifest = baseline_manifest(tracks, JAR, JAR)
+    properties = read_properties(PROPS)
+    # Check the actual roster before excluding its intentionally varying labels.
+    # Inactive slots and all other settings remain part of the experiment.
+    for n in range(1, len(kinds) + 1):
+        properties.pop('player%dKind' % n, None)
+    manifest['properties'] = properties
+    return manifest
+
+
 def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
     """Mixed-field head-to-head: ai1n x AI1 vs (nplayers-ai1n) x AI2 in one
     race, run in both grid orderings to cancel start-position bias. Metric:
@@ -380,14 +395,18 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
     nplayers+1) + crashes. nplayers=2 is the 1v1 endgame (forcing the sole
     rival to crash = a win), 4 is 2v2, 8 is 4v4."""
     require_runtime()
-    if not tracks or not SEEDS or not 0 < ai1n < nplayers <= 9:
-        raise ValueError('mixed benchmark requires tracks, seeds and two nonempty cohorts')
+    if (not tracks or len(set(tracks)) != len(tracks) or not SEEDS
+            or not 0 < ai1n < nplayers <= 9):
+        raise ValueError('mixed benchmark requires unique tracks, seeds and two nonempty cohorts')
     valid = True
     with open(PROPS, encoding='utf-8') as f:
         backup = f.read()
     try:
         set_nplayers(nplayers)
         front = ['AI1'] * ai1n + ['AI2'] * (nplayers - ai1n)
+        set_kinds(front)
+        manifest = field_manifest(tracks, front)
+        current_kinds = front
         rows = {}
         tot = {'AI1': [0, 0, 0], 'AI2': [0, 0, 0]}
         for t in tracks:
@@ -395,7 +414,14 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
             ok = True
             for seed in SEEDS:
                 for kinds in (front, list(reversed(front))):
+                    # Validate before rewriting the roster, so the mirror cannot
+                    # conceal an unexpected edit from the previous race.
+                    if field_manifest(tracks, current_kinds) != manifest:
+                        raise ValueError('benchmark inputs changed during the run')
                     set_kinds(kinds)
+                    current_kinds = kinds
+                    if field_manifest(tracks, kinds) != manifest:
+                        raise ValueError('benchmark inputs changed during the run')
                     try:
                         r = run_track_h2h(t, seed=seed)
                     except subprocess.TimeoutExpired:
@@ -420,6 +446,11 @@ def bench_field(tracks, nplayers=8, ai1n=4, label='h2h'):
             for kind in ('AI1', 'AI2'):
                 for i in range(3):
                     tot[kind][i] += agg[kind][i]
+        if field_manifest(tracks, current_kinds) != manifest:
+            raise ValueError('benchmark inputs changed during the run')
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        print('benchmark: ' + str(error), file=sys.stderr)
+        return False
     finally:
         with open(PROPS, 'w', encoding='utf-8') as f:
             f.write(backup)
