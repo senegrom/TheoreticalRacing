@@ -1,0 +1,24 @@
+28 candidate car-races, 28 champion car-races over 28 races
+mean place   candidate 1.500   champion 1.500   (lower is better; 1.500 is a tie)
+race wins    candidate 14   champion 14
+crashes      candidate 1   champion 1
+mirrored races 14: candidate minus champion mean place +0.000  (standard error 0.000; negative favours the candidate)
+
+tracks where the candidate gains most (mean place difference, candidate car-races):
+    bigoval        +0.000  (4)
+    chicane        +0.000  (4)
+    circle         +0.000  (4)
+    gear           +0.000  (4)
+    hairpin        +0.000  (4)
+    silverstone    +0.000  (4)
+    zigzag         +0.000  (4)
+tracks where it loses most:
+    bigoval        +0.000  (4)
+    chicane        +0.000  (4)
+    circle         +0.000  (4)
+    gear           +0.000  (4)
+    hairpin        +0.000  (4)
+    silverstone    +0.000  (4)
+    zigzag         +0.000  (4)
+
+0 tracks favour the candidate, 0 the champion, 7 tied
