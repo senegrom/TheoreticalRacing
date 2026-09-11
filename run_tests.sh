@@ -10,3 +10,4 @@ trap 'rm -f .test-java-sources' EXIT
 javac -Xlint:all -Werror -encoding UTF-8 -d test-bin @.test-java-sources
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.CoreTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.main.MainTests
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RaceAiDuelSearchTests

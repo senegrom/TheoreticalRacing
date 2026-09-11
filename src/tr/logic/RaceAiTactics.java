@@ -14,6 +14,15 @@ final class RaceAiTactics {
      * abstain and leave the existing policy untouched. Does not mutate players,
      * progress, occupancy, caches of predictions, or the decision frame. */
     static Direction winNow(final RaceGame game, final int playerNumber) {
+        final Direction immediate = immediateWin(game, playerNumber);
+        if (immediate != null || !game.candidatePolicy(playerNumber))
+            return immediate;
+        // Experimental two-move proof. With candidateSlots unset, only the
+        // unchanged champion tactic runs; never enable by AI label alone.
+        return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
+    }
+
+    private static Direction immediateWin(final RaceGame game, final int playerNumber) {
         if (game.raceTurnLimitReached())
             return null;
         Player me = null, rival = null;

@@ -1,0 +1,163 @@
+{
+  "date": "2026-09-11",
+  "repository": "senegrom/TheoreticalRacing",
+  "base_commit": "7220dd5784d1ae6cb8833616a819c11d7c3243e9",
+  "branch": "racecraft/two-move-duel-proofs",
+  "status": "experimental, not promoted",
+  "activation": "Only explicit candidateSlots; unset keeps champion policy",
+  "runtime": "OpenJDK 21.0.11 (supplementary, not the required release JDK)",
+  "candidate_jar_sha256": "a16df03ef9c46c40ae16862bdf19458a6352adca914c2dc89bfbb85097d4c9f8",
+  "baseline_jar_sha256": "e902d71486bfc949b75b5de9e692ede8fd0eb7024dcc5ad041cf3fd4249d2b88",
+  "checks": {
+    "strict_supplementary_compile": "passed (--release 21 -Xlint:all -Werror)",
+    "jar_validate": "passed",
+    "core_and_main_tests": "passed",
+    "unchanged_golden_races": 12,
+    "ai_regression_scripts_passed": 24,
+    "preexisting_ai_scripts_unchanged": 23,
+    "python_unittests_passed": 99,
+    "headless_smoke": "passed",
+    "query_replay": "passed",
+    "lap_progress": "passed",
+    "cross_era_referee_differentials_passed": 17,
+    "python_compileall": "passed",
+    "shell_syntax": "passed",
+    "git_diff_check": "passed"
+  },
+  "tactical_checks": {
+    "constructed_setup_variants": 64,
+    "legal_rival_continuations": 360,
+    "actual_ai_followups_verified": true,
+    "random_seed": 20260911,
+    "random_positions_sampled": 12000,
+    "valid_random_boards": 5060,
+    "certificates_checked": 1652,
+    "certificates_requiring_second_own_move": 351
+  },
+  "bounded_screen": {
+    "tracks": [
+      "hairpin",
+      "chicane",
+      "bigoval",
+      "circle",
+      "gear",
+      "silverstone",
+      "zigzag"
+    ],
+    "seeds": [
+      1,
+      2
+    ],
+    "races": 168,
+    "mirrored_pairs": 84,
+    "candidate_car_races": 420,
+    "champion_car_races": 420,
+    "heap": "-Xmx768m",
+    "jobs": 1,
+    "completion": "All 12 schema-2 grids validated by tracks/head_to_head.py",
+    "place_gain_observed": false,
+    "mirror_pairs_with_different_move_logs": 18,
+    "cohorts": [
+      {
+        "players": 2,
+        "start_placement": "legacy",
+        "races": 28,
+        "mirrored_pairs": 14,
+        "candidate_mean_place": 1.5,
+        "champion_mean_place": 1.5,
+        "candidate_wins": 14,
+        "champion_wins": 14,
+        "candidate_crashes": 0,
+        "champion_crashes": 0
+      },
+      {
+        "players": 2,
+        "start_placement": "informed",
+        "races": 28,
+        "mirrored_pairs": 14,
+        "candidate_mean_place": 1.5,
+        "champion_mean_place": 1.5,
+        "candidate_wins": 14,
+        "champion_wins": 14,
+        "candidate_crashes": 1,
+        "champion_crashes": 1
+      },
+      {
+        "players": 2,
+        "start_placement": "scatter",
+        "races": 28,
+        "mirrored_pairs": 14,
+        "candidate_mean_place": 1.5,
+        "champion_mean_place": 1.5,
+        "candidate_wins": 14,
+        "champion_wins": 14,
+        "candidate_crashes": 0,
+        "champion_crashes": 0
+      },
+      {
+        "players": 8,
+        "start_placement": "legacy",
+        "races": 28,
+        "mirrored_pairs": 14,
+        "candidate_mean_place": 4.5,
+        "champion_mean_place": 4.5,
+        "candidate_wins": 14,
+        "champion_wins": 14,
+        "candidate_crashes": 0,
+        "champion_crashes": 0
+      },
+      {
+        "players": 8,
+        "start_placement": "informed",
+        "races": 28,
+        "mirrored_pairs": 14,
+        "candidate_mean_place": 4.5,
+        "champion_mean_place": 4.5,
+        "candidate_wins": 14,
+        "champion_wins": 14,
+        "candidate_crashes": 0,
+        "champion_crashes": 0
+      },
+      {
+        "players": 8,
+        "start_placement": "scatter",
+        "races": 28,
+        "mirrored_pairs": 14,
+        "candidate_mean_place": 4.5,
+        "champion_mean_place": 4.5,
+        "candidate_wins": 14,
+        "champion_wins": 14,
+        "candidate_crashes": 0,
+        "champion_crashes": 0
+      }
+    ]
+  },
+  "pace_example": {
+    "track": "circle",
+    "seed": 2,
+    "start_placement": "legacy",
+    "players": 2,
+    "winning_slot": 2,
+    "candidate_winner_moves": 114,
+    "baseline_winner_moves": 115,
+    "finishing_order": [
+      2,
+      1
+    ],
+    "baseline_confirmed_with_original_jar": true,
+    "scope": "One example, not a general performance claim"
+  },
+  "not_completed": [
+    "JDK 25+ release build (build_main.sh exits 2 on installed JDK 21)",
+    "Full homogeneous fleet promotion grids in all start modes",
+    "Full mirrored mixed-field promotion slices and fresh-seed confirmation",
+    "Browser parity suite"
+  ],
+  "excluded_attempts": "Earlier incomplete low-heap/concurrent memory-failed grids were not scored.",
+  "logs_sha256": {
+    "core-tests.log": "5ec9ffb5ebb8f8e70891298fe1e5c8f501d6e31571d0cced12a3c6dcc1f223b2",
+    "full-validation.log": "3e85b3c049036e695b1e100a5c4227ab9d157da55d82ebbe58549a0244e27a5a",
+    "screen.log": "ab42cacacd149be2bae3cc0878aa42745702f4f9f0b233fdf904fd2bb937288d",
+    "circle-s2-baseline.log": "7fe822646d20115aac1e58a6c82f3d9a39351eac018f03231f16ea188cd077cf"
+  }
+}
