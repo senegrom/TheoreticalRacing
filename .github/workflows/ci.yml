@@ -29,6 +29,7 @@ jobs:
       - run: sh ./run_tests.sh
       - run: python3 tests/cross_era_referee_regression.py
       - run: sh ./build_main.sh
+      - run: python3 tests/promotion_pair_regression.py
       - run: java -Djava.awt.headless=true -jar theoreticRacing.jar --list-tracks | grep -q '^silverstone$'
 
   frozen-ai2:
@@ -82,7 +83,9 @@ jobs:
       - run: python -m unittest discover -s tests -p 'test_*.py'
       - run: sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
 
-  # Local calls and checkout resolve to this workflow's exact triggering commit.
+  # Every master push (including docs-only successors) builds a publishable
+  # artifact. Only pull requests use path filtering. The freshness guard still
+  # refuses superseded runs; failures/cancellations never bypass the test gate.
   browser:
     needs: tooling
     if: needs.tooling.outputs.browser == 'true'

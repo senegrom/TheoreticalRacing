@@ -95,7 +95,34 @@ Before a large run, locate AI1/AI2 behavior changes cheaply:
 python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans hungaroring
 ```
 
-For a promotion candidate, run the manual **AI promotion battery** workflow in GitHub Actions. It executes the three independent five-seed 8-car and mixed-field sets plus 4-car, 1v1 and slow-track stages in parallel, uploading every report. See [racing-memory.md](racing-memory.md) for the campaign ledger -- every round's measurements, the instruments and the current frontier; [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) keeps the older-era notes.
+For a promotion candidate, run the manual **AI promotion battery** workflow at
+the revision that implements the experiment behind `candidateSlots`. It runs
+**27 comparisons**: two-, four- and eight-car fields, legacy/computed/scattered
+starts, and independent seed windows 1–5, 6–10 and 11–15. Every comparison uses
+all bundled courses (including slow synthetic courses), `-Xmx8g`, and one JVM
+at a time. Each pair uses the same all-AI1 roster with complementary odd/even
+candidate slots; AI labels alone do **not** enable an experimental policy.
+
+The workflow uploads both runtime profiles, input manifests, complete race logs
+and the validated `head-to-head.txt` finishing-place report. Missing cohorts or
+incomplete/mismatched races fail the job. A green battery means complete evidence,
+not automatic promotion; crashes and summed moves remain descriptive field metrics,
+not vetoes. The historical `bench_ai.py`/`bench_iso.py` label comparisons remain
+available for diagnostics, but are not the candidate-slot promotion battery.
+
+For a bounded local check of the same production runner:
+
+```bash
+python3 tracks/promotion_pair.py --players 2 --start-mode legacy --seeds 1-2 \
+  --heap=-Xmx8g --tracks hairpin circle --out /tmp/racing-candidate-pair
+```
+
+Use a fresh output directory and unset `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS`
+and `_JAVA_OPTIONS`; hidden JVM settings must not change the measured policy.
+Omit `--tracks` for every course. Small local checks are not a full promotion.
+See [workflow review notes](docs/workflow-publication-promotion-review.md),
+[racing-memory.md](racing-memory.md) for the current campaign, and
+[AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) for older-era notes.
 
 ## Performance and memory
 
