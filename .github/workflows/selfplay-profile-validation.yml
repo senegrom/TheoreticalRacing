@@ -1,0 +1,92 @@
+name: Validate self-play profile fix
+on:
+  push:
+    branches: [work/selfplay-profile-fix-20260911]
+permissions:
+  contents: read
+concurrency:
+  group: selfplay-profile-fix-20260911
+  cancel-in-progress: false
+jobs:
+  validate:
+    name: Profile validation JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fce7170c0cb4ac315e777b08b39b9bddfcefb337
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed patch
+        shell: bash
+        run: |
+          { git show "$GITHUB_SHA":.github/selfplay-profile.patch.gz.0; git show "$GITHUB_SHA":.github/selfplay-profile.patch.gz.1; } | gzip -dc > "$RUNNER_TEMP/profile.patch"
+          echo "479920bff8298581b95afce3a516146175da772377337b810e528453107548b7  $RUNNER_TEMP/profile.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/profile.patch"
+          git diff --cached --check
+          test "$(git write-tree)" = 15a7829dba8393ff3506c232fba1fc9609e1811a
+      - name: Strict supported-JDK build and Java contracts
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/cross_era_referee_regression.py
+      - name: Independent properties oracle and real CLI races
+        run: python tests/selfplay_profile_regression.py
+      - name: Python and shell tooling
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python -m compileall -q tracks tests
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Headless replay goldens and all champion pins
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python "$test"
+          done
+      - name: Check tracked inputs were preserved
+        run: git diff --exit-code
+  prepare:
+    name: Prepare validated production commit
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fce7170c0cb4ac315e777b08b39b9bddfcefb337
+          fetch-depth: 0
+      - name: Commit the validated tree without helper workflow
+        shell: bash
+        run: |
+          { git show "$GITHUB_SHA":.github/selfplay-profile.patch.gz.0; git show "$GITHUB_SHA":.github/selfplay-profile.patch.gz.1; } | gzip -dc > "$RUNNER_TEMP/profile.patch"
+          echo "479920bff8298581b95afce3a516146175da772377337b810e528453107548b7  $RUNNER_TEMP/profile.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/profile.patch"
+          git diff --cached --check
+          test "$(git write-tree)" = 15a7829dba8393ff3506c232fba1fc9609e1811a
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix self-play profile assignment and verify requested fields' -m 'Update decoded Java-properties keys, preserve unrelated effective values and original bytes, and pass self-play field sizes explicitly. Verify requested rosters and experiment identity around races and before baseline publication; bind cached evidence to field size.' -m 'Add 16 Python tests and an independent Java-properties/real-CLI regression in CI. Validate JDK 25/26 builds, Java/referee contracts and 45 real races on each JDK; run 143 Python tests, headless/replay checks, all frozen goldens and all champion pins. No policy, rules, courses or golden-pin changes.'
+          test "$(git rev-parse HEAD^)" = fce7170c0cb4ac315e777b08b39b9bddfcefb337
+          git push origin HEAD:refs/heads/work/selfplay-profile-fix-20260911-prepared
+          echo "Prepared commit: $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
