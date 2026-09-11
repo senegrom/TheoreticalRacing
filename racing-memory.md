@@ -1,5 +1,106 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 236: overtaking by forcing the crash -- what it is worth, and where
+
+The owner asked for cars that overtake, and that may overtake by crashing the
+car they pass. A peer branch (racecraft/two-move-duel-proofs) had already built
+half of it, so this round is a review, a correction, a generalisation and a
+measured negative result.
+
+THE BRANCH. It extends RaceAiTactics.winNow from a one-move blockade to a
+two-move proof: play a move after which EVERY physical rival reply either
+retires it or leaves us a reply that finishes or boxes it. All state detached,
+all transitions through the referee's own evaluateMove, the rival free to use
+all nine accelerations including beyond the AI cap. The soundness argument
+checks out against the referee: an illegal reply retires the rival into the
+last free place and ends the race (checkFinished fires at players.length - 1),
+the turn-limit asymmetry is right (the limit retires THE MOVER, so it is a win
+on the rival's ply and a loss on ours), turnCounter advances once per player
+move, and with exactly two live cars the single-blocker occupancy model is
+exact because isCrashingPlayer skips finished cars.
+
+ITS OWN SCREEN WAS MEASURED AT -Xmx768m, AND SO WAS WORTHLESS. Exact-potential
+eligibility depends on the heap, so 168 races at 768 MiB compared two cars
+nobody ships and read +0.000 +- 0.000. The same jar and seeds at the fleet
+default, 84 tracks, seeds 1-10, 840 mirrored pairs:
+
+    field    place C-H        wins        crashes C/H   tracks C/H/tied
+    2 cars   -0.029 +- 0.006  864 : 816     8 :  55      4 / 0 / 80
+    8 cars   +0.001 +- 0.001  840 : 840    61 :  61      0 / 2 / 82
+
+IT WINS BY WRECKING THE OTHER CAR. An all-champion two-car fleet over the same
+730 lap races crashes 8 times; one candidate in the field takes that to 27 and
+36 (the two mirror assignments) while total moves FALL -- 432,957 against
+423,090 and 417,299 -- because races end early with a car in the wall. Per
+car-race the champion's crash rate goes 0.55% -> 3.27% while the candidate's
+stays at the baseline 0.48%. It is not driving more safely; it is putting the
+other car into the wall, which the rule endorses. And -0.029 is exactly the 47
+crashes it forces: 47/1680 = 0.028.
+
+Merged at 13390cf, still gated on candidateSlots, after the JDK 25 verification
+the branch could not run: build_main.sh clean under --release 25 -Xlint:all
+-Werror, and the full suite green including RaceAiDuelSearchTests (5060 valid
+boards, 1652 certificates, 351 needing the second own move).
+
+THE TWO-CAR GATE IS NOT NECESSARY FOR THE ONE-MOVE HALF. winNow counts a rival
+escape on GEOMETRY ALONE -- evaluateMove(..., occupied=false) -- so another
+car's body can only REMOVE an escape, never create one, and the cell I land on
+is mine when the rival moves. The one-move box is therefore sound with any
+number of live cars. The TWO-move proof is not: our follow-up move's legality
+depends on where third cars are by then and nothing constrains that. That
+asymmetry is why the branch is structurally an endgame tactic.
+
+SIX ARMS ON THE GENERALISED ONE-MOVE BOX, 8-car fields, 840 mirrored pairs:
+
+    arm                                     place C-H        crashes C/H
+    raw     box a car AHEAD, incl. rollouts +0.001 +- 0.002    60 :  60
+    nosim   box a car AHEAD                 +0.003 +- 0.002    71 :  68
+    c2      AHEAD + a lap-distance gate     +0.003 +- 0.002    71 :  68
+    level   box a car AHEAD or LEVEL        +0.008 +- 0.011   170 : 224
+    all     box ANY rival                   +0.024 +- 0.014   244 : 300
+    tiebrk  box only where the scorer agrees -0.006 +- 0.008  110 : 153
+
+EVERY OVERRIDE LOSES, MONOTONICALLY IN FIRING RATE. Spending a move to arrange
+a box costs more than the place it wins, and the more often you do it the worse
+it gets. The `all` arm is the clearest: it forces the opposition's crashes from
+60 to 300, and its OWN go 60 -> 244, because the box move bypasses every safety
+test the scorer applies to its own alternatives. The lap-distance gate (c2)
+cannot catch that -- it returned numbers identical to the ungated arm to the
+digit, so it never once bound. The box landing is cheap in distance and
+expensive in traffic.
+
+THE TIE-BREAK IS THE ONLY ARM ON THE RIGHT SIDE, and it delivers exactly its
+arithmetic value: move the check to the END of the scorer, take the box only
+when trapByDir is 0 and the scorer's own rollout says the landing survives, and
+it forces 43 more crashes than it suffers. 43 wrecked rivals out of 6720
+car-races is 0.0064 places; measured -0.006 +- 0.008. Nothing unexplained is
+left over -- and nothing is left over to promote either.
+
+WHY THE CEILING IS SO LOW. A forced crash is worth exactly ONE place to the car
+that forces it, and the opportunity rate does not grow with the field: the
+branch forces 47 crashes in 1680 two-car races, the tie-break forces 43 in 1680
+eight-car races -- nearly the same absolute number, spread over four times as
+many candidate cars. So the same tactic reads -0.029 in a duel and -0.006 in a
+field. The avenue is real, sound and legitimate under the rule; its ceiling in
+our eight-car benchmark is about a hundredth of a place, an order of magnitude
+under the smallest thing we have ever promoted. Not promoted.
+
+TWO SIDE FINDINGS. Adding !sealable() to the tie-break's filter produced
+BYTE-IDENTICAL fleets over 1680 races -- the seal test never changed a single
+decision, a third independent confirmation after round 234 measured the guard
+itself at -0.196. And the static-body refinement (a rival landing is also
+denied by a car that cannot move before the rival does, which the round-robin
+turn order makes exact) denies 531 escapes per three Monza races and converts
+NONE of them into a box: the binding constraint is never the rival's escape
+count, it is whether I can reach its last escape cell with a +-1 acceleration.
+
+A NOTE ON INSTRUMENTATION. !inScorerSim is NOT a real-decision test in this
+scorer: RaceAi re-enters through trueConfirmDepth and simDepth as well, and the
+codebase's own idiom is at RaceAi.java:5301. Gated on inScorerSim alone the
+tactic fires on hypothetical boards -- five "boxes" at one frozen turn, out of
+order -- where the turn order this proof depends on does not hold. Every arm
+here uses all three counters.
+
 ## Review follow-up (2026-09-11): self-play configures the field it reports
 
 Follow-up to `fce7170c`: benchmark setters update decoded Java-properties keys,
