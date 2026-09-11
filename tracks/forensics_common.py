@@ -232,6 +232,33 @@ def parse_v2_answer(line, laps):
     return direction[0], direction[1], CandidateMask(parts[2], transitions, laps)
 
 
+def require_legacy_replay_safe(lines):
+    """Five-field diagnostics need positive proof that no progress is omitted.
+
+    Old logs without checkpoint metadata remain replayable with complete=True.
+    Looking only for cp1/cp2 events is unsafe before the first gate is reached.
+    Scan the whole snapshot, including events after the requested target.
+    """
+    modes = []
+    for line in lines:
+        if line.startswith('# laps ') and int(line.split()[2]) > 1:
+            raise ValueError('multi-lap replay requires complete=True (use oracle_roll)')
+        if line.startswith('# checkpoints '):
+            modes.append(line[len('# checkpoints '):])
+        if line.startswith('# start-placement scatter'):
+            raise ValueError('scattered-start replay requires complete=True (use oracle_roll)')
+        start = START_LINE.match(line)
+        if start is not None and start.group(6) is not None:
+            raise ValueError('start gate state requires complete=True (use oracle_roll)')
+        move = parse_move(line)
+        if move is not None and (move.status.startswith('LAP ') or
+                                 {'cp1', 'cp2'} & set(move.detail.split())):
+            raise ValueError('checkpoint replay requires complete=True (use oracle_roll)')
+    if modes != ['disabled']:
+        raise ValueError('legacy replay requires an explicit "# checkpoints disabled" log; '
+                         'checkpoint or unclassified historical logs require complete=True (use oracle_roll)')
+
+
 def reconstruct_board(log, target, player_count=8, *, complete=False):
     """Return the board immediately before global move ``target``.
 
@@ -245,59 +272,61 @@ def reconstruct_board(log, target, player_count=8, *, complete=False):
     mover = None
     real_moves = []
 
-    with open(log, encoding="utf-8", errors="replace") as lines:
-        for line in lines:
-            if line.startswith('# laps '):
-                laps = int(line.split()[2])
-                if laps > 1 and not complete:
-                    raise ValueError('multi-lap replay requires complete=True (use oracle_roll)')
-            start = START_LINE.match(line)
-            if start is not None:
-                player = int(start.group(1))
-                if 1 <= player <= player_count:
-                    # A scattered start (round 225) carries its velocity and gate.
-                    vx = int(start.group(4) or 0)
-                    vy = int(start.group(5) or 0)
-                    gate = int(start.group(6) or 1)
-                    cars[player - 1] = [
-                        int(start.group(2)), int(start.group(3)), vx, vy, 0
-                    ] + ([0, gate] if complete else [])
-                continue
+    lines = Path(log).read_text(encoding="utf-8").splitlines()
+    if not complete:
+        require_legacy_replay_safe(lines)
+    for line in lines:
+        if line.startswith('# laps '):
+            laps = int(line.split()[2])
+            if laps > 1 and not complete:
+                raise ValueError('multi-lap replay requires complete=True (use oracle_roll)')
+        start = START_LINE.match(line)
+        if start is not None:
+            player = int(start.group(1))
+            if 1 <= player <= player_count:
+                # A scattered start (round 225) carries its velocity and gate.
+                vx = int(start.group(4) or 0)
+                vy = int(start.group(5) or 0)
+                gate = int(start.group(6) or 1)
+                cars[player - 1] = [
+                    int(start.group(2)), int(start.group(3)), vx, vy, 0
+                ] + ([0, gate] if complete else [])
+            continue
 
-            move = parse_move(line)
-            if move is None:
-                continue
-            if move.index >= target:
-                real_moves.append(move)
-                if move.index == target and mover is None:
-                    mover = move.player - 1
-                continue
+        move = parse_move(line)
+        if move is None:
+            continue
+        if move.index >= target:
+            real_moves.append(move)
+            if move.index == target and mover is None:
+                mover = move.player - 1
+            continue
 
-            index = move.player - 1
-            if not (0 <= index < player_count) or cars[index] is None:
-                raise ValueError("move references an uninitialized player")
-            progress = cars[index][5:] if complete else []
-            if complete:
-                if 'cp1' in move.detail.split():
-                    progress[1] = 2
-                if 'cp2' in move.detail.split():
-                    progress[1] = 0
-                if move.status.startswith('LAP '):
-                    lap, total = map(int, move.status.split()[1].split('/'))
-                    if total != laps:
-                        raise ValueError('log lap event disagrees with its profile')
-                    progress = [lap, 1]
-                cars[index][5:] = progress
-            if move.status == "CRASH":
-                cars[index][4] = 99
-            elif move.status in ("FINISH", "TIMEOUT"):
-                cars[index][4] = 90
-            else:
-                cars[index] = [
-                    move.new_x, move.new_y, move.new_vx, move.new_vy, 0
-                ] + progress
-            if complete and move.status in ('CRASH', 'FINISH', 'TIMEOUT'):
-                cars[index][:4] = [-100000, -100000, 0, 0]
+        index = move.player - 1
+        if not (0 <= index < player_count) or cars[index] is None:
+            raise ValueError("move references an uninitialized player")
+        progress = cars[index][5:] if complete else []
+        if complete:
+            if 'cp1' in move.detail.split():
+                progress[1] = 2
+            if 'cp2' in move.detail.split():
+                progress[1] = 0
+            if move.status.startswith('LAP '):
+                lap, total = map(int, move.status.split()[1].split('/'))
+                if total != laps:
+                    raise ValueError('log lap event disagrees with its profile')
+                progress = [lap, 1]
+            cars[index][5:] = progress
+        if move.status == "CRASH":
+            cars[index][4] = 99
+        elif move.status in ("FINISH", "TIMEOUT"):
+            cars[index][4] = 90
+        else:
+            cars[index] = [
+                move.new_x, move.new_y, move.new_vx, move.new_vy, 0
+            ] + progress
+        if complete and move.status in ('CRASH', 'FINISH', 'TIMEOUT'):
+            cars[index][:4] = [-100000, -100000, 0, 0]
 
     if mover is None:
         raise ValueError("move %d was not found in %s" % (target, log))

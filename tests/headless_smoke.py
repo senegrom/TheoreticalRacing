@@ -58,6 +58,36 @@ def check_batch_memory(work: Path) -> None:
         raise SystemExit("insufficient-memory run wrote a successful result")
 
 
+def check_cache_generation(work: Path) -> None:
+    cache = work / "migration-cache"
+    first = run_solo(work, "1", "generation-first.log", cache=cache)
+    namespace = cache / "maps-v2"
+    if first.returncode != 0 or not namespace.is_dir():
+        raise SystemExit(f"new cache generation failed\n{first.stdout}\n{first.stderr}")
+    # Simulate checksum-valid files left by the former unversioned writer.
+    old_files = {}
+    for path in namespace.iterdir():
+        old_files[path.name] = path.read_bytes()
+        path.rename(cache / path.name)
+    if not old_files:
+        raise SystemExit("cache-generation test did not create any cached maps")
+    namespace.rmdir()
+    cold = run_solo(work, "1", "generation-cold.log", cache=cache)
+    if cold.returncode != 0 or "cache-hit" in cold.stdout:
+        raise SystemExit(f"unsafe generation was reused\n{cold.stdout}\n{cold.stderr}")
+    warm = run_solo(work, "1", "generation-warm.log", cache=cache)
+    if warm.returncode != 0 or "cache-hit" not in warm.stdout:
+        raise SystemExit(f"new-generation warm cache failed\n{warm.stdout}\n{warm.stderr}")
+    expected = (work / "generation-first.log").read_bytes()
+    for name in ("generation-cold.log", "generation-warm.log"):
+        if (work / name).read_bytes() != expected:
+            raise SystemExit("cache generation changed the race")
+    if any((cache / name).read_bytes() != data for name, data in old_files.items()):
+        raise SystemExit("migration modified old cache evidence")
+    print("HeadlessSmoke: old map generation ignored; fresh cold/warm logs identical")
+
+
+
 def check_log_failures(work: Path) -> None:
     # A regular file as the parent fails consistently, even when CI runs as root.
     (work / "blocked").write_text("not a directory", encoding="utf-8")
@@ -174,6 +204,7 @@ def main() -> int:
             raise SystemExit(
                 f"insufficient-start-grid auto race failed unclearly:\n{narrow.stdout}\n{narrow.stderr}"
             )
+        check_cache_generation(work)
         check_log_failures(work)
         check_batch_memory(work)
     print("HeadlessSmoke: OK")

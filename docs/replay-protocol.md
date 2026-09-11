@@ -66,7 +66,7 @@ accepted. Omitted lap, gate and clock fields are explicitly reset to lap 0,
 CP1 (or gate 0 without lap gates), and clock 0. Replies keep the old
 `dx,dy;MASK` shape. Legacy `F` now means a legal actual finish, not every
 geometric S/F crossing. Legacy responses have no checkpoint/lap transition
-payload and must not be used for complete multi-lap reconstruction.
+payload and must not be used for checkpoint reconstruction, even in a one-lap race.
 
 Python `ReplayBoard`, `CandidateMask`, `reconstruct_board(..., complete=True)`
 and `Oracle.ask` implement V2. `oracle_roll.verify` compares global move
@@ -74,3 +74,22 @@ indices, player, acceleration, pre/post position and velocity, exact event
 kind and checkpoint marks, and fails on incomplete or prematurely ended
 windows. A replay round means one full cycle of player slots from the chosen
 mover, skipping retired players.
+
+
+## Log checkpoint metadata and diagnostic compatibility
+
+New logs declare `# checkpoints enabled` or `# checkpoints disabled` independently
+of the lap count. A single lap on a closed course still owes CP1 and CP2. This
+metadata does not change gameplay or the normalized golden-race projection.
+
+Five-field Python reconstruction now requires exactly one explicit disabled
+marker and rejects checkpoint events, lap progress and scattered-start gate
+state anywhere in the log, including after the requested target. This protects
+`board_at.py` and `policy_matrix.py`, which cannot carry progress through their
+legacy simulations. No checkpoint event yet does not prove a course is ungated.
+
+Historical logs without the marker remain supported by
+`reconstruct_board(..., complete=True)` and the V2 `oracle_roll.py` /
+`needle_audit.py` paths. Do not add a disabled marker to historical evidence to
+bypass this guard. The raw legacy oracle protocol is still available for
+explicit first-lap snapshots; it is not a full replay protocol.

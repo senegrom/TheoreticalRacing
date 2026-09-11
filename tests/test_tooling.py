@@ -125,6 +125,7 @@ class ForensicsCommonTests(unittest.TestCase):
 
     def test_reconstruct_board_reads_log_once_consistently(self):
         log_text = (
+            '# checkpoints disabled\n'
             'player1 name=Driver One kind=AI1 start=1,2\n'
             'player2 name=B kind=AI2 start=5,6\n'
             '1 p1 AI1 E v(0,0)>(1,0) (1,2)>(2,2) ok\n'
@@ -142,6 +143,7 @@ class ForensicsCommonTests(unittest.TestCase):
 
     def test_reconstruct_board_retires_a_timed_out_car(self):
         log_text = (
+            '# checkpoints disabled\n'
             'player1 name=A kind=AI1 start=1,2\n'
             'player2 name=B kind=AI2 start=5,6\n'
             '1 p1 AI1 E v(0,0)>(1,0) (1,2)>(2,2) ok\n'
@@ -161,6 +163,7 @@ class ForensicsCommonTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / 'race.log'
             path.write_text(
+                '# checkpoints disabled\n'
                 'player1 name=A kind=AI1 start=1,2\n'
                 '1 p1 AI1 E v(0,0)>(1,0) (1,2)>(2,2) ok\n',
                 encoding='utf-8',

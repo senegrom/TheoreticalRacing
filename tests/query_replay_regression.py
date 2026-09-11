@@ -14,10 +14,56 @@ from tracks.forensics_common import DIRNAMES, Oracle, reconstruct_board  # noqa:
 from tracks.oracle_roll import verify  # noqa: E402
 
 
+def single_lap_checkpoint_contract(jar, directory):
+    """Real one-lap checkpoint races must never enter five-field diagnostics."""
+    for track in ('circle', 'hairpin'):
+        props = directory / (track + '-one-lap.properties')
+        props.write_text('nPlayers=2\nplayer1Kind=AI2\nplayer2Kind=AI2\nlaps=1\n', encoding='utf-8')
+        log = directory / (track + '-one-lap.log')
+        result = subprocess.run(['java', '-jar', str(jar), '--auto', '--track', track,
+                                 '--props', str(props), '--log', str(log), '--seed', '1'],
+                                capture_output=True, text=True, timeout=300)
+        if result.returncode:
+            raise AssertionError('one-lap reference failed\n' + result.stdout + result.stderr)
+        text = log.read_text(encoding='utf-8')
+        assert '# checkpoints ' + ('enabled' if track == 'circle' else 'disabled') + '\n' in text
+        if track == 'hairpin':
+            legacy, _, _ = reconstruct_board(log, 1, 2)
+            assert all(len(car) == 5 for car in legacy)
+            continue
+        try:
+            reconstruct_board(log, 1, 2)
+        except ValueError as error:
+            assert 'complete=True' in str(error)
+        else:
+            raise AssertionError('one-lap checkpoint log was accepted as a legacy board')
+        initial, mover, moves = reconstruct_board(log, 1, 2, complete=True)
+        finish = next(move for move in moves if move.status == 'FINISH')
+        board, finisher, _ = reconstruct_board(log, finish.index, 2, complete=True)
+        assert board.laps == 1 and board[finisher][6] == 0
+        with Oracle(track, jar, props) as oracle:
+            watchdog = threading.Timer(300, oracle.proc.kill)
+            watchdog.daemon = True
+            watchdog.start()
+            try:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    assert verify(oracle, initial, mover, moves, len(moves)), 'one-lap full replay diverged'
+                assert oracle.ask(finisher, board)[2][DIRNAMES.index(finish.direction)] == 'F'
+            finally:
+                watchdog.cancel()
+        # Existing logs have no marker; V2 still reconstructs their earned gates.
+        old_log = directory / 'historical-circle.log'
+        old_log.write_text(text.replace('# checkpoints enabled\n', ''), encoding='utf-8')
+        restored, _, _ = reconstruct_board(old_log, finish.index, 2, complete=True)
+        assert restored == board
+        print('QueryReplay: one-lap Circle V2 finish/full replay and legacy rejection; Hairpin legacy OK', flush=True)
+
+
 def main():
     jar = ROOT / 'theoreticRacing.jar'
     with tempfile.TemporaryDirectory(prefix='racing-query-replay-') as directory:
         directory = Path(directory)
+        single_lap_checkpoint_contract(jar, directory)
         props = directory / 'profile.properties'
         props.write_text('nPlayers=2\nplayer1Kind=AI2\nplayer2Kind=AI2\nlaps=2\n', encoding='utf-8')
         log = directory / 'race.log'

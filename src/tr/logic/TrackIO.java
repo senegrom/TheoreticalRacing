@@ -23,7 +23,10 @@ public final class TrackIO {
 	private static final Path USER_PROPERTIES = INSTALL_DIR.resolve("user.properties");
 	private static final Path GAME_LOG = INSTALL_DIR.resolve("last_game.log");
 	private static final Path TRACKS_DIR = INSTALL_DIR.resolve("tracks");
-	private static final Path REACH_CACHE_DIR = locateReachCacheDir();
+	// Generation 2 was first built with a synchronized fallback edge cache.
+	// Even checksum-valid old maps may encode a wrong verdict from the old
+	// concurrent table. Keep the root/override, but never reload that generation.
+	private static final Path REACH_CACHE_DIR = locateReachCacheDir().resolve("maps-v2");
 
 	private TrackIO() {}
 
@@ -115,8 +118,8 @@ public final class TrackIO {
 		return TRACKS_DIR;
 	}
 
-	/** Directory for reachability cache files. RACING_REACH_CACHE overrides;
-	 *  otherwise a per-user local app-data directory. Cache files are tens of
+	/** Versioned directory for all map caches. RACING_REACH_CACHE overrides
+	 *  the root; otherwise use per-user local app data. Cache files are tens of
 	 *  MB, so they must stay out of cloud-synced folders like the install dir. */
 	public static Path reachCacheDir() {
 		return REACH_CACHE_DIR;

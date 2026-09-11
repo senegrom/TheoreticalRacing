@@ -241,7 +241,7 @@ public final class RaceGame {
 	private String dumpReachPath = null;
 
 	public void setDumpReachPath(final String p) {
-		this.dumpReachPath = p;
+		dumpReachPath = p;
 	}
 
 	/** Override the game-log output path (default: next to the JAR). Lets
@@ -782,7 +782,9 @@ public final class RaceGame {
 	private DenseEdgeLegalCache denseEdgeLegalCache;
 	private EdgeLegalCache edgeLegalCache;
 
-	private EdgeLegalCache fallbackEdgeLegalCache() {
+	/** Both preparation workers may initialize this fallback. Publish it under
+	 * the same monitor; the cache itself serializes table reads and resizing. */
+	private synchronized EdgeLegalCache fallbackEdgeLegalCache() {
 		EdgeLegalCache cache = edgeLegalCache;
 		if (cache == null) {
 			cache = new EdgeLegalCache(1 << 16);
@@ -997,6 +999,10 @@ public final class RaceGame {
 	/** Open-addressed long-to-boolean map. A separate state byte means every
 	 *  64-bit key, including zero, is representable. Keys arrive already mixed,
 	 *  so their low bits can select the initial slot directly. */
+	// Keys, states, mask and size form one mutable table. Lock reads as well
+	// as writes: publishing a resized array alone cannot protect a probe that
+	// is in flight. Duplicate misses may compute the same immutable verdict
+	// outside the lock, but a reader must never observe a partial insertion.
 	static final class EdgeLegalCache {
 		static final byte FALSE = 1;
 		static final byte TRUE = 2;
@@ -1016,7 +1022,7 @@ public final class RaceGame {
 			allocate(capacity);
 		}
 
-		byte get(final long key) {
+		synchronized byte get(final long key) {
 			int slot = (int) key & mask;
 			while (states[slot] != 0) {
 				if (keys[slot] == key)
@@ -1026,7 +1032,7 @@ public final class RaceGame {
 			return 0;
 		}
 
-		void put(final long key, final boolean value) {
+		synchronized void put(final long key, final boolean value) {
 			if (size >= resizeAt)
 				grow();
 			int slot = (int) key & mask;
@@ -1043,8 +1049,10 @@ public final class RaceGame {
 		}
 
 		private void allocate(final int capacity) {
-			keys = new long[capacity];
-			states = new byte[capacity];
+			final long[] newKeys = new long[capacity];
+			final byte[] newStates = new byte[capacity];
+			keys = newKeys;
+			states = newStates;
 			mask = capacity - 1;
 			resizeAt = capacity - capacity / 3;
 		}
@@ -1873,9 +1881,24 @@ public final class RaceGame {
 			// would say "Computing track reachability..." forever.
 			try {
 				reach.ensureReachabilityReady();
-			} catch (final RuntimeException failure) {
-				dispMessage("Track reachability failed: " + failure.getMessage());
+			} catch (final RuntimeException | Error failure) {
+				// Stop callbacks and controls before reporting: even an allocation
+				// failure in the dialog must not leave this race marked PLAY.
 				gamestate = GameState.FINISHED;
+				isShowingPrePath = -1;
+				gameFrame.setDirectionsEnabled(false);
+				gameFrame.setUndoEnabled(false);
+				gameFrame.setOkEnabled(false);
+				if (rui != null) {
+					rui.setVelVector(null, -1);
+					rui.setPrePath(null);
+				}
+				clearPointContainmentCacheForCurrentThread();
+				final String message = "Track preparation failed: " + failure;
+				gameFrame.setStatus(message);
+				gameFrame.repaint();
+				// The status also survives without a native window (adapter/tests).
+				if (gameFrame.getDialogParent() != null) dispMessage(message);
 				return;
 			}
 		}
@@ -2131,6 +2154,8 @@ public final class RaceGame {
 					? "# start-placement legacy (exact full-race map over budget)\n"
 					: "# start-placement informed\n");
 		gameLog.append("# Grid ").append(gameCols).append("x").append(gameRows).append("\n");
+		// Lap count alone does not identify checkpoint-based one-lap races.
+		gameLog.append("# checkpoints ").append(lapGates == null ? "disabled" : "enabled").append("\n");
 		if (totalLaps > 1)
 			gameLog.append("# laps ").append(totalLaps).append("\n");
 		gameLog.append("trackLeft=").append(TrackIO.pointListToString(track.getLeft())).append("\n");
