@@ -33,10 +33,11 @@ PROOF_VETO = ("lemans", 87)
 # seven; every case below is re-frozen from measurement.
 # Round 232 (the kinematic confirm): p4 no longer dies on its 42nd move --
 # seven finishers and no crash again, the outcome round 229 had lost here.
-PROMOTED = (7, 0, [66, 70, 71, 72, 73, 74, 76])
-PROMOTED_FINISHERS = [(1, 66), (3, 70), (5, 71), (6, 72), (7, 73), (8, 74), (2, 76)]
+# Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+PROMOTED = (7, 0, [66, 67, 69, 70, 71, 73, 73])
+PROMOTED_FINISHERS = [(1, 66), (5, 67), (3, 69), (6, 70), (7, 71), (2, 73), (8, 73)]
 PROMOTED_CRASHES = []
-PROMOTED_ALL_MOVES = {1: 66, 2: 76, 3: 70, 4: 75, 5: 71, 6: 72, 7: 73, 8: 74}
+PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 69, 4: 73, 5: 67, 6: 70, 7: 71, 8: 73}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -47,36 +48,36 @@ RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
-    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 70, 72, 73]),
+    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 71, 72, 73]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-                 '8c5ae32c743c678dc2c6db9aa49e50381316e852817182f204766f66b1d53dbb'),
+                 'fa90dd15169a550361892063e7fb4d6a2ef11b03a3017bb7ed708bd91e12540f'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
-    ("lemans", 93): ((7, 0, [66, 67, 69, 70, 72, 73, 74]),
-                     '7f9f6dedc2d2921b67f2e845afb47189bc9066f454167370d3958d0ef25bf04e'),
-    ("lemans", 14): ((7, 0, [66, 68, 69, 71, 72, 73, 75]),
-                     '1451355641a78318350710326d7283281228b248647a5063e1efac8fb2e320ce'),
+    ("lemans", 93): ((7, 0, [66, 70, 71, 72, 73, 74, 75]),
+                     'ca42bf52201f05575d761fffcf4936158ce1196c3a7e941047dcf06370e7ec7b'),
+    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 72, 74, 75]),
+                     'c94ce32f8f620805e8d4fae8325c3a874d1bde979c5cfade47935130c92b8409'),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 84, 85, 85, 86]),
-        "263e16a09260d42b9946a0856d5766ccd439aa1f612ff4ca7409242838b77754",
+        (6, 1, [81, 82, 83, 84, 84, 85]),
+        "f3db28284473bc1212cf52afd0798c1d51970fcda3c24f80b041fcc1be236b05",
     ),
     ("spa", 12): (
         (7, 0, [78, 79, 80, 81, 82, 83, 84]),
-        "1609c7a24beb61682243b288825ccc294c7059f5a8eb61446c97dbaf9f656684",
+        "b2dab367e14c94ff8bb84148a8e88593919bb8f1f39f5cfdb05efd1cf8cb5dcc",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 80, 81, 83, 85, 85]),
-        "14b49b5cffbb2ec3c880686ec2b19b77d36415b962a560060f023adaefc43997",
+        (7, 0, [78, 79, 80, 81, 82, 83, 83]),
+        "c166b3b9deee36887c76c954b9364dcf1b9c241cd378f67a665d89e64448cb86",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 82, 82, 84]),
-        "7586d94de7b1be9777d0b6fd39e1b382fcdd408639d866b2db9e340ecb914d5f",
+        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
+        "4b8a5b5595d26ce24e5c40b432fd2703923d959e26e5eadc63eb710611ed3b1f",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 82, 83, 84, 85]),
-        "44866af4395dc232c6b6a67794e7ca2ef2c667cfca9077d05fe787fc9c9d2c07",
+        (7, 0, [78, 80, 81, 81, 82, 83, 83]),
+        "9129791cfb08a70754d5f511fc9045873cbc01ff535bde6d8e078d5bb5d680e4",
     ),
 }
 

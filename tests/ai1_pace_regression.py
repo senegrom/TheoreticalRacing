@@ -29,10 +29,11 @@ MAX_FINISH_MOVE_SUM = 891
 # assertion logic and AI1/AI2 identity checks remain intact.
 # Every case below retains seven finishers and zero crashes.
 FINISH_EXPECTED = {
-    ("bigoval", 7): [20, 20, 21, 22, 22, 22, 22],
+    # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+    ("bigoval", 7): [20, 20, 21, 21, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    ("lemans", 12): [66, 67, 68, 69, 70, 72, 74],
+    ("lemans", 12): [66, 67, 68, 69, 71, 73, 74],
 }
 
 

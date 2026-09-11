@@ -136,6 +136,119 @@ accept a clean 1.500/1.500 mirror and rerun a restored fleet input rather than
 reusing its unvalidated race. See `docs/lap-memo-benchmark-review.md` and the
 commit's validation evidence. This is not a new AI promotion or full fleet run.
 
+## Round 235: the rest of the guard stack, priced leg by leg
+
+Round 234 measured the WHOLE override stack at +0.010 +- 0.031 places while it
+prevented 843 crashes, and found one leg -- the round-50 seal guard -- that was
+costing 0.196 places on its own. That made every remaining leg a question with
+an answer. Four arms on the round-234 champion, random starts, seeds 1-10,
+mirrored, 840 pairs each:
+
+    arm                                              place C-H      crashes C/H
+    pace  the round-75/77 pace overrides off         +0.039 +-.011    64/61
+    ridge the round-178/185 thin-ridge holds off     +0.032 +-.013    71/60
+    kin   the round-232 kinematic confirm off        -0.005 +-.009   101/58
+    fun   the round-83 static funnel guard off       +0.000 +-.000    60/60
+
+THE THREE THAT EARN THEIR KEEP. Removing the pace overrides costs 0.039 places
+and removing the ridge holds 0.032 -- both several standard errors, both worth
+more than the round-232 confirm is worth in either direction. They are the two
+legs that were built from a measured failure rather than from a worry, and it
+shows. The kinematic confirm is a wash in places (-0.005 +- 0.009) and prevents
+43 crashes for free, which is the same verdict round 232 promoted it on.
+
+THE FUNNEL GUARD IS INERT. Round 83's static funnel escalation reads exactly
++0.000 +- 0.000 with 60 crashes either side, and the fleet grid that follows is
+byte-identical race for race. It is not cheap-and-harmless, it is DEAD: the
+conditions it tests are already decided by the legs that run before it. That
+makes its removal a behaviour-identical cleanup rather than a promotion, and it
+is recorded here so the identity grid does not have to be run twice.
+
+NOT REMOVED YET. All four arms above were measured before the peer retired
+the reachability cache generation (8017739), and that rebuild is now known
+to have moved at least one pinned race -- the fast-funnel seed 36 field
+loses a car on the rebuilt maps that it kept on the old ones. An identity
+claim is exactly the kind that a changed map breaks silently, so the grid
+has to be re-run on maps-v2 before any code is deleted on the strength of it.
+
+WHAT THE TWO ROUNDS SAY TOGETHER. Of eight overrides now measured individually,
+one was harmful (the seal guard, -0.196), one is dead (the funnel), two earn
+real places (pace, ridge), and four are statistical ties that buy crash safety
+for nothing. The stack as a whole is worth +0.010 +- 0.031 -- so its value is
+concentrated in two legs and the rest is insurance the rule does not charge us
+for. The frontier is no longer "is the machinery worth it" but "which leg".
+
+## Round 234: the seal guard goes, and the whole guard stack is priced
+
+Rounds 229 and 233 emptied the SCORE of caution. This round asked the other
+half of the same instinct: the overrides that refuse the scorer's pick. Under
+the owner's rule a crash is simply that car's last place, so the question has
+an answer -- do the guards save more places than they concede? Five arms on
+the round-233 champion, random starts, seeds 1-10, mirrored, 840 pairs:
+
+    arm                                              place C-H      crashes C/H
+    seal  the round-50 seal guard off                -0.196 +-.024    57/71
+    q0    the queue-compression corner guard off     -0.009 +-.012    61/62
+    djs   the danger-joint-search family off         -0.003 +-.015   175/55
+    pure  EVERY override after the scan off          +0.010 +-.031   906/63
+    sty   the round-201 lane style off               +0.016 +-.010    65/61
+
+THE PRICE OF THE WHOLE STACK. The pure arm keeps only the scorer: no seal
+guard, no pace overrides, no danger joint search, no funnel, ridge or
+corridor legs, no round-232 confirm. It crashes 906 times against 63 --
+fourteen times more, one car in seven -- and finishes +0.010 +- 0.031 places
+behind. A statistical tie. Eight hundred and forty crashes are worth,
+in places, nothing measurable: the cars the machinery saves were losing those
+places anyway, and the speed it costs pays for the rest. That is not an
+argument for deleting the stack (a third of a percent of races ending in a
+wall is a different kind of bad), but it is the frontier's new shape --
+every leg is now a candidate to be judged on its own.
+
+THE SEAL GUARD is the leg that fails outright. Round 50 built it to answer a
+worst-case distinct-opponent matching: if the chosen landing can be boxed,
+take the fastest unsealable alternative instead. Removing it gains a fifth of
+a place, and the cars that stop obeying it CRASH LESS in the same races:
+
+    random, seeds 1-10     -0.196 +- 0.024   crashes 57/71
+    random, seeds 11-20    -0.182 +- 0.025   crashes 53/69
+    computed, seeds 1-10   -0.174 +- 0.024   crashes 61/56
+    scattered, seeds 1-10  -0.002 +- 0.001   crashes  5/5
+
+A worst-case box is a possibility, not a fact. Paying a whole line to dodge
+one hands the position to whoever does not -- and, on the evidence, does not
+even buy the safety it was charging for. It is the fourth caution rule in a
+row (the needle surcharge, the soft stack, the lane spread, this) to fail its
+own justification once the criterion became places. sealable() itself stays:
+the round-75/77 pace overrides and the round-232 confirm still ask it.
+
+THE THREE THAT STAY. The queue box and the danger joint search are both
+indistinguishable from zero in places (-0.009 and -0.003), so there is no
+case for removing them -- and the DJS is preventing 120 crashes for free.
+The lane style is the interesting one: removing it COSTS 0.016 +- 0.010
+places, the opposite of its sibling the lane spread (-0.641 when removed).
+Fanning the field across parallel lines by weighting each driver's tie-breaks
+differently helps the individual car find clear air; charging that car for
+proximity did not. Round 201 shipped both ideas together and only one of them
+was racecraft.
+
+Self-play is unchanged by the promotion: a field made only of seal-free cars
+runs 730 random-start races with 61 crashes and 1,762,392 moves against the
+round-233 champion's 60 and 1,761,496. The gain is entirely in mixed traffic,
+which is where a guard about being boxed BY RIVALS should show up at all.
+
+RE-VERIFIED ON THE MERGED MASTER. Between the measurement and the promotion a
+peer retired the whole reachability cache generation (8017739 moved it into a
+maps-v2 subdirectory, because the old unsynchronized edge table could bake a
+wrong verdict into a checksum-valid map), so every pinned value measured before
+that rebase was suspect. The corpus was re-frozen from scratch against the
+rebuilt maps: the SAME cases moved, which is the answer to whether the old maps
+were lying here. Silverstone seed 78 loses a car in the two pins that hold it;
+the private-slack Le Mans seed 2 case is whole again; Hungaroring seed 40 goes
+the other way; the mixed-safety AI2 field is crash-free; and Le Mans seed 3
+LEAVES the staged-pace safety list entirely -- the seal-free car gets both of
+its crashed cars back there. Twelve goldens re-frozen, of which Nurburgring
+seed 19 is the one to read: 5 finishers and 2 crashes become 7 and 0.
+
 ## Round 233: the lane spread leaves the score, and the duel with the old champion
 
 Two questions from the owner: can racecraft improve further, and how does

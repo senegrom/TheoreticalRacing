@@ -12,8 +12,9 @@ import bench_ai  # noqa: E402
 
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    "AI1": (7, 0, [82, 83, 84, 84, 85, 85, 86]),
-    "AI2": (7, 0, [82, 83, 84, 84, 85, 85, 86]),
+    # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+    "AI1": (7, 0, [82, 83, 84, 84, 85, 86, 87]),
+    "AI2": (7, 0, [82, 83, 84, 84, 85, 86, 87]),
 }
 
 
@@ -41,7 +42,7 @@ def main() -> int:
     ai1_sum = sum(results["AI1"][2])
     ai2_sum = sum(results["AI2"][2])
     # Round 229: 596 is the sum of the re-frozen finisher moves.
-    if ai1_sum != 589 or ai2_sum != 589 or results["AI1"] != results["AI2"]:
+    if ai1_sum != 591 or ai2_sum != 591 or results["AI1"] != results["AI2"]:
         raise SystemExit(
             f"Round-95 champion self-tie lost: AI1 {results['AI1']}, AI2 {results['AI2']}"
         )

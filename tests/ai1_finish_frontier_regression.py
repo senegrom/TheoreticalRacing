@@ -14,8 +14,9 @@ from forensics_common import finishers, normalized_lines  # noqa: E402
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     6: (7, 0, [58, 59, 59, 60, 60, 61, 62]),
-    47: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
-    49: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+    47: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
+    49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
     (1, 58),

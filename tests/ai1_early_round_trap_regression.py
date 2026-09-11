@@ -10,7 +10,8 @@ import bench_ai  # noqa: E402
 
 CASES = [("silverstone", 93)]
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-PROMOTED = (7, 0, [81, 82, 83, 84, 85, 85, 86])
+# Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+PROMOTED = (7, 0, [81, 82, 83, 83, 84, 84, 86])
 LEGACY_CHAMPION = (7, 0, [81, 82, 83, 84, 85, 86, 87])
 EXPECTED = {kind: {"silverstone:93": PROMOTED} for kind in ("AI1", "AI2")}
 

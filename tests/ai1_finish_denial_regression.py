@@ -33,7 +33,8 @@ RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 18, 6: 18, 7: 19, 8: 18}
 # re-frozen from measurement, with the trajectory digest below unchanged in role.
 RESCUED_DECISION = "104 p8 AI S v(6,0)→(6,1) (47,6)→(53,7) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-RESCUED_SHA256 = "ea657de5c17d66f4333ca3374b6bfdbc7015ce9fb89b464e4f81713d39822d4c"
+# Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+RESCUED_SHA256 = "4581f62ae4409131c13b13d62929c76189bed20aeeefd24736a887c92e5aa91b"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

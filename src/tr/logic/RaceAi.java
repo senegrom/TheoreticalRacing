@@ -1015,54 +1015,15 @@ final class RaceAi {
 			}
 		}
 		if (chosen != null) {
-			// r50 sealGuard v2: exact worst-case box check (distinct-opponent
-			// matching, legality-checked covers). If the chosen landing is
-			// sealable, take the FASTEST unsealable alternative instead.
-			final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
-			final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-			if (!game.crossesFinishLegally(pos[0], pos[1], cx, cy) && sealable(cx, cy, cvx, cvy, playerNum)) {
-				// Round 72 (AI1): a worst-case seal warning must not force the
-				// scorer into a strictly narrower local trap. Nurburgring 8-car
-				// seed 19 exposed the incoherence: the scorer's tier-L2 N was
-				// oracle-alive, while the old fastest-unsealable guard replaced it
-				// with tier-L1 E, which died. Keep the guard's anti-seal purpose,
-				// but require a trap-monotone escape.
-				final double chosenTrap = trapByDir[chosen.ordinal()];
-				int bestT = Integer.MAX_VALUE;
-				Direction safest = null;
-				for (final Direction d : DIRECTIONS) {
-					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-					if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-						continue;
-					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-					if (game.crossesFinishLegally(pos[0], pos[1], nx, ny)
-							&& (!lapAware && game.onFinalLap(playerNum)
-									|| lapGate == 0 && game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
-									&& !game.isCrashingPlayer(nx, ny, playerNum)
-									&& reach.shedableLanding(nx, ny, nvx, nvy))) {
-						safest = d;
-						bestT = -1;
-						break;
-					}
-					if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
-						continue;
-					if (game.isCrashingPlayer(nx, ny, playerNum))
-						continue;
-					if (!reach.isAlive(nx, ny, nvx, nvy))
-						continue;
-					if (trapByDir[d.ordinal()] > chosenTrap)
-						continue;
-					if (sealable(nx, ny, nvx, nvy, playerNum))
-						continue;
-					final int tt = ttf(nx, ny, nvx, nvy);
-					if (tt < bestT) {
-						bestT = tt;
-						safest = d;
-					}
-				}
-				if (safest != null)
-					chosen = safest;
-			}
+			// Round 234: the round-50 seal guard is gone. It replaced a chosen landing
+			// that a worst-case distinct-opponent matching could box with the fastest
+			// unsealable alternative, and it is the fourth caution rule in a row to
+			// fail its own justification: removing it is worth -0.196 +- 0.024 places
+			// on random starts, -0.182 on fresh seeds, -0.174 on computed starts, and
+			// the cars that stop obeying it crash LESS in the same races (57 against
+			// 71, 53 against 69). A worst-case box is a possibility, not a fact, and
+			// paying a whole line for it hands the position to whoever does not.
+			// sealable() stays: the pace overrides and the round-232 confirm ask it.
 			// Round 75 (PROMOTED): a bounded, proof-gated finish sprint. Local trap and
 			// uncertainty terms can spend a whole turn protecting a line even when
 			// a faster candidate is already close enough to certify all the way to

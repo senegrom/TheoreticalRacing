@@ -10,7 +10,8 @@ import bench_ai  # noqa: E402
 
 CASES = [("zandvoort", 115)]
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-PROMOTED = (7, 0, [137, 138, 139, 140, 142, 143, 144])
+# Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+PROMOTED = (7, 0, [137, 139, 140, 141, 142, 143, 144])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in ("AI1", "AI2")}
 

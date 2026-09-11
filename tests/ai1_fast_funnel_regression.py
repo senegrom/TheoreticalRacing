@@ -29,8 +29,11 @@ import bench_ai  # noqa: E402
 
 EXPECTED = {
     # Round 233: seed 36 is crash-free again -- the round-232 loss here is back.
-    36: {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
-    45: {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
+    # Round 234 (the seal guard left the decision): re-frozen from measurement.
+    36: {"AI1": (20, 4, 0), "AI2": (16, 4, 1)},
+    # Round 234: re-frozen from measurement. Eight cars share places 1-8,
+    # so the two cohort sums always add to 36 whether or not one crashes.
+    45: {"AI1": (12, 4, 0), "AI2": (24, 4, 1)},
 }
 
 
