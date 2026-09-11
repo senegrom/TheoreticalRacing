@@ -16,15 +16,18 @@ from contextlib import ExitStack
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 
 if __package__:
-    from .benchmark_io import configured_players, read_race
+    from .benchmark_io import configured_players, read_properties, read_race
+    from .fleet_grid import digest
     from .forensics_common import DIRS, Oracle, START_LINE
 else:
-    from benchmark_io import configured_players, read_race
+    from benchmark_io import configured_players, read_properties, read_race
+    from fleet_grid import digest
     from forensics_common import DIRS, Oracle, START_LINE
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -32,6 +35,46 @@ ROOT = os.path.dirname(HERE)
 S = os.environ.get('RACING_WORK_DIR', HERE)
 NEW_JAR = os.path.join(ROOT, 'theoreticRacing.jar')
 OLD_JAR = os.environ.get('OLD_JAR', os.path.join(ROOT, 'era60.jar'))
+
+
+def experiment_identity(tracks):
+    """Validate both era inputs, then snapshot them before/after the whole grid.
+
+    Policy binaries and AI-kind labels may differ. Course bytes and all other
+    properties must match; legacy queries cannot reconcile different profiles.
+    Raw file hashes also detect changes hidden by last-wins properties parsing.
+    """
+    identity = {'jars': {}, 'properties': {}, 'tracks': {}}
+    profiles = []
+    for era, jar, props_name in (('new', NEW_JAR, 'era_AI2.properties'),
+                                 ('old', OLD_JAR, 'era_AI1.properties')):
+        jar = Path(jar).resolve()
+        props_path = Path(S, props_name).resolve()
+        identity['jars'][era] = (str(jar), digest(jar))
+        identity['properties'][era] = (str(props_path), digest(props_path))
+        players = configured_players(props_path)
+        if len(players) != 8 or any(kind == 'HUMAN' for _, kind in players.values()):
+            raise ValueError('both cross-era profiles require an eight-AI roster')
+        profile = read_properties(props_path)
+        for n in range(1, 10):
+            profile.pop('player%dKind' % n, None)
+        profiles.append(profile)
+        identity['tracks'][era] = {}
+        for track in tracks:
+            if not re.fullmatch(r'[A-Za-z0-9_-]+', track):
+                raise ValueError('invalid track name: ' + track)
+            identity['tracks'][era][track] = digest(jar.parent / 'tracks' / (track + '.track'))
+    if profiles[0] != profiles[1]:
+        raise ValueError('cross-era profiles differ beyond AI-kind labels')
+    if identity['tracks']['new'] != identity['tracks']['old']:
+        raise ValueError('cross-era track data differ between the two installations')
+    java = shutil.which('java')
+    if java is None:
+        raise ValueError('Java executable not found')
+    identity['java'] = (str(Path(java).resolve()), digest(java))
+    identity['java_options'] = {key: os.environ.get(key, '') for key in
+                                ('JAVA_TOOL_OPTIONS', 'JDK_JAVA_OPTIONS', '_JAVA_OPTIONS')}
+    return identity
 
 
 def start_positions(track, seed):
@@ -127,6 +170,7 @@ def main(argv=None):
         if (not tracks or any(not re.fullmatch(r'[A-Za-z0-9_-]+', t) for t in tracks)
                 or len(set(tracks)) != len(tracks) or not seeds or len(set(seeds)) != len(seeds)):
             raise ValueError('tracks and seeds must be nonempty and unique')
+        identity = experiment_identity(tracks)
         totals = {'new': [0, 0, 0], 'old': [0, 0, 0]}
         rows = []
         for track in tracks:
@@ -142,6 +186,8 @@ def main(argv=None):
                         total[0] += place
                         total[1] += 1
                         total[2] += fates[i] == 99
+        if experiment_identity(tracks) != identity:
+            raise ValueError('cross-era inputs changed during the comparison; no report')
         # Nothing is reported as a performance result unless every pair finished.
         print('\n'.join(rows))
         print('=' * 60)

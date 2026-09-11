@@ -177,7 +177,7 @@ public final class TrackIO {
 		final Properties tp = new Properties();
 		try (java.io.InputStream in = Files.newInputStream(file)) {
 			tp.load(in);
-		} catch (final IOException e) {
+		} catch (final IOException | IllegalArgumentException e) {
 			return null;
 		}
 		final List<int[]> left = parsePointList(tp.getProperty("trackLeft"));
@@ -243,7 +243,7 @@ public final class TrackIO {
 		final Properties tp = new Properties();
 		try (java.io.InputStream in = Files.newInputStream(file)) {
 			tp.load(in);
-		} catch (final IOException e) {
+		} catch (final IOException | IllegalArgumentException e) {
 			return false;
 		}
 		return Boolean.parseBoolean(tp.getProperty("lapClosable", "false"));

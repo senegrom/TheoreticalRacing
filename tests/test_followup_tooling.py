@@ -172,7 +172,8 @@ class CrossEraClassificationTests(unittest.TestCase):
 
     def test_incomplete_second_mirror_does_not_report_a_partial_mean(self):
         output, errors = io.StringIO(), io.StringIO()
-        with mock.patch.object(cross_era, 'race', side_effect=[(list(range(1, 9)), [90] * 8),
+        with mock.patch.object(cross_era, 'experiment_identity', return_value={}), \
+                mock.patch.object(cross_era, 'race', side_effect=[(list(range(1, 9)), [90] * 8),
                                                             ValueError('incomplete')]), \
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             self.assertNotEqual(0, cross_era.main(['example', '1']))
@@ -257,7 +258,8 @@ class CrossEraStartTests(unittest.TestCase):
     def test_main_reports_java_error_without_any_performance_result(self):
         error = subprocess.CalledProcessError(2, ['java'], stderr='Properties file not found')
         output, errors = io.StringIO(), io.StringIO()
-        with mock.patch.object(cross_era, 'race', side_effect=error), \
+        with mock.patch.object(cross_era, 'experiment_identity', return_value={}), \
+                mock.patch.object(cross_era, 'race', side_effect=error), \
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             self.assertEqual(2, cross_era.main(['example', '1']))
         self.assertEqual('', output.getvalue())
