@@ -1,0 +1,162 @@
+name: Final integrated lifecycle release validation
+on:
+  push:
+    branches: [work/lifecycle-ready-20260912]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: lifecycle-ready-20260912
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  verify:
+    name: Release lifecycle JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply identical integrated production tree
+        run: git show "$GITHUB_SHA":.github/apply_lifecycle_integrated.sh | bash
+      - name: Complete Java, timeout Undo and referee contracts
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/timeout_undo_regression.py
+          python tests/cross_era_referee_regression.py
+      - name: Complete Python and CLI contracts
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+          python tests/promotion_pair_regression.py
+      - name: All goldens and champion expectations
+        if: matrix.java == '25'
+        run: |
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do echo "==> $test"; python "$test"; done
+      - name: Browser build with its declared dependencies, parity and tooling
+        if: matrix.java == '25'
+        run: |
+          python -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+          python web/tests/parity.py
+          python web/tests/server_test.py
+          python -m unittest discover -s web/tests -p 'test_*.py'
+          node --test web/tests/engine.test.mjs
+          for f in web/*.js; do node --check "$f"; done
+          python -m compileall -q tracks tests web/scripts
+          sh -n run_tests.sh build_main.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Preserve tested source and expectations
+        run: git diff --exit-code
+  transport:
+    name: Prepare fully validated source with completed fleet evidence
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+      - name: Require the exact integrated fleet's complete evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os, time, urllib.request
+          root='https://api.github.com/repos/senegrom/TheoreticalRacing/actions/runs/34705252476'
+          def get(url):
+              req=urllib.request.Request(url,headers={'Authorization':'Bearer '+os.environ['GH_TOKEN'],'Accept':'application/vnd.github+json'})
+              with urllib.request.urlopen(req,timeout=60) as r: return json.load(r)
+          for attempt in range(60):
+              run=get(root)
+              assert run['head_sha']=='8763594062108dcf6867748296ec040e10163e12'
+              jobs=get(root+'/jobs?per_page=100')['jobs']
+              fleets=[j for j in jobs if j['name'].startswith('Integrated vs base ')]
+              combined=[j for j in jobs if j['name']=='Independently rescore complete integrated fleets']
+              assert len(fleets)==18,len(fleets)
+              required=fleets+combined
+              failed=[j['name'] for j in required if j['status']=='completed' and j['conclusion']!='success']
+              assert not failed, failed
+              if len(combined)==1 and all(j['conclusion']=='success' for j in required):
+                  print('All 18 exact-source fleet slices and independent combined scoring passed')
+                  break
+              print('Completed integrated fleet jobs:',sum(j['conclusion']=='success' for j in fleets),flush=True)
+              time.sleep(30)
+          else: raise SystemExit('Integrated fleet evidence is not complete; source publication refused')
+          PY
+      - uses: actions/download-artifact@v4
+        with:
+          name: integrated-lifecycle-combined-reports
+          run-id: 34705252476
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/fleet-reports
+      - name: Commit production source and independently checked reports only
+        run: |
+          git show "$GITHUB_SHA":.github/apply_lifecycle_integrated.sh | bash
+          mkdir -p docs/experiments/lifecycle/integrated-fleet
+          cp "$RUNNER_TEMP"/fleet-reports/* docs/experiments/lifecycle/integrated-fleet/
+          python - <<'PY'
+          from pathlib import Path
+          import json,os
+          provenance=Path('docs/experiments/lifecycle/integrated-fleet/provenance.json')
+          meta=json.loads(provenance.read_text())
+          assert meta['production_tree']=='3661687882a2778a2066d8a952914a1680900301'
+          assert meta['base']=='9668703dc1489383bde78f2460476e9f6daa1da0'
+          meta['fleet_workflow_run']=34705252476
+          meta['release_validation_run']=int(os.environ['GITHUB_RUN_ID'])
+          provenance.write_text(json.dumps(meta,indent=2)+'\n')
+          note='\n## Completed integrated validation\n\n'
+          note+='The integrated source passed JDK 25/26 Java contracts and the full JDK 25\n'
+          note+='golden, champion, Python, real-CLI and native-browser parity suites.\n'
+          note+='The same-race comparisons completed 5,040 races (40,320 car-races) over\n'
+          note+='84 courses, seeds 1-10, all three start modes and mirrored eight-car fields.\n'
+          note+='The base is `9668703`; both measurement cohorts have the third-move\n'
+          note+='experiment disabled. Reports and provenance are retained in\n'
+          note+='`experiments/lifecycle/integrated-fleet/`. Crashes are descriptive, not a veto.\n'
+          note+='Fleet workflow: 34705252476. Release validation: '+os.environ['GITHUB_RUN_ID']+'.\n'
+          note+='The earlier temporary browser step lacked CairoSVG; this validation uses\n'
+          note+='the repository-declared icon dependencies and reruns the complete suites.\n'
+          p=Path('docs/private-lane-lifecycle-review.md');p.write_text(p.read_text()+note)
+          p=Path('racing-memory.md');s=p.read_text();needle='Integration preserves the later round-238 funnel-guard deletion and campaign\nnotes from `9668703`; final validation and mirrored comparisons use that base.\n'
+          assert s.count(needle)==1
+          s=s.replace(needle,needle+'\nIntegrated validation completed: 5,040 mirrored eight-car races across all\n84 courses and all three start modes, at -Xmx8g against `9668703`. Both\nsupported-JDK Java suites passed; all 12 measured goldens and 24 unchanged\nchampion pins, Python, CLI and native browser parity passed on JDK 25.\nRaw reports and provenance: docs/experiments/lifecycle/integrated-fleet/.\n')
+          p.write_text(s)
+          PY
+          git add docs racing-memory.md
+          test -z "$(git diff --cached --name-only 3661687882a2778a2066d8a952914a1680900301 -- src tracks tests run_tests.sh .github/workflows/ci.yml)"
+          git diff --cached --check
+          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Prepare validated physical private-lane and lifecycle fixes on current master' -m 'Preserve round-238 cleanup. Full physical progress-aware rival occupancy, immediate last-survivor rollout termination and timeout Undo. All supported-JDK contracts, measured goldens, unchanged champion pins, native browser parity and 5040 mirrored eight-car races completed. Only audited three-golden trajectory updates; no helper or measurement sources included.'
+          git push origin HEAD:refs/heads/work/lifecycle-ready-20260912-source
+          echo "Source transport $(git rev-parse HEAD), tree $(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
