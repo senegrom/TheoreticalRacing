@@ -1,0 +1,25 @@
+name: Racecraft integration source snapshot
+on:
+  push:
+    branches: [work/racecraft-integrate-20260912]
+permissions:
+  contents: read
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Bundle the two exact public source histories for offline integration
+        run: |
+          git branch review-current d6412d6adf45fcf72cb5d2ee3af6446e2085e882
+          git branch review-prepared 9d23057d37de220d2301ff26dcda898eef858a53
+          git bundle create "$RUNNER_TEMP/racing-source.bundle" review-current review-prepared
+      - uses: actions/upload-artifact@v7
+        with:
+          name: racecraft-integration-source
+          path: ${{ runner.temp }}/racing-source.bundle
+          retention-days: 7
