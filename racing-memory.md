@@ -1,5 +1,92 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 238: the scorer's remaining caution, priced -- and the first one that earns its keep
+
+Four caution removals in a row had each gained places (226/228 the needle
+surcharge, 229 the soft stack, 233 the lane spread, 234 the seal guard), so
+this round asked what is left in the scorer that is shaped the same way. Four
+arms on the round-237 champion, 8-car random starts, seeds 1-10, mirrored,
+840 pairs each:
+
+    arm                                              place C-H      crashes C/H  tracks C/H/tied
+    rob0    the robust-set requirement off           +0.270 +-.036    80/59       24/33/27
+    alone60 the exact potential decides alone to 60  +0.000 +-.000    61/61       0/0/84  byte-identical
+    mom0    the momentum tie-break off               +0.212 +-.036    54/58       31/51/2
+    plat0   the plateau-width tie-break off          +0.738 +-.045   110/53       17/67/0
+
+THE ROBUST SET IS NOT CAUTION, IT IS THE LINE. robustMode (round 211) arms
+when a live rival is ahead or beside within stopping range, and while it is
+armed the finish-crossing precedence, the checkpoint-touch precedence and
+bestCheckpointMove all require the landing to be in the gate's ROBUST set --
+"in traffic the landing must keep an out". Turned off for candidate cars it
+costs 0.270 +- 0.036 places, seven and a half standard errors, and the cars
+that stop obeying it crash MORE (80 against 59). It is the first rule of this
+shape to survive the place criterion, and the per-track column says why it is
+different from the four that did not: weave6 reads +4.000 -- the candidate
+takes places five to eight in every one of its races there -- with fractal18
++3.725, hybrid20 +3.475 and hybrid1 +2.800 behind it. Those are the courses
+whose checkpoints sit on thin ridges. A touch taken without an out is not a
+worst case that might happen; it is a car that has already left the racing
+line, and the exact potential prices the rest of its lap accordingly. The
+four rules that lost each charged for a POSSIBILITY. This one recognises a
+FACT about the landing, and facts are what the rule says to race on.
+
+Recorded, not promoted; robustMode stays exactly as it is.
+
+THE ALONE RADIUS IS NOT A LEVER. AI1_ALONE_R is where round 214 lets the
+exact potential decide by itself because no live rival is inside it; 20 was too
+tight and 40 was chosen without a look upward. At 60 the fleet is byte-identical
+-- 84 boards tied, 61 crashes and 1,762,186 moves to the move -- so in 730
+races no car was ever more than 40 cells from every rival while still being
+priced differently for it. The radius can stay where it is for any reason
+anyone likes; it is not deciding races.
+
+THE MOMENTUM TIE-BREAK EARNS 0.21 PLACES. Among moves of otherwise equal cost
+the scorer prefers the one carrying more speed (0.02 per unit, round 201's lane
+style scaling it per player). Turned off for candidate cars it costs 0.212 +-
+0.036 places, six standard errors, 755 wins against 925, on 51 boards against
+31 -- and the cars crash slightly LESS doing it (54 against 58) while driving
+0.39% further (1,769,113 moves against 1,762,186 in the half-candidate field).
+That is the signature of a car that is safe and slow: with the score now the
+exact race distance, ties between equal-distance landings are common, and
+whichever car keeps its speed through them arrives first. A tie-break worth
+a fifth of a place is not a tie-break, it is a term; it stays.
+
+THE PLATEAU TIE-BREAK IS WORTH THREE QUARTERS OF A PLACE. Round 201's other
+tie-break prefers a landing whose best follow-up can be reached many ways over
+a knife-edge line (0.05 per follow-up, capped at five). Off, it costs 0.738 +-
+0.045 places -- sixteen standard errors -- and the candidate's crashes DOUBLE,
+110 against 53, on 67 boards against 17 with none tied. hybrid2 +3.725, lobe3
++3.650, rand1 +3.050: the twisting courses where a line that is optimal by one
+cell in the map is a wall two moves later once a rival takes the other cell.
+The two boards where removing it helps are Monza (-1.250) and Monaco
+(-0.900), the needle tracks, where every landing is a knife-edge anyway and
+the term only slows the approach; everywhere else the width of the plateau
+is the difference between a line and a wreck. It stays, and it is now the
+single most valuable term in the scorer after the race distance itself.
+
+WHAT THE ROUND SAYS. Rounds 226 through 234 removed four rules and gained
+places each time, and the temptation was to read that as "caution loses".
+This round says the true reading is narrower: rules that priced a POSSIBILITY
+-- a needle a rival might reach, a box a matching could close, company within
+two cells -- lost, because under the place criterion whoever declines a
+contested line concedes it. Rules that read a FACT about the landing itself --
+it has an out on a thin ridge (robustMode), it carries speed the exact
+distance cannot see (momentum), its follow-ups are wide (plateau) -- earn
+0.27, 0.21 and 0.74 places, and the cars that keep them crash less, not more.
+The scorer is now the exact race distance, the traffic gates, and three terms
+that each pay their way; the alone radius is inert; nothing measured here is a
+promotion, and the frontier has moved off the score.
+
+THE FUNNEL GUARD, RE-VERIFIED ON THE REBUILT MAPS. Round 235 read the round-83
+static funnel guard as byte-identical on the old cache generation and held the
+deletion because the maps-v2 rebuild had since moved a pinned race. Measured
+again on today's champion and today's maps: +0.000 +- 0.000, 84 boards tied,
+61 crashes and 1,762,186 moves on either side -- the champion's own self-play
+counters to the move -- and the two mirror grids' row digests are the SAME
+sixteen hex characters. The guard never decides a move. Deleted in the commit
+after this one as a behaviour-identical cleanup.
+
 ## Round 237: the two-move duel proof becomes the champion's
 
 Round 236 merged the peer branch's two-move proof but left it gated on
