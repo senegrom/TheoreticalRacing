@@ -1,0 +1,165 @@
+name: Validate private lanes and terminal lifecycle
+on:
+  push:
+    branches: [work/lifecycle-fixes-20260912]
+permissions:
+  contents: read
+concurrency:
+  group: lifecycle-fixes-20260912
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  verify:
+    name: Correctness suites JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 745798f613406790f88b44607a2a827ad7856a98
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply checksum-bound production source
+        run: git show "$GITHUB_SHA":.github/apply_lifecycle_patch.sh | bash
+      - name: Strict build and physical lifecycle regressions
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/timeout_undo_regression.py
+          python tests/cross_era_referee_regression.py
+      - name: Python and real CLI contracts
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+          python tests/promotion_pair_regression.py
+      - name: Preserve production source
+        run: git diff --exit-code
+  fleet:
+    name: Fixed vs base ${{ matrix.mode }} shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 18
+      matrix:
+        mode: [legacy, informed, scatter]
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 745798f613406790f88b44607a2a827ad7856a98
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Build disposable same-race comparison
+        run: |
+          git show "$GITHUB_SHA":.github/apply_lifecycle_patch.sh | bash
+          git show "$GITHUB_SHA":.github/build_lifecycle_comparison.py > "$RUNNER_TEMP/comparison.py"
+          python "$RUNNER_TEMP/comparison.py" 745798f613406790f88b44607a2a827ad7856a98
+          sh build_main.sh
+      - name: Full-course ten-seed slice with mirrored cohorts
+        env:
+          MODE: ${{ matrix.mode }}
+          SHARD: ${{ matrix.shard }}
+          RACING_REACH_CACHE: ${{ runner.temp }}/lifecycle-reach
+        run: |
+          mapfile -t tracks < <(python -c 'from pathlib import Path; import os; t=sorted(p.stem for p in Path("tracks").glob("*.track")); assert len(t)==84; print("\n".join(t[int(os.environ["SHARD"])::6]))')
+          test "${#tracks[@]}" = 14
+          python tracks/promotion_pair.py --players 8 --start-mode "$MODE" --seeds 1-10 --heap=-Xmx8g --tracks "${tracks[@]}" --out evidence | tee "$RUNNER_TEMP/fleet-console.txt"
+          cp "$RUNNER_TEMP/fleet-console.txt" evidence/console.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          logs=list(Path('evidence/odd').glob('*.log'))+list(Path('evidence/even').glob('*.log'))
+          assert len(logs)==280, len(logs)
+          for p in logs:
+              match=re.findall(r'^# reviewPolicyMoves candidate=(\d+) baseline=(\d+)$',p.read_text(),re.M)
+              assert len(match)==1 and all(int(n)>0 for n in match[0]), str(p)
+          print('Verified both production dispatches in all 280 race logs')
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: lifecycle-fleet-${{ matrix.mode }}-${{ matrix.shard }}
+          path: evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  aggregate:
+    name: Independently validate all fleet shards
+    needs: fleet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 745798f613406790f88b44607a2a827ad7856a98
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lifecycle-fleet-*
+          path: collected
+      - name: Rescore complete mirrored grids
+        run: |
+          mkdir reports
+          for mode in legacy informed scatter; do
+            grids=()
+            for shard in 0 1 2 3 4 5; do
+              grids+=("collected/lifecycle-fleet-$mode-$shard/odd" "collected/lifecycle-fleet-$mode-$shard/even")
+            done
+            python tracks/head_to_head.py "${grids[@]}" | tee "reports/$mode.txt"
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: lifecycle-combined-reports
+          path: reports/
+          if-no-files-found: error
+          retention-days: 30
+  transport:
+    name: Transport checked source, not a release
+    needs: [verify, aggregate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 745798f613406790f88b44607a2a827ad7856a98
+          fetch-depth: 0
+      - name: Preserve production changes for final golden validation
+        run: |
+          git show "$GITHUB_SHA":.github/apply_lifecycle_patch.sh | bash
+          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Transport physical private-lane and lifecycle fixes for final validation' -m 'Correctness and mirrored fleets checked; final golden/pin validation is still required before publication. No measurement dispatch or helper workflows included.'
+          git push origin HEAD:refs/heads/work/lifecycle-fixes-20260912-source
+          echo "Source tree $(git rev-parse HEAD^{tree}), commit $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
