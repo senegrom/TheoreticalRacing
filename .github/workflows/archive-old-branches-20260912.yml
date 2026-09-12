@@ -1,0 +1,125 @@
+name: Archive reviewed obsolete branches
+on:
+  push:
+    branches: [maintenance/archive-old-branches-20260912]
+permissions:
+  contents: write
+  actions: read
+  pull-requests: read
+concurrency:
+  group: archive-old-branches-20260912
+  cancel-in-progress: false
+jobs:
+  archive-and-delete:
+    if: github.repository == 'senegrom/TheoreticalRacing' && github.ref == 'refs/heads/maintenance/archive-old-branches-20260912'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Archive exact tips and delete completed branches
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          """Archive the six reviewed obsolete tips, then remove their branch refs atomically."""
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+          from urllib.parse import quote
+          from urllib.request import Request, urlopen
+          
+          REPOSITORY = 'senegrom/TheoreticalRacing'
+          MAINTENANCE_BRANCH = 'maintenance/archive-old-branches-20260912'
+          ARCHIVE_PREFIX = 'archive/2026-09-12-cleanup/'
+          OBSOLETE = {
+              'racecraft/two-move-duel-proofs': '631a9a2393cd8cfdaa393393e072c34db4567c82',
+              'work/review-fixes-20260911-935ef47-prepared': 'fce7170c0cb4ac315e777b08b39b9bddfcefb337',
+              'work/publication-promotion-20260911-5aa9c8b': '7df862b0d4277086b7180ea2d0cf319812ee1339',
+              'work/publication-promotion-20260911-source': '582ab5d846934cae1eb5f6f3386f4c79a8fc6c81',
+              'work/review-fixes-20260911-935ef47': 'e7d7815583fa87682d2c13c47156cb3b7e3cec78',
+              'work/selfplay-profile-fix-20260911': '50681d0dcd24f88fa473ad17a6deac0f41ad5ac4',
+          }
+          
+          def api(path):
+              request = Request(f'https://api.github.com/repos/{REPOSITORY}{path}', headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              })
+              with urlopen(request, timeout=30) as response:
+                  return json.load(response)
+          
+          def pages(path, key=None):
+              result = []
+              separator = '&' if '?' in path else '?'
+              for page in range(1, 101):
+                  data = api(f'{path}{separator}per_page=100&page={page}')
+                  batch = data[key] if key else data
+                  result.extend(batch)
+                  if len(batch) < 100:
+                      return result
+              raise RuntimeError('Pagination limit reached; refusing incomplete preflight')
+          
+          def git(*args):
+              return subprocess.check_output(['git', *args], text=True).strip()
+          
+          def main():
+              if os.environ['GITHUB_REPOSITORY'] != REPOSITORY or os.environ['GITHUB_REF_NAME'] != MAINTENANCE_BRANCH:
+                  raise RuntimeError('Unexpected repository or maintenance branch')
+              targets = {**OBSOLETE, MAINTENANCE_BRANCH: os.environ['GITHUB_SHA']}
+              default_branch = api('')['default_branch']
+              if default_branch in targets:
+                  raise RuntimeError('Default branch is never a cleanup target')
+              for branch, expected in targets.items():
+                  state = api('/branches/' + quote(branch, safe=''))
+                  if state['commit']['sha'] != expected or state['protected']:
+                      raise RuntimeError(f'Branch moved or became protected: {branch}')
+              for pr in pages('/pulls?state=open'):
+                  same_repo = pr['head'].get('repo') and pr['head']['repo']['full_name'] == REPOSITORY
+                  if pr['base']['ref'] in targets or (same_repo and pr['head']['ref'] in targets):
+                      raise RuntimeError(f'Open PR #{pr["number"]} uses a cleanup branch')
+              for status in ('queued', 'in_progress', 'waiting', 'requested', 'pending'):
+                  for run in pages('/actions/runs?status=' + status, 'workflow_runs'):
+                      if run['head_branch'] in targets and str(run['id']) != os.environ['GITHUB_RUN_ID']:
+                          raise RuntimeError(f'Active workflow {run["id"]} uses a cleanup branch')
+          
+              archives = {ARCHIVE_PREFIX + branch: sha for branch, sha in OBSOLETE.items()}
+              archives[ARCHIVE_PREFIX + 'manifest'] = os.environ['GITHUB_SHA']
+              remote = {ref: sha for sha, ref in (line.split() for line in git('ls-remote', 'origin').splitlines())}
+              for branch, expected in targets.items():
+                  if remote.get('refs/heads/' + branch) != expected:
+                      raise RuntimeError(f'Branch changed after preflight: {branch}')
+                  git('cat-file', '-e', expected + '^{commit}')
+              for tag, expected in archives.items():
+                  existing = remote.get('refs/tags/' + tag)
+                  if existing is not None and existing != expected:
+                      raise RuntimeError(f'Archive tag already points elsewhere: {tag}')
+          
+              leases = [f'--force-with-lease=refs/heads/{branch}:{sha}' for branch, sha in targets.items()]
+              refspecs = [f'{sha}:refs/tags/{tag}' for tag, sha in archives.items()]
+              refspecs += [f':refs/heads/{branch}' for branch in targets]
+              # One atomic ref transaction: no branch is deleted unless every archive is saved.
+              subprocess.run(['git', 'push', '--atomic', *leases, 'origin', *refspecs], check=True)
+          
+              final_refs = {ref: sha for sha, ref in (line.split() for line in git('ls-remote', 'origin').splitlines())}
+              for branch in targets:
+                  if 'refs/heads/' + branch in final_refs:
+                      raise RuntimeError(f'Branch still exists after cleanup: {branch}')
+              for tag, expected in archives.items():
+                  if final_refs.get('refs/tags/' + tag) != expected:
+                      raise RuntimeError(f'Archive verification failed: {tag}')
+              summary = ['Archived and deleted all six reviewed obsolete branches.', '', '| Branch | Archived commit |', '| --- | --- |']
+              summary += [f'| `{branch}` | `{sha}` |' for branch, sha in OBSOLETE.items()]
+              summary += ['', 'The temporary cleanup branch removed itself. The manifest and workflow remain in the archive/2026-09-12-cleanup/manifest tag.']
+              Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n'.join(summary) + '\n')
+              print('\n'.join(summary))
+          
+          if __name__ == '__main__':
+              main()
+          
+          PY
