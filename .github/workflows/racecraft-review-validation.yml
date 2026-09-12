@@ -1,0 +1,135 @@
+name: Validate physical endgames and deeper racecraft
+on:
+  push:
+    branches: [work/racecraft-proof-20260912]
+permissions:
+  contents: read
+concurrency:
+  group: racecraft-proof-20260912
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  verify:
+    name: Proof contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 39cb7b2689befe57fd953d983f66f12f8a06b096
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact review patch
+        shell: bash
+        run: |
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/racecraft-review.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/review.patch"
+          echo "3b221269137f7444753700e915502eabca30ec6d3ae7a3506e4381d6ab9c5d34  $RUNNER_TEMP/review.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/review.patch"
+          test "$(git write-tree)" = f8bf1099f22262833c0368aeed967784605954a9
+      - name: Strict build and Java proof contracts
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/cross_era_referee_regression.py
+      - name: Python and production comparison contracts
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python tests/promotion_pair_regression.py
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+      - name: Frozen goldens and all champion pins
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do echo "==> $test"; python "$test"; done
+      - name: Preserve tracked inputs
+        run: git diff --exit-code
+  fleet:
+    name: Racecraft ${{ matrix.players }} cars ${{ matrix.mode }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        players: [2, 8]
+        mode: [legacy, informed, scatter]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 39cb7b2689befe57fd953d983f66f12f8a06b096
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        shell: bash
+        run: |
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/racecraft-review.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/review.patch"
+          echo "3b221269137f7444753700e915502eabca30ec6d3ae7a3506e4381d6ab9c5d34  $RUNNER_TEMP/review.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/review.patch"
+          test "$(git write-tree)" = f8bf1099f22262833c0368aeed967784605954a9
+          sh build_main.sh
+      - name: Complete all-course mirrored comparison
+        env:
+          PLAYERS: ${{ matrix.players }}
+          START_MODE: ${{ matrix.mode }}
+          RACING_REACH_CACHE: ${{ runner.temp }}/racecraft-cache
+        run: |
+          python tracks/promotion_pair.py --players "$PLAYERS" --start-mode "$START_MODE" --seeds 1-10 --heap=-Xmx8g --out racecraft-evidence
+          git diff --exit-code
+      - name: Retain complete evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: racecraft-${{ matrix.players }}car-${{ matrix.mode }}
+          path: racecraft-evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  prepare:
+    name: Prepare validated source only
+    needs: [verify, fleet]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 39cb7b2689befe57fd953d983f66f12f8a06b096
+          fetch-depth: 0
+      - name: Publish prepared review commit without helper files
+        shell: bash
+        run: |
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/racecraft-review.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/review.patch"
+          echo "3b221269137f7444753700e915502eabca30ec6d3ae7a3506e4381d6ab9c5d34  $RUNNER_TEMP/review.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/review.patch"
+          test "$(git write-tree)" = f8bf1099f22262833c0368aeed967784605954a9
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix physical endgame certificates and extend the opt-in racecraft horizon' -m 'Enumerate all physical rival replies, use complete memo states, enforce projected timeout precedence, and keep deeper candidate certificates out of nested hypothetical decisions. Retain two-move proofs before a bounded third-own-move extension. No policy promotion or golden changes.'
+          git push origin HEAD:refs/heads/work/racecraft-proof-20260912-prepared
+          echo "Prepared $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
