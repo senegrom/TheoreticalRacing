@@ -1,0 +1,153 @@
+name: Validate occupancy and terminal boundary fixes
+on:
+  push:
+    branches: [work/occupancy-terminal-20260912]
+permissions:
+  contents: read
+concurrency:
+  group: occupancy-terminal-20260912
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  verify:
+    name: Boundary contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply the exact production source
+        shell: bash
+        run: |
+          for i in 0 1 2; do git show "$GITHUB_SHA":.github/boundary.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/boundary.patch"
+          echo "14e44be54a71cabb3a8947c70a9c685748dc9a6d60d43cc2811ef27c661d8f99  $RUNNER_TEMP/boundary.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/boundary.patch"
+          test "$(git write-tree)" = 21473683b03d20248a8415691ce040d5f775e3a8
+      - name: Strict release build and physical boundary regressions
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/cross_era_referee_regression.py
+          python tests/promotion_pair_regression.py
+      - name: Existing Python and replay contracts
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+      - name: Preserve all tracked inputs
+        run: git diff --exit-code
+  fleet:
+    name: Eight-car ${{ matrix.mode }} shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 9
+      matrix:
+        mode: [legacy, informed, scatter]
+        shard: [0, 1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Build measured before/after cohorts without changing production policy selection
+        shell: bash
+        run: |
+          for i in 0 1 2; do git show "$GITHUB_SHA":.github/boundary.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/boundary.patch"
+          echo "14e44be54a71cabb3a8947c70a9c685748dc9a6d60d43cc2811ef27c661d8f99  $RUNNER_TEMP/boundary.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/boundary.patch"
+          test "$(git write-tree)" = 21473683b03d20248a8415691ce040d5f775e3a8
+          git show "$GITHUB_SHA":.github/measure-boundary.py > "$RUNNER_TEMP/measure.py"
+          python "$RUNNER_TEMP/measure.py"
+          sh build_main.sh
+      - name: Complete mirrored subset at reference heap
+        env:
+          START_MODE: ${{ matrix.mode }}
+          SHARD: ${{ matrix.shard }}
+          RACING_REACH_CACHE: ${{ runner.temp }}/boundary-cache
+        run: |
+          python - <<'PY'
+          import os, pathlib, subprocess, sys
+          tracks = sorted(p.stem for p in pathlib.Path('tracks').glob('*.track'))
+          assert len(tracks) == 84, len(tracks)
+          tracks = tracks[int(os.environ['SHARD'])::7]
+          subprocess.run([sys.executable, 'tracks/promotion_pair.py', '--players', '8', '--start-mode', os.environ['START_MODE'], '--seeds', '1-10', '--heap=-Xmx8g', '--out', 'evidence', '--tracks', *tracks], check=True)
+          PY
+      - name: Retain raw input and outcome evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: boundary-${{ matrix.mode }}-${{ matrix.shard }}
+          path: evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  aggregate:
+    name: Verify all-course paired finishing-place evidence
+    needs: [verify, fleet]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: boundary-*
+          path: collected
+      - name: Score every complete mirror with the production scorer
+        run: |
+          mkdir reports
+          python - <<'PY'
+          import pathlib, subprocess, sys
+          for mode in ('legacy', 'informed', 'scatter'):
+              pairs = []
+              for shard in range(7):
+                  root = pathlib.Path('collected') / ('boundary-%s-%s' % (mode, shard))
+                  pairs += [str(root/'odd'), str(root/'even')]
+              with open('reports/%s.txt' % mode, 'w') as report:
+                  subprocess.run([sys.executable, 'tracks/head_to_head.py', *pairs], stdout=report, check=True)
+          PY
+          cat reports/*.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: boundary-complete-evidence
+          path: |
+            reports/
+            collected/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
