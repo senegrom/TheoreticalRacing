@@ -1,4 +1,4 @@
-"""Select browser checks without duplicating engine CI; uncertainty runs all checks."""
+"""Every push is publishable; only pull requests may skip browser checks."""
 import json
 import os
 from pathlib import Path
@@ -22,13 +22,16 @@ def changed_paths(base, pull_request):
 
 
 def needs_browser(event_name, event, diff=changed_paths):
-    if event_name not in {'push', 'pull_request'}:
+    # A documentation push can cancel an unpublished code push. Looking only
+    # at event.before would lose that release. CI pushes are master-only; build
+    # a fresh tested artifact on every push, retaining PR path filtering.
+    if event_name != 'pull_request':
         return True
     try:
-        base = event['pull_request']['base']['sha'] if event_name == 'pull_request' else event['before']
+        base = event['pull_request']['base']['sha']
         if not re.fullmatch(r'[0-9a-f]{40}', base) or base == '0' * 40:
             return True
-        return any(browser_path(path) for path in diff(base, event_name == 'pull_request'))
+        return any(browser_path(path) for path in diff(base, True))
     except (KeyError, TypeError, OSError, subprocess.SubprocessError):
         return True
 
