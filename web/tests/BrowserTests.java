@@ -89,7 +89,75 @@ public final class BrowserTests {
         testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
+        testTimeoutUndo();
         System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points and placement recovery OK");
+    }
+
+    /** A timeout is undoable while at least two cars remain in PLAY. This
+     * uses the same commit/undo methods as desktop, with nonmodal browser UI. */
+    private static void testTimeoutUndo() throws Exception {
+        final RaceGame g = new RaceGame(new java.util.Properties());
+        g.gameCols = 80; g.gameRows = 20; g.track = new Track();
+        g.track.addLeft(0, 1); g.track.addLeft(73, 1);
+        g.track.addRight(0, 19); g.track.addRight(73, 19);
+        g.trackA = new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(0, 1, 73, 18));
+        g.startZoneA = new java.awt.geom.Area();
+        g.finishLine = new java.awt.geom.Line2D.Double(72.5, 1, 72.5, 19);
+        g.lapGates = new java.awt.geom.Line2D[]{g.finishLine,
+                new java.awt.geom.Line2D.Double(50, 1, 50, 19),
+                new java.awt.geom.Line2D.Double(60, 1, 60, 19)};
+        set(g, "finishFwdX", 1.0); set(g, "lapCrossGate", g.finishLine); set(g, "lapFwdX", 1.0);
+        set(g, "rui", new tr.gui.RaceUI(20, 80)); set(g, "gamestate", GameState.PLAY);
+        set(g, "startZoneGone", true);
+        g.players = new Player[3];
+        for (int i = 0; i < 3; i++) {
+            g.players[i] = new Player("P" + (i + 1), i + 1, java.awt.Color.BLUE, Player.Kind.HUMAN);
+            g.players[i].setPosition(new int[]{10 + 10 * i, 10});
+            g.players[i].setVelocity(new int[]{0, 0});
+        }
+        final java.lang.reflect.Method commit = RaceGame.class.getDeclaredMethod("commitMove",
+                int[].class, int[].class, int[].class);
+        commit.setAccessible(true);
+        g.setQueryTurnCounter(2249);
+        for (int i = 0; i < 2; i++)
+            commit.invoke(g, g.players[i].getPosition(), new int[]{0, 0}, g.players[i].getPosition().clone());
+        final String before = undoState(g);
+        for (int repeat = 0; repeat < 2; repeat++) {
+            commit.invoke(g, g.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
+            check(g.players[2].getFinishedPlace() == 3 && g.turnCount() == 2252,
+                    "timeout fixture did not retire P3");
+            check(get(g, "gamestate") == GameState.PLAY, "timeout fixture should remain playable");
+            check(((java.util.Deque<?>) get(g, "moveHistory")).size() == 3,
+                    "timeout did not record exactly one snapshot");
+            g.clickedUndo();
+            check(before.equals(undoState(g)), "timeout Undo rewound an earlier move or lost state");
+            check(g.subgamestate == 2 && g.turnCount() == 2251 && !g.players[2].isFinished(),
+                    "timeout Undo did not return P3 to its own turn");
+        }
+        // No preceding human move: the timeout itself must enable Undo.
+        ((java.util.Deque<?>) get(g, "moveHistory")).clear();
+        final String first = undoState(g);
+        commit.invoke(g, g.players[2].getPosition(), new int[]{0, 0}, g.players[2].getPosition().clone());
+        g.clickedUndo();
+        check(first.equals(undoState(g)), "first-action timeout could not be undone");
+        System.out.println("TimeoutUndo: exact clock, slot, log, positions, history and progress restored; retry OK");
+    }
+
+    private static String undoState(final RaceGame g) throws Exception {
+        final StringBuilder out = new StringBuilder().append(g.turnCount()).append('/').append(g.subgamestate)
+                .append('/').append(get(g, "finishedFirst")).append('/').append(get(g, "finishedLast"))
+                .append('/').append(get(g, "startZoneGone")).append('/').append(get(g, "gameLog"));
+        for (final Player p : g.players) {
+            out.append(Arrays.toString(p.getPosition())).append(Arrays.toString(p.getVelocity()))
+                    .append(p.getFinishedPlace()).append(Arrays.toString(p.lapState()));
+            for (final int[] point : p.getHistory()) out.append(Arrays.toString(point));
+        }
+        return out.toString();
+    }
+
+    private static void set(final Object object, final String name, final Object value) throws Exception {
+        final Field field = object.getClass().getDeclaredField(name);
+        field.setAccessible(true); field.set(object, value);
     }
 
     private static void testCustomTrackDrawing() throws Exception {

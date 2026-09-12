@@ -3667,6 +3667,8 @@ final class RaceAi {
 			outFieldCost[0] = 0L;
 		long failedRivalCost = 0L;
 		boolean myFinished = false;
+		int liveCount = 0;
+		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
 		int myIdx = 0;
 		for (int i = 0; i < game.players.length; i++) {
 			final Player player = game.players[i];
@@ -3677,6 +3679,8 @@ final class RaceAi {
 			vx[i] = velocity[0];
 			vy[i] = velocity[1];
 			alive[i] = !player.isFinished();
+			if (alive[i])
+				liveCount++;
 			workspace.laps[i] = player.getLap();
 			workspace.gates[i] = game.lapGates == null ? 0 : player.getNextGate();
 			updateRolloutFrame(workspace, i);
@@ -3684,6 +3688,8 @@ final class RaceAi {
 				myIdx = i;
 		}
 		if (candidatePending) {
+			if (game.raceTurnLimitReached())
+				return -1;
 			final RaceGame.MoveResult candidate = game.evaluateMove(workspace.laps[myIdx], workspace.gates[myIdx],
 					px[myIdx], py[myIdx], myX, myY, occupiedByOther(myX, myY, myIdx, px, py, alive));
 			if (!candidate.legal())
@@ -3694,6 +3700,7 @@ final class RaceAi {
 			workspace.turns++;
 			if (candidate.finishes() && simFinishVanish) {
 				alive[myIdx] = false;
+				liveCount--;
 				myFinished = true;
 				if (outFinalTier != null)
 					outFinalTier[0] = 3;
@@ -3753,7 +3760,10 @@ final class RaceAi {
 					sb.append('i').append(i).append(' ');
 			System.err.println(sb);
 		}
-		for (int round = 0; round < rounds; round++) {
+		// A final survivor receives its classification immediately, without
+		// another move. This also covers a candidate that just ended the race.
+		rollout:
+		for (int round = 0; round < rounds && liveCount > terminalLiveCount; round++) {
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
@@ -3826,22 +3836,28 @@ final class RaceAi {
 				// scored or a stray crossing keeps it in the race.
 				if (simFinishVanish && !timedOut && moved && transition.finishes()) {
 					alive[i] = false;
+					liveCount--;
 					if (i == myIdx) {
 						if (outFinalTier != null)
 							outFinalTier[0] = 3;
-						if (outFieldCost == null)
+						if (outFieldCost == null && outRivalCost == null)
 							return 0;
 						myFinished = true;
 					} else if (outRivalCost != null)
 						outRivalCost[i] = projectedMoves[i];
+					if (liveCount <= terminalLiveCount)
+						break rollout;
 					continue;
 				}
 				if (!moved || timedOut || !transition.legal()) {
 					if (i == myIdx)
 						return -1;
 					alive[i] = false;
+					liveCount--;
 					if (outFieldCost != null)
 						failedRivalCost += ROLLOUT_FAILURE_COST;
+					if (liveCount <= terminalLiveCount)
+						break rollout;
 					continue;
 				}
 				workspace.laps[i] = transition.lapAfter();
@@ -3851,6 +3867,22 @@ final class RaceAi {
 				py[i] = move[1];
 				vx[i] = move[2];
 				vy[i] = move[3];
+			}
+		}
+		if (liveCount <= terminalLiveCount) {
+			for (int i = 0; i < game.players.length; i++) {
+				if (!alive[i])
+					continue;
+				alive[i] = false;
+				if (i == myIdx) {
+					myFinished = true;
+					if (outFinalTier != null)
+						outFinalTier[0] = 3;
+				} else if (outRivalCost != null) {
+					// No remaining distance or failure charge for a classified
+					// survivor; its projected moves stop at race termination.
+					outRivalCost[i] = projectedMoves[i];
+				}
 			}
 		}
 		if (outFieldCost != null || outRivalCost != null) {

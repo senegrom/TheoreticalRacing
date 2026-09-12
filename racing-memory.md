@@ -1,5 +1,28 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review follow-up (2026-09-12): physical private lanes and terminal lifecycle
+
+The four findings at 745798f are repaired on top of 9668703, preserving round
+238. Private-lane occupancy retains physical velocities and projected lap/gate
+state, removes only actual terminal finishes, and keeps fail-closed bounded
+search. Rollouts apply the referee's last-survivor rule and mover-first timeout;
+optional costs stop at classification. Interactive timeouts now record complete
+Undo snapshots. No yielding, team scoring or new caution surcharge is introduced.
+
+The four direct regressions fail on the pre-fix source and pass with the repair.
+Tests additionally check 26,199 physical continuations, lap/checkpoint progress,
+slot wrap, terminal candidate/rival finishes, timeouts, single-car behavior and
+optional rollout outputs. Browser-adapter checks restore exact timeout Undo state,
+including retry. See docs/occupancy-termination-review.md for scope and proof
+boundaries. Supported-JDK, corpus and fleet outcomes belong to this change's
+validation evidence; local Java uses supplementary OpenJDK 21. The third-move
+extension remains opt-in. Courses, saved settings and persisted maps are unchanged.
+All 24 champion pins remain unchanged. Three AI2 golden hashes are re-frozen from
+before/after replay: the rollout-only fix reproduces each corrected trajectory,
+with unchanged finishing orders and crashes. Monaco s9/4p takes 549 rather than
+551 turns. The per-case reasons and hashes are in the review document.
+
+
 ## Round 238: the scorer's remaining caution, priced -- and the first one that earns its keep
 
 Four caution removals in a row had each gained places (226/228 the needle
