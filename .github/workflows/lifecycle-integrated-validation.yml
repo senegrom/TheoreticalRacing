@@ -1,0 +1,215 @@
+name: Validate integrated physical lifecycle repairs
+on:
+  push:
+    branches: [work/lifecycle-integrated-20260912]
+permissions:
+  contents: read
+concurrency:
+  group: lifecycle-integrated-20260912
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  verify:
+    name: Integrated lifecycle JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Integrate checksum-bound fixes while preserving peer changes
+        run: git show "$GITHUB_SHA":.github/apply_lifecycle_integrated.sh | bash
+      - name: Strict build and complete Java contracts
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/timeout_undo_regression.py
+          python tests/cross_era_referee_regression.py
+      - name: Python and real CLI contracts
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+          python tests/promotion_pair_regression.py
+      - name: All measured goldens and unchanged champion pins
+        if: matrix.java == '25'
+        run: |
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do echo "==> $test"; python "$test"; done
+      - name: Complete native browser parity and tooling contracts
+        if: matrix.java == '25'
+        run: |
+          python -m pip install Pillow
+          sh web/build.sh
+          python web/tests/parity.py
+          python -m unittest discover -s web/tests -p 'test_*.py'
+          node --test web/tests/engine.test.mjs
+          python -m compileall -q tracks tests web/scripts
+          sh -n run_tests.sh build_main.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Preserve source and expectation files
+        run: git diff --exit-code
+  fleet:
+    name: Integrated vs base ${{ matrix.mode }} shard ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 18
+      matrix:
+        mode: [legacy, informed, scatter]
+        shard: [0, 1, 2, 3, 4, 5]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Build disposable same-race comparison against current base
+        run: |
+          git show "$GITHUB_SHA":.github/apply_lifecycle_integrated.sh | bash
+          git show bfa8ad2ee1835aae922eab06afd5f0f45307d647:.github/build_lifecycle_comparison.py > "$RUNNER_TEMP/comparison.py"
+          python "$RUNNER_TEMP/comparison.py" 9668703dc1489383bde78f2460476e9f6daa1da0
+          sh build_main.sh
+      - name: Complete mirrored reference-heap fleet slice
+        env:
+          MODE: ${{ matrix.mode }}
+          SHARD: ${{ matrix.shard }}
+          RACING_REACH_CACHE: ${{ runner.temp }}/integrated-reach
+        run: |
+          mapfile -t tracks < <(python -c 'from pathlib import Path; import os; t=sorted(p.stem for p in Path("tracks").glob("*.track")); assert len(t)==84; print("\n".join(t[int(os.environ["SHARD"])::6]))')
+          test "${#tracks[@]}" = 14
+          python tracks/promotion_pair.py --players 8 --start-mode "$MODE" --seeds 1-10 --heap=-Xmx8g --tracks "${tracks[@]}" --out evidence | tee "$RUNNER_TEMP/console.txt"
+          cp "$RUNNER_TEMP/console.txt" evidence/console.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          logs=list(Path('evidence/odd').glob('*.log'))+list(Path('evidence/even').glob('*.log'))
+          assert len(logs)==280, len(logs)
+          for p in logs:
+              match=re.findall(r'^# reviewPolicyMoves candidate=(\d+) baseline=(\d+)$',p.read_text(),re.M)
+              assert len(match)==1 and all(int(n)>0 for n in match[0]), str(p)
+          print('Verified both scorer dispatches in all 280 race logs')
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: integrated-lifecycle-fleet-${{ matrix.mode }}-${{ matrix.shard }}
+          path: evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
+  aggregate:
+    name: Independently rescore complete integrated fleets
+    needs: fleet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: integrated-lifecycle-fleet-*
+          path: collected
+      - name: Verify all courses and rescore classifications
+        run: |
+          mkdir reports
+          for mode in legacy informed scatter; do
+            grids=()
+            for shard in 0 1 2 3 4 5; do
+              grids+=("collected/integrated-lifecycle-fleet-$mode-$shard/odd" "collected/integrated-lifecycle-fleet-$mode-$shard/even")
+            done
+            python tracks/head_to_head.py "${grids[@]}" | tee "reports/$mode.txt"
+          done
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib,json
+          files=sorted(Path('collected').glob('*/head-to-head.txt'))
+          assert len(files)==18,len(files)
+          meta={'base':'9668703dc1489383bde78f2460476e9f6daa1da0','production_tree':'3661687882a2778a2066d8a952914a1680900301','heap':'-Xmx8g','tracks':84,'seeds':'1-10','players':8,'races':5040,'car_races':40320,'third_move':'disabled for both measurement cohorts only','reports':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in files}}
+          Path('reports/provenance.json').write_text(json.dumps(meta,indent=2)+'\n')
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: integrated-lifecycle-combined-reports
+          path: reports/
+          if-no-files-found: error
+          retention-days: 30
+  transport:
+    name: Prepare validated integrated source and fleet reports
+    needs: [verify, aggregate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: integrated-lifecycle-combined-reports
+          path: ${{ runner.temp }}/fleet-reports
+      - name: Commit only validated production files and completed evidence
+        run: |
+          git show "$GITHUB_SHA":.github/apply_lifecycle_integrated.sh | bash
+          mkdir -p docs/experiments/lifecycle/integrated-fleet
+          cp "$RUNNER_TEMP"/fleet-reports/* docs/experiments/lifecycle/integrated-fleet/
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          note='\n## Completed integrated validation\n\n'
+          note+='The integrated source passed JDK 25/26 Java contracts and the full JDK 25\n'
+          note+='golden, champion, Python, real-CLI and native-browser parity suites.\n'
+          note+='The same-race comparisons completed 5,040 races (40,320 car-races) over\n'
+          note+='84 courses, seeds 1-10, all three start modes and mirrored eight-car fields.\n'
+          note+='The base is `9668703`; both measurement cohorts have the third-move\n'
+          note+='experiment disabled. Reports and provenance are retained in\n'
+          note+='`experiments/lifecycle/integrated-fleet/`. Crashes are descriptive, not a veto.\n'
+          note+='Validation workflow run: '+os.environ['GITHUB_RUN_ID']+'.\n'
+          p=Path('docs/private-lane-lifecycle-review.md');p.write_text(p.read_text()+note)
+          p=Path('racing-memory.md');s=p.read_text();needle='Integration preserves the later round-238 funnel-guard deletion and campaign\nnotes from `9668703`; final validation and mirrored comparisons use that base.\n'
+          assert s.count(needle)==1
+          s=s.replace(needle,needle+'\nIntegrated validation completed: 5,040 mirrored eight-car races across all\n84 courses and all three start modes, at -Xmx8g against `9668703`. Both\nsupported-JDK Java suites passed; all 12 measured goldens and 24 unchanged\nchampion pins, Python, CLI and native browser parity passed on JDK 25.\nRaw reports and provenance: docs/experiments/lifecycle/integrated-fleet/.\n')
+          p.write_text(s)
+          PY
+          git add docs racing-memory.md
+          test -z "$(git diff --cached --name-only 3661687882a2778a2066d8a952914a1680900301 -- src tracks tests run_tests.sh .github/workflows/ci.yml)"
+          git diff --cached --check
+          git restore --source=HEAD --staged --worktree .github/workflows/ci.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Prepare validated physical private-lane and lifecycle fixes on current master' -m 'Preserve round-238 cleanup; physical progress-aware occupancy, terminal rollout classification and timeout Undo. JDK25/26 contracts, all goldens and champion pins, native browser parity and 5040 mirrored races completed. No helper or measurement source included. CI-file update is supplied separately by the connected publisher.'
+          git push origin HEAD:refs/heads/work/lifecycle-integrated-20260912-source
+          echo "Source transport $(git rev-parse HEAD), tree $(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
