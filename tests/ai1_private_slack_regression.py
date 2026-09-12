@@ -40,7 +40,8 @@ HUNGARORING_ALL_MOVES = {
     "AI2": {1: 130, 2: 129, 3: 122, 4: 123, 5: 127, 6: 128, 7: 124, 8: 125},
 }
 HUNGARORING_NORMALIZED_SHA256 = (
-    '3dccc38d20bdb1c4c7536429b15b754ce44b1b12d2be09aa987041e97b8cb224'
+    # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
+    'b280fa66616627629b75e022bd657c35e5989bb09d7fd430bc29e427ab54ca29'
 )
 
 # Each case pins one false-positive class from the broader score-slack screens:
@@ -91,7 +92,7 @@ VETO_NORMALIZED_SHA256 = {
     ("spa", 1): '484264dda55671fdee9e8f18a058d4392a303070eecb7f18ba74464bd5913cf6',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
-    ("hungaroring", 40): 'b13bb08e0bc775a274a871301cd6d2edf86b97e1820c766bd9c13271dbd5b91a',
+    ("hungaroring", 40): '3f3e42f290c6d760a6012c6539454254fcfa38d0de5c95add9494e947726887f',
     # Round 224: same finishing order and same per-car move counts, new route.
     ("interlagos", 47): '9699bf5520287ec9c93cadf05bae015fd9d25cbe313abbe0b0e09a975b819e99',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;

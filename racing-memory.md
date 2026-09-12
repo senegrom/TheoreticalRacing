@@ -1,5 +1,69 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 237: the two-move duel proof becomes the champion's
+
+Round 236 merged the peer branch's two-move proof but left it gated on
+candidateSlots, so no shipped car ran it. This round takes the gate off. The
+measurement is the branch's own mirrored shape -- candidate slots take the
+proof, champion slots do not, inside one jar -- on the round-234 champion, 84
+tracks, 840 mirrored pairs a slice:
+
+    roster / start        place C-H        wins        crashes C/H  tracks C/H/tied
+    2p legacy  s1-10     -0.025 +- 0.005  861 : 819    16 :  68      4 / 0 / 80
+    2p legacy  s11-20    -0.026 +- 0.006  862 : 818    22 :  77      3 / 0 / 81
+    2p informed s1-10    -0.020 +- 0.005  857 : 823    28 :  57      3 / 0 / 81
+    2p scatter  s1-10    -0.001 +- 0.001  841 : 839     0 :   2      1 / 0 / 83
+    8p legacy   s1-10    +0.001 +- 0.001  840 : 840    61 :  61      1 / 3 / 80
+    8p informed s1-10    +0.000 +- 0.001  840 : 840    57 :  57      1 / 2 / 81
+    8p scatter  s1-10    +0.000 +- 0.000  840 : 840     5 :   5      0 / 0 / 84
+
+THE HELD-OUT SLICE REPRODUCES THE TUNING SLICE: -0.026 +- 0.006 against -0.025
++- 0.005, on seeds this policy had never seen. Across all three two-car start
+modes TEN boards favour the new car and NONE favour the champion: there is no
+track where taking the proof costs a place in a duel. Eight-car fields are
+neutral on every start mode, inside one standard error, and scatter is dead
+even on all 84 boards -- the proof abstains while a third car is racing, so
+there is nothing for it to do until a race is down to two.
+
+IT WINS BY WRECKING THE OTHER CAR, which round 236 established and this round
+re-confirms on the new champion: on random two-car starts the opposition
+crashes 68 times against the candidate's 16, and on the held-out seeds 77
+against 22. Round 236's baseline grid (measured on the round-233 champion)
+put an unopposed two-car fleet at 8 crashes in 730 races, so a number like 68
+is not the champion driving badly -- it is being driven into the wall. The
+gain IS the forced crashes, and the rule endorses exactly that.
+
+WHAT IT COSTS THE CORPUS: almost nothing, which is the tactic's own shape
+showing up again. Twenty-one of twenty-four pins re-verify with ZERO rewrites.
+One golden moves -- monaco-s16-8p takes 1124 turns instead of 1122, same
+finishers, same crashes, same finishing order -- and three trajectory hashes
+move without moving a result. A tactic that only fires with two live cars
+changes the route, not the race.
+
+TWO TEST CONTRACTS HAD TO WIDEN, and the gate had been hiding both.
+RaceAiTacticsTests asserted that whatever winNow returns leaves the rival no
+legal reply; a two-move SETUP deliberately leaves one, and the knockout lands
+on the next move. Its verifier now accepts that shape too, replaying through
+the referee from detached coordinates and sharing no code with the search.
+RaceAiDuelSearchTests was built AROUND the gate: it raced a baseline game with
+candidateSlots unset to show its fixtures needed the second move, and checked
+the candidate never leaked into the other slot. Neither means anything once
+every car runs the proof, so the necessity claim is stated directly now (one
+own move is not enough, two are) and the leak check is INVERTED into a guard
+that candidateSlots no longer changes any decision at all.
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto). A
+whole field of round-237 cars against a whole field of round-234 cars, 730
+random-start lap races each, no candidateSlots on either side:
+
+    round 237   61 crashes   1,762,186 moves
+    round 234   61 crashes   1,762,392 moves
+
+The same crash count to the car, and 206 moves faster in 1.76 million. Nothing
+to pay: a tactic that abstains while a third car is racing cannot spoil a
+full field, and the eight-car head-to-heads above say the same thing three
+times over.
+
 ## Round 236: overtaking by forcing the crash -- what it is worth, and where
 
 The owner asked for cars that overtake, and that may overtake by crashing the

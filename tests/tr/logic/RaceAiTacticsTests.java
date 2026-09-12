@@ -212,7 +212,16 @@ final class RaceAiTacticsTests {
         check(blocks > 0 && finishes > 0, "random soundness checks were vacuous");
     }
 
-    /** Enumerate all nine rival accelerations through the actual referee. */
+    /** Enumerate all nine rival accelerations through the actual referee.
+     *
+     * Round 237 widened the contract: winNow may now return a two-move SETUP,
+     * where the rival still HAS a legal reply and the knockout lands on our
+     * next move. Take the immediate shapes first -- our own finish, or a rival
+     * with no legal reply at all -- and only then require the weaker one, that
+     * every legal reply leaves us an answer. This verifier is deliberately
+     * independent of RaceAiDuelSearch's own search: it replays through the
+     * referee from detached coordinates and shares no code with it.
+     */
     private static void assertWin(final RaceGame g, final int mover, final Direction d) {
         final Player p = g.players[mover], r = g.players[1-mover];
         final int[] rp = r.getPosition();
@@ -220,10 +229,56 @@ final class RaceAiTacticsTests {
         check(ours.legal(), "winning move itself crashes");
         if (ours.finishes())
             return;
-        final int x = p.getPosition()[0]+p.getVelocity()[0]+d.dx;
-        final int y = p.getPosition()[1]+p.getVelocity()[1]+d.dy;
+        final int[] mine = {p.getPosition()[0]+p.getVelocity()[0]+d.dx,
+                p.getPosition()[1]+p.getVelocity()[1]+d.dy,
+                p.getVelocity()[0]+d.dx, p.getVelocity()[1]+d.dy,
+                ours.lapAfter(), ours.gateAfter()};
+        boolean knockout = true;
         for (final Direction reply : DIRECTIONS)
-            check(!result(g,r,reply,x,y).legal(), "rival has a legal reply to alleged knockout");
+            if (result(g,r,reply,mine[0],mine[1]).legal())
+                knockout = false;
+        if (knockout)
+            return;
+        for (final Direction reply : DIRECTIONS) {
+            final RaceGame.MoveResult got = result(g,r,reply,mine[0],mine[1]);
+            check(!got.finishes(), "rival finishes against an alleged setup");
+            if (!got.legal())
+                continue;
+            final int[] theirs = {rp[0]+r.getVelocity()[0]+reply.dx,
+                    rp[1]+r.getVelocity()[1]+reply.dy,
+                    r.getVelocity()[0]+reply.dx, r.getVelocity()[1]+reply.dy,
+                    got.lapAfter(), got.gateAfter()};
+            check(answered(g,mine,theirs), "setup leaves a rival reply unanswered");
+        }
+    }
+
+    /** Is some move from {@code mine} a finish, or does it leave {@code theirs}
+     * no legal reply at all? Both are {x, y, vx, vy, lap, gate}. */
+    private static boolean answered(final RaceGame g, final int[] mine, final int[] theirs) {
+        for (final Direction d : DIRECTIONS) {
+            final int vx = mine[2]+d.dx, vy = mine[3]+d.dy;
+            if (RaceGame.aiVelocityOutOfRange(vx,vy))
+                continue;
+            final int x = mine[0]+vx, y = mine[1]+vy;
+            final RaceGame.MoveResult ours = g.evaluateMove(mine[4],mine[5],mine[0],mine[1],x,y,
+                    x==theirs[0] && y==theirs[1]);
+            if (ours.finishes())
+                return true;
+            if (!ours.legal())
+                continue;
+            boolean trapped = true;
+            for (final Direction reply : DIRECTIONS) {
+                final int rx = theirs[0]+theirs[2]+reply.dx, ry = theirs[1]+theirs[3]+reply.dy;
+                if (g.evaluateMove(theirs[4],theirs[5],theirs[0],theirs[1],rx,ry,
+                        rx==x && ry==y).legal()) {
+                    trapped = false;
+                    break;
+                }
+            }
+            if (trapped)
+                return true;
+        }
+        return false;
     }
 
     private static RaceGame.MoveResult result(final RaceGame g, final Player p,

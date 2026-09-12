@@ -25,7 +25,8 @@ TARGET = ("rand3", 1)
 PROMOTED = (7, 0, [60, 61, 62, 63, 63, 64, 65])
 PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (5, 63), (7, 63), (6, 64), (8, 65)]
 PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 65, 5: 63, 6: 64, 7: 63, 8: 65}
-PROMOTED_SHA256 = '0e857e8d6e6c083b1b977a09392de8beffa60d0763c6244932a00a034b38c4f8'
+# Round 237: re-frozen from measurement (every car takes the two-move duel proof).
+PROMOTED_SHA256 = 'a3c3ea640f10a766ccb6afab38ae9edee0bfbc2476974ccdb84f4e3e03fc6eb4'
 
 
 def main() -> int:

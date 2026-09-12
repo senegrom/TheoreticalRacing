@@ -87,17 +87,25 @@ public final class RaceAiDuelSearchTests {
                             }
                             g.subgamestate = mover;
                         }
-                        check(RaceAiTactics.winNow(baseline,mover+1) == null,
-                                "fixture already has a champion one-move proof");
                         final String before = snapshot(candidate);
                         final Direction selected = RaceAiTactics.winNow(candidate,mover+1);
                         check(selected == SETUP_MOVES[fixture], "setup/slot/kind determinism changed");
                         check(winsAfter(candidate,candidate.players[mover],candidate.players[1-mover],
                                 selected,0,2), "setup has a refuting reply");
+                        // Round 237: these fixtures are TWO-move setups, and that used
+                        // to be shown by the gated champion finding nothing here. With
+                        // the gate gone, say it directly instead: one own move is not
+                        // enough, two are. A fixture that decays into a one-move
+                        // knockout would stop testing what it was built to test.
+                        check(!winsAfter(candidate,candidate.players[mover],
+                                candidate.players[1-mover],selected,0,1),
+                                "fixture decayed into a one-move proof");
                         check(before.equals(snapshot(candidate)), "proof mutated live state");
-                        // Even with another slot enabled, an unselected car is the champion.
+                        // Round 237 inverts the old isolation check: candidateSlots
+                        // selects nothing any more, so the two games must agree.
                         check(RaceAiTactics.winNow(candidate,2-mover)
-                                == RaceAiTactics.winNow(baseline,2-mover), "candidate leaked to rival");
+                                == RaceAiTactics.winNow(baseline,2-mover),
+                                "candidateSlots still changes a decision");
                     }
                 }
             }
@@ -115,10 +123,13 @@ public final class RaceAiDuelSearchTests {
 
     private static void testFinishSetupAndRefutation() {
         final RaceGame g = game("1");
-        check(RaceAiTactics.winNow(game(null),1) == null, "finish setup is already immediate");
         final Direction setup = RaceAiTactics.winNow(g,1);
         check(setup != null && winsAfter(g,g.players[0],g.players[1],setup,0,2),
                 "missed a guaranteed second-move finish");
+        // Round 237: the gated champion used to stand in for "this is not already
+        // an immediate win". State the property itself now that both run the proof.
+        check(!winsAfter(g,g.players[0],g.players[1],setup,0,1),
+                "finish setup is already immediate");
         // One opponent reply that reaches the flag refutes the whole setup.
         g.players[1] = car(2,66,26,0,0);
         check(RaceAiDuelSearch.winWithinTwoMoves(g,1) == null, "ignored a rival finishing reply");
