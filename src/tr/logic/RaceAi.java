@@ -589,7 +589,8 @@ final class RaceAi {
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
 		prepareDecisionFrame(pos, vel, playerNum);
-		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum);
+		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum,
+				!inScorerSim && trueConfirmDepth == 0 && simDepth == 0);
 		if (tacticalWin != null)
 			return tacticalWin;
 		// Round 214: with nobody near, the race is a shortest-path problem and
@@ -4881,7 +4882,12 @@ final class RaceAi {
 		return null;
 	}
 
-	private java.util.HashMap<Long, Boolean>	egMemo;
+	/** Full physical opponent states cannot be packed into five velocity bits:
+	 *  a legal human reply may accelerate beyond the AI planning cap. */
+	static record EndgameState(int mx, int my, int mvx, int mvy,
+			int rx, int ry, int rvx, int rvy, int depth, boolean rivalTurn) {}
+
+	private java.util.HashMap<EndgameState, Boolean> egMemo;
 	private int									egNodes;
 
 	/** Lever 5 (round 43, shared champion): 1v1 exact endgame solver. When the sole
@@ -4897,7 +4903,7 @@ final class RaceAi {
 		// The minimax key has no progress ledger. It is sound only when
 		// BOTH racers owe just their final S/F crossing; being near the next
 		// gate is not being near victory when the exact potential is absent.
-		if (ri < 0 || lapAware || frameLapAware[ri])
+		if (ri < 0 || lapAware || frameLapAware[ri] || game.raceTurnLimitReached())
 			return null;
 		final int myT = ttf(pos[0], pos[1], vel[0], vel[1]);
 		final int[] rp = game.players[ri].getPosition(), rv = game.players[ri].getVelocity();
@@ -4940,9 +4946,13 @@ final class RaceAi {
 	private boolean egRival(final int mx, final int my, final int mvx, final int mvy,
 			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
 		egNodes++;
+		// The referee retires the mover before accepting another acceleration.
+		// Projected depth fixes the clock relative to this search's root.
+		if (endgameTimedOut(depth))
+			return true;
 		if (depth <= 0)
 			return false;		// horizon: no guarantee
-		final long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
+		final EndgameState key = new EndgameState(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
 		final Boolean memo = egMemo.get(key);
 		if (memo != null)
 			return memo;
@@ -4953,9 +4963,8 @@ final class RaceAi {
 				win = false;	// budget: conservative, claim nothing
 				break;
 			}
+			// Opponents are constrained by physics, never by our search cap.
 			final int nvx = rvx + d.dx, nvy = rvy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-				continue;
 			final int nx = rx + nvx, ny = ry + nvy;
 			if (game.crossesFinishLegally(rx, ry, nx, ny)) {
 				win = false;	// rival crosses first
@@ -4983,9 +4992,9 @@ final class RaceAi {
 	private boolean egMy(final int mx, final int my, final int mvx, final int mvy,
 			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
 		egNodes++;
-		if (depth <= 0)
+		if (endgameTimedOut(depth) || depth <= 0)
 			return false;
-		final long key = endgameMemoKey(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
+		final EndgameState key = new EndgameState(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
 		final Boolean memo = egMemo.get(key);
 		if (memo != null)
 			return memo;
@@ -5016,22 +5025,11 @@ final class RaceAi {
 		return win;
 	}
 
-	/** Pack a joint endgame state into a collision-free memo key for every
-	 *  supported grid coordinate: 9b coordinates, 5b velocity offsets (+12),
-	 *  5b depth and 1b turn = 62 bits. */
-	static long endgameMemoKey(final int mx, final int my, final int mvx, final int mvy,
-			final int rx, final int ry, final int rvx, final int rvy, final int depth, final boolean rivalTurn) {
-		long k = mx & 0x1FFL;
-		k = k << 9 | my & 0x1FFL;
-		k = k << 5 | mvx + 12 & 0x1FL;
-		k = k << 5 | mvy + 12 & 0x1FL;
-		k = k << 9 | rx & 0x1FFL;
-		k = k << 9 | ry & 0x1FFL;
-		k = k << 5 | rvx + 12 & 0x1FL;
-		k = k << 5 | rvy + 12 & 0x1FL;
-		k = k << 5 | depth & 0x1FL;
-		k = k << 1 | (rivalTurn ? 1 : 0);
-		return k;
+	/** Root is our move at depth 2*AI1_EG_DEPTH. Retired roster slots
+	 *  consume no turns; the original roster still sets the timeout limit. */
+	private boolean endgameTimedOut(final int depth) {
+		return game.lapGates != null && (long) game.turnCount() + 2L * AI1_EG_DEPTH - depth
+				> (long) game.totalLaps * 750 * game.players.length;
 	}
 
 	/** TRUE iff state (x,y,vx,vy) is SEALABLE: opponents can jointly occupy

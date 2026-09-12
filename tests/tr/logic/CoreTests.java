@@ -282,13 +282,13 @@ public final class CoreTests {
     }
 
     private static void testEndgameMemoKey() {
-        final long highY = RaceAi.endgameMemoKey(0, 256, 0, 0, 10, 20, 1, -1, 7, false);
-        final long nextX = RaceAi.endgameMemoKey(1, 0, 0, 0, 10, 20, 1, -1, 7, false);
-        check(highY != nextX, "endgame memo key collides above coordinate 255");
+        final RaceAi.EndgameState highY = new RaceAi.EndgameState(0, 256, 0, 0, 10, 20, 1, -1, 7, false);
+        final RaceAi.EndgameState nextX = new RaceAi.EndgameState(1, 0, 0, 0, 10, 20, 1, -1, 7, false);
+        check(!highY.equals(nextX), "endgame memo key collides above coordinate 255");
 
-        final long maxGrid = RaceAi.endgameMemoKey(500, 500, 12, -12, 499, 498, -12, 12, 20, true);
-        final long adjacent = RaceAi.endgameMemoKey(500, 499, 12, -12, 499, 498, -12, 12, 20, true);
-        check(maxGrid != adjacent, "endgame memo key loses supported 9-bit coordinates");
+        final RaceAi.EndgameState maxGrid = new RaceAi.EndgameState(500, 500, 12, -12, 499, 498, -12, 12, 20, true);
+        final RaceAi.EndgameState adjacent = new RaceAi.EndgameState(500, 499, 12, -12, 499, 498, -12, 12, 20, true);
+        check(!maxGrid.equals(adjacent), "endgame memo key loses supported 9-bit coordinates");
     }
 
     private static void testEdgeLegalCache() {

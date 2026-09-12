@@ -1,5 +1,30 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review integration (2026-09-12): physical endgames and a third-move candidate
+
+Prepared `9d23057` is integrated onto `d6412d6`, not substituted for it. Round
+237's promoted two-move tactic and its updated corpus stay in place. The older
+deep minimax now enumerates every physical rival reply, uses full-state memo
+keys and respects projected mover-first timeouts. A legal speed-13 human finish
+previously refuted its claimed win; the new regression checks that case.
+
+A bounded third-own-move proof extends only selected candidate cars at real
+decisions. Unselected cars and nested decisions retain the two-move champion.
+Every existing shorter certificate keeps its move. Independent finite checks
+find 15 additional certificates in 1,067 valid sampled boards, all verified
+against physical replies; this is not a universal proof of the heuristic AI.
+
+Run 34684034180 passed both supported-JDK contract jobs and six all-course
+mirrored fleets: 10,080 races over 2/8 cars, all start modes and seeds 1-10 at
+-Xmx8g. Two-car candidate-minus-champion places are -0.049/-0.049/-0.005
+(legacy/informed/scatter); eight-car comparisons are neutral to three decimals
+except legacy -0.001. These compare the three-move candidate to the PREVIOUS
+one-move tactical cohort, not round 237. The third move is NOT promoted on
+that evidence. Original reports/checksums and integration boundaries are in
+`docs/racecraft-proof-review.md` and `docs/experiments/three-move-endgame/`.
+Combined-source validation is recorded with the final commit. No rules, maps,
+tracks, user settings, golden expectations or champion trajectory pins change.
+
 ## Round 237: the two-move duel proof becomes the champion's
 
 Round 236 merged the peer branch's two-move proof but left it gated on

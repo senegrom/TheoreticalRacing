@@ -14,6 +14,13 @@ final class RaceAiTactics {
      * abstain and leave the existing policy untouched. Does not mutate players,
      * progress, occupancy, caches of predictions, or the decision frame. */
     static Direction winNow(final RaceGame game, final int playerNumber) {
+        return winNow(game, playerNumber, true);
+    }
+
+    /** Only the additional experimental horizon needs a real decision here.
+     * Preserve the promoted two-move tactic in the champion's existing paths;
+     * nested scorer boards do not project the clock for a new three-move proof. */
+    static Direction winNow(final RaceGame game, final int playerNumber, final boolean realDecision) {
         final Direction immediate = immediateWin(game, playerNumber);
         if (immediate != null)
             return immediate;
@@ -24,6 +31,8 @@ final class RaceAiTactics {
         // starts, and no board anywhere favours the champion in a duel. Eight-car
         // fields are neutral on all three start modes (+0.001, +0.000, +0.000),
         // because this abstains while a third car is racing.
+        if (realDecision && game.candidatePolicy(playerNumber))
+            return RaceAiDuelSearch.winWithinThreeMoves(game, playerNumber);
         return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
     }
 
