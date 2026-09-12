@@ -1,5 +1,24 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review/racecraft follow-up (2026-09-12): physical endgames and a deeper candidate
+
+The review of 39cb7b2 found an older deep-proof defect: egRival applied the AI
+speed cap to physical rival replies. A straight-course speed-13 human finish
+refutes its claimed win. The deep proof now considers those replies, memoizes
+full states (no five-bit velocity alias), and observes projected mover-first
+timeouts. EndgamePhysicalTests fixes both boundary contracts.
+
+The opt-in candidate retains its two-move certificates and adds a bounded third
+own move only when no shorter proof exists. Experimental proofs run only at
+real decisions (all three recursion counters are clear). They remain opponent-
+policy-independent, preserve checkpoint progress and abstain on budget exhaustion.
+A separate 2,500-trial detached-player verification checked 356 certificates on
+1,067 valid boards, including 15 absent from two moves; no physical refutation.
+Full mirrored evaluation and supported-JDK validation are in the accompanying
+workflow evidence, not inferred from those small constructed checks. No new
+policy promotion is claimed by this journal entry. See docs/racecraft-proof-review.md.
+
+
 ## Review follow-up (2026-09-11): publish successors and measure actual candidate slots
 
 The two workflow findings from `59a5530` are corrected on top of `5aa9c8b`;

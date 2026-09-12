@@ -14,12 +14,18 @@ final class RaceAiTactics {
      * abstain and leave the existing policy untouched. Does not mutate players,
      * progress, occupancy, caches of predictions, or the decision frame. */
     static Direction winNow(final RaceGame game, final int playerNumber) {
+        return winNow(game, playerNumber, true);
+    }
+
+    /** A rollout's board does not imply its live turn counter is projected.
+     * Keep the experimental proof out of all nested scoring/prediction paths. */
+    static Direction winNow(final RaceGame game, final int playerNumber, final boolean realDecision) {
         final Direction immediate = immediateWin(game, playerNumber);
-        if (immediate != null || !game.candidatePolicy(playerNumber))
+        if (immediate != null || !realDecision || !game.candidatePolicy(playerNumber))
             return immediate;
-        // Experimental two-move proof. With candidateSlots unset, only the
+        // Experimental bounded three-move proof. With candidateSlots unset, only the
         // unchanged champion tactic runs; never enable by AI label alone.
-        return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
+        return RaceAiDuelSearch.winWithinThreeMoves(game, playerNumber);
     }
 
     private static Direction immediateWin(final RaceGame game, final int playerNumber) {
