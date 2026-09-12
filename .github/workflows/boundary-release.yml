@@ -1,0 +1,144 @@
+name: Validate final boundary repair and measured corpus
+on:
+  push:
+    branches: [work/occupancy-terminal-release-20260912]
+permissions:
+  contents: read
+concurrency:
+  group: occupancy-terminal-release-20260912
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  verify:
+    name: Final boundary source JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source and audited golden expectations
+        run: |
+          git show "$GITHUB_SHA":.github/apply-boundary.sh > "$RUNNER_TEMP/apply.sh"
+          bash "$RUNNER_TEMP/apply.sh"
+      - name: Strict build, all Java suites and referee differentials
+        run: |
+          sh run_tests.sh
+          sh build_main.sh
+          python tests/cross_era_referee_regression.py
+      - name: Python, headless and real cohort contracts
+        if: matrix.java == '25'
+        run: |
+          python -m unittest discover -s tests -p 'test_*.py'
+          python tests/headless_smoke.py
+          python tests/query_replay_regression.py
+          python tests/lap_progress_regression.py
+          python tests/selfplay_profile_regression.py
+          python tests/promotion_pair_regression.py
+          python -m compileall -q tracks tests
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Verify no tracked input mutation
+        run: git diff --exit-code
+  corpus:
+    name: Twelve goldens and all unchanged champion pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact final tree
+        run: |
+          git show "$GITHUB_SHA":.github/apply-boundary.sh > "$RUNNER_TEMP/apply.sh"
+          bash "$RUNNER_TEMP/apply.sh"
+          sh build_main.sh
+      - name: Full golden and champion corpus
+        shell: bash
+        run: |
+          python tests/golden_races.py
+          for test in tests/ai1_*_regression.py; do echo "==> $test"; python "$test"; done
+          git diff --exit-code
+  browser:
+    name: Native browser parity and timeout Undo
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact final tree and build browser engine
+        run: |
+          git show "$GITHUB_SHA":.github/apply-boundary.sh > "$RUNNER_TEMP/apply.sh"
+          bash "$RUNNER_TEMP/apply.sh"
+          python -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+      - name: Complete native parity, shared Undo and tooling tests
+        run: |
+          python web/tests/parity.py
+          python web/tests/server_test.py
+          python -m unittest discover -s web/tests -p 'test_*.py'
+          node --test web/tests/engine.test.mjs
+          for f in web/*.js; do node --check "$f"; done
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: boundary-final-native-parity
+          path: web/build/parity/
+          retention-days: 30
+  prepare:
+    name: Prepare validated production commit only
+    needs: [verify, corpus, browser]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+      - name: Commit the tested repair without measurement or workflow helpers
+        run: |
+          git show "$GITHUB_SHA":.github/apply-boundary.sh > "$RUNNER_TEMP/apply.sh"
+          bash "$RUNNER_TEMP/apply.sh"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix physical private lanes, terminal rollouts and timeout Undo' -m 'Carry exact rival velocities and lap/gate progress through referee transitions. Stop projected races at the last-survivor classification, including optional costs and pending timeouts. Snapshot interactive timeout retirements before mutation.' -m 'Add four reproduced boundary regressions, 26199 physical continuation checks, lifecycle and browser-adapter Undo coverage. Re-freeze three AI2 hashes from audited before/after logs: rollout-only changes reproduce each new trajectory; finishing orders and crash counts are unchanged. Keep all 24 champion pins and the other nine goldens unchanged.' -m 'Validate the exact source on JDK 25/26, all 12 goldens and 24 champion scripts, 159 Python tests, referee and real-cohort contracts, and 17 native desktop/browser race comparisons. Preserve round 238, original tracks, saved settings, persisted map formats and the opt-in third move. Fleet evidence is evaluated separately before master publication; no measurement helpers are included. See docs/occupancy-termination-review.md.'
+          test "$(git rev-parse HEAD^{tree})" = 528ad4b12312cfb53eb4408cba9922bda4ee204c
+          git push origin HEAD:refs/heads/work/occupancy-terminal-release-20260912-prepared
+          echo "Prepared $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
