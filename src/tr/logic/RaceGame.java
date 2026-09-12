@@ -1673,6 +1673,10 @@ public final class RaceGame {
 		// a capped car logs TIMEOUT, not CRASH -- benchmark metrics must not
 		// confuse slow traffic with wrecks.
 		if (raceTurnLimitReached()) {
+			// Retirement is a committed action too; Undo must restore this turn,
+			// not consume the preceding human player's ordinary move.
+			if (!autoMode)
+				moveHistory.push(new MoveSnapshot(this));
 			dispMessage(player.getName() + " retires (race turn limit).");
 			logMove(player, directionOf(player.getVelocity(), vel), player.getVelocity().clone(),
 					pos, vel, newpos, "TIMEOUT place=" + (players.length - finishedLast));

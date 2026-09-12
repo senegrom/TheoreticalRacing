@@ -3696,6 +3696,7 @@ final class RaceAi {
 		long failedRivalCost = 0L;
 		boolean myFinished = false;
 		int myIdx = 0;
+		int liveCount = 0;
 		for (int i = 0; i < game.players.length; i++) {
 			final Player player = game.players[i];
 			final int[] position = player.getPosition();
@@ -3705,6 +3706,8 @@ final class RaceAi {
 			vx[i] = velocity[0];
 			vy[i] = velocity[1];
 			alive[i] = !player.isFinished();
+			if (alive[i])
+				liveCount++;
 			workspace.laps[i] = player.getLap();
 			workspace.gates[i] = game.lapGates == null ? 0 : player.getNextGate();
 			updateRolloutFrame(workspace, i);
@@ -3712,6 +3715,8 @@ final class RaceAi {
 				myIdx = i;
 		}
 		if (candidatePending) {
+			if (game.raceTurnLimitReached())
+				return -1;
 			final RaceGame.MoveResult candidate = game.evaluateMove(workspace.laps[myIdx], workspace.gates[myIdx],
 					px[myIdx], py[myIdx], myX, myY, occupiedByOther(myX, myY, myIdx, px, py, alive));
 			if (!candidate.legal())
@@ -3722,6 +3727,7 @@ final class RaceAi {
 			workspace.turns++;
 			if (candidate.finishes() && simFinishVanish) {
 				alive[myIdx] = false;
+				liveCount--;
 				myFinished = true;
 				if (outFinalTier != null)
 					outFinalTier[0] = 3;
@@ -3781,11 +3787,14 @@ final class RaceAi {
 					sb.append('i').append(i).append(' ');
 			System.err.println(sb);
 		}
-		for (int round = 0; round < rounds; round++) {
+		// As in checkFinished(), the last live car is classified immediately.
+		// A solo race is the exception: that car still has to finish or retire.
+		boolean raceOver = game.players.length > 1 && liveCount <= 1;
+		for (int round = 0; round < rounds && !raceOver; round++) {
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
-			for (int i = from; i < game.players.length; i++) {
+			for (int i = from; i < game.players.length && !raceOver; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
 				usePlayerFrame(i);
@@ -3854,10 +3863,12 @@ final class RaceAi {
 				// scored or a stray crossing keeps it in the race.
 				if (simFinishVanish && !timedOut && moved && transition.finishes()) {
 					alive[i] = false;
+					liveCount--;
+					raceOver = game.players.length > 1 && liveCount <= 1;
 					if (i == myIdx) {
 						if (outFinalTier != null)
 							outFinalTier[0] = 3;
-						if (outFieldCost == null)
+						if (outFieldCost == null && outRivalCost == null)
 							return 0;
 						myFinished = true;
 					} else if (outRivalCost != null)
@@ -3868,6 +3879,8 @@ final class RaceAi {
 					if (i == myIdx)
 						return -1;
 					alive[i] = false;
+					liveCount--;
+					raceOver = game.players.length > 1 && liveCount <= 1;
 					if (outFieldCost != null)
 						failedRivalCost += ROLLOUT_FAILURE_COST;
 					continue;
@@ -3886,7 +3899,8 @@ final class RaceAi {
 			for (int i = 0; i < game.players.length; i++) {
 				if (i == myIdx || !alive[i])
 					continue;
-				final int turns = ttfFor(i, px[i], py[i], vx[i], vy[i]);
+				// A classified survivor owes no future moves, even if physically stuck.
+				final int turns = raceOver ? 0 : ttfFor(i, px[i], py[i], vx[i], vy[i]);
 				final long terminalCost = turns == Integer.MAX_VALUE
 						? ROLLOUT_FAILURE_COST : turns;
 				fieldCost += terminalCost;
@@ -3900,10 +3914,11 @@ final class RaceAi {
 		usePlayerFrame(myIdx);
 		// Round 65: a surviving-but-fragile final (tier <= 1) is the
 		// escalation signal for the 5-7-round doom class.
-		if (outFinalTier != null && !myFinished)
-			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
-					myIdx, px, py, alive);
-		return myFinished ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+		if (outFinalTier != null)
+			outFinalTier[0] = myFinished || raceOver ? 3
+					: safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
+							myIdx, px, py, alive);
+		return myFinished || raceOver ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
 	}
 
 	/** Danger joint search (round 40, shared champion): if the chosen landing DIES in

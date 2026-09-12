@@ -1,5 +1,21 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review follow-up (2026-09-12): physical private lanes and terminal lifecycle
+
+The four findings from `745798f` are repaired: the exact private-lane oracle
+covers physical rival speeds with full lap/checkpoint state; rollouts stop when
+the referee classifies the last survivor; interactive timeout retirements now
+create Undo snapshots. Pending simulated moves also obey timeout precedence.
+The existing champion, third-move opt-in and referee rules are not replaced.
+
+New physical-occupancy, model/referee and non-modal Undo regressions cover the
+concrete failures and adjacent boundary cases. Measurement uses mirrored cohorts
+in a disposable comparison binary with the unchanged base scorer as control;
+the unrelated third-move candidate is disabled on both sides only in that binary.
+Full-course, reference-heap comparisons and supported-JDK/golden outcomes belong
+to this change's publication evidence. See `docs/private-lane-lifecycle-review.md`.
+No saved user settings, bundled geometry or persisted map formats change.
+
 ## Review integration (2026-09-12): physical endgames and a third-move candidate
 
 Prepared `9d23057` is integrated onto `d6412d6`, not substituted for it. Round
