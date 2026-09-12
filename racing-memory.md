@@ -84,8 +84,11 @@ deletion because the maps-v2 rebuild had since moved a pinned race. Measured
 again on today's champion and today's maps: +0.000 +- 0.000, 84 boards tied,
 61 crashes and 1,762,186 moves on either side -- the champion's own self-play
 counters to the move -- and the two mirror grids' row digests are the SAME
-sixteen hex characters. The guard never decides a move. Deleted in the commit
-after this one as a behaviour-identical cleanup.
+sixteen hex characters. The guard never decides a move. Deleted at 65baeac
+(28 lines) and verified the other way round as well: a whole field of the
+deleted build, 730 random-start races with no candidateSlots, reproduces
+the round-237 champion's self-play to the row digest -- 7bd997763ff556a3
+on both sides.
 
 ## Review integration (2026-09-12): physical endgames and a third-move candidate
 
