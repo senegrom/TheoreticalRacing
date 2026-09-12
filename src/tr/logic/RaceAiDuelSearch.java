@@ -28,6 +28,30 @@ final class RaceAiDuelSearch {
      * The existing one-move tactic runs first in the production entry point.
      */
     static Direction winWithinTwoMoves(final RaceGame game, final int playerNumber) {
+        return winWithinMoves(game, playerNumber, 2);
+    }
+
+    /** Try the old two-move certificate first, then one additional own move.
+     * Budget exhaustion is an abstention, never a win. The extra search is
+     * candidate-only; existing shorter certificates retain their move order. */
+    static Direction winWithinThreeMoves(final RaceGame game, final int playerNumber) {
+        final Direction shorter = winWithinTwoMoves(game, playerNumber);
+        return shorter != null ? shorter : winWithinMoves(game, playerNumber, 3);
+    }
+
+    private static final class Budget {
+        private int left = 20_000;
+        private boolean exhausted;
+
+        boolean take() {
+            if (left-- > 0) return true;
+            exhausted = true;
+            return false;
+        }
+    }
+
+    private static Direction winWithinMoves(final RaceGame game, final int playerNumber,
+            final int ownMoves) {
         Player me = null, rival = null;
         for (final Player player : game.players) {
             if (player.isFinished())
@@ -43,6 +67,7 @@ final class RaceAiDuelSearch {
             return null;
         final State mine = State.of(me), theirs = State.of(rival);
         final long turn = game.turnCount();
+        final Budget budget = new Budget();
         Direction best = null;
         int bestHorizon = UNKNOWN;
         // Finish before searching a setup, including combined checkpoint/flag
@@ -57,7 +82,7 @@ final class RaceAiDuelSearch {
             final RaceGame.MoveResult first = move(game, mine, theirs, d);
             if (!first.legal())
                 continue;
-            final int horizon = afterOurMove(game, mine.after(d, first), theirs, turn + 1, 1);
+            final int horizon = afterOurMove(game, mine.after(d, first), theirs, turn + 1, ownMoves - 1, budget);
             if (horizon < bestHorizon) {
                 best = d;
                 bestHorizon = horizon;
@@ -65,7 +90,7 @@ final class RaceAiDuelSearch {
                     break; // Rival retires next: no non-finishing move can win sooner.
             }
         }
-        return best;
+        return budget.exhausted ? null : best;
     }
 
     /** Universal rival node. An illegal reply retires it and wins for us;
@@ -74,7 +99,8 @@ final class RaceAiDuelSearch {
      * is allowed here: a human can use any of the nine physical accelerations.
      */
     private static int afterOurMove(final RaceGame game, final State mine, final State rival,
-            final long turn, final int ownMovesLeft) {
+            final long turn, final int ownMovesLeft, final Budget budget) {
+        if (!budget.take()) return UNKNOWN;
         if (timedOut(game, turn))
             return 1;
         int worst = 1;
@@ -86,7 +112,8 @@ final class RaceAiDuelSearch {
                 continue;
             if (ownMovesLeft == 0)
                 return UNKNOWN;
-            final int continuation = ourLastMove(game, mine, rival.after(reply, result), turn + 1);
+            final int continuation = ourMove(game, mine, rival.after(reply, result), turn + 1,
+                    ownMovesLeft, budget);
             if (continuation == UNKNOWN)
                 return UNKNOWN;
             worst = Math.max(worst, 1 + continuation);
@@ -94,11 +121,11 @@ final class RaceAiDuelSearch {
         return worst;
     }
 
-    /** Existential final own node: finish now or leave the rival no legal
-     * reply. A dead landing is allowed only when that reply ends the duel.
-     */
-    private static int ourLastMove(final RaceGame game, final State mine, final State rival,
-            final long turn) {
+    /** Existential own node: retain the shortest certified continuation.
+     * A dead landing is useful only if the rival retires before we move again. */
+    private static int ourMove(final RaceGame game, final State mine, final State rival,
+            final long turn, final int ownMovesLeft, final Budget budget) {
+        if (!budget.take()) return UNKNOWN;
         if (timedOut(game, turn))
             return UNKNOWN;
         int best = UNKNOWN;
@@ -108,9 +135,11 @@ final class RaceAiDuelSearch {
             final RaceGame.MoveResult result = move(game, mine, rival, d);
             if (result.finishes())
                 return 1;
-            if (result.legal()
-                    && afterOurMove(game, mine.after(d, result), rival, turn + 1, 0) != UNKNOWN)
-                best = 2;
+            if (result.legal()) {
+                final int tail = afterOurMove(game, mine.after(d, result), rival, turn + 1,
+                        ownMovesLeft - 1, budget);
+                if (tail != UNKNOWN) best = Math.min(best, 1 + tail);
+            }
         }
         return best;
     }

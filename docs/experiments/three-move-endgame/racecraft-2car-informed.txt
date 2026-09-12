@@ -1,0 +1,26 @@
+1680 candidate car-races, 1680 champion car-races over 1680 races
+mean place   candidate 1.476   champion 1.524   (lower is better; 1.500 is a tie)
+race wins    candidate 881   champion 799
+crashes      candidate 28   champion 140
+mirrored races 840: candidate minus champion mean place -0.049  (standard error 0.007; negative favours the candidate)
+
+tracks where the candidate gains most (mean place difference, candidate car-races):
+    hungaroring    -1.000  (20)
+    hybrid1        -1.000  (20)
+    monza          -0.900  (20)
+    interlagos     -0.800  (20)
+    hybrid20       -0.400  (20)
+    bigoval        +0.000  (20)
+    chicane        +0.000  (20)
+    circle         +0.000  (20)
+tracks where it loses most:
+    weave3         +0.000  (20)
+    weave4         +0.000  (20)
+    weave5         +0.000  (20)
+    weave6         +0.000  (20)
+    weave7         +0.000  (20)
+    weave8         +0.000  (20)
+    zandvoort      +0.000  (20)
+    zigzag         +0.000  (20)
+
+5 tracks favour the candidate, 0 the champion, 79 tied

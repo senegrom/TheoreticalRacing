@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Properties;
 import java.util.Random;
 
-/** Exhaustive reply checks for the opt-in two-move duel proof. */
+/** Physical reply checks for the promoted two-move and opt-in three-move proofs. */
 public final class RaceAiDuelSearchTests {
     private static final Direction[] DIRECTIONS = Direction.values();
     private static final int[][] SETUPS = {
@@ -30,6 +30,7 @@ public final class RaceAiDuelSearchTests {
         testProgressAndTurnLimit();
         testPhysicalReplies();
         testRandomSoundness();
+        testThreeMoveSoundness();
         System.out.println("RaceAiDuelSearchTests: OK (64 setup variants; 12,000 sampled positions)");
     }
 
@@ -90,6 +91,11 @@ public final class RaceAiDuelSearchTests {
                         final String before = snapshot(candidate);
                         final Direction selected = RaceAiTactics.winNow(candidate,mover+1);
                         check(selected == SETUP_MOVES[fixture], "setup/slot/kind determinism changed");
+                        check(RaceAiTactics.winNow(candidate,mover+1,false)
+                                == RaceAiTactics.winNow(baseline,mover+1),
+                                "experimental horizon changed a hypothetical champion decision");
+                        check(RaceAiTactics.winNow(baseline,mover+1) == selected,
+                                "merge removed the promoted two-move tactic");
                         check(winsAfter(candidate,candidate.players[mover],candidate.players[1-mover],
                                 selected,0,2), "setup has a refuting reply");
                         // Round 237: these fixtures are TWO-move setups, and that used
@@ -101,11 +107,11 @@ public final class RaceAiDuelSearchTests {
                                 candidate.players[1-mover],selected,0,1),
                                 "fixture decayed into a one-move proof");
                         check(before.equals(snapshot(candidate)), "proof mutated live state");
-                        // Round 237 inverts the old isolation check: candidateSlots
-                        // selects nothing any more, so the two games must agree.
+                        // The unselected rival retains the promoted two-move champion;
+                        // only a selected real decision may try the extra horizon.
                         check(RaceAiTactics.winNow(candidate,2-mover)
                                 == RaceAiTactics.winNow(baseline,2-mover),
-                                "candidateSlots still changes a decision");
+                                "three-move candidate leaked to an unselected rival");
                     }
                 }
             }
@@ -206,7 +212,7 @@ public final class RaceAiDuelSearchTests {
                 continue;
             valid++;
             final String before = snapshot(g);
-            final Direction selected = RaceAiTactics.winNow(g,1);
+            final Direction selected = RaceAiDuelSearch.winWithinTwoMoves(g,1);
             check(before.equals(snapshot(g)), "random probe mutated its board");
             if (selected != null) {
                 check(winsAfter(g,g.players[0],g.players[1],selected,g.turnCount(),2),
@@ -219,6 +225,46 @@ public final class RaceAiDuelSearchTests {
         check(proofs > 20 && setups > 0, "random soundness checks were vacuous");
         System.out.println("Random duel checks: " + valid + " valid boards, " + proofs
                 + " certificates, " + setups + " requiring a second own move");
+    }
+
+    private static void testThreeMoveSoundness() {
+        final RaceGame g = game("1");
+        final Random random = new Random(20260912);
+        int valid = 0, proofs = 0, additional = 0;
+        for (int trial = 0; trial < 2500; trial++) {
+            final int x = 4 + random.nextInt(73), y = 4 + random.nextInt(23);
+            g.players[0] = car(1,x,y,random.nextInt(27)-13,random.nextInt(27)-13);
+            g.players[1] = car(2,x+random.nextInt(13)-6,y+random.nextInt(13)-6,
+                    random.nextInt(27)-13,random.nextInt(27)-13);
+            if (!onTrack(g,g.players[0]) || !onTrack(g,g.players[1])
+                    || Arrays.equals(g.players[0].getPosition(),g.players[1].getPosition())) continue;
+            valid++;
+            final String before = snapshot(g);
+            final Direction old = RaceAiDuelSearch.winWithinTwoMoves(g,1);
+            final Direction selected = RaceAiDuelSearch.winWithinThreeMoves(g,1);
+            check(before.equals(snapshot(g)), "three-move proof mutated its board");
+            if (old != null) check(selected == old, "deeper search changed an earlier certificate");
+            if (selected == null) continue;
+            check(winsAfter(g,g.players[0],g.players[1],selected,0,3),
+                    "three-move certificate has a physical refutation at trial " + trial);
+            proofs++;
+            if (old == null) {
+                check(RaceAiTactics.winNow(g,1) == selected,
+                        "additional certificate not reachable from the production tactic");
+                check(RaceAiTactics.winNow(g,1,false) == null,
+                        "three-move-only certificate leaked into a nested decision");
+                final RaceGame champion = game(null);
+                champion.players = g.players;
+                check(RaceAiTactics.winNow(champion,1) == null,
+                        "three-move-only certificate leaked into the default champion");
+                additional++;
+                if (additional <= 3) System.out.println("Additional three-move witness: "
+                        + snapshot(g) + " via " + selected);
+            }
+        }
+        check(additional > 0, "three-move search adds no verified certificates");
+        System.out.println("Three-move checks: " + valid + " valid, " + proofs
+                + " certificates, " + additional + " beyond two moves");
     }
 
     /** Slow independent verifier: replay each branch into detached PLAYERS,
