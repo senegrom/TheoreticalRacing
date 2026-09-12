@@ -110,9 +110,9 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "b9a522305a7254e6d33daaa0a07ffda6614b6d7667c098b1da181ede7087bc97",
+      "sha256": "02674393f530f40a853f07b60effa7a95caa2024b9df7be164ded9c811e2887e",
       "summary": {
-        "turns": 551,
+        "turns": 549,
         "finishes": 3,
         "crashes": 0,
         "results": [
@@ -121,14 +121,15 @@
           "C",
           "D"
         ]
-      }
+      },
+      "changeReason": "2026-09-12: stop projected races at last-survivor classification; isolated rollout-only build reproduces this log. Order/retirements unchanged. See docs/experiments/lifecycle/golden-audit.json."
     },
     {
       "name": "monaco-s16-8p",
       "track": "monaco",
       "seed": 16,
       "players": 8,
-      "sha256": "eae150ec7e20db4d6e539f223d7f1df3d88334f044162b2c7c00034f5dc58f86",
+      "sha256": "fc0ec00bfd89988b51b6aff4363c945d0ebf09d1309acbe065eb152a0dbcc241",
       "summary": {
         "turns": 1124,
         "finishes": 7,
@@ -143,7 +144,8 @@
           "C",
           "E"
         ]
-      }
+      },
+      "changeReason": "2026-09-12: stop projected races at last-survivor classification; isolated rollout-only build reproduces this log. Order/retirements unchanged. See docs/experiments/lifecycle/golden-audit.json."
     },
     {
       "name": "nurburgring-s19-8p",
@@ -172,7 +174,7 @@
       "track": "interlagos",
       "seed": 10,
       "players": 8,
-      "sha256": "37d0b65e6ef8639e09bac5a365a4b0a62f3afe60b2401d61a06ea1bcb22db5dd",
+      "sha256": "fefc488ec4923427e16c7699d1df004f25014ccb4f1b2a98ea7d34ff220b4b2b",
       "summary": {
         "turns": 999,
         "finishes": 7,
@@ -187,7 +189,8 @@
           "H",
           "G"
         ]
-      }
+      },
+      "changeReason": "2026-09-12: stop projected races at last-survivor classification; isolated rollout-only build reproduces this log. Order/retirements unchanged. See docs/experiments/lifecycle/golden-audit.json."
     },
     {
       "name": "zigzag-s22-8p",

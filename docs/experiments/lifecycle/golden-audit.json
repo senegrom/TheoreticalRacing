@@ -1,0 +1,246 @@
+{
+  "base": "745798f613406790f88b44607a2a827ad7856a98",
+  "localRuntime": "OpenJDK 21.0.11, JAVA_TOOL_OPTIONS=-Xmx2300m (supplementary); final fixtures must also pass supported-JDK CI",
+  "method": "Four disposable builds; same unchanged tracks, profiles and seed. Base, private-lane-only, rollout-only, all production fixes. No hash or summary regenerated until module isolation completed.",
+  "cases": [
+    {
+      "name": "monaco-s9-4p",
+      "base": {
+        "sha256": "b9a522305a7254e6d33daaa0a07ffda6614b6d7667c098b1da181ede7087bc97",
+        "summary": {
+          "turns": 551,
+          "finishes": 3,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        }
+      },
+      "privateOnly": {
+        "sha256": "b9a522305a7254e6d33daaa0a07ffda6614b6d7667c098b1da181ede7087bc97",
+        "summary": {
+          "turns": 551,
+          "finishes": 3,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        }
+      },
+      "rolloutOnly": {
+        "sha256": "02674393f530f40a853f07b60effa7a95caa2024b9df7be164ded9c811e2887e",
+        "summary": {
+          "turns": 549,
+          "finishes": 3,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        }
+      },
+      "fixed": {
+        "sha256": "02674393f530f40a853f07b60effa7a95caa2024b9df7be164ded9c811e2887e",
+        "summary": {
+          "turns": 549,
+          "finishes": 3,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        }
+      },
+      "firstDifferingMove": {
+        "old": "539 p3 AI2 W v(5,-2)\u2192(4,-2) (127,91)\u2192(131,89) ok",
+        "new": "539 p3 AI2 NW v(5,-2)\u2192(4,-3) (127,91)\u2192(131,88) ok"
+      },
+      "rawLogSha256": {
+        "base": "2c0795327b7165e0744e4a246e38e169e31803c54677749f0e9d51848b1a8dd2",
+        "private-only": "2c0795327b7165e0744e4a246e38e169e31803c54677749f0e9d51848b1a8dd2",
+        "rollout-only": "96b18e1d88c82e713c3a15a56f00a3afbe7d238978b41d469fb6162986d5d2b5",
+        "fixed": "96b18e1d88c82e713c3a15a56f00a3afbe7d238978b41d469fb6162986d5d2b5"
+      }
+    },
+    {
+      "name": "monaco-s16-8p",
+      "base": {
+        "sha256": "eae150ec7e20db4d6e539f223d7f1df3d88334f044162b2c7c00034f5dc58f86",
+        "summary": {
+          "turns": 1124,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "D",
+            "F",
+            "G",
+            "H",
+            "C",
+            "E"
+          ]
+        }
+      },
+      "privateOnly": {
+        "sha256": "eae150ec7e20db4d6e539f223d7f1df3d88334f044162b2c7c00034f5dc58f86",
+        "summary": {
+          "turns": 1124,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "D",
+            "F",
+            "G",
+            "H",
+            "C",
+            "E"
+          ]
+        }
+      },
+      "rolloutOnly": {
+        "sha256": "fc0ec00bfd89988b51b6aff4363c945d0ebf09d1309acbe065eb152a0dbcc241",
+        "summary": {
+          "turns": 1124,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "D",
+            "F",
+            "G",
+            "H",
+            "C",
+            "E"
+          ]
+        }
+      },
+      "fixed": {
+        "sha256": "fc0ec00bfd89988b51b6aff4363c945d0ebf09d1309acbe065eb152a0dbcc241",
+        "summary": {
+          "turns": 1124,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "B",
+            "D",
+            "F",
+            "G",
+            "H",
+            "C",
+            "E"
+          ]
+        }
+      },
+      "firstDifferingMove": {
+        "old": "1117 p5 AI2 SW v(4,-3)\u2192(3,-2) (131,88)\u2192(134,86) ok",
+        "new": "1117 p5 AI2 NONE v(4,-3)\u2192(4,-3) (131,88)\u2192(135,85) ok"
+      },
+      "rawLogSha256": {
+        "base": "b10056bbb82707f2a55a47c5949d0216d037ac2d1c0bf20f993c681beed0cad8",
+        "private-only": "b10056bbb82707f2a55a47c5949d0216d037ac2d1c0bf20f993c681beed0cad8",
+        "rollout-only": "1ee2419b64b570306e9608ff05f9c0c869122c0c4cb8c8ad2f652a7269b6fa05",
+        "fixed": "1ee2419b64b570306e9608ff05f9c0c869122c0c4cb8c8ad2f652a7269b6fa05"
+      }
+    },
+    {
+      "name": "interlagos-s10-8p",
+      "base": {
+        "sha256": "37d0b65e6ef8639e09bac5a365a4b0a62f3afe60b2401d61a06ea1bcb22db5dd",
+        "summary": {
+          "turns": 999,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "C",
+            "D",
+            "F",
+            "B",
+            "E",
+            "H",
+            "G"
+          ]
+        }
+      },
+      "privateOnly": {
+        "sha256": "37d0b65e6ef8639e09bac5a365a4b0a62f3afe60b2401d61a06ea1bcb22db5dd",
+        "summary": {
+          "turns": 999,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "C",
+            "D",
+            "F",
+            "B",
+            "E",
+            "H",
+            "G"
+          ]
+        }
+      },
+      "rolloutOnly": {
+        "sha256": "fefc488ec4923427e16c7699d1df004f25014ccb4f1b2a98ea7d34ff220b4b2b",
+        "summary": {
+          "turns": 999,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "C",
+            "D",
+            "F",
+            "B",
+            "E",
+            "H",
+            "G"
+          ]
+        }
+      },
+      "fixed": {
+        "sha256": "fefc488ec4923427e16c7699d1df004f25014ccb4f1b2a98ea7d34ff220b4b2b",
+        "summary": {
+          "turns": 999,
+          "finishes": 7,
+          "crashes": 0,
+          "results": [
+            "A",
+            "C",
+            "D",
+            "F",
+            "B",
+            "E",
+            "H",
+            "G"
+          ]
+        }
+      },
+      "firstDifferingMove": {
+        "old": "927 p7 AI2 S v(-4,0)\u2192(-4,1) (42,154)\u2192(38,155) ok",
+        "new": "927 p7 AI2 SW v(-4,0)\u2192(-5,1) (42,154)\u2192(37,155) ok"
+      },
+      "rawLogSha256": {
+        "base": "4312fd9ead5f0cc3c6b4cd4fe2fd0ed53e654c22deada8806eaa5120f7b1f1a2",
+        "private-only": "4312fd9ead5f0cc3c6b4cd4fe2fd0ed53e654c22deada8806eaa5120f7b1f1a2",
+        "rollout-only": "5b681ebea9ab0cc76608c451e7a4eff61c039ed2d0ab541361ba0d4d45bc5447",
+        "fixed": "5b681ebea9ab0cc76608c451e7a4eff61c039ed2d0ab541361ba0d4d45bc5447"
+      }
+    }
+  ]
+}

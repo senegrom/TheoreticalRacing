@@ -124,7 +124,7 @@ final class RaceAiPrivateLane {
 		private int size;
 
 		byte get(final int key) {
-			int slot = IntFrontier.mix(key) & (keys.length - 1);
+			int slot = mix(key) & (keys.length - 1);
 			final int stored = key + 1;
 			while (keys[slot] != 0) {
 				if (keys[slot] == stored)
@@ -137,7 +137,7 @@ final class RaceAiPrivateLane {
 		void put(final int key, final byte value) {
 			if ((size + 1) * 2 >= keys.length)
 				rehash(keys.length << 1);
-			int slot = IntFrontier.mix(key) & (keys.length - 1);
+			int slot = mix(key) & (keys.length - 1);
 			final int stored = key + 1;
 			while (keys[slot] != 0) {
 				if (keys[slot] == stored) {
@@ -149,6 +149,11 @@ final class RaceAiPrivateLane {
 			keys[slot] = stored;
 			values[slot] = value;
 			size++;
+		}
+
+		private static int mix(final int value) {
+			final int mixed = value * 0x9E3779B9;
+			return mixed ^ mixed >>> 16;
 		}
 
 		private void rehash(final int capacity) {
@@ -163,101 +168,45 @@ final class RaceAiPrivateLane {
 		}
 	}
 
-	/** Small primitive set/list used by the bounded targeted occupancy search.
-	 * The exact fallback explores at most a few thousand states, so avoiding
-	 * boxed Integer nodes keeps its fail-closed budget cheap and predictable. */
-	private static final class IntFrontier {
-		private int[] values = new int[64];
-		private int[] table = new int[128];
-		private int size;
-
-		void clear() {
-			java.util.Arrays.fill(table, 0);
-			size = 0;
-		}
-
-		int size() {
-			return size;
-		}
-
-		int get(final int index) {
-			return values[index];
-		}
-
-		void add(final int value) {
-			if ((size + 1) * 2 >= table.length)
-				rehash(table.length << 1);
-			int slot = mix(value) & (table.length - 1);
-			final int stored = value + 1;
-			while (table[slot] != 0) {
-				if (table[slot] == stored)
-					return;
-				slot = slot + 1 & (table.length - 1);
-			}
-			table[slot] = stored;
-			if (size == values.length)
-				values = java.util.Arrays.copyOf(values, values.length << 1);
-			values[size++] = value;
-		}
-
-		private void rehash(final int capacity) {
-			table = new int[capacity];
-			for (int i = 0; i < size; i++) {
-				final int value = values[i];
-				int slot = mix(value) & (capacity - 1);
-				while (table[slot] != 0)
-					slot = slot + 1 & (capacity - 1);
-				table[slot] = value + 1;
-			}
-		}
-
-		static int mix(final int value) {
-			int mixed = value * 0x9E3779B9;
-			mixed ^= mixed >>> 16;
-			return mixed;
-		}
-	}
+	/** A physical rival can exceed our planning cap. Progress is part of the
+	 * state too: a start/finish crossing need not remove the car from the race. */
+	private record RivalState(int x, int y, int vx, int vy, int lap, int gate) {}
 
 	/** Geometry-clipped targeted fallback for rectangular false positives.
-	 * For each queried cell it expands every speed-valid, geometry-valid rival
+	 * For each queried cell it expands every physically legal, nonterminal rival
 	 * acceleration sequence that can still kinematically reach that cell.
-	 * Collisions are deliberately ignored, which can only add rival paths.
+	 * Collisions and timeouts are deliberately ignored, which can only add rival paths.
 	 * Exhausting the shared node budget reports "may occupy", so the proof
 	 * remains conservative and the runtime cost is hard-bounded per real move. */
 	private static final class ExactRivalReach implements RivalOccupancy {
 		private final RaceGame game;
-		private final Reachability reach;
 		private final RivalReach rectangle;
-		private final int[] starts;
-		private final int span;
-		private final int vmax;
+		private final RivalState[] starts;
 		private final int height;
 		private final int width;
 		private final int cells;
 		private final IntByteCache cache = new IntByteCache();
-		private IntFrontier current = new IntFrontier();
-		private IntFrontier next = new IntFrontier();
+		private java.util.LinkedHashSet<RivalState> current = new java.util.LinkedHashSet<>();
+		private java.util.LinkedHashSet<RivalState> next = new java.util.LinkedHashSet<>();
 		private int nodesLeft;
 
 		ExactRivalReach(final RaceGame game, final Reachability reach,
 				final int playerNum, final RivalReach rectangle, final int nodesLeft) {
 			this.game = game;
-			this.reach = reach;
 			this.rectangle = rectangle;
 			this.nodesLeft = nodesLeft;
-			span = reach.aliveSpan;
-			vmax = reach.aliveVMAX;
 			height = reach.aliveH;
 			width = reach.aliveW;
 			cells = width * height;
-			starts = new int[rectangle.rivals];
+			starts = new RivalState[rectangle.rivals];
 			int index = 0;
 			for (final Player p : game.players) {
 				if (p.getNumber() == playerNum || p.isFinished())
 					continue;
 				final int[] position = p.getPosition();
 				final int[] velocity = p.getVelocity();
-				starts[index++] = reach.aliveIdx(position[0], position[1], velocity[0], velocity[1]);
+				starts[index++] = new RivalState(position[0], position[1], velocity[0], velocity[1],
+						p.getLap(), p.getNextGate());
 			}
 		}
 
@@ -281,56 +230,39 @@ final class RaceAiPrivateLane {
 				return true;
 			current.clear();
 			next.clear();
-			for (final int packed : starts)
-				if (packedEnvelopeContains(packed, ply, targetX, targetY))
-					current.add(packed);
-			for (int step = 1; step <= ply && current.size() != 0; step++) {
+			for (final RivalState state : starts)
+				if (envelopeContains(state.x(), state.y(), state.vx(), state.vy(), ply, targetX, targetY))
+					current.add(state);
+			for (int step = 1; step <= ply && !current.isEmpty(); step++) {
 				next.clear();
 				final int remaining = ply - step;
-				for (int i = 0; i < current.size(); i++) {
+				for (final RivalState state : current) {
 					if (--nodesLeft < 0)
 						return true;
-					int state = current.get(i);
-					final int vy = state % span - vmax;
-					state /= span;
-					final int vx = state % span - vmax;
-					state /= span;
-					final int y = state % height;
-					final int x = state / height;
 					for (final Direction d : DIRECTIONS) {
-						final int nvx = vx + d.dx, nvy = vy + d.dy;
-						if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-							continue;
-						final int nx = x + nvx, ny = y + nvy;
-						if (game.crossesFinishLegally(x, y, nx, ny))
-							continue;
-						if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+						final long vx = (long) state.vx() + d.dx, vy = (long) state.vy() + d.dy;
+						final long x = state.x() + vx, y = state.y() + vy;
+						// An unrepresentable physical state is unknown, never proof of absence.
+						if (vx != (int) vx || vy != (int) vy || x != (int) x || y != (int) y)
+							return true;
+						final int nvx = (int) vx, nvy = (int) vy, nx = (int) x, ny = (int) y;
+						final RaceGame.MoveResult move = game.evaluateMove(state.lap(), state.gate(),
+								state.x(), state.y(), nx, ny, false);
+						if (!move.legal() || move.finishes())
 							continue;
 						if (remaining == 0) {
 							if (nx == targetX && ny == targetY)
 								return true;
 						} else if (envelopeContains(nx, ny, nvx, nvy, remaining, targetX, targetY)) {
-							next.add(reach.aliveIdx(nx, ny, nvx, nvy));
+							next.add(new RivalState(nx, ny, nvx, nvy, move.lapAfter(), move.gateAfter()));
 						}
 					}
 				}
-				final IntFrontier swap = current;
+				final java.util.LinkedHashSet<RivalState> swap = current;
 				current = next;
 				next = swap;
 			}
 			return false;
-		}
-
-		private boolean packedEnvelopeContains(final int packed, final int steps,
-				final int targetX, final int targetY) {
-			int state = packed;
-			final int vy = state % span - vmax;
-			state /= span;
-			final int vx = state % span - vmax;
-			state /= span;
-			final int y = state % height;
-			final int x = state / height;
-			return envelopeContains(x, y, vx, vy, steps, targetX, targetY);
 		}
 
 		private static boolean envelopeContains(final int x, final int y, final int vx, final int vy,

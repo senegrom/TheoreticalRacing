@@ -1,0 +1,33 @@
+{
+  "base": "9668703dc1489383bde78f2460476e9f6daa1da0",
+  "production_tree": "3661687882a2778a2066d8a952914a1680900301",
+  "heap": "-Xmx8g",
+  "tracks": 84,
+  "seeds": "1-10",
+  "players": 8,
+  "races": 5040,
+  "car_races": 40320,
+  "third_move": "disabled for both measurement cohorts only",
+  "reports": {
+    "collected/integrated-lifecycle-fleet-informed-0/head-to-head.txt": "aa1aaa26e93dae0369dd31a95892cbb1430058bd2d3490e5d540c09a459871e4",
+    "collected/integrated-lifecycle-fleet-informed-1/head-to-head.txt": "a03def7748cfff38b7496884b34b8f4d79270d95d0c5b70a866f1ef0d277727f",
+    "collected/integrated-lifecycle-fleet-informed-2/head-to-head.txt": "3607a32139f01a3ae5627f129ab125baa8565ddc94c3a90cd3b4eaafc71a29f5",
+    "collected/integrated-lifecycle-fleet-informed-3/head-to-head.txt": "770a320d4262ac6363a4dcb2a6b7148b05ea2a0701ed15818e6860275362f79e",
+    "collected/integrated-lifecycle-fleet-informed-4/head-to-head.txt": "37b1dea789103746a1c8f1e8c6591f074a1d97eaf691c58e4fe75f798c670a57",
+    "collected/integrated-lifecycle-fleet-informed-5/head-to-head.txt": "ea20e509658db350c94220dd99cd3c5f5748e4d98a3e311e77db88d22e5c2c56",
+    "collected/integrated-lifecycle-fleet-legacy-0/head-to-head.txt": "744d17ab41b04ecab3f30a133ced5e8a1c0adb3e3c35c8ba889947debb603041",
+    "collected/integrated-lifecycle-fleet-legacy-1/head-to-head.txt": "a1630d0ed6071ec797c5d589fa45602be06a5b501774533b942ec421af65288d",
+    "collected/integrated-lifecycle-fleet-legacy-2/head-to-head.txt": "825684fd10e9fa67977597b1b4bb2f2376af741519def23801997005a40c790a",
+    "collected/integrated-lifecycle-fleet-legacy-3/head-to-head.txt": "04db0c8ff18957041b769d06d071ce55323ca3e8eba47ed6f91c22404a0afc6a",
+    "collected/integrated-lifecycle-fleet-legacy-4/head-to-head.txt": "d0cd42659346b604a79d7434dc65e62381f693266982b5677aee4a26cc8d7e69",
+    "collected/integrated-lifecycle-fleet-legacy-5/head-to-head.txt": "231d994af78864be8c89118450aae6b540bf91ab5200b685e2dccc4e5973e93c",
+    "collected/integrated-lifecycle-fleet-scatter-0/head-to-head.txt": "aa1aaa26e93dae0369dd31a95892cbb1430058bd2d3490e5d540c09a459871e4",
+    "collected/integrated-lifecycle-fleet-scatter-1/head-to-head.txt": "5b73925da8213aad39c324d7e93466543c2597830b16df6dab34a530bcbc86d3",
+    "collected/integrated-lifecycle-fleet-scatter-2/head-to-head.txt": "4257be67d99af5e89fc22119108427c72fd58534001e57a4c1e066bd62a3bd58",
+    "collected/integrated-lifecycle-fleet-scatter-3/head-to-head.txt": "ec4438ee6b5490651d631051a524929b64b45fb9e6fc7912647db83ed6ea82e6",
+    "collected/integrated-lifecycle-fleet-scatter-4/head-to-head.txt": "beb4e79c47a17d3345a3b0f7467bcdcaa43613892ff18c476a794a0d256e42e8",
+    "collected/integrated-lifecycle-fleet-scatter-5/head-to-head.txt": "654f31df891be2c3582301b51b0f9c98f27d9ab7d7b47844b06f209f6132fced"
+  },
+  "fleet_workflow_run": 34705252476,
+  "release_validation_run": 34705411385
+}
