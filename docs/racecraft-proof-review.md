@@ -66,6 +66,26 @@ changed. The previous campaign's measured policy is otherwise preserved.
 
 ## Completed initial campaign and integration boundary
 
+> **Superseded, 2026-09-12 (round 239).** The table below compares the
+> three-move candidate with the *pre-237 one-move* cohort, which is not the car
+> it would replace. Measured against the round-237 two-move champion -- same
+> merged jar, both cohorts inside it, 84 tracks, 840 mirrored pairs a slice:
+>
+> | roster | start | seeds | place C−H | se | wins | crashes C:H | tracks C/H/tied |
+> | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+> | 2 | legacy | 1-10 | −0.025 | 0.005 | 861:819 | 60:117 | 3/0/81 |
+> | 2 | informed | 1-10 | −0.029 | 0.006 | 864:816 | 53:110 | 3/0/81 |
+> | 2 | scatter | 1-10 | −0.004 | 0.002 | 843:837 | 2:11 | 3/0/81 |
+> | 2 | legacy | 11-20 | −0.020 | 0.005 | 857:823 | 69:126 | 2/0/82 |
+> | 8 | legacy | 1-10 | −0.001 | 0.000 | 840:840 | 61:61 | 1/0/83 |
+> | 8 | informed | 1-10 | +0.000 | 0.000 | 840:840 | 57:57 | 0/0/84 |
+> | 8 | scatter | 1-10 | −0.000 | 0.000 | 840:840 | 5:5 | 1/0/83 |
+>
+> Zero boards favour the champion in any slice. Promoted in round 239: every
+> real decision takes the third move; nested scorer boards keep the two-move
+> proof. Full account in `racing-memory.md`.
+
+
 Validation run 34684034180 completed on prepared source commit
 `9d23057d37de220d2301ff26dcda898eef858a53`, tree
 `f8bf1099f22262833c0368aeed967784605954a9`. Both JDK 25/26 proof jobs and all six

@@ -255,8 +255,8 @@ public final class RaceAiDuelSearchTests {
                         "three-move-only certificate leaked into a nested decision");
                 final RaceGame champion = game(null);
                 champion.players = g.players;
-                check(RaceAiTactics.winNow(champion,1) == null,
-                        "three-move-only certificate leaked into the default champion");
+                check(RaceAiTactics.winNow(champion,1) != null,
+                        "round 239: the default champion must take the three-move certificate too");
                 additional++;
                 if (additional <= 3) System.out.println("Additional three-move witness: "
                         + snapshot(g) + " via " + selected);

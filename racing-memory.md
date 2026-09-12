@@ -1,5 +1,73 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 239: the three-move duel proof, measured against the champion it sits beside
+
+A peer commit (745798f) extended the duel proof by one own move -- play a
+move after which EVERY physical rival reply leaves us a two-move certificate
+-- and left it gated on candidateSlots, because the only measurement it had
+was against the pre-237 one-move cohort: -0.049 in duels there, which says
+nothing about the car it would actually replace. This round asks the
+question the peer's own write-up says is open. The merged jar, both cohorts
+inside it: candidate slots take the third move at real decisions, champion
+slots take the round-237 two-move proof. 84 tracks, 840 mirrored pairs a
+slice:
+
+    roster / start        place C-H        wins        crashes C/H  tracks C/H/tied
+    2p legacy  s1-10     -0.025 +- 0.005  861 : 819    60 : 117      3 / 0 / 81
+    2p informed s1-10    -0.029 +- 0.006  864 : 816    53 : 110      3 / 0 / 81
+    2p scatter  s1-10    -0.004 +- 0.002  843 : 837     2 :  11      3 / 0 / 81
+    2p legacy  s11-20    -0.020 +- 0.005  857 : 823    69 : 126      2 / 0 / 82
+    8p legacy   s1-10    -0.001 +- 0.000  840 : 840    61 :  61      1 / 0 / 83
+    8p informed s1-10    +0.000 +- 0.000  840 : 840    57 :  57      0 / 0 / 84  byte-identical
+    8p scatter  s1-10    -0.000 +- 0.000  840 : 840     5 :   5      1 / 0 / 83
+
+THE SAME SHAPE AS ROUND 237, ONE HORIZON DEEPER. Against the two-move
+champion the three-move car wins by the same mechanism round 236 established
+for the two-move car against the one-move one: it does not drive more safely,
+it puts the other car into the wall. The opposition's crashes nearly double
+(117 against 60 on random starts, 110 against 53 on computed), hybrid1 flips
+outright on both, Monza -1.000 and -0.900, and no board in either two-car
+mode favours the champion. -0.025 and -0.029 are the round-237 numbers to the
+third decimal: each added move of proof is worth about the same again, which
+is what a bounded search that only fires when the race is down to two live
+cars should look like.
+
+THE BATTERY CLEARS, WITH NOTHING AGAINST IT. Seven slices, three start modes,
+a held-out seed window, two rosters: every two-car slice is positive (the
+scattered one small, -0.004 +- 0.002, because scattered duels barely ever
+come within a proof of each other), every eight-car slice is neutral to the
+third decimal, and across all seven ZERO boards favour the champion. The
+held-out seeds land at -0.020 +- 0.005 against the tuning window's -0.025 +-
+0.005 -- the replication round 237 also passed. Promoted: every REAL decision
+takes the third move (the peer's realDecision condition stays -- nested scorer
+boards do not project the clock for it and keep the two-move proof); only the
+candidateSlots test comes off.
+
+WHAT THE PEER'S OWN NUMBER MEANT. Their screen read -0.049 in duels against
+the pre-237 one-move cohort. Against the two-move champion it is -0.025: the
+third move is worth about what the second was, and the two add. That is the
+number their write-up said was missing, and it is the only one that could
+justify replacing the car it sits beside.
+
+WHAT IT COSTS THE CORPUS: NOTHING AT ALL. All twenty-four pins re-verify with
+zero rewrites and all twelve goldens re-freeze to the same digests -- the
+first promotion in this ledger to move no pinned race. Round 237 moved one
+golden by two turns and three trajectory hashes; the third move reaches
+fifteen more certificates in a thousand sampled boards, and none of the
+frozen fixtures happens to be one of them. The tactic fires where the
+mirrored fleets say it fires -- 117 forced crashes in 840 duels -- and the
+fixture corpus, built to pin traffic decisions in eight-car fields, never
+gets a race down to two cars at a three-move distance.
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto):
+
+    round 239   61 crashes   1,762,175 moves   rows e870287d39b22b62
+    round 237   61 crashes   1,762,186 moves   rows 7bd997763ff556a3
+
+The same crash count to the car and eleven moves fewer in 1.76 million: a
+handful of endgames end one move sooner with a car in the wall, and nothing
+else in the field moves.
+
 ## Round 238: the scorer's remaining caution, priced -- and the first one that earns its keep
 
 Four caution removals in a row had each gained places (226/228 the needle

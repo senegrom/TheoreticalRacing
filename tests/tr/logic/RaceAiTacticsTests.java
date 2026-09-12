@@ -248,13 +248,18 @@ final class RaceAiTacticsTests {
                     rp[1]+r.getVelocity()[1]+reply.dy,
                     r.getVelocity()[0]+reply.dx, r.getVelocity()[1]+reply.dy,
                     got.lapAfter(), got.gateAfter()};
-            check(answered(g,mine,theirs), "setup leaves a rival reply unanswered");
+            // Round 239: the promoted proof may now be THREE own moves deep, so
+            // the answer to a reply is allowed to be another certified setup.
+            check(answered(g,mine,theirs,2), "setup leaves a rival reply unanswered");
         }
     }
 
     /** Is some move from {@code mine} a finish, or does it leave {@code theirs}
-     * no legal reply at all? Both are {x, y, vx, vy, lap, gate}. */
-    private static boolean answered(final RaceGame g, final int[] mine, final int[] theirs) {
+     * no legal reply at all -- or, with {@code depth} own moves still allowed,
+     * a position where every legal reply is answered again? Both are
+     * {x, y, vx, vy, lap, gate}. */
+    private static boolean answered(final RaceGame g, final int[] mine, final int[] theirs,
+            final int depth) {
         for (final Direction d : DIRECTIONS) {
             final int vx = mine[2]+d.dx, vy = mine[3]+d.dy;
             if (RaceGame.aiVelocityOutOfRange(vx,vy))
@@ -266,16 +271,30 @@ final class RaceAiTacticsTests {
                 return true;
             if (!ours.legal())
                 continue;
-            boolean trapped = true;
+            final int[] after = {x, y, vx, vy, ours.lapAfter(), ours.gateAfter()};
+            boolean allAnswered = true;
             for (final Direction reply : DIRECTIONS) {
                 final int rx = theirs[0]+theirs[2]+reply.dx, ry = theirs[1]+theirs[3]+reply.dy;
-                if (g.evaluateMove(theirs[4],theirs[5],theirs[0],theirs[1],rx,ry,
-                        rx==x && ry==y).legal()) {
-                    trapped = false;
+                final RaceGame.MoveResult got = g.evaluateMove(theirs[4],theirs[5],
+                        theirs[0],theirs[1],rx,ry,rx==x && ry==y);
+                if (got.finishes()) {
+                    allAnswered = false;
+                    break;
+                }
+                if (!got.legal())
+                    continue;
+                if (depth <= 1) {
+                    allAnswered = false;
+                    break;
+                }
+                final int[] next = {rx, ry, theirs[2]+reply.dx, theirs[3]+reply.dy,
+                        got.lapAfter(), got.gateAfter()};
+                if (!answered(g,after,next,depth-1)) {
+                    allAnswered = false;
                     break;
                 }
             }
-            if (trapped)
+            if (allAnswered)
                 return true;
         }
         return false;

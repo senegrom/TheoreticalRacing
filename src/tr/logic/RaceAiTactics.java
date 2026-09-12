@@ -31,7 +31,13 @@ final class RaceAiTactics {
         // starts, and no board anywhere favours the champion in a duel. Eight-car
         // fields are neutral on all three start modes (+0.001, +0.000, +0.000),
         // because this abstains while a third car is racing.
-        if (realDecision && game.candidatePolicy(playerNumber))
+        // Round 239 (PROMOTED): every REAL decision takes the third move. Measured
+        // against the round-237 two-move champion, 840 mirrored pairs a slice:
+        // -0.025 +- 0.005 on random two-car starts, -0.029 +- 0.006 on computed,
+        // -0.004 +- 0.002 scattered, and no board in any duel mode favours the
+        // champion; eight-car fields are neutral. Nested scorer boards keep the
+        // two-move proof: they do not project the clock for a third move.
+        if (realDecision)
             return RaceAiDuelSearch.winWithinThreeMoves(game, playerNumber);
         return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
     }
