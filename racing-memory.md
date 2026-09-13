@@ -1,5 +1,39 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 243: the one-cell traffic model, priced
+
+Round 242 found the champion's whole model of traffic is a single +3.0 price
+inside the soft rollout, on a candidate landing that coincides with a rival's
+predicted cell one step ahead -- and only for rivals slower than
+AI1_VACATE_SPEED2, the faster ones nulled as "transiting" so their cells do
+not cause phantom detours. Two arms on the round-240 champion, 8-car random
+starts, mirrored, 840 pairs each:
+
+    arm                                             place C-H      crashes C/H  tracks C/H/tied
+    occ0   the predicted-occupancy price off       +0.156 +-.030    62/53       29/50/5
+    vac0   fast rivals keep their predicted cell   +0.003 +-.007    60/58       19/17/48
+
+THE ONE CELL EARNS 0.156 PLACES. With the +3.0 price off, candidate cars finish
+0.156 +- 0.030 places behind -- five standard errors -- and crash a little more
+(62 against 53), on 50 boards against 29. fractal20 +0.700 and fractal21
++0.650 lead the losses; the gains (rand20 -0.625, interlagos -0.550) are the
+open circuits where a parked rival on your landing is rare and the price only
+ever cost a line. So the champion's traffic sense is not dead code. It is one
+number on one cell one move ahead, for cars that are barely moving, and it is
+worth as much by places as the whole soft caution stack of rounds 229-234 cost.
+That is the shape of a term that reads a FACT about the landing (a body will be
+there) rather than a possibility, which is exactly the shape round 238 found to
+survive -- and it is the narrowest such term imaginable.
+
+FAST RIVALS ARE A WASH. Pricing a moving rival's predicted cell exactly like
+a parked one reads +0.003 +- 0.007, 48 boards tied, 60 crashes against 58:
+the nulling that stops phantom detours neither helps nor hurts by places. A
+fast car is rarely still on its predicted cell by the time the mover could
+be, so pricing it is pricing a possibility again -- and possibilities have
+never paid. The one cell's whole value is in cars that are barely moving.
+Nothing promoted; round 244 asks what that cell is worth per unit, since 3.0
+has never been swept by places.
+
 ## Round 242: the rival model -- rivals as good as the champion on an empty track
 
 Rounds 238 through 241 closed the score and the duel proof, and neither ever
