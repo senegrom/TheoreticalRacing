@@ -1,5 +1,49 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 242: the rival model -- rivals as good as the champion on an empty track
+
+Rounds 238 through 241 closed the score and the duel proof, and neither ever
+touched the eight-car benchmark, because in an eight-car race the places are
+decided in traffic before the field thins. The one model of traffic the
+champion has is predictedOpponentSteps: one projected move per live rival,
+read by every traffic gate and rollout. Since round 214 the champion itself
+drives on the exact race distance -- OptimalPotential's descent -- but that
+projection still moves each rival with pureMinTurnsMove, the gate-map
+min-turns scan of the earlier era. The champion expects its rivals to take
+lines it would not take itself. Two arms on the round-240 champion, 8-car
+random starts, mirrored, 840 pairs each:
+
+    arm                                                   place C-H      crashes C/H  tracks C/H/tied
+    xrival   rivals predicted by the exact descent       +0.000 +-.000    61/61       0/0/84  byte-identical
+    xrival2  the same, the old scan where that lands     not run: every prediction it makes is
+             on a live body                              either xrival's or the champion's own
+
+THE PREDICTORS DISAGREE ALL THE TIME AND IT CHANGES NOTHING. A census on the
+champion (E:/tmp-claude/arm242_census.py, -Dai.debug.rivalmodel=true, three
+races a track) of how often the exact descent picks a different next move for
+a rival than the gate-map scan does:
+
+    monza         6,714 differ   30,983 same    (18%)
+    lemans       13,319 differ   53,832 same    (20%)
+    hungaroring  15,869 differ   40,903 same    (28%)
+    spa          12,410 differ   23,796 same    (34%)
+
+One prediction in four or five puts the rival on a different cell, and across
+1,680 eight-car races not one of them changed a decision of the car making
+the prediction. The one-step rival projection is therefore not where traffic
+places are decided: whatever reads it is insensitive to which of two
+plausible cells the rival lands on. And reading the consumer says why: the
+projection's only live use is a +3.0 price inside the soft rollout on a
+candidate landing that coincides with a rival's predicted cell at step 0 --
+and only for rivals slower than AI1_VACATE_SPEED2, because faster ones are
+nulled as "transiting" so their cells do not cause phantom detours (round
+217 had already found the deeper-ply veto dead). The champion's entire
+model of traffic is one cell, one step, parked cars only; the two predictors
+disagree about cars that are moving, and moving cars are the ones it does
+not look at. That is not a better-predictor problem. It is the next round's
+question -- is that one cell worth anything at all, and if it is, why is it
+the only one -- and nothing here is promoted.
+
 ## Round 241: the duel proof in a field, and the budget behind the fourth move
 
 Every duel promotion so far -- 237, 239, 240 -- reads byte-identical in
