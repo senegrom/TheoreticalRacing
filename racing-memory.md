@@ -1,5 +1,78 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 240: the width of a line, and a fourth move of proof
+
+Two threads from the last two rounds. Round 238 found the plateau-width
+tie-break -- 0.05 per reachable follow-up at the landing, capped at five --
+worth 0.738 places, the most valuable term after the race distance itself; a
+term that large at that weight and cap invites the question whether it is
+undersized. And rounds 237 and 239 each added one own move to the duel proof
+and each was worth about -0.025 places in duels; the search is parametric and
+budgeted, so a fourth move is one line. Three arms on the round-239 champion,
+mirrored, 840 pairs a slice:
+
+    arm                                   field   place C-H      crashes C/H  tracks C/H/tied
+    plat8   plateau cap 5 -> 8            8p      +0.038 +-.024    46/50       35/43/6
+    plat2x  plateau weight 0.05 -> 0.10   8p      -0.005 +-.009    66/60       20/27/37
+    four    a fourth own move of proof    2p      -0.015 +-.004   100/153      3/0/81
+    four    the same                      8p      +0.000 +-.000    61/61       0/0/84  byte-identical
+
+THE WIDTH OF A LINE IS PRICED RIGHT. Raising the cap from five follow-ups to
+eight reads +0.038 +- 0.024 -- a wash leaning the wrong way, with the cars a
+little safer (46 against 50) and a little slower (+0.27% moves): a landing
+with eight ways forward is not worth more than one with five, and paying for
+the difference buys nothing. Doubling the weight at the same cap is a wash to
+the digit, -0.005 +- 0.009, 66 crashes against 60. So the term round 238
+found worth 0.738 places is not undersized; it is a step function that is
+already saturated where it matters, and what it prices -- an out at the
+landing -- is fully priced at 0.05 a follow-up up to five. That closes the
+score for good: the exact race distance, the traffic gates, and three terms
+that each pay their way at the weights they have.
+
+THE FOURTH MOVE, THE REST OF THE BATTERY (the four-move car against the
+round-239 three-move champion, two-car fields, mirrored, 840 pairs a slice):
+
+    start / seeds          place C-H        wins        crashes C/H  tracks C/H/tied
+    legacy   s1-10        -0.015 +- 0.004  853 : 827   100 : 153      3 / 0 / 81
+    informed s1-10        -0.017 +- 0.004  854 : 826    94 : 127      2 / 0 / 82
+    scatter  s1-10        -0.005 +- 0.002  844 : 836     9 :  16      3 / 0 / 81
+    legacy   s11-20       -0.015 +- 0.004  853 : 827   110 : 157      3 / 0 / 81
+
+A FOURTH MOVE IS WORTH HALF OF WHAT THE THIRD WAS. Rounds 237 and 239 each
+read -0.025 in duels; the fourth own move reads -0.015 +- 0.004 on random
+starts, -0.017 +- 0.004 on computed, -0.005 +- 0.002 scattered, -0.015 +- 0.004 on
+seeds the policy had never seen -- every slice positive, no board anywhere
+against it, eight-car fields byte-identical (84 tied, the round-239 self-play
+counters to the move). The mechanism is unchanged and one horizon deeper:
+the opposition's crashes go 100 -> 153 on random starts, 94 -> 127 on
+computed. Two things are new. The gain is half the previous increment, so
+the proof's returns are diminishing as its 20,000-node budget starts to
+bite -- a fourth own move is 9^7 worst-case positions, and budget exhaustion
+is an abstention. And the candidate's OWN crashes rise, 100 against the
+three-move car's 60-69 in the same fields: the fourth move finds wins that
+run through wall-edge landings the third could not certify, and takes them.
+Under the rule that is a place bought at the price of a crash it would not
+otherwise have had, and the places say the price is right; recorded here
+because it is the first time a proof move has cost the car anything.
+
+Promoted: every REAL decision takes the fourth move, shorter certificates
+first; nested scorer boards keep the two-move proof.
+
+WHAT IT COSTS THE CORPUS: NOTHING, AGAIN. All twenty-four pins re-verify
+with zero rewrites and all twelve goldens re-freeze to the same digests --
+the second promotion in a row to move no pinned race. The fixture corpus
+pins eight-car traffic decisions; a proof that only fires with two live
+cars four moves from a certificate never meets it.
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto):
+
+    round 240   61 crashes   1,762,175 moves   rows e870287d39b22b62
+    round 239   61 crashes   1,762,175 moves   rows e870287d39b22b62
+
+Byte-identical: in an eight-car field of champions the fourth move never
+decides a race the third did not, which is what the 84-board tie in the
+mirrored eight-car slice already said.
+
 ## Round 239: the three-move duel proof, measured against the champion it sits beside
 
 A peer commit (745798f) extended the duel proof by one own move -- play a

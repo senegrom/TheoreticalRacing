@@ -37,8 +37,13 @@ final class RaceAiTactics {
         // -0.004 +- 0.002 scattered, and no board in any duel mode favours the
         // champion; eight-car fields are neutral. Nested scorer boards keep the
         // two-move proof: they do not project the clock for a third move.
+        // Round 240 (PROMOTED): a fourth own move at every REAL decision, shorter
+        // certificates first. Against the round-239 three-move champion, 840
+        // mirrored pairs a slice: -0.015 +- 0.004 on random two-car starts,
+        // -0.017 +- 0.004 computed, -0.005 +- 0.002 scattered, -0.015 +- 0.004
+        // on held-out seeds; no board against it; eight-car fields byte-identical.
         if (realDecision)
-            return RaceAiDuelSearch.winWithinThreeMoves(game, playerNumber);
+            return RaceAiDuelSearch.winWithinFourMoves(game, playerNumber);
         return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
     }
 

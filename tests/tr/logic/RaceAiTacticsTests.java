@@ -248,9 +248,10 @@ final class RaceAiTacticsTests {
                     rp[1]+r.getVelocity()[1]+reply.dy,
                     r.getVelocity()[0]+reply.dx, r.getVelocity()[1]+reply.dy,
                     got.lapAfter(), got.gateAfter()};
-            // Round 239: the promoted proof may now be THREE own moves deep, so
-            // the answer to a reply is allowed to be another certified setup.
-            check(answered(g,mine,theirs,2), "setup leaves a rival reply unanswered");
+            // Round 239 made the promoted proof three own moves deep and round 240
+            // four, so the answer to a reply is allowed to be another certified
+            // setup, recursively, up to the promoted horizon.
+            check(answered(g,mine,theirs,3), "setup leaves a rival reply unanswered");
         }
     }
 

@@ -39,6 +39,13 @@ final class RaceAiDuelSearch {
         return shorter != null ? shorter : winWithinMoves(game, playerNumber, 3);
     }
 
+    /** Round 240 (PROMOTED): one more own move again, shorter certificates
+     * first. Budget exhaustion is an abstention, never a win. */
+    static Direction winWithinFourMoves(final RaceGame game, final int playerNumber) {
+        final Direction shorter = winWithinThreeMoves(game, playerNumber);
+        return shorter != null ? shorter : winWithinMoves(game, playerNumber, 4);
+    }
+
     private static final class Budget {
         private int left = 20_000;
         private boolean exhausted;
