@@ -1,5 +1,53 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 241: the duel proof in a field, and the budget behind the fourth move
+
+Every duel promotion so far -- 237, 239, 240 -- reads byte-identical in
+eight-car fields, because the search abstains the moment a third car is
+racing and an eight-car race is down to two survivors only at its very end.
+But a third car matters to the proof only if its body can ever sit on a cell
+one of the duelists could land on inside the horizon: after j moves a car at
+(x,y) with velocity (vx,vy) stays inside x + j*vx -+ j(j+1)/2 per axis, so a
+car whose box is disjoint from a duelist's on either axis for every j up to
+the horizon can neither block a landing nor be landed on. With that test,
+extra cars that are provably out of reach of BOTH duelists no longer stop the
+proof (the projected clock still counts one move a ply, which under-counts
+what the extras consume -- the conservative direction, since a rival timeout
+is a win we could only miss, never invent). And the fourth move's half-sized
+gain left a question about its 20,000-node budget. Arms on the round-240
+champion, mirrored, 840 pairs a slice:
+
+    arm                                        field   place C-H      crashes C/H  tracks C/H/tied
+    far3    far third parties ignored          8p      +0.000 +-.000    61/62       0/1/83
+    far3    the same                           2p      +0.000 +-.000   149/149      0/0/84  byte-identical
+    budget  the fourth move at 100,000 nodes   2p      -0.006 +-.003   149/159      1/0/83
+
+THE FIELD DOES NOT REACH THE PROOF. Ignoring provably-far third parties reads
++0.000 +- 0.000 in eight-car fields with 83 boards tied and one (fractal1,
++0.025) moved by a hair the wrong way -- the half-candidate field's counters
+are the round-240 self-play's to the move. A three-live-car endgame in which
+the third car is out of reach of both duelists for eight plies essentially
+never happens: by the time a race is down to three the survivors are close,
+and a car that is far away has already finished or crashed. In two-car races
+the relaxation has nothing to act on and reads +0.000 +- 0.000, 84 boards tied, byte-identical. So the duel proof
+cannot be carried into the eight-car benchmark by loosening its gate; where it
+pays is the duel, and there it is nearly exhausted.
+
+THE HORIZON BINDS, NOT THE BUDGET. Five times the node budget for the fourth
+move reads -0.006 +- 0.003, one board (rand17) and 149 crashes against 159:
+the fourth move was abstaining on exhaustion in a few positions, and letting
+it finish buys a two-hundredth of a place. Together with round 240 (the fourth
+move worth half the third) that prices a fifth move at well under a hundredth
+of a place, budget or no budget, and it is not worth an arm.
+
+WHERE THIS LEAVES THE CAMPAIGN. The score is closed (238, 240). The duel proof
+is at its ceiling (237, 239, 240, and this). The eight-car benchmark has been
+neutral to every duel promotion by construction. What remains is the thing
+none of these rounds touched: how the champion races in TRAFFIC before the
+field thins -- the rollout model of its rivals, the traffic gates it inherits
+from round 214's exact-potential era, and where in an eight-car race the
+places are actually decided. Nothing here is promoted.
+
 ## Round 240: the width of a line, and a fourth move of proof
 
 Two threads from the last two rounds. Round 238 found the plateau-width
