@@ -1,0 +1,48 @@
+name: Publish prepared simulation fixes to review branch
+on:
+  push:
+    branches: [work/transport-boundary-fixes-20260913]
+permissions:
+  contents: write
+concurrency:
+  group: transport-boundary-fixes-20260913
+  cancel-in-progress: false
+jobs:
+  publish-branch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 9668703dc1489383bde78f2460476e9f6daa1da0
+          fetch-depth: 0
+      - name: Apply checksum-bound patch and publish only the new review branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=refs/heads/work/simulation-boundary-fixes-20260913
+          if git ls-remote --exit-code --heads origin "$target" > "$RUNNER_TEMP/existing-ref"; then
+            echo 'Review branch already exists; refusing to modify it.' >&2
+            exit 1
+          else
+            rc=$?
+            test "$rc" -eq 2
+          fi
+          for i in 0 1 2 3; do
+            git show "$GITHUB_SHA":.github/boundary-fixes.patch.gz.$i
+          done | gzip -dc > "$RUNNER_TEMP/boundary-fixes.patch"
+          echo "15541fbc990036175b829900196cb70708787f7dbd5d20dbfe1852b67ee4acd4  $RUNNER_TEMP/boundary-fixes.patch" | sha256sum -c -
+          test "$(git rev-parse HEAD)" = 9668703dc1489383bde78f2460476e9f6daa1da0
+          test "$(git rev-parse HEAD^{tree})" = 68776e473d242b06b56ed4c7f80c9d68159186a5
+          git apply --check "$RUNNER_TEMP/boundary-fixes.patch"
+          git apply --index "$RUNNER_TEMP/boundary-fixes.patch"
+          git diff --cached --check
+          test "$(git write-tree)" = ecd4a7e45d3cfe7f6d4590f12ad65cb2e6b38ab0
+          test "$(git diff --cached --name-only | wc -l)" -eq 8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix physical occupancy, rollout termination and timeout Undo' -m 'Publish the exact eight-file prepared correction based on 9668703 to a review branch only. Retain physical rival velocities and lap/checkpoint progress, stop rollouts at last-survivor classification, and snapshot interactive timeout retirement. Include independent boundary and native adapter Undo regressions.' -m 'Not release-cleared. Prior supplementary OpenJDK 21 testing passed 159 Python tests and all 24 champion scripts; three frozen golden traces differ (Monaco s9 4p, Monaco s16 8p, Interlagos s10 8p). Golden expectations remain unchanged. Supported-JDK and full mirrored-fleet validation are still pending. This workflow verifies transport and tree identity only, not test success; master is not updated.'
+          test "$(git rev-parse HEAD^{tree})" = ecd4a7e45d3cfe7f6d4590f12ad65cb2e6b38ab0
+          test "$(git rev-parse HEAD^)" = 9668703dc1489383bde78f2460476e9f6daa1da0
+          git push origin "HEAD:$target"
+          echo "Published $target at $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
