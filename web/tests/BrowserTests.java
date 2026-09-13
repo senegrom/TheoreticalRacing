@@ -89,6 +89,7 @@ public final class BrowserTests {
         testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
+        testTimeoutUndo();
         System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points and placement recovery OK");
     }
 
@@ -178,4 +179,67 @@ public final class BrowserTests {
         check(undone.contains("\"startZone\":[") && !undone.contains("\"shape\":"),
                 "restoring the start zone was omitted from the undo delta");
     }
+    /** The generated adapter only makes dialogs non-modal; commit/undo are the real engine. */
+    private static void testTimeoutUndo() throws Exception {
+        final RaceGame game = new RaceGame(new java.util.Properties());
+        game.gameCols = 80; game.gameRows = 20; game.track = new Track();
+        game.track.addLeft(0, 1); game.track.addLeft(73, 1);
+        game.track.addRight(0, 19); game.track.addRight(73, 19);
+        game.trackA = new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(0, 1, 73, 18));
+        game.startZoneA = new java.awt.geom.Area();
+        game.finishLine = new java.awt.geom.Line2D.Double(72.5, 1, 72.5, 19);
+        game.lapGates = new java.awt.geom.Line2D[]{game.finishLine,
+                new java.awt.geom.Line2D.Double(50, 1, 50, 19),
+                new java.awt.geom.Line2D.Double(60, 1, 60, 19)};
+        set(game, "finishFwdX", 1.0); set(game, "lapFwdX", 1.0);
+        set(game, "lapCrossGate", game.finishLine);
+        set(game, "rui", new tr.gui.RaceUI(20, 80));
+        set(game, "gamestate", GameState.PLAY); set(game, "startZoneGone", true);
+        game.players = new Player[3];
+        for (int i = 0; i < 3; i++) {
+            game.players[i] = new Player("P" + (i + 1), i + 1, java.awt.Color.BLUE, Player.Kind.HUMAN);
+            game.players[i].setPosition(new int[]{10 + 10 * i, 10});
+            game.players[i].setVelocity(new int[]{0, 0});
+        }
+        final java.lang.reflect.Method commit = RaceGame.class.getDeclaredMethod("commitMove", int[].class, int[].class, int[].class);
+        commit.setAccessible(true);
+        game.setQueryTurnCounter(2249);
+        for (int i = 0; i < 2; i++)
+            commit.invoke(game, game.players[i].getPosition(), new int[]{0, 0}, game.players[i].getPosition().clone());
+        final String savedLog = get(game, "gameLog").toString();
+        final int[] savedLap = game.players[2].lapState();
+        final int savedHistory = game.players[2].getHistory().size();
+        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
+        check(game.turnCount() == 2252 && game.players[2].getFinishedPlace() == 3
+                && get(game, "gamestate") == GameState.PLAY, "timeout fixture did not leave an ongoing race");
+        check(get(game, "gameLog").toString().contains("TIMEOUT place=3"), "timeout was not committed");
+        game.clickedUndo();
+        check(game.turnCount() == 2251 && game.subgamestate == 2, "timeout undo consumed the preceding player's move");
+        check(savedLog.equals(get(game, "gameLog").toString()), "timeout undo did not restore the exact log");
+        check(game.players[2].getFinishedPlace() == 0 && (int) get(game, "finishedLast") == 0
+                && Arrays.equals(game.players[2].getPosition(), new int[]{30, 10})
+                && Arrays.equals(game.players[2].getVelocity(), new int[]{0, 0})
+                && Arrays.equals(game.players[2].lapState(), savedLap)
+                && game.players[2].getHistory().size() == savedHistory, "timeout undo did not restore all player state");
+        // Repeating the action must be deterministic, not consume an extra snapshot.
+        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
+        game.clickedUndo(); game.clickedUndo();
+        check(game.turnCount() == 2250 && game.subgamestate == 1, "successive undo lost the earlier action boundary");
+        // Declined crash consent still must not add a committed action.
+        final int snapshots = ((java.util.Deque<?>) get(game, "moveHistory")).size();
+        final String beforeDecline = get(game, "gameLog").toString();
+        commit.invoke(game, game.players[1].getPosition(), new int[]{0, -20}, new int[]{20, -10});
+        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots
+                && beforeDecline.equals(get(game, "gameLog").toString()), "declined crash recorded an Undo action");
+        game.setAutoMode(true); game.setQueryTurnCounter(2251);
+        commit.invoke(game, game.players[1].getPosition(), new int[]{0, 0}, game.players[1].getPosition().clone());
+        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots, "auto timeout allocated Undo history");
+        System.out.println("Timeout Undo: mover, clock, classification, log, histories and lap state restored; consent preserved");
+    }
+
+    private static void set(final Object object, final String name, final Object value) throws Exception {
+        final Field f = object.getClass().getDeclaredField(name);
+        f.setAccessible(true); f.set(object, value);
+    }
+
 }

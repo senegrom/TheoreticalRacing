@@ -1,5 +1,29 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Prepared review patch (2026-09-12): physical occupancy and terminal actions
+
+Prepared against `9668703`, preserving the round-238 funnel cleanup. The exact
+private-lane occupancy oracle now follows all physical rival accelerations with
+full lap/gate state, so neither a speed-13 escape nor a continuing lap crossing
+can be incorrectly excluded. Ordered frontier traversal and the existing
+fail-closed budget remain. Rollouts stop when the modeled referee classifies
+the last survivor, preserving retired-rival costs without inventing another
+survivor turn; solo races remain the exception. Initial candidates obey timeout
+precedence. Interactive timeout retirement now records a complete Undo snapshot.
+
+The four reviewed reproductions are corrected. New tests fail against the old
+production code and pass with the patch, covering progress, speeds, budgets,
+slot wrap, finish/crash/timeout classification, optional costs and exact Undo.
+See `docs/simulation-boundary-review.md`. No race rule, maps, courses, user
+settings or golden expectations are changed. The 159 Python tests, 24 champion
+scripts, Java suites, 45 profile races, 36 cohort-contract races and six native
+parity races pass. Local testing is supplementary OpenJDK 21, not a supported-release build or a full fleet campaign. Three frozen
+traces change (Monaco s9/4p, Monaco s16/8p, Interlagos s10/8p); the base passes
+all three under the same runtime. Finishing orders are unchanged in these cases,
+but the new traces are not silently re-frozen. Monaco s9's 551 -> 549 moves
+is reproduced by the isolated rollout fix. This patch is local only: the current session lacks a GitHub write action and direct Git
+cannot connect. Do not read this entry as a shipped change or policy promotion.
+
 ## Round 238: the scorer's remaining caution, priced -- and the first one that earns its keep
 
 Four caution removals in a row had each gained places (226/228 the needle
