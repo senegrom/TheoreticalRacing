@@ -1,5 +1,27 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 244: the weight of the one cell
+
+Round 243 found the +3.0 predicted-occupancy price worth 0.156 places and its
+weight never swept by places -- round 217's 0.0-6.0 sweep was on the deeper
+ply, which was dead. Two arms on the round-240 champion, 8-car random starts,
+mirrored, 840 pairs each; the champion keeps 3.0:
+
+    arm                          place C-H      crashes C/H  tracks C/H/tied
+    occ6     the price at 6.0    -0.002 +-.003    61/61       4/3/77
+    occ1p5   the price at 1.5    -0.004 +-.006    57/60       13/11/60
+
+THE PRICE IS A VETO, NOT A WEIGHT. At 1.5 the fleet reads -0.004 +- 0.006
+with 60 boards tied; at 6.0, -0.002 +- 0.003 with 77 tied; at 3.0 it is the
+champion; and at 0.0 (round 243) it costs 0.156. Three prices spanning a
+factor of four are indistinguishable by places and only zero is different.
+In a soft rollout that ranks landings by moves to finish, a penalty of one
+and a half moves already loses to almost any alternative landing, so 1.5, 3.0
+and 6.0 all veto the same move -- the one onto a cell a parked rival will
+occupy -- and the veto is the entire value. Nothing to tune, then, and
+nothing promoted: the only way to get more from this model is to make it see
+more, which is round 245.
+
 ## Round 243: the one-cell traffic model, priced
 
 Round 242 found the champion's whole model of traffic is a single +3.0 price
