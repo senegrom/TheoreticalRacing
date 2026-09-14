@@ -21,7 +21,7 @@ jobs:
     name: Verify code and candidate-cohort contracts
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
@@ -62,7 +62,7 @@ jobs:
         mode: [legacy, informed, scatter]
         seeds: ['1-5', '6-10', '11-15']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-java@v6
         with:
           distribution: temurin
