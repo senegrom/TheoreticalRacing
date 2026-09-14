@@ -1,5 +1,73 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 246: the other traffic term, priced -- and the traffic model closes
+
+Round 217's note in the soft rollout says the deeper predicted-occupancy veto
+could not fire and that "ply-1 bodies are priced through aheadOccupancy,
+which is live": at the rollout's second ply a landing on a cell a rival AHEAD
+occupies is priced AI1_PLY2_PRICE. With the step-0 veto priced in rounds
+243-244, this is the second and last place the rollout knows there are other
+cars. Two arms on the round-240 champion, 8-car random starts, mirrored, 840
+pairs each:
+
+    arm                                 place C-H      crashes C/H  tracks C/H/tied
+    ply0    AI1_PLY2_PRICE off          +0.025 +-.018    57/69       35/41/8
+    ply2x   AI1_PLY2_PRICE doubled      +0.000 +-.000    61/61       0/0/84  byte-identical
+
+A SECOND VETO, WORTH A LITTLE. Off, the fleet reads +0.025 +- 0.018 -- a
+marginal loss, one and a half standard errors, with the candidate crashing
+LESS (57 against 69) and finishing slightly behind: the price is buying a
+handful of places by steering away from a body a rival ahead will still be
+on next ply. Doubled, it is byte-identical -- 84 boards tied, the same 61
+crashes -- so like the step-0 price it is a veto that any non-zero weight
+carries in full. Not worth tuning and not worth removing.
+
+WHAT THE SIX ROUNDS SAY TOGETHER. The champion's traffic sense is two vetoes:
+a landing onto a parked rival's next cell (0.156 places, round 243) and a
+landing onto a cell a rival ahead still occupies a ply later (about 0.025,
+here). Both are facts about a body on a cell; both are saturated at any
+weight; neither can be widened in time (245: the second cell is a wash) or in
+space (245: the neighbours cost 0.889). The rival predictor behind them does
+not matter (242) because the vetoes only ever look at cars that are barely
+moving, where every predictor agrees. That closes the traffic model the way
+rounds 238 and 240 closed the score and 241 closed the duel proof. What is
+left untested is the rollout that turns those vetoes into decisions -- its
+depth and its horizon -- and the first corner of an eight-car race, where
+places are taken by position before any of this machinery is consulted.
+
+## Round 245: widen the one cell -- in time and in space
+
+Rounds 243 and 244 found the champion's traffic model is one veto on one cell
+one move ahead, for parked rivals, worth 0.156 places and impossible to tune.
+The only way to get more from it is to make it see more. Two arms on the
+round-240 champion, 8-car random starts, mirrored, 840 pairs each:
+
+    arm                                                   place C-H      crashes C/H  tracks C/H/tied
+    occ2step  slow rivals predicted two steps; the       -0.003 +-.017    58/60       35/35/14
+              second cell priced at the same 3.0
+    occring   the eight neighbours of a parked rival's   +0.889 +-.032    66/62       2/82/0
+              predicted cell priced at 1.0
+
+THE SECOND CELL IS NOT A FACT. Predicting a parked rival two steps ahead and
+vetoing its second cell too reads -0.003 +- 0.017: a wash, but a NOISY one --
+70 of 84 boards move and cancel, against the byte-identical arms' 84 ties.
+A car that is barely moving is nearly certain to be on its first predicted
+cell; where it is two moves later depends on what it decides in between, and
+the rollout is already pricing that as a possibility. Round 217 was right,
+and by places as well as by moves.
+
+THE RING IS THE PROXIMITY PENALTY REBORN, AND IT COSTS A PLACE. Pricing the
+eight neighbours of a parked rival's predicted cell at a third of the veto
+reads +0.889 +- 0.032 -- twenty-eight standard errors -- with the candidate
+behind on 82 boards of 84 and ahead on two. It is the round-201 lane spread
+(-0.641 when removed, round 233) in its smallest possible form: a charge for
+company within one cell. The rule that six rounds now state is exact. A term
+that reads a FACT about the landing -- a body WILL be on that cell -- earns
+its keep (243: 0.156). The moment it prices a POSSIBILITY -- a body might be
+next to it -- it loses, and the wider the possibility the worse the loss:
+one cell of it, 0.889 places. The traffic model cannot be widened in time or
+in space. Nothing promoted.
+
 ## Round 244: the weight of the one cell
 
 Round 243 found the +3.0 predicted-occupancy price worth 0.156 places and its
