@@ -1,5 +1,9 @@
 # Physical occupancy, rollout termination and timeout Undo (2026-09-12)
 
+**Historical validation record:** the prepared patch was published as `55a63eff`
+on the review branch. See [the follow-up](simulation-followup-review.md) for the
+subsequent legal-blockade and mover-progress repairs and current release scope.
+
 Review findings originally reproduced at `745798f613`. This patch is based on
 `9668703dc1489383bde78f2460476e9f6daa1da0` and preserves the subsequent round-238
 cleanup, the promoted two-move tactic and the opt-in third-move extension.

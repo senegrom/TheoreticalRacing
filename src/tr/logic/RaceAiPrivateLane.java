@@ -24,26 +24,47 @@ final class RaceAiPrivateLane {
 		private final RivalReach rectangles;
 		private final int exactNodeBudget;
 		private ExactRivalReach exact;
+		private final int originX, originY, originLap, originGate;
+
+		/** The session is created before the candidate loop. Each candidate starts
+		 * from this same progress ledger, never the previous candidate's ledger. */
+		private OwnState candidateState(final int x, final int y, final int vx, final int vy) {
+			final RaceGame.MoveResult move = game.evaluateMove(originLap, originGate,
+					originX, originY, x, y, game.isCrashingPlayer(x, y, playerNum));
+			if (!move.legal())
+				return null;
+			return new OwnState(x, y, vx, vy, move.lapAfter(), move.gateAfter(), move.finishes());
+		}
 
 		private ProofSession(final int playerNum, final RivalReach rectangles,
 				final int exactNodeBudget) {
 			this.playerNum = playerNum;
 			this.rectangles = rectangles;
 			this.exactNodeBudget = exactNodeBudget;
+			final Player mover = game.players[playerNum - 1];
+			originX = mover.getPosition()[0];
+			originY = mover.getPosition()[1];
+			originLap = mover.getLap();
+			originGate = game.lapGates == null ? 0 : mover.getNextGate();
 		}
 
 		boolean certifiesApproximate(final int x, final int y, final int vx, final int vy,
 				final int turns, final int horizon, final int requiredEscapes) {
-			return privatePaceCertificate(x, y, vx, vy, turns, rectangles, 0, horizon,
-					requiredEscapes);
+			final OwnState candidate = candidateState(x, y, vx, vy);
+			return candidate != null && (candidate.finished() || privatePaceCertificate(candidate,
+					turns, rectangles, 0, horizon, requiredEscapes));
 		}
 
 		boolean certifiesExact(final int x, final int y, final int vx, final int vy,
 				final int turns, final int horizon, final int requiredEscapes) {
+			final OwnState candidate = candidateState(x, y, vx, vy);
+			if (candidate == null)
+				return false;
+			if (candidate.finished())
+				return true;
 			if (exact == null)
 				exact = new ExactRivalReach(game, reach, playerNum, rectangles, exactNodeBudget);
-			return privatePaceCertificate(x, y, vx, vy, turns, exact, 0, horizon,
-					requiredEscapes);
+			return privatePaceCertificate(candidate, turns, exact, 0, horizon, requiredEscapes);
 		}
 	}
 
@@ -273,20 +294,26 @@ final class RaceAiPrivateLane {
 		}
 	}
 
-	/** Count distinct private, alive one-move exits; crossing the finish is terminal success. */
-	private int countPrivateEscapes(final int x, final int y, final int vx, final int vy,
-			final RivalOccupancy rivals, final int rivalPly, final int requiredEscapes) {
+	/** Detached mover progress, including the candidate's own gate events. */
+	private record OwnState(int x, int y, int vx, int vy, int lap, int gate, boolean finished) {}
+
+	/** Count distinct private, alive exits. Only a referee-terminal crossing is
+	 * success without an occupancy obligation; an ordinary lap must continue. */
+	private int countPrivateEscapes(final OwnState state, final RivalOccupancy rivals,
+			final int rivalPly, final int requiredEscapes) {
 		int count = 0;
 		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			final int nvx = state.vx() + d.dx, nvy = state.vy() + d.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny))
+			final int nx = state.x() + nvx, ny = state.y() + nvy;
+			final RaceGame.MoveResult move = game.evaluateMove(state.lap(), state.gate(),
+					state.x(), state.y(), nx, ny, false);
+			// The referee exempts a terminal finish from landing/body checks,
+			// but still checks walls on the approach to that finish.
+			if (move.finishes())
 				return requiredEscapes;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			if (rivals.mayOccupy(rivalPly, nx, ny))
+			if (!move.legal() || rivals.mayOccupy(rivalPly, nx, ny))
 				continue;
 			if (reach.isAlive(nx, ny, nvx, nvy) && ++count >= requiredEscapes)
 				return requiredEscapes;
@@ -294,31 +321,30 @@ final class RaceAiPrivateLane {
 		return count;
 	}
 
-	private boolean privatePaceCertificate(final int x, final int y, final int vx, final int vy,
-			final int turns, final RivalOccupancy rivals, final int ply, final int horizon,
-			final int requiredEscapes) {
-		if (countPrivateEscapes(x, y, vx, vy, rivals, ply + 1, requiredEscapes) >= requiredEscapes)
+	private boolean privatePaceCertificate(final OwnState state, final int turns,
+			final RivalOccupancy rivals, final int ply, final int horizon, final int requiredEscapes) {
+		if (countPrivateEscapes(state, rivals, ply + 1, requiredEscapes) >= requiredEscapes)
 			return true;
 		if (ply >= horizon)
 			return false;
 		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			final int nvx = state.vx() + d.dx, nvy = state.vy() + d.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny))
+			final int nx = state.x() + nvx, ny = state.y() + nvy;
+			final RaceGame.MoveResult move = game.evaluateMove(state.lap(), state.gate(),
+					state.x(), state.y(), nx, ny, false);
+			if (move.finishes())
 				return true;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
-				continue;
-			if (rivals.mayOccupy(ply + 1, nx, ny))
+			if (!move.legal() || rivals.mayOccupy(ply + 1, nx, ny))
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int nextTurns = reach.turnsToFinish(nx, ny, nvx, nvy);
 			if (nextTurns >= turns)
 				continue;
-			if (privatePaceCertificate(nx, ny, nvx, nvy, nextTurns, rivals, ply + 1, horizon,
-					requiredEscapes))
+			final OwnState next = new OwnState(nx, ny, nvx, nvy, move.lapAfter(), move.gateAfter(), false);
+			if (privatePaceCertificate(next, nextTurns, rivals, ply + 1, horizon, requiredEscapes))
 				return true;
 		}
 		return false;

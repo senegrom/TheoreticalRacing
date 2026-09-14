@@ -3363,7 +3363,8 @@ final class RaceAi {
 	 *  processQueries pattern), runs the mover's own scorer with the
 	 *  recursive machinery suppressed ({@code inScorerSim}), restores everything
 	 *  in a finally. Writes the landing to {@code out} and returns true, or
-	 *  returns false when the scorer is boxed or would enter a body/dead state. */
+	 *  returns false only when no action was supplied. Legality/retirement is
+	 *  decided by the rollout's referee transition, not the solo map. */
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
 			final RolloutWorkspace rollout) {
@@ -3445,16 +3446,34 @@ final class RaceAi {
 		if (direction == null)
 			return false;
 		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
-		if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-			return false;
-		final int nx = px[i] + nvx, ny = py[i] + nvy;
-		final RaceGame.MoveResult result = game.evaluateMove(rollout.laps[i], rollout.gates[i],
-				px[i], py[i], nx, ny, occupiedByOther(nx, ny, i, px, py, alive));
-		if (result.finishes())
-			return writeMove(out, nx, ny, nvx, nvy);
-		if (!result.legal() || !reach.isAlive(nx, ny, nvx, nvy))
-			return false;
-		return writeMove(out, nx, ny, nvx, nvy);
+		// Replay the actual selected action, including a legal map-dead blockade
+		// or a genuine crash. The solo map is neither a referee nor a policy veto:
+		// this car may win before it ever needs another move.
+		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
+	}
+
+	/** A proxy may find no preferred/map-alive move even though physical moves
+	 * remain. Keep a deterministic legal continuation in that approximate world;
+	 * never promote search abstention into a confirmed referee retirement. This
+	 * fallback is used only when no action was selected, not to replace an actual
+	 * scorer-selected crash. All physical accelerations are considered. */
+	private boolean physicalMoveOverState(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
+			final RolloutWorkspace rollout) {
+		boolean found = false;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx[i] + d.dx, nvy = vy[i] + d.dy;
+			final int nx = px[i] + nvx, ny = py[i] + nvy;
+			final RaceGame.MoveResult move = game.evaluateMove(rollout.laps[i], rollout.gates[i],
+					px[i], py[i], nx, ny, occupiedByOther(nx, ny, i, px, py, alive));
+			if (move.finishes())
+				return writeMove(out, nx, ny, nvx, nvy);
+			if (move.legal() && !found) {
+				writeMove(out, nx, ny, nvx, nvy);
+				found = true;
+			}
+		}
+		return found;
 	}
 
 	/** Disjoint storage for every active rollout, including suppressed nested
@@ -3801,7 +3820,7 @@ final class RaceAi {
 				// Round 51: my car follows the trap-aware policy. Round 57:
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
-				final boolean moved;
+				boolean moved;
 				if (i == myIdx)
 					moved = scorerSelf
 							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace)
@@ -3815,6 +3834,8 @@ final class RaceAi {
 					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
 					moved = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
+				if (!moved)
+					moved = physicalMoveOverState(i, px, py, vx, vy, alive, move, workspace);
 				final RaceGame.MoveResult transition = moved
 						? game.evaluateMove(workspace.laps[i], workspace.gates[i], px[i], py[i], move[0], move[1],
 								occupiedByOther(move[0], move[1], i, px, py, alive)) : null;

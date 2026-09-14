@@ -1,5 +1,28 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Branch follow-up (2026-09-14): legal blockades and mover progress
+
+Follow-up to `55a63eff` on the simulation-boundary review branch only. Real
+scorer actions are replayed without a solo-map veto, so a legal winning blockade
+cannot retire the opponent prematurely. Proxy abstention uses a deterministic
+physical legal fallback rather than inventing a retirement. Genuine illegal
+selected actions and timeouts remain referee retirements.
+
+Private-lane proofs now apply each candidate's transition from a snapshotted
+mover ledger and carry lap/checkpoint progress through all continuations. Only
+terminal finishes bypass occupancy, not ordinary finish-line crossings. The
+Circle and Hairpin review witnesses are regression tests, alongside proxy,
+slot-order, final-lap and checkpoint controls. The new modes fail against the
+previous branch and pass locally; exhaustive short-horizon checks cover 110
+valid candidates and 90 accepted certificates. See
+`docs/simulation-followup-review.md` for scope and release boundaries.
+
+The hosting README is brought into line with every-master-push publication.
+No master update, new policy promotion, golden rewrite, course regeneration or
+saved-settings change is part of this repair. Supported-JDK outcomes belong to
+the validation run, not an inferred transport status. Full fleet evaluation,
+newer-master integration and golden-trace review remain release prerequisites.
+
 ## Prepared review patch (2026-09-12): physical occupancy and terminal actions
 
 Prepared against `9668703`, preserving the round-238 funnel cleanup. The exact
@@ -21,8 +44,9 @@ parity races pass. Local testing is supplementary OpenJDK 21, not a supported-re
 traces change (Monaco s9/4p, Monaco s16/8p, Interlagos s10/8p); the base passes
 all three under the same runtime. Finishing orders are unchanged in these cases,
 but the new traces are not silently re-frozen. Monaco s9's 551 -> 549 moves
-is reproduced by the isolated rollout fix. This patch is local only: the current session lacks a GitHub write action and direct Git
-cannot connect. Do not read this entry as a shipped change or policy promotion.
+is reproduced by the isolated rollout fix. This patch was subsequently published to the review branch as `55a63eff`;
+the local-only status below is historical, not the current branch status. It
+was not merged to master or promoted.
 
 ## Round 238: the scorer's remaining caution, priced -- and the first one that earns its keep
 
