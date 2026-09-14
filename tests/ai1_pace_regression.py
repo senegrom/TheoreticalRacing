@@ -33,7 +33,8 @@ FINISH_EXPECTED = {
     ("bigoval", 7): [20, 20, 21, 21, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    ("lemans", 12): [66, 67, 68, 69, 71, 73, 74],
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    ("lemans", 12): [66, 67, 69, 70, 71, 73, 74],
 }
 
 

@@ -14,7 +14,8 @@ import bench_ai  # noqa: E402
 # measurement, and three races lose a car -- recorded, not vetoed (AGENTS.md).
 CASES = {
     ("hungaroring", 4): 889,
-    ("spa", 4): 570,
+    # Round 247: seven finishers here now instead of six, so the sum grows.
+    ("spa", 4): 573,
     ("interlagos", 3): 897,
     # Round 234: Le Mans seed 3 keeps both of the cars it used to lose, so
     # seven finishers are counted here instead of five and the sum grows.
@@ -22,10 +23,10 @@ CASES = {
     # Round 234: seven finishers here now instead of six, so the sum grows.
     ("lemans", 11): 489,
     # Round 229: re-anchored from measurement (the soft caution stack left the score).
-    ("spa", 11): 567,
+    ("spa", 11): 569,  # Round 247: re-anchored from measurement.
     ("silverstone", 15): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
     ("silverstone", 18): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
-    ("coil", 18): 418,  # Round 234: re-anchored from measurement.
+    ("coil", 18): 421,  # Rounds 234 and 247: re-anchored from measurement.
     ("hungaroring", 8): 883,
     # Round 234: seven finishers here now instead of six, so the sum grows.
     ("hungaroring", 10): 877,
@@ -42,9 +43,10 @@ EXACT_MOVES = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 233: five finishers here now; the list is the measured race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    ("lemans", 3): [66, 70, 71, 72, 73, 74, 75],
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    ("lemans", 3): [66, 67, 68, 70, 71, 72, 73],
     # Round 234: same seven finishers, one move redistributed.
-    ("silverstone", 15): [82, 83, 84, 85, 85, 86, 87],
+    ("silverstone", 15): [82, 83, 83, 84, 84, 85, 86],
 }
 
 
@@ -73,7 +75,9 @@ def main() -> int:
             # seal-free car keeps the car each of them used to lose, so
             # they take the (7, 0) default. Spa 4 and Hungaroring 25 are
             # the two that still drop one.
-            SAFETY = {("spa", 4): (6, 1), ("hungaroring", 25): (6, 1)}
+            # Round 247: Spa 4 keeps its seventh car too; Hungaroring 25 still
+            # drops one.
+            SAFETY = {("hungaroring", 25): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

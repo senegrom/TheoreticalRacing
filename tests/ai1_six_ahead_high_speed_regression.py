@@ -20,59 +20,64 @@ PROMOTED_FINISHERS = [
     (6, 78),
     (7, 79),
     (2, 81),
-    (4, 82),
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     (5, 82),
+    (8, 82),
     (1, 84),
-    (3, 85),
+    (4, 85),
 ]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
-PROMOTED_ALL_MOVES = {1: 84, 2: 81, 3: 85, 4: 82, 5: 82, 6: 78, 7: 79, 8: 84}
-PROMOTED_SHA256 = "7a2aa8cc34801243fa0a29bda4c43a1cfaa5a91bbb46df95b9febeeeab730437"
+PROMOTED_ALL_MOVES = {1: 84, 2: 81, 3: 85, 4: 85, 5: 82, 6: 78, 7: 79, 8: 82}
+# Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+PROMOTED_SHA256 = "a9e5e26b76afa435c16189a5c051ca209a1199cd0f5a0c87327c93ccaad59f61"
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
-    "201 p1 {kind} NW v(0,7)→(-1,6) (101,131)→(100,137) ok"
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    "201 p1 {kind} NW v(0,8)→(-1,7) (101,132)→(100,139) ok"
 )
 
 # These cases cover every redistribution or slowdown exposed by the historical
 # broad six-ahead arm. The final candidate-speed and gain band must leave each
 # complete trajectory equal to the champion.
+# Round 247 (the soft rollout at one level, not two): every case re-frozen
+# from measurement; Silverstone s78 gets its seventh finisher back.
 VETO_CASES = {
     ("spa", 27): (
-        (7, 0, [79, 80, 81, 81, 82, 83, 84]),
-        "1063bb8af1f62a262e3e6847acde8de28e0ea92a2608ee7ea1b4de294f214f79",
+        (7, 0, [79, 80, 82, 82, 83, 83, 85]),
+        "2cdea6c13502bf538d10c7a0ced83d5293e6d64eb9df187d5a011ff6c2001bad",
     ),
     ("spa", 57): (
-        (7, 0, [78, 80, 81, 81, 82, 83, 83]),
-        "b6f8c019856596b4c07f770236ca3c66a7517d093595bd655f41555f5e6fadb4",
+        (7, 0, [78, 80, 81, 83, 83, 84, 84]),
+        "5a4adcd881337ba2ead3e276569a3f384f9f0e737707264e7e5d1ee197337f29",
     ),
     ("spa", 12): (
-        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
-        "b2dab367e14c94ff8bb84148a8e88593919bb8f1f39f5cfdb05efd1cf8cb5dcc",
+        (7, 0, [78, 79, 81, 81, 82, 83, 84]),
+        "81550b7b506cbaaf4b1746a0edbac70af08dd07e66d85c9794de2daa22ea97ba",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 80, 81, 82, 83, 83]),
-        "c166b3b9deee36887c76c954b9364dcf1b9c241cd378f67a665d89e64448cb86",
+        (7, 0, [78, 79, 81, 81, 82, 84, 84]),
+        "02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
-        "4b8a5b5595d26ce24e5c40b432fd2703923d959e26e5eadc63eb710611ed3b1f",
+        (7, 0, [78, 79, 80, 81, 83, 83, 84]),
+        "05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 81, 82, 83, 83]),
-        "9129791cfb08a70754d5f511fc9045873cbc01ff535bde6d8e078d5bb5d680e4",
+        (7, 0, [78, 80, 81, 81, 82, 83, 84]),
+        "8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6",
     ),
     ("coil", 5): (
-        (7, 0, [58, 59, 59, 60, 61, 62, 62]),
-        "7f7373da3f94ca84d278104584ec8ec3e22936515ee0f500554ef1dd7a22c37c",
+        (7, 0, [58, 59, 60, 60, 61, 61, 62]),
+        "9207750748733019482321e3c0bb415c5d83a67f38cbe78572544854838f05c2",
     ),
     ("coil", 22): (
-        (7, 0, [58, 59, 60, 61, 61, 61, 62]),
-        "60f45bc46cfc5ed0a9cc6ebb5c7c264737b522966463624a58fc8cf68e8ebe12",
+        (7, 0, [58, 59, 60, 61, 61, 62, 62]),
+        "30d2c987de19d18144d638e4d366df4cb7fffb22c55ba1015a4419dbf31796d8",
     ),
     ("silverstone", 78): (
-        (6, 1, [81, 82, 83, 84, 84, 85]),
-        "f3db28284473bc1212cf52afd0798c1d51970fcda3c24f80b041fcc1be236b05",
+        (7, 0, [81, 82, 83, 83, 84, 84, 86]),
+        "e4d3c6305222993d18c4ce0e095ecdb57c2481b03c34d43f93c3b292adc0bea3",
     ),
 }
 

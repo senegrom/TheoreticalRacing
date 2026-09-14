@@ -12,9 +12,10 @@ PROMOTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 233: re-frozen from measurement (the lane spread left the score).
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    1: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
-    38: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
-    106: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    1: (7, 0, [58, 59, 60, 61, 61, 62, 62]),
+    38: (7, 0, [58, 59, 60, 60, 61, 61, 62]),
+    106: (7, 0, [58, 59, 60, 61, 61, 61, 62]),
 }
 LEGACY_CHAMPION = {
     1: (7, 0, [58, 59, 60, 62, 62, 63, 63]),

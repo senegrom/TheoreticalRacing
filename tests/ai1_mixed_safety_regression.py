@@ -37,7 +37,8 @@ def main() -> int:
         # measurement rather than vetoing the change (AGENTS.md).
         # Round 233: re-frozen from measurement; the victim is p4 now.
         # Round 234: re-frozen from measurement (the seal guard left the decision).
-        SEED2_MEASURED = {"AI1": (22, 4, 0), "AI2": (14, 4, 0)}
+        # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+        SEED2_MEASURED = {"AI1": (21, 4, 0), "AI2": (15, 4, 0)}
         for kind in ("AI1", "AI2"):
             place_sum, finishers, crashes = result[kind]
             if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:
@@ -57,8 +58,10 @@ def main() -> int:
             # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
             # Round 234 (the seal guard left the decision): re-frozen from
             # measurement. The two orderings stay exact mirrors of each other.
-            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 1)},
-            "reverse": {"AI1": (23, 4, 1), "AI2": (13, 4, 0)},
+            # Round 247 (the soft rollout at one level, not two): p7 keeps its
+            # race here, so both orderings are crash-free again.
+            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 0)},
+            "reverse": {"AI1": (23, 4, 0), "AI2": (13, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -81,8 +84,10 @@ def main() -> int:
             # to buy p7 a line here; without it p7 arrives at (84,150) too fast
             # and takes the wall. The rule records a crash rather than vetoing
             # it (AGENTS.md), so pin the crash by its identity instead.
+            # Round 247: the one-level rollout keeps p7 on the road here, so the
+            # race is crash-free again and that is what is pinned.
             crashed = [line for line in log_lines if " CRASH " in line]
-            if len(crashed) != 1 or " p7 " not in crashed[0] or "place=8" not in crashed[0]:
+            if crashed:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} crash set changed: {crashed}"
                 )

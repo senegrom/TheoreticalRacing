@@ -34,50 +34,55 @@ PROOF_VETO = ("lemans", 87)
 # Round 232 (the kinematic confirm): p4 no longer dies on its 42nd move --
 # seven finishers and no crash again, the outcome round 229 had lost here.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-PROMOTED = (7, 0, [66, 67, 69, 70, 71, 73, 73])
-PROMOTED_FINISHERS = [(1, 66), (5, 67), (3, 69), (6, 70), (7, 71), (2, 73), (8, 73)]
-PROMOTED_CRASHES = []
-PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 69, 4: 73, 5: 67, 6: 70, 7: 71, 8: 73}
+# Round 247 (the soft rollout at one level, not two): re-frozen from
+# measurement. Le Mans s29 loses p6 on its 53rd move under both labels --
+# recorded, not vetoed; the fleet's own crashes fall (59 against 69).
+PROMOTED = (6, 1, [66, 67, 69, 70, 71, 73])
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (7, 70), (8, 71), (2, 73)]
+PROMOTED_CRASHES = [(6, 53)]
+PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 72, 5: 69, 6: 53, 7: 70, 8: 71}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
 # s14 retains the adjacent historical false positive. The remaining controls
 # cover every redistribution/slowdown class shared with the older broad arm.
 # Every complete trajectory must remain the current champion.
+# Round 247 (the soft rollout at one level, not two): every retention case
+# re-frozen from measurement; Silverstone s78 gets its seventh finisher back.
 RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
-    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 71, 72, 73]),
+    PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 73, 74]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-                 'fa90dd15169a550361892063e7fb4d6a2ef11b03a3017bb7ed708bd91e12540f'),
+                 '400b40207131cd63afe6ea2d5e5799c920ef9b2a44ec6be5adb99b68b26c47f4'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
-    ("lemans", 93): ((7, 0, [66, 70, 71, 72, 73, 74, 75]),
-                     'ca42bf52201f05575d761fffcf4936158ce1196c3a7e941047dcf06370e7ec7b'),
-    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 72, 74, 75]),
-                     'c94ce32f8f620805e8d4fae8325c3a874d1bde979c5cfade47935130c92b8409'),
+    ("lemans", 93): ((7, 0, [66, 67, 68, 70, 71, 72, 74]),
+                     '549ebe813e4158f415d080b194d9c58db91e25009d28efea6e7d1e15c91903d1'),
+    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 72, 74]),
+                     'bc56a60b863ec5270b65098439b2c37398f6ad2e8d65d1ea53853698c5625d43'),
     ("silverstone", 78): (
-        (6, 1, [81, 82, 83, 84, 84, 85]),
-        "f3db28284473bc1212cf52afd0798c1d51970fcda3c24f80b041fcc1be236b05",
+        (7, 0, [81, 82, 83, 83, 84, 84, 86]),
+        "e4d3c6305222993d18c4ce0e095ecdb57c2481b03c34d43f93c3b292adc0bea3",
     ),
     ("spa", 12): (
-        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
-        "b2dab367e14c94ff8bb84148a8e88593919bb8f1f39f5cfdb05efd1cf8cb5dcc",
+        (7, 0, [78, 79, 81, 81, 82, 83, 84]),
+        "81550b7b506cbaaf4b1746a0edbac70af08dd07e66d85c9794de2daa22ea97ba",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 80, 81, 82, 83, 83]),
-        "c166b3b9deee36887c76c954b9364dcf1b9c241cd378f67a665d89e64448cb86",
+        (7, 0, [78, 79, 81, 81, 82, 84, 84]),
+        "02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
-        "4b8a5b5595d26ce24e5c40b432fd2703923d959e26e5eadc63eb710611ed3b1f",
+        (7, 0, [78, 79, 80, 81, 83, 83, 84]),
+        "05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 81, 82, 83, 83]),
-        "9129791cfb08a70754d5f511fc9045873cbc01ff535bde6d8e078d5bb5d680e4",
+        (7, 0, [78, 80, 81, 81, 82, 83, 84]),
+        "8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6",
     ),
 }
 

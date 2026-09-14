@@ -74,8 +74,9 @@ def main() -> int:
             # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
             # Round 232 (the kinematic confirm): re-frozen from measurement.
             # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-            expected = ({"AI1": (19, 4, 0), "AI2": (17, 4, 0)} if target_kind == "AI1"
-                        else {"AI1": (17, 4, 0), "AI2": (19, 4, 0)})
+            # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+            expected = ({"AI1": (22, 4, 0), "AI2": (14, 4, 0)} if target_kind == "AI1"
+                        else {"AI1": (14, 4, 0), "AI2": (22, 4, 0)})
             if result != expected:
                 raise SystemExit(
                     "Round-185 width-three ridge regression: "

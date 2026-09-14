@@ -420,7 +420,7 @@ final class RaceAi {
 	 *  explicitly, each ply priced against its own simulated opponent round
 	 *  (world1 at stepIdx 0, world2 at stepIdx 1) before the opponent-blind
 	 *  map takes over. */
-	private final static int		AI1_DEEP_LOOKAHEAD	= 2;
+	private final static int		AI1_DEEP_LOOKAHEAD	= 1;	// round 247: one round of world-step, not two -- the second round priced where seven rivals might be and cost 0.155 places (three rounds cost 0.279)
 
 	/** Shared champion frontier: soft price for landing, at the second explicit search
 	 *  ply (stepIdx 1), on a round-2-simulated body -- applied in OPEN RUNNING

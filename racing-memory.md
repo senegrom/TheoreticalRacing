@@ -1,5 +1,80 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 247: the depth of the soft rollout
+
+The score, the duel proof and the traffic model are closed (238-246). What
+turns the two traffic vetoes into decisions is the soft rollout itself: every
+candidate landing is priced by searchMinTurnsCountedSoft3 at AI1_DEEP_LOOKAHEAD
+= 2 levels, a depth chosen in the summed-moves era and never measured by
+places. Two arms on the round-240 champion, 8-car random starts, mirrored,
+840 pairs each; the champion keeps two levels:
+
+    arm                      place C-H      crashes C/H  tracks C/H/tied
+    deep1   one level        -0.155 +-.031    59/69       53/27/4
+    deep3   three levels     +0.279 +-.030    53/75       19/49/16
+
+SHALLOWER IS BETTER, AND THE DEEPER THE WORSE. One level instead of two gains
+0.155 +- 0.031 places -- five standard errors, 53 boards against 27 -- and the
+cars doing it crash LESS (59 against 69) while forcing more wrecks on the
+field (77 in the half-candidate fleet against 61). Three levels instead of two
+loses 0.279 +- 0.030 on 49 boards against 19, safer and slower (53 crashes,
++0.2% moves). lobe5 -1.575, hybrid3 -1.325, weave2 -1.250: the twisting
+courses where the second round of world-step is pure speculation about where
+seven other cars will be. The rule of the last ten rounds again, now applied
+to the rollout's own horizon: the immediate landing's vetoes are facts, where
+a rival might be two rounds out is a possibility, and every round of
+possibility the rollout prices costs places. The two-level world-step was a
+summed-moves-era choice that nobody had asked by places.
+
+THE BATTERY (the one-level car against the round-240 two-level champion,
+mirrored, 840 pairs a slice):
+
+    roster / start        place C-H        wins        crashes C/H  tracks C/H/tied
+    8p legacy   s1-10    -0.155 +- 0.031  896 : 784    59 :  69      53 / 27 / 4
+    8p informed s1-10    -0.138 +- 0.029  907 : 773    49 :  62      53 / 27 / 4
+    8p scatter  s1-10    -0.010 +- 0.005  842 : 838     7 :   7      24 / 17 / 43
+    8p legacy   s11-20   -0.147 +- 0.031  893 : 787    72 :  80      53 / 31 / 0
+    2p legacy   s1-10    -0.055 +- 0.011  886 : 794   134 : 155      13 /  3 / 68
+
+THE BATTERY CLEARS EVERYWHERE. Random, computed and scattered starts, a
+held-out seed window that lands within a quarter of a standard error of the
+tuning window (-0.147 against -0.155), and the duel check at five standard
+errors of its own with the candidate crashing less (134 against 155). Not one
+slice is against it. Promoted: AI1_DEEP_LOOKAHEAD is 1. The two vetoes that
+are the champion's traffic sense now act on the immediate landing and on the
+ply after it, and on nothing further out -- which is, by the last ten rounds'
+evidence, exactly the distance at which what the rollout prices stops being a
+fact and starts being a guess.
+
+WHAT IT COSTS THE CORPUS: THE WIDEST MOVE OF THE CAMPAIGN, AND IT NETS A CAR.
+Eleven of the twelve golden races change their trace (only the two-car Hairpin
+s1 is byte-identical), every finisher and crash count intact and six turns
+more over the twelve; eighteen of the twenty-four pins re-freeze from
+measurement -- seven by the loop, eleven by hand from one instrumented pass
+(E:/tmp-claude/probe_pin.py runs a pin without stopping at its first failed
+assertion and records every race it drives, so the hand work is one edit and
+one verification instead of a round trip per assertion). Six pins pass
+untouched: the duel lookahead, the escape and immediate-finish confirms,
+racecraft, thread fragility and vmax deep. Among the pinned races the
+one-level car loses a car in four (Le Mans s29, Zandvoort s44, s115 and s34)
+and gets one back in five (Silverstone s78, Hungaroring s40, Spa s4 and both
+mixed Le Mans races, s36 and s7) -- recorded, not vetoed, and the direction
+the fleet reports. Three contracts retire with the races that no longer hold
+them: the round-126 finisher/crash edge over the legacy champion at Zandvoort
+s115 (the race has its crash back; the pace edge stays pinned), the round-234
+p7 crash identity in mixed Le Mans s7 (crash-free again) and Spa s4's entry
+in the staged-pace safety table (seven finishers now). All twenty-four pins
+and twelve goldens verify on the promoted jar (e39c2e7c).
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto):
+
+    round 247   56 crashes   1,761,743 moves   rows 3351667c15c76e72
+    round 240   61 crashes   1,762,175 moves   rows e870287d39b22b62
+
+Five fewer wrecks and 432 fewer moves over 730 races of eight one-level cars:
+the shallower rollout is safer for the champion's own field as well, which is
+the head-to-head's 59 against 69 crashes seen from inside a homogeneous fleet.
+
 ## Round 246: the other traffic term, priced -- and the traffic model closes
 
 Round 217's note in the soft rollout says the deeper predicted-occupancy veto

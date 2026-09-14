@@ -24,17 +24,20 @@ import bench_ai  # noqa: E402
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("hairpin", 68)
-RESCUED = (7, 0, [16, 16, 17, 18, 18, 18, 20])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 17), (5, 18), (6, 18), (8, 18), (1, 20)]
-RESCUED_MOVES = {1: 20, 2: 16, 3: 16, 4: 17, 5: 18, 6: 18, 7: 19, 8: 18}
+# Round 247 (the soft rollout at one level, not two): re-frozen from
+# measurement; still seven finishers and no crash, p8 home in 18 moves.
+RESCUED = (7, 0, [16, 16, 17, 18, 18, 19, 19])
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 17), (6, 18), (8, 18), (1, 19), (5, 19)]
+RESCUED_MOVES = {1: 19, 2: 16, 3: 16, 4: 17, 5: 19, 6: 18, 7: 18, 8: 18}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
 # re-frozen from measurement, with the trajectory digest below unchanged in role.
-RESCUED_DECISION = "104 p8 AI S v(6,0)→(6,1) (47,6)→(53,7) ok"
+# Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+RESCUED_DECISION = "104 p8 AI NONE v(6,1)→(6,1) (47,7)→(53,8) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-RESCUED_SHA256 = "4581f62ae4409131c13b13d62929c76189bed20aeeefd24736a887c92e5aa91b"
+RESCUED_SHA256 = "3c29fd9971e159583bb167aafb07da283e7e4f1fd36b4c78a6b741d1c8fbf7bd"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

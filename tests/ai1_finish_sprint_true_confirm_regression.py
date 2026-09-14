@@ -22,11 +22,12 @@ TARGET = ("rand3", 1)
 # Every case below retains seven finishers and zero crashes.
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-PROMOTED = (7, 0, [60, 61, 62, 63, 63, 64, 65])
-PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (5, 63), (7, 63), (6, 64), (8, 65)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 65, 5: 63, 6: 64, 7: 63, 8: 65}
+# Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+PROMOTED = (7, 0, [60, 61, 62, 63, 63, 64, 64])
+PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (5, 63), (7, 63), (6, 64), (8, 64)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 64, 5: 63, 6: 64, 7: 63, 8: 64}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-PROMOTED_SHA256 = 'a3c3ea640f10a766ccb6afab38ae9edee0bfbc2476974ccdb84f4e3e03fc6eb4'
+PROMOTED_SHA256 = '1fb7db600b3916235bb04b0d0ec056a64a3cb24222b8127bb344da95ff60ad38'
 
 
 def main() -> int:

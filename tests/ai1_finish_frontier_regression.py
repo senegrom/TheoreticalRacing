@@ -13,26 +13,29 @@ from forensics_common import finishers, normalized_lines  # noqa: E402
 
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    6: (7, 0, [58, 59, 59, 60, 60, 61, 62]),
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    6: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    47: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
-    49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    47: (7, 0, [58, 59, 60, 61, 61, 61, 62]),
+    49: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     (1, 58),
     (2, 59),
-    (3, 59),
-    (4, 60),
+    (4, 59),
+    (3, 60),
     (5, 60),
+    (8, 60),
     (6, 61),
-    (7, 62),
 ]
 EXPECTED_DECISION = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
-    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
-    47: "298 p2 {kind} W v(1,-6)→(0,-6) (64,48)→(64,42) ok",
-    49: "308 p4 {kind} W v(0,-5)→(-1,-5) (65,42)→(64,37) ok",
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    6: "299 p3 {kind} NW v(1,-5)→(0,-6) (65,53)→(65,47) ok",
+    47: "298 p2 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
+    49: "308 p4 {kind} W v(1,-6)→(0,-6) (65,48)→(65,42) ok",
 }
 
 
@@ -80,12 +83,13 @@ def main() -> int:
         for kind in ("AI1", "AI2")
     }
     # Round 229: 418 is the re-frozen seed-6 sum (the soft caution stack left the score).
-    if any(move_sum != 419 or move_sum >= 426 for move_sum in move_sums.values()):
+    # Round 247: 417 (the soft rollout at one level, not two).
+    if any(move_sum != 417 or move_sum >= 426 for move_sum in move_sums.values()):
         raise SystemExit(f"Round-96 Coil seed-6 pace gain lost: {move_sums}")
 
     print(
         "AI1FinishFrontierRegression: OK "
-        "(Coil seed 6 self-tie at 421 moves; seeds 47/49 vetoes pinned)"
+        "(Coil seed 6 self-tie at 417 moves; seeds 47/49 vetoes pinned)"
     )
     return 0
 

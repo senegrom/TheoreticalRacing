@@ -41,7 +41,8 @@ HUNGARORING_ALL_MOVES = {
 }
 HUNGARORING_NORMALIZED_SHA256 = (
     # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-    'b280fa66616627629b75e022bd657c35e5989bb09d7fd430bc29e427ab54ca29'
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    'e5f53d8a546bb29da70adcae499edc973870d7f1cdcba6848a743a20cbaa0bb1'
 )
 
 # Each case pins one false-positive class from the broader score-slack screens:
@@ -51,21 +52,24 @@ HUNGARORING_NORMALIZED_SHA256 = (
 # trajectory equal to the current champion.
 VETO_CASES = {
     # Round 226 (the needle tie-break): re-frozen from measurement.
-    ("lemans", 2): ((7, 0, [66, 67, 69, 70, 71, 73, 73]),
+    ("lemans", 2): ((7, 0, [66, 67, 69, 71, 72, 73, 74]),
         "311 p7 {kind} N v(1,5)→(1,4) (82,144)→(83,148) ok",
     ),
     ("spa", 1): (
-        (7, 0, [78, 79, 80, 81, 82, 82, 84]),
+        (7, 0, [78, 79, 80, 82, 82, 82, 83]),
         "163 p3 {kind} NW v(4,9)→(3,8) (95,95)→(98,103) ok",
     ),
     # Round 234: re-frozen from measurement (the seal guard left the decision).
-    ("hungaroring", 40): ((6, 1, [122, 123, 124, 125, 126, 127]),
+    # Round 247 (the soft rollout at one level, not two): every case below
+    # re-frozen from measurement. Hungaroring s40 is whole again; Zandvoort
+    # s34 loses a car. Recorded, not vetoed (AGENTS.md).
+    ("hungaroring", 40): ((7, 0, [122, 123, 124, 125, 126, 128, 129]),
         "352 p8 {kind} NONE v(3,2)→(3,2) (49,110)→(52,112) ok",
     ),
-    ("interlagos", 47): ((7, 0, [124, 125, 127, 129, 130, 132, 133]),
+    ("interlagos", 47): ((7, 0, [124, 126, 127, 129, 129, 130, 132]),
         "175 p7 {kind} SW v(6,-3)→(5,-2) (35,8)→(40,6) ok",
     ),
-    ("monza", 30): ((7, 0, [78, 79, 80, 80, 81, 82, 82]),
+    ("monza", 30): ((7, 0, [78, 79, 79, 80, 80, 81, 81]),
         "238 p6 {kind} E v(-9,0)→(-8,0) (125,69)→(117,69) ok",
     ),
     # Round 224 moved this race: still seven finishers and no crash, but the
@@ -75,10 +79,10 @@ VETO_CASES = {
         "609 p1 {kind} N v(1,5)→(1,4) (16,116)→(17,120) ok",
     ),
     ("zandvoort", 34): (
-        (7, 0, [137, 139, 140, 141, 142, 143, 144]),
+        (6, 1, [137, 139, 140, 141, 142, 143]),
         "80 p8 {kind} SE v(3,-8)→(4,-7) (31,61)→(35,54) ok",
     ),
-    ("monza", 145): ((7, 0, [78, 79, 79, 80, 80, 81, 81]),
+    ("monza", 145): ((7, 0, [78, 79, 79, 80, 80, 80, 81]),
         "174 p6 {kind} NE v(-8,5)→(-7,4) (192,46)→(185,50) ok",
     ),
     ("serpentine", 38): (
@@ -88,27 +92,28 @@ VETO_CASES = {
 }
 VETO_NORMALIZED_SHA256 = {
     # Round 224 (rival predictor in its own lap frame): trajectory only.
-    ("lemans", 2): 'ab3ed6a7c836fbf264a699a42163487aaf6b04f1277363c0e299c9d7e7dd51b3',
-    ("spa", 1): '484264dda55671fdee9e8f18a058d4392a303070eecb7f18ba74464bd5913cf6',
+    ("lemans", 2): '804ea85b59799d85a87db03211382b71ab0853b2dc4735f581115b7e166a52a3',
+    ("spa", 1): 'c2dd39ec5cf8d9f6b08423ffe7a10f30ba3b3fe7898f1129333914d60e0bb4d7',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
-    ("hungaroring", 40): '3f3e42f290c6d760a6012c6539454254fcfa38d0de5c95add9494e947726887f',
+    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    ("hungaroring", 40): '5cc6467ff6e7efd03aa5395458aa12b7702ac3fbb2438d0df8f0a3ff788ce74b',
     # Round 224: same finishing order and same per-car move counts, new route.
-    ("interlagos", 47): '9699bf5520287ec9c93cadf05bae015fd9d25cbe313abbe0b0e09a975b819e99',
+    ("interlagos", 47): '8d9e6d61a84c4301acdd2616b7adbcac97e9bb6bf4cbed988b5480540a0ea63d',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
-    ("monza", 30): '257121ab9ed389634bfc88da0052cb3848b05eff75051e8a7b4a89ae7976cdae',
+    ("monza", 30): 'ce7cd3fd31fcd7d43f628addb58c0c6d0b4571fd8f5cb6d8c2722136ee21aed2',
     # Round 224, the one case that changes its result: still seven finishers,
     # but car 1 finishes seventh where car 7 used to, and the race is nine
     # moves longer. The fleet cleared the change on 1460 races either side
     # (no crash moved, +19 and +133 moves in 1.85M).
-    ("monaco", 35): 'aa81b5386669e6c3865bf5d0138cb5edcfe817e2473ba4fc5c66ba56aa9a205d',
-    ("zandvoort", 34): '27f5e0cf8507687c1e155452a08309857ebb7d9a3bc3d37b9cd4ac09633123af',
+    ("monaco", 35): '0e6de8e202864720b46f4bd6de191179f7a95568a96ed7616285ae38fa6039ff',
+    ("zandvoort", 34): '1ef811a34bb9f3486d114276cedb5dc948d7970a63b13be41ce23fb2d783da4f',
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
-    ("monza", 145): '0af5c730260221ed61c7520111fc7315cca73da751f4615fcf5b6f4a9117c3ed',
+    ("monza", 145): 'e2e2725ce7c40faba797ec369c44012e7be05adeaf44f6e968b7a4ee4447ab6d',
     # Reject p3's wall-overlap finish at turn 819: its last two approach moves
     # and p6's nearby response move, but the full field's outcome counters do not.
-    ("serpentine", 38): '050942bd858ae3b7d2e5ad1c7f2150e9c4e85b2d09df3c8a51a4462bf1ab06af',
+    ("serpentine", 38): '89fdab7d028edad4eff4bb5577be972b14c1893c4e3d190eca7a6f6925f4af42',
 }
 
 
