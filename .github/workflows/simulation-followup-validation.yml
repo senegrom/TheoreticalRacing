@@ -1,0 +1,139 @@
+name: Validate simulation branch follow-up
+on:
+  push:
+    branches: [work/simulation-followup-validation-20260914]
+permissions:
+  contents: read
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  contracts:
+    name: Branch correctness JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 55a63effcab7880fea38bc51b828fab861b319b8
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply checksum-bound review patch
+        shell: bash
+        run: |
+          for i in 0 1 2; do git show "$GITHUB_SHA":.github/simulation-followup.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/followup.patch"
+          echo "d97b7ae2220ac69d4d339d2e8fb60bccc00c3242cf8be39c9a6081971e5c27fb  $RUNNER_TEMP/followup.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/followup.patch"
+          test "$(git write-tree)" = fc0bf55ff6e3fb7c67de89bb6cc07fb65db4348a
+          mkdir -p validation
+      - name: Java correctness and strict supported build
+        shell: bash
+        run: |
+          set -o pipefail
+          sh run_tests.sh 2>&1 | tee validation/java.log
+          sh build_main.sh 2>&1 | tee validation/build.log
+          python tests/cross_era_referee_regression.py 2>&1 | tee validation/referee.log
+      - name: Repository and real-CLI contracts
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee validation/python.log
+          for test in headless_smoke query_replay_regression lap_progress_regression selfplay_profile_regression promotion_pair_regression; do
+            python tests/$test.py 2>&1 | tee validation/$test.log
+          done
+          python -m compileall -q tracks tests
+          sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+      - name: Assert tested source is unchanged
+        run: |
+          git diff --exit-code
+          test "$(git write-tree)" = fc0bf55ff6e3fb7c67de89bb6cc07fb65db4348a
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: simulation-contracts-jdk${{ matrix.java }}
+          path: validation/
+          if-no-files-found: error
+  frozen:
+    name: Unchanged golden and champion comparisons (not a waived release gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 55a63effcab7880fea38bc51b828fab861b319b8
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply same exact source
+        shell: bash
+        run: |
+          for i in 0 1 2; do git show "$GITHUB_SHA":.github/simulation-followup.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/followup.patch"
+          echo "d97b7ae2220ac69d4d339d2e8fb60bccc00c3242cf8be39c9a6081971e5c27fb  $RUNNER_TEMP/followup.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/followup.patch"
+          test "$(git write-tree)" = fc0bf55ff6e3fb7c67de89bb6cc07fb65db4348a
+          sh build_main.sh
+          mkdir -p validation
+      - name: Run every stored comparison and preserve failures
+        shell: bash
+        run: |
+          set +e
+          failed=0
+          for test in tests/golden_races.py tests/ai1_*_regression.py; do
+            name=$(basename "$test" .py)
+            python "$test" > "validation/$name.log" 2>&1
+            status=$?
+            echo "$name exit=$status" | tee -a validation/results.txt
+            if [ "$status" -ne 0 ]; then failed=1; tail -30 "validation/$name.log"; fi
+          done
+          git diff --exit-code || failed=1
+          echo 'These comparisons retain every frozen expectation. A mismatch is an unresolved release diagnostic, not a waived gate.' >> "$GITHUB_STEP_SUMMARY"
+          cat validation/results.txt >> "$GITHUB_STEP_SUMMARY"
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: simulation-frozen-comparisons
+          path: validation/
+          if-no-files-found: error
+  prepare:
+    name: Prepare review-only source commit
+    needs: contracts
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 55a63effcab7880fea38bc51b828fab861b319b8
+          fetch-depth: 0
+      - name: Prepare exact source without changing master or the target review branch
+        shell: bash
+        run: |
+          for i in 0 1 2; do git show "$GITHUB_SHA":.github/simulation-followup.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/followup.patch"
+          echo "d97b7ae2220ac69d4d339d2e8fb60bccc00c3242cf8be39c9a6081971e5c27fb  $RUNNER_TEMP/followup.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/followup.patch"
+          test "$(git write-tree)" = fc0bf55ff6e3fb7c67de89bb6cc07fb65db4348a
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix legal-blockade rollouts and mover progress on simulation review branch' -m 'Replay actual scorer actions without a map-dead veto; do not turn proxy abstention into retirement. Carry candidate and recursive mover lap/checkpoint progress through private-lane certificates. Add independent regressions and correct hosting documentation. Preserve the original four repairs and all frozen expectations. Review branch only: golden/champion differences and full-fleet validation remain release work; no master update or policy promotion.'
+          git push origin HEAD:refs/heads/work/simulation-followup-prepared-20260914
+          echo "Prepared $(git rev-parse HEAD). This is review-branch correctness validation, not golden/fleet release clearance." >> "$GITHUB_STEP_SUMMARY"
