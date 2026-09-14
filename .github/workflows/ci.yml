@@ -116,7 +116,7 @@ jobs:
         run: |
           rm -rf -- "$RUNNER_TEMP/racing-pages"
           mkdir -p "$RUNNER_TEMP/racing-pages"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: browser-webapp
           path: ${{ runner.temp }}/racing-pages
