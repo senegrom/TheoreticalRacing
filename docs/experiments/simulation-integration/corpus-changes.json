@@ -1,0 +1,207 @@
+{
+  "base": "094f242214b7bc5176a2a236df8bb1cac4d04b86",
+  "decision_tree": "119d2e50c6a3539349ed95082be1421acf445890",
+  "jar_sha256": "ac8e0b77eb01b5c791435a6a444cde2dac97067862b26f73366026f5590e515e",
+  "heap": "-Xmx4g",
+  "java": "Temurin 25.0.4.1+1",
+  "records": [
+    {
+      "file": "tests/ai1_bounded_uncertain_field_regression.py",
+      "changes": [
+        {
+          "variable": "PROMOTED",
+          "old": "(6, 1, [66, 67, 69, 70, 71, 73])",
+          "new": "(7, 0, [66, 67, 69, 70, 71, 73, 74])"
+        },
+        {
+          "variable": "PROMOTED_FINISHERS",
+          "old": "[(1, 66), (3, 67), (5, 69), (7, 70), (8, 71), (2, 73)]",
+          "new": "[(1, 66), (3, 67), (5, 69), (7, 70), (8, 71), (4, 73), (6, 74)]"
+        },
+        {
+          "variable": "PROMOTED_CRASHES",
+          "old": "[(6, 53)]",
+          "new": "[]"
+        },
+        {
+          "variable": "PROMOTED_ALL_MOVES",
+          "old": "{1: 66, 2: 73, 3: 67, 4: 72, 5: 69, 6: 53, 7: 70, 8: 71}",
+          "new": "{1: 66, 2: 74, 3: 67, 4: 73, 5: 69, 6: 74, 7: 70, 8: 71}"
+        },
+        {
+          "variable": "RETENTION_CASES",
+          "old": "{('lemans', 87): ((7, 0, [66, 67, 69, 70, 72, 73, 74]), '400b40207131cd63afe6ea2d5e5799c920ef9b2a44ec6be5adb99b68b26c47f4'), ('lemans', 93): ((7, 0, [66, 67, 68, 70, 71, 72, 74]), '549ebe813e4158f415d080b194d9c58db91e25009d28efea6e7d1e15c91903d1'), ('lemans', 14): ((7, 0, [66, 67, 69, 70, 71, 72, 74]), 'bc56a60b863ec5270b65098439b2c37398f6ad2e8d65d1ea53853698c5625d43'), ('silverstone', 78): ((7, 0, [81, 82, 83, 83, 84, 84, 86]), 'e4d3c6305222993d18c4ce0e095ecdb57c2481b03c34d43f93c3b292adc0bea3'), ('spa', 12): ((7, 0, [78, 79, 81, 81, 82, 83, 84]), '81550b7b506cbaaf4b1746a0edbac70af08dd07e66d85c9794de2daa22ea97ba'), ('spa', 31): ((7, 0, [78, 79, 81, 81, 82, 84, 84]), '02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c'), ('spa', 40): ((7, 0, [78, 79, 80, 81, 83, 83, 84]), '05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af'), ('spa', 47): ((7, 0, [78, 80, 81, 81, 82, 83, 84]), '8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6')}",
+          "new": "{('lemans', 87): ((7, 0, [66, 67, 69, 70, 72, 73, 74]), '6921a56ddf76329b886d74bce95e9c9198c8fdd4973b3d227132bb8aa2b24105'), ('lemans', 93): ((7, 0, [66, 67, 68, 70, 71, 73, 74]), '5f40d1ef9857188b1d8c35d2e6745a89a728b58d5a3de48e4ec9d55a7582f498'), ('lemans', 14): ((6, 1, [66, 67, 69, 70, 71, 73]), 'adcca94938952716fd76a52de4d48e193e1f983e0b0c08c581d50cf0c45bb426'), ('silverstone', 78): ((7, 0, [81, 82, 83, 83, 84, 84, 85]), 'c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346'), ('spa', 12): ((7, 0, [78, 79, 81, 83, 83, 84, 84]), '0a5dcd67d2a95d3c53f70e272e240a37b723db2febee9dd4e536dce4de5cd856'), ('spa', 31): ((7, 0, [78, 79, 81, 81, 82, 84, 84]), '02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c'), ('spa', 40): ((7, 0, [78, 79, 80, 81, 83, 83, 84]), '05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af'), ('spa', 47): ((7, 0, [78, 80, 81, 81, 82, 83, 84]), '8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6')}"
+        }
+      ],
+      "note": "Le Mans s29 regains its seventh finisher; s14 loses one. Other changed\nretention counters/hashes are recorded, with complete-log and label-identity\nchecks retained.",
+      "sha256": "8b35b51703c8035eaeff184f331e73f036b836382a30f7b0e216d06200b5dc7e"
+    },
+    {
+      "file": "tests/ai1_cross_model_pace_regression.py",
+      "changes": [
+        {
+          "variable": "EXPECTED",
+          "old": "{'AI1': (7, 0, [82, 83, 83, 84, 84, 85, 85]), 'AI2': (7, 0, [82, 83, 83, 84, 84, 85, 85])}",
+          "new": "{'AI1': (7, 0, [82, 83, 83, 84, 84, 85, 86]), 'AI2': (7, 0, [82, 83, 83, 84, 84, 85, 86])}"
+        }
+      ],
+      "note": "Silverstone s1 has the same finishers/crashes and 587 finisher moves.\nThe two-label equality contract remains unchanged.",
+      "sha256": "1d15d7e7258b91faaee91ab4a0c2e136e610fa8b4b7c681c838f3530628b9b8e"
+    },
+    {
+      "file": "tests/ai1_energy_pace_regression.py",
+      "changes": [
+        {
+          "variable": "EXPECTED",
+          "old": "{('nurburgring', 1): (7, 0, [91, 92, 92, 93, 93, 95, 96]), ('interlagos', 29): (7, 0, [124, 126, 126, 128, 130, 130, 131]), ('interlagos', 47): (7, 0, [124, 126, 127, 129, 129, 130, 132]), ('spa', 17): (7, 0, [78, 79, 80, 81, 82, 83, 85]), ('zandvoort', 44): (6, 1, [137, 139, 140, 141, 142, 144])}",
+          "new": "{('nurburgring', 1): (7, 0, [91, 92, 92, 93, 93, 95, 96]), ('interlagos', 29): (7, 0, [124, 126, 126, 128, 130, 130, 131]), ('interlagos', 47): (7, 0, [124, 126, 127, 129, 129, 130, 132]), ('spa', 17): (7, 0, [78, 79, 80, 81, 82, 83, 85]), ('zandvoort', 44): (7, 0, [137, 139, 140, 141, 142, 144, 145])}"
+        }
+      ],
+      "note": "Zandvoort s44 regains a seventh finisher. Every measured outcome,\nincluding non-finishing cars, remains asserted.",
+      "sha256": "92499359fbf5b7d03ab8db1ee10308869ccc8535a2660c0d43fd06a8e00a85c4"
+    },
+    {
+      "file": "tests/ai1_equal_speed_veto_regression.py",
+      "changes": [
+        {
+          "variable": "PROMOTED",
+          "old": "(6, 1, [137, 139, 140, 141, 143, 144])",
+          "new": "(7, 0, [137, 139, 140, 141, 142, 143, 144])"
+        }
+      ],
+      "note": "Zandvoort s115 regains a seventh finisher. Compare historical pace over\nthe same six finishing positions, rather than incorrectly pricing the extra\nfinisher as lost pace.",
+      "sha256": "71ee042867bbe7df23649d9cab8595a7aff739f09bc84f1cb0f55512d0b008af"
+    },
+    {
+      "file": "tests/ai1_finish_sprint_true_confirm_regression.py",
+      "changes": [
+        {
+          "variable": "PROMOTED",
+          "old": "(7, 0, [60, 61, 62, 63, 63, 64, 64])",
+          "new": "(7, 0, [60, 61, 62, 62, 63, 63, 63])"
+        },
+        {
+          "variable": "PROMOTED_FINISHERS",
+          "old": "[(1, 60), (2, 61), (3, 62), (5, 63), (7, 63), (6, 64), (8, 64)]",
+          "new": "[(1, 60), (2, 61), (3, 62), (4, 62), (5, 63), (6, 63), (7, 63)]"
+        },
+        {
+          "variable": "PROMOTED_ALL_MOVES",
+          "old": "{1: 60, 2: 61, 3: 62, 4: 64, 5: 63, 6: 64, 7: 63, 8: 64}",
+          "new": "{1: 60, 2: 61, 3: 62, 4: 62, 5: 63, 6: 63, 7: 63, 8: 62}"
+        },
+        {
+          "variable": "PROMOTED_SHA256",
+          "old": "'1fb7db600b3916235bb04b0d0ec056a64a3cb24222b8127bb344da95ff60ad38'",
+          "new": "'0bb60826efbf9e5a1e9f08175719628d893480aa9c58583d133fcbe3742cfe79'"
+        }
+      ],
+      "note": "Rand3 s1 is still crash-free; its full finishing order and move counts\nchange after legal scorer actions and terminal classification are retained.",
+      "sha256": "71f8e1fd11eaab59110304bc007cf8d75b90065b3372e0c0299437016a03fe27"
+    },
+    {
+      "file": "tests/ai1_pace_regression.py",
+      "changes": [
+        {
+          "variable": "FINISH_EXPECTED",
+          "old": "{('bigoval', 7): [20, 20, 21, 21, 22, 22, 22], ('lemans', 12): [66, 67, 69, 70, 71, 73, 74]}",
+          "new": "{('bigoval', 7): [20, 20, 21, 21, 22, 22, 22], ('lemans', 12): [66, 67, 69, 70, 71, 72, 73]}"
+        }
+      ],
+      "note": "Le Mans s12 remains crash-free and finishes two moves sooner in total.\nThe Monaco safety/pace bound and label checks remain in force.",
+      "sha256": "a06350db877fdeae04410ec4ecb862701920fbcb9dc11564d1d1e9c87c4611ce"
+    },
+    {
+      "file": "tests/ai1_private_slack_regression.py",
+      "changes": [
+        {
+          "variable": "HUNGARORING_PROMOTED",
+          "old": "(7, 0, [122, 123, 124, 125, 127, 128, 130])",
+          "new": "(6, 1, [122, 123, 124, 125, 126, 128])"
+        },
+        {
+          "variable": "HUNGARORING_PROMOTED_FINISHERS",
+          "old": "[(3, 122), (4, 123), (7, 124), (8, 125), (5, 127), (6, 128), (1, 130)]",
+          "new": "[(3, 122), (4, 123), (6, 124), (7, 125), (8, 126), (1, 128)]"
+        },
+        {
+          "variable": "HUNGARORING_ALL_MOVES",
+          "old": "{'AI1': {1: 130, 2: 129, 3: 122, 4: 123, 5: 127, 6: 128, 7: 124, 8: 125}, 'AI2': {1: 130, 2: 129, 3: 122, 4: 123, 5: 127, 6: 128, 7: 124, 8: 125}}",
+          "new": "{'AI1': {1: 128, 2: 30, 3: 122, 4: 123, 5: 127, 6: 124, 7: 125, 8: 126}, 'AI2': {1: 128, 2: 30, 3: 122, 4: 123, 5: 127, 6: 124, 7: 125, 8: 126}}"
+        },
+        {
+          "variable": "HUNGARORING_NORMALIZED_SHA256",
+          "old": "'e5f53d8a546bb29da70adcae499edc973870d7f1cdcba6848a743a20cbaa0bb1'",
+          "new": "'c1357811bd0d789876236c7385187b98524c8a27ca4a68695b43143dd98ac0e6'"
+        },
+        {
+          "variable": "VETO_CASES",
+          "old": "{('lemans', 2): ((7, 0, [66, 67, 69, 71, 72, 73, 74]), '311 p7 {kind} N v(1,5)\u2192(1,4) (82,144)\u2192(83,148) ok'), ('spa', 1): ((7, 0, [78, 79, 80, 82, 82, 82, 83]), '163 p3 {kind} NW v(4,9)\u2192(3,8) (95,95)\u2192(98,103) ok'), ('hungaroring', 40): ((7, 0, [122, 123, 124, 125, 126, 128, 129]), '352 p8 {kind} NONE v(3,2)\u2192(3,2) (49,110)\u2192(52,112) ok'), ('interlagos', 47): ((7, 0, [124, 126, 127, 129, 129, 130, 132]), '175 p7 {kind} SW v(6,-3)\u2192(5,-2) (35,8)\u2192(40,6) ok'), ('monza', 30): ((7, 0, [78, 79, 79, 80, 80, 81, 81]), '238 p6 {kind} E v(-9,0)\u2192(-8,0) (125,69)\u2192(117,69) ok'), ('monaco', 35): ((7, 0, [113, 114, 115, 116, 117, 119, 120]), '609 p1 {kind} N v(1,5)\u2192(1,4) (16,116)\u2192(17,120) ok'), ('zandvoort', 34): ((6, 1, [137, 139, 140, 141, 142, 143]), '80 p8 {kind} SE v(3,-8)\u2192(4,-7) (31,61)\u2192(35,54) ok'), ('monza', 145): ((7, 0, [78, 79, 79, 80, 80, 80, 81]), '174 p6 {kind} NE v(-8,5)\u2192(-7,4) (192,46)\u2192(185,50) ok'), ('serpentine', 38): ((7, 0, [103, 103, 103, 103, 103, 103, 104]), '364 p4 {kind} S v(1,-4)\u2192(1,-3) (17,65)\u2192(18,62) ok')}",
+          "new": "{('lemans', 2): ((7, 0, [66, 67, 69, 71, 72, 73, 74]), '311 p7 {kind} N v(1,5)\u2192(1,4) (82,144)\u2192(83,148) ok'), ('spa', 1): ((7, 0, [78, 79, 80, 82, 82, 82, 83]), '163 p3 {kind} NW v(4,9)\u2192(3,8) (95,95)\u2192(98,103) ok'), ('hungaroring', 40): ((6, 1, [122, 123, 124, 125, 126, 128]), '352 p8 {kind} NONE v(3,2)\u2192(3,2) (49,110)\u2192(52,112) ok'), ('interlagos', 47): ((7, 0, [124, 126, 127, 129, 129, 130, 132]), '175 p7 {kind} SW v(6,-3)\u2192(5,-2) (35,8)\u2192(40,6) ok'), ('monza', 30): ((7, 0, [78, 79, 79, 80, 80, 81, 81]), '238 p6 {kind} E v(-9,0)\u2192(-8,0) (125,69)\u2192(117,69) ok'), ('monaco', 35): ((7, 0, [113, 114, 115, 116, 118, 119, 120]), '609 p1 {kind} N v(1,5)\u2192(1,4) (16,116)\u2192(17,120) ok'), ('zandvoort', 34): ((7, 0, [137, 139, 140, 141, 142, 143, 144]), '80 p8 {kind} SE v(3,-8)\u2192(4,-7) (31,61)\u2192(35,54) ok'), ('monza', 145): ((7, 0, [78, 79, 79, 80, 80, 80, 81]), '174 p6 {kind} NE v(-8,5)\u2192(-7,4) (192,46)\u2192(185,50) ok'), ('serpentine', 38): ((7, 0, [103, 103, 103, 103, 103, 103, 104]), '364 p4 {kind} S v(1,-4)\u2192(1,-3) (17,65)\u2192(18,62) ok')}"
+        },
+        {
+          "variable": "VETO_NORMALIZED_SHA256",
+          "old": "{('lemans', 2): '804ea85b59799d85a87db03211382b71ab0853b2dc4735f581115b7e166a52a3', ('spa', 1): 'c2dd39ec5cf8d9f6b08423ffe7a10f30ba3b3fe7898f1129333914d60e0bb4d7', ('hungaroring', 40): '5cc6467ff6e7efd03aa5395458aa12b7702ac3fbb2438d0df8f0a3ff788ce74b', ('interlagos', 47): '8d9e6d61a84c4301acdd2616b7adbcac97e9bb6bf4cbed988b5480540a0ea63d', ('monza', 30): 'ce7cd3fd31fcd7d43f628addb58c0c6d0b4571fd8f5cb6d8c2722136ee21aed2', ('monaco', 35): '0e6de8e202864720b46f4bd6de191179f7a95568a96ed7616285ae38fa6039ff', ('zandvoort', 34): '1ef811a34bb9f3486d114276cedb5dc948d7970a63b13be41ce23fb2d783da4f', ('monza', 145): 'e2e2725ce7c40faba797ec369c44012e7be05adeaf44f6e968b7a4ee4447ab6d', ('serpentine', 38): '89fdab7d028edad4eff4bb5577be972b14c1893c4e3d190eca7a6f6925f4af42'}",
+          "new": "{('lemans', 2): '21b87d635178d5dc2ae92757daf2e1389c2ba33cc7e1798f386b686b4920c2e7', ('spa', 1): '12a86faf12c14fd4cb24475cd452180defcd40d0d31d7785635c913edc8b9e91', ('hungaroring', 40): 'ce0b50532a389c95d039df46e22ec64ad132930bb0c8d0fb9acfeb8a47987b05', ('interlagos', 47): '5417395d809386de6d12dbc2fd929e558fa210cf94a3697f6be48998a15402c2', ('monza', 30): 'ce7cd3fd31fcd7d43f628addb58c0c6d0b4571fd8f5cb6d8c2722136ee21aed2', ('monaco', 35): '4818433f4b6597e8d73046b8668adedc846bab1614b45df5956f0787aa1023e0', ('zandvoort', 34): '30f882000d18333d8677600c90de924a889bc322eeb70465e84ddbdb1701f9f8', ('monza', 145): 'e2e2725ce7c40faba797ec369c44012e7be05adeaf44f6e968b7a4ee4447ab6d', ('serpentine', 38): '89fdab7d028edad4eff4bb5577be972b14c1893c4e3d190eca7a6f6925f4af42'}"
+        }
+      ],
+      "note": "Hungaroring s12 and s40 each lose one finisher; Zandvoort s34 regains\none. These field outcomes are recorded rather than used to veto the\nhead-to-head place comparison. Whole-trajectory and label identity stay pinned.",
+      "sha256": "c520d0ea113316a3151da803a460b52668d7ea123746d860db2ca4712a0c6fe7"
+    },
+    {
+      "file": "tests/ai1_six_ahead_high_speed_regression.py",
+      "changes": [
+        {
+          "variable": "PROMOTED",
+          "old": "(7, 0, [78, 79, 81, 82, 82, 84, 85])",
+          "new": "(6, 1, [78, 79, 81, 82, 84, 84])"
+        },
+        {
+          "variable": "PROMOTED_FINISHERS",
+          "old": "[(6, 78), (7, 79), (2, 81), (5, 82), (8, 82), (1, 84), (4, 85)]",
+          "new": "[(6, 78), (7, 79), (2, 81), (8, 82), (3, 84), (4, 84)]"
+        },
+        {
+          "variable": "PROMOTED_ALL_MOVES",
+          "old": "{1: 84, 2: 81, 3: 85, 4: 85, 5: 82, 6: 78, 7: 79, 8: 82}",
+          "new": "{1: 84, 2: 81, 3: 84, 4: 84, 5: 31, 6: 78, 7: 79, 8: 82}"
+        },
+        {
+          "variable": "PROMOTED_SHA256",
+          "old": "'a9e5e26b76afa435c16189a5c051ca209a1199cd0f5a0c87327c93ccaad59f61'",
+          "new": "'74bc8f5025fcca53a51d1e3c4eb5c8c7c37af5b29441b88ac6921b5a46e6721c'"
+        },
+        {
+          "variable": "VETO_CASES",
+          "old": "{('spa', 27): ((7, 0, [79, 80, 82, 82, 83, 83, 85]), '2cdea6c13502bf538d10c7a0ced83d5293e6d64eb9df187d5a011ff6c2001bad'), ('spa', 57): ((7, 0, [78, 80, 81, 83, 83, 84, 84]), '5a4adcd881337ba2ead3e276569a3f384f9f0e737707264e7e5d1ee197337f29'), ('spa', 12): ((7, 0, [78, 79, 81, 81, 82, 83, 84]), '81550b7b506cbaaf4b1746a0edbac70af08dd07e66d85c9794de2daa22ea97ba'), ('spa', 31): ((7, 0, [78, 79, 81, 81, 82, 84, 84]), '02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c'), ('spa', 40): ((7, 0, [78, 79, 80, 81, 83, 83, 84]), '05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af'), ('spa', 47): ((7, 0, [78, 80, 81, 81, 82, 83, 84]), '8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6'), ('coil', 5): ((7, 0, [58, 59, 60, 60, 61, 61, 62]), '9207750748733019482321e3c0bb415c5d83a67f38cbe78572544854838f05c2'), ('coil', 22): ((7, 0, [58, 59, 60, 61, 61, 62, 62]), '30d2c987de19d18144d638e4d366df4cb7fffb22c55ba1015a4419dbf31796d8'), ('silverstone', 78): ((7, 0, [81, 82, 83, 83, 84, 84, 86]), 'e4d3c6305222993d18c4ce0e095ecdb57c2481b03c34d43f93c3b292adc0bea3')}",
+          "new": "{('spa', 27): ((6, 1, [79, 80, 82, 82, 83, 84]), '8a22f0ef0e538539fdfef322e85f51f4abdb4eeb0787dbb706b3cd9c164dcbf2'), ('spa', 57): ((7, 0, [78, 80, 81, 83, 83, 84, 84]), '106c07b695aed4fa44babdd9a3d9b1065538d7a2708149771fcb1748f85a8d88'), ('spa', 12): ((7, 0, [78, 79, 81, 83, 83, 84, 84]), '0a5dcd67d2a95d3c53f70e272e240a37b723db2febee9dd4e536dce4de5cd856'), ('spa', 31): ((7, 0, [78, 79, 81, 81, 82, 84, 84]), '02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c'), ('spa', 40): ((7, 0, [78, 79, 80, 81, 83, 83, 84]), '05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af'), ('spa', 47): ((7, 0, [78, 80, 81, 81, 82, 83, 84]), '8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6'), ('coil', 5): ((7, 0, [58, 59, 60, 60, 61, 61, 62]), '9207750748733019482321e3c0bb415c5d83a67f38cbe78572544854838f05c2'), ('coil', 22): ((7, 0, [58, 59, 60, 61, 61, 62, 62]), '30d2c987de19d18144d638e4d366df4cb7fffb22c55ba1015a4419dbf31796d8'), ('silverstone', 78): ((7, 0, [81, 82, 83, 83, 84, 84, 85]), 'c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346')}"
+        }
+      ],
+      "note": "Spa s83 and s27 each lose one finisher. Preserve the actual s83 decision\nline, all per-car counts, full trajectory and both-label checks. The outcome\nchanges are recorded, not hidden by a blanket seven-finisher expectation.",
+      "sha256": "9842256d564081ed96678e54ff70aa6ea595cb4a5307715f08a8d98b49f37e30"
+    },
+    {
+      "file": "tests/ai1_staged_pace_regression.py",
+      "changes": [
+        {
+          "variable": "CASES",
+          "old": "{('hungaroring', 4): 889, ('spa', 4): 573, ('interlagos', 3): 897, ('lemans', 3): 501, ('lemans', 11): 489, ('spa', 11): 569, ('silverstone', 15): 594, ('silverstone', 18): 594, ('coil', 18): 421, ('hungaroring', 8): 883, ('hungaroring', 10): 877, ('hungaroring', 25): 890}",
+          "new": "{('hungaroring', 4): 751, ('spa', 4): 573, ('interlagos', 3): 891, ('lemans', 3): 414, ('lemans', 11): 412, ('spa', 11): 569, ('silverstone', 15): 587, ('silverstone', 18): 590, ('coil', 18): 421, ('hungaroring', 8): 877, ('hungaroring', 10): 747, ('hungaroring', 25): 623}"
+        },
+        {
+          "variable": "EXACT_MOVES",
+          "old": "{('lemans', 3): [66, 67, 68, 70, 71, 72, 73], ('silverstone', 15): [82, 83, 83, 84, 84, 85, 86]}",
+          "new": "{('lemans', 3): [66, 67, 68, 70, 71, 72], ('silverstone', 15): [82, 83, 83, 84, 84, 85, 86]}"
+        },
+        {
+          "variable": "SAFETY",
+          "old": "{('hungaroring', 25): (6, 1)}",
+          "new": "{('hungaroring', 4): (6, 1), ('lemans', 3): (6, 1), ('lemans', 11): (6, 1), ('hungaroring', 10): (6, 1), ('hungaroring', 25): (5, 2)}"
+        }
+      ],
+      "note": "Hungaroring s4/s10 and Le Mans s3/s11 each lose a finisher; Hungaroring\ns25 now has five finishers/two crashes. Pin all measured terminal counts\nand finisher-time bounds, including these losses; retain the mixed Monaco\nno-crash check. These descriptive field metrics do not replace paired places.",
+      "sha256": "c308a2da126516dfc2d7a926c2a2cd77030c6933fa959d2d75370e57c8f94055"
+    }
+  ]
+}

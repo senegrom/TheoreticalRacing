@@ -4,6 +4,11 @@ import sys, tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai
+
+# 2026-09-15 simulation-boundary correction: measured on JDK 25.
+# Zandvoort s44 regains a seventh finisher. Every measured outcome,
+# including non-finishing cars, remains asserted.
+# See docs/master-simulation-integration.md for paired fleet and corpus evidence.
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
 # assertion logic and AI1/AI2 identity checks remain intact.
 # Round 247 (the soft rollout at one level, not two): Zandvoort s44 loses a
@@ -18,7 +23,7 @@ EXPECTED = {
  ("interlagos",29): (7, 0, [124, 126, 126, 128, 130, 130, 131]),
  ("interlagos",47): (7, 0, [124, 126, 127, 129, 129, 130, 132]),
  ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 85]),
- ("zandvoort",44): (6, 1, [137, 139, 140, 141, 142, 144]),
+ ("zandvoort",44): (7, 0, [137, 139, 140, 141, 142, 144, 145]),
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

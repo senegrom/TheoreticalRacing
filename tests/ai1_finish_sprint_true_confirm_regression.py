@@ -9,6 +9,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+
+# 2026-09-15 simulation-boundary correction: measured on JDK 25.
+# Rand3 s1 is still crash-free; its full finishing order and move counts
+# change after legal scorer actions and terminal classification are retained.
+# See docs/master-simulation-integration.md for paired fleet and corpus evidence.
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("rand3", 1)
@@ -23,11 +28,11 @@ TARGET = ("rand3", 1)
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-PROMOTED = (7, 0, [60, 61, 62, 63, 63, 64, 64])
-PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (5, 63), (7, 63), (6, 64), (8, 64)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 64, 5: 63, 6: 64, 7: 63, 8: 64}
+PROMOTED = (7, 0, [60, 61, 62, 62, 63, 63, 63])
+PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (4, 62), (5, 63), (6, 63), (7, 63)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 62, 5: 63, 6: 63, 7: 63, 8: 62}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-PROMOTED_SHA256 = '1fb7db600b3916235bb04b0d0ec056a64a3cb24222b8127bb344da95ff60ad38'
+PROMOTED_SHA256 = '0bb60826efbf9e5a1e9f08175719628d893480aa9c58583d133fcbe3742cfe79'
 
 
 def main() -> int:
@@ -97,7 +102,7 @@ def main() -> int:
 
     print(
         "AI1FinishSprintTrueConfirmRegression: OK "
-        "(Rand3 s1 p8 crash-to-finish rescue mirrored; existing drivers unchanged)"
+        "(Rand3 s1 full outcome and trajectory identical for both labels)"
     )
     return 0
 

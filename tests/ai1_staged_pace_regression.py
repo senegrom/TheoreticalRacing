@@ -10,27 +10,34 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
+# 2026-09-15 simulation-boundary correction: measured on JDK 25.
+# Hungaroring s4/s10 and Le Mans s3/s11 each lose a finisher; Hungaroring
+# s25 now has five finishers/two crashes. Pin all measured terminal counts
+# and finisher-time bounds, including these losses; retain the mixed Monaco
+# no-crash check. These descriptive field metrics do not replace paired places.
+# See docs/master-simulation-integration.md for paired fleet and corpus evidence.
+
 # Round 233 (the lane spread left the score): every ceiling re-anchored from
 # measurement, and three races lose a car -- recorded, not vetoed (AGENTS.md).
 CASES = {
-    ("hungaroring", 4): 889,
+    ("hungaroring", 4): 751,
     # Round 247: seven finishers here now instead of six, so the sum grows.
     ("spa", 4): 573,
-    ("interlagos", 3): 897,
+    ("interlagos", 3): 891,
     # Round 234: Le Mans seed 3 keeps both of the cars it used to lose, so
     # seven finishers are counted here instead of five and the sum grows.
-    ("lemans", 3): 501,
+    ("lemans", 3): 414,
     # Round 234: seven finishers here now instead of six, so the sum grows.
-    ("lemans", 11): 489,
+    ("lemans", 11): 412,
     # Round 229: re-anchored from measurement (the soft caution stack left the score).
     ("spa", 11): 569,  # Round 247: re-anchored from measurement.
-    ("silverstone", 15): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
-    ("silverstone", 18): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
+    ("silverstone", 15): 587,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
+    ("silverstone", 18): 590,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
     ("coil", 18): 421,  # Rounds 234 and 247: re-anchored from measurement.
-    ("hungaroring", 8): 883,
+    ("hungaroring", 8): 877,
     # Round 234: seven finishers here now instead of six, so the sum grows.
-    ("hungaroring", 10): 877,
-    ("hungaroring", 25): 890,
+    ("hungaroring", 10): 747,
+    ("hungaroring", 25): 623,
 }
 
 # A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
@@ -44,7 +51,7 @@ EXACT_MOVES = {
     # Round 233: five finishers here now; the list is the measured race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("lemans", 3): [66, 67, 68, 70, 71, 72, 73],
+    ("lemans", 3): [66, 67, 68, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     ("silverstone", 15): [82, 83, 83, 84, 84, 85, 86],
 }
@@ -77,7 +84,13 @@ def main() -> int:
             # the two that still drop one.
             # Round 247: Spa 4 keeps its seventh car too; Hungaroring 25 still
             # drops one.
-            SAFETY = {("hungaroring", 25): (6, 1)}
+            SAFETY = {
+                ("hungaroring", 4): (6, 1),
+                ("lemans", 3): (6, 1),
+                ("lemans", 11): (6, 1),
+                ("hungaroring", 10): (6, 1),
+                ("hungaroring", 25): (5, 2),
+            }
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -109,8 +122,7 @@ def main() -> int:
 
     print(
         "AI1StagedPaceRegression: OK "
-        "(three-ahead Coil/Hungaroring gains; low-speed Hungaroring and "
-        "ambiguous Le Mans vetoes; stationary-grid Silverstone gain; "
+        "(twelve measured self-play outcomes and pace bounds; "
         "mixed Monaco seed 9 crash-free)"
     )
     return 0

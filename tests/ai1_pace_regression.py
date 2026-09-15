@@ -10,6 +10,11 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
+# 2026-09-15 simulation-boundary correction: measured on JDK 25.
+# Le Mans s12 remains crash-free and finishes two moves sooner in total.
+# The Monaco safety/pace bound and label checks remain in force.
+# See docs/master-simulation-integration.md for paired fleet and corpus evidence.
+
 # Monaco seed 1 is a deterministic traffic-heavy case where the geometry-clipped
 # private-lane certificate and its moderate-uncertainty two-exit refinement recover
 # repeated one-turn concessions. Keep the benchmark metric (sum of each finisher's
@@ -34,7 +39,7 @@ FINISH_EXPECTED = {
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("lemans", 12): [66, 67, 69, 70, 71, 73, 74],
+    ("lemans", 12): [66, 67, 69, 70, 71, 72, 73],
 }
 
 

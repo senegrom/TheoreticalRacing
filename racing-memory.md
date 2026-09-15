@@ -1,5 +1,32 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Review integration (2026-09-15): physical simulation boundaries on round 247
+
+The saved corrections through 8d18dbd are integrated onto 094f242, retaining
+round 247's one-level soft rollout and the default four-own-move real-decision
+tactics. Private-lane occupancy and own paths now carry physical state and
+progress, rollout retirements follow real transitions and last-survivor
+classification, legal map-dead blockades retain their body, and interactive
+timeouts have complete Undo snapshots. No referee rules, tracks or user
+settings change. Hosting documentation is corrected.
+
+The replay fixture no longer assumes an evolving AI race must contain FINISH.
+It replays the full 83-move Circle crash/survivor race and uses deliberate
+lap/finish/timeout and blockade boards for transition coverage and query-order
+isolation. Integrated JDK 25/26 correctness jobs pass. The original frozen
+comparison reports five changed goldens and nine changed champion scripts;
+measured expectations preserve all cases and identity/correctness checks.
+Normal local JDK-25 runs pass all twelve goldens and all 24 champion scripts.
+
+This is a staging record, not fleet clearance. Run 34960851599 compares exact
+current and corrected decision bodies in the same 10,080 mirrored races at
+-Xmx8g over every course, 2/8 cars and all three start modes. Only actual turns
+select a cohort; hypothetical policy models are not changed by the harness.
+Twelve paired isolation controls (24 races) match each standalone build,
+including fixtures where the policies take different trajectories. Full
+results and final release validation must be recorded before publication.
+See docs/master-simulation-integration.md and its measured corpus appendix.
+
 ## Round 247: the depth of the soft rollout
 
 The score, the duel proof and the traffic model are closed (238-246). What

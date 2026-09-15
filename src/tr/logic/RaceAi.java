@@ -3363,7 +3363,8 @@ final class RaceAi {
 	 *  processQueries pattern), runs the mover's own scorer with the
 	 *  recursive machinery suppressed ({@code inScorerSim}), restores everything
 	 *  in a finally. Writes the landing to {@code out} and returns true, or
-	 *  returns false when the scorer is boxed or would enter a body/dead state. */
+	 *  returns false only when no action was supplied. Legality/retirement is
+	 *  decided by the rollout's referee transition, not the solo map. */
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
 			final RolloutWorkspace rollout) {
@@ -3445,16 +3446,34 @@ final class RaceAi {
 		if (direction == null)
 			return false;
 		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
-		if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-			return false;
-		final int nx = px[i] + nvx, ny = py[i] + nvy;
-		final RaceGame.MoveResult result = game.evaluateMove(rollout.laps[i], rollout.gates[i],
-				px[i], py[i], nx, ny, occupiedByOther(nx, ny, i, px, py, alive));
-		if (result.finishes())
-			return writeMove(out, nx, ny, nvx, nvy);
-		if (!result.legal() || !reach.isAlive(nx, ny, nvx, nvy))
-			return false;
-		return writeMove(out, nx, ny, nvx, nvy);
+		// Replay the actual selected action, including a legal map-dead blockade
+		// or a genuine crash. The solo map is neither a referee nor a policy veto:
+		// this car may win before it ever needs another move.
+		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
+	}
+
+	/** A proxy may find no preferred/map-alive move even though physical moves
+	 * remain. Keep a deterministic legal continuation in that approximate world;
+	 * never promote search abstention into a confirmed referee retirement. This
+	 * fallback is used only when no action was selected, not to replace an actual
+	 * scorer-selected crash. All physical accelerations are considered. */
+	private boolean physicalMoveOverState(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
+			final RolloutWorkspace rollout) {
+		boolean found = false;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx[i] + d.dx, nvy = vy[i] + d.dy;
+			final int nx = px[i] + nvx, ny = py[i] + nvy;
+			final RaceGame.MoveResult move = game.evaluateMove(rollout.laps[i], rollout.gates[i],
+					px[i], py[i], nx, ny, occupiedByOther(nx, ny, i, px, py, alive));
+			if (move.finishes())
+				return writeMove(out, nx, ny, nvx, nvy);
+			if (move.legal() && !found) {
+				writeMove(out, nx, ny, nvx, nvy);
+				found = true;
+			}
+		}
+		return found;
 	}
 
 	/** Disjoint storage for every active rollout, including suppressed nested
@@ -3667,6 +3686,7 @@ final class RaceAi {
 			outFieldCost[0] = 0L;
 		long failedRivalCost = 0L;
 		boolean myFinished = false;
+		int liveCount = 0;
 		int myIdx = 0;
 		for (int i = 0; i < game.players.length; i++) {
 			final Player player = game.players[i];
@@ -3677,6 +3697,8 @@ final class RaceAi {
 			vx[i] = velocity[0];
 			vy[i] = velocity[1];
 			alive[i] = !player.isFinished();
+			if (alive[i])
+				liveCount++;
 			workspace.laps[i] = player.getLap();
 			workspace.gates[i] = game.lapGates == null ? 0 : player.getNextGate();
 			updateRolloutFrame(workspace, i);
@@ -3684,6 +3706,9 @@ final class RaceAi {
 				myIdx = i;
 		}
 		if (candidatePending) {
+			// The referee retires the mover before evaluating its destination.
+			if (game.raceTurnLimitReached())
+				return -1;
 			final RaceGame.MoveResult candidate = game.evaluateMove(workspace.laps[myIdx], workspace.gates[myIdx],
 					px[myIdx], py[myIdx], myX, myY, occupiedByOther(myX, myY, myIdx, px, py, alive));
 			if (!candidate.legal())
@@ -3694,6 +3719,7 @@ final class RaceAi {
 			workspace.turns++;
 			if (candidate.finishes() && simFinishVanish) {
 				alive[myIdx] = false;
+				liveCount--;
 				myFinished = true;
 				if (outFinalTier != null)
 					outFinalTier[0] = 3;
@@ -3753,7 +3779,11 @@ final class RaceAi {
 					sb.append('i').append(i).append(' ');
 			System.err.println(sb);
 		}
-		for (int round = 0; round < rounds; round++) {
+		// RaceGame.checkFinished classifies the last survivor without another move.
+		// A solo time trial is the exception: its only car must still finish.
+		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
+		boolean raceOver = liveCount <= terminalLiveCount;
+		for (int round = 0; round < rounds && !raceOver; round++) {
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
@@ -3790,7 +3820,7 @@ final class RaceAi {
 				// Round 51: my car follows the trap-aware policy. Round 57:
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
-				final boolean moved;
+				boolean moved;
 				if (i == myIdx)
 					moved = scorerSelf
 							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace)
@@ -3804,6 +3834,8 @@ final class RaceAi {
 					moved = rivalMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				else
 					moved = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
+				if (!moved)
+					moved = physicalMoveOverState(i, px, py, vx, vy, alive, move, workspace);
 				final RaceGame.MoveResult transition = moved
 						? game.evaluateMove(workspace.laps[i], workspace.gates[i], px[i], py[i], move[0], move[1],
 								occupiedByOther(move[0], move[1], i, px, py, alive)) : null;
@@ -3826,22 +3858,32 @@ final class RaceAi {
 				// scored or a stray crossing keeps it in the race.
 				if (simFinishVanish && !timedOut && moved && transition.finishes()) {
 					alive[i] = false;
+					liveCount--;
 					if (i == myIdx) {
 						if (outFinalTier != null)
 							outFinalTier[0] = 3;
-						if (outFieldCost == null)
+						if (outFieldCost == null && outRivalCost == null)
 							return 0;
 						myFinished = true;
 					} else if (outRivalCost != null)
 						outRivalCost[i] = projectedMoves[i];
+					if (liveCount <= terminalLiveCount) {
+						raceOver = true;
+						break;
+					}
 					continue;
 				}
 				if (!moved || timedOut || !transition.legal()) {
 					if (i == myIdx)
 						return -1;
 					alive[i] = false;
+					liveCount--;
 					if (outFieldCost != null)
 						failedRivalCost += ROLLOUT_FAILURE_COST;
+					if (liveCount <= terminalLiveCount) {
+						raceOver = true;
+						break;
+					}
 					continue;
 				}
 				workspace.laps[i] = transition.lapAfter();
@@ -3851,6 +3893,22 @@ final class RaceAi {
 				py[i] = move[1];
 				vx[i] = move[2];
 				vy[i] = move[3];
+			}
+		}
+		if (raceOver) {
+			// Classification has zero remaining distance, even for a survivor whose
+			// next physical move would crash. Preserve costs already incurred, but
+			// do not charge phantom future moves or a failure to a surviving rival.
+			for (int i = 0; i < game.players.length; i++) {
+				if (!alive[i])
+					continue;
+				alive[i] = false;
+				if (i == myIdx) {
+					myFinished = true;
+					if (outFinalTier != null)
+						outFinalTier[0] = 3;
+				} else if (outRivalCost != null)
+					outRivalCost[i] = projectedMoves[i];
 			}
 		}
 		if (outFieldCost != null || outRivalCost != null) {

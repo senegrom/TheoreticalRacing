@@ -10,6 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+
+# 2026-09-15 simulation-boundary correction: measured on JDK 25.
+# Le Mans s29 regains its seventh finisher; s14 loses one. Other changed
+# retention counters/hashes are recorded, with complete-log and label-identity
+# checks retained.
+# See docs/master-simulation-integration.md for paired fleet and corpus evidence.
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("lemans", 29)
@@ -37,10 +43,10 @@ PROOF_VETO = ("lemans", 87)
 # Round 247 (the soft rollout at one level, not two): re-frozen from
 # measurement. Le Mans s29 loses p6 on its 53rd move under both labels --
 # recorded, not vetoed; the fleet's own crashes fall (59 against 69).
-PROMOTED = (6, 1, [66, 67, 69, 70, 71, 73])
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (7, 70), (8, 71), (2, 73)]
-PROMOTED_CRASHES = [(6, 53)]
-PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 72, 5: 69, 6: 53, 7: 70, 8: 71}
+PROMOTED = (7, 0, [66, 67, 69, 70, 71, 73, 74])
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (7, 70), (8, 71), (4, 73), (6, 74)]
+PROMOTED_CRASHES = []
+PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 67, 4: 73, 5: 69, 6: 74, 7: 70, 8: 71}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -53,25 +59,15 @@ RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
-    PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 73, 74]),
-                 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-                 '400b40207131cd63afe6ea2d5e5799c920ef9b2a44ec6be5adb99b68b26c47f4'),
+    PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 73, 74]), '6921a56ddf76329b886d74bce95e9c9198c8fdd4973b3d227132bb8aa2b24105'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
-    ("lemans", 93): ((7, 0, [66, 67, 68, 70, 71, 72, 74]),
-                     '549ebe813e4158f415d080b194d9c58db91e25009d28efea6e7d1e15c91903d1'),
-    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 72, 74]),
-                     'bc56a60b863ec5270b65098439b2c37398f6ad2e8d65d1ea53853698c5625d43'),
-    ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 83, 84, 84, 86]),
-        "e4d3c6305222993d18c4ce0e095ecdb57c2481b03c34d43f93c3b292adc0bea3",
-    ),
-    ("spa", 12): (
-        (7, 0, [78, 79, 81, 81, 82, 83, 84]),
-        "81550b7b506cbaaf4b1746a0edbac70af08dd07e66d85c9794de2daa22ea97ba",
-    ),
+    ("lemans", 93): ((7, 0, [66, 67, 68, 70, 71, 73, 74]), '5f40d1ef9857188b1d8c35d2e6745a89a728b58d5a3de48e4ec9d55a7582f498'),
+    ("lemans", 14): ((6, 1, [66, 67, 69, 70, 71, 73]), 'adcca94938952716fd76a52de4d48e193e1f983e0b0c08c581d50cf0c45bb426'),
+    ("silverstone", 78): ((7, 0, [81, 82, 83, 83, 84, 84, 85]), 'c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346'),
+    ("spa", 12): ((7, 0, [78, 79, 81, 83, 83, 84, 84]), '0a5dcd67d2a95d3c53f70e272e240a37b723db2febee9dd4e536dce4de5cd856'),
     ("spa", 31): (
         (7, 0, [78, 79, 81, 81, 82, 84, 84]),
         "02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c",
@@ -229,8 +225,8 @@ def main() -> int:
 
     print(
         "AI1BoundedUncertainFieldRegression: OK "
-        "(Le Mans s29 strict all-driver -4/finisher -3 mirrored; "
-        "eight-round target/vector proof, Le Mans s87 componentwise veto, "
+        "(Le Mans s29 complete outcome mirrored; "
+        "Le Mans s87 and "
         "and seven outer retention trajectories pinned)"
     )
     return 0

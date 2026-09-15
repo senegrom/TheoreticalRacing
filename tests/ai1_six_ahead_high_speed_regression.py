@@ -9,27 +9,24 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+
+# 2026-09-15 simulation-boundary correction: measured on JDK 25.
+# Spa s83 and s27 each lose one finisher. Preserve the actual s83 decision
+# line, all per-car counts, full trajectory and both-label checks. The outcome
+# changes are recorded, not hidden by a blanket seven-finisher expectation.
+# See docs/master-simulation-integration.md for paired fleet and corpus evidence.
 from forensics_common import finishers, normalized_lines, normalized_sha256, player_moves  # noqa: E402
 
 TARGET = ("spa", 83)
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-PROMOTED = (7, 0, [78, 79, 81, 82, 82, 84, 85])
+PROMOTED = (6, 1, [78, 79, 81, 82, 84, 84])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
-PROMOTED_FINISHERS = [
-    (6, 78),
-    (7, 79),
-    (2, 81),
-    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    (5, 82),
-    (8, 82),
-    (1, 84),
-    (4, 85),
-]
+PROMOTED_FINISHERS = [(6, 78), (7, 79), (2, 81), (8, 82), (3, 84), (4, 84)]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
-PROMOTED_ALL_MOVES = {1: 84, 2: 81, 3: 85, 4: 85, 5: 82, 6: 78, 7: 79, 8: 82}
+PROMOTED_ALL_MOVES = {1: 84, 2: 81, 3: 84, 4: 84, 5: 31, 6: 78, 7: 79, 8: 82}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-PROMOTED_SHA256 = "a9e5e26b76afa435c16189a5c051ca209a1199cd0f5a0c87327c93ccaad59f61"
+PROMOTED_SHA256 = '74bc8f5025fcca53a51d1e3c4eb5c8c7c37af5b29441b88ac6921b5a46e6721c'
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
@@ -43,18 +40,9 @@ PROMOTED_DECISION = (
 # Round 247 (the soft rollout at one level, not two): every case re-frozen
 # from measurement; Silverstone s78 gets its seventh finisher back.
 VETO_CASES = {
-    ("spa", 27): (
-        (7, 0, [79, 80, 82, 82, 83, 83, 85]),
-        "2cdea6c13502bf538d10c7a0ced83d5293e6d64eb9df187d5a011ff6c2001bad",
-    ),
-    ("spa", 57): (
-        (7, 0, [78, 80, 81, 83, 83, 84, 84]),
-        "5a4adcd881337ba2ead3e276569a3f384f9f0e737707264e7e5d1ee197337f29",
-    ),
-    ("spa", 12): (
-        (7, 0, [78, 79, 81, 81, 82, 83, 84]),
-        "81550b7b506cbaaf4b1746a0edbac70af08dd07e66d85c9794de2daa22ea97ba",
-    ),
+    ("spa", 27): ((6, 1, [79, 80, 82, 82, 83, 84]), '8a22f0ef0e538539fdfef322e85f51f4abdb4eeb0787dbb706b3cd9c164dcbf2'),
+    ("spa", 57): ((7, 0, [78, 80, 81, 83, 83, 84, 84]), '106c07b695aed4fa44babdd9a3d9b1065538d7a2708149771fcb1748f85a8d88'),
+    ("spa", 12): ((7, 0, [78, 79, 81, 83, 83, 84, 84]), '0a5dcd67d2a95d3c53f70e272e240a37b723db2febee9dd4e536dce4de5cd856'),
     ("spa", 31): (
         (7, 0, [78, 79, 81, 81, 82, 84, 84]),
         "02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c",
@@ -75,10 +63,7 @@ VETO_CASES = {
         (7, 0, [58, 59, 60, 61, 61, 62, 62]),
         "30d2c987de19d18144d638e4d366df4cb7fffb22c55ba1015a4419dbf31796d8",
     ),
-    ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 83, 84, 84, 86]),
-        "e4d3c6305222993d18c4ce0e095ecdb57c2481b03c34d43f93c3b292adc0bea3",
-    ),
+    ("silverstone", 78): ((7, 0, [81, 82, 83, 83, 84, 84, 85]), 'c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346'),
 }
 
 
@@ -185,7 +170,7 @@ def main() -> int:
 
     print(
         "AI1SixAheadHighSpeedRegression: OK "
-        "(Spa s83 finisher -2/all-driver -3 mirrored; "
+        "(Spa s83 complete outcome mirrored; "
         "nine veto/retention controls pinned)"
     )
     return 0
