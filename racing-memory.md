@@ -1,5 +1,54 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 249: round 248's three repairs, priced one at a time
+
+Round 248 landed the peer's physical world model as one bundle and measured
+it as one: -0.102 places in eight-car fields, with the candidate crashing
+twice as often. A bundle can hide a loser inside a winner, and the crash
+doubling had no owner. Three arms on the round-248 champion, each giving
+CANDIDATE cars the champion minus one repair (E:/tmp-claude/arm249_price.py;
+with no candidateSlots every arm reproduces the champion, verified on three
+races), 8-car random starts, mirrored, seeds 1-10:
+
+    arm          candidates lose ...                          place C-H      crashes C/H  tracks C/H/tied
+    noOracle     the physical occupancy oracle (back to the   -0.000 +- 0.000    88 / 89      1 /  0 / 83
+                 AI-capped packed index, no lap/gate state)
+    noTerminal   the last-survivor classification (rollouts   +0.000 +- 0.000    89 / 89      0 /  0 / 84
+                 run on, phantom moves charged again)
+    noBlockade   the blockade replay (solo-map veto again,     +0.099 +- 0.015    47 / 100    24 / 39 / 21
+                 no physical continuation for a mute proxy)
+
+A positive number is the repair's worth (removing it costs the candidate
+places); a negative number would be a loser inside the bundle.
+
+THE BLOCKADE REPLAY IS THE WHOLE OF ROUND 248, GAIN AND CRASHES ALIKE. Take
+it away and the candidate gives back 0.099 +- 0.015 places -- round 248's
+0.102 to the hundredth, with the same boards reversed (fractal18 +1.250,
+rand17 +1.150, fractal23 +1.100 against it; Monza, Spielberg and Hungaroring
+for it) -- and crashes 47 times against the champion's 100: the crash
+doubling belongs to this one repair as well. The other two are byte-inert in
+eight-car random-start fields. Without the physical occupancy oracle 83
+boards of 84 tie and one race in 1,680 differs: a car's exact private-lane
+certificate almost never decides. Without the last-survivor classification
+all 84 tie and both cohorts reproduce the champion's own self-play to the
+move: a rollout a few rounds deep never reaches a board with one live car
+while seven rivals race. Both stay in as correctness with their tests;
+neither is racecraft.
+
+WHY A REPLAY MAKES A BOLDER CAR. Before round 248 the rollout treated a
+scorer's legal landing that the SOLO reachability map calls dead as that
+car's retirement: for a rival, a wreck the mover could count on; for the
+mover's own simulated continuation, a -1 verdict that vetoed the candidate
+landing outright. The solo map's death is a possibility -- a lone car with no
+line home -- not a fact about a race the next move may end first, and the
+rule of the last twelve rounds held once more: pricing that possibility cost
+a tenth of a place. The replay keeps the body on the board and lets the
+referee decide, so the car takes lines the map would have refused, and
+wrecks in twice as many of them, which the place criterion has already paid
+for. Which half of the repair does it -- replaying the scorer's own move, or
+giving a mute proxy a physical continuation -- is round 251. Nothing
+promoted; round 248 stands as measured.
+
 ## Round 248: the peer's physical world model, measured and landed
 
 Thirteen peer branches on the remote carried one line of work, prepared four
