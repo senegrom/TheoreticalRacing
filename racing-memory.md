@@ -1,5 +1,36 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 250: the rollout's other horizons, one constant at a time
+
+Round 247 found the soft world-step's depth (2 -> 1) worth 0.155 places, a
+summed-moves-era constant nobody had asked by places. The rollouts behind
+the danger guard and the pace recoveries carry a family of such constants.
+Four arms on the round-248 champion, each giving CANDIDATE cars a shorter
+horizon at every use site (E:/tmp-claude/arm250_const.py; with no
+candidateSlots every arm reproduces the champion, verified on three races),
+8-car random starts, mirrored, seeds 1-10:
+
+    arm       constant                     champion -> arm   place C-H        crashes C/H  tracks C/H/tied
+    djs2      AI1_DJS_ROUNDS               3 -> 2            -0.003 +- 0.003   87 / 88      7 /  4 / 73
+    deep4     AI1_DEEP_HORIZON             8 -> 4            +0.008 +- 0.012  140 / 100    19 / 26 / 39
+    slow3     AI1_DJS_SLOW_ROUNDS          5 -> 3            +0.001 +- 0.007   96 / 88     19 / 17 / 48
+    confirm2  AI1_TRUE_CONFIRM_ROUNDS      4 -> 2            -0.000 +- 0.002   99 / 89      4 /  5 / 75
+
+THE ROLLOUT HORIZONS ARE PRICED RIGHT, AND TWO OF THEM PREVENT CRASHES FOR
+FREE. None of the four moves the field by places: the largest reading is
++0.008 +- 0.012 and three of the four tie on 48 to 75 boards of 84. But
+halving the deep horizon (8 -> 4) lifts the candidate's crashes from 100 to
+140, and halving the true-rival confirm (4 -> 2) from 89 to 99, at no gain
+in places: these two are the round-238 pattern (the plateau tie-break, the
+danger joint search itself) -- a term invisible in places that prevents
+wrecks is not a possibility priced, it is a fact checked, and it stays.
+Round 247's lever was different in kind: the second world-step round priced
+where seven rivals MIGHT be for every candidate landing on every move,
+whereas these horizons run inside vetoes that fire on a few landings a race,
+so shortening them changes little except how many of those few end in the
+wall. The rollout family is closed by places: depth 1 (247), the blockade
+replay in (248, 249), the horizons where they are. Nothing promoted.
+
 ## Round 249: round 248's three repairs, priced one at a time
 
 Round 248 landed the peer's physical world model as one bundle and measured
