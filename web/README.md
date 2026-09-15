@@ -9,19 +9,20 @@ Players need no Java installation, account, game server or browser plugin.
 
 ## Hosting and automatic updates
 
-The site tracks `master`. A push that changes what the site contains -- the
-web app, the engine, the track files, shared tests/build scripts, dependency
-configuration, the licence or the workflow itself --
-runs `.github/workflows/browser.yml`. Publication requires **all three gates**:
-full engine CI, native parity, and both real browser suites. Engine CI is a local
-reusable call to `.github/workflows/ci.yml` at the **same commit**; it includes
-JDK 25/26 builds and core tests, tooling checks, headless smoke, query replay,
-lap progression, the golden corpus, every champion regression pin, and benchmark
-failure propagation. A failed, skipped or cancelled gate prevents publication;
-a green browser parity result cannot override a failed engine test. The exact
-tested artifact is then deployed to GitHub Pages. Commits
-that touch none of those (a ledger entry, say) do not run it, and nothing is
-published that has not passed.
+The site tracks `master`. Every push to `master`, including documentation-only
+and ledger changes, runs `.github/workflows/ci.yml`, which calls the browser
+workflow at the **same commit**. A documentation successor can cancel a pending
+code release, so it must build and validate its own publishable artifact rather
+than skip the unpublished code. Only pull requests use browser path filtering.
+
+Publication requires full engine CI, native parity, and both real browser suites.
+Engine CI includes JDK 25/26 builds and core tests, tooling checks, headless smoke,
+query replay, lap progression, the golden corpus, every champion regression pin,
+and benchmark failure propagation. A failed, skipped or cancelled dependency
+prevents publication; green browser parity cannot override a failed engine test.
+The exact tested artifact is deployed to GitHub Pages only while its commit is
+still current `master`. Manually dispatch CI at current `master` to recover a
+cancelled publication; a superseded run cannot publish over a newer revision.
 
 The repository's Pages publishing source is **GitHub Actions**. There is no
 generated branch to edit: the artifact is served straight from the run that

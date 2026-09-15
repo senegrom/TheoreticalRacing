@@ -1,5 +1,94 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 248: the peer's physical world model, measured and landed
+
+Thirteen peer branches on the remote carried one line of work, prepared four
+times between 2026-09-12 and 2026-09-14 and never landed: work/lifecycle-*,
+work/occupancy-terminal-*, work/transport-boundary-* and work/simulation-*
+are transport branches (compressed patch plus a one-shot workflow) whose
+payload is commit 8d18dbd on the two newest. Four repairs to the simulation
+boundary, found by review, none of them measured by places:
+
+  - the exact private-lane occupancy oracle follows every PHYSICAL rival
+    acceleration with the rival's lap and gate state, instead of packing
+    rivals into the AI-capped reachability index and dropping the
+    accelerations beyond it; a rival is removed only for an illegal move or
+    a race-ending finish, never for a lap crossing with laps still owed;
+  - the rollout stops when the modelled referee would classify the last
+    survivor, as checkFinished does, instead of charging that survivor
+    another move it will never have to make (or a crash on it);
+  - a rival's scorer-selected action is replayed as chosen, a legal map-dead
+    blockade included, instead of being vetoed by the solo map and turned
+    into a retirement; a proxy that finds no move gets a deterministic
+    physical continuation rather than an invented retirement;
+  - an interactive timeout records an Undo snapshot like every other
+    committed action (browser test; inert in --auto races).
+
+Measured as one arm, gated per car (E:/tmp-claude/arm248_physical.py keeps
+the champion's oracle and rollout for every non-candidate car;
+verify248.py proves the gated jar equals the round-247 champion with no
+candidateSlots and the ungated payload build with every slot, on the two
+Monaco races whose goldens the payload changes and two controls). On the
+round-247 champion, mirrored cohorts inside one jar, seeds 1-10:
+
+    roster / start        place C-H        wins        crashes C/H  tracks C/H/tied
+    8p legacy   s1-10    -0.102 +- 0.015  878 : 802   101 :  45      38 / 24 / 22
+    2p legacy   s1-10    -0.010 +- 0.003  848 : 832   132 : 148       2 /  0 / 82
+    8p informed s1-10    -0.129 +- 0.016  882 : 798    72 :  40      37 / 24 / 23
+    8p scatter  s1-10    -0.014 +- 0.003  850 : 830     7 :   6       9 /  0 / 75
+    8p legacy   s11-20   -0.131 +- 0.014  878 : 802   104 :  52      43 / 17 / 24
+
+THE PHYSICAL MODEL EARNS A TENTH OF A PLACE, AND ITS CARS CRASH TWICE AS
+OFTEN. Seven standard errors in the eight-car field, 38 boards to 24, the
+biggest gains on the fractal and random courses (fractal18 -1.250, fractal23
+-1.175, rand17 -1.175) and no board lost by more than 0.35. The candidate's
+101 crashes against the champion's 45 is the largest crash ratio of any
+promoted arm: a rollout that no longer charges a classified survivor a
+phantom move, and an oracle that no longer excludes rivals it could not
+index, together make a bolder car -- and by the rule a car that crashes
+scores last, so the 0.102 is net of every one of those wrecks. In duels the same car crashes LESS (132 against 148) and on
+scattered starts the two are level (7 against 6): the extra wrecks are
+traffic wrecks, taken in the eight-car pack where the places are won, and
+on computed starts (72 against 40) and held-out seeds (104 against 52) the
+ratio and the gain both hold. Which of the three model repairs makes the
+car bolder is not separated here; each can be measured alone if the crash
+ratio ever matters more than the tenth of a place it buys.
+
+This is a correctness fix that the fleet clears, so it ships under the
+measurement rule even before the gain; the gain makes it a promotion as
+well. Landed verbatim (source, the two new Java suites, the browser
+timeout-Undo test, run_tests.sh, the peer's two review documents and the
+hosting README correction, which matches ci.yml's every-push publication);
+the peer's own ledger entries are superseded by this one. The other
+eleven branches were earlier iterations of the same patch; all thirteen
+are archive-tagged archive/20260914-cleanup/<name> and deleted.
+
+WHAT IT COSTS THE CORPUS: FIVE GOLDENS, NINE PINS, AND A NET SIX CARS. Five
+of the twelve golden races change their trace -- Monaco s9 eight turns
+quicker (551 -> 543), Monaco s16 loses a car (1124 -> 1089 turns, the other
+seven in the same order), Hungaroring s13, Nurburgring s19 and Zandvoort s45
+re-routed at the same turn count and finishing order -- and nine of the
+twenty-four pins re-freeze from measurement, two by the loop and seven by
+hand from one probe pass (E:/tmp-claude/probe_pin.py); fifteen pass
+untouched. Among the pinned races the physical model gives four their car
+back (Le Mans s29, Zandvoort s44, s115 and s34 -- three of them cars round
+247 had lost) and takes one from nine (Le Mans s14, s3 and s11, Hungaroring
+s12, s40, s4 and s10, Spa s83 and s27) and a second from Hungaroring s25 --
+recorded, not vetoed, and the same two-to-one ratio the fleet reports. The
+round-126 contract at Zandvoort s115 (more finishers and fewer crashes than
+the legacy champion) holds again after round 247 had lost it. All
+twenty-four pins and twelve goldens verify on the landed jar (b39606ad).
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto):
+
+    round 248   88 crashes   1,750,847 moves   rows d600f348b4068230
+    round 247   56 crashes   1,761,743 moves   rows 3351667c15c76e72
+
+Thirty-two more wrecks and 10,896 fewer moves over 730 races of eight
+physical-model cars: a whole field of them is quicker and crashes half again
+as often, the same trade the mirrored slices price at a tenth of a place in
+the car's favour.
+
 ## Round 247: the depth of the soft rollout
 
 The score, the duel proof and the traffic model are closed (238-246). What

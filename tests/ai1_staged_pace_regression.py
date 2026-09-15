@@ -37,14 +37,14 @@ CASES = {
 # the three-ahead class must retain the exact integrated-frontier finish list.
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
 # assertion logic and AI1/AI2 identity checks remain intact.
-# Every case below retains seven finishers and zero crashes.
+# Round 248 (the physical world model): Le Mans seed 3 has six finishers.
 EXACT_MOVES = {
     # Round 228: the raw-distance policy changes the order and saves four moves.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 233: five finishers here now; the list is the measured race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("lemans", 3): [66, 67, 68, 70, 71, 72, 73],
+    ("lemans", 3): [66, 67, 68, 70, 71, 72],  # Round 248: six finishers.
     # Round 234: same seven finishers, one move redistributed.
     ("silverstone", 15): [82, 83, 83, 84, 84, 85, 86],
 }
@@ -77,7 +77,10 @@ def main() -> int:
             # the two that still drop one.
             # Round 247: Spa 4 keeps its seventh car too; Hungaroring 25 still
             # drops one.
-            SAFETY = {("hungaroring", 25): (6, 1)}
+            # Round 248 (the physical world model): four more races drop a car
+            # and Hungaroring 25 drops two -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1), ("lemans", 11): (6, 1),
+                      ("hungaroring", 10): (6, 1), ("hungaroring", 25): (5, 2)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

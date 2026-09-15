@@ -34,7 +34,8 @@ FINISH_EXPECTED = {
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("lemans", 12): [66, 67, 69, 70, 71, 73, 74],
+    # Round 248: re-frozen from measurement (the physical world model: occupancy with lap state, rollouts that stop with the last survivor, blockades replayed).
+    ("lemans", 12): [66, 67, 69, 70, 71, 72, 73],
 }
 
 
