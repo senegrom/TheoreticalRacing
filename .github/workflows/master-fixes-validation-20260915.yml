@@ -1,0 +1,263 @@
+name: Validate current-master simulation repairs
+on:
+  push:
+    branches: [work/master-fixes-20260915-validation]
+permissions:
+  contents: read
+env:
+  BASE: 094f242214b7bc5176a2a236df8bb1cac4d04b86
+  SAVED_BASE: 9668703dc1489383bde78f2460476e9f6daa1da0
+  SAVED_FIX: 8d18dbd3cd720977dfb649e8f585fbaa80200740
+  EXPECT_TREE: 119d2e50c6a3539349ed95082be1421acf445890
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+concurrency:
+  group: master-fixes-validation-20260915
+  cancel-in-progress: false
+jobs:
+  build:
+    name: Build exact policies and verify comparison isolation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 094f242214b7bc5176a2a236df8bb1cac4d04b86
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Retain matching local validation toolchain
+        run: tar -czf "$RUNNER_TEMP/jdk25-runtime.tar.gz" -C "$JAVA_HOME" bin conf include legal lib release
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bfix-jdk25-runtime
+          path: ${{ runner.temp }}/jdk25-runtime.tar.gz
+          retention-days: 1
+          compression-level: 0
+      - name: Reconstruct the exact integrated source
+        shell: bash
+        run: |
+          git diff "$SAVED_BASE" "$SAVED_FIX" -- . ':(exclude)racing-memory.md' | git apply --index
+          git show "$GITHUB_SHA":tests/query_replay_regression.py > tests/query_replay_regression.py
+          git add tests/query_replay_regression.py
+          test "$(git write-tree)" = "$EXPECT_TREE"
+          mkdir -p "$RUNNER_TEMP/bfix-jars"
+          sh build_main.sh
+          cp theoreticRacing.jar "$RUNNER_TEMP/bfix-jars/corrected.jar"
+          cp -a tracks "$RUNNER_TEMP/bfix-jars/tracks"
+          git worktree add --detach "$RUNNER_TEMP/bfix-baseline" "$BASE"
+          (cd "$RUNNER_TEMP/bfix-baseline" && sh build_main.sh)
+          cp "$RUNNER_TEMP/bfix-baseline/theoreticRacing.jar" "$RUNNER_TEMP/bfix-jars/baseline.jar"
+          git diff --exit-code
+      - name: Comparison-only policy copies and actual-turn selector
+        shell: bash
+        run: |
+          git show "$GITHUB_SHA":.github/measure-master-20260915.py > "$RUNNER_TEMP/measure.py"
+          python "$RUNNER_TEMP/measure.py" prepare
+          sh build_main.sh
+          cp theoreticRacing.jar "$RUNNER_TEMP/bfix-jars/comparison.jar"
+          python "$RUNNER_TEMP/measure.py" identity "$RUNNER_TEMP/bfix-jars" "$RUNNER_TEMP/bfix-identity"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bfix-policy-jars
+          path: ${{ runner.temp }}/bfix-jars/*.jar
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bfix-policy-identity
+          path: ${{ runner.temp }}/bfix-identity/
+          if-no-files-found: warn
+          retention-days: 7
+  correctness:
+    name: Integrated correctness JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 094f242214b7bc5176a2a236df8bb1cac4d04b86
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply and verify integrated tree
+        shell: bash
+        run: |
+          git diff "$SAVED_BASE" "$SAVED_FIX" -- . ':(exclude)racing-memory.md' | git apply --index
+          git show "$GITHUB_SHA":tests/query_replay_regression.py > tests/query_replay_regression.py
+          git add tests/query_replay_regression.py
+          test "$(git write-tree)" = "$EXPECT_TREE"
+          mkdir evidence
+      - name: Strict build and physical correctness regressions
+        shell: bash
+        run: |
+          set -o pipefail
+          sh run_tests.sh 2>&1 | tee evidence/java.txt
+          sh build_main.sh 2>&1 | tee evidence/build.txt
+          python tests/cross_era_referee_regression.py 2>&1 | tee evidence/referee.txt
+          python tests/query_replay_regression.py 2>&1 | tee evidence/replay.txt
+      - name: Python, real configuration and browser-adapter contracts
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee evidence/python.txt
+          python tests/headless_smoke.py 2>&1 | tee evidence/headless.txt
+          python tests/lap_progress_regression.py 2>&1 | tee evidence/lap-progress.txt
+          python tests/selfplay_profile_regression.py 2>&1 | tee evidence/profile.txt
+          python tests/promotion_pair_regression.py 2>&1 | tee evidence/cohorts.txt
+          python -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+          mkdir -p web/build/proof-tests
+          javac -Xlint:all -Werror -cp web/dist/racing.jar -d web/build/proof-tests tests/tr/logic/ReviewRuleTests.java tests/tr/logic/FollowupRuleTests.java tests/tr/logic/StartPlacementTests.java web/tests/BrowserTests.java
+          java -ea -Djava.awt.headless=true -cp web/dist/racing.jar:web/build/proof-tests tr.logic.BrowserTests 2>&1 | tee evidence/browser-adapter.txt
+          python -m unittest discover -s web/tests -p 'test_*.py' 2>&1 | tee evidence/web-tooling.txt
+          node --test web/tests/engine.test.mjs 2>&1 | tee evidence/worker.txt
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bfix-correctness-${{ matrix.java }}
+          path: evidence/
+          retention-days: 14
+  frozen:
+    name: Measure all unchanged golden and champion comparisons
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 094f242214b7bc5176a2a236df8bb1cac4d04b86
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Measure every stored assertion without waiving failures
+        shell: bash
+        run: |
+          git diff "$SAVED_BASE" "$SAVED_FIX" -- . ':(exclude)racing-memory.md' | git apply --index
+          git show "$GITHUB_SHA":tests/query_replay_regression.py > tests/query_replay_regression.py
+          git add tests/query_replay_regression.py
+          test "$(git write-tree)" = "$EXPECT_TREE"
+          sh build_main.sh
+          mkdir evidence
+          rc=0
+          for script in tests/golden_races.py tests/ai1_*_regression.py; do
+            name=$(basename "$script" .py)
+            if python "$script" > "evidence/$name.txt" 2>&1; then echo "$name PASS"; else echo "$name FAIL"; rc=1; fi
+          done
+          git diff --exit-code
+          exit "$rc"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bfix-frozen-before-refreeze
+          path: evidence/
+          retention-days: 14
+  fleet:
+    name: Places ${{ matrix.players }}p ${{ matrix.mode }} shard ${{ matrix.shard }}
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        players: [2, 8]
+        mode: [legacy, informed, scatter]
+        shard: [0, 1, 2, 3, 4, 5, 6]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 094f242214b7bc5176a2a236df8bb1cac4d04b86
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          name: bfix-policy-jars
+          path: ${{ runner.temp }}/policies
+      - name: Complete mirrored place comparison at the reference heap
+        shell: bash
+        env:
+          PLAYERS: ${{ matrix.players }}
+          MODE: ${{ matrix.mode }}
+          SHARD: ${{ matrix.shard }}
+          RACING_REACH_CACHE: ${{ runner.temp }}/reach-cache
+        run: |
+          cp "$RUNNER_TEMP/policies/comparison.jar" theoreticRacing.jar
+          mapfile -t courses < <(python -c 'from pathlib import Path; import os; print("\n".join(sorted(p.stem for p in Path("tracks").glob("*.track"))[int(os.environ["SHARD"])::7]))')
+          test "${#courses[@]}" = 12
+          python tracks/promotion_pair.py --players "$PLAYERS" --start-mode "$MODE" --seeds 1-10 --heap=-Xmx8g --tracks "${courses[@]}" --out "fleet/$PLAYERS-$MODE-$SHARD"
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: bfix-fleet-${{ matrix.players }}-${{ matrix.mode }}-${{ matrix.shard }}
+          path: fleet/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 14
+  aggregate:
+    name: Validate and aggregate all 10080 race outcomes
+    needs: fleet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 094f242214b7bc5176a2a236df8bb1cac4d04b86
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: bfix-fleet-*
+          path: all-fleets
+          merge-multiple: true
+      - name: Check coverage, manifests, complete logs and finishing places
+        shell: bash
+        run: |
+          git show "$GITHUB_SHA":.github/measure-master-20260915.py > "$RUNNER_TEMP/measure.py"
+          python "$RUNNER_TEMP/measure.py" aggregate all-fleets fleet-summary
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bfix-full-fleet-summary
+          path: fleet-summary/
+          if-no-files-found: error
+          retention-days: 30
+      - uses: actions/upload-artifact@v7
+        with:
+          name: bfix-full-fleet-evidence
+          path: all-fleets/
+          include-hidden-files: true
+          retention-days: 14
