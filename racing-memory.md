@@ -1,5 +1,41 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 251: the blockade repair split in two
+
+Round 249 put the whole of round 248 on one repair: replaying a scorer's
+chosen move in the rollout even when the solo map calls its landing dead,
+plus a physical continuation for a proxy that finds no move. Two arms on the
+round-248 champion, each giving CANDIDATE cars the champion minus one half
+(E:/tmp-claude/arm251_split.py; with no candidateSlots both reproduce the
+champion, verified on three races), 8-car random starts, mirrored, seeds 1-10:
+
+    arm          candidates lose ...                             place C-H      crashes C/H  tracks C/H/tied
+    noReplay     the replay: the solo map vetoes a scorer's       -0.001 +- 0.004    91 / 89     11 /  8 / 65
+                 map-dead landing again (own moves included)
+    noFallback   the physical continuation for a mute proxy      +0.088 +- 0.013    50 / 98     18 / 31 / 35
+                 (the rival retires in the rollout, as before)
+
+THE RACECRAFT OF ROUND 248 IS THE MUTE PROXY'S CONTINUATION, NOT THE REPLAY.
+Take the replay away and nothing happens: -0.001 +- 0.004, 65 boards tied,
+crashes 91 against 89 -- a scorer inside the rollout almost never selects a
+landing the solo map calls dead, so vetoing it or replaying it is the same
+race. Take the physical continuation away and the candidate gives back
+0.088 +- 0.013 places with crashes 50 against 98: the whole of round 248 to
+within a standard error, gain and crash doubling alike. Round 249's
+mechanism paragraph was wrong in its particulars and is corrected here: the
+-1 verdict on a scorer-selected dead landing was never exercised. What the
+old rollout did was RETIRE any car whose proxy -- the cheap score-shaped
+move model that stands in for every rival not rolled with its real scorer,
+and for the mover itself when the trap-aware proxy drives it -- found no
+preferred, map-alive move. A rival so retired vanished from the board and
+was charged as a failure; the mover so retired turned its candidate landing
+into a dead verdict. Both were possibilities priced as facts: a proxy with
+no move is a model out of ideas, not a car in the wall. The continuation
+keeps the body moving legally and lets the referee decide, and the car that
+models the world that way takes a tenth of a place off the field, wrecking
+twice as often to take it. Whose continuation matters -- the mover's own,
+or the rivals' -- is round 253. Nothing promoted; round 248 stands.
+
 ## Round 250: the rollout's other horizons, one constant at a time
 
 Round 247 found the soft world-step's depth (2 -> 1) worth 0.155 places, a
