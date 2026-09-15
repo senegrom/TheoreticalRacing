@@ -89,6 +89,21 @@ physical-model cars: a whole field of them is quicker and crashes half again
 as often, the same trade the mirrored slices price at a tenth of a place in
 the car's favour.
 
+PROVENANCE, ADDED THE SAME DAY. Overnight the peer automation integrated the
+same payload onto round 247 itself (work/master-fixes-20260915-*): its
+corpus re-freeze names the same nine pins, the same five goldens and the
+same cars lost and regained, and its golden_races.json is byte-identical
+to the one landed here -- an independent reproduction on GitHub's runners.
+Its own 10,080-race mirrored measurement (run 34960851599) did not
+complete; the battery above is the measurement of record. One thing of
+its was taken: the replay regression (tests/query_replay_regression.py) had
+searched the two-car Circle reference race for a FINISH event, and under
+the physical model that race now ends by crash and last-survivor
+classification, so CI went red on the landing commit; the peer's fixture
+replays the whole race and probes lap, finish, timeout and blockade
+transitions on deliberate boards instead. Those three branches are
+archive-tagged and deleted with the rest.
+
 ## Round 247: the depth of the soft rollout
 
 The score, the duel proof and the traffic model are closed (238-246). What
