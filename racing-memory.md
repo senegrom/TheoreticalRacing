@@ -1,5 +1,38 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 252: the rollout's width knobs and the lane style, one constant per arm
+
+The horizons are closed (250); the other axis of a rollout is its width --
+how many rivals it models faithfully, how far it looks for them, how far a
+rival must be before a thin thread counts as contested -- plus the one
+score weight round 238 did not price, the per-driver lane style. Six arms
+on the round-248 champion, candidate cars using the new value at every use
+site (E:/tmp-claude/arm250_const.py; with no candidateSlots every arm
+reproduces the champion, verified on three races), 8-car random starts,
+mirrored, seeds 1-10:
+
+    arm       constant                  champion -> arm   place C-H        crashes C/H  tracks C/H/tied
+    maxriv1   AI1_SCORER_MAXRIVALS      3 -> 1            +0.025 +- 0.014  133 / 91     25 / 39 / 20
+    near5     AI1_SCORER_NEAR           10 -> 5           +0.009 +- 0.006  110 / 93     13 / 19 / 52
+    solo8     AI1_TRAP_SOLO_R           16 -> 8           +0.000 +- 0.000   89 / 89      0 /  1 / 83
+    cert3     AI1_DEEP_CERT_RIVALS      6 -> 3            +0.001 +- 0.005  108 / 93     17 / 13 / 54
+    lane24    AI1_LANE_STYLE            0.12 -> 0.24      +0.012 +- 0.011   93 / 92     20 / 26 / 38
+    lane06    AI1_LANE_STYLE            0.12 -> 0.06      +0.003 +- 0.011   93 / 89     23 / 21 / 40
+
+THE WIDTH IS PRICED RIGHT TOO, AND THE FAITHFUL RIVALS EARN THEIR KEEP.
+Nothing gains: modelling one faithful rival instead of three costs 0.025 +-
+0.014 places and 133 crashes against 91; halving their radius costs 0.009
++- 0.006 and 110 against 93; the corridor cap at three is a wash with 108
+crashes against 93; the trap-relief radius is byte-inert (83 boards tied).
+The lane style sits at its sweet spot by places as it did by crashes in
+round 201: doubled +0.012 +- 0.011, halved +0.003 +- 0.011, both washes on
+38 to 40 tied boards. Read with round 250, the rollouts are priced right
+along both axes: every knob that models rivals more faithfully -- more of
+them, further away, for longer -- prevents wrecks at no cost in places, and
+every knob that models them less loses a little or nothing. What gained
+places in this family (247, 248) was never a knob: each time it was a
+possibility the model had been pricing as a fact. Nothing promoted.
+
 ## Round 251: the blockade repair split in two
 
 Round 249 put the whole of round 248 on one repair: replaying a scorer's
