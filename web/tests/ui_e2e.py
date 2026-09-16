@@ -62,7 +62,7 @@ def fixture():
 def load(page, state=None):
     html = (WEB / 'index.html').read_text()
     html = re.sub(r'<link\b[^>]*>', '', html)
-    html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.S)
+    html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.S | re.I)
     image = base64.b64encode((WEB / 'dist/icons/racing-192.png').read_bytes()).decode()
     html = html.replace('./icons/racing-192.png', 'data:image/png;base64,' + image)
     html = html.replace('</head>', '<style>' + (WEB / 'app.css').read_text() + '</style></head>')
