@@ -59,10 +59,47 @@ def fixture():
                             finishes=False, lap=False, timeout=False) for i in range(9)])
 
 
+def strip_fixture_assets(page, html):
+    """Remove scripts and links from trusted fixture HTML, not arbitrary input."""
+    # Parse in an inert document before set_content can execute any scripts.
+    # Browser parsing handles mixed case, quoted '>' and non-canonical end tags;
+    # a regexp cannot reliably identify the same element boundaries.
+    return page.evaluate("""html => {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+        for (const element of doc.querySelectorAll('script, link')) element.remove();
+        return '<!doctype html>' + doc.documentElement.outerHTML;
+    }""", html)
+
+
+def check_fixture_asset_removal(browser):
+    """Exercise the loader's parser in both browsers before the UI fixtures."""
+    page = browser.new_page()
+    try:
+        for closing in ['</script>', '</ScRiPt>', '</script >', '</script\t>',
+                        '</script\n>', '</script\r>', '</script\f>', '</script/>',
+                        '</script ignored="value">']:
+            html = ('<!doctype html><html><head>'
+                    '<LiNk rel="stylesheet" href="data:text/css," data-note=">">'
+                    '</head><body><p id="before">Before &amp; safe</p>'
+                    '<ScRiPt data-note=">">window.fixtureScriptRan = true;'
+                    + closing + '<p id="after">After &amp; safe</p>'
+                    '<script>window.fixtureScriptRan = true;</script>'
+                    '</body></html>')
+            page.evaluate('window.fixtureScriptRan = false')
+            filtered = strip_fixture_assets(page, html)
+            assert not page.evaluate('window.fixtureScriptRan'), ('script ran during parsing', closing)
+            page.set_content(filtered)
+            assert page.locator('script, link').count() == 0, closing
+            assert not page.evaluate('window.fixtureScriptRan'), ('script survived filtering', closing)
+            assert page.locator('#before').inner_text() == 'Before & safe', closing
+            assert page.locator('#after').inner_text() == 'After & safe', closing
+            assert page.evaluate('document.compatMode') == 'CSS1Compat', closing
+    finally:
+        page.close()
+
+
 def load(page, state=None):
-    html = (WEB / 'index.html').read_text()
-    html = re.sub(r'<link\b[^>]*>', '', html)
-    html = re.sub(r'<script\b[^>]*>.*?</script>', '', html, flags=re.S | re.I)
+    html = strip_fixture_assets(page, (WEB / 'index.html').read_text())
     image = base64.b64encode((WEB / 'dist/icons/racing-192.png').read_bytes()).decode()
     html = html.replace('./icons/racing-192.png', 'data:image/png;base64,' + image)
     html = html.replace('</head>', '<style>' + (WEB / 'app.css').read_text() + '</style></head>')
@@ -96,6 +133,7 @@ def main():
     with sync_playwright() as p:
         options = {'executable_path': os.environ['CHROMIUM_PATH']} if args.browser == 'chromium' and os.environ.get('CHROMIUM_PATH') else {}
         browser = getattr(p, args.browser).launch(**options)
+        check_fixture_asset_removal(browser)
         for width, height in [(1440, 1000), (390, 844), (320, 568), (844, 390), (768, 1024)]:
             page = browser.new_page(viewport={'width': width, 'height': height}, has_touch=width <= 844)
             page.on('pageerror', lambda e: errors.append(str(e)))
