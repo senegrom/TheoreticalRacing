@@ -1,5 +1,27 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Research branch (2026-09-16): traffic experiment laboratory, no promotion
+
+Implements four proposals on the round-255 ledger/round-254 champion: an
+interaction-ranked faithful-rival cap (optionally refreshed), a bounded
+place-first opportunity comparison of the existing choice and alternatives,
+selective cutoff extensions through unresolved landing contests, and a
+versioned identity-free comparative ranker trained from complete V2-oracle
+counterfactual races. Each has an explicit profile gate AND candidateSlots;
+empty gates or an unselected focal car retain the champion. Nested scorers
+cannot activate a rival's experiment inside a control decision. Existing
+proven tactics and precedence paths remain ahead of the opportunity hook.
+
+No campaign place gain is claimed. Small real-JVM counterfactual samples train
+only a pilot for pipeline validation, not a shipping model. The learner checks
+whole-race, family and geometry-hash separation, censors incomplete comparison
+groups, and embeds exported weights in the manifest-bound profile. Every
+experiment has bounded deterministic added work and optional per-decision audit
+counters. The default policy, user settings, bundled courses and golden/pin
+expectations are untouched. See docs/racecraft-experiments.md for exact controls,
+limits, tests and the distinction between predicted rank and a proof. Full
+mirrored fleet evaluation remains necessary before any promotion.
+
 ## Round 255: the gate precedence made traffic-aware
 
 Checkpoint touches and non-final lap crossings pre-empt the scorer: the

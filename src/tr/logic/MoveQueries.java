@@ -126,7 +126,11 @@ final class MoveQueries {
 	}
 
 	static String answer(final RaceGame game, final String line) {
-		final Header header = restoreBoard(game, line);
+		// Features share the exact V2 validation/restore path, never an alternate referee.
+		final boolean features = line.startsWith("lab2,");
+		final Header header = restoreBoard(game, features ? "v2," + line.substring(5) : line);
+		if (features)
+			return RacecraftSearch.featureProtocol(game);
 		if (header.simulation()) {
 			final int[] audit = new int[3];
 			final int verdict;

@@ -268,7 +268,51 @@ final class RaceAi {
 
 	/** The move for the player to move. Every AI kind runs the one promoted
 	 * body; an experiment must add an explicit kind gate to keep a control. */
+	// Experimental state belongs to a real focal decision, not to whichever
+	// candidate-labelled rival a nested scorer happens to install temporarily.
+	private int decisionDepth;
+	private boolean racecraftRoot;
+	private RacecraftSearch.Budget racecraftBudget;
+	private int racecraftExtraSlots;
+	private long racecraftGraphs, racecraftExtensions, racecraftComparisons, racecraftSwitches;
+
 	Direction computeAiMove() {
+		final boolean root = decisionDepth == 0 && simDepth == 0 && !inScorerSim && trueConfirmDepth == 0;
+		final boolean previous = racecraftRoot;
+		final RacecraftSearch.Budget previousBudget = racecraftBudget;
+		final int previousExtra = racecraftExtraSlots;
+		if (root) {
+			racecraftRoot = game.racecraft.enabled() && game.candidatePolicy(game.players[game.subgamestate].getNumber());
+			if (racecraftRoot) {
+				racecraftBudget = new RacecraftSearch.Budget(game.racecraft.policyBudget);
+				racecraftExtraSlots = game.racecraft.extensionBudget;
+			}
+		}
+		final long start = root && racecraftRoot && game.racecraft.audit ? System.nanoTime() : 0;
+		final long graphs = racecraftGraphs, extensions = racecraftExtensions;
+		final long comparisons = racecraftComparisons, switches = racecraftSwitches;
+		decisionDepth++;
+		try {
+			final Direction chosen = computeChampionMove();
+			if (root && racecraftRoot && game.racecraft.audit)
+				System.err.println("RACECRAFT p=" + game.players[game.subgamestate].getNumber()
+						+ " move=" + chosen + " graphs=" + (racecraftGraphs - graphs)
+						+ " extensions=" + (racecraftExtensions - extensions)
+						+ " comparisons=" + (racecraftComparisons - comparisons)
+						+ " switches=" + (racecraftSwitches - switches)
+						+ " policyCalls=" + racecraftBudget.spent + " nanos=" + (System.nanoTime() - start));
+			return chosen;
+		} finally {
+			decisionDepth--;
+			if (root) {
+				racecraftRoot = previous;
+				racecraftBudget = previousBudget;
+				racecraftExtraSlots = previousExtra;
+			}
+		}
+	}
+
+	private Direction computeChampionMove() {
 		reach.ensureReachabilityReady();
 		// Round 175: retire per-compute memo entries (the hold-overspeed
 		// verdict depends on the board, which is fixed only within one
@@ -1728,6 +1772,16 @@ final class RaceAi {
 								false, true, false, false);
 					}
 				}
+			}
+			// Only the ordinary scored path reaches this hook. Proven tactics,
+			// immediate finishes and checkpoint precedence return earlier, unchanged.
+			if (racecraftRoot && decisionDepth == 1 && simDepth == 0
+					&& (game.racecraft.opportunity || game.racecraft.learned)) {
+				racecraftComparisons++;
+				final Direction improved = RacecraftSearch.improve(game, chosen, scoreByDir.clone(), game.racecraft,
+						this::racecraftPredict, racecraftBudget);
+				if (improved != chosen) racecraftSwitches++;
+				return improved;
 			}
 			return chosen;
 		}
@@ -3455,6 +3509,28 @@ final class RaceAi {
 		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
 	}
 
+	/** A bounded research forecast uses the recursion-guarded scorer on every
+	 * live car. The existing adapter restores all live state in finally. */
+	private Direction racecraftPredict(final RacecraftSearch.Board b, final int i) {
+		final RolloutWorkspace w = new RolloutWorkspace(b.alive.length);
+		System.arraycopy(b.lap, 0, w.laps, 0, b.lap.length);
+		System.arraycopy(b.gate, 0, w.gates, 0, b.gate.length);
+		w.turns = Math.toIntExact(b.turns);
+		final boolean outer = racecraftRoot;
+		racecraftRoot = false;
+		simDepth++;
+		try {
+			if (!scorerMoveOverState(i, b.x, b.y, b.vx, b.vy, b.alive, w.move, w))
+				return null; // Unknown is not a retirement or a proof of survival.
+			final int dx = w.move[2] - b.vx[i], dy = w.move[3] - b.vy[i];
+			for (final Direction d : DIRECTIONS) if (d.dx == dx && d.dy == dy) return d;
+			return null;
+		} finally {
+			simDepth--;
+			racecraftRoot = outer;
+		}
+	}
+
 	/** A proxy may find no preferred/map-alive move even though physical moves
 	 * remain. Keep a deterministic legal continuation in that approximate world;
 	 * never promote search abstention into a confirmed referee retirement. This
@@ -3772,6 +3848,16 @@ final class RaceAi {
 				scorerSet[nearest] = true;
 			}
 		}
+		final boolean experiment = racecraftRoot && simDepth == 1;
+		final boolean interaction = experiment && game.racecraft.interaction && scorerRivals && !allScorerRivals;
+		final int interactionRadius = trueRivals
+				? Math.max(AI1_SCORER_NEAR, 2 * Math.max(Math.abs(myVx), Math.abs(myVy))) : AI1_SCORER_NEAR;
+		if (interaction) {
+			racecraftGraphs++;
+			RacecraftTraffic.graph(game, px, py, vx, vy, workspace.laps, workspace.gates,
+					alive, (game.subgamestate + 1) % alive.length, 2)
+					.select(myIdx, scorerCap, interactionRadius, scorerSet);
+		}
 		final boolean trace = simTrace && simDepth == 1;
 		if (trace) {
 			final StringBuilder sb = new StringBuilder("SIMTRACE start me=i").append(myIdx)
@@ -3786,7 +3872,14 @@ final class RaceAi {
 		// A solo time trial is the exception: its only car must still finish.
 		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
 		boolean raceOver = liveCount <= terminalLiveCount;
-		for (int round = 0; round < rounds && !raceOver; round++) {
+		int extendedRounds = rounds;
+		for (int round = 0; round < extendedRounds && !raceOver; round++) {
+			if (interaction && game.racecraft.refresh && round > 0) {
+				racecraftGraphs++;
+				RacecraftTraffic.graph(game, px, py, vx, vy, workspace.laps, workspace.gates,
+						alive, 0, 2).select(myIdx, scorerCap, interactionRadius, scorerSet);
+			}
+
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
@@ -3896,6 +3989,17 @@ final class RaceAi {
 				py[i] = move[1];
 				vx[i] = move[2];
 				vy[i] = move[3];
+			}
+			if (!raceOver && experiment && game.racecraft.encounter && alive[myIdx]
+					&& round + 1 == extendedRounds && extendedRounds - rounds < game.racecraft.extraRounds
+					&& racecraftExtraSlots >= liveCount && workspace.turns <= Integer.MAX_VALUE - liveCount
+					&& RacecraftTraffic.graph(game, px, py, vx, vy, workspace.laps, workspace.gates,
+							alive, 0, 2).direct(myIdx) > 0) {
+				// A hard per-real-decision slot budget. Exhaustion leaves the base
+				// forecast unknown beyond its cutoff; it is not a win/death verdict.
+				racecraftExtraSlots -= liveCount;
+				racecraftExtensions++;
+				extendedRounds++;
 			}
 		}
 		if (raceOver) {

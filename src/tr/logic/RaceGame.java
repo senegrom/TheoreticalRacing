@@ -167,6 +167,7 @@ public final class RaceGame {
 		}
 
 		candidateSlots = parseCandidateSlots(prop.getProperty("candidateSlots"), maxPlayers);
+		racecraft = new RacecraftConfig(prop);
 		gameFrame = new GameUI(NAME + " " + VERSION, maxPlayers);
 	}
 
@@ -175,6 +176,9 @@ public final class RaceGame {
 	 *  no candidate anywhere. The head-to-head instrument races each seed twice
 	 *  with the assignment mirrored, so grid advantage cancels. */
 	private final boolean[] candidateSlots;
+	final RacecraftConfig racecraft;
+	int racecraftFinishedFirst() { return finishedFirst; }
+	int racecraftFinishedLast() { return finishedLast; }
 
 	static boolean[] parseCandidateSlots(final String spec, final int maxPlayers) {
 		final boolean[] slots = new boolean[maxPlayers + 1];
@@ -2151,6 +2155,8 @@ public final class RaceGame {
 		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");
 		if (!candidateSlotList().isEmpty())
 			gameLog.append("# candidate-slots ").append(candidateSlotList()).append("\n");
+		if (racecraft.enabled())
+			gameLog.append("# racecraft-experiments ").append(racecraft.specification).append("\n");
 		if (scatterStartPlacement())
 			gameLog.append("# start-placement scatter\n");
 		if (informedStartPlacement())
