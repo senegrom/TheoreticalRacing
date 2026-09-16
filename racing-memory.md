@@ -1,5 +1,41 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 255: the gate precedence made traffic-aware
+
+Checkpoint touches and non-final lap crossings pre-empt the scorer: the
+candidate scan returns a permitted crossing before any landing is priced,
+and "permitted" has meant legal, not occupied NOW, alive, two continuing
+cells free now, and (in traffic) robust. It never read the predicted
+occupancy -- the cell a parked rival is about to take, the one fact the
+scorer's +3.0 veto reads at every other landing and that round 243 priced
+at 0.156 places. Round 231 earned 1.33 places by ranking these crossings by
+distance; the precedence itself stayed blind to the pack forming at the very
+gate it was crossing. One arm on the round-254 champion (E:/tmp-claude/
+arm255_gate.py; with no candidateSlots it reproduces the champion, verified
+on four races): for CANDIDATE cars a touch or non-final crossing whose
+landing is a slow rival's predicted cell loses its precedence, so the scorer
+prices it and the car takes it a move later, the round-211 fallback for a
+non-robust landing. The finish itself, a terminal crossing the referee
+exempts from bodies, keeps its precedence. 8-car random starts, mirrored,
+seeds 1-20 (the wider window, 1,680 pairs -- a 0.02 gain is a coin at 840):
+
+    roster / start        place C-H        wins        crashes C/H  tracks C/H/tied
+    8p legacy   s1-20    +0.002 +- 0.005  1683 : 1677  150 : 148      4 /  5 / 75
+
+THE GATES ARE NOT WHERE PLACES ARE LOST. A wash: 75 boards of 84 tied,
+crashes 150 against 148, the four boards it gains (fractal23 -0.262,
+hybrid20 -0.213) matched by the five it loses (Interlagos +0.350, weave2
++0.275). The precedence's own checks already read the fact this arm added:
+a touch is refused when its landing is occupied now, when its two
+continuing cells are not both free now (needle headway), and in traffic
+when the landing is outside the next gate's robust set (round 211) -- and a
+parked rival's predicted cell is nearly always one of those three. The
+corpus said the same before the screen did: one golden and one pinned race
+moved, everything else byte-identical. Nothing promoted; the second half of
+the proposal (ranking touches by the full landing score) is not worth the
+box after this. The wider window did its job: a standard error of 0.005
+makes this a decision, not a coin.
+
 ## Round 254: the danger guard given a faithful world
 
 Rounds 248 to 253 said the rollout's one place gain came from no longer
