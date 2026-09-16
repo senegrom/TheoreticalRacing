@@ -1,0 +1,173 @@
+name: Validate opt-in racecraft laboratory
+on:
+  push:
+    branches: [work/racecraft-lab-validation-20260916]
+permissions:
+  contents: read
+concurrency:
+  group: racecraft-lab-validation-20260916
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  contracts:
+    name: Experiment contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 614fef76564b3e6d4fcdd78a7d378483c5fa61f0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply and verify exact experiment tree
+        run: |
+          git show "$GITHUB_SHA":.github/racecraft-lab/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
+          mkdir -p evidence
+      - name: Strict build and Java contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          sh run_tests.sh 2>&1 | tee evidence/java.log
+          sh build_main.sh 2>&1 | tee evidence/build.log
+          python tests/cross_era_referee_regression.py 2>&1 | tee evidence/referee.log
+      - name: Python and previous integration contracts
+        if: matrix.java == '25'
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee evidence/python.log
+          for script in tests/headless_smoke.py tests/query_replay_regression.py tests/lap_progress_regression.py tests/selfplay_profile_regression.py tests/promotion_pair_regression.py; do
+            python "$script" 2>&1 | tee "evidence/$(basename "$script").log"
+          done
+      - name: Real counterfactual training and all experiment modes
+        shell: bash
+        run: |
+          set -o pipefail
+          git worktree add --detach "$RUNNER_TEMP/champion" 614fef76564b3e6d4fcdd78a7d378483c5fa61f0
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+          python tests/racecraft_lab_regression.py --reference-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --heap=-Xmx8g --out evidence/lab 2>&1 | tee evidence/lab.log
+      - name: Assert tracked inputs remain unchanged
+        run: |
+          git diff --exit-code
+          test "$(git write-tree)" = 3dc11f541b54d45d7819eeea465fc9bb94582ebe
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: racecraft-lab-jdk${{ matrix.java }}
+          path: evidence/
+          retention-days: 30
+  corpus:
+    name: Unchanged champion and golden corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 614fef76564b3e6d4fcdd78a7d378483c5fa61f0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        run: |
+          git show "$GITHUB_SHA":.github/racecraft-lab/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
+          mkdir -p evidence
+          sh build_main.sh
+      - name: All frozen races and champion pins
+        shell: bash
+        run: |
+          set -o pipefail
+          result=0
+          python tests/golden_races.py 2>&1 | tee evidence/goldens.log || result=1
+          for script in tests/ai1_*_regression.py; do
+            python "$script" 2>&1 | tee "evidence/$(basename "$script").log" || result=1
+          done
+          git diff --exit-code
+          exit "$result"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: racecraft-lab-corpus
+          path: evidence/
+          retention-days: 30
+  browser:
+    name: Shared browser build and native parity
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 614fef76564b3e6d4fcdd78a7d378483c5fa61f0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        run: |
+          git show "$GITHUB_SHA":.github/racecraft-lab/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
+          mkdir -p evidence
+      - name: Native adapter, HTTP and worker contracts
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+          python web/tests/parity.py 2>&1 | tee evidence/parity.log
+          python web/tests/server_test.py 2>&1 | tee evidence/http.log
+          python -m unittest discover -s web/tests -p 'test_*.py' 2>&1 | tee evidence/web.log
+          node --test web/tests/engine.test.mjs 2>&1 | tee evidence/worker.log
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: racecraft-lab-browser
+          path: evidence/
+          retention-days: 30
+  publish-branch:
+    name: Publish clean research branch only
+    needs: [contracts, corpus, browser]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 614fef76564b3e6d4fcdd78a7d378483c5fa61f0
+          fetch-depth: 0
+      - name: Commit the verified source without validation helpers
+        shell: bash
+        run: |
+          git show "$GITHUB_SHA":.github/racecraft-lab/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Add opt-in traffic experiments and counterfactual learning laboratory' -m 'Interaction-ranked faithful rivals with optional refresh; bounded opportunity forecasts and encounter extensions; shared identity-free Java features; full-race counterfactual collector and deterministic pairwise ranker with disjoint track-family validation. Require experiment flags plus candidateSlots; preserve the default champion, tracks, user settings and all frozen expectations. No model or policy promotion. Exact tree 3dc11f54 validated on JDK 25/26, unchanged golden/champion corpus and native browser parity before publishing this research branch.'
+          git push origin HEAD:refs/heads/work/racecraft-experiments-20260916
+          echo "Published $(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
