@@ -1,5 +1,39 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 253: whose continuation carries round 248, the mover's or the rivals'
+
+Round 251 put round 248 on one thing: the physical continuation a mute
+proxy gets instead of a retirement. A proxy drives two kinds of car in the
+rollout -- every rival not rolled with its real scorer, and the mover itself
+whenever the trap-aware proxy stands in for its scorer -- and the old
+retirement meant different things for each: a rival became a failed body,
+the mover's own candidate landing a dead verdict. Two arms on the round-248
+champion, each giving CANDIDATE cars the old retirement for one kind of car
+(E:/tmp-claude/arm253_fallback.py; with no candidateSlots both reproduce the
+champion, verified on three races), 8-car random starts, mirrored, seeds 1-10:
+
+    arm              candidates lose the continuation of ...      place C-H      crashes C/H  tracks C/H/tied
+    noSelfFallback   their own mute proxy (the -1 verdict again)  +0.087 +- 0.013    46 / 97     19 / 30 / 35
+    noRivalFallback  a rival's mute proxy (the failed body again) -0.001 +- 0.004    90 / 89      4 /  3 / 77
+
+IT IS THE MOVER'S OWN CONTINUATION. Restore the dead verdict on the car's
+own silent proxy and the candidate gives back 0.087 +- 0.013 places with
+crashes 46 against 97 -- round 248 for the third time to the hundredth
+(0.102, 0.099, 0.088, 0.087). Restore the failed body for a rival's silent
+proxy and nothing happens: -0.001 +- 0.004, 77 boards tied. So the whole of
+round 248 is one line of the old rollout: when the trap-aware proxy that
+stands in for the mover's own scorer found no preferred, map-alive move some
+rounds into a rollout, the rollout returned -1 and the candidate landing
+was vetoed as dead. The proxy's silence was a fact about the proxy -- a
+cheap model with no move it liked -- and the champion had been treating it
+as a fact about the car for two hundred rounds. Given a legal continuation
+instead, those landings live, the car takes them, and it wrecks in twice as
+many of them for a tenth of a place net. The rivals' side of the same repair
+is inert: a rival's proxy silence retired a body that seldom decided
+anything. Nothing promoted; rounds 249 to 253 are the anatomy of round 248,
+and their lesson is the campaign's in one line: a model's silence is not a
+wall.
+
 ## Round 252: the rollout's width knobs and the lane style, one constant per arm
 
 The horizons are closed (250); the other axis of a rollout is its width --
