@@ -53,28 +53,31 @@ PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 67, 4: 73, 5: 69, 6: 74, 7: 70, 8: 71}
 # re-frozen from measurement; Silverstone s78 gets its seventh finisher back.
 # Round 248 (the physical world model): five cases re-frozen from measurement
 # again; Le Mans s14 loses a car -- recorded, not vetoed.
+# Round 254 (the danger guard in a faithful world): Le Mans s14 is whole
+# again and Spa s12 re-frozen from measurement.
 RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
     PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 73, 74]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-                 '6921a56ddf76329b886d74bce95e9c9198c8fdd4973b3d227132bb8aa2b24105'),
+                 # Round 254: re-frozen from measurement (the danger guard in a faithful world).
+                 '3e97cd63a0f2dfa8ed742c61505ae3bc38df56cc7fdbe8441af324f7c8148f32'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
     ("lemans", 93): ((7, 0, [66, 67, 68, 70, 71, 73, 74]),
-                     '5f40d1ef9857188b1d8c35d2e6745a89a728b58d5a3de48e4ec9d55a7582f498'),
-    ("lemans", 14): ((6, 1, [66, 67, 69, 70, 71, 73]),
-                     'adcca94938952716fd76a52de4d48e193e1f983e0b0c08c581d50cf0c45bb426'),
+                     '79e44bd84fc0bbc42948f8d3a5bd9e49136e40daac1c52bcc430ab8c0dc17ca4'),
+    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 73, 74]),
+                     'a7b552e883328c87a0a0b9f8311da487248b2bc793608881486d16548a9eeff0'),
     ("silverstone", 78): (
         (7, 0, [81, 82, 83, 83, 84, 84, 85]),
         "c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346",
     ),
     ("spa", 12): (
-        (7, 0, [78, 79, 81, 83, 83, 84, 84]),
-        "0a5dcd67d2a95d3c53f70e272e240a37b723db2febee9dd4e536dce4de5cd856",
+        (7, 0, [78, 79, 81, 83, 84, 85, 86]),
+        "c2f947cfd1ce7c0d47c467217b029f88254746dfcd84de4ddf4de757076bd9da",
     ),
     ("spa", 31): (
         (7, 0, [78, 79, 81, 81, 82, 84, 84]),

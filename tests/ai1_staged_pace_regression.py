@@ -79,7 +79,9 @@ def main() -> int:
             # drops one.
             # Round 248 (the physical world model): four more races drop a car
             # and Hungaroring 25 drops two -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1), ("lemans", 11): (6, 1),
+            # Round 254 (the danger guard in a faithful world): Le Mans 11 keeps
+            # its seventh car again.
+            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1),
                       ("hungaroring", 10): (6, 1), ("hungaroring", 25): (5, 2)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):

@@ -55,8 +55,9 @@ VETO_CASES = {
         "106c07b695aed4fa44babdd9a3d9b1065538d7a2708149771fcb1748f85a8d88",
     ),
     ("spa", 12): (
-        (7, 0, [78, 79, 81, 83, 83, 84, 84]),
-        "0a5dcd67d2a95d3c53f70e272e240a37b723db2febee9dd4e536dce4de5cd856",
+        # Round 254: re-frozen from measurement (the danger guard in a faithful world).
+        (7, 0, [78, 79, 81, 83, 84, 85, 86]),
+        "c2f947cfd1ce7c0d47c467217b029f88254746dfcd84de4ddf4de757076bd9da",
     ),
     ("spa", 31): (
         (7, 0, [78, 79, 81, 81, 82, 84, 84]),

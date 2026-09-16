@@ -1596,8 +1596,11 @@ final class RaceAi {
 							// confirm is champion policy for both smart driver kinds
 							// (the harvest-24/25 block orderings proved the identical
 							// races crash iff the doomed slot lacks the leg).
+							// Round 254: the faithful world -- the mover rolled by its own scorer and
+							// every rival by theirs, on fast fires too. The proxy self-model cost
+							// 0.045 places against this (28 boards to 19) and 12 crashes in 90.
 							chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-									djSlow, dangerRounds, AI1_SCORER_MAXRIVALS, scorerSelfDead,
+									true, dangerRounds, AI1_SCORER_MAXRIVALS, true,
 									threadPack, threadPack || fastPairRisk, true, fastPairRisk,
 									!djSlow);
 						}

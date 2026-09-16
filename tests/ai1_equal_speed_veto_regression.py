@@ -14,7 +14,8 @@ CASES = [("zandvoort", 115)]
 # Round 247 (the soft rollout at one level, not two): re-frozen from
 # measurement. The race loses a car again -- recorded, not vetoed.
 # Round 248 (the physical world model): whole again, re-frozen from measurement.
-PROMOTED = (7, 0, [137, 139, 140, 141, 142, 143, 144])
+# Round 254: re-frozen from measurement (the danger guard in a faithful world).
+PROMOTED = (7, 0, [137, 139, 140, 141, 142, 143, 145])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in ("AI1", "AI2")}
 

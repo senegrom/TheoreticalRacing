@@ -1,5 +1,83 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 254: the danger guard given a faithful world
+
+Rounds 248 to 253 said the rollout's one place gain came from no longer
+treating a proxy's silence as the car's death. The danger guard -- the
+round-40 joint search every fast or trapped landing passes through -- still
+rolls the mover as that proxy unless an earlier verdict escalated it, and
+rolls rivals with their real scorers only on slow-class fires. Three arms on
+the round-248 champion give CANDIDATE cars a faithful world in that guard
+(E:/tmp-claude/arm254_world.py; with no candidateSlots every arm reproduces
+the champion, verified on three races), 8-car random starts, mirrored,
+seeds 1-10:
+
+    arm          candidates ...                                    place C-H      crashes C/H  tracks C/H/tied
+    selfworld    are rolled by their own scorer, not the proxy      +0.021 +- 0.011    93 / 99     22 / 22 / 40
+    rivalworld   roll rivals with real scorers on fast fires too    -0.014 +- 0.008    77 / 94     15 / 12 / 57
+    faithful     both                                              -0.045 +- 0.012    78 / 90     28 / 19 / 37
+
+THE FAITHFUL WORLD EARNS A TWENTIETH OF A PLACE, AND ONLY AS A WHOLE. Each
+half alone is nothing or worse: the mover rolled by its own scorer among
+proxy rivals costs 0.021 +- 0.011 (a faithful car among dumb ones brakes
+for threats they would never make), and real-scorer rivals around a proxy
+mover gain 0.014 +- 0.008. Together they gain 0.045 +- 0.012 -- nearly four
+standard errors, 28 boards to 19, and the cars doing it crash LESS (78
+against 90). A world is only faithful when everyone in it is: the guard's
+verdict is a joint prediction, and a joint prediction with one honest player
+and seven caricatures is worse than one with eight caricatures. The gain
+sits where the guard fires most -- rand12 and Spielberg -0.350, Cog -0.250,
+the lobes and the double spirals -- and its price is compute: fast fires
+now roll every close rival with its real scorer, which the box priced at
+about the same wall time per race as before.
+
+THE BATTERY (the faithful car against the round-248 champion, mirrored,
+840 pairs a slice):
+
+    roster / start        place C-H        wins        crashes C/H  tracks C/H/tied
+    8p legacy   s1-10    -0.045 +- 0.012  853 : 827    78 :  90      28 / 19 / 37
+    8p legacy   s11-20   -0.062 +- 0.011  859 : 821    75 :  90      29 / 13 / 42
+    8p informed s1-10    -0.016 +- 0.011  847 : 833    63 :  64      24 / 20 / 40
+    8p scatter  s1-10    -0.003 +- 0.001  841 : 839     5 :   6       4 /  1 / 79
+    2p legacy   s1-10    +0.005 +- 0.003  836 : 844   128 : 122       0 /  2 / 82
+
+THE BATTERY CLEARS WHERE PLACES ARE DECIDED. Held-out seeds land further in
+the candidate's favour than the tuning window (-0.062 against -0.045, five
+and a half standard errors, 29 boards to 13, crashes 75 against 90);
+computed starts agree in direction (-0.016) and scattered starts, where
+there is no traffic to model, are a near-tie of 79 boards. The one slice
+against it is the duel: +0.005 +- 0.003, two boards of 84 -- a hundredth of
+the eight-car gain, in the field where the danger guard hardly fires and
+the four-move proof decides. Promoted: the danger guard rolls the mover with
+its own scorer and every rival with theirs, on fast fires as on slow. The
+faithful world is the second lever of this family and the first that is
+not a repair: rounds 247 to 253 removed possibilities the model had priced
+as facts; this one replaces a caricature with the car itself, and it earns
+only when every car in the world is treated the same way.
+
+WHAT IT COSTS THE CORPUS: SIX GOLDENS, EIGHT PINS, AND NO NET CAR. Six of
+the twelve golden races change their trace -- Monaco s16 gets its seventh
+finisher back (six and a crash since round 248, now 1110 turns, seven, none),
+Hungaroring s13 three turns longer, Nurburgring s19 one, and Monaco s9,
+Interlagos s10 and Zandvoort s45 re-routed at the same turn count with a
+place or two swapped among the midfield -- and eight of the twenty-four pins
+re-freeze from measurement, three by the loop and five by hand from one
+probe pass; sixteen pass untouched. Among the pinned races the faithful
+guard gives three their car back (Le Mans s14, Le Mans s11, Hungaroring
+s40) and takes one from three (Zandvoort s44, Le Mans s2, and an AI1 car in
+the mixed Le Mans s2) -- recorded, not vetoed. All twenty-four pins and
+twelve goldens verify on the promoted jar (10ed0da0), and the replay
+regression that caught round 248's landing passes on it.
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto):
+
+    round 254   76 crashes   1,757,577 moves   rows 8107f43ba41a97cc
+    round 248   88 crashes   1,750,847 moves   rows d600f348b4068230
+
+Twelve fewer wrecks and 6,730 more moves over 730 races of eight faithful-
+world cars: the field is a shade slower and safer, the round-232 shape, while
+the mirrored slices say each car in it finishes higher.
+
 ## Round 253: whose continuation carries round 248, the mover's or the rivals'
 
 Round 251 put round 248 on one thing: the physical continuation a mute

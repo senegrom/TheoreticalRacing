@@ -38,7 +38,9 @@ def main() -> int:
         # Round 233: re-frozen from measurement; the victim is p4 now.
         # Round 234: re-frozen from measurement (the seal guard left the decision).
         # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-        SEED2_MEASURED = {"AI1": (21, 4, 0), "AI2": (15, 4, 0)}
+        # Round 254 (the danger guard in a faithful world): an AI1 car crashes
+        # here now -- recorded, not vetoed (AGENTS.md).
+        SEED2_MEASURED = {"AI1": (20, 4, 1), "AI2": (16, 4, 0)}
         for kind in ("AI1", "AI2"):
             place_sum, finishers, crashes = result[kind]
             if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:
@@ -60,8 +62,9 @@ def main() -> int:
             # measurement. The two orderings stay exact mirrors of each other.
             # Round 247 (the soft rollout at one level, not two): p7 keeps its
             # race here, so both orderings are crash-free again.
-            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 0)},
-            "reverse": {"AI1": (23, 4, 0), "AI2": (13, 4, 0)},
+            # Round 254: re-frozen from measurement; still crash-free.
+            "front": {"AI1": (12, 4, 0), "AI2": (24, 4, 0)},
+            "reverse": {"AI1": (24, 4, 0), "AI2": (12, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
