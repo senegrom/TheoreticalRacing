@@ -11,10 +11,15 @@ final class RacecraftConfig {
     static final String FEATURES = "speed_inf,speed_squared,acceleration,legal_exits,map_alive,"
             + "remaining_events,solo_turns,direct_rivals,indirect_rivals,contested_exits,nearest_distance,terminal";
     static final int FEATURE_COUNT = 12;
-    final boolean interaction, refresh, opportunity, encounter, learned, audit;
+    static final String FEATURES_V2 = FEATURES + ",closing_motion,relative_route,route_known,"
+            + "rival_moves_first,response_delta,rival_exits,field_size";
+    static final int FEATURE_COUNT_V2 = 19;
+    final boolean interaction, refresh, opportunity, encounter, learned, audit, diverse, progressive, lexicographic;
     final int rounds, extraRounds, policyBudget, extensionBudget, alternatives;
     final double[] weights;
     final double margin;
+    final double[] timeWeights;
+    final double placeRadius;
     final String specification;
 
     RacecraftConfig(final Properties p) {
@@ -23,16 +28,19 @@ final class RacecraftConfig {
         if (!specification.isEmpty()) {
             for (final String part : specification.split(",", -1)) {
                 final String flag = part.trim();
-                if (!Set.of("interaction", "refresh", "opportunity", "encounter", "learned").contains(flag)
+                if (!Set.of("interaction", "refresh", "opportunity", "encounter", "learned", "diverse", "progressive", "lexicographic").contains(flag)
                         || !flags.add(flag))
                     throw new IllegalArgumentException("Unknown/duplicate racecraft experiment: " + flag);
             }
         }
         interaction = flags.contains("interaction") || flags.contains("refresh");
         refresh = flags.contains("refresh");
-        opportunity = flags.contains("opportunity");
+        diverse = flags.contains("diverse");
+        progressive = flags.contains("progressive");
+        lexicographic = flags.contains("lexicographic");
+        opportunity = flags.contains("opportunity") || diverse || progressive;
         encounter = flags.contains("encounter");
-        learned = flags.contains("learned");
+        learned = flags.contains("learned") || lexicographic;
         final String auditValue = p.getProperty("racecraft.audit", "false");
         if (!auditValue.equals("true") && !auditValue.equals("false"))
             throw new IllegalArgumentException("racecraft.audit must be true or false");
@@ -45,17 +53,28 @@ final class RacecraftConfig {
         margin = finite(p.getProperty("racecraft.model.margin", "0.05"));
         if (margin < 0 || margin > 100) throw new IllegalArgumentException("Invalid model margin");
         if (learned) {
-            if (!"1".equals(p.getProperty("racecraft.model.version"))
-                    || !FEATURES.equals(p.getProperty("racecraft.model.features"))
+            if (!(lexicographic ? "2" : "1").equals(p.getProperty("racecraft.model.version"))
+                    || !(lexicographic ? FEATURES_V2 : FEATURES).equals(p.getProperty("racecraft.model.features"))
                     || !p.getProperty("racecraft.model.trainingSha256", "").matches("[0-9a-f]{64}"))
                 throw new IllegalArgumentException("Learned experiment requires a versioned, provenance-bound model");
             weights = Arrays.stream(p.getProperty("racecraft.model.weights", "").split(",", -1))
                     .mapToDouble(RacecraftConfig::finite).toArray();
-            if (weights.length != FEATURE_COUNT)
+            if (weights.length != (lexicographic ? FEATURE_COUNT_V2 + 1 : FEATURE_COUNT))
                 throw new IllegalArgumentException("Wrong racecraft model dimension");
             for (final double w : weights)
                 if (Math.abs(w) > 1e6) throw new IllegalArgumentException("Model weight too large");
         } else weights = null;
+        if (lexicographic) {
+            timeWeights = Arrays.stream(p.getProperty("racecraft.model.timeWeights", "").split(",", -1))
+                    .mapToDouble(RacecraftConfig::finite).toArray();
+            if (timeWeights.length != FEATURE_COUNT_V2 + 1)
+                throw new IllegalArgumentException("Wrong time-model dimension");
+            for (final double w : timeWeights)
+                if (Math.abs(w) > 1e6) throw new IllegalArgumentException("Time weight too large");
+            placeRadius = finite(p.getProperty("racecraft.model.placeRadius", "NaN"));
+            if (placeRadius < 0 || placeRadius > 1)
+                throw new IllegalArgumentException("Invalid empirical place radius");
+        } else { timeWeights = null; placeRadius = 0; }
     }
 
     boolean enabled() { return interaction || opportunity || encounter || learned; }

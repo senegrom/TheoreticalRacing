@@ -26,8 +26,9 @@ final class MoveQueries {
 			throw new IllegalArgumentException("Query must contain exactly " + game.players.length + " player groups");
 		final String[] h = parts[0].split(",", -1);
 		final boolean simulation = h[0].equals("sim") || h[0].equals("sim2");
-		final boolean complete = h[0].equals("v2") || h[0].equals("sim2");
-		final int count = simulation ? (complete ? 7 : 5) : complete ? 4 : 1;
+		final boolean classified = h[0].equals("v3");
+        final boolean complete = h[0].equals("v2") || h[0].equals("sim2") || classified;
+		final int count = simulation ? (complete ? 7 : 5) : classified ? 6 : complete ? 4 : 1;
 		if (h.length != count)
 			throw new IllegalArgumentException("Malformed query header");
 		final int mover = integer(h[simulation || complete ? 1 : 0]);
@@ -66,7 +67,24 @@ final class MoveQueries {
 			}
 			cars[i] = new Car(x, y, vx, vy, finished, lap, gate);
 		}
-		if (cars[mover].finished() != 0)
+		int first = 0, last = 0;
+        if (classified) {
+            first = integer(h[4]); last = integer(h[5]);
+            if (first < 0 || last < 0 || (long) first + last >= cars.length)
+                throw new IllegalArgumentException("Invalid classification counters");
+            final boolean[] seen = new boolean[cars.length + 1];
+            int retired = 0;
+            for (final Car c : cars) if (c.finished() != 0) {
+                final int place = c.finished();
+                if (place < 1 || place > cars.length || seen[place]
+                        || !(place <= first || place > cars.length - last))
+                    throw new IllegalArgumentException("Classification ledger has gaps/duplicates");
+                seen[place] = true; retired++;
+            }
+            if (retired != first + last)
+                throw new IllegalArgumentException("Classification ledger count differs");
+        }
+        if (cars[mover].finished() != 0)
 			throw new IllegalArgumentException("Mover is already finished");
 		// Validate the WHOLE request before mutating any player. Missing legacy
 		// fields have explicit defaults, never state inherited from a prior query.
@@ -81,6 +99,7 @@ final class MoveQueries {
 		}
 		game.subgamestate = mover;
 		game.setQueryTurnCounter(turns);
+        game.racecraftQueryClassification(first, last);
 		return new Header(mover, complete, turns, simulation, rounds, world, cap);
 	}
 
@@ -127,10 +146,13 @@ final class MoveQueries {
 
 	static String answer(final RaceGame game, final String line) {
 		// Features share the exact V2 validation/restore path, never an alternate referee.
-		final boolean features = line.startsWith("lab2,");
-		final Header header = restoreBoard(game, features ? "v2," + line.substring(5) : line);
+		final boolean nextFeatures = line.startsWith("lab3,");
+        final boolean decisionAudit = line.startsWith("audit3,");
+        final boolean features = line.startsWith("lab2,") || nextFeatures;
+		final Header header = restoreBoard(game, nextFeatures ? "v3," + line.substring(5)
+                : decisionAudit ? "v3," + line.substring(7) : features ? "v2," + line.substring(5) : line);
 		if (features)
-			return RacecraftSearch.featureProtocol(game);
+			return RacecraftSearch.featureProtocol(game, nextFeatures);
 		if (header.simulation()) {
 			final int[] audit = new int[3];
 			final int verdict;
@@ -146,6 +168,7 @@ final class MoveQueries {
 			return "V=" + verdict + ";tier=" + audit[0] + ";thread=" + audit[1] + ";snug=" + audit[2];
 		}
 		final Direction move = game.ai.computeAiMove();
+        if (decisionAudit) return "audit3;" + move.dx + "," + move.dy + ";" + game.ai.racecraftDiagnostic();
 		return (header.complete() ? "v2;" : "") + move.dx + "," + move.dy + ";"
 				+ candidates(game, header.mover(), header.complete());
 	}

@@ -15,6 +15,7 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.logic.TrackImportTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.SimulationBoundaryTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.SimulationFollowupTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftLabTests
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftNextTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.EndgamePhysicalTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RaceAiDuelSearchTests
 

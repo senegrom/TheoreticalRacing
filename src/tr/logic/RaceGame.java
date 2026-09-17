@@ -179,6 +179,9 @@ public final class RaceGame {
 	final RacecraftConfig racecraft;
 	int racecraftFinishedFirst() { return finishedFirst; }
 	int racecraftFinishedLast() { return finishedLast; }
+    void racecraftQueryClassification(final int first, final int last) {
+        finishedFirst = first; finishedLast = last;
+    }
 
 	static boolean[] parseCandidateSlots(final String spec, final int maxPlayers) {
 		final boolean[] slots = new boolean[maxPlayers + 1];

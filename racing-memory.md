@@ -1,5 +1,32 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Research branch (2026-09-17): diverse actions, matched forecasts and policy-state learning
+
+Extends bd02b56 without rebasing onto or modifying master. Adds independently
+selected diverse-shortlist and progressive matched-horizon opportunity arms;
+completed comparisons survive later budget exhaustion, partial comparisons do
+not. A separate schema-2 learner models finishing place independently of own
+time, with seven relative context features and explicit empirical uncertainty.
+No time gain trades off a predicted place loss, and unresolved places abstain.
+
+The new collector records generating and continuation policies separately and
+replays experimental-policy source states with a complete classification ledger.
+The opponent league fixes all other drivers while replacing/rotating one focal
+car and reports separate population/density slices. Decision-regret reports join
+actual shortlists and forecasts to complete first-action counterfactual outcomes.
+All inputs and raw traces are bound; incomplete cases are censored, not wins.
+See docs/racecraft-next.md for exact flags, commands, limitations and examples.
+
+Local supplementary JDK 21 tests pass the full Java script, 192 Python contracts,
+and the new real-JVM pipeline: seven native races, four counterfactual samples,
+and twelve complete eight-car focal-replacement races over densities 1/4/7.
+Those tiny fixtures establish functioning controls, not a campaign place gain.
+Supported-JDK validation is recorded by the exact-source workflow and its retained
+artifacts; no unfinished validation or transport is called a test success.
+A repeatable research-branch workflow was added in the preceding commit.
+Original champion constants, tracks, user.properties and golden/pin expectations
+are unchanged. Neither an experimental policy nor a trained model is promoted.
+
 ## Research branch (2026-09-16): traffic experiment laboratory, no promotion
 
 Implements four proposals on the round-255 ledger/round-254 champion: an

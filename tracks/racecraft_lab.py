@@ -109,8 +109,8 @@ class LabOracle(Oracle):
             self.errors.close()
 
 
-def check_features(f: Any) -> None:
-    if (not isinstance(f, list) or len(f) != len(FEATURES)
+def check_features(f: Any, features=FEATURES) -> None:
+    if (not isinstance(f, list) or len(f) != len(features)
             or any(isinstance(v, bool) or not isinstance(v, (int, float))
                    or not math.isfinite(v) or abs(v) > 1.0000001 for v in f)):
         raise ValueError('invalid v1 features')
@@ -266,12 +266,12 @@ def collect(args: argparse.Namespace) -> None:
     print('Published counterfactual dataset (not a fleet promotion):', out)
 
 
-def load_datasets(paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
+def load_datasets(paths: list[Path], *, features=FEATURES, schema=1) -> tuple[list[dict[str, Any]], list[str]]:
     rows, manifests, seen = [], [], set()
     for directory in paths:
         manifest = json.loads((directory / 'manifest.json').read_text(encoding='utf-8'))
         data = directory / 'rows.jsonl'
-        if manifest.get('schema') != 1 or manifest.get('features') != list(FEATURES) or digest(data) != manifest.get('rows_sha256'):
+        if manifest.get('schema') != schema or manifest.get('features') != list(features) or digest(data) != manifest.get('rows_sha256'):
             raise ValueError('dataset schema/hash mismatch')
         manifests.append(digest(directory / 'manifest.json'))
         local_rows = [json.loads(s) for s in data.read_text(encoding='utf-8').splitlines()]
@@ -292,7 +292,7 @@ def load_datasets(paths: list[Path]) -> tuple[list[dict[str, Any]], list[str]]:
                 if a['direction'] not in DIRNAMES or a['direction'] in names:
                     raise ValueError('invalid/duplicate direction')
                 names.add(a['direction'])
-                check_features(a['features'])
+                check_features(a['features'], features)
                 result = a['outcome']
                 if result.get('complete') is True:
                     if (type(result.get('place')) is not int or not 1 <= result['place'] <= n

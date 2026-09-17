@@ -1,6 +1,5 @@
 package tr.logic;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /** Opt-in opportunity search, bounded encounter extension and feature contract.
@@ -13,9 +12,15 @@ final class RacecraftSearch {
     @FunctionalInterface interface Policy { Direction choose(Board board, int mover); }
     static final class Budget {
         int remaining, spent;
-        Budget(final int remaining) { this.remaining = remaining; }
+        int completedRounds, rankingChanges;
+        boolean exhausted;
+        String diagnostic = "{\"reason\":\"precedence-or-no-hook\"}";
+        Budget(final int remaining) {
+            if (remaining < 0) throw new IllegalArgumentException("Negative policy budget");
+            this.remaining = remaining;
+        }
         boolean take() {
-            if (remaining == 0) return false;
+            if (remaining == 0) { exhausted = true; return false; }
             remaining--; spent++; return true;
         }
     }
@@ -165,31 +170,28 @@ final class RacecraftSearch {
                 || !root.transition(g, focal, champion).legal()
                 || root.transition(g, focal, champion).finishes()) return champion;
         if (RacecraftTraffic.graph(g, root, focal).direct(focal) == 0) return champion;
-        final List<Direction> actions = new ArrayList<>();
-        for (final Direction d : DIRECTIONS) {
-            if (d == champion || RaceGame.aiVelocityOutOfRange(root.vx[focal] + d.dx, root.vy[focal] + d.dy))
-                continue;
-            if (root.transition(g, focal, d).legal()) actions.add(d);
-        }
-        actions.sort((a, b) -> {
-            final int c = Double.compare(scores[a.ordinal()], scores[b.ordinal()]);
-            return c != 0 ? c : Integer.compare(a.ordinal(), b.ordinal());
-        });
-        if (actions.size() > config.alternatives) actions.subList(config.alternatives, actions.size()).clear();
-        actions.add(0, champion);
+        final List<Direction> actions = RacecraftNext.shortlist(g, root, focal, champion, scores, config);
+        if (config.progressive || config.lexicographic)
+            return RacecraftNext.improve(g, root, focal, champion, actions, config, policy, budget);
         Direction best = champion;
         Value bestValue = null;
         final double originalModel = config.learned ? config.score(features(g, root, focal, champion)) : 0;
         double bestModel = originalModel;
         Value originalValue = null;
+        final Value[] observed = config.opportunity ? new Value[actions.size()] : null;
         // Freeze the shortlist BEFORE asking any nested scorer: its scratch rows
         // cannot overwrite the parent's comparison. Exhaustion keeps champion.
         for (final Direction d : actions) {
             Value v = null;
             if (config.opportunity) {
                 final Forecast f = forecast(g, root, focal, d, config, policy, budget);
-                if (f.exhausted() || f.value() == null) return champion;
+                if (f.exhausted() || f.value() == null) {
+                    budget.diagnostic = RacecraftNext.diagnostic(champion, champion, actions, null, 0,
+                            budget, f.exhausted() ? "budget" : "unknown-leaf");
+                    return champion;
+                }
                 v = f.value();
+                observed[actions.indexOf(d)] = v;
             }
             final double model = config.learned ? config.score(features(g, root, focal, d)) : 0;
             if (d == champion) { bestValue = v; originalValue = v; continue; }
@@ -200,7 +202,9 @@ final class RacecraftSearch {
             }
         }
         if (config.learned && (!config.opportunity || bestValue.compareTo(originalValue) == 0)
-                && originalModel - bestModel <= config.margin) return champion;
+                && originalModel - bestModel <= config.margin) best = champion;
+        budget.diagnostic = RacecraftNext.diagnostic(champion, best, actions, observed, config.rounds,
+                budget, "sequential");
         return best;
     }
 
@@ -250,16 +254,18 @@ final class RacecraftSearch {
         return f;
     }
 
-    static String featureProtocol(final RaceGame g) {
+    static String featureProtocol(final RaceGame g) { return featureProtocol(g, false); }
+
+    static String featureProtocol(final RaceGame g, final boolean v2) {
         g.reach.ensureReachabilityReady();
         final Board b = new Board(g);
-        final StringBuilder out = new StringBuilder("lab2;1;");
+        final StringBuilder out = new StringBuilder(v2 ? "lab3;2;" : "lab2;1;");
         for (final Direction d : DIRECTIONS) {
             if (d.ordinal() > 0) out.append('|');
             if (RaceGame.aiVelocityOutOfRange(b.vx[g.subgamestate] + d.dx, b.vy[g.subgamestate] + d.dy)) {
                 out.append('-'); continue;
             }
-            final double[] f = features(g, b, g.subgamestate, d);
+            final double[] f = v2 ? RacecraftNext.features(g, b, g.subgamestate, d) : features(g, b, g.subgamestate, d);
             if (f == null) out.append('-');
             else for (int k = 0; k < f.length; k++) {
                 if (k > 0) out.append(',');

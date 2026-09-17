@@ -271,6 +271,8 @@ final class RaceAi {
 	// Experimental state belongs to a real focal decision, not to whichever
 	// candidate-labelled rival a nested scorer happens to install temporarily.
 	private int decisionDepth;
+    private String racecraftLastDiagnostic = "{\"reason\":\"disabled\"}";
+    String racecraftDiagnostic() { return racecraftLastDiagnostic; }
 	private boolean racecraftRoot;
 	private RacecraftSearch.Budget racecraftBudget;
 	private int racecraftExtraSlots;
@@ -294,6 +296,8 @@ final class RaceAi {
 		decisionDepth++;
 		try {
 			final Direction chosen = computeChampionMove();
+            if (root) racecraftLastDiagnostic = racecraftRoot ? racecraftBudget.diagnostic
+                    : "{\"reason\":\"disabled\"}";
 			if (root && racecraftRoot && game.racecraft.audit)
 				System.err.println("RACECRAFT p=" + game.players[game.subgamestate].getNumber()
 						+ " move=" + chosen + " graphs=" + (racecraftGraphs - graphs)

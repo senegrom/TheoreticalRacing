@@ -216,3 +216,10 @@ Local supplementary JDK 21 testing reproduces the same Hairpin-s10 golden
 mismatch in pristine master and the experimental build; the other eleven golden
 cases match. This is not silently re-frozen. Supported-JDK validation and retained
 logs distinguish environment behavior from an experiment leaking into controls.
+
+## Second research batch
+
+See [racecraft-next.md](racecraft-next.md) for the independently gated `diverse`,
+`progressive` and `lexicographic` modes, policy-state collection, focal-replacement
+opponent leagues, and decision-regret reports. The original schema-1 commands
+and flags remain supported. These additions are not policy promotions.
