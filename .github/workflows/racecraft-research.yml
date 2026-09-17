@@ -1,0 +1,98 @@
+name: Racecraft research branch
+on:
+  push:
+    branches: [work/racecraft-experiments-20260916]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: racecraft-research-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Archive the exact research source
+        run: |
+          git archive --format=tar.gz HEAD > research-source.tar.gz
+          git rev-parse HEAD HEAD^{tree} > research-identity.txt
+      - uses: actions/upload-artifact@v7
+        with:
+          name: research-source
+          path: |
+            research-source.tar.gz
+            research-identity.txt
+          retention-days: 30
+  contracts:
+    name: Research contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Correctness and production laboratory contracts
+        shell: bash
+        run: |
+          mkdir -p research-evidence
+          set -o pipefail
+          sh run_tests.sh 2>&1 | tee research-evidence/java.log
+          sh build_main.sh 2>&1 | tee research-evidence/build.log
+          python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee research-evidence/python.log
+          python tests/cross_era_referee_regression.py 2>&1 | tee research-evidence/referee.log
+          python tests/racecraft_lab_regression.py --heap=-Xmx8g --out research-evidence/lab 2>&1 | tee research-evidence/lab.log
+          if test -f tests/racecraft_next_regression.py; then
+            python tests/racecraft_next_regression.py --heap=-Xmx8g --out research-evidence/next 2>&1 | tee research-evidence/next.log
+          fi
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: research-contracts-jdk${{ matrix.java }}
+          path: research-evidence/
+          include-hidden-files: true
+          retention-days: 30
+  champion:
+    name: Unchanged champion corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Run every existing comparison without rewriting expectations
+        shell: bash
+        run: |
+          mkdir -p research-evidence
+          sh build_main.sh
+          status=0
+          for test in tests/headless_smoke.py tests/query_replay_regression.py tests/lap_progress_regression.py tests/selfplay_profile_regression.py tests/golden_races.py tests/ai1_*_regression.py; do
+            python "$test" > "research-evidence/$(basename "$test").log" 2>&1 || status=1
+          done
+          git diff --exit-code || status=1
+          exit "$status"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: research-champion-corpus
+          path: research-evidence/
+          retention-days: 30
