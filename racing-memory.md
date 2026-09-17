@@ -1,5 +1,98 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 257: how deep the chooser pays
+
+Round 256 measured the faithful joint world as a chooser at three and six
+rounds and found six the better of the two. Two more horizons on the
+round-254 champion, same instrument (E:/tmp-claude/arm256_chooser.py, the
+rounds constant alone changed; with no candidateSlots every arm reproduces
+the champion, verified on four races), 8-car random starts, mirrored,
+seeds 1-20:
+
+    arm    horizon       place C-H        wins          crashes C/H  tracks C/H/tied
+    ch3    3 rounds      -0.501 +- 0.024  1844 : 1516  155 : 162    78 /  6 /  0
+    ch6    6 rounds      -0.952 +- 0.024  1997 : 1363  149 : 191    83 /  1 /  0
+    ch9    9 rounds      -1.129 +- 0.024  2033 : 1327  128 : 184    84 /  0 /  0
+    ch12   12 rounds     -1.194 +- 0.025  2098 : 1262  123 : 189    83 /  1 /  0
+
+THE HORIZON SATURATES AT TWELVE, AND EVERY STEP OF IT IS SAFER. The
+increments halve: 0.451 places from three rounds to six, 0.177 from six to
+nine, 0.065 from nine to twelve, which puts the asymptote near a place and a
+quarter. Crashes fall monotonically the other way (155, 149, 128, 123
+against the champion's 162, 191, 184, 189), so the deeper the faithful world
+looks, the better the car finishes AND the less often it ends in the wall --
+no safety-for-pace trade anywhere on the curve. Nine rounds is the only arm
+that takes all 84 boards; twelve gives one back and is 0.065 +- 0.035 ahead
+overall, so twelve is the pick by places and the horizon question is closed
+by saturation rather than by cost.
+
+THE COST IS FLAT IN THE HORIZON, WHICH IS WHY IT PAYS. Nine rounds and
+twelve took the same three hours of box time, and per move the champion's
+5.4 milliseconds becomes 6.1 at three rounds, 7.1 at six and 9.3 at twelve
+(monaco s9 and spa s3, eight cars, every slot a candidate). A human never
+notices, and the extra hour on a screen is an offline cost. The rollout is
+bounded by rounds times cars, with nested scorers self-suppressing, so it
+cannot blow up the way a growing tree would.
+
+WHY THIS IS NOT A CONTRADICTION OF ROUND 247. That round cut the SOFT
+rollout from two levels to one and gained 0.155 places. This one takes the
+FAITHFUL world from three rounds to twelve and gains 1.194. The difference
+is whose opinion is being bought. The soft rollout prices every candidate
+landing on every move with a cheap proxy, and its second round was a guess
+about where seven rivals might be -- a possibility priced as a fact, the
+error the last ten rounds kept finding. The faithful world runs the actual
+policy of every actual car, on at most three landings the score cannot
+separate, and each extra round of it is a fact about the race that the
+score never had. Buy facts deeply; buy guesses not at all.
+
+## Round 256: the faithful joint world as a chooser
+
+The danger guard only ever asks whether the chosen landing dies. Round 254
+made its world faithful and earned 0.045 places from that veto alone. This
+round lets the same world CHOOSE: every legal landing within one turn of the
+best score (at most three, in score order) is rolled ahead with the mover
+driven by its own scorer and every rival by theirs, and the landing with
+the lowest time-to-finish at the end of the rollout is taken -- a dead
+verdict never beats a live one, equal verdicts keep the score's order, and
+everything downstream (the pace legs, the guard, the confirm) still runs on
+the choice. Two arms on the round-254 champion (E:/tmp-claude/
+arm256_chooser.py; with no candidateSlots both reproduce the champion,
+verified on four races), 8-car random starts, mirrored, seeds 1-20:
+
+    arm    horizon      place C-H        wins          crashes C/H  tracks C/H/tied
+    ch3    3 rounds     -0.501 +- 0.024  1844 : 1516  155 : 162    78 /  6 /  0
+    ch6    6 rounds     -0.952 +- 0.024  1997 : 1363  149 : 191    83 /  1 /  0
+
+THE LARGEST GAIN SINCE ROUND 231, AND THE CAR CRASHES LESS TAKING IT. Half a
+place at three rounds, a whole place at six: forty standard errors, 83 boards
+of 84 at six rounds and not one tied, and the six-round car crashes 149 times
+against the champion's 191. Deeper is better, which is the exact opposite of
+round 247 -- and the two findings agree. Round 247 shortened the SOFT rollout,
+a cheap proxy world priced on every candidate landing on every move, and
+found that its second round was speculation about where seven rivals might
+be. This round deepens the FAITHFUL world -- the mover driven by its own
+scorer, every rival by theirs -- used on at most three landings the score
+cannot separate. A proxy's opinion about round six is noise; the real
+policy's is a fact about the race, and the more of those the car buys the
+better it finishes.
+
+WHAT THE CAR WAS DOING BEFORE. The score ranks landings by exact remaining
+distance plus two traffic vetoes and three tie-breaks, all of them local to
+the landing. Where two or three landings sit within one turn of each other
+the score was effectively choosing by tie-break, and the joint rollout it
+already owned -- which knows what the whole field does for six rounds -- was
+never asked. It was a veto with a vote it never cast. The gain is not a new
+model or a new term: it is the champion's own world model, applied to the
+decision it was always able to inform.
+
+THE PRICE IS TIME. A screen that takes an hour and fifty minutes on the
+champion takes two hours sixteen at three rounds and two hours forty-three
+at six: the chooser fires on most moves and pays up to three faithful
+rollouts each time. Round 257 asks how much deeper it still pays, and the
+battery (computed, scattered, held-out seeds and duels) decides the
+promotion; on this evidence the horizon, not the idea, is the open
+question.
+
 ## Round 255: the gate precedence made traffic-aware
 
 Checkpoint touches and non-final lap crossings pre-empt the scorer: the
