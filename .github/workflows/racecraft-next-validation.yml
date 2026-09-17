@@ -1,0 +1,170 @@
+name: Validate next racecraft research additions
+on:
+  push:
+    branches: [work/racecraft-next-validation-20260917]
+permissions:
+  contents: read
+concurrency:
+  group: racecraft-next-validation-20260917
+  cancel-in-progress: true
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  contracts:
+    name: New research contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 4c5bcab4690b9f552e92786d9b56f259c6acd9f0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        shell: bash
+        run: |
+          for i in $(seq 0 10); do git show "$GITHUB_SHA":.github/racecraft-next.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/next.patch"
+          echo "bae0bbc754f8ccef32cf0bbee2be4863ae6c69457b3869c72685534262170c7f  $RUNNER_TEMP/next.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/next.patch"
+          test "$(git write-tree)" = 6935e820787799caf1a22792c44b09c427dbb9f8
+      - name: Strict correctness and complete laboratory pipelines
+        shell: bash
+        run: |
+          mkdir -p evidence
+          set -o pipefail
+          sh run_tests.sh 2>&1 | tee evidence/java.log
+          sh build_main.sh 2>&1 | tee evidence/build.log
+          python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee evidence/python.log
+          python tests/cross_era_referee_regression.py 2>&1 | tee evidence/referee.log
+          python tests/racecraft_lab_regression.py --heap=-Xmx8g --out evidence/lab 2>&1 | tee evidence/lab.log
+          python tests/racecraft_next_regression.py --heap=-Xmx8g --out evidence/next 2>&1 | tee evidence/next.log
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: next-contracts-jdk${{ matrix.java }}
+          path: evidence/
+          include-hidden-files: true
+          retention-days: 30
+  champion:
+    name: Unchanged default goldens and every champion pin
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 4c5bcab4690b9f552e92786d9b56f259c6acd9f0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        shell: bash
+        run: |
+          for i in $(seq 0 10); do git show "$GITHUB_SHA":.github/racecraft-next.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/next.patch"
+          echo "bae0bbc754f8ccef32cf0bbee2be4863ae6c69457b3869c72685534262170c7f  $RUNNER_TEMP/next.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/next.patch"
+          test "$(git write-tree)" = 6935e820787799caf1a22792c44b09c427dbb9f8
+      - name: Preserve all comparison failures
+        shell: bash
+        run: |
+          mkdir -p evidence
+          sh build_main.sh
+          status=0
+          for test in tests/headless_smoke.py tests/query_replay_regression.py tests/lap_progress_regression.py tests/selfplay_profile_regression.py tests/golden_races.py tests/ai1_*_regression.py; do
+            python "$test" > "evidence/$(basename "$test").log" 2>&1 || status=1
+          done
+          git diff --exit-code || status=1
+          exit "$status"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: next-champion-corpus
+          path: evidence/
+          retention-days: 30
+  browser:
+    name: Browser adapter parity and tooling
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 4c5bcab4690b9f552e92786d9b56f259c6acd9f0
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        shell: bash
+        run: |
+          for i in $(seq 0 10); do git show "$GITHUB_SHA":.github/racecraft-next.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/next.patch"
+          echo "bae0bbc754f8ccef32cf0bbee2be4863ae6c69457b3869c72685534262170c7f  $RUNNER_TEMP/next.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/next.patch"
+          test "$(git write-tree)" = 6935e820787799caf1a22792c44b09c427dbb9f8
+      - name: Native browser parity and publishing contracts
+        shell: bash
+        run: |
+          mkdir -p evidence
+          set -o pipefail
+          python -m pip install -r web/requirements-icons.txt
+          sh web/build.sh 2>&1 | tee evidence/build.log
+          python web/tests/parity.py 2>&1 | tee evidence/parity.log
+          python web/tests/server_test.py 2>&1 | tee evidence/ranges.log
+          python -m unittest discover -s web/tests -p 'test_*.py' 2>&1 | tee evidence/tooling.log
+          node --test web/tests/engine.test.mjs 2>&1 | tee evidence/worker.log
+          for f in web/*.js; do node --check "$f"; done
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: next-browser-parity
+          path: |
+            evidence/
+            web/build/parity/
+          retention-days: 30
+  prepare:
+    name: Prepare validated source without updating master
+    needs: [contracts, champion, browser]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 4c5bcab4690b9f552e92786d9b56f259c6acd9f0
+          fetch-depth: 0
+      - name: Commit the validated source only
+        shell: bash
+        run: |
+          for i in $(seq 0 10); do git show "$GITHUB_SHA":.github/racecraft-next.patch.gz.$i; done | gzip -dc > "$RUNNER_TEMP/next.patch"
+          echo "bae0bbc754f8ccef32cf0bbee2be4863ae6c69457b3869c72685534262170c7f  $RUNNER_TEMP/next.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/next.patch"
+          test "$(git write-tree)" = 6935e820787799caf1a22792c44b09c427dbb9f8
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Extend racecraft research with diverse search, progressive forecasts and policy-state evaluation' -m 'Add opt-in diverse/progressive/lexicographic arms, full-ledger V3 diagnostics, experimental-state counterfactual collection, separate place/time training, fixed-opponent focal leagues and regret attribution. Preserve default champion policy and every stored expectation. Supported-JDK contracts and corpus passed; no full fleet or racecraft gain is claimed.'
+          git push origin HEAD:refs/heads/work/racecraft-next-prepared-20260917
+          echo "Prepared $(git rev-parse HEAD), tree $(git write-tree)" >> "$GITHUB_STEP_SUMMARY"
