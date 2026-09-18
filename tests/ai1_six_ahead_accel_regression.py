@@ -11,10 +11,11 @@ import bench_ai  # noqa: E402
 PROMOTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    5: (7, 0, [58, 59, 60, 60, 61, 61, 62]),
+    # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+    5: (7, 0, [58, 59, 59, 59, 60, 61, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    22: (7, 0, [58, 59, 60, 61, 61, 62, 62]),
-    86: (7, 0, [58, 59, 60, 60, 61, 61, 62]),
+    22: (7, 0, [58, 59, 59, 59, 59, 60, 60]),
+    86: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in ("AI1", "AI2")}

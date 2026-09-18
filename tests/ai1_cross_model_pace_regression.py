@@ -15,8 +15,10 @@ EXPECTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 248: re-frozen from measurement (the physical world model: occupancy with lap state, rollouts that stop with the last survivor, blockades replayed).
-    "AI1": (7, 0, [82, 83, 83, 84, 84, 85, 86]),
-    "AI2": (7, 0, [82, 83, 83, 84, 84, 85, 86]),
+    # Round 260 (the chooser): Silverstone s1 loses a car here -- recorded,
+    # not vetoed (AGENTS.md); the self-tie below is the pin's subject and holds.
+    "AI1": (6, 1, [82, 83, 83, 84, 84, 85]),
+    "AI2": (6, 1, [82, 83, 83, 84, 84, 85]),
 }
 
 
@@ -45,7 +47,8 @@ def main() -> int:
     ai2_sum = sum(results["AI2"][2])
     # Round 229: 596 is the sum of the re-frozen finisher moves.
     # Round 247: 586 (the soft rollout at one level, not two). Round 248: 587.
-    if ai1_sum != 587 or ai2_sum != 587 or results["AI1"] != results["AI2"]:
+    # Round 260: 501 is the sum of the six re-frozen finisher moves.
+    if ai1_sum != 501 or ai2_sum != 501 or results["AI1"] != results["AI2"]:
         raise SystemExit(
             f"Round-95 champion self-tie lost: AI1 {results['AI1']}, AI2 {results['AI2']}"
         )

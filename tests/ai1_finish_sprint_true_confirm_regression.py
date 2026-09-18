@@ -24,11 +24,12 @@ TARGET = ("rand3", 1)
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 248: re-frozen from measurement (the physical world model: occupancy with lap state, rollouts that stop with the last survivor, blockades replayed).
-PROMOTED = (7, 0, [60, 61, 62, 62, 63, 63, 63])
-PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (4, 62), (5, 63), (6, 63), (7, 63)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 62, 5: 63, 6: 63, 7: 63, 8: 62}
+# Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+PROMOTED = (7, 0, [60, 61, 62, 62, 62, 63, 63])
+PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (5, 62), (7, 62), (4, 63), (8, 63)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 63, 5: 62, 6: 63, 7: 62, 8: 63}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-PROMOTED_SHA256 = '0bb60826efbf9e5a1e9f08175719628d893480aa9c58583d133fcbe3742cfe79'
+PROMOTED_SHA256 = '51089583b311e345adab3849d970f717d9dc34870756a603bbee3fa8382226c9'
 
 
 def main() -> int:

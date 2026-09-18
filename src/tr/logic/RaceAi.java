@@ -445,6 +445,9 @@ final class RaceAi {
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
+	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
+	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
+	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
@@ -930,6 +933,15 @@ final class RaceAi {
 				best = d;
 				poScorerT = poT;
 			}
+		}
+		// Round 256: the faithful joint world was a veto with a vote it never
+		// cast. Where the score cannot separate two landings, ask it. Measured
+		// at -1.194 places over the round-254 champion at twelve rounds (83
+		// boards of 84, crashes 123 against 189); three rounds bought -0.501,
+		// six -0.952, nine -1.129, and the increments halve (round 257).
+		if (best != null && !inScorerSim && sealRivals >= 1) {
+			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
+			poScorerT = poTByDir[best.ordinal()];
 		}
 		// Round 49 arm C (AI1): certified pace tie-break. The lateral-spacing
 		// term `spread` outranks raw pace -- in every decision it flips, the
@@ -4744,6 +4756,53 @@ final class RaceAi {
 			System.err.println("AIDBG CHECKPOINT-CHOICE p=" + playerNum + " gate=" + lapGate
 					+ " " + fallback + " -> " + best + " remaining=" + bestValue);
 		return best;
+	}
+
+	/** Round 256: among the landings the score cannot separate -- every legal
+	 *  landing within AI1_CHOOSER_WINDOW turns of the best score, at most
+	 *  AI1_CHOOSER_WIDTH of them, in score order -- choose by the faithful joint
+	 *  world (the mover driven by its own scorer, every rival by theirs): the
+	 *  lowest time-to-finish after AI1_CHOOSER_ROUNDS rounds wins, a dead
+	 *  verdict never beats a live one, and equal verdicts keep the score's
+	 *  order. The score ranks landings by facts local to the landing; this
+	 *  ranks them by what the whole field actually does next. Round 257
+	 *  measured the horizon (3 rounds -0.501, 6 -0.952, 9 -1.129, 12 -1.194
+	 *  places, saturating); round 259 found ranking by projected place and a
+	 *  wider vote both within noise of this. */
+	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
+			final Direction best, final double[] scoreByDir, final double bestScore) {
+		final Direction[] order = new Direction[DIRECTIONS.length];
+		int n = 0;
+		for (final Direction d : DIRECTIONS) {
+			final double s = scoreByDir[d.ordinal()];
+			if (s == Double.MAX_VALUE || s > bestScore + AI1_CHOOSER_WINDOW)
+				continue;
+			int i = n++;
+			while (i > 0 && scoreByDir[order[i - 1].ordinal()] > s) {
+				order[i] = order[i - 1];
+				i--;
+			}
+			order[i] = d;
+		}
+		if (n < 2)
+			return best;
+		Direction pick = null;
+		int pickVerdict = -1;
+		for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
+			final Direction d = order[k];
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			// A crossing is already decided by the precedence rules above.
+			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+				return best;
+			final int verdict = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
+				pick = d;
+				pickVerdict = verdict;
+			}
+		}
+		return pick == null ? best : pick;
 	}
 
 	/** Round 226: does this car run the candidate branch of a mixed field? False

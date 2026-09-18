@@ -39,10 +39,12 @@ PROOF_VETO = ("lemans", 87)
 # recorded, not vetoed; the fleet's own crashes fall (59 against 69).
 # Round 248 (the physical world model): re-frozen from measurement; p6 keeps
 # its race again -- seven finishers, no crash.
-PROMOTED = (7, 0, [66, 67, 69, 70, 71, 73, 74])
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (7, 70), (8, 71), (4, 73), (6, 74)]
+# Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+# Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+PROMOTED = (7, 0, [66, 67, 69, 70, 71, 72, 74])
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (6, 70), (7, 71), (8, 72), (2, 74)]
 PROMOTED_CRASHES = []
-PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 67, 4: 73, 5: 69, 6: 74, 7: 70, 8: 71}
+PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 67, 4: 73, 5: 69, 6: 70, 7: 71, 8: 72}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -59,37 +61,37 @@ RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
-    PROOF_VETO: ((7, 0, [66, 67, 69, 70, 72, 73, 74]),
+    PROOF_VETO: ((7, 0, [66, 67, 68, 70, 71, 73, 74]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
                  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
-                 '3e97cd63a0f2dfa8ed742c61505ae3bc38df56cc7fdbe8441af324f7c8148f32'),
+                 '6fd8247d18c96831b338b3c7ae006b1f243e716b9eb86153838e0505249644aa'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
-    ("lemans", 93): ((7, 0, [66, 67, 68, 70, 71, 73, 74]),
-                     '79e44bd84fc0bbc42948f8d3a5bd9e49136e40daac1c52bcc430ab8c0dc17ca4'),
-    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 73, 74]),
-                     'a7b552e883328c87a0a0b9f8311da487248b2bc793608881486d16548a9eeff0'),
+    ("lemans", 93): ((7, 0, [66, 67, 69, 70, 71, 73, 74]),
+                     '0d86621131e362b8ab1c159c8ebb2dc4fe7a32365b790e3c8505cc3c97fdbf09'),
+    ("lemans", 14): ((6, 1, [66, 67, 69, 70, 71, 72]),
+                     '422c4c41cdfa6e1220a690c07e3538eaa1c595969ac68271e5abc13186d64bd1'),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 83, 84, 84, 85]),
-        "c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346",
+        (7, 0, [81, 82, 83, 83, 84, 85, 85]),
+        "770202269dafb247af988559a03807fb2f9789f0d23088800d27d7a85cb6bd76",
     ),
     ("spa", 12): (
-        (7, 0, [78, 79, 81, 83, 84, 85, 86]),
-        "c2f947cfd1ce7c0d47c467217b029f88254746dfcd84de4ddf4de757076bd9da",
+        (7, 0, [78, 79, 81, 82, 83, 83, 84]),
+        "31d32c87cff605b84f06b78c648ec01cf0bf6993d27475399c54004571666d71",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 81, 82, 84, 84]),
-        "02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c",
+        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
+        "7f163b460bf13a38b1738354d13099fbdf9675c80343081aacb6176e375efdae",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 83, 83, 84]),
-        "05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af",
+        (7, 0, [78, 79, 80, 81, 81, 82, 83]),
+        "840fbec66afc6dab17679f8e29fe97da7f5591e09030710a4bb4cad3f4d69d34",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 81, 82, 83, 84]),
-        "8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6",
+        (7, 0, [78, 80, 80, 81, 82, 82, 83]),
+        "71341dd9a25ca3d83e34b8c26639e33624ad11660651a4bc78c4d6bcc7b0c511",
     ),
 }
 

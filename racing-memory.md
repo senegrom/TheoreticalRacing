@@ -1,5 +1,202 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 260: the chooser promoted
+
+The faithful joint world now chooses for every car. Among the legal landings
+within one turn of the best score (at most three, in score order) the car
+takes the one whose time-to-finish is lowest after twelve rounds of
+everyone's real policy -- the mover driven by its own scorer, every rival by
+theirs -- a dead verdict never beating a live one and equal verdicts keeping
+the score's order (RaceAi.jointChooser, AI1_CHOOSER_ROUNDS 12, WINDOW 1.0,
+WIDTH 3; E:/tmp-claude/promote_chooser2.py). The promoted jar with no
+candidateSlots races byte-identically to the round-257 ch12 arm with every
+slot a candidate (three races, digests 75e1a3f1 against 3eaaa8d2). The
+battery, against the round-254 champion, mirrored:
+
+    slice                          place C-H        wins          crashes C/H  tracks C/H/tied
+    8-car random starts, s1-20     -1.194 +- 0.025  2098 : 1262  123 : 189    83 /  1 /  0   (round 257)
+    8-car random starts, s21-40    -1.193 +- 0.026  2083 : 1277  135 : 180    83 /  1 /  0
+    8-car computed starts, s1-20   -1.103 +- 0.025  2059 : 1301  112 : 185    84 /  0 /  0
+    8-car scattered starts, s1-20  -0.099 +- 0.005  1752 : 1608   11 :  15    74 /  0 / 10
+    2-car random starts, s1-20     -0.177 +- 0.011  1978 : 1382  233 : 246    35 /  1 / 48
+
+EVERY SLICE, AND THE COMPUTED-START SLICE TAKES EVERY BOARD. The held-out
+seeds replicate the screen to a thousandth of a place (-1.193 against
+-1.194), which is as clean a replication as this campaign has recorded. The
+computed starts -- the mode where the field is placed by the start solver
+rather than at random -- give 84 boards of 84, the first clean sweep of the
+fleet in the campaign's history. Scattered starts pay least, and for the
+reason the idea predicts: the cars begin far apart, so there are fewer
+landings the score cannot separate and less traffic to read in the ones
+there are; 0.099 places is still twenty standard errors from zero. Two-car
+duels gain 0.177 with 48 of 84 boards tied, which is the same story again --
+one rival is a thin world to be faithful about.
+
+The candidate's cars crash LESS than the champion's in all five slices (123
+against 189, 135:180, 112:185, 11:15, 233:246). Nothing here is a
+safety-for-pace trade: the car that looks twelve rounds ahead with everyone's
+real policy both finishes better and ends in the wall less often. That is
+the fourth consecutive round where the faithful world bought both at once
+(254, 256, 257, 260), and it is the strongest argument that what it buys is
+information rather than aggression.
+
+THE CORPUS. The widest move any round has made: 18 of the 24 pinned races
+and 11 of the 12 goldens, with two races changing a finisher. Hungaroring
+s13 is whole again (seven finishers where it used to lose one) and Le Mans
+s4 loses a car; among the pins, Hungaroring s12, s10, s25, Zandvoort s44,
+Le Mans s11 and both mixed Le Mans seeds each get a car back, while Spa s4,
+Interlagos s3, Hungaroring s8, Zandvoort s34, Silverstone s1 and the mixed
+Monaco s9 race each drop one. Recorded, never vetoed (AGENTS.md): the
+head-to-head is where the rule is applied, and there the candidate's cars
+crash LESS than the champion's in every slice.
+
+The re-freeze itself was measured, not guessed. One probe pass records every
+race and every failed assertion of a pin without stopping at the first
+(probe_pin.py), so the whole corpus was measured in eighteen minutes; the
+loop then re-froze fourteen pins automatically and stopped on ten -- seven
+because a finisher or a crash moved, which it refuses to rewrite on its own,
+three because they pin a shape it has no rule for (a decision line, a crash
+identity, a place-sum triple). Those ten were re-frozen from the probe's own
+records (E:/tmp-claude/refreeze260_hand*.py), each value read out of the
+measured race rather than typed. Every pin and every golden then passes
+against the promoted jar.
+
+SELF-PLAY, for the record (a FIELD metric -- descriptive, never a veto):
+
+    round 260   77 crashes   1,748,109 moves   rows d0484d0bb0e15476
+    round 254   76 crashes   1,757,577 moves   rows 8107f43ba41a97cc
+    round 248   88 crashes   1,750,847 moves   rows d600f348b4068230
+
+One more wreck and 9,468 fewer moves over 730 races of eight chooser cars:
+the same safety at a faster field pace, where rounds 254 and 232 bought
+safety at a slower one. Eight cars that all look twelve rounds ahead do not
+get in each other's way more than eight that look at their own landing --
+which is the opposite of what a field of more aggressive cars would do, and
+another reason to read this round as information rather than aggression.
+
+WHAT WAS PROMOTED, IN ONE SENTENCE. The champion already owned a model of
+what the whole field does next and used it only to veto its own worst
+landing; now it uses it to pick among its best. Nothing was added to the
+score, and every term of the score still stands where rounds 238-246 priced
+it; the gain came from asking a question the car could always have asked.
+CPU per move rises by seven tenths (round 259), which a human at the board
+never notices.
+
+## Round 259: what the chooser ranks by, and how wide it votes
+
+Round 257 fixed the chooser's horizon at twelve rounds. Two questions
+remained about the vote itself, both answered on the round-254 champion
+with the same instrument (E:/tmp-claude/arm258_place.py; with no
+candidateSlots both arms reproduce the champion, verified on four races),
+8-car random starts, mirrored, seeds 1-20, the ch12 row of round 257
+repeated for comparison:
+
+    arm    shortlist            ranked by                          place C-H        wins          crashes C/H  tracks C/H/tied
+    ch12   <= 1 turn, <= 3      my time-to-finish after 12 rounds  -1.194 +- 0.025  2098 : 1262  123 : 189    83 /  1 /  0
+    place  <= 1 turn, <= 3      my projected PLACE, then my time   -1.213 +- 0.025  2168 : 1192  188 : 250    83 /  1 /  0
+    wide   <= 2 turns, <= 5     my time-to-finish after 12 rounds  -1.207 +- 0.025  2094 : 1266  113 : 202    83 /  1 /  0
+
+THE VOTE IS SATURATED TOO. Three arms within one standard error of each
+other, all 83 boards of 84, the same board lost by every one of them. The
+place ranker was the principled candidate -- the campaign's criterion is
+place, and the rollout already computes every rival's projected total, so
+ranking by how many of them finish ahead of me costs nothing extra -- and
+it earns 0.019 +- 0.035, which is no earning. It does change the racing:
+its cars crash 188 times against ch12's 123, and the champions racing
+against it crash 250 against 189. A car that ranks by place takes the
+landing that puts it ahead of a rival even when that landing is a turn
+slower and tighter, and the rival pays for it as often as the car does.
+That is legitimate racecraft and the rule prices it correctly, and the
+price comes out even: the places it takes by force it gives back in the
+wall.
+
+The wide vote asks the faithful world about up to five landings within two
+turns instead of three within one, and earns 0.013 +- 0.035, also nothing,
+while crashing least of the three (113). The score's own ranking is
+evidently right about any two landings more than a turn apart; the
+faithful world only adds information where the score is genuinely
+undecided, which is the window the chooser already had.
+
+THE COST DECIDES, AND IT SAYS KEEP THE ORIGINAL. CPU time per move (the
+JVM's own user plus kernel time, because both machines were shared with
+other jobs; E:/tmp-claude/cpu_arms262.py) over monaco s9 and spa s3, eight
+cars, every slot a candidate: the champion 25.3 seconds for the two races,
+ch12 43.4, wide 48.1, place 50.1. The chooser costs the champion's car
+seven tenths again; the wider vote adds eleven percent to that and the
+place ranker fifteen, for no places either of them can show. The campaign's
+rule for a washed knob (rounds 244, 250, 252) is to leave it where it was:
+the promotion is the round-257 pick, twelve rounds, a window of one turn,
+three landings. The vote's window and width join the horizon as settled.
+
+## Round 258: the peer laboratory's refinements, one flag at a time
+
+The peer's research branch (work/racecraft-experiments-20260916, f03922e)
+carries the round-256 chooser as its unmeasured "opportunity" flag and,
+beside it, four refinements of the faithful world this campaign had not
+tried. Each is opt-in behind racecraft.experiments AND a candidate slot, and
+with neither set the branch races byte-identically to the round-254 champion
+(verified on three races before any jar was built; its own fifteen Java
+suites pass). One arm per flag, the flag baked as the jar's default so
+candidateSlots alone selects it, each arm re-verified on four races (equal
+to the champion with no slots, different with every slot), on the same
+instrument as rounds 256-257: 8-car random starts, mirrored, seeds 1-20,
+against the round-254 champion:
+
+    arm          what candidates do differently                  place C-H        wins          crashes C/H  tracks C/H/tied
+    interaction  spend the faithful-rival cap on the cars whose   +0.006 +- 0.007  1677 : 1683  147 : 150    35 / 31 / 18
+                 landing sets collide with mine, not the nearest
+    refresh      the same, re-ranked at every projected round     +0.012 +- 0.009  1674 : 1686  135 : 160    33 / 39 / 12
+    encounter    extend unresolved landing contests past the      +0.005 +- 0.006  1677 : 1683  137 : 142    28 / 26 / 30
+                 rollout cutoff, within a fixed extra budget
+    learned      rank the shortlist by a linear model of twelve   +3.792 +- 0.013    53 : 3307  4512 : 228     0 / 84 /  0
+                 board features instead of rolling it out
+
+THREE WASHES AND ONE WRECK. The three rollout refinements sit within
+one and a half standard errors of a tie, split the tracks evenly, and change
+nothing about the crash counts that noise would not (the refresh arm's
+135 against 160 is the widest gap, on an arm that loses places). They are
+not wrong; they are answers to a question the field does not ask. All three
+choose WHICH rivals the faithful world simulates faithfully when there are
+more than the cap of them, and round 252 already found the cap itself
+priced right: the near rivals are the ones whose landings collide with
+mine, so ranking by collision instead of distance re-selects the same cars.
+The encounter extension fires so rarely that on Hungaroring s13 the
+all-candidate race is byte-identical to the champion's.
+
+THE LEARNED RANKER. Its flag refuses to start without a model pinned by a
+training digest, so the model was trained first (tracks/racecraft_lab.py:
+the champion raced on eight courses, twelve sampled decisions each with
+every alternative replayed to the end of the race, the classic and synthetic
+geometry families kept apart for validation -- 48 held-out decisions, 21 of
+them switches, a mean counterfactual gain of 0.54 places on the switched
+decisions). Twelve weights over speed, legal exits, map liveness, remaining
+events, solo turns, direct and indirect rivals, contested exits and nearest
+distance; a switch needs a model margin of 0.05. Baked as the jar's defaults
+(E:/tmp-claude/peer/a263learned.jar, 814d9e18), the candidate ranks the
+chooser's shortlist by the model instead of the rollout: +3.792 places, 53
+race wins against 3307, and 4512 crashes in 13440 car-races -- one car in
+three -- against the champion's 228; not one board of 84. It is not a poor
+model, it is an unguarded switch: the branch's hook runs after the danger
+guard has passed the champion's landing, and the landing the model switches
+to is never guarded at all. Its features are facts about the landing cell
+(alive on the map, legal exits, rivals in the landing graph), and a cell
+that is alive with a doomed continuation reads no worse than one that is
+alive with a future. An audited monaco s9 with all eight cars learned
+(racecraft.audit=true) shows it: 124 switches in 743 decisions, four of the
+eight cars in the wall, each two to three rounds after its latest switch.
+The same shape as rounds 249-253, from the other side: there, a model's
+silence was misread as a wall; here, a model's approval is misread as a
+road. The chooser never has this problem because its verdicts come from the
+faithful world, where a dead landing cannot win.
+
+WHAT THE BRANCH WAS RIGHT ABOUT. Its "opportunity" flag is the chooser this
+campaign measured at a place and more; the branch never measured it, and its
+refinements were refinements of a gain it had not yet banked. The
+laboratory itself (collector, trainer, profile, the feature contract with
+its training digest) is sound engineering and stays on the archive tag;
+nothing from it is promoted. The three research branches are archived under
+archive/20260917-cleanup/* and deleted from the remote.
+
 ## Round 257: how deep the chooser pays
 
 Round 256 measured the faithful joint world as a chooser at three and six

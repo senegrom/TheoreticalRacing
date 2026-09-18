@@ -15,12 +15,13 @@ EXPECTED = {
  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
  # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
  # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
- ("nurburgring",1): (7, 0, [91, 92, 92, 93, 93, 95, 96]),
+ # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+ ("nurburgring",1): (7, 0, [91, 92, 92, 94, 95, 95, 95]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
- ("interlagos",29): (7, 0, [124, 126, 126, 127, 129, 130, 131]),
- ("interlagos",47): (7, 0, [124, 126, 127, 129, 129, 130, 132]),
- ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 85]),
- ("zandvoort",44): (6, 1, [137, 139, 140, 141, 143, 144]),  # Round 254: loses a car again.
+ ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
+ ("interlagos",47): (7, 0, [124, 125, 126, 127, 128, 130, 131]),
+ ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 84]),
+ ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 144]),  # Round 260 (the chooser): whole again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

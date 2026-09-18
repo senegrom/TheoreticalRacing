@@ -40,7 +40,8 @@ def main() -> int:
         # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
         # Round 254 (the danger guard in a faithful world): an AI1 car crashes
         # here now -- recorded, not vetoed (AGENTS.md).
-        SEED2_MEASURED = {"AI1": (20, 4, 1), "AI2": (16, 4, 0)}
+        # Round 260 (the chooser): seed 2 is crash-free again.
+        SEED2_MEASURED = {"AI1": (25, 4, 0), "AI2": (11, 4, 0)}
         for kind in ("AI1", "AI2"):
             place_sum, finishers, crashes = result[kind]
             if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:
@@ -63,8 +64,11 @@ def main() -> int:
             # Round 247 (the soft rollout at one level, not two): p7 keeps its
             # race here, so both orderings are crash-free again.
             # Round 254: re-frozen from measurement; still crash-free.
-            "front": {"AI1": (12, 4, 0), "AI2": (24, 4, 0)},
-            "reverse": {"AI1": (24, 4, 0), "AI2": (12, 4, 0)},
+            # Round 260 (the chooser): p7 takes the wall here again, exactly as
+            # in round 234 -- recorded, not vetoed (AGENTS.md), and pinned by
+            # its identity below. The two orderings stay exact mirrors.
+            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 1)},
+            "reverse": {"AI1": (23, 4, 1), "AI2": (13, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -89,8 +93,10 @@ def main() -> int:
             # it (AGENTS.md), so pin the crash by its identity instead.
             # Round 247: the one-level rollout keeps p7 on the road here, so the
             # race is crash-free again and that is what is pinned.
+            # Round 260: one crash again, p7 into the wall at (20,136) on move
+            # 439 in both orderings -- the round-234 identity pin returns.
             crashed = [line for line in log_lines if " CRASH " in line]
-            if crashed:
+            if len(crashed) != 1 or " p7 " not in crashed[0] or "place=8" not in crashed[0]:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} crash set changed: {crashed}"
                 )

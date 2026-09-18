@@ -44,9 +44,10 @@ EXACT_MOVES = {
     # Round 233: five finishers here now; the list is the measured race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("lemans", 3): [66, 67, 68, 70, 71, 72],  # Round 248: six finishers.
+    # Round 260: re-frozen from measurement (the chooser).
+    ("lemans", 3): [66, 67, 69, 70, 71, 72],  # still six finishers.
     # Round 234: same seven finishers, one move redistributed.
-    ("silverstone", 15): [82, 83, 83, 84, 84, 85, 86],
+    ("silverstone", 15): [82, 83, 83, 84, 85, 85, 86],
 }
 
 
@@ -81,8 +82,12 @@ def main() -> int:
             # and Hungaroring 25 drops two -- recorded, not vetoed (AGENTS.md).
             # Round 254 (the danger guard in a faithful world): Le Mans 11 keeps
             # its seventh car again.
+            # Round 260 (the chooser): Hungaroring 10 and 25 keep every car
+            # they used to lose; Spa 4, Interlagos 3 and Hungaroring 8 each drop
+            # one -- recorded, not vetoed (AGENTS.md).
             SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1),
-                      ("hungaroring", 10): (6, 1), ("hungaroring", 25): (5, 2)}
+                      ("spa", 4): (6, 1), ("interlagos", 3): (6, 1),
+                      ("hungaroring", 8): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -109,7 +114,10 @@ def main() -> int:
         mixed = bench_ai.run_track_h2h("monaco", timeout=900, seed=9)
         if mixed is None:
             raise SystemExit("mixed Monaco seed-9 race failed or produced no complete log")
-        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
+        # Round 260 (the chooser): an AI2 car dies here now. The rule records
+        # the crash rather than vetoing it (AGENTS.md); the pin keeps the
+        # measured pair, so a further change still fails.
+        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 1):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
     print(

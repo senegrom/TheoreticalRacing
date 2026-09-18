@@ -16,10 +16,11 @@ import bench_ai  # noqa: E402
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("zigzag", 1): [65, 65, 65, 66, 66, 67, 67],
+    # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+    ("zigzag", 1): [65, 65, 65, 66, 66, 66, 66],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    ("cog", 1): [46, 47, 47, 48, 48, 49, 50],
+    ("cog", 1): [46, 47, 47, 47, 47, 48, 49],
 }
 
 

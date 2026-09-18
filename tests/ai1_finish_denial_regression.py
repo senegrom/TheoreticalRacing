@@ -26,18 +26,23 @@ from forensics_common import normalized_lines, normalized_sha256, race_events  #
 TARGET = ("hairpin", 68)
 # Round 247 (the soft rollout at one level, not two): re-frozen from
 # measurement; still seven finishers and no crash, p8 home in 18 moves.
-RESCUED = (7, 0, [16, 16, 17, 18, 18, 19, 19])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 17), (6, 18), (8, 18), (1, 19), (5, 19)]
-RESCUED_MOVES = {1: 19, 2: 16, 3: 16, 4: 17, 5: 19, 6: 18, 7: 18, 8: 18}
+# Round 260 (the faithful joint world as a chooser): re-frozen from
+# measurement. The rescue holds -- p8 is home in 17 moves and no roster
+# crashes -- on a faster race: eighteen moves for the last car, not nineteen.
+RESCUED = (7, 0, [16, 16, 16, 17, 17, 17, 18])
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (7, 17), (1, 18)]
+RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 17, 8: 17}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
 # re-frozen from measurement, with the trajectory digest below unchanged in role.
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-RESCUED_DECISION = "104 p8 AI NONE v(6,1)→(6,1) (47,7)→(53,8) ok"
+# Round 260: the same turn and car, re-frozen from measurement.
+RESCUED_DECISION = "104 p8 AI SW v(7,0)→(6,1) (43,6)→(49,7) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-RESCUED_SHA256 = "3c29fd9971e159583bb167aafb07da283e7e4f1fd36b4c78a6b741d1c8fbf7bd"
+# Round 260: re-frozen from measurement (the chooser).
+RESCUED_SHA256 = "b734e690fe2cb88c3ee96775565257b52a55f0a1db09354cf1861bb29a5822c3"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

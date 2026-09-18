@@ -16,21 +16,21 @@ TARGET = ("spa", 83)
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 248 (the physical world model): re-frozen from measurement; p5 crashes
 # on its 31st move -- recorded, not vetoed.
-PROMOTED = (6, 1, [78, 79, 81, 82, 84, 84])
+# Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+PROMOTED = (6, 1, [78, 79, 80, 82, 82, 83])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
 PROMOTED_FINISHERS = [
     (6, 78),
     (7, 79),
-    (2, 81),
-    # Rounds 247 and 248: re-frozen from measurement.
-    (8, 82),
-    (3, 84),
-    (4, 84),
+    (8, 80),
+    (2, 82),
+    (3, 82),
+    (4, 83),
 ]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
-PROMOTED_ALL_MOVES = {1: 84, 2: 81, 3: 84, 4: 84, 5: 31, 6: 78, 7: 79, 8: 82}
+PROMOTED_ALL_MOVES = {1: 83, 2: 82, 3: 82, 4: 83, 5: 29, 6: 78, 7: 79, 8: 80}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-PROMOTED_SHA256 = "74bc8f5025fcca53a51d1e3c4eb5c8c7c37af5b29441b88ac6921b5a46e6721c"
+PROMOTED_SHA256 = "9599187fc03f380c08902c895ef9de7eaaf313da3235cd1515fb66f22b2920e5"
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
@@ -45,43 +45,44 @@ PROMOTED_DECISION = (
 # from measurement; Silverstone s78 gets its seventh finisher back.
 # Round 248 (the physical world model): Spa s27 loses a car; four cases
 # re-frozen from measurement.
+# Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 VETO_CASES = {
     ("spa", 27): (
-        (6, 1, [79, 80, 82, 82, 83, 84]),
-        "8a22f0ef0e538539fdfef322e85f51f4abdb4eeb0787dbb706b3cd9c164dcbf2",
+        (7, 0, [78, 79, 81, 81, 81, 83, 84]),
+        "d14c6a9c830daf73e0e936cbfdf8f79076e71907e1efbad4f98f958b0dd367df",
     ),
     ("spa", 57): (
-        (7, 0, [78, 80, 81, 83, 83, 84, 84]),
-        "106c07b695aed4fa44babdd9a3d9b1065538d7a2708149771fcb1748f85a8d88",
+        (6, 1, [78, 79, 81, 81, 82, 82]),
+        "49a5f9eabd989da4d004ce65e54ba6453f984ebfa475044f1be71312e1c86a8c",
     ),
     ("spa", 12): (
         # Round 254: re-frozen from measurement (the danger guard in a faithful world).
-        (7, 0, [78, 79, 81, 83, 84, 85, 86]),
-        "c2f947cfd1ce7c0d47c467217b029f88254746dfcd84de4ddf4de757076bd9da",
+        (7, 0, [78, 79, 81, 82, 83, 83, 84]),
+        "31d32c87cff605b84f06b78c648ec01cf0bf6993d27475399c54004571666d71",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 81, 82, 84, 84]),
-        "02a02c4a9e76366f1284e28218fce2f1c5118d35ddb553eb43af46f7c07b741c",
+        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
+        "7f163b460bf13a38b1738354d13099fbdf9675c80343081aacb6176e375efdae",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 83, 83, 84]),
-        "05cd3a0dbae19360e0f7daa7ba1edfa74cac292b6305fc2ffc02ef0221deb1af",
+        (7, 0, [78, 79, 80, 81, 81, 82, 83]),
+        "840fbec66afc6dab17679f8e29fe97da7f5591e09030710a4bb4cad3f4d69d34",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 81, 81, 82, 83, 84]),
-        "8ada5e4d0b77406e10ef7e9ba9a55de7908469ed24709623502bca61bc823bf6",
+        (7, 0, [78, 80, 80, 81, 82, 82, 83]),
+        "71341dd9a25ca3d83e34b8c26639e33624ad11660651a4bc78c4d6bcc7b0c511",
     ),
     ("coil", 5): (
-        (7, 0, [58, 59, 60, 60, 61, 61, 62]),
-        "9207750748733019482321e3c0bb415c5d83a67f38cbe78572544854838f05c2",
+        (7, 0, [58, 59, 59, 59, 60, 61, 61]),
+        "28fda6295a443572caeb7293036c65942502de0157d5f154162043b74657062a",
     ),
     ("coil", 22): (
-        (7, 0, [58, 59, 60, 61, 61, 62, 62]),
-        "30d2c987de19d18144d638e4d366df4cb7fffb22c55ba1015a4419dbf31796d8",
+        (7, 0, [58, 59, 59, 59, 59, 60, 60]),
+        "e7ea5ff98cb2b8f27e2bd71db61d6162b031d54af6e9caefbb9ad7751a2b0cae",
     ),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 83, 84, 84, 85]),
-        "c33bf789dad6d8234145ce016142d392581fe65fa88af21513f5e41c6e968346",
+        (7, 0, [81, 82, 83, 83, 84, 85, 85]),
+        "770202269dafb247af988559a03807fb2f9789f0d23088800d27d7a85cb6bd76",
     ),
 }
 

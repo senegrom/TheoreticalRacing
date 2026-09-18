@@ -16,26 +16,29 @@ EXPECTED = {
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     6: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    47: (7, 0, [58, 59, 60, 61, 61, 61, 62]),
-    49: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
+    # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+    47: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+    # Round 260: re-frozen from measurement; the seed-6 sum is unchanged at 417.
     (1, 58),
     (2, 59),
-    (4, 59),
+    (7, 59),
     (3, 60),
+    (4, 60),
     (5, 60),
-    (8, 60),
     (6, 61),
 ]
 EXPECTED_DECISION = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    6: "299 p3 {kind} NW v(1,-5)→(0,-6) (65,53)→(65,47) ok",
+    # Round 260: the same turn and car, re-frozen from measurement.
+    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (68,47)→(68,42) ok",
     47: "298 p2 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
-    49: "308 p4 {kind} W v(1,-6)→(0,-6) (65,48)→(65,42) ok",
+    49: "308 p4 {kind} SW v(0,-5)→(-1,-4) (68,42)→(67,38) ok",
 }
 
 
