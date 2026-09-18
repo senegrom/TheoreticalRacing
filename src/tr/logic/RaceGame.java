@@ -1372,6 +1372,18 @@ public final class RaceGame {
 		return crossesFinishUncached(x1, y1, x2, y2);
 	}
 
+	/** The line the reachability BFS runs to, and the direction that counts as
+	 *  forward across it, as {x1, y1, x2, y2, fwdX, fwdY}. The map is a BFS to
+	 *  this line, so its disk-cache identity must cover it: two games can share
+	 *  a boundary, a grid and a speed cap and still owe different maps. */
+	double[] crossingIdentity() {
+		final Line2D line = lapGates != null ? lapCrossGate : finishLine;
+		if (line == null)
+			return new double[6];
+		return new double[]{line.getX1(), line.getY1(), line.getX2(), line.getY2(),
+				lapGates != null ? lapFwdX : finishFwdX, lapGates != null ? lapFwdY : finishFwdY};
+	}
+
 	private boolean crossesFinishUncached(final double x1, final double y1, final double x2, final double y2) {
 		// Multi-lap: the real line is the short boundary-gap gate -- the raw
 		// endpoint segment can slice diagonally through the infield and

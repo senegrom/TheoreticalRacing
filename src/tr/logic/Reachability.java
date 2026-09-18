@@ -1417,6 +1417,16 @@ final class Reachability {
 				}
 				md.update((byte) ';');
 			}
+			// Round 260: the BFS runs TO the finish line (or the lap gate), so
+			// the line and its forward direction are part of the map's identity.
+			// Without them a hand-built game that shares a boundary -- a unit
+			// test's fixture, say -- writes its own map under the production
+			// key and silently changes every later race that loads it.
+			final java.nio.ByteBuffer crossing = java.nio.ByteBuffer
+					.allocate(6 * Double.BYTES).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+			for (final double d : game.crossingIdentity())
+				crossing.putDouble(d);
+			md.update(crossing.array());
 			final StringBuilder hex = new StringBuilder(64);
 			for (final byte b : md.digest())
 				hex.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
