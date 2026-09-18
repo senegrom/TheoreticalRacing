@@ -7,8 +7,8 @@
       "seed": 1,
       "laps": 1,
       "policy": "informed",
-      "sha256": "978446be4a76a37684b8363b57b9fb55a01da2e737613840119811bbe934d103",
-      "note": "Round 233 policy at 06280d78: refrozen from byte-identical desktop/browser logs (31 moves, A wins, no crashes). Native CI artifact 10163663595 and fresh local runs agree; no engine or placement change."
+      "sha256": "ec48301e75b0077e6d6a347be7ecffeab464304c9a651cee06c830d8848641dc",
+      "note": "Round 260 policy at baf3a80 (the faithful joint world chooses): re-frozen from measurement. Desktop and browser logs are byte-identical, as the parity test asserts before this digest; the same race on the bench box gives this digest with a warm and with an empty reach cache."
     }
   ]
 }
