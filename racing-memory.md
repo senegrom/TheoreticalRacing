@@ -1,5 +1,45 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 260 follow-up: a cache that could change a result
+
+Round 260's landing turned the browser jobs red, and the cause was not the
+chooser. The web port compiles the same engine sources, so its parity golden
+needed the same re-freeze as tests/golden_races.json -- but the digest CI
+measured (ec48301e) did not match the digest this machine measured (0d900c45)
+for what should be the same race. That gap is the finding.
+
+THE REACH CACHE WAS CHANGING THE RACE. Racing hairpin s1 with the warm local
+cache gave one race; with an empty cache, the same jar gave another -- and the
+empty-cache race was the one CI and the bench box produce, the box giving it
+both warm and cold. So the box's cache was clean and every measurement in
+rounds 247-260 stands, and this machine's cache held one bad map.
+
+The key did not cover the target. reachCachePath hashed the boundary points,
+the grid, the speed cap and the lap/point-to-point branch -- but the map is a
+BFS to the finish line, and the finish line was not in it.
+tests/tr/logic/SimulationFollowupTests builds a hairpin by hand, same
+boundary, its own finish line at (75,27)-(62,27); `sh run_tests.sh` leaves
+that suite's map under the production hairpin key, and every later race
+sharing the cache directory loads it. Bisected suite by suite against
+isolated cache directories: seven suites write nothing to that key, the
+followup suite writes the poison.
+
+Two earlier losses look different now. This campaign has twice blamed a
+demoted map on a small heap (a re-freeze of mine and a peer branch's whole
+screen). A small heap really does demote, but it was never the only way to
+get a wrong map out of a cache, and the key was the more dangerous one,
+because it survives the process that caused it and infects every race
+afterwards. Anything cached must be keyed by everything the cached value
+depends on; a cache that can change a result is not a cache.
+
+The fix folds the crossing line -- the lap gate on a multi-lap course -- and
+its forward direction into the key. All twelve goldens reproduce
+byte-for-byte, every Java suite passes, the followup suite's maps now land
+under their own keys, and existing cache files are orphaned and recomputed on
+demand (the box's 8.8 GB and this machine's can be deleted). The browser
+golden is re-frozen to the true digest, which the box reproduces with a warm
+cache and with an empty one.
+
 ## Round 260: the chooser promoted
 
 The faithful joint world now chooses for every car. Among the legal landings
