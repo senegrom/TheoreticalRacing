@@ -1,5 +1,67 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 261: does the chooser owe the exact-potential line when the opposition is far?
+
+Round 260's promotion raised a fair question: alone or with the field far
+away, does the car still drive the theoretical optimum? Alone it does, bit
+for bit -- the chooser is gated on live rivals remaining, so a solo car never
+reaches it, and one-car races on ten courses are byte-identical to the
+pre-chooser champion (E:/tmp-claude/solo_check.py). With a rival anywhere on
+track it still runs, and an audit that logs every call with the Chebyshev
+distance to the nearest live rival and the exact remaining turns of both
+landings (E:/tmp-claude/audit_chooser2.py -- the array is passed in, because
+reading it through candidateWorkspace() calls reset() and CHANGES the race)
+says what it gives up: over 10,838 calls in six 8-car packs it moves off the
+score's pick 4.3% of the time, falling with distance (5.1% inside 5 cells,
+2.5% at 5-10, 2.0% at 10-15, 1.5% at 15-20); of those 461 moves, 293 cost
+nothing in exact potential, 36 IMPROVE it by a turn or two (the score's own
+penalty terms had pushed it off the potential's best), and 132 cost one
+turn -- 124 of them inside 10 cells, one beyond 15. On scattered starts,
+where the far regime is common, 33 moves in 2,377 calls: 15 free, 8
+improvements, 10 costing a turn. So the strict line is conceded in roughly
+one far-range decision in 240, because the rollout judges by what the policy
+achieves in twelve rounds rather than by the free-track lower bound.
+
+Four arms restore the strict line whenever the nearest live rival is beyond
+8, 12, 16 or 20 cells -- the candidate keeps the score's landing and never
+rolls (E:/tmp-claude/arm261_distgate.py; with no candidateSlots every arm
+reproduces the round-260 champion on four races, and each changes races with
+every slot a candidate: 7, 5, 2 and 2 of 8 probe races). Both start modes,
+because they sample opposite regimes: a legacy pack keeps a rival within 10
+cells for 92% of chooser calls, scattered starts put most calls beyond that.
+Against the round-260 champion, mirrored, seeds 1-20:
+
+    arm      8-car random starts            8-car scattered starts
+             place C-H        C/H/tied  crashes    place C-H        C/H/tied  crashes
+    gate8    +0.025 +- 0.005  15/35/34  190:174    +0.019 +- 0.003   6/45/33   12:7
+    gate12   +0.002 +- 0.001   5/13/66  171:173    +0.009 +- 0.002   8/32/44    9:8
+    gate16   +0.000 +- 0.001   5/ 3/76  171:172    +0.006 +- 0.002   5/21/58    7:8
+    gate20   +0.001 +- 0.001   1/ 2/81  171:171    +0.004 +- 0.001   5/15/64    7:9
+
+EVERY CELL OF GATE THAT CHANGES A DECISION COSTS PLACES, AND NONE GAINS.
+At 8 cells the strict line loses 0.025 places in packs (five standard
+errors, 35 boards to 15) and 0.019 on scattered starts (six, 45 boards to 6)
+-- and the gated cars crash MORE (190 against 174, 12 against 7). At 12 cells
+it loses 0.002 in packs, two standard errors, with 66 boards tied; at 16 and
+20 it is inert there (76 and 81 tied) because a pack never leaves a rival
+that far away. On scattered starts, where
+every gate fires often, the cost is monotone in the distance and never
+reaches zero: 0.009 at 12 cells (four standard errors, 32 boards to 8),
+0.006 at 16 (three, 21 to 5), 0.004 at 20 (four, 15 to 5). The crash
+counts are a handful either way. Eight slices, four gates, two regimes,
+and not one arm, distance or start mode where holding the free-track line
+beat asking the faithful world.
+
+WHAT THIS SETTLES. The exact potential is a free-track lower bound; the
+faithful world's twelve rounds are what the policy actually achieves with
+the field present, and that judgement is worth more than the bound even when
+the nearest rival is eight cells off -- which is why the occasional conceded
+turn comes back as places rather than costing them. The answer to the
+sanity check is therefore a measured one: alone, the car drives the
+theoretical line exactly; with a rival anywhere on track, letting it look
+ahead beats holding that line at every distance where the difference can be
+measured. No gate is promoted; the chooser stays as round 260 shipped it.
+
 ## Round 260 follow-up: a cache that could change a result
 
 Round 260's landing turned the browser jobs red, and the cause was not the
