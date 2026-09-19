@@ -1,0 +1,198 @@
+name: Validate chooser policy research
+on:
+  push:
+    branches: [work/chooser-policy-validation-20260919]
+permissions:
+  contents: read
+concurrency:
+  group: chooser-policy-validation-20260919
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  contracts:
+    name: Chooser research JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 720f421fc5c93795f9f0d4f14249b0c6898af7b8
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Build pristine reference on identical runtime
+        run: |
+          mkdir -p evidence "$RUNNER_TEMP/pristine"
+          sh build_main.sh > evidence/pristine-build.log 2>&1
+          cp theoreticRacing.jar "$RUNNER_TEMP/pristine/"
+          ln -s "$GITHUB_WORKSPACE/tracks" "$RUNNER_TEMP/pristine/tracks"
+          java -version > evidence/java-version.log 2>&1
+      - name: Apply checksum-bound source
+        run: |
+          git show "$GITHUB_SHA":.github/chooser-policy/apply.py > "$RUNNER_TEMP/apply-chooser.py"
+          python "$RUNNER_TEMP/apply-chooser.py" | tee evidence/source.log
+      - name: Strict Java and Python contracts
+        env:
+          RACING_REACH_CACHE: ${{ runner.temp }}/contracts-cache
+        run: |
+          sh run_tests.sh > evidence/java-tests.log 2>&1
+          sh build_main.sh > evidence/build.log 2>&1
+          python -m unittest discover -s tests -p 'test_*.py' > evidence/python-tests.log 2>&1
+          python tests/cross_era_referee_regression.py > evidence/referee.log 2>&1
+          python tests/promotion_pair_regression.py > evidence/cohorts.log 2>&1
+      - name: Teacher student setup and focal league pipeline
+        run: |
+          python tests/chooser_lab_regression.py --heap=-Xmx8g --reference-jar "$RUNNER_TEMP/pristine/theoreticRacing.jar" --out evidence/lab > evidence/lab.log 2>&1
+      - name: Cold warm and post-suite cache identity
+        run: |
+          python tests/chooser_cache_regression.py --heap=-Xmx8g --out evidence/cache-identity > evidence/cache-identity.log 2>&1
+      - name: Retain tested source identity
+        run: |
+          git diff --exit-code
+          test "$(git write-tree)" = 1c37022fb3615e8c7c72f23bd96c91881b3cd57d
+          git diff --cached --stat > evidence/changes.log
+          git write-tree > evidence/tree.txt
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: chooser-contracts-jdk${{ matrix.java }}
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/cache-identity/after-tests/**
+            !evidence/cache-identity/*-isolated/**
+          if-no-files-found: error
+          retention-days: 30
+  corpus:
+    name: Unchanged twelve goldens and all champion pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 720f421fc5c93795f9f0d4f14249b0c6898af7b8
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply same exact source
+        run: |
+          mkdir evidence
+          git show "$GITHUB_SHA":.github/chooser-policy/apply.py > "$RUNNER_TEMP/apply-chooser.py"
+          python "$RUNNER_TEMP/apply-chooser.py" | tee evidence/source.log
+          sh build_main.sh > evidence/build.log 2>&1
+      - name: Run every comparison and preserve every failure
+        shell: bash
+        env:
+          RACING_REACH_CACHE: ${{ runner.temp }}/corpus-cache
+        run: |
+          failed=0
+          for script in tests/headless_smoke.py tests/query_replay_regression.py tests/lap_progress_regression.py tests/selfplay_profile_regression.py tests/golden_races.py tests/ai1_*_regression.py; do
+            name=$(basename "$script" .py)
+            if python "$script" > "evidence/$name.log" 2>&1; then
+              printf '%s\tPASS\n' "$script" | tee -a evidence/status.tsv
+            else
+              printf '%s\tFAIL\n' "$script" | tee -a evidence/status.tsv
+              failed=1
+            fi
+          done
+          git diff --exit-code || failed=1
+          test "$(git write-tree)" = 1c37022fb3615e8c7c72f23bd96c91881b3cd57d || failed=1
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: chooser-champion-corpus
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  browser:
+    name: Native browser adapter parity and contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 720f421fc5c93795f9f0d4f14249b0c6898af7b8
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply same exact source
+        run: |
+          mkdir evidence
+          git show "$GITHUB_SHA":.github/chooser-policy/apply.py > "$RUNNER_TEMP/apply-chooser.py"
+          python "$RUNNER_TEMP/apply-chooser.py" | tee evidence/source.log
+      - name: Build adapter and verify full parity
+        env:
+          RACING_REACH_CACHE: ${{ runner.temp }}/browser-cache
+        run: |
+          python -m pip install -r web/requirements-icons.txt > evidence/dependencies.log 2>&1
+          sh web/build.sh > evidence/build.log 2>&1
+          python web/tests/parity.py > evidence/parity.log 2>&1
+          python web/tests/server_test.py > evidence/ranges.log 2>&1
+          python -m unittest discover -s web/tests -p 'test_*.py' > evidence/web-tests.log 2>&1
+          node --test web/tests/engine.test.mjs > evidence/worker-tests.log 2>&1
+          for f in web/*.js; do node --check "$f"; done
+          git diff --exit-code
+          test "$(git write-tree)" = 1c37022fb3615e8c7c72f23bd96c91881b3cd57d
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: chooser-browser-parity
+          path: |
+            evidence/
+            web/build/parity/*.log
+            web/build/parity/*.json
+          if-no-files-found: error
+          retention-days: 30
+  publish:
+    name: Publish clean validated research branch only
+    needs: [contracts, corpus, browser]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 720f421fc5c93795f9f0d4f14249b0c6898af7b8
+          fetch-depth: 0
+      - name: Publish source with original master as parent
+        shell: bash
+        run: |
+          git show "$GITHUB_SHA":.github/chooser-policy/apply.py > "$RUNNER_TEMP/apply-chooser.py"
+          python "$RUNNER_TEMP/apply-chooser.py"
+          branch=work/chooser-policy-lab-20260919
+          if test -n "$(git ls-remote --heads origin refs/heads/$branch)"; then
+            echo 'Refusing to overwrite an existing research branch' >&2
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Add bounded chooser-aware forecasts, setup search and teacher laboratory' -m 'Opt-in research on the round-260 champion with terminal classification ranking, guarded student and legacy insertion controls, forecast/execution audit, full two-action counterfactuals, focal policy league and cache-history invariance. Preserve all default policy constants, tracks and frozen expectations. Supported-JDK contracts, full champion corpus and native browser parity validated. No full fleet or performance gain claimed.'
+          test "$(git rev-parse HEAD^{tree})" = 1c37022fb3615e8c7c72f23bd96c91881b3cd57d
+          git push origin "HEAD:refs/heads/$branch"
+          echo "Published $branch at $(git rev-parse HEAD), tree $(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
