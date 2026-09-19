@@ -1,5 +1,34 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Research branch 2026-09-19: chooser-aware forecasts and setup laboratory
+
+Base 720f421 (round 260 plus the corrected finish-target cache identity).
+No promotion or master change. The default chooser remains literal; experiments
+require explicit chooser.experiments AND candidateSlots at a real focal decision.
+
+Added bounded one-level chooser-aware continuations, deliberate second-own-action
+plans, exact simulated terminal place/time comparisons, teacher-policy distillation
+as a continuation or extra-candidate assistant, isolated guarded/unchecked controls
+for an explicit original-format ranker, and forecast/committed-decision auditing.
+The source/teacher collector, complete one/two-action counterfactuals and fixed-
+opponent focal league use full-ledger V3 queries and the existing referee. Selected
+archived feature/graph/tooling ideas are adapted, not the old round-254 runtime.
+The ordinary downstream guard stack evaluates every real proposal except the
+explicit, isolated legacy-unchecked diagnostic control. Nothing invents a model.
+
+Local supplementary OpenJDK 21: existing Java suites and new chooser contracts
+pass; all 12 default goldens pass unchanged; 18 new Python tooling tests pass.
+The complete lab contract ran 14 native races, three teacher datasets, a small
+trained student, complete one/two-action deviations and eight focal replacement
+races. Disabled flags, absent slots, zero budgets and audit-only controls preserve
+the default trace. These are functional samples, not a fleet or a gain claim.
+The new cache regression compares isolated cold/warm/post-suite races; exact-source
+supported-JDK validation records its own outcomes separately. Every existing
+champion pin and golden expectation is left intact. See docs/chooser-policy-lab.md
+for flags, bounds, provenance, limitations and reproducible commands. All arms
+still need full places-first fleet and runtime-tail evaluation before promotion.
+
+
 ## Round 260 follow-up: a cache that could change a result
 
 Round 260's landing turned the browser jobs red, and the cause was not the

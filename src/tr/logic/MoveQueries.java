@@ -26,8 +26,9 @@ final class MoveQueries {
 			throw new IllegalArgumentException("Query must contain exactly " + game.players.length + " player groups");
 		final String[] h = parts[0].split(",", -1);
 		final boolean simulation = h[0].equals("sim") || h[0].equals("sim2");
-		final boolean complete = h[0].equals("v2") || h[0].equals("sim2");
-		final int count = simulation ? (complete ? 7 : 5) : complete ? 4 : 1;
+		final boolean classified = h[0].equals("v3");
+        final boolean complete = h[0].equals("v2") || h[0].equals("sim2") || classified;
+		final int count = simulation ? (complete ? 7 : 5) : classified ? 6 : complete ? 4 : 1;
 		if (h.length != count)
 			throw new IllegalArgumentException("Malformed query header");
 		final int mover = integer(h[simulation || complete ? 1 : 0]);
@@ -66,6 +67,23 @@ final class MoveQueries {
 			}
 			cars[i] = new Car(x, y, vx, vy, finished, lap, gate);
 		}
+		int first = 0, last = 0;
+        if (classified) {
+            first = integer(h[4]); last = integer(h[5]);
+            if (first < 0 || last < 0 || (long) first + last >= cars.length)
+                throw new IllegalArgumentException("Invalid classification counters");
+            final boolean[] seen = new boolean[cars.length + 1];
+            int retired = 0;
+            for (final Car c : cars) if (c.finished() != 0) {
+                final int place = c.finished();
+                if (place < 1 || place > cars.length || seen[place]
+                        || !(place <= first || place > cars.length - last))
+                    throw new IllegalArgumentException("Classification ledger has gaps/duplicates");
+                seen[place] = true; retired++;
+            }
+            if (retired != first + last)
+                throw new IllegalArgumentException("Classification ledger count differs");
+        }
 		if (cars[mover].finished() != 0)
 			throw new IllegalArgumentException("Mover is already finished");
 		// Validate the WHOLE request before mutating any player. Missing legacy
@@ -81,6 +99,7 @@ final class MoveQueries {
 		}
 		game.subgamestate = mover;
 		game.setQueryTurnCounter(turns);
+        game.chooserQueryClassification(first, last);
 		return new Header(mover, complete, turns, simulation, rounds, world, cap);
 	}
 
@@ -126,7 +145,9 @@ final class MoveQueries {
 	}
 
 	static String answer(final RaceGame game, final String line) {
-		final Header header = restoreBoard(game, line);
+        final boolean probe = line.startsWith("chooser3,");
+        final Header header = restoreBoard(game, probe ? "v3," + line.substring("chooser3,".length()) : line);
+        if (probe) return "chooser3;" + game.ai.queryChooserAudit();
 		if (header.simulation()) {
 			final int[] audit = new int[3];
 			final int verdict;

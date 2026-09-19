@@ -268,7 +268,56 @@ final class RaceAi {
 
 	/** The move for the player to move. Every AI kind runs the one promoted
 	 * body; an experiment must add an explicit kind gate to keep a control. */
+    private ChooserResearch.Context chooserContext;
+    private ChooserResearch.Run chooserRun;
+    private ChooserResearch.Budget chooserBudget;
+    private int chooserPolicyDepth;
+    private boolean chooserStudentMode, forceChooserAudit;
+    private String lastChooserAudit = "{}";
+
+    private ChooserResearch.Context chooserContext() {
+        return simDepth == 0 && trueConfirmDepth == 0 && !inScorerSim && chooserPolicyDepth == 0
+                ? chooserContext : null;
+    }
+    private void chooserStage(final String stage, final Direction move) {
+        final ChooserResearch.Context context = chooserContext();
+        if (context != null) context.stage(stage, move);
+    }
+    String queryChooserAudit() {
+        final boolean saved = forceChooserAudit;
+        try { forceChooserAudit = true; computeAiMove(); return lastChooserAudit; }
+        finally { forceChooserAudit = saved; }
+    }
+
 	Direction computeAiMove() {
+        final ChooserResearch.Context previous = chooserContext;
+        final boolean root = simDepth == 0 && trueConfirmDepth == 0 && !inScorerSim && chooserPolicyDepth == 0;
+        final ChooserConfig config = game.chooserConfig;
+        final boolean audit = root && (forceChooserAudit || config.audit && game.turnCount() % config.auditEvery == 0);
+        final boolean active = root && config.enabled() && game.candidatePolicy(game.players[game.subgamestate].getNumber());
+        final ChooserResearch.Context current = root && (audit || active)
+                ? new ChooserResearch.Context(game, active, audit) : null;
+        if (root) chooserContext = current;
+        Direction chosen = null;
+        try {
+            chosen = computeAiMoveBody();
+            if (current != null) {
+                current.stage("guarded-final", chosen);
+                // Diagnostic-only control: never enabled by default, never paired
+                // with another arm, and never allowed to alter a precedence return.
+                if (current.unchecked != null) chosen = current.unchecked;
+                current.finalChoice = chosen;
+                current.stage("committed-choice", chosen);
+                if (audit) {
+                    lastChooserAudit = current.json();
+                    if (!forceChooserAudit) System.err.println("CHOOSER_AUDIT " + lastChooserAudit);
+                }
+            }
+            return chosen;
+        } finally { if (root) chooserContext = previous; }
+    }
+
+    private Direction computeAiMoveBody() {
 		reach.ensureReachabilityReady();
 		// Round 175: retire per-compute memo entries (the hold-overspeed
 		// verdict depends on the board, which is fixed only within one
@@ -593,8 +642,10 @@ final class RaceAi {
 		prepareDecisionFrame(pos, vel, playerNum);
 		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum,
 				!inScorerSim && trueConfirmDepth == 0 && simDepth == 0);
-		if (tacticalWin != null)
+		if (tacticalWin != null) {
+            chooserStage("tactical-proof", tacticalWin);
 			return tacticalWin;
+        }
 		// Round 214: with nobody near, the race is a shortest-path problem and
 		// the exact potential solves it. Every caution term below is priced
 		// against a rival that is not there, and the measured cost of that was
@@ -602,8 +653,10 @@ final class RaceAi {
 		// with a finite value always has a successor one move closer.
 		if (game.lapGates != null && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
 			final Direction alone = optimalAloneMove(pos, vel, playerNum);
-			if (alone != null)
+			if (alone != null) {
+                chooserStage("solo-precedence", alone);
 				return alone;
+            }
 		}
 		final int sealRivals = liveRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
@@ -942,6 +995,7 @@ final class RaceAi {
 		if (best != null && !inScorerSim && sealRivals >= 1) {
 			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
 			poScorerT = poTByDir[best.ordinal()];
+            chooserStage("chooser", best);
 		}
 		// Round 49 arm C (AI1): certified pace tie-break. The lateral-spacing
 		// term `spread` outranks raw pace -- in every decision it flips, the
@@ -980,6 +1034,7 @@ final class RaceAi {
 				best = fast;
 		}
 		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
+        chooserStage("pace-tie", chosen);
 		// Round 75-77 (AI1): recover a strictly-faster line only when a
 		// conservative rival-occupancy proof leaves an empty-track-optimal escape
 		// private, then require the independent real-scorer rollout to agree. The
@@ -991,6 +1046,7 @@ final class RaceAi {
 					trapByDir, uncByDir, poTByDir);
 			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,
 					trapByDir, uncByDir, poTByDir);
+            chooserStage("pace-overrides", chosen);
 		}
 		// Round 232: the last-resort kinematic confirm. Every guard leg above
 		// certifies the chosen move with a world that ends BEFORE the car could
@@ -3395,6 +3451,10 @@ final class RaceAi {
 	private boolean scorerMoveOverState(final int i, final int[] px, final int[] py,
 			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
 			final RolloutWorkspace rollout, final boolean suppress) {
+        if (chooserBudget != null) chooserBudget.policy();
+        final int savedChooserDepth = chooserPolicyDepth;
+        final boolean effectiveSuppress = chooserBudget != null && chooserPolicyDepth > 0 || suppress;
+        if (chooserBudget != null && !effectiveSuppress) chooserPolicyDepth++;
 		final ScorerWorkspace workspace = rollout.scorer;
 		final int n = game.players.length;
 		final int ss = game.subgamestate;
@@ -3436,10 +3496,11 @@ final class RaceAi {
 				player.restoreLapState(new int[]{rollout.laps[j], rollout.gates[j], 0, 0, 0, 0});
 			}
 			game.subgamestate = i;
-			inScorerSim = suppress;
+			inScorerSim = effectiveSuppress;
 			direction = computeAiMove();
 		} finally {
 			inScorerSim = previousScorerSim;
+            chooserPolicyDepth = savedChooserDepth;
 			lapGate = outerLapGate;
 			lapAware = outerLapAware;
 			robustMode = outerRobustMode;
@@ -3680,6 +3741,7 @@ final class RaceAi {
 			final boolean trueRivals, final int scorerCap, final int[] outFinalTier,
 			final long[] outFieldCost, final int[] outThreadRounds,
 			final boolean allScorerRivals, final long[] outRivalCost, final boolean candidatePending) {
+        final ChooserResearch.Run research = chooserRun != null && simDepth == chooserRun.depth ? chooserRun : null;
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -3805,6 +3867,7 @@ final class RaceAi {
 			for (int i = from; i < game.players.length; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
+				if (chooserBudget != null) chooserBudget.move();
 				usePlayerFrame(i);
 				if (outRivalCost != null && i != myIdx)
 					projectedMoves[i]++;
@@ -3835,8 +3898,20 @@ final class RaceAi {
 				// Round 51: my car follows the trap-aware policy. Round 57:
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
-				boolean moved;
-				if (i == myIdx)
+                boolean moved;
+                String researchModel = "proxy";
+                if (research != null && research.second(i) && research.forcedSecond != null) {
+                    final Direction d = research.forcedSecond;
+                    moved = writeMove(move, px[i] + vx[i] + d.dx, py[i] + vy[i] + d.dy, vx[i] + d.dx, vy[i] + d.dy);
+                    researchModel = "forced-second";
+                } else if (research != null && research.higher(i)) {
+                    final boolean savedStudent = chooserStudentMode;
+                    try {
+                        chooserStudentMode = research.student;
+                        moved = scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace, false);
+                    } finally { chooserStudentMode = savedStudent; }
+                    researchModel = research.student ? "student-chooser" : "level1-chooser";
+                } else if (i == myIdx)
 					moved = scorerSelf
 							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace)
 							: exactSelf
@@ -3851,6 +3926,19 @@ final class RaceAi {
 					moved = greedyMoveOverState(px[i], py[i], vx[i], vy[i], i, px, py, alive, move);
 				if (!moved)
 					moved = physicalMoveOverState(i, px, py, vx, vy, alive, move, workspace);
+                if (research != null) {
+                    Direction action = Direction.NONE;
+                    if (moved) {
+                        boolean found = false;
+                        for (final Direction d : DIRECTIONS) if (move[2] - vx[i] == d.dx && move[3] - vy[i] == d.dy) {
+                            action = d; found = true; break;
+                        }
+                        if (!found) throw new IllegalStateException("Forecast selected non-physical acceleration");
+                    }
+                    if (researchModel.equals("proxy") && (i == myIdx && scorerSelf || scorerSet[i])) researchModel = "scorer";
+                    if (research.second(i)) research.secondOptions(game, action, game.chooserConfig.setupWidth);
+                    research.record(game, i, action, researchModel);
+                }
 				final RaceGame.MoveResult transition = moved
 						? game.evaluateMove(workspace.laps[i], workspace.gates[i], px[i], py[i], move[0], move[1],
 								occupiedByOther(move[0], move[1], i, px, py, alive)) : null;
@@ -4769,7 +4857,55 @@ final class RaceAi {
 	 *  measured the horizon (3 rounds -0.501, 6 -0.952, 9 -1.129, 12 -1.194
 	 *  places, saturating); round 259 found ranking by projected place and a
 	 *  wider vote both within noise of this. */
-	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
+    private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
+            final Direction best, final double[] scoreByDir, final double bestScore) {
+        if (chooserContext() == null && !(chooserPolicyDepth > 0 && chooserStudentMode))
+            return championJointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
+        final Direction[] order = new Direction[DIRECTIONS.length];
+        int n = 0;
+        for (final Direction d : DIRECTIONS) {
+            final double score = scoreByDir[d.ordinal()];
+            if (score == Double.MAX_VALUE || score > bestScore + AI1_CHOOSER_WINDOW) continue;
+            int i = n++;
+            while (i > 0 && scoreByDir[order[i - 1].ordinal()] > score) { order[i] = order[i - 1]; i--; }
+            order[i] = d;
+        }
+        final ChooserResearch.Context context = chooserContext();
+        if (context != null) {
+            context.chooserReached = true; context.scoreChoice = best; context.scores = scoreByDir.clone();
+            context.path = n < 2 ? "singleton" : "chooser";
+        }
+        if (n < 2) return best;
+        final java.util.List<Direction> shortlist = java.util.Arrays.asList(java.util.Arrays.copyOf(order, Math.min(n, AI1_CHOOSER_WIDTH)));
+        for (final Direction d : shortlist) if (game.crossesFinishLegally(pos[0], pos[1],
+                pos[0] + vel[0] + d.dx, pos[1] + vel[1] + d.dy)) {
+            if (context != null) context.path = "crossing-precedence";
+            return best;
+        }
+        if (chooserPolicyDepth > 0 && chooserStudentMode) {
+            return ChooserResearch.modelPick(game, new ChooserResearch.Board(game), game.subgamestate,
+                    shortlist, best, game.chooserConfig.model, true);
+        }
+        Direction pick = null; int pickVerdict = -1;
+        for (final Direction d : shortlist) {
+            final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+            final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+            final int verdict;
+            if (context != null) {
+                final ChooserResearch.Run run = chooserForecast(d, AI1_CHOOSER_ROUNDS, false, false, null, context.trace, null);
+                context.teacher.add(run); verdict = run.outcome.verdict();
+                if (context.trace) context.features.put(d.name(), ChooserFeatures.relative(game, context.root, context.focal, d));
+            } else verdict = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+                    true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+            if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) { pick = d; pickVerdict = verdict; }
+        }
+        if (context == null) return pick == null ? best : pick;
+        context.baseline = pick == null ? best : pick;
+        context.proposal = ChooserResearch.choose(game, this, context, shortlist);
+        return context.proposal;
+    }
+
+	private Direction championJointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore) {
 		final Direction[] order = new Direction[DIRECTIONS.length];
 		int n = 0;
@@ -4804,6 +4940,26 @@ final class RaceAi {
 		}
 		return pick == null ? best : pick;
 	}
+
+
+    /** Same simulator/clock, with parallel classification and bounded policy upgrades.
+     * Per-call state and per-depth arrays are restored even on budget exhaustion. */
+    ChooserResearch.Run chooserForecast(final Direction action, final int rounds,
+            final boolean aware, final boolean student, final Direction second, final boolean trace,
+            final ChooserResearch.Budget budget) {
+        final ChooserResearch.Run savedRun = chooserRun;
+        final ChooserResearch.Budget savedBudget = chooserBudget;
+        final int focal = game.subgamestate;
+        final ChooserResearch.Run run = new ChooserResearch.Run(game, focal, action, simDepth + 1, aware, student, second, trace);
+        try {
+            chooserRun = run; chooserBudget = budget;
+            final Player p = game.players[focal]; final int[] x = p.getPosition(), v = p.getVelocity();
+            final int vx = v[0] + action.dx, vy = v[1] + action.dy;
+            run.finish(simOutcome(x[0] + vx, x[1] + vy, vx, vy, p.getNumber(), rounds,
+                    true, true, true, true, true, AI1_SCORER_MAXRIVALS, null));
+            return run;
+        } finally { chooserRun = savedRun; chooserBudget = savedBudget; }
+    }
 
 	/** Round 226: does this car run the candidate branch of a mixed field? False
 	 *  for every car unless the game's candidateSlots property names its slot. */
