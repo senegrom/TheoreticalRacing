@@ -52,6 +52,30 @@ counts are a handful either way. Eight slices, four gates, two regimes,
 and not one arm, distance or start mode where holding the free-track line
 beat asking the faithful world.
 
+HOW CAN TWENTY CELLS COST A PLACE? The owner's objection, and a fair one:
+two cars twenty cells apart, both on the same policy, should have nothing to
+settle. Three checks answer it. First, the per-track boards: for gate20 on
+scattered starts, 64 of 84 tracks are tied and almost every other is a
+single place swap either way -- but rand14 alone is +0.200, eleven of its
+twenty seeds non-zero and every one of them positive, and it carries more
+than half of the arm's whole result (gate16: +0.225, gate12: +0.238, gate8:
++0.475, the same track every time). The aggregate is real, but it is one
+track's mechanism, not a fleet-wide one. Second, twenty Chebyshev cells is
+not far for a twelve-round rollout: the cars average 5.8 cells a move (cap
+12), so the rollout looks about seventy cells ahead and a rival at twenty is
+three or four moves away. Aligning every far-range deviation the champion
+took (nearest rival 20 cells or more at the decision) with the race that
+followed: on the eight standard courses 9 of 11 came within ten cells of a
+rival inside the horizon (Monza turn 6: nearest 37 at the decision, one cell
+within twelve rounds), and on rand14 4 of 6 came within five. The chooser
+was reading an encounter about to happen, not a car that was far away.
+Third, and decisively, pace is ruled out: a scratch jar with the chooser
+forced ON for a lone car finishes every one of eighteen courses -- rand14
+included -- in exactly the champion's move count. Alone, the rollout never
+beats the exact potential, so whatever the far-range picks buy, they buy in
+traffic. Nothing in the instrument smelled wrong; the intuition that twenty
+tiles is "far" was the mismatch.
+
 WHAT THIS SETTLES. The exact potential is a free-track lower bound; the
 faithful world's twelve rounds are what the policy actually achieves with
 the field present, and that judgement is worth more than the bound even when
