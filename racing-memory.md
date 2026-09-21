@@ -1,5 +1,37 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 262: the owner's single-player rule -- no car within 20 cells, race the optimum
+
+The owner decided it after round 261: with no live rival within 20 Chebyshev
+cells a car races the single-player optimum -- the score's landing, the exact
+remaining-distance potential, exactly as it drives alone -- and the faithful
+joint world is consulted only when a rival is within that distance
+(AI1_CHOOSER_MAXDIST = 20; E:/tmp-claude/promote_gate20.py; the rule is in
+CLAUDE.md and AGENTS.md beside the racecraft rule). Round 261 priced the gate
+against the chooser: +0.001 places in 8-car packs with 81 of 84 boards tied,
++0.004 on scattered starts with 64 tied and rand14 carrying the rest, and
+skipping 0.3% of the chooser's rollouts in packs, 19% on scattered starts.
+That is the cost of the guarantee, and the owner takes it: a car with the
+road to itself is provably on the exact line, and what the chooser does is
+confined to traffic it can see.
+
+The promoted jar with no candidateSlots races byte-identically to the
+round-261 gate20 arm with every slot a candidate on three legacy races
+(promo_identity.py), and on the scattered races where the gate fires
+it equals the gate20 arm on Monaco s9, Hungaroring s13 and Interlagos s10, and
+differs from the round-260 champion on the latter two, where the gate fires. Computed starts run for the record once the box is free of the laboratory
+screens (a262_informed.sh); the result is appended below when it lands.
+
+THE CORPUS DOES NOT MOVE. One probe pass over all 24 pins against the
+promoted jar: zero changed assertions on every pin; the loop passes all 24
+after 0 rewrites and the 12 goldens are byte-identical. In an 8-car pack a
+rival is nearly always within 20 cells, and the pinned corpus is packs, so
+the rule leaves it untouched -- the change is confined, by construction, to
+cars with the road to themselves.
+
+Self-play counters are deferred to the same slot as the computed starts; on
+this corpus evidence they will not move.
+
 ## Round 261: does the chooser owe the exact-potential line when the opposition is far?
 
 Round 260's promotion raised a fair question: alone or with the field far

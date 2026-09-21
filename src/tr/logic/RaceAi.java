@@ -445,6 +445,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
+	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// round 262, the owner's rule: no live rival within this many cells -> single-player optimum, no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
@@ -939,7 +940,13 @@ final class RaceAi {
 		// at -1.194 places over the round-254 champion at twelve rounds (83
 		// boards of 84, crashes 123 against 189); three rounds bought -0.501,
 		// six -0.952, nine -1.129, and the increments halve (round 257).
-		if (best != null && !inScorerSim && sealRivals >= 1) {
+		// Round 262, the owner's rule: with no car within AI1_CHOOSER_MAXDIST cells
+		// the car races the single-player optimum -- the score's landing, the
+		// exact remaining distance -- exactly as it drives alone. Round 261
+		// priced the gate at 20 cells: +0.001 places in packs (81 boards tied),
+		// +0.004 scattered, one synthetic course; the guarantee is worth that.
+		if (best != null && !inScorerSim && sealRivals >= 1
+			&& nearestLiveRival(pos, playerNum) <= AI1_CHOOSER_MAXDIST) {
 			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
 			poScorerT = poTByDir[best.ordinal()];
 		}
@@ -4803,6 +4810,18 @@ final class RaceAi {
 			}
 		}
 		return pick == null ? best : pick;
+	}
+
+	/** Round 262: Chebyshev distance to the nearest live rival, or Integer.MAX_VALUE
+	 *  when every rival has finished. */
+	private int nearestLiveRival(final int[] pos, final int playerNum) {
+		int near = Integer.MAX_VALUE;
+		for (final Player rival : game.players)
+			if (rival.getNumber() != playerNum && !rival.isFinished()) {
+				final int[] q = rival.getPosition();
+				near = Math.min(near, Math.max(Math.abs(q[0] - pos[0]), Math.abs(q[1] - pos[1])));
+			}
+		return near;
 	}
 
 	/** Round 226: does this car run the candidate branch of a mixed field? False
