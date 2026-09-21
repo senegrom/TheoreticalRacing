@@ -21,7 +21,7 @@ jobs:
       matrix:
         java: ['25', '26']
     env:
-      RACING_REACH_CACHE: ${{ runner.temp }}/contracts-cache
+      RACING_REACH_CACHE: /tmp/contracts-cache
     steps:
       - uses: actions/checkout@v7
         with:
@@ -38,10 +38,8 @@ jobs:
       - name: Apply exact source
         run: |
           mkdir evidence
-          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
-          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
-          git apply --index "$RUNNER_TEMP/source.patch"
-          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git show "$GITHUB_SHA":.github/contingent-payload/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
           git write-tree > evidence/tested-tree.txt
       - name: Strict Java and Python correctness
         run: |
@@ -58,7 +56,7 @@ jobs:
       - name: Retain exact inputs
         run: |
           git diff --exit-code
-          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -78,7 +76,7 @@ jobs:
       matrix:
         group: [0, 1, 2, 3, 4]
     env:
-      RACING_REACH_CACHE: ${{ runner.temp }}/corpus-cache
+      RACING_REACH_CACHE: /tmp/corpus-cache
       GROUP: ${{ matrix.group }}
     steps:
       - uses: actions/checkout@v7
@@ -96,10 +94,8 @@ jobs:
       - name: Apply exact source
         run: |
           mkdir evidence
-          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
-          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
-          git apply --index "$RUNNER_TEMP/source.patch"
-          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git show "$GITHUB_SHA":.github/contingent-payload/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
           git write-tree > evidence/tested-tree.txt
           sh build_main.sh > evidence/build.log 2>&1
       - name: Keep all existing assertions and failures
@@ -130,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     env:
-      RACING_REACH_CACHE: ${{ runner.temp }}/adapter-cache
+      RACING_REACH_CACHE: /tmp/adapter-cache
     steps:
       - uses: actions/checkout@v7
         with:
@@ -147,10 +143,8 @@ jobs:
       - name: Apply exact source
         run: |
           mkdir evidence
-          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
-          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
-          git apply --index "$RUNNER_TEMP/source.patch"
-          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git show "$GITHUB_SHA":.github/contingent-payload/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
           git write-tree > evidence/tested-tree.txt
       - name: Build adapter
         run: |
@@ -187,16 +181,14 @@ jobs:
           fetch-depth: 0
       - name: Prepare branch without modifying workflow files
         run: |
-          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
-          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
-          git apply --index "$RUNNER_TEMP/source.patch"
-          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git show "$GITHUB_SHA":.github/contingent-payload/apply.py > "$RUNNER_TEMP/apply.py"
+          python "$RUNNER_TEMP/apply.py"
           git restore --source=HEAD --staged --worktree -- .github/workflows/contingent-prefix.yml
           branch=work/contingent-prefix-prepared-20260921
           test -z "$(git ls-remote --heads origin refs/heads/$branch)"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Prepare contingent-response search, exact prefixes and quiet-mode correction' -m 'Research source only; correctness passed. Frozen comparison results are separate and may fail because the quiet-mode correction changes trajectories. No expectation changes or performance promotion. Tested tree including final workflow 90572ac892dda3a56d7663af7973610a563b254f.'
+          git commit -m 'Prepare contingent-response search, exact prefixes and quiet-mode correction' -m 'Research source only; correctness passed. Frozen comparison results are separate and may fail because the quiet-mode correction changes trajectories. No expectation changes or performance promotion. Tested tree including final workflow 3c237f54a610e33efe9a67c1dbac4f7133ba70bc.'
           git push origin "HEAD:refs/heads/$branch"
           echo "Prepared $(git rev-parse HEAD), source-only tree $(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
           echo 'This is not a release clearance. Comparison failures remain visible and no master reference is updated.' >> "$GITHUB_STEP_SUMMARY"
