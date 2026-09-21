@@ -1,5 +1,152 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Research 2026-09-21: contingent replies and exact prefix reuse
+
+Combines master 3466471's rule with the published laboratory 262649d.
+New `contingent` compares a fixed rival's normal forecast action with its own
+bounded chooser response, then optimizes a separate second focal action on each
+resulting board. A switch must dominate the baseline across both declared models;
+missing/incomparable outcomes and exhausted budgets abstain. No coalition or
+response probability is invented. All actual proposals enter before the guards.
+
+Independent `prefix` reuses complete private continuation checkpoints for sibling
+second-action trials. Ordered logical charges are replayed, preserving the search
+budget and failure frontier; saved physical calls are reported separately. Nothing
+is persisted or shared between different decision roots or response worlds.
+
+Also corrects the reviewed owner-rule gap: finite exact solo descent happens
+before traffic/checkpoint precedence outside the authoritative 20-cell boundary,
+instead of retaining a separate 40-cell early return. The Circle witness selects
+SE at total potential 29 rather than NE at 32. Current master rules and ledger
+entries are retained. No golden, champion pin, course or user setting is rewritten.
+
+Local supplementary JDK21 contracts verified 48 resumed/full forecasts and their
+referee traces, reusing 2364 scorer calls. Nine native contract races verified
+cached/uncached trace and logical-budget identity, observed a differing rival
+reply, and exercised exhaustion. These are functional samples, NOT place or
+latency improvement evidence. The quiet-mode repair changes some frozen traces;
+keep comparison failures visible and measure before any merge or promotion.
+Supported-JDK results, the complete corpus and full-fleet status must be reported
+separately. No learned endpoint evaluator or automatic master publication added.
+
+## Round 262: the owner's single-player rule -- no car within 20 cells, race the optimum
+
+The owner decided it after round 261: with no live rival within 20 Chebyshev
+cells a car races the single-player optimum -- the score's landing, the exact
+remaining-distance potential, exactly as it drives alone -- and the faithful
+joint world is consulted only when a rival is within that distance
+(AI1_CHOOSER_MAXDIST = 20; E:/tmp-claude/promote_gate20.py; the rule is in
+CLAUDE.md and AGENTS.md beside the racecraft rule). Round 261 priced the gate
+against the chooser: +0.001 places in 8-car packs with 81 of 84 boards tied,
++0.004 on scattered starts with 64 tied and rand14 carrying the rest, and
+skipping 0.3% of the chooser's rollouts in packs, 19% on scattered starts.
+That is the cost of the guarantee, and the owner takes it: a car with the
+road to itself is provably on the exact line, and what the chooser does is
+confined to traffic it can see.
+
+The promoted jar with no candidateSlots races byte-identically to the
+round-261 gate20 arm with every slot a candidate on three legacy races
+(promo_identity.py), and on the scattered races where the gate fires
+it equals the gate20 arm on Monaco s9, Hungaroring s13 and Interlagos s10, and
+differs from the round-260 champion on the latter two, where the gate fires. Computed starts run for the record once the box is free of the laboratory
+screens (a262_informed.sh); the result is appended below when it lands.
+
+THE CORPUS DOES NOT MOVE. One probe pass over all 24 pins against the
+promoted jar: zero changed assertions on every pin; the loop passes all 24
+after 0 rewrites and the 12 goldens are byte-identical. In an 8-car pack a
+rival is nearly always within 20 cells, and the pinned corpus is packs, so
+the rule leaves it untouched -- the change is confined, by construction, to
+cars with the road to themselves.
+
+Self-play counters are deferred to the same slot as the computed starts; on
+this corpus evidence they will not move.
+
+## Round 261: does the chooser owe the exact-potential line when the opposition is far?
+
+Round 260's promotion raised a fair question: alone or with the field far
+away, does the car still drive the theoretical optimum? Alone it does, bit
+for bit -- the chooser is gated on live rivals remaining, so a solo car never
+reaches it, and one-car races on ten courses are byte-identical to the
+pre-chooser champion (E:/tmp-claude/solo_check.py). With a rival anywhere on
+track it still runs, and an audit that logs every call with the Chebyshev
+distance to the nearest live rival and the exact remaining turns of both
+landings (E:/tmp-claude/audit_chooser2.py -- the array is passed in, because
+reading it through candidateWorkspace() calls reset() and CHANGES the race)
+says what it gives up: over 10,838 calls in six 8-car packs it moves off the
+score's pick 4.3% of the time, falling with distance (5.1% inside 5 cells,
+2.5% at 5-10, 2.0% at 10-15, 1.5% at 15-20); of those 461 moves, 293 cost
+nothing in exact potential, 36 IMPROVE it by a turn or two (the score's own
+penalty terms had pushed it off the potential's best), and 132 cost one
+turn -- 124 of them inside 10 cells, one beyond 15. On scattered starts,
+where the far regime is common, 33 moves in 2,377 calls: 15 free, 8
+improvements, 10 costing a turn. So the strict line is conceded in roughly
+one far-range decision in 240, because the rollout judges by what the policy
+achieves in twelve rounds rather than by the free-track lower bound.
+
+Four arms restore the strict line whenever the nearest live rival is beyond
+8, 12, 16 or 20 cells -- the candidate keeps the score's landing and never
+rolls (E:/tmp-claude/arm261_distgate.py; with no candidateSlots every arm
+reproduces the round-260 champion on four races, and each changes races with
+every slot a candidate: 7, 5, 2 and 2 of 8 probe races). Both start modes,
+because they sample opposite regimes: a legacy pack keeps a rival within 10
+cells for 92% of chooser calls, scattered starts put most calls beyond that.
+Against the round-260 champion, mirrored, seeds 1-20:
+
+    arm      8-car random starts            8-car scattered starts
+             place C-H        C/H/tied  crashes    place C-H        C/H/tied  crashes
+    gate8    +0.025 +- 0.005  15/35/34  190:174    +0.019 +- 0.003   6/45/33   12:7
+    gate12   +0.002 +- 0.001   5/13/66  171:173    +0.009 +- 0.002   8/32/44    9:8
+    gate16   +0.000 +- 0.001   5/ 3/76  171:172    +0.006 +- 0.002   5/21/58    7:8
+    gate20   +0.001 +- 0.001   1/ 2/81  171:171    +0.004 +- 0.001   5/15/64    7:9
+
+EVERY CELL OF GATE THAT CHANGES A DECISION COSTS PLACES, AND NONE GAINS.
+At 8 cells the strict line loses 0.025 places in packs (five standard
+errors, 35 boards to 15) and 0.019 on scattered starts (six, 45 boards to 6)
+-- and the gated cars crash MORE (190 against 174, 12 against 7). At 12 cells
+it loses 0.002 in packs, two standard errors, with 66 boards tied; at 16 and
+20 it is inert there (76 and 81 tied) because a pack never leaves a rival
+that far away. On scattered starts, where
+every gate fires often, the cost is monotone in the distance and never
+reaches zero: 0.009 at 12 cells (four standard errors, 32 boards to 8),
+0.006 at 16 (three, 21 to 5), 0.004 at 20 (four, 15 to 5). The crash
+counts are a handful either way. Eight slices, four gates, two regimes,
+and not one arm, distance or start mode where holding the free-track line
+beat asking the faithful world.
+
+HOW CAN TWENTY CELLS COST A PLACE? The owner's objection, and a fair one:
+two cars twenty cells apart, both on the same policy, should have nothing to
+settle. Three checks answer it. First, the per-track boards: for gate20 on
+scattered starts, 64 of 84 tracks are tied and almost every other is a
+single place swap either way -- but rand14 alone is +0.200, eleven of its
+twenty seeds non-zero and every one of them positive, and it carries more
+than half of the arm's whole result (gate16: +0.225, gate12: +0.238, gate8:
++0.475, the same track every time). The aggregate is real, but it is one
+track's mechanism, not a fleet-wide one. Second, twenty Chebyshev cells is
+not far for a twelve-round rollout: the cars average 5.8 cells a move (cap
+12), so the rollout looks about seventy cells ahead and a rival at twenty is
+three or four moves away. Aligning every far-range deviation the champion
+took (nearest rival 20 cells or more at the decision) with the race that
+followed: on the eight standard courses 9 of 11 came within ten cells of a
+rival inside the horizon (Monza turn 6: nearest 37 at the decision, one cell
+within twelve rounds), and on rand14 4 of 6 came within five. The chooser
+was reading an encounter about to happen, not a car that was far away.
+Third, and decisively, pace is ruled out: a scratch jar with the chooser
+forced ON for a lone car finishes every one of eighteen courses -- rand14
+included -- in exactly the champion's move count. Alone, the rollout never
+beats the exact potential, so whatever the far-range picks buy, they buy in
+traffic. Nothing in the instrument smelled wrong; the intuition that twenty
+tiles is "far" was the mismatch.
+
+WHAT THIS SETTLES. The exact potential is a free-track lower bound; the
+faithful world's twelve rounds are what the policy actually achieves with
+the field present, and that judgement is worth more than the bound even when
+the nearest rival is eight cells off -- which is why the occasional conceded
+turn comes back as places rather than costing them. The answer to the
+sanity check is therefore a measured one: alone, the car drives the
+theoretical line exactly; with a rival anywhere on track, letting it look
+ahead beats holding that line at every distance where the difference can be
+measured. No gate is promoted; the chooser stays as round 260 shipped it.
+
 ## Research branch 2026-09-19: chooser-aware forecasts and setup laboratory
 
 Base 720f421 (round 260 plus the corrected finish-target cache identity).

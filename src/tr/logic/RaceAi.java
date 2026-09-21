@@ -250,6 +250,64 @@ final class RaceAi {
 		}
 	}
 
+    /** A private, per-decision continuation checkpoint. Unlike a position-keyed
+     * memo, this carries the complete simulator arrays, policy membership and
+     * parallel referee ledger. It is never persisted or shared across decisions. */
+    static final class ChooserPrefix {
+        private final RaceGame game;
+        private final ChooserConfig config;
+        private final String geometry;
+        private final int laps, round, slot, turns;
+        private final int[][] ints;
+        private final boolean[] alive, scorerSet;
+        private final ChooserResearch.Run snapshot;
+        private final java.util.List<Boolean> charges;
+        private final Player[] players;
+        ChooserPrefix(final RaceGame game, final RolloutWorkspace w,
+                final ChooserResearch.Run run, final int round, final int slot,
+                final ChooserResearch.Budget budget) {
+            this.game = game; config = game.chooserConfig;
+            geometry = geometry(game); laps = game.totalLaps;
+            this.round = round; this.slot = slot; turns = w.turns;
+            ints = new int[][]{w.px.clone(), w.py.clone(), w.vx.clone(), w.vy.clone(), w.laps.clone(), w.gates.clone()};
+            alive = w.alive.clone(); scorerSet = w.scorerSet.clone();
+            snapshot = new ChooserResearch.Run(run, run.depth, run.forcedSecond);
+            charges = budget.since(run.eventStart); players = game.players.clone();
+        }
+        private static String geometry(final RaceGame g) {
+            final StringBuilder key = new StringBuilder(String.valueOf(g.reach.geometryCacheKey()))
+                    .append(java.util.Arrays.toString(g.crossingIdentity()));
+            if (g.lapGates != null) for (final java.awt.geom.Line2D line : g.lapGates)
+                key.append('/').append(line.getX1()).append(',').append(line.getY1())
+                        .append(',').append(line.getX2()).append(',').append(line.getY2());
+            return key.toString();
+        }
+        void restore(final RolloutWorkspace w) {
+            final int[][] target = {w.px, w.py, w.vx, w.vy, w.laps, w.gates};
+            for (int i = 0; i < ints.length; i++) System.arraycopy(ints[i], 0, target[i], 0, ints[i].length);
+            System.arraycopy(alive, 0, w.alive, 0, alive.length);
+            System.arraycopy(scorerSet, 0, w.scorerSet, 0, scorerSet.length);
+            w.turns = turns;
+        }
+        ChooserResearch.Run resume(final RaceGame g, final Direction action, final int rounds,
+                final boolean aware, final boolean student, final Direction second,
+                final int depth, final boolean trace, final int rival, final Direction reply, final boolean inspect) {
+            final ChooserResearch.Board now = new ChooserResearch.Board(g);
+            if (g != game || config != g.chooserConfig || laps != g.totalLaps
+                    || !java.util.Objects.equals(geometry, geometry(g))
+                    || !java.util.Arrays.equals(players, g.players)
+                    || !now.cars().equals(snapshot.root.cars()) || now.turns != snapshot.root.turns
+                    || now.first != snapshot.root.first || now.last != snapshot.root.last
+                    || now.classificationKnown != snapshot.root.classificationKnown
+                    || g.subgamestate != snapshot.focal || action != snapshot.action || rounds != snapshot.rounds
+                    || aware != snapshot.aware || student != snapshot.student || trace != snapshot.trace
+                    || rival != snapshot.replyIndex || reply != snapshot.forcedReply || inspect != snapshot.compareReply)
+                throw new IllegalArgumentException("Prefix belongs to a different board or policy context");
+            final ChooserResearch.Run result = new ChooserResearch.Run(snapshot, depth, second);
+            result.resume = this; return result;
+        }
+    }
+
 	RaceAi(final RaceGame game) {
 		this.game = game;
 		this.reach = game.reach;
@@ -494,6 +552,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
+	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// round 262, the owner's rule: no live rival within this many cells -> single-player optimum, no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
@@ -615,7 +674,6 @@ final class RaceAi {
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
 	private final static double	AI1_TRAP_L1		= 2.0;	// trap ladder: 1 safe successor
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
-	private final static int		AI1_ALONE_R	= 40;	// round 214: no live rival within this Chebyshev radius means the track is mine and the exact potential applies; 20 was too tight -- cars left the optimal line already inside a pack (weave3 lost 8 races of 10)
 	private final static int		AI1_NEEDLE_RIVAL_R	= 8;	// round 197: traffic radius for the needle-headway law
 	private final static double	AI1_NEEDLE_TRAP	= 30.0;	// round 197: surcharge for an unstoppable no-headway landing
 	private final static double	AI1_LANE_STYLE	= 0.12;	// round 201: per-player tie-break style spread in lap traffic (multi-seed: 0.12 -> 89 crashes, 0.20 -> 105 -- past the sweet spot the style sacrifice costs more than spreading buys)
@@ -640,24 +698,21 @@ final class RaceAi {
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
 		prepareDecisionFrame(pos, vel, playerNum);
+        // The owner's 20-cell rule applies BEFORE checkpoint/traffic precedence,
+        // not merely to whether the joint chooser is called. No other radius.
+        if (!rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
+            final Direction quiet = quietOptimalMove(pos, vel, playerNum);
+            if (quiet != null) {
+                chooserStage("solo-precedence", quiet);
+                return quiet;
+            }
+        }
 		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum,
 				!inScorerSim && trueConfirmDepth == 0 && simDepth == 0);
 		if (tacticalWin != null) {
             chooserStage("tactical-proof", tacticalWin);
 			return tacticalWin;
         }
-		// Round 214: with nobody near, the race is a shortest-path problem and
-		// the exact potential solves it. Every caution term below is priced
-		// against a rival that is not there, and the measured cost of that was
-		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
-		// with a finite value always has a successor one move closer.
-		if (game.lapGates != null && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
-			final Direction alone = optimalAloneMove(pos, vel, playerNum);
-			if (alone != null) {
-                chooserStage("solo-precedence", alone);
-				return alone;
-            }
-		}
 		final int sealRivals = liveRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
 		// every seal that forgoes the finish to crash a later mover. Lap mode:
@@ -992,7 +1047,8 @@ final class RaceAi {
 		// at -1.194 places over the round-254 champion at twelve rounds (83
 		// boards of 84, crashes 123 against 189); three rounds bought -0.501,
 		// six -0.952, nine -1.129, and the increments halve (round 257).
-		if (best != null && !inScorerSim && sealRivals >= 1) {
+		if (best != null && !inScorerSim && sealRivals >= 1
+                && rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
 			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
 			poScorerT = poTByDir[best.ordinal()];
             chooserStage("chooser", best);
@@ -3742,6 +3798,10 @@ final class RaceAi {
 			final long[] outFieldCost, final int[] outThreadRounds,
 			final boolean allScorerRivals, final long[] outRivalCost, final boolean candidatePending) {
         final ChooserResearch.Run research = chooserRun != null && simDepth == chooserRun.depth ? chooserRun : null;
+        final ChooserPrefix resume = research == null ? null : research.resume;
+        if (resume != null && (outFinalTier != null || outFieldCost != null || outThreadRounds != null
+                || outRivalCost != null || !simFinishVanish || !candidatePending))
+            throw new IllegalArgumentException("Prefix supports only the isolated research forecast");
 		final RolloutWorkspace workspace = rolloutWorkspace();
 		final int[] px = workspace.px;
 		final int[] py = workspace.py;
@@ -3765,6 +3825,14 @@ final class RaceAi {
 		boolean myFinished = false;
 		int liveCount = 0;
 		int myIdx = 0;
+        if (resume != null) {
+            resume.restore(workspace);
+            myIdx = research.focal;
+            for (int i = 0; i < game.players.length; i++) {
+                if (alive[i]) liveCount++;
+                updateRolloutFrame(workspace, i);
+            }
+        } else {
 		for (int i = 0; i < game.players.length; i++) {
 			final Player player = game.players[i];
 			final int[] position = player.getPosition();
@@ -3846,6 +3914,7 @@ final class RaceAi {
 				scorerSet[nearest] = true;
 			}
 		}
+        }
 		final boolean trace = simTrace && simDepth == 1;
 		if (trace) {
 			final StringBuilder sb = new StringBuilder("SIMTRACE start me=i").append(myIdx)
@@ -3860,13 +3929,15 @@ final class RaceAi {
 		// A solo time trial is the exception: its only car must still finish.
 		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
 		boolean raceOver = liveCount <= terminalLiveCount;
-		for (int round = 0; round < rounds && !raceOver; round++) {
+		for (int round = resume == null ? 0 : resume.round; round < rounds && !raceOver; round++) {
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
-			final int from = round == 0 ? game.subgamestate + 1 : 0;
+			final int from = resume != null && round == resume.round ? resume.slot : round == 0 ? game.subgamestate + 1 : 0;
 			for (int i = from; i < game.players.length; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
+                if (research != null && chooserBudget != null && game.chooserConfig.prefix && research.second(i))
+                    research.secondPrefix = new ChooserPrefix(game, workspace, research, round, i, chooserBudget);
 				if (chooserBudget != null) chooserBudget.move();
 				usePlayerFrame(i);
 				if (outRivalCost != null && i != myIdx)
@@ -3934,6 +4005,26 @@ final class RaceAi {
                             action = d; found = true; break;
                         }
                         if (!found) throw new IllegalStateException("Forecast selected non-physical acceleration");
+                    }
+                    if (research.firstReply(i)) {
+                        research.normalReply = action;
+                        if (research.compareReply && research.state.timedOut(game)) research.alternateReply = action;
+                        if (research.compareReply && !research.state.timedOut(game)) {
+                            // A declared alternative policy: the rival's OWN bounded
+                            // chooser with downstream guards, not the reply worst for us.
+                            final int[] alternate = new int[4];
+                            if (scorerMoveOverState(i, px, py, vx, vy, alive, alternate, workspace, false)) {
+                                for (final Direction d : DIRECTIONS)
+                                    if (alternate[2] - vx[i] == d.dx && alternate[3] - vy[i] == d.dy) research.alternateReply = d;
+                            }
+                        }
+                        if (research.forcedReply != null) {
+                            action = research.forcedReply;
+                            moved = writeMove(move, px[i] + vx[i] + action.dx, py[i] + vy[i] + action.dy,
+                                    vx[i] + action.dx, vy[i] + action.dy);
+                            researchModel = "declared-chooser-reply";
+                        }
+                        research.replyDone = true;
                     }
                     if (researchModel.equals("proxy") && (i == myIdx && scorerSelf || scorerSet[i])) researchModel = "scorer";
                     if (research.second(i)) research.secondOptions(game, action, game.chooserConfig.setupWidth);
@@ -4665,6 +4756,26 @@ final class RaceAi {
 				OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps));
 	}
 
+    /** Exact finite solo descent. Missing maps remain unknown; do not call an
+     * approximate scorer an optimum. Immediate referee finishes retain priority. */
+    private Direction quietOptimalMove(final int[] pos, final int[] vel, final int playerNum) {
+        if (game.lapGates != null) return optimalAloneMove(pos, vel, playerNum);
+        Direction best = null;
+        int value = Integer.MAX_VALUE;
+        for (final Direction d : DIRECTIONS) {
+            final int vx = vel[0] + d.dx, vy = vel[1] + d.dy;
+            if (RaceGame.aiVelocityOutOfRange(vx, vy)) continue;
+            final int nx = pos[0] + vx, ny = pos[1] + vy;
+            final RaceGame.MoveResult t = game.evaluateMove(0, 0, pos[0], pos[1], nx, ny,
+                    game.isCrashingPlayer(nx, ny, playerNum));
+            if (t.finishes()) return d;
+            if (!t.legal()) continue;
+            final int remaining = reach.turnsToFinish(nx, ny, vx, vy);
+            if (remaining < value) { value = remaining; best = d; }
+        }
+        return best;
+    }
+
 	/** Round 61: any live opponent within Chebyshev distance {@code cheb} of
 	 *  (x,y)? Chebyshev (not d^2) because the safety argument is per-axis:
 	 *  max per-axis displacement in one move is |v|+1 <= 13. */
@@ -4947,11 +5058,28 @@ final class RaceAi {
     ChooserResearch.Run chooserForecast(final Direction action, final int rounds,
             final boolean aware, final boolean student, final Direction second, final boolean trace,
             final ChooserResearch.Budget budget) {
+        return chooserForecast(action, rounds, aware, student, second, trace, budget, -1, null, false, null);
+    }
+
+    ChooserResearch.Run chooserForecast(final Direction action, final int rounds,
+            final boolean aware, final boolean student, final Direction second, final boolean trace,
+            final ChooserResearch.Budget budget, final int rival, final Direction reply,
+            final boolean inspectReply, final ChooserPrefix prefix) {
         final ChooserResearch.Run savedRun = chooserRun;
         final ChooserResearch.Budget savedBudget = chooserBudget;
         final int focal = game.subgamestate;
-        final ChooserResearch.Run run = new ChooserResearch.Run(game, focal, action, simDepth + 1, aware, student, second, trace);
+        final ChooserResearch.Run run = prefix == null
+                ? new ChooserResearch.Run(game, focal, action, simDepth + 1, aware, student, second, trace)
+                : prefix.resume(game, action, rounds, aware, student, second, simDepth + 1, trace, rival, reply, inspectReply);
+        run.rounds = rounds; run.replyIndex = rival; run.forcedReply = reply; run.compareReply = inspectReply;
+        run.eventStart = budget == null ? 0 : budget.mark();
         try {
+            // Reuse saves physical work only. Replay the original ordered logical
+            // charges so enabling the cache cannot buy a different search tree.
+            if (prefix != null) {
+                if (budget == null) throw new IllegalArgumentException("Prefix reuse requires logical budgeting");
+                budget.replay(prefix.charges);
+            }
             chooserRun = run; chooserBudget = budget;
             final Player p = game.players[focal]; final int[] x = p.getPosition(), v = p.getVelocity();
             final int vx = v[0] + action.dx, vy = v[1] + action.dy;

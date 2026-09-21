@@ -32,7 +32,7 @@ else:
     from promotion_pair import require_plain_java_environment
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAGS = {'aware', 'setup', 'terminal', 'student', 'assist', 'legacy-guarded', 'legacy-unchecked'}
+FLAGS = {'aware', 'setup', 'terminal', 'student', 'assist', 'legacy-guarded', 'legacy-unchecked', 'contingent', 'prefix'}
 LEGACY_FEATURES = 'speed_inf,speed_squared,acceleration,legal_exits,map_alive,remaining_events,solo_turns,direct_rivals,indirect_rivals,contested_exits,nearest_distance,terminal'.split(',')
 FEATURES = LEGACY_FEATURES + 'closing_motion,relative_route,route_known,rival_moves_first,response_delta,rival_exits,field_size'.split(',')
 INF = 2147483647
@@ -400,7 +400,7 @@ def evaluate(args):
 def profile(args):
     flags = args.experiments.split(',') if args.experiments else []
     if len(set(flags)) != len(flags) or any(f not in FLAGS for f in flags): raise ValueError('invalid flags')
-    if ('aware' in flags and 'student' in flags) or (any(f.startswith('legacy-') for f in flags) and len(flags) != 1):
+    if ('prefix' in flags and not {'setup', 'contingent'} & set(flags)) or ('contingent' in flags and {'aware', 'student', 'assist', 'legacy-guarded', 'legacy-unchecked'} & set(flags)) or ('aware' in flags and 'student' in flags) or (any(f.startswith('legacy-') for f in flags) and len(flags) != 1):
         raise ValueError('conflicting or non-isolated arms')
     if not (1 <= args.rounds <= 24 and 0 <= args.budget <= 65536 and 0 <= args.move_budget <= 131072 and 1 <= args.setup_width <= 3 and 1 <= args.audit_every <= 1000000):
         raise ValueError('profile bounds invalid')
