@@ -1,0 +1,202 @@
+name: Validate contingent response and exact prefix research
+on:
+  push:
+    branches: [work/contingent-prefix-validation-20260921]
+permissions:
+  contents: read
+concurrency:
+  group: contingent-prefix-validation-20260921
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+jobs:
+  contracts:
+    name: Contingent contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    env:
+      RACING_REACH_CACHE: ${{ runner.temp }}/contracts-cache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 446affe53f8ff689bb53f52ca2e0c054c1c82080
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        run: |
+          mkdir evidence
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
+          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/source.patch"
+          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git write-tree > evidence/tested-tree.txt
+      - name: Strict Java and Python correctness
+        run: |
+          java -version > evidence/java-version.log 2>&1
+          sh run_tests.sh > evidence/java-tests.log 2>&1
+          sh build_main.sh > evidence/build.log 2>&1
+          python -m unittest discover -s tests -p 'test_*.py' > evidence/python.log 2>&1
+          python tests/cross_era_referee_regression.py > evidence/referee.log 2>&1
+          python tests/query_replay_regression.py > evidence/replay.log 2>&1
+      - name: Complete native cached and uncached experiment contracts
+        run: python tests/contingent_prefix_regression.py --heap=-Xmx8g --out evidence/native > evidence/native.log 2>&1
+      - name: Existing teacher and policy laboratory
+        run: python tests/chooser_lab_regression.py --heap=-Xmx8g --out evidence/lab > evidence/lab.log 2>&1
+      - name: Retain exact inputs
+        run: |
+          git diff --exit-code
+          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: contingent-validation-jdk${{ matrix.java }}
+          path: |
+            evidence/
+            !evidence/native/cache/**
+            !evidence/lab/cache/**
+          if-no-files-found: error
+          retention-days: 30
+  corpus:
+    name: Frozen comparison group ${{ matrix.group }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [0, 1, 2, 3, 4]
+    env:
+      RACING_REACH_CACHE: ${{ runner.temp }}/corpus-cache
+      GROUP: ${{ matrix.group }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 446affe53f8ff689bb53f52ca2e0c054c1c82080
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        run: |
+          mkdir evidence
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
+          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/source.patch"
+          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git write-tree > evidence/tested-tree.txt
+          sh build_main.sh > evidence/build.log 2>&1
+      - name: Keep all existing assertions and failures
+        shell: python
+        run: |
+          import glob, os, pathlib, subprocess, sys
+          group = int(os.environ['GROUP'])
+          scripts = ['tests/golden_races.py'] if group == 4 else sorted(glob.glob('tests/ai1_*_regression.py'))[group::4]
+          failed = False
+          with open('evidence/status.tsv', 'w') as status:
+              for script in scripts:
+                  with open('evidence/' + pathlib.Path(script).stem + '.log', 'w') as log:
+                      result = subprocess.run([sys.executable, script], stdout=log, stderr=subprocess.STDOUT)
+                  status.write(script + '\t' + ('PASS' if result.returncode == 0 else 'FAIL') + '\n')
+                  status.flush()
+                  failed |= result.returncode != 0
+          failed |= subprocess.run(['git', 'diff', '--exit-code']).returncode != 0
+          sys.exit(int(failed))
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: contingent-comparisons-${{ matrix.group }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  adapter:
+    name: Browser adapter and transport contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RACING_REACH_CACHE: ${{ runner.temp }}/adapter-cache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 446affe53f8ff689bb53f52ca2e0c054c1c82080
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact source
+        run: |
+          mkdir evidence
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
+          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/source.patch"
+          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git write-tree > evidence/tested-tree.txt
+      - name: Build adapter
+        run: |
+          python -m pip install -r web/requirements-icons.txt > evidence/deps.log 2>&1
+          sh web/build.sh > evidence/build.log 2>&1
+      - name: Preserve each parity and transport result
+        shell: bash
+        run: |
+          failed=0
+          python web/tests/parity.py --quick > evidence/parity.log 2>&1 || failed=1
+          python -m unittest discover -s web/tests -p 'test_*.py' > evidence/python.log 2>&1 || failed=1
+          node --test web/tests/engine.test.mjs > evidence/worker.log 2>&1 || failed=1
+          python web/tests/server_test.py > evidence/ranges.log 2>&1 || failed=1
+          git diff --exit-code || failed=1
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: contingent-validation-adapter
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 30
+  prepare:
+    name: Retain tested research source only, never master
+    needs: [contracts, corpus, adapter]
+    if: ${{ always() && needs.contracts.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: 446affe53f8ff689bb53f52ca2e0c054c1c82080
+          fetch-depth: 0
+      - name: Prepare branch without modifying workflow files
+        run: |
+          for i in 0 1 2 3; do git show "$GITHUB_SHA":.github/contingent-payload/part$i; done | gzip -dc > "$RUNNER_TEMP/source.patch"
+          echo 'ba6b7a1c26280b440234cdde79f7512c8d38a6ca74eade34a891fddd3dd93501  '"$RUNNER_TEMP/source.patch" | sha256sum -c -
+          git apply --index "$RUNNER_TEMP/source.patch"
+          test "$(git write-tree)" = 90572ac892dda3a56d7663af7973610a563b254f
+          git restore --source=HEAD --staged --worktree -- .github/workflows/contingent-prefix.yml
+          branch=work/contingent-prefix-prepared-20260921
+          test -z "$(git ls-remote --heads origin refs/heads/$branch)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Prepare contingent-response search, exact prefixes and quiet-mode correction' -m 'Research source only; correctness passed. Frozen comparison results are separate and may fail because the quiet-mode correction changes trajectories. No expectation changes or performance promotion. Tested tree including final workflow 90572ac892dda3a56d7663af7973610a563b254f.'
+          git push origin "HEAD:refs/heads/$branch"
+          echo "Prepared $(git rev-parse HEAD), source-only tree $(git rev-parse HEAD^{tree})" >> "$GITHUB_STEP_SUMMARY"
+          echo 'This is not a release clearance. Comparison failures remain visible and no master reference is updated.' >> "$GITHUB_STEP_SUMMARY"
