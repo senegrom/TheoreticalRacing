@@ -11,7 +11,7 @@ final class ChooserConfig {
             + "remaining_events,solo_turns,direct_rivals,indirect_rivals,contested_exits,nearest_distance,terminal";
     static final String FEATURES = LEGACY_FEATURES + ",closing_motion,relative_route,route_known,"
             + "rival_moves_first,response_delta,rival_exits,field_size";
-    final boolean aware, setup, terminal, student, assist, legacyGuarded, legacyUnchecked, audit;
+    final boolean aware, setup, terminal, student, assist, legacyGuarded, legacyUnchecked, audit, contingent, prefix;
     final int rounds, policyBudget, moveBudget, setupWidth, auditEvery;
     final Model model, legacy;
     final String specification;
@@ -21,12 +21,16 @@ final class ChooserConfig {
         final Set<String> flags = new HashSet<>();
         if (!specification.isEmpty()) for (final String value : specification.split(",", -1)) {
             final String flag = value.trim();
-            if (!Set.of("aware", "setup", "terminal", "student", "assist", "legacy-guarded", "legacy-unchecked").contains(flag)
+            if (!Set.of("aware", "setup", "terminal", "student", "assist", "legacy-guarded", "legacy-unchecked", "contingent", "prefix").contains(flag)
                     || !flags.add(flag)) throw new IllegalArgumentException("Unknown/duplicate chooser experiment: " + flag);
         }
-        aware = flags.contains("aware"); setup = flags.contains("setup"); terminal = flags.contains("terminal");
+        contingent = flags.contains("contingent"); prefix = flags.contains("prefix");
+        aware = flags.contains("aware"); setup = flags.contains("setup") || contingent; terminal = flags.contains("terminal");
         student = flags.contains("student"); assist = flags.contains("assist");
         legacyGuarded = flags.contains("legacy-guarded"); legacyUnchecked = flags.contains("legacy-unchecked");
+        if (prefix && !setup) throw new IllegalArgumentException("prefix requires setup or contingent");
+        if (contingent && (aware || student || assist || legacyGuarded || legacyUnchecked))
+            throw new IllegalArgumentException("contingent is a separate two-response policy experiment");
         if (aware && student) throw new IllegalArgumentException("Compare aware and student separately");
         if ((legacyGuarded || legacyUnchecked) && flags.size() != 1)
             throw new IllegalArgumentException("Legacy insertion-point controls must be isolated arms");

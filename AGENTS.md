@@ -32,6 +32,18 @@ second car a crash is an improvement, and a field made entirely of the
 candidate is allowed to crash more often than the champion's field. Report
 those numbers as description, never as a rejection.
 
+## Single-player rule (decided by the owner, 2026-09-21)
+
+With **no live rival within 20 cells** (Chebyshev), a car races the
+single-player optimum: the score's landing, the exact remaining-distance
+potential, exactly as it drives alone. The faithful joint world (the
+round-260 chooser) is consulted only when a rival is within that distance.
+Round 261 priced the gate against the chooser at +0.001 places in 8-car packs
+(81 of 84 boards tied) and +0.004 on scattered starts, all of it one synthetic
+course; the owner takes that for the guarantee. `AI1_CHOOSER_MAXDIST` in
+`RaceAi.java` is the rule's constant; changing it is a rule change, not a
+tuning, and needs the owner.
+
 ## Measurement discipline
 
 - Any change that can alter a decision gets a fleet grid before it ships

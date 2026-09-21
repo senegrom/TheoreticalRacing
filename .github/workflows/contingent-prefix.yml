@@ -22,3 +22,120 @@ jobs:
           name: contingent-source
           path: ${{ runner.temp }}/research-source.tar.gz
           retention-days: 30
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    env:
+      JAVA_TOOL_OPTIONS: ''
+      JDK_JAVA_OPTIONS: ''
+      _JAVA_OPTIONS: ''
+      RACING_REACH_CACHE: /tmp/contract-cache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Strict builds and correctness
+        run: |
+          mkdir evidence
+          java -version > evidence/java.log 2>&1
+          git rev-parse HEAD HEAD^{tree} > evidence/source.txt
+          sh run_tests.sh > evidence/java-tests.log 2>&1
+          sh build_main.sh > evidence/build.log 2>&1
+          python -m unittest discover -s tests -p 'test_*.py' > evidence/python.log 2>&1
+          python tests/cross_era_referee_regression.py > evidence/referee.log 2>&1
+          python tests/query_replay_regression.py > evidence/replay.log 2>&1
+      - name: Full and reused native experiment contracts
+        run: python tests/contingent_prefix_regression.py --heap=-Xmx8g --out evidence/native > evidence/native.log 2>&1
+      - name: Existing teacher and policy laboratory
+        run: python tests/chooser_lab_regression.py --heap=-Xmx8g --out evidence/lab > evidence/lab.log 2>&1
+      - name: Preserve original inputs
+        run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: contingent-contracts-${{ matrix.java }}
+          path: |
+            evidence/
+            !evidence/native/cache/**
+            !evidence/lab/cache/**
+          retention-days: 30
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RACING_REACH_CACHE: /tmp/corpus-cache
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Keep every frozen comparison and its failures visible
+        shell: bash
+        run: |
+          mkdir evidence
+          sh build_main.sh > evidence/build.log 2>&1
+          failed=0
+          for test in tests/golden_races.py tests/ai1_*_regression.py; do
+            name=$(basename "$test" .py)
+            if python "$test" > "evidence/$name.log" 2>&1; then
+              printf '%s\tPASS\n' "$name" >> evidence/status.tsv
+            else
+              printf '%s\tFAIL\n' "$name" >> evidence/status.tsv
+              failed=1
+            fi
+          done
+          git diff --exit-code || failed=1
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: contingent-corpus
+          path: evidence/
+          retention-days: 30
+  adapter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Adapter identity and transport contracts
+        run: |
+          mkdir evidence
+          python -m pip install -r web/requirements-icons.txt > evidence/deps.log 2>&1
+          sh web/build.sh > evidence/build.log 2>&1
+          python web/tests/parity.py --quick > evidence/parity.log 2>&1
+          python -m unittest discover -s web/tests -p 'test_*.py' > evidence/python.log 2>&1
+          node --test web/tests/engine.test.mjs > evidence/node.log 2>&1
+          python web/tests/server_test.py > evidence/ranges.log 2>&1
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: contingent-adapter
+          path: evidence/
+          retention-days: 30

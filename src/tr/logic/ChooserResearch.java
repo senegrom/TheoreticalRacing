@@ -19,10 +19,24 @@ final class ChooserResearch {
     }
     static final class Budget {
         final int policyLimit, moveLimit;
-        int policies, moves;
+        int policies, moves, reusedPolicies, reusedMoves;
+        private final List<Boolean> events = new ArrayList<>();
         Budget(final int policyLimit, final int moveLimit) { this.policyLimit = policyLimit; this.moveLimit = moveLimit; }
-        void policy() { if (policies >= policyLimit) throw new Limit(); policies++; }
-        void move() { if (moves >= moveLimit) throw new Limit(); moves++; }
+        void policy() { spend(true, false); }
+        void move() { spend(false, false); }
+        int mark() { return events.size(); }
+        List<Boolean> since(final int mark) { return List.copyOf(events.subList(mark, events.size())); }
+        void replay(final List<Boolean> charges) { for (final boolean policy : charges) spend(policy, true); }
+        private void spend(final boolean policy, final boolean reused) {
+            if (policy) {
+                if (policies >= policyLimit) throw new Limit();
+                policies++; if (reused) reusedPolicies++;
+            } else {
+                if (moves >= moveLimit) throw new Limit();
+                moves++; if (reused) reusedMoves++;
+            }
+            events.add(policy);
+        }
     }
 
     /** Detached progress AND classification ledger. No snapshot points into live players. */
@@ -119,7 +133,10 @@ final class ChooserResearch {
         final List<Direction> secondOptions = new ArrayList<>();
         Board secondBoard;
         Direction actualSecond;
-        int upgrades;
+        int upgrades, eventStart, rounds, replyIndex = -1;
+        boolean compareReply, replyDone;
+        Direction forcedReply, normalReply, alternateReply;
+        RaceAi.ChooserPrefix secondPrefix, resume;
         Outcome outcome;
         Run(final RaceGame g, final int focal, final Direction action, final int depth,
                 final boolean aware, final boolean student, final Direction forcedSecond, final boolean trace) {
@@ -129,6 +146,18 @@ final class ChooserResearch {
             record(g, focal, action, "candidate");
             relevant = relevant(g, state, focal);
         }
+        /** Copy only immutable observations and deep state, never live players or
+         * another branch's mutable working arrays. Prefix handles are not copied. */
+        Run(final Run r, final int depth, final Direction second) {
+            root = new Board(r.root); state = new Board(r.state);
+            focal = r.focal; action = r.action; this.depth = depth;
+            aware = r.aware; student = r.student; trace = r.trace; forcedSecond = second;
+            upgraded = r.upgraded.clone(); relevant = r.relevant; upgrades = r.upgrades;
+            steps.addAll(r.steps); rounds = r.rounds; replyIndex = r.replyIndex;
+            compareReply = r.compareReply; replyDone = r.replyDone;
+            forcedReply = r.forcedReply; normalReply = r.normalReply; alternateReply = r.alternateReply;
+        }
+        boolean firstReply(final int i) { return i == replyIndex && !replyDone; }
         boolean higher(final int i) {
             if (!(aware || student) || upgraded[i] || i != focal && i != relevant) return false;
             upgraded[i] = true; upgrades++; return true;
@@ -170,6 +199,8 @@ final class ChooserResearch {
             m.put("action", action.name()); m.put("forcedSecond", name(forcedSecond)); m.put("actualSecond", name(actualSecond));
             m.put("secondOptions", secondOptions.stream().map(Direction::name).toList());
             m.put("outcome", outcome == null ? null : outcome.data()); m.put("upgrades", upgrades);
+            m.put("replyIndex", replyIndex); m.put("normalReply", name(normalReply));
+            m.put("alternateReply", name(alternateReply)); m.put("forcedReply", name(forcedReply));
             m.put("relevant", relevant); m.put("steps", steps); return m;
         }
     }
@@ -202,7 +233,8 @@ final class ChooserResearch {
         double[] scores;
         String path = "before-chooser";
         boolean chooserReached, exhausted;
-        int policies, moves;
+        int policies, moves, reusedPolicies, reusedMoves;
+        Map<String, Object> contingentReport = Map.of();
         Context(final RaceGame g, final boolean active, final boolean trace) {
             root = new Board(g); focal = g.subgamestate; laps = g.totalLaps; config = g.chooserConfig;
             this.active = active && root.classificationKnown; this.trace = trace;
@@ -228,6 +260,9 @@ final class ChooserResearch {
             data.put("stages", stages); data.put("teacher", teacher.stream().map(Run::data).toList());
             data.put("experiments", experiments.stream().map(Run::data).toList());
             data.put("features", features); data.put("featureSchema", ChooserConfig.FEATURES);
+            data.put("reusedPolicies", reusedPolicies); data.put("reusedMoves", reusedMoves);
+            data.put("physicalPolicies", policies - reusedPolicies); data.put("physicalMoves", moves - reusedMoves);
+            data.put("contingent", contingentReport);
             data.put("policies", policies); data.put("moves", moves); data.put("exhausted", exhausted);
             return encode(data);
         }
@@ -244,6 +279,7 @@ final class ChooserResearch {
         final ChooserConfig c = context.config;
         final Direction champion = context.baseline;
         if (!context.active || c.policyBudget == 0 || c.moveBudget == 0) return champion;
+        if (c.contingent) return contingent(g, ai, context, initial);
         if (c.legacyGuarded || c.legacyUnchecked) {
             final Direction proposed = modelPick(g, context.root, context.focal, initial, champion, c.legacy, false);
             if (c.legacyUnchecked) { context.unchecked = proposed; return champion; }
@@ -272,14 +308,15 @@ final class ChooserResearch {
                 results.add(base); context.experiments.add(base);
                 if (c.setup && base.secondBoard != null) for (final Direction second : base.secondOptions) {
                     if (second == base.actualSecond) continue;
-                    final Run setup = ai.chooserForecast(d, c.rounds, c.aware, c.student, second, context.trace, budget);
+                    final Run setup = ai.chooserForecast(d, c.rounds, c.aware, c.student, second, context.trace, budget,
+                            -1, null, false, c.prefix ? base.secondPrefix : null);
                     results.add(setup); context.experiments.add(setup);
                 }
             }
         } catch (final Limit limit) {
             context.exhausted = true;
             return champion; // No partial comparison, and no budget-derived death.
-        } finally { context.policies = budget.policies; context.moves = budget.moves; }
+        } finally { recordBudget(context, budget); }
         // Keep the old score order on ties. Terminal comparisons are restricted to
         // a resolved legacy/estimate winner, avoiding a non-transitive mixture.
         Run best = null;
@@ -289,6 +326,102 @@ final class ChooserResearch {
         }
         context.selectedPlan = best;
         return best == null ? champion : best.action;
+    }
+
+    private static void recordBudget(final Context c, final Budget b) {
+        c.policies = b.policies; c.moves = b.moves;
+        c.reusedPolicies = b.reusedPolicies; c.reusedMoves = b.reusedMoves;
+    }
+
+    /** Partial comparison: resolved classifications are comparable to each other;
+     * finite unresolved forecasts are comparable at the same horizon. A mixed
+     * resolved/estimated pair is UNKNOWN, not an equality or a safety proof. */
+    static Integer compareScenario(final Outcome a, final Outcome b) {
+        if (a.resolved && b.resolved) {
+            final int rank = Integer.compare(a.place, b.place);
+            return rank != 0 ? rank : Integer.compare(a.ownMoves, b.ownMoves);
+        }
+        if (a.resolved != b.resolved || a.verdict < 0 || b.verdict < 0
+                || a.verdict == Integer.MAX_VALUE || b.verdict == Integer.MAX_VALUE) return null;
+        return Integer.compare(a.verdict, b.verdict);
+    }
+    static boolean dominates(final List<Outcome> a, final List<Outcome> b) {
+        if (a.size() != b.size() || a.isEmpty()) return false;
+        boolean strict = false;
+        for (int i = 0; i < a.size(); i++) {
+            final Integer cmp = compareScenario(a.get(i), b.get(i));
+            if (cmp == null || cmp > 0) return false;
+            strict |= cmp < 0;
+        }
+        return strict;
+    }
+
+    private static Run scenario(final RaceGame g, final RaceAi ai, final Context c, final Budget budget,
+            final Direction first, final int rival, final Direction reply, final boolean inspect) {
+        final Run base = ai.chooserForecast(first, c.config.rounds, false, false, null, c.trace,
+                budget, rival, reply, inspect, null);
+        c.experiments.add(base);
+        final List<Run> plans = new ArrayList<>(); plans.add(base);
+        // Each world gets its OWN legal second-action choices, after its reply.
+        if (base.secondBoard != null) for (final Direction second : base.secondOptions) {
+            if (second == base.actualSecond) continue;
+            final Run run = ai.chooserForecast(first, c.config.rounds, false, false, second, c.trace,
+                    budget, rival, reply, inspect, c.config.prefix ? base.secondPrefix : null);
+            plans.add(run); c.experiments.add(run);
+        }
+        Run best = base;
+        for (final Run r : plans) if (better(r.outcome, best.outcome, false)) best = r;
+        if (c.config.terminal && best.outcome.resolved)
+            for (final Run r : plans) if (r.outcome.resolved && better(r.outcome, best.outcome, true)) best = r;
+        return best;
+    }
+
+    /** Two declared models of ONE rival's first response: the normal forecast and
+     * its own stronger chooser. No coalition, invented response probabilities, or
+     * worst-legal-reply oracle. A switch must improve at least one model and not
+     * worsen the other, compared against the same baseline first action. */
+    private static Direction contingent(final RaceGame g, final RaceAi ai, final Context c,
+            final List<Direction> actions) {
+        final ChooserTraffic.Graph graph = ChooserTraffic.graph(g, c.root, c.focal);
+        int rival = -1;
+        for (int i = 0; i < c.root.alive.length; i++) if (i != c.focal && c.root.alive[i]
+                && graph.edge[c.focal][i] > 0 && (rival < 0 || graph.edge[c.focal][i] > graph.edge[c.focal][rival])) rival = i;
+        if (rival < 0) {
+            c.contingentReport = Map.of("reason", "no-direct-rival"); return c.baseline;
+        }
+        final Budget budget = new Budget(c.config.policyBudget, c.config.moveBudget);
+        final Map<Direction, List<Run>> worlds = new LinkedHashMap<>();
+        final List<Object> audit = new ArrayList<>();
+        boolean disagreement = false, unavailable = false;
+        try {
+            for (final Direction d : actions) {
+                final Run normal = scenario(g, ai, c, budget, d, rival, null, true);
+                final boolean different = normal.replyDone && normal.alternateReply != null
+                        && normal.normalReply != normal.alternateReply;
+                disagreement |= different;
+                unavailable |= normal.replyDone ? normal.alternateReply == null : !normal.outcome.resolved;
+                final Run alternate = different
+                        ? scenario(g, ai, c, budget, d, rival, normal.alternateReply, false) : normal;
+                worlds.put(d, List.of(normal, alternate));
+                audit.add(Map.of("first", d.name(), "normal", normal.data(), "chooser", alternate.data(),
+                        "differentReply", different));
+            }
+        } catch (final Limit exhausted) {
+            c.exhausted = true;
+            c.contingentReport = Map.of("reason", "budget", "rival", rival, "plans", audit);
+            return c.baseline;
+        } finally { recordBudget(c, budget); }
+        Direction pick = c.baseline;
+        final List<Run> baseline = worlds.get(pick);
+        if (disagreement && !unavailable && baseline != null) for (final Direction d : actions) {
+            final List<Outcome> candidate = worlds.get(d).stream().map(r -> r.outcome).toList();
+            if (dominates(candidate, baseline.stream().map(r -> r.outcome).toList())
+                    && (pick == c.baseline || dominates(candidate, worlds.get(pick).stream().map(r -> r.outcome).toList()))) pick = d;
+        }
+        c.contingentReport = Map.of("reason", unavailable ? "unavailable-response" : !disagreement ? "models-agree" : pick == c.baseline ? "no-dominating-plan" : "dominates",
+                "rival", rival, "responseModels", List.of("forecast-policy", "bounded-chooser"), "plans", audit);
+        if (worlds.containsKey(pick)) c.selectedPlan = worlds.get(pick).get(0);
+        return pick;
     }
 
     static Direction modelPick(final RaceGame g, final Board b, final int focal, final List<Direction> actions,

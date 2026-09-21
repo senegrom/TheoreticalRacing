@@ -1,5 +1,8 @@
 # Chooser-policy laboratory (research only, 2026-09-19)
 
+The current research extension and 20-cell correction are documented in
+`contingent-prefix.md`; the text below records the original laboratory baseline.
+
 Base: `720f421fc5c93795f9f0d4f14249b0c6898af7b8`, the promoted round-260
 12-round chooser with the finish-target reach-cache key correction. This is a
 new research branch, not a replacement with the archived round-254 laboratory.
