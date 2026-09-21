@@ -109,7 +109,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     ("hungaroring", 40): '90f71b469bcc3bcab793850867337f76d0f4c771754e01b2d6cda0f3565e819d',
     # Round 224: same finishing order and same per-car move counts, new route.
-    ("interlagos", 47): 'a9c5fd48135fe99a485fb52f1790c4b1dbe9c3042e1a96ac1abaefcd9a356052',
+    # 2026-09-21 quiet-rule correction: measured trajectory only; outcome pins unchanged.
+    ("interlagos", 47): '09d193af579f2f283b6c8151d2fdbbbbd7d2942c39c700e509c49dea93395ed5',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
     ("monza", 30): 'd9962438c5c75403a1ad94f9ec373b2da02d019b07446831e3103076a2fd4561',
@@ -120,7 +121,8 @@ VETO_NORMALIZED_SHA256 = {
     ("monaco", 35): 'b1b80891818930532ac1f11cf5e2d6ad11d33595fc2e9d9b9b44b4b752aa1200',
     ("zandvoort", 34): '3b7031ec4ecc3b95999d36adfd7c27a20923ea217eb084ca06d9e82fd9635ab4',
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
-    ("monza", 145): 'ad8f95d9fe32e506d6844c8d0f46b5445ca606a6cb8faa564248f8889c900d38',
+    # 2026-09-21 quiet-rule correction: measured trajectory only; outcome pins unchanged.
+    ("monza", 145): '7ad36b101b3ec079402d2c17ce9bbce11468131676f3347d17c57d4bd4933535',
     # Reject p3's wall-overlap finish at turn 819: its last two approach moves
     # and p6's nearby response move, but the full field's outcome counters do not.
     ("serpentine", 38): '82fbe5b9c802fad5ba69347f08e7b6ed21edb340a5df99ca300f92aa259d078f',

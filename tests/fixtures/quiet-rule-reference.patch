@@ -1,0 +1,42 @@
+--- a/src/tr/logic/RaceAi.java
++++ b/src/tr/logic/RaceAi.java
+@@ -570 +569,0 @@
+-	private final static int		AI1_ALONE_R	= 40;	// round 214: no live rival within this Chebyshev radius means the track is mine and the exact potential applies; 20 was too tight -- cars left the optimal line already inside a pack (weave3 lost 8 races of 10)
+@@ -594,0 +594,5 @@
++        // Isolated quiet-rule correction, before any traffic selection.
++        if (!rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
++            final Direction quiet = quietOptimalMove(pos, vel, playerNum);
++            if (quiet != null) return quiet;
++        }
+@@ -599,10 +602,0 @@
+-		// Round 214: with nobody near, the race is a shortest-path problem and
+-		// the exact potential solves it. Every caution term below is priced
+-		// against a rival that is not there, and the measured cost of that was
+-		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
+-		// with a finite value always has a successor one move closer.
+-		if (game.lapGates != null && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
+-			final Direction alone = optimalAloneMove(pos, vel, playerNum);
+-			if (alone != null)
+-				return alone;
+-		}
+@@ -4586,0 +4581,20 @@
++    /** Exact finite solo descent. Missing maps remain unknown; do not call an
++     * approximate scorer an optimum. Immediate referee finishes retain priority. */
++    private Direction quietOptimalMove(final int[] pos, final int[] vel, final int playerNum) {
++        if (game.lapGates != null) return optimalAloneMove(pos, vel, playerNum);
++        Direction best = null;
++        int value = Integer.MAX_VALUE;
++        for (final Direction d : DIRECTIONS) {
++            final int vx = vel[0] + d.dx, vy = vel[1] + d.dy;
++            if (RaceGame.aiVelocityOutOfRange(vx, vy)) continue;
++            final int nx = pos[0] + vx, ny = pos[1] + vy;
++            final RaceGame.MoveResult t = game.evaluateMove(0, 0, pos[0], pos[1], nx, ny,
++                    game.isCrashingPlayer(nx, ny, playerNum));
++            if (t.finishes()) return d;
++            if (!t.legal()) continue;
++            final int remaining = reach.turnsToFinish(nx, ny, vx, vy);
++            if (remaining < value) { value = remaining; best = d; }
++        }
++        return best;
++    }
++

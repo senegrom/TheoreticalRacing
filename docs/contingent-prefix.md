@@ -1,5 +1,8 @@
 # Response-contingent plans and exact prefix reuse (research, 2026-09-21)
 
+The follow-up regression attribution and baseline refresh are documented in
+`quiet-rule-clearance.md`. The initial failure counts below are historical.
+
 This branch combines the published chooser laboratory (`262649d`) with the
 current master's owner rule (`3466471`). It implements two additional ideas:
 response-contingent second actions and reuse of identical simulation prefixes.

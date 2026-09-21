@@ -1,5 +1,27 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Research clearance 2026-09-21: attribute and pin the quiet-rule correction
+
+The contingent/prefix branch f53c0df retained the old default-policy trajectory
+hashes after correcting the owner's quiet-mode rule. Run 35613608288 records
+five changed golden hashes and two champion trajectory failures, with the golden
+outcome summaries unchanged; the two scripts had passed their preceding outcome
+assertions. A complete recorded-race probe also finds the later Monza-s145 hash
+hidden behind the first private-slack failure; its outcome counters also match.
+This revision preserves all eight old/new hashes and re-freezes only those
+expectations, with reasons beside the numbers. No game source,
+referee, distance threshold, numeric outcome pin, geometry or user setting changes.
+
+An independent control is built from master 3466471 with only the small quiet-rule
+patch in tests/fixtures. The new comparator requires full trajectory equality on
+all twelve goldens, Rand3, and every private-slack case under both AI labels
+(34 comparisons / 68 races). It does not compare the branch to a copy of itself. Unit tests reject same-result action
+drift, truncation and classification differences. Complete source-specific
+supported-JDK, corpus, prefix and full-fleet evidence is retained by the clearance
+workflow and must be checked before publishing. See docs/quiet-rule-clearance.md.
+The fleet is default-policy description, not a candidate/champion place claim.
+No contingent/prefix promotion or learned endpoint evaluator is included.
+
 ## Research 2026-09-21: contingent replies and exact prefix reuse
 
 Combines master 3466471's rule with the published laboratory 262649d.

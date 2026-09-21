@@ -72,7 +72,7 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "c0eba2d6755fe0717d854ab33ff6e0f9aa026607a989a04a7ea2d86306864f8f",
+      "sha256": "2f2918605f94bee5611686ea5dfb97ca7ed0c129178a1c61b70ba6da957a627e",
       "summary": {
         "turns": 1093,
         "finishes": 6,
@@ -87,7 +87,8 @@
           "C",
           "A"
         ]
-      }
+      },
+      "reason": "2026-09-21: enforce exact quiet-mode selection before checkpoint/traffic precedence; unchanged outcome counters. See docs/quiet-rule-clearance.md."
     },
     {
       "name": "hairpin-s1-2p",
@@ -110,7 +111,7 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "08aae104d72e2da9c5c7309fe8ae24459813e0e96a1a19b528928aa59558a208",
+      "sha256": "2637e9fcebdaaac7bc19491c8c9a22b10f5c94484b6337b570dc559cb10af45b",
       "summary": {
         "turns": 543,
         "finishes": 3,
@@ -121,14 +122,15 @@
           "C",
           "D"
         ]
-      }
+      },
+      "reason": "2026-09-21: enforce exact quiet-mode selection before checkpoint/traffic precedence; unchanged outcome counters. See docs/quiet-rule-clearance.md."
     },
     {
       "name": "monaco-s16-8p",
       "track": "monaco",
       "seed": 16,
       "players": 8,
-      "sha256": "2e994f086aafaf6e9fc4633744115475e049274c0056f76a633ba95d03be010c",
+      "sha256": "bc42a1f9d9599ecef71ad96281dae53608c053bf7c71d4f558eaaf1932278bd2",
       "summary": {
         "turns": 1099,
         "finishes": 7,
@@ -143,14 +145,15 @@
           "H",
           "F"
         ]
-      }
+      },
+      "reason": "2026-09-21: enforce exact quiet-mode selection before checkpoint/traffic precedence; unchanged outcome counters. See docs/quiet-rule-clearance.md."
     },
     {
       "name": "nurburgring-s19-8p",
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "d1d38758d0bf5c477129bbeac5d5dec3d930098ac30695afa84ce32fd2911e98",
+      "sha256": "ab2c8684f32d1fa97b7ad1fad8b9ff02165adf95411c97d9bbc7011c435e45ff",
       "summary": {
         "turns": 1118,
         "finishes": 7,
@@ -165,7 +168,8 @@
           "B",
           "H"
         ]
-      }
+      },
+      "reason": "2026-09-21: enforce exact quiet-mode selection before checkpoint/traffic precedence; unchanged outcome counters. See docs/quiet-rule-clearance.md."
     },
     {
       "name": "interlagos-s10-8p",
@@ -238,7 +242,7 @@
       "track": "lemans",
       "seed": 1,
       "players": 4,
-      "sha256": "993cfd2f96a16c784c2c9e53b9db4e40050b38c71d3101bcbed9011d84e72c7a",
+      "sha256": "5985eec5cc51bf122f78e9a8d69a1421a355e1ef91ebfdbd779853ec5cd09c1b",
       "summary": {
         "turns": 587,
         "finishes": 3,
@@ -249,7 +253,8 @@
           "B",
           "A"
         ]
-      }
+      },
+      "reason": "2026-09-21: enforce exact quiet-mode selection before checkpoint/traffic precedence; unchanged outcome counters. See docs/quiet-rule-clearance.md."
     }
   ]
 }

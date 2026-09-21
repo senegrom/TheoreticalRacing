@@ -1,0 +1,126 @@
+{
+  "schema": 1,
+  "previous_branch": "f53c0df14b2ee2cc898929f565dd7ff80309348d",
+  "master_reference": "3466471efcb0cba8940b155e00a606b64c91b1ac",
+  "prior_ci_run": 35613608288,
+  "reference_patch_sha256": "b41581262d36cece02ac477d9b1cac9aef67f1c662e1c10611e2ad3c2028d4f7",
+  "reference_java_sha256": "d70f7fb89532676f0b94a01fa5fb1cfb18874bbb11795ac302c0afc64b147e1a",
+  "changes": [
+    {
+      "file": "tests/golden_races.json",
+      "case": "lemans-s4-8p",
+      "previous": "c0eba2d6755fe0717d854ab33ff6e0f9aa026607a989a04a7ea2d86306864f8f",
+      "corrected": "2f2918605f94bee5611686ea5dfb97ca7ed0c129178a1c61b70ba6da957a627e",
+      "summary": {
+        "turns": 1093,
+        "finishes": 6,
+        "crashes": 1,
+        "results": [
+          "B",
+          "F",
+          "G",
+          "D",
+          "E",
+          "H",
+          "C",
+          "A"
+        ]
+      }
+    },
+    {
+      "file": "tests/golden_races.json",
+      "case": "monaco-s9-4p",
+      "previous": "08aae104d72e2da9c5c7309fe8ae24459813e0e96a1a19b528928aa59558a208",
+      "corrected": "2637e9fcebdaaac7bc19491c8c9a22b10f5c94484b6337b570dc559cb10af45b",
+      "summary": {
+        "turns": 543,
+        "finishes": 3,
+        "crashes": 0,
+        "results": [
+          "A",
+          "B",
+          "C",
+          "D"
+        ]
+      }
+    },
+    {
+      "file": "tests/golden_races.json",
+      "case": "monaco-s16-8p",
+      "previous": "2e994f086aafaf6e9fc4633744115475e049274c0056f76a633ba95d03be010c",
+      "corrected": "bc42a1f9d9599ecef71ad96281dae53608c053bf7c71d4f558eaaf1932278bd2",
+      "summary": {
+        "turns": 1099,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "G",
+          "H",
+          "F"
+        ]
+      }
+    },
+    {
+      "file": "tests/golden_races.json",
+      "case": "nurburgring-s19-8p",
+      "previous": "d1d38758d0bf5c477129bbeac5d5dec3d930098ac30695afa84ce32fd2911e98",
+      "corrected": "ab2c8684f32d1fa97b7ad1fad8b9ff02165adf95411c97d9bbc7011c435e45ff",
+      "summary": {
+        "turns": 1118,
+        "finishes": 7,
+        "crashes": 0,
+        "results": [
+          "C",
+          "D",
+          "F",
+          "E",
+          "G",
+          "A",
+          "B",
+          "H"
+        ]
+      }
+    },
+    {
+      "file": "tests/golden_races.json",
+      "case": "lemans-s1-4p",
+      "previous": "993cfd2f96a16c784c2c9e53b9db4e40050b38c71d3101bcbed9011d84e72c7a",
+      "corrected": "5985eec5cc51bf122f78e9a8d69a1421a355e1ef91ebfdbd779853ec5cd09c1b",
+      "summary": {
+        "turns": 587,
+        "finishes": 3,
+        "crashes": 0,
+        "results": [
+          "C",
+          "D",
+          "B",
+          "A"
+        ]
+      }
+    },
+    {
+      "file": "tests/ai1_finish_sprint_true_confirm_regression.py",
+      "case": "rand3-s1",
+      "previous": "51089583b311e345adab3849d970f717d9dc34870756a603bbee3fa8382226c9",
+      "corrected": "f8f0b087f31f0f2ef71b3784f72bb920c12e3f28a481fb4d4c4d9235f8ebc361"
+    },
+    {
+      "file": "tests/ai1_private_slack_regression.py",
+      "case": "interlagos-s47-frozen",
+      "previous": "a9c5fd48135fe99a485fb52f1790c4b1dbe9c3042e1a96ac1abaefcd9a356052",
+      "corrected": "09d193af579f2f283b6c8151d2fdbbbbd7d2942c39c700e509c49dea93395ed5"
+    },
+    {
+      "file": "tests/ai1_private_slack_regression.py",
+      "case": "monza-s145-frozen",
+      "previous": "ad8f95d9fe32e506d6844c8d0f46b5445ca606a6cb8faa564248f8889c900d38",
+      "corrected": "7ad36b101b3ec079402d2c17ce9bbce11468131676f3347d17c57d4bd4933535",
+      "discovery": "full recorded-race probe; the preceding Interlagos mismatch previously masked this assertion"
+    }
+  ]
+}

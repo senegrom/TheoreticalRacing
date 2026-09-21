@@ -29,7 +29,8 @@ PROMOTED = (7, 0, [60, 61, 62, 62, 62, 63, 63])
 PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (5, 62), (7, 62), (4, 63), (8, 63)]
 PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 63, 5: 62, 6: 63, 7: 62, 8: 63}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-PROMOTED_SHA256 = '51089583b311e345adab3849d970f717d9dc34870756a603bbee3fa8382226c9'
+# 2026-09-21 quiet-rule correction: measured trajectory only; outcome pins unchanged.
+PROMOTED_SHA256 = 'f8f0b087f31f0f2ef71b3784f72bb920c12e3f28a481fb4d4c4d9235f8ebc361'
 
 
 def main() -> int:
