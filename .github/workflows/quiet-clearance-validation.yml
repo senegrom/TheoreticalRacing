@@ -1,0 +1,353 @@
+name: Quiet rule regression clearance
+on:
+  push:
+    branches: [work/quiet-rule-clearance-20260921]
+permissions:
+  contents: read
+concurrency:
+  group: quiet-rule-clearance-20260921
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+  RACING_REACH_CACHE: /tmp/isolated-reach-cache
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '${{ matrix.java }}'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: |
+          git show HEAD:.github/quiet-clearance.patch.gz | gzip -dc > "$RUNNER_TEMP/clearance.patch"
+          echo "d047a8cf34010949ff6a1d0d2d8d7e2442e885e9d473ce2e27cbb0444bcffe90  $RUNNER_TEMP/clearance.patch" | sha256sum -c -
+          git rm -q .github/quiet-clearance.patch.gz .github/workflows/quiet-clearance-validation.yml
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
+          git apply --index "$RUNNER_TEMP/clearance.patch"
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          mkdir -p evidence
+          git write-tree > evidence/tree.txt
+      - name: Strict correctness and native research contracts
+        run: |
+          java -version > evidence/java.log 2>&1
+          sh run_tests.sh > evidence/java-tests.log 2>&1
+          sh build_main.sh > evidence/build.log 2>&1
+          python -m unittest discover -s tests -p 'test_*.py' > evidence/python-tests.log 2>&1
+          python tests/cross_era_referee_regression.py > evidence/referee.log 2>&1
+          python tests/contingent_prefix_regression.py --heap=-Xmx8g --out evidence/native > evidence/native.log 2>&1
+          python tests/chooser_lab_regression.py --heap=-Xmx8g --out evidence/lab > evidence/lab.log 2>&1
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clearance-contracts-${{ matrix.java }}
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+            !evidence/attribution/cache-*/**
+          retention-days: 30
+  attribution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: |
+          git show HEAD:.github/quiet-clearance.patch.gz | gzip -dc > "$RUNNER_TEMP/clearance.patch"
+          echo "d047a8cf34010949ff6a1d0d2d8d7e2442e885e9d473ce2e27cbb0444bcffe90  $RUNNER_TEMP/clearance.patch" | sha256sum -c -
+          git rm -q .github/quiet-clearance.patch.gz .github/workflows/quiet-clearance-validation.yml
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
+          git apply --index "$RUNNER_TEMP/clearance.patch"
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          mkdir -p evidence
+          git write-tree > evidence/tree.txt
+      - uses: actions/checkout@v7
+        with:
+          ref: 3466471efcb0cba8940b155e00a606b64c91b1ac
+          path: quiet-only
+          persist-credentials: false
+      - name: Build independent quiet-only reference and compare entire races
+        run: |
+          git -C quiet-only apply --unidiff-zero "$GITHUB_WORKSPACE/tests/fixtures/quiet-rule-reference.patch"
+          echo 'd70f7fb89532676f0b94a01fa5fb1cfb18874bbb11795ac302c0afc64b147e1a  quiet-only/src/tr/logic/RaceAi.java' | sha256sum -c -
+          test "$(git -C quiet-only diff --name-only)" = src/tr/logic/RaceAi.java
+          sh quiet-only/build_main.sh > evidence/reference-build.log 2>&1
+          sh build_main.sh > evidence/research-build.log 2>&1
+          python tests/quiet_baseline_regression.py --reference-jar quiet-only/theoreticRacing.jar --heap=-Xmx8g --out evidence/attribution > evidence/attribution.log 2>&1
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clearance-attribution
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+            !evidence/attribution/cache-*/**
+          retention-days: 30
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: |
+          git show HEAD:.github/quiet-clearance.patch.gz | gzip -dc > "$RUNNER_TEMP/clearance.patch"
+          echo "d047a8cf34010949ff6a1d0d2d8d7e2442e885e9d473ce2e27cbb0444bcffe90  $RUNNER_TEMP/clearance.patch" | sha256sum -c -
+          git rm -q .github/quiet-clearance.patch.gz .github/workflows/quiet-clearance-validation.yml
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
+          git apply --index "$RUNNER_TEMP/clearance.patch"
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          mkdir -p evidence
+          git write-tree > evidence/tree.txt
+      - name: Run every exact golden and champion assertion
+        shell: bash
+        run: |
+          sh build_main.sh > evidence/build.log 2>&1
+          failed=0
+          for script in tests/headless_smoke.py tests/query_replay_regression.py tests/lap_progress_regression.py tests/selfplay_profile_regression.py tests/golden_races.py tests/ai1_*_regression.py; do
+            name=$(basename "$script" .py)
+            if python "$script" > "evidence/$name.log" 2>&1; then
+              printf '%s\tPASS\n' "$name" >> evidence/status.tsv
+            else
+              printf '%s\tFAIL\n' "$name" >> evidence/status.tsv
+              failed=1
+            fi
+          done
+          git diff --exit-code || failed=1
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clearance-corpus
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+            !evidence/attribution/cache-*/**
+          retention-days: 30
+  fleet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        mode: [legacy, informed, scatter]
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
+    env:
+      START_MODE: ${{ matrix.mode }}
+      SHARD: ${{ matrix.shard }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: |
+          git show HEAD:.github/quiet-clearance.patch.gz | gzip -dc > "$RUNNER_TEMP/clearance.patch"
+          echo "d047a8cf34010949ff6a1d0d2d8d7e2442e885e9d473ce2e27cbb0444bcffe90  $RUNNER_TEMP/clearance.patch" | sha256sum -c -
+          git rm -q .github/quiet-clearance.patch.gz .github/workflows/quiet-clearance-validation.yml
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
+          git apply --index "$RUNNER_TEMP/clearance.patch"
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          mkdir -p evidence
+          git write-tree > evidence/tree.txt
+      - name: Complete sharded default-policy fleet without changing input tracks
+        run: |
+          sh build_main.sh > evidence/build.log 2>&1
+          python - <<'PYCODE'
+          import json, os, shutil
+          from pathlib import Path
+          from tracks.benchmark_io import update_properties
+          out=Path('evidence'); profile=out/'fleet.properties'
+          shutil.copyfile('tracks/lap_bench.properties',profile)
+          values={'nPlayers':'8','aiStartPlacement':os.environ['START_MODE'],'candidateSlots':'','chooser.experiments':'','chooser.audit':'false'}
+          values.update({f'player{i}Kind':'AI1' for i in range(1,9)})
+          update_properties(profile,values)
+          tracks=sorted(p.stem for p in Path('tracks').glob('*.track'))[int(os.environ['SHARD'])::14]
+          assert tracks
+          (out/'selection.json').write_text(json.dumps({'mode':os.environ['START_MODE'],'shard':int(os.environ['SHARD']),'tracks':tracks}))
+          with open(os.environ['GITHUB_ENV'],'a') as f:
+              f.write('RACING_TRACKS='+','.join(tracks)+'\n')
+              f.write('RACING_PROPS='+str(profile.resolve())+'\n')
+              f.write('RACING_HEAP=-Xmx8g\n')
+          PYCODE
+          python tracks/fleet_grid.py 1-10 1 evidence/grid > evidence/fleet.log 2>&1
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clearance-fleet-${{ matrix.mode }}-${{ matrix.shard }}
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+            !evidence/attribution/cache-*/**
+          retention-days: 30
+  fleet_summary:
+    needs: [fleet]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: |
+          git show HEAD:.github/quiet-clearance.patch.gz | gzip -dc > "$RUNNER_TEMP/clearance.patch"
+          echo "d047a8cf34010949ff6a1d0d2d8d7e2442e885e9d473ce2e27cbb0444bcffe90  $RUNNER_TEMP/clearance.patch" | sha256sum -c -
+          git rm -q .github/quiet-clearance.patch.gz .github/workflows/quiet-clearance-validation.yml
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
+          git apply --index "$RUNNER_TEMP/clearance.patch"
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          mkdir -p evidence
+          git write-tree > evidence/tree.txt
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: clearance-fleet-*
+          path: fleets
+      - name: Verify complete coverage, markers and race classifications
+        run: |
+          python - <<'PYCODE' > evidence/fleet-summary.log
+          import hashlib,json
+          from pathlib import Path
+          from tracks.fleet_grid import completed,json_text
+          from tracks.benchmark_io import read_race
+          tracks={p.stem for p in Path('tracks').glob('*.track')}
+          coverage={m:set() for m in ['legacy','informed','scatter']}; summaries={m:dict(races=0,loop_races=0,crashes=0,timeouts=0,moves=0) for m in coverage}
+          jars=set(); inputs={}; archives=sorted(Path('fleets').iterdir())
+          assert len(archives)==42
+          for out in archives:
+              selection=json.loads((out/'selection.json').read_text()); mode=selection['mode']; shard=selection['shard']
+              assert selection['tracks']==sorted(tracks)[shard::14]
+              grid=out/'grid'; manifest=json.loads((grid/'manifest.json').read_text())
+              assert manifest['seeds']==[1,10] and manifest['heap']==['-Xmx8g']
+              assert manifest['comparison']['candidate_slots']==[]
+              assert set(manifest['tracks'])==set(selection['tracks'])
+              assert not coverage[mode] & set(manifest['tracks'])
+              coverage[mode].update(manifest['tracks']); jars.add(manifest['jar'])
+              run=hashlib.sha256(json_text(manifest).encode()).hexdigest()
+              for track in manifest['tracks']:
+                  assert manifest['tracks'][track]==hashlib.sha256(Path('tracks',track+'.track').read_bytes()).hexdigest()
+                  record=completed(grid,track,run,range(1,11)); assert record is not None
+                  for seed,saved in zip(range(1,11),record['logs']):
+                      log=grid/f'{track}_s{seed}.log'; race=read_race(log)
+                      assert len(race.players)==8 and not race.slots and all(v[1]=='AI1' for v in race.players.values())
+                      assert sorted(race.places.values())==list(range(1,9))
+                      count=saved['counts']; total=summaries[mode]
+                      total['races']+=1; total['loop_races']+=not record['no_loop']
+                      for metric,key in [('crashes','crash'),('timeouts','timeout'),('moves','moves')]: total[metric]+=count[key]
+              inputs[out.name]=hashlib.sha256((grid/'manifest.json').read_bytes()).hexdigest()
+          assert len(jars)==1
+          assert all(c==tracks for c in coverage.values())
+          assert all(s['races']==len(tracks)*10 for s in summaries.values())
+          result={'schema':1,'tracks':len(tracks),'seeds':[1,10],'jar':next(iter(jars)),'modes':summaries,'manifests':inputs,'scope':'complete corrected-default fleet; descriptive only, not head-to-head promotion evidence'}
+          Path('evidence/fleet-summary.json').write_text(json.dumps(result,indent=2)+'\n')
+          print(json.dumps(result,indent=2))
+          PYCODE
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clearance-fleet-summary
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+            !evidence/attribution/cache-*/**
+          retention-days: 30
+  prepare:
+    needs: [contracts, attribution, corpus, fleet_summary]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: |
+          git show HEAD:.github/quiet-clearance.patch.gz | gzip -dc > "$RUNNER_TEMP/clearance.patch"
+          echo "d047a8cf34010949ff6a1d0d2d8d7e2442e885e9d473ce2e27cbb0444bcffe90  $RUNNER_TEMP/clearance.patch" | sha256sum -c -
+          git rm -q .github/quiet-clearance.patch.gz .github/workflows/quiet-clearance-validation.yml
+          test "$(git write-tree)" = 3c237f54a610e33efe9a67c1dbac4f7133ba70bc
+          git apply --index "$RUNNER_TEMP/clearance.patch"
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          mkdir -p evidence
+          git write-tree > evidence/tree.txt
+      - name: Prepare tested source only, never update master
+        shell: bash
+        run: |
+          git diff --exit-code
+          test "$(git write-tree)" = df3abd12ca32828a33996a627859e9f56f661c3f
+          git fetch --no-tags origin f53c0df14b2ee2cc898929f565dd7ff80309348d --depth=1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          branch=work/quiet-rule-prepared-20260921
+          test -z "$(git ls-remote --heads origin refs/heads/$branch)"
+          commit=$(printf '%s\n' 'Resolve quiet-rule trace baselines with independent reference and full fleet validation' '' 'Keep the 20-cell correction, contingent search and exact prefix reuse intact. Independently compare all twelve goldens and both affected champion cases under both labels against master plus only the quiet-rule patch. Re-freeze seven measured hashes, retaining every outcome assertion and old/new provenance. JDK 25/26 correctness, complete corpus and three-mode all-course default fleet validated. No master update or candidate-policy promotion.' | git commit-tree df3abd12ca32828a33996a627859e9f56f661c3f -p f53c0df14b2ee2cc898929f565dd7ff80309348d)
+          git push origin "$commit:refs/heads/$branch"
+          echo "$commit" > evidence/prepared-commit.txt
+          echo "Prepared $commit, tree df3abd12ca32828a33996a627859e9f56f661c3f" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: clearance-prepared
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+            !evidence/attribution/cache-*/**
+          retention-days: 30
