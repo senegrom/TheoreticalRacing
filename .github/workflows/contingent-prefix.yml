@@ -1,0 +1,24 @@
+name: Contingent prefix research
+on:
+  push:
+    branches: [work/contingent-prefix-20260921]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: contingent-prefix-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Archive exact research source
+        run: git archive --format=tar.gz HEAD > "$RUNNER_TEMP/research-source.tar.gz"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: contingent-source
+          path: ${{ runner.temp }}/research-source.tar.gz
+          retention-days: 30
