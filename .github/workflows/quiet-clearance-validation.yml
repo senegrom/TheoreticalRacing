@@ -1,0 +1,163 @@
+name: Final quiet-rule regression clearance
+on:
+  push:
+    branches: [work/quiet-rule-final-validation-20260921]
+permissions:
+  contents: read
+concurrency:
+  group: quiet-rule-final-validation-20260921
+  cancel-in-progress: false
+env:
+  JAVA_TOOL_OPTIONS: ''
+  JDK_JAVA_OPTIONS: ''
+  _JAVA_OPTIONS: ''
+  RACING_REACH_CACHE: /tmp/isolated-reach-cache
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '${{ matrix.java }}'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: sh .github/quiet-final-apply.sh
+      - name: Strict correctness and native research contracts
+        run: |
+          java -version > evidence/java.log 2>&1
+          sh run_tests.sh > evidence/java-tests.log 2>&1
+          sh build_main.sh > evidence/build.log 2>&1
+          sha256sum theoreticRacing.jar > evidence/jar.sha256
+          python -m unittest discover -s tests -p 'test_*.py' > evidence/python-tests.log 2>&1
+          python tests/cross_era_referee_regression.py > evidence/referee.log 2>&1
+          python tests/contingent_prefix_regression.py --heap=-Xmx8g --out evidence/native > evidence/native.log 2>&1
+          python tests/chooser_lab_regression.py --heap=-Xmx8g --out evidence/lab > evidence/lab.log 2>&1
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: final-clearance-contracts-${{ matrix.java }}
+          path: |
+            evidence/
+            !evidence/lab/cache/**
+            !evidence/native/cache/**
+          retention-days: 30
+  attribution:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: sh .github/quiet-final-apply.sh
+      - uses: actions/checkout@v7
+        with:
+          ref: 3466471efcb0cba8940b155e00a606b64c91b1ac
+          path: quiet-only
+          persist-credentials: false
+      - name: Build independent quiet-only reference and compare entire races
+        run: |
+          git -C quiet-only apply --unidiff-zero "$GITHUB_WORKSPACE/tests/fixtures/quiet-rule-reference.patch"
+          echo 'd70f7fb89532676f0b94a01fa5fb1cfb18874bbb11795ac302c0afc64b147e1a  quiet-only/src/tr/logic/RaceAi.java' | sha256sum -c -
+          test "$(git -C quiet-only diff --name-only)" = src/tr/logic/RaceAi.java
+          sh quiet-only/build_main.sh > evidence/reference-build.log 2>&1
+          sh build_main.sh > evidence/research-build.log 2>&1
+          sha256sum theoreticRacing.jar > evidence/jar.sha256
+          python tests/quiet_baseline_regression.py --reference-jar quiet-only/theoreticRacing.jar --heap=-Xmx8g --out evidence/attribution > evidence/attribution.log 2>&1
+          git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: final-clearance-attribution
+          path: |
+            evidence/
+            !evidence/attribution/cache-*/**
+          retention-days: 30
+  corpus:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Apply exact reviewed source
+        run: sh .github/quiet-final-apply.sh
+      - name: Run every exact golden and champion assertion
+        shell: bash
+        run: |
+          sh build_main.sh > evidence/build.log 2>&1
+          failed=0
+          for script in tests/headless_smoke.py tests/query_replay_regression.py tests/lap_progress_regression.py tests/selfplay_profile_regression.py tests/golden_races.py tests/ai1_*_regression.py; do
+            name=$(basename "$script" .py)
+            if python "$script" > "evidence/$name.log" 2>&1; then
+              printf '%s\tPASS\n' "$name" >> evidence/status.tsv
+            else
+              printf '%s\tFAIL\n' "$name" >> evidence/status.tsv
+              failed=1
+            fi
+          done
+          git diff --exit-code || failed=1
+          exit "$failed"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: final-clearance-corpus
+          path: evidence/
+          retention-days: 30
+  prepare:
+    needs: [contracts, attribution, corpus]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: true
+      - name: Apply exact reviewed source
+        run: sh .github/quiet-final-apply.sh
+      - name: Prepare tested source only, never update master
+        shell: bash
+        run: |
+          git diff --exit-code
+          test "$(git write-tree)" = 7c4358a67fd467c55e3563f78fe2cdad502d5857
+          git fetch --no-tags origin f53c0df14b2ee2cc898929f565dd7ff80309348d --depth=1
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          branch=work/quiet-rule-final-prepared-20260921
+          test -z "$(git ls-remote --heads origin refs/heads/$branch)"
+          commit=$(printf '%s\n' 'Resolve every quiet-rule trace baseline with complete independent attribution' '' 'Keep the 20-cell correction, contingent search and exact prefix reuse intact. Independently compare all twelve goldens and every private-slack case plus Rand3 under both labels against master plus only the quiet-rule patch. Re-freeze eight measured hashes, retaining every outcome assertion and old/new provenance. JDK 25/26 correctness and complete corpus validated on this exact source. Default fleet evidence is recorded separately for the identical production and benchmark sources. No master update or candidate-policy promotion.' | git commit-tree 7c4358a67fd467c55e3563f78fe2cdad502d5857 -p f53c0df14b2ee2cc898929f565dd7ff80309348d)
+          git push origin "$commit:refs/heads/$branch"
+          echo "$commit" > evidence/prepared-commit.txt
+          echo "Prepared $commit, tree 7c4358a67fd467c55e3563f78fe2cdad502d5857" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: final-clearance-prepared
+          path: evidence/
+          retention-days: 30
