@@ -32,6 +32,24 @@ cars with the road to themselves.
 Self-play counters are deferred to the same slot as the computed starts; on
 this corpus evidence they will not move.
 
+THE REST OF THE BATTERY (2026-09-23), all against the round-260 champion,
+mirrored, seeds 1-20, -Xmx8g. Computed starts: -0.000 +- 0.000 places, 83
+of 84 boards tied (rand17 -0.025 the one exception), crashes 178 against
+178. Duels (two cars, legacy starts): +0.001 +- 0.001, 83 tied, the one
+board rand14 again (+0.100 over 40 car-races), crashes 189 against 189.
+Self-play (eight cars, seeds 1-10): 77 crashes and 1,748,122 moves against
+round 260's 77 and 1,748,109 -- thirteen moves in 1.75 million. The rule
+costs nothing wherever it was measured.
+
+Not yet "exactly as it drives alone", though (a review session, 2026-09-23):
+between 20 and 40 cells the car still races the score, not the round-214
+solo descent (AI1_ALONE_R stays 40), and the score's long-range queue brake
+counts stalled rivals up to its stopping distance, ~57 cells at speed 11. In
+a scan, 804 of 1,248 states with only distant rivals picked a different move
+from the solo car, with no lost turn proven. Round 267 measures the literal
+reading (the solo descent at 20 cells): -0.000 on legacy, -0.000 held-out,
+-0.005 +- 0.002 scattered so far.
+
 ## Round 261: does the chooser owe the exact-potential line when the opposition is far?
 
 Round 260's promotion raised a fair question: alone or with the field far
