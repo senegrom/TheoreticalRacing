@@ -57,11 +57,21 @@ every slot a candidate (VERIFY OK), and the promotion with no slots races
 exactly as the twin with every slot a candidate on two lap circuits and two
 point-to-point courses, legacy and scattered (PROMO_IDENTITY OK).
 
-THE CORPUS BARELY MOVES. All 24 pins pass with zero changed assertions (one
-probe pass, no loop needed). Six of the twelve goldens re-froze --
-hairpin-s10-8p, lemans-s4-8p, lemans-s1-4p, monaco-s9-4p (543 -> 545 turns),
-monaco-s16-8p (1099 -> 1106) and nurburgring-s19-8p -- every finishing order
-unchanged.
+THE CORPUS. Six of the twelve goldens re-froze -- hairpin-s10-8p,
+lemans-s4-8p, lemans-s1-4p, monaco-s9-4p (543 -> 545 turns), monaco-s16-8p
+(1099 -> 1106) and nurburgring-s19-8p -- every finishing order unchanged. Ten
+of the 24 pins moved. The loop re-froze seven (energy_pace, graduated_field,
+bounded_uncertain_field, finish_sprint_true_confirm, six_ahead_accel,
+private_slack, six_ahead_high_speed); three were re-frozen by hand from the
+probe records. finish_denial (hairpin s68): p8 now crosses the line in 17
+moves as the sixth finisher instead of being classified last, and p1 is the
+car classified behind -- rank first, visibly. finish_frontier (Coil s6, a
+point-to-point course): 417 -> 420 moves for the field. mixed_safety: AI1's
+place sum 25 -> 22, AI2's 11 -> 14, still crash-free. A first probe pass
+had reported that nothing moved: probe_pin.py hard-coded the round-262 tree,
+so it raced round 262's jar. I pushed on that, CI's pin step caught it, and
+master was red until the corrected re-freeze landed; the corpus flow now ends
+by running every pin script directly, exactly as CI does.
 
 The components' own records against round 262 closed on the same day:
 placekey scattered -0.000 +- 0.000 (81 of 84 boards tied, crashes 8:8), and

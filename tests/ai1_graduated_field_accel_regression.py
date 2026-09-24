@@ -14,9 +14,10 @@ PROMOTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-    1: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
-    38: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
-    106: (7, 0, [58, 59, 59, 59, 60, 61, 61]),
+    # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
+    1: (7, 0, [58, 59, 60, 60, 60, 61, 62]),
+    38: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
+    106: (7, 0, [58, 59, 59, 59, 61, 61, 61]),
 }
 LEGACY_CHAMPION = {
     1: (7, 0, [58, 59, 60, 62, 62, 63, 63]),

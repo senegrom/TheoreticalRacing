@@ -41,7 +41,9 @@ def main() -> int:
         # Round 254 (the danger guard in a faithful world): an AI1 car crashes
         # here now -- recorded, not vetoed (AGENTS.md).
         # Round 260 (the chooser): seed 2 is crash-free again.
-        SEED2_MEASURED = {"AI1": (25, 4, 0), "AI2": (11, 4, 0)}
+        # Round 274 (rank first; the single-player rule made literal):
+        # re-frozen from measurement, still crash-free.
+        SEED2_MEASURED = {"AI1": (22, 4, 0), "AI2": (14, 4, 0)}
         for kind in ("AI1", "AI2"):
             place_sum, finishers, crashes = result[kind]
             if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:

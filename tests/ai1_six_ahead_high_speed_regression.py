@@ -48,8 +48,9 @@ PROMOTED_DECISION = (
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 VETO_CASES = {
     ("spa", 27): (
-        (7, 0, [78, 79, 81, 81, 81, 83, 84]),
-        "d14c6a9c830daf73e0e936cbfdf8f79076e71907e1efbad4f98f958b0dd367df",
+        # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
+        (7, 0, [78, 79, 81, 81, 81, 82, 83]),
+        "a13f80cb29070e782ebdea59153aa660d2f1054aa61c5634a0d091488211c94b",
     ),
     ("spa", 57): (
         (6, 1, [78, 79, 81, 81, 82, 82]),
@@ -65,20 +66,20 @@ VETO_CASES = {
         "7f163b460bf13a38b1738354d13099fbdf9675c80343081aacb6176e375efdae",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 81, 82, 83]),
-        "840fbec66afc6dab17679f8e29fe97da7f5591e09030710a4bb4cad3f4d69d34",
+        (7, 0, [78, 79, 80, 81, 81, 82, 82]),
+        "2d46d039013ed6d206d78585690be36b958175060b48d2888be18ff0faff0951",
     ),
     ("spa", 47): (
         (7, 0, [78, 80, 80, 81, 82, 82, 83]),
         "71341dd9a25ca3d83e34b8c26639e33624ad11660651a4bc78c4d6bcc7b0c511",
     ),
     ("coil", 5): (
-        (7, 0, [58, 59, 59, 59, 60, 61, 61]),
-        "28fda6295a443572caeb7293036c65942502de0157d5f154162043b74657062a",
+        (7, 0, [58, 59, 59, 59, 60, 60, 60]),
+        "1a161476524e531ebd32d01df81c707490acf885d7b02a70ff807f8d17c63ee1",
     ),
     ("coil", 22): (
-        (7, 0, [58, 59, 59, 59, 59, 60, 60]),
-        "e7ea5ff98cb2b8f27e2bd71db61d6162b031d54af6e9caefbb9ad7751a2b0cae",
+        (7, 0, [58, 59, 59, 59, 60, 60, 61]),
+        "82c6ee412c5616ca174d4b75a9c543d6eac47c614a45a75788dbdf4e9dbc5d69",
     ),
     ("silverstone", 78): (
         (7, 0, [81, 82, 83, 83, 84, 85, 85]),

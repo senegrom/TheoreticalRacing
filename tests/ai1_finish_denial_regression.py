@@ -29,20 +29,25 @@ TARGET = ("hairpin", 68)
 # Round 260 (the faithful joint world as a chooser): re-frozen from
 # measurement. The rescue holds -- p8 is home in 17 moves and no roster
 # crashes -- on a faster race: eighteen moves for the last car, not nineteen.
+# Round 274 (rank first): re-frozen from measurement. p8 now crosses the line
+# in 17 moves as the sixth finisher instead of being classified last, and p1
+# is the car classified behind; still seven finishers and no crash.
 RESCUED = (7, 0, [16, 16, 16, 17, 17, 17, 18])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (7, 17), (1, 18)]
-RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 17, 8: 17}
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (8, 17), (7, 18)]
+RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 17}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
 # re-frozen from measurement, with the trajectory digest below unchanged in role.
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 260: the same turn and car, re-frozen from measurement.
-RESCUED_DECISION = "104 p8 AI SW v(7,0)→(6,1) (43,6)→(49,7) ok"
+# Round 274: the same turn and car, re-frozen from measurement (rank first).
+RESCUED_DECISION = "104 p8 AI SW v(8,1)→(7,2) (50,7)→(57,9) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 260: re-frozen from measurement (the chooser).
-RESCUED_SHA256 = "b734e690fe2cb88c3ee96775565257b52a55f0a1db09354cf1861bb29a5822c3"
+# Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
+RESCUED_SHA256 = "8df5e48698cfa78f61e5ec61e78736ee92e0ab56db5f6e60ba31048469e0bc35"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

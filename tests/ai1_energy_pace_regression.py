@@ -21,7 +21,8 @@ EXPECTED = {
  ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
  ("interlagos",47): (7, 0, [124, 125, 126, 127, 128, 130, 131]),
  ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 84]),
- ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 144]),  # Round 260 (the chooser): whole again.
+ # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
+ ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 143]),  # Round 260 (the chooser): whole again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

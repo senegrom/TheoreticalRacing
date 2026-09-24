@@ -61,10 +61,11 @@ RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
-    PROOF_VETO: ((7, 0, [66, 67, 68, 70, 71, 73, 74]),
+    # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
+    PROOF_VETO: ((7, 0, [66, 67, 68, 70, 71, 73, 75]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
                  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
-                 '6fd8247d18c96831b338b3c7ae006b1f243e716b9eb86153838e0505249644aa'),
+                 '6968ac2bc8f42cb977a7a9e0e35825c7366488c0be238221b52ccbf0826d293f'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
@@ -86,8 +87,8 @@ RETENTION_CASES = {
         "7f163b460bf13a38b1738354d13099fbdf9675c80343081aacb6176e375efdae",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 81, 82, 83]),
-        "840fbec66afc6dab17679f8e29fe97da7f5591e09030710a4bb4cad3f4d69d34",
+        (7, 0, [78, 79, 80, 81, 81, 82, 82]),
+        "2d46d039013ed6d206d78585690be36b958175060b48d2888be18ff0faff0951",
     ),
     ("spa", 47): (
         (7, 0, [78, 80, 80, 81, 82, 82, 83]),
