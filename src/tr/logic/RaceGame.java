@@ -793,6 +793,87 @@ public final class RaceGame {
 		return cache;
 	}
 
+	/** Round 276: the world the AI models -- true while the deciding car has not
+	 *  passed its first checkpoint (every car on the track with the grid), false
+	 *  after (every car on the track without it). Set by RaceAi at the top of
+	 *  each decision; the referee never reads it. */
+	volatile boolean aiGridLegal = true;
+	private volatile boolean pocketReady;
+	private java.awt.geom.Rectangle2D pocketBounds;
+
+	/** Is the grid legal ground for this car: it has never left it and stands in it. */
+	boolean gridLegalFor(final Player player) {
+		final int[] p = player.getPosition();
+		return !player.hasLeftGrid() && startZoneA != null && startZoneA.contains(p[0], p[1]);
+	}
+
+	/** The start zone outside the corridor, as a bounding box; null when the
+	 *  grid lies inside the track (most courses). */
+	private java.awt.geom.Rectangle2D pocketBounds() {
+		if (!pocketReady) {
+			synchronized (this) {
+				if (!pocketReady) {
+					java.awt.geom.Rectangle2D bounds = null;
+					if (startZoneA != null && trackA != null) {
+						final Area pocket = new Area(startZoneA);
+						pocket.subtract(trackA);
+						if (!pocket.isEmpty())
+							bounds = pocket.getBounds2D();
+					}
+					pocketBounds = bounds;
+					pocketReady = true;
+				}
+			}
+		}
+		return pocketBounds;
+	}
+
+	private boolean inPocket(final double x, final double y) {
+		return startZoneA.contains(x, y) && !trackA.contains(x, y);
+	}
+
+	/** Does this move's path touch the pocket? The legality scan's probes: both
+	 *  ends and ~2 samples per unit of length; a finishing move only up to its
+	 *  crossing, where the finish exemption begins. */
+	boolean touchesPocket(final int x1, final int y1, final int x2, final int y2, final boolean finishing) {
+		final java.awt.geom.Rectangle2D b = pocketBounds();
+		if (b == null || Math.max(x1, x2) < b.getMinX() - 1 || Math.min(x1, x2) > b.getMaxX() + 1
+				|| Math.max(y1, y2) < b.getMinY() - 1 || Math.min(y1, y2) > b.getMaxY() + 1)
+			return false;
+		double u = 1.0;
+		if (finishing) {
+			final Line2D line = lapGates != null ? lapCrossGate : finishLine;
+			final double px = line.getX1(), py = line.getY1();
+			final double rx = line.getX2() - px, ry = line.getY2() - py;
+			final double sx = (double) x2 - x1, sy = (double) y2 - y1;
+			final double denom = rx * sy - ry * sx;
+			if (denom != 0.0) {
+				final double along = ((x1 - px) * ry - (y1 - py) * rx) / denom;
+				if (along >= 0.0 && along <= 1.0)
+					u = along;
+			}
+		}
+		if (inPocket(x1, y1) || u >= 1.0 && inPocket(x2, y2))
+			return true;
+		final long dxi = (long) x2 - x1, dyi = (long) y2 - y1;
+		final int n = Math.max(2, (int) Math.min(Integer.MAX_VALUE, Math.ceil(Math.hypot(dxi, dyi) * 2)));
+		for (int j = 1; j < n; j++) {
+			final double c = (double) j / n;
+			if (c >= u)
+				break;
+			if (inPocket(x1 + c * dxi, y1 + c * dyi))
+				return true;
+		}
+		return false;
+	}
+
+	/** Legality in the world the AI models (aiGridLegal): the grid-legal cached
+	 *  geometry, plus the pocket test once the deciding car is past CP1. */
+	boolean aiMoveLegal(final int x1, final int y1, final int x2, final int y2) {
+		return isMoveLegalGeometryCached(x1, y1, x2, y2)
+				&& (aiGridLegal || !touchesPocket(x1, y1, x2, y2, false));
+	}
+
 	boolean isMoveLegalGeometryCached(final int x1, final int y1, final int x2, final int y2) {
 		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
 		final int denseIndex = dense == null ? -1 : dense.index(x1, y1, x2, y2);
@@ -1632,7 +1713,7 @@ public final class RaceGame {
 	}
 
 	MoveResult evaluateMove(final Player player, final int[] pos, final int[] newpos) {
-		return evaluateMove(player.getLap(), player.getNextGate(), pos[0], pos[1],
+		return evaluateMove(player.getLap(), player.getNextGate(), gridLegalFor(player), pos[0], pos[1],
 				newpos[0], newpos[1], isCrashingPlayer(newpos[0], newpos[1], player.getNumber()));
 	}
 
@@ -1640,13 +1721,21 @@ public final class RaceGame {
 	 * board, not read from the live players while a rollout is in progress. */
 	MoveResult evaluateMove(final int lap, final int nextGate, final int x, final int y,
 			final int nx, final int ny, final boolean occupied) {
+		return evaluateMove(lap, nextGate, aiGridLegal, x, y, nx, ny, occupied);
+	}
+
+	/** Round 276: the same transition with the grid's legality explicit --
+	 *  gridLegal false forbids any move that touches the pocket. */
+	MoveResult evaluateMove(final int lap, final int nextGate, final boolean gridLegal,
+			final int x, final int y, final int nx, final int ny, final boolean occupied) {
 		final int pending = lapGates == null ? 0 : nextGate;
 		final int events = gateEventsOnMove(pending, x, y, nx, ny);
 		final int toLine = pending == 1 ? 3 : pending == 2 ? 2 : 1;
 		final boolean crossing = events == toLine;
 		final boolean finishing = crossing && lap + 1 >= totalLaps;
-		final boolean geometryLegal = finishing
-				? finishRunUpLegal(x, y, nx, ny) : isMoveLegalGeometry(x, y, nx, ny);
+		final boolean geometryLegal = (finishing
+				? finishRunUpLegal(x, y, nx, ny) : isMoveLegalGeometry(x, y, nx, ny))
+				&& (gridLegal || !touchesPocket(x, y, nx, ny, finishing));
 		final boolean legal = geometryLegal && (finishing || !occupied);
 		if (!legal)
 			return new MoveResult(false, geometryLegal, false, false, false, false, lap, nextGate);
@@ -1756,6 +1845,9 @@ public final class RaceGame {
 			player.logPosition(newpos);
 			redoPlayerLabels();
 		}
+		// Round 276: the first landing outside the grid ends its legality for this car.
+		if (legal && !finishes && startZoneA != null && !startZoneA.contains(newpos[0], newpos[1]))
+			player.leaveGrid();
 		maybeHideStartZone();
 		advanceToNextPlayer();
 	}
@@ -2229,6 +2321,7 @@ public final class RaceGame {
 			p.lineTo(startZone[0][i], startZone[1][i]);
 		p.closePath();
 		startZoneA = TrackGeometry.getToleranceExpandedShape(p);
+		pocketReady = false;
 		// Lap mode: the corridor is an ANNULUS -- each boundary closes on
 		// itself through its closure waypoints and the two rings even-odd
 		// fill. The legacy single-ring path closes right-first to left-first,

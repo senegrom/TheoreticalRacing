@@ -1,5 +1,42 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 276: the starting grid is legal until a car leaves it
+
+The owner's rule (2026-09-24, the review's item 7): the grid is a fully
+legal place for a car until that car first leaves it -- any number of moves
+inside it first -- and the owner asked the referee to implement it exactly
+and the AI to approximate it cheaply. Until now the start zone was legal for
+every car all race, and on several courses it reaches outside the corridor
+(the review listed silverstone, monza, lemans, fractal1, rand8 and rand13 by
+lattice points; Spa's is a sliver no lattice point falls in).
+
+Referee: Player.leftGrid, set by a car's first legal landing outside the
+start zone and carried in the undo lap state; a car is grid-legal while it
+has not left and still stands in the grid, and a move by any other car may
+not touch the POCKET -- the start zone outside the corridor -- probed like
+the legality scan (both ends and two samples per unit length; a finishing
+move only up to its crossing).
+AI, the owner's design: until the deciding car has passed its first
+checkpoint every car is modelled on the track with the grid, afterwards
+without it -- RaceGame.aiGridLegal, set once per top-level decision so nested
+rival decisions share it; the maps and the persisted edge cache keep the
+grid-legal semantics, and the AI's own checks (aiMoveLegal, the solo descent,
+the AI-facing evaluateMove) add the pocket test. A rival still on the grid by
+then has no legal move in that world, which is the owner's "not an opponent
+worthy of consideration".
+
+What it changed: round 274 raced THROUGH the pocket mid-race where the old
+rule allowed it. Against round 274 on the six listed courses, seeds 1-2:
+five identical, fractal1 different (move 692: the old car cut SE from
+(142,57) into the grid's reach, the new one goes S). The twelve goldens are
+unchanged; two pins moved, both on Spa: bounded_uncertain_field (the loop)
+and six_ahead_high_speed (by hand -- seed 83's p1 decision at turn 201 and
+the seed-57 and seed-47 vetoes). A rule binds every car alike, so there is no
+mirrored split to screen; OwnerRuleTests pins the rule itself.
+
+Item 8 (places at the turn limit follow slot order) is parked on the owner's
+word; no fleet race reaches the limit.
+
 ## Round 274: rank first, and the single-player rule made literal
 
 Two owner decisions of 2026-09-23, promoted together and now the baseline

@@ -42,6 +42,9 @@ public final class Player {
 	private int						finishedPlace;
 	private int						lap;
 	private int						nextGate	= 1;
+	/** Round 276: has this car ever landed outside the starting grid? Until
+	 *  it has, the grid is legal ground for it (the owner's rule). */
+	private boolean					leftGrid;
 	private int						traceStart;
 	private final int[]				gateMark	= new int[3];
 	private final List<int[]>			history		= new ArrayList<>();
@@ -137,7 +140,7 @@ public final class Player {
 	 *  and the three gate marks. Undo rewinds position and velocity, so it has
 	 *  to rewind the gate ledger with them or a rewound crossing stays banked. */
 	int[] lapState() {
-		return new int[] { lap, nextGate, traceStart, gateMark[0], gateMark[1], gateMark[2] };
+		return new int[] { lap, nextGate, traceStart, gateMark[0], gateMark[1], gateMark[2], leftGrid ? 1 : 0 };
 	}
 
 	void restoreLapState(final int[] state) {
@@ -147,6 +150,15 @@ public final class Player {
 		gateMark[0] = state[3];
 		gateMark[1] = state[4];
 		gateMark[2] = state[5];
+		leftGrid = state.length > 6 && state[6] != 0;
+	}
+
+	boolean hasLeftGrid() {
+		return leftGrid;
+	}
+
+	void leaveGrid() {
+		leftGrid = true;
 	}
 
 	public String statusLabel() {

@@ -17,25 +17,28 @@ TARGET = ("spa", 83)
 # Round 248 (the physical world model): re-frozen from measurement; p5 crashes
 # on its 31st move -- recorded, not vetoed.
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-PROMOTED = (6, 1, [78, 79, 80, 82, 82, 83])
+# Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
+PROMOTED = (6, 1, [78, 79, 81, 82, 83, 83])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
 PROMOTED_FINISHERS = [
     (6, 78),
     (7, 79),
-    (8, 80),
+    (1, 81),
     (2, 82),
-    (3, 82),
+    (3, 83),
     (4, 83),
 ]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
-PROMOTED_ALL_MOVES = {1: 83, 2: 82, 3: 82, 4: 83, 5: 29, 6: 78, 7: 79, 8: 80}
+PROMOTED_ALL_MOVES = {1: 81, 2: 82, 3: 83, 4: 83, 5: 58, 6: 78, 7: 79, 8: 82}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-PROMOTED_SHA256 = "9599187fc03f380c08902c895ef9de7eaaf313da3235cd1515fb66f22b2920e5"
+# Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
+PROMOTED_SHA256 = "87b3d5646beb59e066403ef71dc2be33f608f8ef4a403ec227c59554e1385b46"
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    "201 p1 {kind} NW v(0,8)→(-1,7) (101,132)→(100,139) ok"
+    # Round 276: the same turn and car, re-frozen from measurement.
+    "201 p1 {kind} NW v(0,7)→(-1,6) (102,130)→(101,136) ok"
 )
 
 # These cases cover every redistribution or slowdown exposed by the historical
@@ -53,8 +56,9 @@ VETO_CASES = {
         "a13f80cb29070e782ebdea59153aa660d2f1054aa61c5634a0d091488211c94b",
     ),
     ("spa", 57): (
-        (6, 1, [78, 79, 81, 81, 82, 82]),
-        "49a5f9eabd989da4d004ce65e54ba6453f984ebfa475044f1be71312e1c86a8c",
+        # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
+        (6, 1, [78, 79, 80, 81, 82, 83]),
+        "fe530d81b05a768abb6e92e42b240d8029762b01b15f368b95697ecbaed4644c",
     ),
     ("spa", 12): (
         # Round 254: re-frozen from measurement (the danger guard in a faithful world).
@@ -70,8 +74,9 @@ VETO_CASES = {
         "2d46d039013ed6d206d78585690be36b958175060b48d2888be18ff0faff0951",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 80, 81, 82, 82, 83]),
-        "71341dd9a25ca3d83e34b8c26639e33624ad11660651a4bc78c4d6bcc7b0c511",
+        # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
+        (7, 0, [78, 80, 81, 81, 82, 82, 83]),
+        "2336e6663550e869733a1ec109e0a996c85d1c3b6bc4c67bbc76f47fe057517b",
     ),
     ("coil", 5): (
         (7, 0, [58, 59, 59, 59, 60, 60, 60]),

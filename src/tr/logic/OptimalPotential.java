@@ -220,7 +220,7 @@ final class OptimalPotential {
 				continue;
 			}
 			if (nx < 0 || ny < 0 || nx >= w || ny >= h
-					|| !game.isMoveLegalGeometryCached(x, y, nx, ny))
+					|| !game.aiMoveLegal(x, y, nx, ny))
 				continue;
 			final int value = movesToFinish(after, nx, ny, nvx, nvy);
 			if (value < bestValue) {

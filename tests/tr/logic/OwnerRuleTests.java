@@ -16,7 +16,57 @@ public final class OwnerRuleTests {
     public static void main(final String[] args) throws Exception {
         testRankVerdict();
         testSoloBoundary();
-        System.out.println("OwnerRuleTests: rank-first verdicts and the 20-cell single-player boundary OK");
+        testGridRule();
+        System.out.println("OwnerRuleTests: rank-first verdicts, the 20-cell single-player boundary and the grid rule OK");
+    }
+
+    /** The owner's grid rule (2026-09-24): the starting grid is legal ground for
+     *  a car until it first leaves it -- any number of moves inside it first --
+     *  and the AI models it by the deciding car's own first checkpoint. */
+    private static void testGridRule() throws Exception {
+        final RaceGame g = gridStraight();
+        final Player me = g.players[0];
+        check(g.gridLegalFor(me), "a car standing on the grid was not grid-legal");
+        check(g.evaluateMove(me, new int[]{5, 2}, new int[]{5, 0}).legal(), "a car on the grid could not step into its pocket");
+        me.setPosition(new int[]{5, 0});
+        check(g.evaluateMove(me, new int[]{5, 0}, new int[]{7, 0}).legal(), "a second move inside the grid was refused");
+        me.leaveGrid();
+        me.setPosition(new int[]{8, 2});
+        check(!g.gridLegalFor(me), "a car that left the grid stayed grid-legal");
+        check(!g.evaluateMove(me, new int[]{8, 2}, new int[]{8, 0}).legal(), "a car that left the grid landed in the pocket");
+        check(g.evaluateMove(me, new int[]{8, 2}, new int[]{9, 3}).legal(), "ordinary track inside the grid became illegal");
+        final Player scattered = car(3, 11, 2, 0, 0);
+        check(!g.gridLegalFor(scattered), "a car off the grid was grid-legal");
+        check(g.evaluateMove(scattered, new int[]{11, 2}, new int[]{12, 3}).legal(), "the fixture's track is not legal");
+        check(!g.evaluateMove(scattered, new int[]{11, 2}, new int[]{10, 0}).legal(), "a car that never stood on the grid landed in the pocket");
+        final Player restored = car(4, 5, 2, 0, 0);
+        restored.restoreLapState(me.lapState());
+        check(restored.hasLeftGrid(), "the undo lap state lost the left-grid flag");
+        g.aiGridLegal = true;
+        check(g.aiMoveLegal(8, 2, 8, 0), "the AI's world with the grid refused the pocket");
+        g.aiGridLegal = false;
+        check(!g.aiMoveLegal(8, 2, 8, 0), "the AI's world without the grid allowed the pocket");
+        check(g.aiMoveLegal(8, 2, 9, 3), "the AI's world without the grid refused ordinary track");
+        g.aiGridLegal = true;
+    }
+
+    /** A straight whose upper wall starts at x = 11, so a grid jutting out below
+     *  the corridor (its row y = 0) opens onto the track, as on the real courses. */
+    private static RaceGame gridStraight() throws Exception {
+        final RaceGame g = new RaceGame(new Properties());
+        g.gameCols = 180; g.gameRows = 20;
+        g.track = new Track();
+        g.track.addLeft(11, 1); g.track.addLeft(173, 1);
+        g.track.addRight(0, 19); g.track.addRight(173, 19);
+        g.trackA = new Area(new Rectangle2D.Double(0, 1, 173, 18));
+        g.startZoneA = new Area(new Rectangle2D.Double(0, -0.5, 10.5, 3.5));
+        g.finishLine = new Line2D.Double(172.5, 1, 172.5, 19);
+        set(g, "finishFwdX", 1.0);
+        set(g, "rui", new RaceUI(g.gameRows, g.gameCols));
+        g.players = new Player[]{car(1, 5, 2, 0, 0), car(2, 60, 10, 0, 0)};
+        g.reach.computeDistMap();
+        g.reach.computeReachability();
+        return g;
     }
 
     /** Rank first: a live verdict carries the rivals that finished ahead of the

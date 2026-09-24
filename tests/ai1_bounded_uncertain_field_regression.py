@@ -91,8 +91,9 @@ RETENTION_CASES = {
         "2d46d039013ed6d206d78585690be36b958175060b48d2888be18ff0faff0951",
     ),
     ("spa", 47): (
-        (7, 0, [78, 80, 80, 81, 82, 82, 83]),
-        "71341dd9a25ca3d83e34b8c26639e33624ad11660651a4bc78c4d6bcc7b0c511",
+        # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
+        (7, 0, [78, 80, 81, 81, 82, 82, 83]),
+        "2336e6663550e869733a1ec109e0a996c85d1c3b6bc4c67bbc76f47fe057517b",
     ),
 }
 

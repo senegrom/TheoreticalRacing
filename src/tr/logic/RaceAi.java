@@ -1284,7 +1284,7 @@ final class RaceAi {
 										ridgeBest = rd;
 										break;
 									}
-									if (!game.isMoveLegalGeometryCached(pos[0], pos[1], rx, ry)
+									if (!game.aiMoveLegal(pos[0], pos[1], rx, ry)
 											|| game.isCrashingPlayer(rx, ry, playerNum)
 											|| !reach.isAlive(rx, ry, rvx, rvy))
 										continue;
@@ -1893,7 +1893,7 @@ final class RaceAi {
 				final int t = ttf(nx, ny, nvx, nvy);
 				if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
 					return d;
-				if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
+				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
 						|| game.isCrashingPlayer(nx, ny, playerNum)
 						|| !reach.isAlive(nx, ny, nvx, nvy))
 					continue;
@@ -1946,6 +1946,12 @@ final class RaceAi {
 	/** Identical frame preparation for normal decisions and standalone sim queries. */
 	private void prepareDecisionFrame(final int[] pos, final int[] vel, final int playerNum) {
 		moverNumber = playerNum;
+		// Round 276, the owner's approximation of the grid rule: the deciding car
+		// models every car on the track with the grid until it has passed its
+		// first checkpoint, and without it afterwards. Set at the top level only,
+		// so nested rival decisions share the decider's world.
+		if (simDepth == 0 && !inScorerSim)
+			game.aiGridLegal = !passedFirstCheckpoint(playerNum);
 		lapGate = game.nextGateOf(playerNum);
 		lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
 		final int robustSp = Math.max(Math.abs(vel[0]), Math.abs(vel[1]));
@@ -2946,7 +2952,7 @@ final class RaceAi {
 					final int nvx = velocity[0] + direction.dx;
 					final int nvy = velocity[1] + direction.dy;
 					if (!RaceGame.aiVelocityOutOfRange(nvx, nvy)
-							&& game.isMoveLegalGeometryCached(current[0], current[1], current[0] + nvx, current[1] + nvy)
+							&& game.aiMoveLegal(current[0], current[1], current[0] + nvx, current[1] + nvy)
 							&& !blockedOccupancy.contains(current[0] + nvx, current[1] + nvy)) {
 						nx = current[0] + nvx;
 						ny = current[1] + nvy;
@@ -3235,10 +3241,10 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
-					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if (!game.aiMoveLegal(x, y, nx, ny))
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -3268,7 +3274,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
-					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return 3;
 			if ((sm & 1 << d.ordinal()) == 0)
@@ -3303,7 +3309,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
-					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
@@ -3348,7 +3354,7 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
-					&& (!frameLapAware[self] || game.isMoveLegalGeometryCached(x, y, nx, ny)
+					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
 			if ((sm & 1 << d.ordinal()) == 0)
@@ -3856,7 +3862,7 @@ final class RaceAi {
 							viable = DIRECTIONS.length;
 							break;
 						}
-						if (!game.isMoveLegalGeometryCached(px[i], py[i], tx, ty))
+						if (!game.aiMoveLegal(px[i], py[i], tx, ty))
 							continue;
 						if (occupiedByOther(tx, ty, i, px, py, alive)
 								|| !reach.isAlive(tx, ty, tvx, tvy))
@@ -4297,7 +4303,7 @@ final class RaceAi {
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
 					return d;
-				if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
 					continue;
 				if (game.isCrashingPlayer(nx, ny, playerNum))
 					continue;
@@ -4344,7 +4350,7 @@ final class RaceAi {
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
 				return d;
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+			if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
 				continue;
 			if (game.isCrashingPlayer(nx, ny, playerNum))
 				continue;
@@ -4377,7 +4383,7 @@ final class RaceAi {
 					if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 						continue;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-					if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny)
+					if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
 							|| game.isCrashingPlayer(nx, ny, playerNum)
 							|| !reach.isAlive(nx, ny, nvx, nvy)
 							|| game.crossesFinishLegally(pos[0], pos[1], nx, ny))
@@ -4447,7 +4453,7 @@ final class RaceAi {
 				continue;
 			final int sx = x + svx, sy = y + svy;
 			if (game.crossesFinishLegally(x, y, sx, sy)
-					|| game.isMoveLegalGeometryCached(x, y, sx, sy) && reach.isAlive(sx, sy, svx, svy))
+					|| game.aiMoveLegal(x, y, sx, sy) && reach.isAlive(sx, sy, svx, svy))
 				succ++;
 		}
 		return succ;
@@ -4540,7 +4546,7 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			mask |= 1 << 16 + d.ordinal();
-			if (game.isMoveLegalGeometryCached(x, y, x + nvx, y + nvy))
+			if (game.aiMoveLegal(x, y, x + nvx, y + nvy))
 				mask |= 1 << d.ordinal();
 		}
 		return mask;
@@ -4553,7 +4559,7 @@ final class RaceAi {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
-			if (game.isMoveLegalGeometryCached(x, y, x + nvx, y + nvy))
+			if (game.aiMoveLegal(x, y, x + nvx, y + nvy))
 				mask |= 1 << d.ordinal();
 		}
 		return mask;
@@ -4729,7 +4735,7 @@ final class RaceAi {
 			final int ny = y + nvy;
 			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return 9;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if (!game.aiMoveLegal(x, y, nx, ny))
 				continue;
 			if (reach.isAlive(nx, ny, nvx, nvy) && isRoomy(nx, ny, nvx, nvy, 0))
 				count++;
@@ -4926,7 +4932,7 @@ final class RaceAi {
 			final int nx = rp[0] + nvx, ny = rp[1] + nvy;
 			if (game.crossesFinishLegally(rp[0], rp[1], nx, ny))
 				return 99;
-			if (!game.isMoveLegalGeometryCached(rp[0], rp[1], nx, ny))
+			if (!game.aiMoveLegal(rp[0], rp[1], nx, ny))
 				continue;
 			if (nx == blockX && ny == blockY)
 				continue;
@@ -4991,7 +4997,7 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny)
+			if (!game.aiMoveLegal(x, y, nx, ny)
 					|| game.isCrashingPlayer(nx, ny, playerNum)
 					|| !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -5004,6 +5010,15 @@ final class RaceAi {
 				return n;
 		}
 		return n;
+	}
+
+	/** Round 276: has this car passed its first checkpoint (lap races), or left
+	 *  the grid (point-to-point races, which have none)? */
+	private boolean passedFirstCheckpoint(final int playerNum) {
+		for (final Player p : game.players)
+			if (p.getNumber() == playerNum)
+				return game.lapGates != null ? p.getLap() > 0 || p.getNextGate() != 1 : !game.gridLegalFor(p);
+		return true;
 	}
 
 	/** Finish precedence mirrors the main candidate scan: a velocity-range-valid
@@ -5031,7 +5046,7 @@ final class RaceAi {
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
 				continue;
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+			if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
 				continue;
 			if (game.isCrashingPlayer(nx, ny, playerNum))
 				continue;
@@ -5084,7 +5099,7 @@ final class RaceAi {
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
 				return d;		// immediate finish: the fastest win there is
-			if (!game.isMoveLegalGeometryCached(pos[0], pos[1], nx, ny))
+			if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
 				continue;
 			if (nx == rp[0] && ny == rp[1])
 				continue;
@@ -5134,7 +5149,7 @@ final class RaceAi {
 				anyMove = true;
 				break;
 			}
-			if (!game.isMoveLegalGeometryCached(rx, ry, nx, ny))
+			if (!game.aiMoveLegal(rx, ry, nx, ny))
 				continue;
 			if (nx == mx && ny == my)
 				continue;
@@ -5173,7 +5188,7 @@ final class RaceAi {
 				win = true;
 				break;
 			}
-			if (!game.isMoveLegalGeometryCached(mx, my, nx, ny))
+			if (!game.aiMoveLegal(mx, my, nx, ny))
 				continue;
 			if (nx == rx && ny == ry)
 				continue;
@@ -5208,7 +5223,7 @@ final class RaceAi {
 			final int nx = x + nvx, ny = y + nvy;
 			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
 				return false;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if (!game.aiMoveLegal(x, y, nx, ny))
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -5232,7 +5247,7 @@ final class RaceAi {
 				final int ex = sealEscapes[escape * 2];
 				final int ey = sealEscapes[escape * 2 + 1];
 				if (Math.abs(ex - cx) <= 1 && Math.abs(ey - cy) <= 1
-						&& game.isMoveLegalGeometryCached(position[0], position[1], ex, ey))
+						&& game.aiMoveLegal(position[0], position[1], ex, ey))
 					sealCover[escape] |= bit;
 			}
 		}
@@ -5589,7 +5604,7 @@ final class RaceAi {
 				continue; // braking cone only
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+			if (!game.aiMoveLegal(x, y, nx, ny))
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -5633,7 +5648,7 @@ final class RaceAi {
 			if (game.crossesFinishLegally(x, y, nx, ny)) {
 				count++;
 			} else {
-				if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
+				if (!game.aiMoveLegal(x, y, nx, ny))
 					continue;
 				if (!reach.isAlive(nx, ny, nvx, nvy))
 					continue;

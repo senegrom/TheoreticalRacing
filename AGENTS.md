@@ -61,6 +61,17 @@ duels (one course, hybrid1). The owner takes that for the guarantee.
 `AI1_CHOOSER_MAXDIST` in `RaceAi.java` is the rule's constant for both;
 changing it is a rule change, not a tuning, and needs the owner.
 
+## Starting-grid rule (decided by the owner, 2026-09-24)
+
+The starting grid is a fully legal place for a car until that car first
+leaves it; it may make any number of moves inside it first (rarely smart).
+After its first landing outside the grid, the parts of the grid outside the
+corridor are off the track for that car. The referee implements this exactly
+(`Player.leftGrid`, `RaceGame.touchesPocket`). The AI approximates it
+cheaply, by the owner's design: until the deciding car has passed its first
+checkpoint it models every car on the track with the grid, afterwards on the
+track without it; a car still on the grid by then is not worth modelling.
+
 ## Measurement discipline
 
 - Any change that can alter a decision gets a fleet grid before it ships

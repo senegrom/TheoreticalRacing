@@ -70,7 +70,7 @@ final class StartPlacement {
                 final List<Alternative> alternatives = new ArrayList<>();
                 for (final Direction d : Direction.values()) {
                     final int nx = x + d.dx, ny = y + d.dy;
-                    final RaceGame.MoveResult move = game.evaluateMove(0, 1, x, y, nx, ny, false);
+                    final RaceGame.MoveResult move = game.evaluateMove(0, 1, true, x, y, nx, ny, false);
                     if (!move.legal()) continue;
                     final int rest = move.finishes() ? 0 : game.lapGates == null
                             ? game.reach.turnsToFinish(nx, ny, d.dx, d.dy)
