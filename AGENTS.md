@@ -32,17 +32,31 @@ second car a crash is an improvement, and a field made entirely of the
 candidate is allowed to crash more often than the champion's field. Report
 those numbers as description, never as a rejection.
 
-## Single-player rule (decided by the owner, 2026-09-21)
+## Rank-first rule (decided by the owner, 2026-09-23)
+
+Wherever the AI compares simulated outcomes -- the chooser, the danger and
+thread searches, every pace override -- it ranks the mover's **place first
+and its time second**. A rollout in which a rival finishes ahead of the mover
+is worse than any rollout in which fewer do, whatever the times; finishing
+first and being classified behind a finisher are never the same verdict. The
+rollout verdict carries it: `ahead * VERDICT_PLACE_STRIDE + time`
+(`RaceAi.rankVerdict`), identical to the old verdict when nobody finishes
+ahead. This is mandatory, not a tuning: a candidate that ranks outcomes by
+time alone does not conform, whatever it measures.
+
+## Single-player rule (decided by the owner, 2026-09-21; literal since 2026-09-23)
 
 With **no live rival within 20 cells** (Chebyshev), a car races the
-single-player optimum: the score's landing, the exact remaining-distance
-potential, exactly as it drives alone. The faithful joint world (the
+single-player optimum: the exact solo descent (the round-214 alone path), in
+every race mode, exactly as it drives alone. The faithful joint world (the
 round-260 chooser) is consulted only when a rival is within that distance.
-Round 261 priced the gate against the chooser at +0.001 places in 8-car packs
-(81 of 84 boards tied) and +0.004 on scattered starts, all of it one synthetic
-course; the owner takes that for the guarantee. `AI1_CHOOSER_MAXDIST` in
-`RaceAi.java` is the rule's constant; changing it is a rule change, not a
-tuning, and needs the owner.
+Round 261 priced the chooser gate at +0.001 places in 8-car packs (81 of 84
+boards tied) and +0.004 on scattered starts, all of it one synthetic course;
+round 267 priced the solo descent at 20 cells instead of 40 at -0.000 on
+random and held-out starts, -0.005 scattered, +0.001 computed and +0.008 in
+duels (one course, hybrid1). The owner takes that for the guarantee.
+`AI1_CHOOSER_MAXDIST` in `RaceAi.java` is the rule's constant for both;
+changing it is a rule change, not a tuning, and needs the owner.
 
 ## Measurement discipline
 
@@ -53,6 +67,12 @@ tuning, and needs the owner.
   A few dozen races rank candidates; they do not clear them.
 - Correctness fixes that the fleet clears ship even at noise cost; pinned
   artifacts are re-frozen from measurement, with the reason beside the number.
+- Before a promotion, also run the lone-candidate check
+  (`docs/experiments/duel-lookahead/run_1vfield.py`): one candidate car
+  against n-1 champions, rotated through every seat and paired with the
+  all-champion race on the same track, seed and seat. It answers whether the
+  candidate gains places on the current champion as a lone entrant, which
+  the mirrored half-and-half screen does not (owner, 2026-09-23).
 - Build with `sh build_main.sh` (JDK 25, warnings are errors); run
   `sh run_tests.sh`, `python tests/golden_races.py` and every
   `tests/ai1_*_regression.py` before publishing.

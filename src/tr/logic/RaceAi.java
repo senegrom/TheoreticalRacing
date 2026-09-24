@@ -445,7 +445,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
-	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// round 262, the owner's rule: no live rival within this many cells -> single-player optimum, no chooser
+	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent in every race mode, no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
@@ -567,7 +567,6 @@ final class RaceAi {
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
 	private final static double	AI1_TRAP_L1		= 2.0;	// trap ladder: 1 safe successor
 	private final static double	AI1_TRAP_L2		= 0.5;	// trap ladder: 2 safe successors
-	private final static int		AI1_ALONE_R	= 40;	// round 214: no live rival within this Chebyshev radius means the track is mine and the exact potential applies; 20 was too tight -- cars left the optimal line already inside a pack (weave3 lost 8 races of 10)
 	private final static int		AI1_NEEDLE_RIVAL_R	= 8;	// round 197: traffic radius for the needle-headway law
 	private final static double	AI1_NEEDLE_TRAP	= 30.0;	// round 197: surcharge for an unstoppable no-headway landing
 	private final static double	AI1_LANE_STYLE	= 0.12;	// round 201: per-player tie-break style spread in lap traffic (multi-seed: 0.12 -> 89 crashes, 0.20 -> 105 -- past the sweet spot the style sacrifice costs more than spreading buys)
@@ -601,7 +600,10 @@ final class RaceAi {
 		// against a rival that is not there, and the measured cost of that was
 		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
 		// with a finite value always has a successor one move closer.
-		if (game.lapGates != null && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_ALONE_R)) {
+		// Round 274, the owner's single-player rule made literal: the radius is
+		// the rule's twenty cells, not forty, in point-to-point races as well as
+		// lap races -- with nobody that close the car drives exactly as alone.
+		if (!rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
 			final Direction alone = optimalAloneMove(pos, vel, playerNum);
 			if (alone != null)
 				return alone;
@@ -1083,10 +1085,10 @@ final class RaceAi {
 					if (extendedFrontier && sealable(nx, ny, nvx, nvy, playerNum))
 						continue;
 					final int rounds = t + 1;
-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) != 0)
+					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) % VERDICT_PLACE_STRIDE != 0)
 						continue;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
-							AI1_DEEP_CERT_RIVALS, null) != 0)
+							AI1_DEEP_CERT_RIVALS, null) % VERDICT_PLACE_STRIDE != 0)
 						continue;
 					// Round 176: a one-successor sprint can pass both proxy worlds
 					// while faithful rivals occupy its only continuation one round
@@ -3681,6 +3683,28 @@ final class RaceAi {
 		exactRemaining = frameRemaining[i];
 	}
 
+	/** Round 274, rank first: a live rollout verdict is
+	 *  {@code ahead * VERDICT_PLACE_STRIDE + time}, where {@code ahead} counts the
+	 *  rivals that FINISHED (never the ones that crashed) before the mover finished,
+	 *  was classified, or the horizon ran out. Every comparison of two verdicts
+	 *  therefore ranks place first and time second; with nobody ahead it is the
+	 *  pre-274 verdict exactly. Pass/fail readings take the time part,
+	 *  {@code verdict % VERDICT_PLACE_STRIDE}. */
+	static final int VERDICT_PLACE_STRIDE = 1_000_000;
+
+	static int rankVerdict(final int ahead, final int time) {
+		if (ahead == 0 || time == Integer.MAX_VALUE)
+			return time;
+		return ahead * VERDICT_PLACE_STRIDE + Math.min(time, VERDICT_PLACE_STRIDE - 1);
+	}
+
+	/** Round 270 (the chooser's finer key): the same place, with the mover's
+	 *  projected total turns as time -- its finishing round rather than 0 -- for
+	 *  the rollout started at simDepth == placeKeyDepth. */
+	private static final long PLACE_KEY_STRIDE = VERDICT_PLACE_STRIDE;
+	private long placeKey = -1;
+	private int placeKeyDepth = -1;
+
 	private int simOutcomeCore(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
@@ -3708,6 +3732,7 @@ final class RaceAi {
 			outFieldCost[0] = 0L;
 		long failedRivalCost = 0L;
 		boolean myFinished = false;
+		int rivalsFinished = 0, aheadAtMyFinish = 0, myFinishRound = 0, endRound = 0;
 		int liveCount = 0;
 		int myIdx = 0;
 		for (int i = 0; i < game.players.length; i++) {
@@ -3745,8 +3770,11 @@ final class RaceAi {
 				myFinished = true;
 				if (outFinalTier != null)
 					outFinalTier[0] = 3;
-				if (outFieldCost == null && outRivalCost == null)
+				if (outFieldCost == null && outRivalCost == null) {
+					if (simDepth == placeKeyDepth)
+						placeKey = 0;
 					return 0;
+				}
 			}
 		}
 		px[myIdx] = myX;
@@ -3806,6 +3834,7 @@ final class RaceAi {
 		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
 		boolean raceOver = liveCount <= terminalLiveCount;
 		for (int round = 0; round < rounds && !raceOver; round++) {
+			endRound = round;
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
@@ -3882,13 +3911,21 @@ final class RaceAi {
 					alive[i] = false;
 					liveCount--;
 					if (i == myIdx) {
+						myFinishRound = round;
+						aheadAtMyFinish = rivalsFinished;
 						if (outFinalTier != null)
 							outFinalTier[0] = 3;
-						if (outFieldCost == null && outRivalCost == null)
-							return 0;
+						if (outFieldCost == null && outRivalCost == null) {
+							if (simDepth == placeKeyDepth)
+								placeKey = rivalsFinished * PLACE_KEY_STRIDE + round;
+							return rankVerdict(rivalsFinished, 0);
+						}
 						myFinished = true;
-					} else if (outRivalCost != null)
-						outRivalCost[i] = projectedMoves[i];
+					} else {
+						rivalsFinished++;
+						if (outRivalCost != null)
+							outRivalCost[i] = projectedMoves[i];
+					}
 					if (liveCount <= terminalLiveCount) {
 						raceOver = true;
 						break;
@@ -3926,6 +3963,8 @@ final class RaceAi {
 					continue;
 				alive[i] = false;
 				if (i == myIdx) {
+					myFinishRound = endRound;
+					aheadAtMyFinish = rivalsFinished;
 					myFinished = true;
 					if (outFinalTier != null)
 						outFinalTier[0] = 3;
@@ -3955,7 +3994,12 @@ final class RaceAi {
 		if (outFinalTier != null && !myFinished)
 			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
 					myIdx, px, py, alive);
-		return myFinished ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+		final int myTime = myFinished ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+		if (simDepth == placeKeyDepth)
+			placeKey = myFinished
+					? aheadAtMyFinish * PLACE_KEY_STRIDE + myFinishRound
+					: rivalsFinished * PLACE_KEY_STRIDE + (rounds - 1) + Math.min(myTime, PLACE_KEY_STRIDE / 2);
+		return rankVerdict(myFinished ? aheadAtMyFinish : rivalsFinished, myTime);
 	}
 
 	/** Danger joint search (round 40, shared champion): if the chosen landing DIES in
@@ -4079,7 +4123,7 @@ final class RaceAi {
 			// the class commitments (both the tier=1 and tier=3 siblings).
 			final boolean legFastSlow = fastSlow && threadRounds != null
 					&& threadRounds[0] >= 2 && threadRounds[1] >= 2
-					&& chosenT <= AI1_FASTSLOW_TTF;
+					&& chosenT % VERDICT_PLACE_STRIDE <= AI1_FASTSLOW_TTF;
 			// Round 133: the vmax overspeed deep check -- every harvest-25
 			// slow-track crash is one serpentine2 commitment: accelerating to
 			// max-axis 11 on the bottom straight is a 5-9-round joint doom
@@ -4794,7 +4838,7 @@ final class RaceAi {
 		if (n < 2)
 			return best;
 		Direction pick = null;
-		int pickVerdict = -1;
+		long pickVerdict = -1;
 		for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
 			final Direction d = order[k];
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
@@ -4802,8 +4846,16 @@ final class RaceAi {
 			// A crossing is already decided by the precedence rules above.
 			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
 				return best;
-			final int verdict = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+			// Round 270/274: a live rollout ranks by place, then by the mover's
+			// projected total turns (its finishing round when it finishes).
+			final int outerKeyDepth = placeKeyDepth;
+			placeKeyDepth = simDepth + 1;
+			placeKey = -1;
+			final int outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
 					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+			final long key = placeKey;
+			placeKeyDepth = outerKeyDepth;
+			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
 			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
 				pick = d;
 				pickVerdict = verdict;

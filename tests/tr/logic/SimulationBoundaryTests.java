@@ -177,7 +177,10 @@ public final class SimulationBoundaryTests {
                 final long[] field = {-9}, rivals = {-9, -9, -9};
                 final Player me = g.players[mover];
                 final int value = simulate(g, mover, 3, false, me.getPosition(), me.getVelocity(), tier, field, threads, rivals);
-                check(value == 0 && tier[0] == 3, "survivor was required to move after terminal retirement");
+                // Round 274, rank first: a survivor classified behind a finisher is one
+                // place down, not a win -- the verdict carries the rival ahead.
+                check(value == (kind == 1 ? RaceAi.VERDICT_PLACE_STRIDE : 0) && tier[0] == 3,
+                        "survivor was required to move after terminal retirement: kind=" + kind + " value=" + value);
                 check(threads[0] == 0 && threads[1] == 0, "a phantom survivor turn was audited");
                 check(projectedClock(g) == g.turnCount() + 2L, "rollout continued beyond two retirements");
                 check(field[0] == (kind == 1 ? 1_000_000 : 2_000_000), "retired rival costs were lost: mover=" + mover + " kind=" + kind + " field=" + field[0]);

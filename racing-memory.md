@@ -1,5 +1,139 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 274: rank first, and the single-player rule made literal
+
+Two owner decisions of 2026-09-23, promoted together and now the baseline
+every later arm is measured against (jar 9f166749; E:/tmp-claude/promote274.py,
+with --gated for a candidate-only twin, db2aac83).
+
+RANK FIRST. A review session (Java review of master 3466471, handed over by
+the owner) found the rollout returned 0 for three different outcomes: the
+mover finished (in any round of the horizon), the mover was classified as the
+last survivor BEHIND cars that finished, and the mover was classified ahead of
+cars that crashed. Every consumer keeps the lowest verdict, so a duel lost by
+a car's length read exactly like a win -- on Monaco (a two-car duel, turn 798)
+three landings read 0, the score's NONE was kept and the car finished second.
+Round 270 measured the chooser's half of the fix as an arm (placekey: rank by
+rivals finished ahead, then by the finishing round or the projected total):
+-0.006 +- 0.003 places on random starts, 13 boards for and 8 against, crashes
+172 against 183. The owner made it mandatory and general: every comparison of
+simulated outcomes ranks place first, time second. The live verdict is now
+`ahead * VERDICT_PLACE_STRIDE + time` (RaceAi.rankVerdict), where `ahead`
+counts rivals that FINISHED -- never those that crashed -- before the mover
+finished, was classified or ran out of horizon. With nobody ahead it is the
+old verdict exactly, so the change is confined to rollouts in which somebody
+crosses the line first. The chooser keeps round 270's finer time (the
+finishing round rather than 0). Two readings are pass/fail on the time alone
+and take `verdict % VERDICT_PLACE_STRIDE`: the finish-sprint certificate and
+the fast-slow confirm's arming bound. The unit test that pinned 0 for a
+second place now pins one stride.
+
+THE SINGLE-PLAYER RULE, LITERALLY. Round 262 gated the chooser at 20 cells
+but left the round-214 solo descent at 40, and on point-to-point courses not
+at all, so between 20 and 40 cells the car still raced the score -- whose
+long-range queue brake counts stalled rivals up to its stopping distance,
+~57 cells at speed 11; the review's scan found 804 of 1,248 states with only
+distant rivals choosing differently from the solo car. Round 267 measured the
+solo descent at 20 cells as an arm (lap races): -0.000 +- 0.001 on random
+starts (80 of 84 boards tied), -0.000 held-out, -0.005 +- 0.002 scattered
+(31 for, 21 against; rand14 again the largest), +0.001 +- 0.001 computed,
+crashes equal or within a handful. The owner switched it on: the alone path
+now uses AI1_CHOOSER_MAXDIST (AI1_ALONE_R is retired) and runs in every race
+mode -- eleven fleet courses race with laps disabled (bigoval, chicane, coil,
+hairpin, serpentine, serpentine2, slalom, spiral, triangle, ugly, zigzag), and
+the exact potential is already built for them.
+
+Checks. The jar built from the patched repo is byte-identical to the one
+built from master plus the patch (9f166749). Unit tests, the cross-era
+referee, promotion-pair, headless smoke and query-replay regressions pass.
+The web parity case hairpin-informed-s1-2p is unchanged (ec48301e). On the
+box the gated twin with no candidateSlots races as round 262 and differs with
+every slot a candidate (VERIFY OK), and the promotion with no slots races
+exactly as the twin with every slot a candidate on two lap circuits and two
+point-to-point courses, legacy and scattered (PROMO_IDENTITY OK).
+
+THE CORPUS BARELY MOVES. All 24 pins pass with zero changed assertions (one
+probe pass, no loop needed). Six of the twelve goldens re-froze --
+hairpin-s10-8p, lemans-s4-8p, lemans-s1-4p, monaco-s9-4p (543 -> 545 turns),
+monaco-s16-8p (1099 -> 1106) and nurburgring-s19-8p -- every finishing order
+unchanged.
+
+The components' own records against round 262 closed on the same day:
+placekey scattered -0.000 +- 0.000 (81 of 84 boards tied, crashes 8:8), and
+the solo descent at 20 cells in DUELS +0.008 +- 0.002 -- all of it one course,
+hybrid1 (+0.750 per car; rand14 -0.100 the only other board off zero), with
+the candidate crashing 204 times to 174. That is the price of the rule where
+it bites; the owner's guarantee stands, and the promotion's own battery
+(mirrored random, scattered and duels, plus the lone-candidate check)
+measures the whole of round 274 against round 262 for the record.
+
+A NEW PROMOTION CHECK (owner, 2026-09-23): before a promotion, one candidate
+car against n-1 champions, rotated through every seat and paired with the
+all-champion race on the same track, seed and seat
+(docs/experiments/duel-lookahead/run_1vfield.py). The mirrored screen answers
+"who wins a half-and-half field"; this answers "does a lone entrant gain
+places on the current champion". It is in CLAUDE.md and AGENTS.md.
+
+The box now runs a job queue (duelpromo/queue/dispatch.sh): jobs declare
+their width, the dispatcher starts the first pending job that fits the free
+slots, and nothing waits on a turn of mine.
+
+## Rounds 269-273: the review session's findings as arms
+
+All five were candidate-gated jars against the round-262 champion; after the
+round-274 promotion the three that remain open are re-measured against it.
+
+- Round 269, THE CHOOSER'S PICK STANDS. The round-49 tie-break runs after the
+  chooser, and since round 233 zeroed the lane spread it takes any strictly
+  map-faster landing that scores no worse and survives three DJS rounds --
+  which the score's own argmin usually is whenever the chooser moved off it.
+  The review counted 315 of 356 chooser picks switched back in 8-car races
+  and 299 of 321 in duels, so round 261's "concedes a turn in 1/240 decisions"
+  counted picks, not moves. Keeping the pick: -0.048 +- 0.011 places on random
+  starts (42 boards for, 29 against; rand2 -1.438 and weave3 +0.838 the
+  extremes, -0.031 without rand2), -0.002 +- 0.001 scattered, crashes 156:167
+  and 8:9. Rebuilt on round 274 (5f5c8dcf) and re-screened, with its
+  lone-candidate check.
+- Round 270, placekey: see round 274.
+- Round 271, the pace overrides stop vetoing a faster own line on the field's
+  cost (a rival crash in the rollout adds 1,000,000 -- against the racecraft
+  rule). INERT: not one of the eight identity races moved.
+- Round 272, correctness: the lap-mode ridge/thread/danger switch loops took
+  any legal start/finish crossing before any landing check -- with a lap or a
+  checkpoint still owed that crossing is an ordinary move and can land on a
+  parked car (probe: danger search returned NE onto a parked car with six
+  legal moves left); a move now finishes only when its gate events cover all
+  the car still owes. And poScorerT now follows the round-49 switch (989
+  compared against the replaced landing's ttf). Bundled with round 271, INERT
+  in the identity races; its screen against round 274 is the fleet identity
+  check that would let all three ship.
+- Round 273, the private-lane proof measured in one currency: it compared the
+  whole-race exact potential (56-59 on a lap-mode straight) with turns to the
+  next start/finish crossing (2-3), so the first ply always passed and deeper
+  plies steered for the line with CP1 owed. INERT in the identity races;
+  screened against round 274 as an identity check too.
+- Items 7 and 8 of the review are rules (a start-zone pocket outside the
+  walls on six circuits, legal all race; places at the turn limit by slot
+  order), not yet taken.
+
+## Round 263: the peer laboratory's seven flags (partial)
+
+Against the lab's own base (720f421, byte-identical to the champion with no
+flags), mirrored, seeds 1-20:
+- legacy-unchecked: +3.738 random (0 of 84 boards), +1.120 scattered;
+  crashes 3176:203 and 471:54.
+- legacy-guarded: +1.932 +- 0.028 random (0 of 84), +0.136 scattered;
+  crashes 856:325 and 70:27.
+- setup: +0.022 +- 0.019 random (41 for, 40 against) at 2.1x the CPU -- a
+  wash; by the owner's bar (a costly search ships only if it gains a lot) it
+  does not ship, and its prefix reuse (byte-identical, -4 to -7% CPU) stays
+  on the branch with it.
+- contingent (the peer's tip 315dc05, against its own base): -0.036 +- 0.012
+  random (44 for, 35 against, crashes 150:170), -0.001 +- 0.001 scattered, at
+  about three times the CPU -- below the same bar.
+- aware, terminal, student, assist: queued (the first two lost a batch each
+  to the old one-hour limit).
+
 ## Round 262: the owner's single-player rule -- no car within 20 cells, race the optimum
 
 The owner decided it after round 261: with no live rival within 20 Chebyshev
