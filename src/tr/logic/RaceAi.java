@@ -445,7 +445,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
-	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent in every race mode, no chooser
+	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent (lap races: p2p builds no potential), no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
@@ -601,8 +601,8 @@ final class RaceAi {
 		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
 		// with a finite value always has a successor one move closer.
 		// Round 274, the owner's single-player rule made literal: the radius is
-		// the rule's twenty cells, not forty, in point-to-point races as well as
-		// lap races -- with nobody that close the car drives exactly as alone.
+		// the rule's twenty cells, not forty. Point-to-point courses build no
+		// exact potential, so there the descent returns null and the score runs.
 		if (!rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
 			final Direction alone = optimalAloneMove(pos, vel, playerNum);
 			if (alone != null)

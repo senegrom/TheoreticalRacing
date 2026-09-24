@@ -38,10 +38,15 @@ solo descent at 20 cells as an arm (lap races): -0.000 +- 0.001 on random
 starts (80 of 84 boards tied), -0.000 held-out, -0.005 +- 0.002 scattered
 (31 for, 21 against; rand14 again the largest), +0.001 +- 0.001 computed,
 crashes equal or within a handful. The owner switched it on: the alone path
-now uses AI1_CHOOSER_MAXDIST (AI1_ALONE_R is retired) and runs in every race
-mode -- eleven fleet courses race with laps disabled (bigoval, chicane, coil,
-hairpin, serpentine, serpentine2, slalom, spiral, triangle, ugly, zigzag), and
-the exact potential is already built for them.
+now uses AI1_CHOOSER_MAXDIST (AI1_ALONE_R is retired). CORRECTION, same day:
+the promotion also dropped the path's lap-race guard, meant to extend the rule
+to the eleven fleet courses that race with laps disabled (bigoval, chicane,
+coil, hairpin, serpentine, serpentine2, slalom, spiral, triangle, ugly,
+zigzag) -- but no exact potential is built for them (computeOptimalPotentialNow
+returns null without lap gates), so the descent returns null there and the car
+still races the score. The new OwnerRuleTests caught it. Round 275 measures a
+descent on the reachability map, which IS the exact distance to a
+point-to-point finish.
 
 Checks. The jar built from the patched repo is byte-identical to the one
 built from master plus the patch (9f166749). Unit tests, the cross-era
