@@ -17,11 +17,13 @@ Measured as round 269, candidate-gated, mirrored, seeds 1-20: -0.048 +- 0.011
 places on random starts against round 262 and -0.047 +- 0.011 against round
 274 (39 boards for, 32 against, 13 tied; rand2 -1.4 and weave3 +0.8 the
 extremes, about -0.031 without rand2), -0.001 +- 0.001 scattered, crashes
-fewer in both (166:179, 14:16). The lone-candidate check (one stand car among
-seven round-274 champions, seats 1-6 of 8 complete when promoted, seeds 1-5):
--0.024 +- 0.015, 29 boards for and 20 against, the same tracks either way. The
-held-out, computed-start and duel slices against round 274 finish for the
-record.
+fewer in both (166:179, 14:16). Promoted with six of the lone-candidate
+check's eight seats in (-0.024 +- 0.015); the rest of the record against
+round 274, complete the next morning, confirms it on every slice: held-out
+seeds 21-40 -0.029 +- 0.010 (48 boards for, 32 against), computed starts
+-0.033 +- 0.010 (crashes 167:180), and the lone candidate among seven
+champions over all eight seats -0.028 +- 0.012 (34 boards for, 21 against,
+crashes 38:37). The duel slice is still to come.
 
 The promoted jar (5705e0df) with no candidateSlots races exactly as the
 candidate-gated twin with every slot a candidate (PROMO278_IDENTITY OK, lap
