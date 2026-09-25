@@ -1,5 +1,43 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 278: the chooser's pick stands (round 269 promoted)
+
+Promoted on the owner's word (2026-09-24), and the new baseline: every open
+arm is rebuilt on it and re-measured against it.
+
+The round-49 tie-break runs after the round-256 chooser and, since round 233
+zeroed the lane spread, takes any strictly map-faster landing that scores no
+worse and survives three DJS rounds -- which the score's own argmin usually
+is, so it undid 315 of 356 chooser picks in 8-car races (the review's item
+4). Once the chooser has been consulted its pick now stands; far from rivals
+(no chooser call) the tie-break runs as before (E:/tmp-claude/
+promote278_stand.py).
+
+Measured as round 269, candidate-gated, mirrored, seeds 1-20: -0.048 +- 0.011
+places on random starts against round 262 and -0.047 +- 0.011 against round
+274 (39 boards for, 32 against, 13 tied; rand2 -1.4 and weave3 +0.8 the
+extremes, about -0.031 without rand2), -0.001 +- 0.001 scattered, crashes
+fewer in both (166:179, 14:16). The lone-candidate check (one stand car among
+seven round-274 champions, seats 1-6 of 8 complete when promoted, seeds 1-5):
+-0.024 +- 0.015, 29 boards for and 20 against, the same tracks either way. The
+held-out, computed-start and duel slices against round 274 finish for the
+record.
+
+The promoted jar (5705e0df) with no candidateSlots races exactly as the
+candidate-gated twin with every slot a candidate (PROMO278_IDENTITY OK, lap
+and point-to-point courses), and the twin races as round 276 with none.
+
+THE CORPUS MOVES. Five of twelve goldens: Hungaroring s13 (B drops to last),
+Monaco s16 (F and H swap), Zandvoort s45 (a crash appears, 1110 -> 1003
+turns) -- recorded, not vetoed -- and Monaco s9 and Interlagos s10 by hash
+only. Ten of 24 pins: the loop re-froze four (energy_pace, six_ahead_accel,
+equal_speed_veto, finish_frontier) and six were re-frozen by hand from the
+probe records (E:/tmp-claude/refreeze278_hand.py): crashes moved both ways --
+Spa s83's p5 now finishes (seven home, not six), Zandvoort s34 and Le Mans
+s7 keep every car, four staged-pace races keep theirs and Le Mans s11 drops
+one, Le Mans s93, s2 and s14 and Spa s31/s57 trade a car either way. Every
+pin script and the goldens then pass as CI runs them.
+
 ## Round 276: the starting grid is legal until a car leaves it
 
 The owner's rule (2026-09-24, the review's item 7): the grid is a fully

@@ -45,7 +45,8 @@ EXACT_MOVES = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement (the chooser).
-    ("lemans", 3): [66, 67, 69, 70, 71, 72],  # still six finishers.
+    # Round 278: re-frozen from measurement (the chooser's pick stands); seven finishers again.
+    ("lemans", 3): [66, 67, 68, 70, 71, 72, 73],
     # Round 234: same seven finishers, one move redistributed.
     ("silverstone", 15): [82, 83, 83, 84, 85, 85, 86],
 }
@@ -85,9 +86,10 @@ def main() -> int:
             # Round 260 (the chooser): Hungaroring 10 and 25 keep every car
             # they used to lose; Spa 4, Interlagos 3 and Hungaroring 8 each drop
             # one -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1),
-                      ("spa", 4): (6, 1), ("interlagos", 3): (6, 1),
-                      ("hungaroring", 8): (6, 1)}
+            # Round 278 (the chooser's pick stands): Spa 4, Interlagos 3, Le Mans 3
+            # and Hungaroring 8 keep every car; Le Mans 11 drops one again --
+            # recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 11): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -117,7 +119,8 @@ def main() -> int:
         # Round 260 (the chooser): an AI2 car dies here now. The rule records
         # the crash rather than vetoing it (AGENTS.md); the pin keeps the
         # measured pair, so a further change still fails.
-        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 1):
+        # Round 278: the AI2 car keeps its race, so the mixed field is crash-free again.
+        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
     print(

@@ -18,27 +18,33 @@ TARGET = ("spa", 83)
 # on its 31st move -- recorded, not vetoed.
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
-PROMOTED = (6, 1, [78, 79, 81, 82, 83, 83])
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED = (7, 0, [78, 79, 81, 82, 82, 84, 85])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
 PROMOTED_FINISHERS = [
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
     (6, 78),
     (7, 79),
-    (1, 81),
-    (2, 82),
-    (3, 83),
-    (4, 83),
+    (2, 81),
+    (4, 82),
+    (5, 82),
+    (1, 84),
+    (3, 85),
 ]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
-PROMOTED_ALL_MOVES = {1: 81, 2: 82, 3: 83, 4: 83, 5: 58, 6: 78, 7: 79, 8: 82}
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED_ALL_MOVES = {1: 84, 2: 81, 3: 85, 4: 82, 5: 82, 6: 78, 7: 79, 8: 84}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
-PROMOTED_SHA256 = "87b3d5646beb59e066403ef71dc2be33f608f8ef4a403ec227c59554e1385b46"
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED_SHA256 = "58097ec5b5580607c660a9876c6072f215e3e42b293fc97e543abb2c811f6928"
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 276: the same turn and car, re-frozen from measurement.
-    "201 p1 {kind} NW v(0,7)→(-1,6) (102,130)→(101,136) ok"
+    # Round 278: the same turn and car, re-frozen from measurement.
+    "201 p1 {kind} NW v(1,8)→(0,7) (104,132)→(104,139) ok"
 )
 
 # These cases cover every redistribution or slowdown exposed by the historical
@@ -52,31 +58,42 @@ PROMOTED_DECISION = (
 VETO_CASES = {
     ("spa", 27): (
         # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-        (7, 0, [78, 79, 81, 81, 81, 82, 83]),
-        "a13f80cb29070e782ebdea59153aa660d2f1054aa61c5634a0d091488211c94b",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "f0d8a82c2ea684bbb14e310d352bd10b9a60b5c6d62efa997431eafed49a89a3",
     ),
     ("spa", 57): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
-        (6, 1, [78, 79, 80, 81, 82, 83]),
-        "fe530d81b05a768abb6e92e42b240d8029762b01b15f368b95697ecbaed4644c",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [78, 79, 80, 81, 82, 82, 82]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "72423ee5f265f1a5f42e6e8b5c537ab630e2d0b562f07aa9838b9b154679b3ba",
     ),
     ("spa", 12): (
         # Round 254: re-frozen from measurement (the danger guard in a faithful world).
-        (7, 0, [78, 79, 81, 82, 83, 83, 84]),
-        "31d32c87cff605b84f06b78c648ec01cf0bf6993d27475399c54004571666d71",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "6fc76ea464164874a89f5cbafbd0c456b5c4f6b46d806cb991c1b3f9c04c9a65",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
-        "7f163b460bf13a38b1738354d13099fbdf9675c80343081aacb6176e375efdae",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (6, 1, [78, 79, 80, 82, 82, 83]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "23d049fe6fb2d6eb5b0cae93953a34fd333f5e3cf195e8b7db8125e1485849f8",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 81, 82, 82]),
-        "2d46d039013ed6d206d78585690be36b958175060b48d2888be18ff0faff0951",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [78, 79, 80, 80, 81, 82, 82]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "4bc95498ca6310e6b1dfa7073d10140e481d1fff5562bc5a516f9bbc90627278",
     ),
     ("spa", 47): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
         (7, 0, [78, 80, 81, 81, 82, 82, 83]),
-        "2336e6663550e869733a1ec109e0a996c85d1c3b6bc4c67bbc76f47fe057517b",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "8f19c7acc7ef65cd89932cf67b4c04b3348dc890ff0470e3fa9973ded48c0c67",
     ),
     ("coil", 5): (
         (7, 0, [58, 59, 59, 59, 60, 60, 60]),
@@ -87,8 +104,10 @@ VETO_CASES = {
         "82c6ee412c5616ca174d4b75a9c543d6eac47c614a45a75788dbdf4e9dbc5d69",
     ),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 83, 84, 85, 85]),
-        "770202269dafb247af988559a03807fb2f9789f0d23088800d27d7a85cb6bd76",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [81, 82, 83, 83, 84, 84, 85]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "8d97653bf4ddf6acc14bd7f82630ab066152c34a2cf55550e39f79c71e9d0418",
     ),
 }
 

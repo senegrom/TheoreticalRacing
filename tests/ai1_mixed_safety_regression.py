@@ -43,7 +43,9 @@ def main() -> int:
         # Round 260 (the chooser): seed 2 is crash-free again.
         # Round 274 (rank first; the single-player rule made literal):
         # re-frozen from measurement, still crash-free.
-        SEED2_MEASURED = {"AI1": (22, 4, 0), "AI2": (14, 4, 0)}
+        # Round 278 (the chooser's pick stands): an AI2 car crashes here now --
+        # recorded, not vetoed (AGENTS.md).
+        SEED2_MEASURED = {"AI1": (22, 4, 0), "AI2": (14, 4, 1)}
         for kind in ("AI1", "AI2"):
             place_sum, finishers, crashes = result[kind]
             if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:
@@ -69,8 +71,10 @@ def main() -> int:
             # Round 260 (the chooser): p7 takes the wall here again, exactly as
             # in round 234 -- recorded, not vetoed (AGENTS.md), and pinned by
             # its identity below. The two orderings stay exact mirrors.
-            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 1)},
-            "reverse": {"AI1": (23, 4, 1), "AI2": (13, 4, 0)},
+            # Round 278 (the chooser's pick stands): p7 keeps its race, both
+            # orderings crash-free again and still exact mirrors.
+            "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
+            "reverse": {"AI1": (22, 4, 0), "AI2": (14, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -97,8 +101,9 @@ def main() -> int:
             # race is crash-free again and that is what is pinned.
             # Round 260: one crash again, p7 into the wall at (20,136) on move
             # 439 in both orderings -- the round-234 identity pin returns.
+            # Round 278: crash-free again, and that is what is pinned.
             crashed = [line for line in log_lines if " CRASH " in line]
-            if len(crashed) != 1 or " p7 " not in crashed[0] or "place=8" not in crashed[0]:
+            if crashed:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} crash set changed: {crashed}"
                 )

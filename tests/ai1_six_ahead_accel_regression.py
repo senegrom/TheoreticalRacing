@@ -16,7 +16,8 @@ PROMOTED = {
     5: (7, 0, [58, 59, 59, 59, 60, 60, 60]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     22: (7, 0, [58, 59, 59, 59, 60, 60, 61]),
-    86: (7, 0, [58, 59, 60, 60, 60, 60, 61]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    86: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in ("AI1", "AI2")}

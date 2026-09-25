@@ -48,7 +48,8 @@ HUNGARORING_NORMALIZED_SHA256 = (
     # Round 248: re-frozen from measurement (the physical world model).
     # Round 254: re-frozen from measurement (the danger guard in a faithful world).
     # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-    'a23c4742ec3ff7bb5ef9dc27bf6541f0080c2dcf423bdf8e58ef7c0ea2796859'
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    '1fdb7024a1be2f262ae8305220b849bd1d6a3a238c15b827b0c00057ae9589f5'
 )
 
 # Each case pins one false-positive class from the broader score-slack screens:
@@ -61,7 +62,8 @@ VETO_CASES = {
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 254 (the danger guard in a faithful world): Le Mans s2 loses a
     # car, Hungaroring s40 is whole again; four cases re-frozen from measurement.
-    ("lemans", 2): ((7, 0, [66, 67, 68, 69, 71, 72, 73]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("lemans", 2): ((6, 1, [66, 67, 68, 69, 71, 72]),
         "311 p7 {kind} N v(1,6)→(1,5) (83,151)→(84,156) ok",
     ),
     ("spa", 1): (
@@ -77,23 +79,28 @@ VETO_CASES = {
     ("hungaroring", 40): ((7, 0, [122, 123, 124, 125, 126, 127, 128]),
         "352 p8 {kind} N v(4,3)→(4,2) (52,113)→(56,115) ok",
     ),
-    ("interlagos", 47): ((7, 0, [124, 125, 126, 127, 128, 130, 131]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("interlagos", 47): ((7, 0, [124, 125, 126, 127, 128, 129, 131]),
         "175 p7 {kind} S v(5,-1)→(5,0) (49,5)→(54,5) ok",
     ),
-    ("monza", 30): ((7, 0, [77, 78, 79, 79, 79, 79, 81]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monza", 30): ((7, 0, [77, 78, 79, 79, 80, 80, 81]),
         "238 p6 {kind} SE v(-8,-1)→(-7,0) (118,61)→(111,61) ok",
     ),
     # Round 224 moved this race: still seven finishers and no crash, but the
     # car that misses out changes (car 7 finished before, car 1 finishes now)
     # and the last five finishers each take a few moves longer.
-    ("monaco", 35): ((7, 0, [113, 114, 115, 117, 118, 119, 120]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monaco", 35): ((7, 0, [113, 114, 115, 116, 118, 119, 120]),
         "609 p1 {kind} SW v(1,5)→(0,6) (19,125)→(19,131) ok",
     ),
     ("zandvoort", 34): (
-        (6, 1, [137, 138, 139, 140, 141, 142]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [137, 138, 139, 140, 142, 143, 144]),
         "80 p8 {kind} E v(3,-8)→(4,-8) (31,62)→(35,54) ok",
     ),
-    ("monza", 145): ((7, 0, [77, 79, 79, 80, 80, 80, 80]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monza", 145): ((7, 0, [77, 79, 79, 80, 80, 81, 81]),
         "174 p6 {kind} NONE v(-8,5)→(-8,5) (192,53)→(184,58) ok",
     ),
     ("serpentine", 38): (
@@ -103,25 +110,32 @@ VETO_CASES = {
 }
 VETO_NORMALIZED_SHA256 = {
     # Round 224 (rival predictor in its own lap frame): trajectory only.
-    ("lemans", 2): '39e941b39766c600b7459e6c06b416255943358ed7c62077df0f623e1be2a2b5',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("lemans", 2): '7b1940c458571e7e19fc25c84b1244648b8df83ecbb481000d1a88ae10c57640',
     ("spa", 1): 'f2b45c6aac2595f6e2a5252e4bdd22f11c94f3a7f6e5871db2065103efa2fe05',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    ("hungaroring", 40): '90f71b469bcc3bcab793850867337f76d0f4c771754e01b2d6cda0f3565e819d',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("hungaroring", 40): '28f9e4300234155ad539b46c2e83cd17c0e37bf78c6f20d14ca1cd5f277603dd',
     # Round 224: same finishing order and same per-car move counts, new route.
-    ("interlagos", 47): '09d193af579f2f283b6c8151d2fdbbbbd7d2942c39c700e509c49dea93395ed5',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("interlagos", 47): 'f184b5eab5beb627e8df2caf28fff0a1a7c189d3ba9dfcce5740cc46b630951d',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
-    ("monza", 30): 'eeaefbd46dfe5b6b7a39e8a2132300fcf0de860cd226244d5851915a796b5c74',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monza", 30): 'b0c90856ce2497f14eb3ba254b64725da395767b476e0793c4ce3297fefd54ce',
     # Round 224, the one case that changes its result: still seven finishers,
     # but car 1 finishes seventh where car 7 used to, and the race is nine
     # moves longer. The fleet cleared the change on 1460 races either side
     # (no crash moved, +19 and +133 moves in 1.85M).
-    ("monaco", 35): 'b1b80891818930532ac1f11cf5e2d6ad11d33595fc2e9d9b9b44b4b752aa1200',
-    ("zandvoort", 34): '3b7031ec4ecc3b95999d36adfd7c27a20923ea217eb084ca06d9e82fd9635ab4',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monaco", 35): 'e095c2572a0db566be5443058d01e7558ce81a7137db805e8c3be269ad1d8aa0',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("zandvoort", 34): 'aef278fabea61b62089bda895fb6561f71e9b1f6c2a8b10be59c323a25098557',
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
-    ("monza", 145): 'b27dbb85e7bcfa94a29202d1effcb91465bb05e727dea7af1fb4be5b27f54066',
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monza", 145): '3f4513195a3b7e0d1d64492a37cbcdd592e1a969160b880fb957f0a2b3b21521',
     # Reject p3's wall-overlap finish at turn 819: its last two approach moves
     # and p6's nearby response move, but the full field's outcome counters do not.
     ("serpentine", 38): '814d3bf9a22bcc81db6e93796626c682e9f05cafce0d0d9f79deeb538c194910',

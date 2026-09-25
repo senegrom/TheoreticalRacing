@@ -947,10 +947,12 @@ final class RaceAi {
 		// exact remaining distance -- exactly as it drives alone. Round 261
 		// priced the gate at 20 cells: +0.001 places in packs (81 boards tied),
 		// +0.004 scattered, one synthetic course; the guarantee is worth that.
+		boolean chooserConsulted = false;
 		if (best != null && !inScorerSim && sealRivals >= 1
 			&& nearestLiveRival(pos, playerNum) <= AI1_CHOOSER_MAXDIST) {
 			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
 			poScorerT = poTByDir[best.ordinal()];
+			chooserConsulted = true;
 		}
 		// Round 49 arm C (AI1): certified pace tie-break. The lateral-spacing
 		// term `spread` outranks raw pace -- in every decision it flips, the
@@ -965,7 +967,11 @@ final class RaceAi {
 		// penalty, not sealable, and it survives the same 3-round joint
 		// roll-forward DJS trusts. Survival-only asymmetry -- an uncertified
 		// faster line is never taken.
-		if (best != null && !inScorerSim) {
+		// Round 278 (round 269 promoted): once the chooser has ranked the landings
+		// the score cannot separate, its pick stands -- this tie-break took the
+		// score's argmin back from 315 of 356 chooser picks in 8-car races.
+		// -0.047 +- 0.011 places against round 274.
+		if (best != null && !inScorerSim && !chooserConsulted) {
 			final double bestNS = scoreNSByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;

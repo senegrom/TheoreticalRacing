@@ -16,7 +16,8 @@ CASES = [("zandvoort", 115)]
 # Round 248 (the physical world model): whole again, re-frozen from measurement.
 # Round 254: re-frozen from measurement (the danger guard in a faithful world).
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 143])
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 144])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in ("AI1", "AI2")}
 

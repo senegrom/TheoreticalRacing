@@ -37,7 +37,8 @@ EXPECTED = {
     # Round 234: re-frozen from measurement. Eight cars share places 1-8,
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.
-    45: {"AI1": (13, 4, 0), "AI2": (23, 4, 0)},
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    45: {"AI1": (16, 4, 0), "AI2": (20, 4, 0)},
 }
 
 

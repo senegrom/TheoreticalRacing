@@ -18,7 +18,8 @@ EXPECTED = {
     6: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-    47: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    47: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
     49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [

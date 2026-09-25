@@ -41,10 +41,13 @@ PROOF_VETO = ("lemans", 87)
 # its race again -- seven finishers, no crash.
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-PROMOTED = (7, 0, [66, 67, 69, 70, 71, 72, 74])
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (6, 70), (7, 71), (8, 72), (2, 74)]
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED = (7, 0, [66, 67, 69, 70, 71, 73, 73])
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (6, 70), (7, 71), (2, 73), (8, 73)]
 PROMOTED_CRASHES = []
-PROMOTED_ALL_MOVES = {1: 66, 2: 74, 3: 67, 4: 73, 5: 69, 6: 70, 7: 71, 8: 72}
+# Round 278: re-frozen from measurement (the chooser's pick stands).
+PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 73, 5: 69, 6: 70, 7: 71, 8: 73}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -62,38 +65,53 @@ RETENTION_CASES = {
     # retention trajectories remain byte-identical.
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
     # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-    PROOF_VETO: ((7, 0, [66, 67, 68, 70, 71, 73, 75]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 72, 73, 73]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
                  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
-                 '6968ac2bc8f42cb977a7a9e0e35825c7366488c0be238221b52ccbf0826d293f'),
+                 # Round 278: re-frozen from measurement (the chooser's pick stands).
+                 '47cd67695831379fba7605bbd14a2c325b2f453940714373134e27fad9827220'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
-    ("lemans", 93): ((7, 0, [66, 67, 69, 70, 71, 73, 74]),
-                     '0d86621131e362b8ab1c159c8ebb2dc4fe7a32365b790e3c8505cc3c97fdbf09'),
-    ("lemans", 14): ((6, 1, [66, 67, 69, 70, 71, 72]),
-                     '422c4c41cdfa6e1220a690c07e3538eaa1c595969ac68271e5abc13186d64bd1'),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("lemans", 93): ((6, 1, [66, 67, 68, 70, 71, 72]),
+                     # Round 278: re-frozen from measurement (the chooser's pick stands).
+                     '2dd6ec84fecc08479cd591c181385c11ecfeb3ba15a293f5654ccafd79e3b0aa'),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 73, 73]),
+                     # Round 278: re-frozen from measurement (the chooser's pick stands).
+                     'a7b7a948f5745bd3081b3b3aa20c750020da36bb1bc3b495cd940c20e67dfe4e'),
     ("silverstone", 78): (
-        (7, 0, [81, 82, 83, 83, 84, 85, 85]),
-        "770202269dafb247af988559a03807fb2f9789f0d23088800d27d7a85cb6bd76",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [81, 82, 83, 83, 84, 84, 85]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "8d97653bf4ddf6acc14bd7f82630ab066152c34a2cf55550e39f79c71e9d0418",
     ),
     ("spa", 12): (
-        (7, 0, [78, 79, 81, 82, 83, 83, 84]),
-        "31d32c87cff605b84f06b78c648ec01cf0bf6993d27475399c54004571666d71",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "6fc76ea464164874a89f5cbafbd0c456b5c4f6b46d806cb991c1b3f9c04c9a65",
     ),
     ("spa", 31): (
-        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
-        "7f163b460bf13a38b1738354d13099fbdf9675c80343081aacb6176e375efdae",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (6, 1, [78, 79, 80, 82, 82, 83]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "23d049fe6fb2d6eb5b0cae93953a34fd333f5e3cf195e8b7db8125e1485849f8",
     ),
     ("spa", 40): (
-        (7, 0, [78, 79, 80, 81, 81, 82, 82]),
-        "2d46d039013ed6d206d78585690be36b958175060b48d2888be18ff0faff0951",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        (7, 0, [78, 79, 80, 80, 81, 82, 82]),
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "4bc95498ca6310e6b1dfa7073d10140e481d1fff5562bc5a516f9bbc90627278",
     ),
     ("spa", 47): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
         (7, 0, [78, 80, 81, 81, 82, 82, 83]),
-        "2336e6663550e869733a1ec109e0a996c85d1c3b6bc4c67bbc76f47fe057517b",
+        # Round 278: re-frozen from measurement (the chooser's pick stands).
+        "8f19c7acc7ef65cd89932cf67b4c04b3348dc890ff0470e3fa9973ded48c0c67",
     ),
 }
 
