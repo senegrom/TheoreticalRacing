@@ -1,6 +1,9 @@
 # Racecraft review: fixes, experiments and research plan
 
-Baseline: `31bf6b986b669831a4ebc0b9d87cac5adb711a96` (round 278).
+Originally reviewed at `31bf6b986b669831a4ebc0b9d87cac5adb711a96` (round 278).
+Integration baseline: `1dc7b65f76c72bf78c7ce67732a4cdc29b5f3e4f` (round 279),
+which reached master during the review implementation. Its promoted fixes,
+owner rules and measured golden/pin updates are preserved, not reimplemented.
 Branch: `work/racecraft-review-20260926`.
 
 This PR includes all five recommendations from the review. Concrete fixes and

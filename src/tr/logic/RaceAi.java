@@ -474,7 +474,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured)
 	private final static int		AI1_DJS_SLOW_L1_ROUNDS	= 6;	// round 70 frontier: L1 slow traps get one extra round; interlagos 4-car s3/s4 dies exactly beyond the 5-round verdict
-	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent (lap races: p2p builds no potential), no chooser
+	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent in every race mode (round 279), no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
@@ -630,8 +630,8 @@ final class RaceAi {
 		// 3.45% of the fleet's solo moves. The descent cannot crash: a state
 		// with a finite value always has a successor one move closer.
 		// Round 274, the owner's single-player rule made literal: the radius is
-		// the rule's twenty cells, not forty. Point-to-point courses build no
-		// exact potential, so there the descent returns null and the score runs.
+		// the rule's twenty cells, not forty. Round 279: point-to-point courses
+		// descend the reachability map, the exact distance to their one crossing.
 		if (!rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
 			final Direction alone = optimalAloneMove(pos, vel, playerNum);
 			if (alone != null)
@@ -649,8 +649,11 @@ final class RaceAi {
 			if (finish != null)
 				return finish;
 		}
-		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS) {
-			final int ri = decisiveRival(playerNum);
+		// Round 279 (round 277): the seal fights for places, so a car we have
+		// lapped is neither its target nor part of the field it waits for.
+		final int placeRivals = placeRivalsRemaining(playerNum);
+		if (placeRivals >= 1 && placeRivals <= AI1_SEAL_MAXRIVALS) {
+			final int ri = decisivePlaceRival(playerNum);
 			if (ri > game.subgamestate && rivalEscapes(ri, -1, -1, playerNum) >= 1) {
 				final Direction sd = findForcedCrashMove(pos, vel, ri, playerNum);
 				if (sd != null)
@@ -1022,8 +1025,10 @@ final class RaceAi {
 				fast = d;
 				fastT = poTByDir[d.ordinal()];
 			}
-			if (fast != null)
+			if (fast != null) {
 				best = fast;
+				poScorerT = fastT; // round 279: the pace comparison below reads the landing taken
+			}
 		}
 		reviewStage("tie-break", best);
 		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
@@ -1160,8 +1165,8 @@ final class RaceAi {
 						final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
 								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 						final long candidateField = rolloutFieldCost[0];
-						if (chosenFinal < 0 || candidateFinal < 0 || candidateFinal >= chosenFinal
-								|| candidateField >= chosenField)
+						// Round 279: the field's cost is no veto (the racecraft rule).
+						if (chosenFinal < 0 || candidateFinal < 0 || candidateFinal >= chosenFinal)
 							continue;
 					}
 					sprint = d;
@@ -1322,7 +1327,7 @@ final class RaceAi {
 									if (RaceGame.aiVelocityOutOfRange(rvx, rvy))
 										continue;
 									final int rx = pos[0] + rvx, ry = pos[1] + rvy;
-									if (game.crossesFinishLegally(pos[0], pos[1], rx, ry)) {
+									if (finishingMove(pos[0], pos[1], rx, ry)) {
 										ridgeBest = rd;
 										break;
 									}
@@ -1455,7 +1460,7 @@ final class RaceAi {
 														AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 												final long altField = rolloutFieldCost[0];
 												retainChosen = chosenFinal >= 0 && altFinal >= 0
-														&& chosenFinal < altFinal && chosenField < altField;
+														&& chosenFinal < altFinal; // round 279: the field's cost is no veto
 												if (AI_DEBUG_DJS && retainChosen)
 													System.err.println("AIDBG DEEP p=" + playerNum
 															+ " retain faster cross-model line " + chosen + " over "
@@ -2297,8 +2302,8 @@ final class RaceAi {
 			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
 					fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 			final long candidateField = rolloutFieldCost[0];
-			if (candidateFinal < 0 || candidateFinal >= chosenFinal
-					|| candidateField >= chosenField)
+			// Round 279: the field's cost is no veto (the racecraft rule).
+			if (candidateFinal < 0 || candidateFinal >= chosenFinal)
 				continue;
 			if (boundedUncertainModerateGain) {
 				if (uncertainBest == null || candidateFinal < uncertainBestFinal
@@ -2521,8 +2526,6 @@ final class RaceAi {
 								final double score = scoreByDir[d.ordinal()];
 								if (candidateFinal >= 0 && candidateFinal != Integer.MAX_VALUE
 										&& candidateFinal < slackChosenFinal
-										&& candidateField <= slackChosenField
-										&& candidateField < ROLLOUT_FAILURE_COST
 										&& (slackBest == null || candidateFinal < slackBestFinal
 												|| candidateFinal == slackBestFinal
 														&& (candidateField < slackBestField
@@ -2609,7 +2612,8 @@ final class RaceAi {
 			// the field into slower or failed lines. In a compressed fast pack, take
 			// it only when the same scorer-rival world proves strict self progress and
 			// a non-worsening aggregate rival state.
-			if (chosenFinal < 0 || bestFinal >= chosenFinal || bestField > chosenField) {
+			// Round 279: the field's cost is no veto (the racecraft rule).
+			if (chosenFinal < 0 || bestFinal >= chosenFinal) {
 				if (AI_DEBUG_DJS)
 					System.err.println("AIDBG PRIVATE-FIELD p=" + playerNum + " pos=(" + pos[0]
 							+ "," + pos[1] + ") keep " + chosen + " over " + best + " self "
@@ -2729,8 +2733,8 @@ final class RaceAi {
 			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
 					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 			final long candidateField = rolloutFieldCost[0];
-			if (candidateFinal < 0 || candidateFinal >= chosenFinal
-					|| candidateField > chosenField)
+			// Round 279: the field's cost is no veto (the racecraft rule).
+			if (candidateFinal < 0 || candidateFinal >= chosenFinal)
 				continue;
 			if (highEnergy && (unc <= 0.0
 					|| rivalsAhead >= 5 && candidateField >= chosenField))
@@ -4359,7 +4363,7 @@ final class RaceAi {
 				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-				if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+				if (finishingMove(pos[0], pos[1], nx, ny))
 					return d;
 				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
 					continue;
@@ -4406,7 +4410,7 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+			if (finishingMove(pos[0], pos[1], nx, ny))
 				return d;
 			if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
 				continue;
@@ -4677,13 +4681,13 @@ final class RaceAi {
 		return false;
 	}
 
-	/** Round 214: the exact optimal move for a car with the track to itself, or
-	 *  null when the potential was not built (an over-budget board) or the
-	 *  state has no finite continuation. */
+	/** Round 214: the exact optimal move for a car with the track to itself (round
+	 *  279: the reach-map descent on point-to-point courses), or null when a lap
+	 *  race's potential was not built (over budget) or no finite continuation. */
 	private Direction optimalAloneMove(final int[] pos, final int[] vel, final int playerNum) {
 		final OptimalPotential potential = game.optimalPotential();
 		if (potential == null)
-			return null;
+			return game.lapGates == null ? reachAloneMove(pos, vel) : null;
 		int lapsDone = 0;
 		for (final Player p : game.players)
 			if (p.getNumber() == playerNum)
@@ -5016,6 +5020,44 @@ final class RaceAi {
 		return n;
 	}
 
+	/** Round 277: has the mover lapped this rival -- is it a full lap of gate
+	 *  events or more behind? Point-to-point races have no laps. */
+	private boolean lappedByMover(final Player rival, final int playerNum) {
+		if (game.lapGates == null)
+			return false;
+		for (final Player me : game.players)
+			if (me.getNumber() == playerNum)
+				return OptimalPotential.remainingEvents(rival.getNextGate(), rival.getLap(), game.totalLaps)
+						>= OptimalPotential.remainingEvents(me.getNextGate(), me.getLap(), game.totalLaps) + 3;
+		return false;
+	}
+
+	/** Round 277: live rivals the mover can still gain or lose a place to. */
+	private int placeRivalsRemaining(final int playerNum) {
+		int n = 0;
+		for (final Player p : game.players)
+			if (p.getNumber() != playerNum && !p.isFinished() && !lappedByMover(p, playerNum))
+				n++;
+		return n;
+	}
+
+	/** Round 277: decisiveRival among the rivals the mover has not lapped. */
+	private int decisivePlaceRival(final int playerNum) {
+		int best = -1, bestDist = Integer.MAX_VALUE;
+		for (int i = 0; i < game.players.length; i++) {
+			final Player p = game.players[i];
+			if (p.getNumber() == playerNum || p.isFinished() || lappedByMover(p, playerNum))
+				continue;
+			final int[] pp = p.getPosition();
+			final int dd = reach.distAt(pp[0], pp[1]);
+			if (dd < bestDist) {
+				bestDist = dd;
+				best = i;
+			}
+		}
+		return best;
+	}
+
 	/** The decisive rival to pressure: the live rival nearest the finish (the
 	 *  one to beat; in 1v1 the sole rival). Array index, or -1 if none. */
 	private int decisiveRival(final int playerNum) {
@@ -5138,6 +5180,40 @@ final class RaceAi {
 			if (p.getNumber() == playerNum)
 				return game.lapGates != null ? p.getLap() > 0 || p.getNextGate() != 1 : !game.gridLegalFor(p);
 		return true;
+	}
+
+	/** Round 279 (round 272): does this move FINISH the race for the car whose
+	 *  frame is active? In lap mode a crossing with a lap or a checkpoint still
+	 *  owed is an ordinary move and must pass the ordinary landing checks. */
+	private boolean finishingMove(final int x, final int y, final int nx, final int ny) {
+		return game.crossesFinishLegally(x, y, nx, ny) && (game.lapGates == null
+				|| game.gateEventsOnMove(lapGate, x, y, nx, ny) >= exactRemaining);
+	}
+
+	/** Round 279 (round 275): the single-player optimum on a point-to-point
+	 *  course. No exact potential is built without lap gates, but the
+	 *  reachability map is the exact distance to the one crossing, so the same
+	 *  descent applies: a legal finishing move if there is one, otherwise the
+	 *  legal landing the map puts closest to the line. */
+	private Direction reachAloneMove(final int[] pos, final int[] vel) {
+		Direction best = null;
+		int bestValue = Integer.MAX_VALUE;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+				return d;
+			if (!game.aiMoveLegal(pos[0], pos[1], nx, ny))
+				continue;
+			final int value = reach.turnsToFinish(nx, ny, nvx, nvy);
+			if (value < bestValue) {
+				bestValue = value;
+				best = d;
+			}
+		}
+		return best;
 	}
 
 	/** Finish precedence mirrors the main candidate scan: a velocity-range-valid

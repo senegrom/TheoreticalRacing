@@ -47,11 +47,10 @@ time alone does not conform, whatever it measures.
 
 With **no live rival within 20 cells** (Chebyshev), a car races the
 single-player optimum: the exact solo descent (the round-214 alone path),
-exactly as it drives alone. That holds in lap races, where the exact potential
-exists; point-to-point courses (laps disabled) build none, so there the car
-still races the score -- round 275 measures a descent on the reachability map
-for them. The faithful joint world (the
-round-260 chooser) is consulted only when a rival is within that distance.
+exactly as it drives alone. Lap races descend the exact potential;
+point-to-point courses (laps disabled) build none, so since round 279 they
+descend the reachability map, which is the exact distance to their one
+crossing. The faithful joint world (the round-260 chooser) is consulted only when a rival is within that distance.
 Round 261 priced the chooser gate at +0.001 places in 8-car packs (81 of 84
 boards tied) and +0.004 on scattered starts, all of it one synthetic course;
 round 267 priced the solo descent at 20 cells instead of 40 at -0.000 on

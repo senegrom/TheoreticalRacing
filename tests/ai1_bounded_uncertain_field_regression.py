@@ -80,9 +80,11 @@ RETENTION_CASES = {
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      '2dd6ec84fecc08479cd591c181385c11ecfeb3ba15a293f5654ccafd79e3b0aa'),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 73, 73]),
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 72, 74]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
-                     'a7b7a948f5745bd3081b3b3aa20c750020da36bb1bc3b495cd940c20e67dfe4e'),
+                     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+                     'a3ef203a894a4b260c7252fa1c24ade57e5ddba5e47553f045d76e72582bbbfd'),
     ("silverstone", 78): (
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         (7, 0, [81, 82, 83, 83, 84, 84, 85]),
@@ -111,7 +113,8 @@ RETENTION_CASES = {
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
         (7, 0, [78, 80, 81, 81, 82, 82, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
-        "8f19c7acc7ef65cd89932cf67b4c04b3348dc890ff0470e3fa9973ded48c0c67",
+        # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+        "a3149936e5c9f81971f69db992df88c50855d2e4e423ad67ed7c31f9a58cdab4",
     ),
 }
 

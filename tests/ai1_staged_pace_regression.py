@@ -27,7 +27,8 @@ CASES = {
     ("silverstone", 15): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
     ("silverstone", 18): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
     ("coil", 18): 421,  # Rounds 234 and 247: re-anchored from measurement.
-    ("hungaroring", 8): 883,
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+    ("hungaroring", 8): 884,
     # Round 234: seven finishers here now instead of six, so the sum grows.
     ("hungaroring", 10): 877,
     ("hungaroring", 25): 890,
@@ -46,7 +47,8 @@ EXACT_MOVES = {
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement (the chooser).
     # Round 278: re-frozen from measurement (the chooser's pick stands); seven finishers again.
-    ("lemans", 3): [66, 67, 68, 70, 71, 72, 73],
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes); p7 crashes, six finishers.
+    ("lemans", 3): [66, 67, 68, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     ("silverstone", 15): [82, 83, 83, 84, 85, 85, 86],
 }
@@ -89,7 +91,9 @@ def main() -> int:
             # Round 278 (the chooser's pick stands): Spa 4, Interlagos 3, Le Mans 3
             # and Hungaroring 8 keep every car; Le Mans 11 drops one again --
             # recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 11): (6, 1)}
+            # Round 279 (four rule-conformance and correctness fixes): Le Mans 3
+            # drops one again (p7 on turn 63) -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1), ("lemans", 11): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

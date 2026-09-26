@@ -112,7 +112,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 224 (rival predictor in its own lap frame): trajectory only.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     ("lemans", 2): '7b1940c458571e7e19fc25c84b1244648b8df83ecbb481000d1a88ae10c57640',
-    ("spa", 1): 'f2b45c6aac2595f6e2a5252e4bdd22f11c94f3a7f6e5871db2065103efa2fe05',
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+    ("spa", 1): '47ca1ed011afd27a4af7df557887691a6f8afef56ca08085307cd625c06ae8c2',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).

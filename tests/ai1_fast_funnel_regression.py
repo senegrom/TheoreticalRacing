@@ -33,7 +33,8 @@ EXPECTED = {
     # Round 247 (the soft rollout at one level, not two): re-frozen from
     # measurement; seed 36 is crash-free again.
     # Round 260 (the chooser): re-frozen from measurement.
-    36: {"AI1": (21, 4, 0), "AI2": (15, 4, 0)},
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+    36: {"AI1": (20, 4, 0), "AI2": (16, 4, 0)},
     # Round 234: re-frozen from measurement. Eight cars share places 1-8,
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.

@@ -37,7 +37,8 @@ FINISH_EXPECTED = {
     # Round 248: re-frozen from measurement (the physical world model: occupancy with lap state, rollouts that stop with the last survivor, blockades replayed).
     # Round 254: re-frozen from measurement (the danger guard in a faithful world).
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-    ("lemans", 12): [66, 67, 68, 69, 70, 72, 73],
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+    ("lemans", 12): [66, 67, 68, 69, 71, 73, 75],
 }
 
 

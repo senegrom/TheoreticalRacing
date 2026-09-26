@@ -9,15 +9,108 @@ import java.lang.reflect.Method;
 import java.util.Properties;
 import tr.gui.RaceUI;
 
-/** The owner's rules (CLAUDE.md): rank first, and the single-player rule. */
+/** The owner's rules (CLAUDE.md): rank first, the single-player rule and the
+ *  grid rule, plus the round-279 fixes that make the AI conform to them. */
 public final class OwnerRuleTests {
     private OwnerRuleTests() {}
 
     public static void main(final String[] args) throws Exception {
         testRankVerdict();
         testSoloBoundary();
+        testPointToPointSolo();
+        testFinishingMove();
+        testLappedRival();
         testGridRule();
-        System.out.println("OwnerRuleTests: rank-first verdicts, the 20-cell single-player boundary and the grid rule OK");
+        System.out.println("OwnerRuleTests: rank-first verdicts, the 20-cell single-player boundary in lap and"
+                + " point-to-point races, finishing crossings, lapped rivals and the grid rule OK");
+    }
+
+    /** Round 279 (round 275): a point-to-point course builds no exact potential,
+     *  so the single-player rule descends the reachability map -- the exact
+     *  distance to its one crossing: the legal landing the map puts closest to
+     *  the line, and the crossing itself once it is in reach. */
+    private static void testPointToPointSolo() throws Exception {
+        final RaceGame g = straight();
+        check(g.optimalPotential() == null, "a point-to-point course built an exact potential");
+        final Player me = car(1, 50, 10, 3, 0);
+        g.players = new Player[]{me, car(2, 72, 5, 0, 0)};
+        final Direction solo = aloneMove(g, me);
+        check(solo != null, "no solo descent on a point-to-point course");
+        int best = Integer.MAX_VALUE, taken = Integer.MAX_VALUE;
+        for (final Direction d : Direction.values()) {
+            final int vx = 3 + d.dx, vy = d.dy;
+            if (RaceGame.aiVelocityOutOfRange(vx, vy) || !g.aiMoveLegal(50, 10, 50 + vx, 10 + vy))
+                continue;
+            final int value = g.reach.turnsToFinish(50 + vx, 10 + vy, vx, vy);
+            best = Math.min(best, value);
+            if (d == solo)
+                taken = value;
+        }
+        check(best < Integer.MAX_VALUE && taken == best, "the solo move is not the map's closest landing");
+        check(decide(g, me) == solo, "with the nearest rival 22 cells away the car left the solo descent");
+        final Player late = car(1, 168, 10, 4, 0);
+        g.players = new Player[]{late, car(2, 60, 10, 0, 0)};
+        final Direction last = aloneMove(g, late);
+        check(last != null && g.crossesFinishLegally(168, 10, 172 + last.dx, 10 + last.dy),
+                "a car one move from the line did not take the crossing");
+    }
+
+    /** Round 279 (round 272): in a lap race a crossing of the line with a
+     *  checkpoint or a lap still owed is an ordinary move, not the finish; on a
+     *  point-to-point course every legal crossing finishes. */
+    private static void testFinishingMove() throws Exception {
+        final Method prepare = RaceAi.class.getDeclaredMethod("prepareDecisionFrame", int[].class, int[].class, int.class);
+        prepare.setAccessible(true);
+        final Method finishing = RaceAi.class.getDeclaredMethod("finishingMove", int.class, int.class, int.class, int.class);
+        finishing.setAccessible(true);
+        final RaceGame g = lapStraight();
+        final Player me = car(1, 168, 10, 5, 0);
+        g.players = new Player[]{me, car(2, 60, 10, 0, 0)};
+        check(g.crossesFinishLegally(168, 10, 173, 10), "the fixture's line is not crossed");
+        for (final int gate : new int[]{1, 2, 0}) {
+            me.setNextGate(gate);
+            prepare.invoke(g.ai, me.getPosition(), me.getVelocity(), 1);
+            check((boolean) finishing.invoke(g.ai, 168, 10, 173, 10) == (gate == 0),
+                    "with gate " + gate + " next the crossing's finish verdict is wrong");
+        }
+        g.totalLaps = 2;
+        prepare.invoke(g.ai, me.getPosition(), me.getVelocity(), 1);
+        check(!(boolean) finishing.invoke(g.ai, 168, 10, 173, 10), "a crossing with a lap still owed finished the race");
+        final RaceGame p = straight();
+        final Player q = car(1, 168, 10, 5, 0);
+        p.players = new Player[]{q, car(2, 60, 10, 0, 0)};
+        prepare.invoke(p.ai, q.getPosition(), q.getVelocity(), 1);
+        check((boolean) finishing.invoke(p.ai, 168, 10, 173, 10), "a point-to-point crossing did not finish the race");
+    }
+
+    /** Round 279 (round 277): the seal fights for places, so a car the mover has
+     *  lapped -- a full lap of gate events or more behind -- is neither its
+     *  target nor part of the field it counts, however near the line it is. */
+    private static void testLappedRival() throws Exception {
+        final RaceGame g = lapStraight();
+        g.totalLaps = 2;
+        final Player me = car(1, 50, 10, 3, 0);
+        me.incrementLap();
+        final Player lapped = car(2, 160, 10, 0, 0);
+        final Player behind = car(3, 100, 10, 0, 0);
+        behind.setNextGate(2);
+        g.players = new Player[]{me, lapped, behind};
+        final Method isLapped = RaceAi.class.getDeclaredMethod("lappedByMover", Player.class, int.class);
+        isLapped.setAccessible(true);
+        check((boolean) isLapped.invoke(g.ai, lapped, 1), "a car a full lap behind was not lapped");
+        check(!(boolean) isLapped.invoke(g.ai, behind, 1), "a car less than a lap behind was counted as lapped");
+        final Method count = RaceAi.class.getDeclaredMethod("placeRivalsRemaining", int.class);
+        count.setAccessible(true);
+        check((int) count.invoke(g.ai, 1) == 1, "the seal still counts a lapped car as a rival for places");
+        final Method target = RaceAi.class.getDeclaredMethod("decisivePlaceRival", int.class);
+        target.setAccessible(true);
+        final Method nearest = RaceAi.class.getDeclaredMethod("decisiveRival", int.class);
+        nearest.setAccessible(true);
+        check((int) nearest.invoke(g.ai, 1) == 1, "the fixture's lapped car is not the one nearest the line");
+        check((int) target.invoke(g.ai, 1) == 2, "the seal targets a car it has lapped");
+        final RaceGame p = straight();
+        p.players = new Player[]{car(1, 50, 10, 3, 0), car(2, 160, 10, 0, 0)};
+        check(!(boolean) isLapped.invoke(p.ai, p.players[1], 1), "a point-to-point race has laps");
     }
 
     /** The owner's grid rule (2026-09-24): the starting grid is legal ground for
@@ -86,15 +179,9 @@ public final class OwnerRuleTests {
     /** No live rival within AI1_CHOOSER_MAXDIST (20) Chebyshev cells: the exact
      *  solo descent. 20 cells is inside the rule, 21 outside, and a finished
      *  rival never counts. A one-lap race with checkpoints, where the exact
-     *  potential exists (point-to-point courses build none: round 275). */
+     *  potential exists (point-to-point courses: testPointToPointSolo). */
     private static void testSoloBoundary() throws Exception {
-        final RaceGame g = straight();
-        g.finishLine = new Line2D.Double(172.5, 1, 172.5, 19);
-        g.lapGates = new Line2D[]{g.finishLine,
-                new Line2D.Double(120, 1, 120, 19), new Line2D.Double(140, 1, 140, 19)};
-        set(g, "lapCrossGate", g.finishLine);
-        set(g, "lapFwdX", 1.0);
-        g.totalLaps = 1;
+        final RaceGame g = lapStraight();
         final Field radius = RaceAi.class.getDeclaredField("AI1_CHOOSER_MAXDIST");
         radius.setAccessible(true);
         final int r = radius.getInt(null);
@@ -146,6 +233,17 @@ public final class OwnerRuleTests {
         g.players = new Player[]{car(1, 10, 10, 0, 0), car(2, 30, 10, 0, 0)};
         g.reach.computeDistMap();
         g.reach.computeReachability();
+        return g;
+    }
+
+    /** straight() as a one-lap race: CP1 at x = 120, CP2 at 140, the line at 172.5. */
+    private static RaceGame lapStraight() throws Exception {
+        final RaceGame g = straight();
+        g.lapGates = new Line2D[]{g.finishLine,
+                new Line2D.Double(120, 1, 120, 19), new Line2D.Double(140, 1, 140, 19)};
+        set(g, "lapCrossGate", g.finishLine);
+        set(g, "lapFwdX", 1.0);
+        g.totalLaps = 1;
         return g;
     }
 

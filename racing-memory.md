@@ -2,7 +2,9 @@
 
 ## Review branch, 2026-09-26: chooser continuity, retained duel proofs and isolated research arms
 
-Baseline: `31bf6b986b669831a4ebc0b9d87cac5adb711a96` (round 278). NOT a promotion.
+Reviewed at `31bf6b986b669831a4ebc0b9d87cac5adb711a96` (round 278); integrated with
+the concurrent round-279 promotion `1dc7b65f76c72bf78c7ce67732a4cdc29b5f3e4f`.
+NOT a promotion. The round-279 owner rules and measured corpus are retained.
 The review's changes require BOTH `candidateSlots` and explicit `racecraftReview`
 flags. The control retains the original decisions, including the crossing abort
 and exhausted-search abstention, until a full fleet clears their replacement.
@@ -33,6 +35,92 @@ non-exhausting budget. See `docs/experiments/racecraft-review/validation.json`
 for commands actually executed. No new place improvement, CPU speedup, full-fleet
 clearance or trained endpoint model is claimed by this PR.
 
+## Round 279: four fixes that cost nothing, promoted together
+
+The owner's word (2026-09-25): a correctness fix that costs nothing ships.
+Four candidate-gated arms, each rebuilt on round 278 and screened against it
+(mirrored, seeds 1-20), promoted as one (jar 9e9831f7; E:/tmp-claude/
+promote279.py; the gated twin s278all4, 67e239f0):
+
+- Round 275, THE SINGLE-PLAYER RULE ON POINT-TO-POINT COURSES. No exact
+  potential is built without lap gates, so the round-214 solo descent returned
+  null on the eleven fleet courses that race with laps disabled and the car
+  raced the score. It now descends the reachability map, the exact distance
+  to the one crossing: a legal crossing when there is one, otherwise the
+  legal landing the map puts closest to the line. Random starts +0.000 +-
+  0.000 (one board against, 83 tied; crashes 172:172), scattered +0.000 (84
+  tied; 203:204).
+- Round 277, THE SEAL NEVER FIGHTS A CAR IT HAS LAPPED. The owner asked us to
+  make sure no car fights for places with cars it has lapped. An audit of
+  every place computation found one that was lap-blind: the seal's target
+  (the live rival nearest the line) and the rival count that arms it. Both
+  now skip a rival a full lap of gate events or more behind the mover.
+  Byte-identical on both start modes (84 of 84 boards tied, crashes 172:172
+  and 204:204): no fleet race puts a lapped car where the seal looks, so this
+  is rule conformance, not pace.
+- Rounds 271/272, THE REVIEW'S ITEMS 3 AND 5 AND THE STALE poScorerT. The pace
+  overrides no longer veto a faster own line on the field's cost. The
+  lap-mode switch loops take a start/finish crossing early only when it
+  finishes the race. poScorerT follows the round-49 switch. Random -0.001 +-
+  0.002 (13 boards for, 8 against, 63 tied; crashes 167:172), scattered
+  +0.000 (one board against, 83 tied).
+- Round 273, THE REVIEW'S ITEM 6: the private-lane proof measures every ply by
+  the exact potential at that ply's own lap and gate. Random -0.001 +- 0.001
+  (5 for, 4 against, 75 tied; crashes 173:174), scattered 84 of 84 tied.
+
+Identity. With every slot a candidate the twin is inert in the eight identity
+races (VERIFY_S278ALL4 INERT). The promoted jar with no slots races exactly
+as the twin with every slot, on lap and point-to-point courses, random and
+scattered (PROMO279_IDENTITY OK). The jar built from the patched repo is
+byte-identical to the one measured. The four were screened one by one; the
+combination has the identity checks and the lone-candidate check below, and
+its screen on computed starts follows as the record (none of the four was
+screened on computed starts). OwnerRuleTests pins the new behaviour.
+On a point-to-point course the solo move is the map's closest landing, and
+it takes the crossing once the crossing is in reach. A crossing with a
+checkpoint or a lap still owed does not finish the race. A lapped car is
+neither the seal's target nor counted in its field. The unit tests, the
+cross-era referee, the promotion-pair, headless-smoke, query-replay and
+lap-progress regressions all pass. The web parity case is unchanged
+(ec48301e).
+
+THE CORPUS. Two of twelve goldens moved. Monaco s16: 1107 -> 1105 turns, and
+F and G swap back. Zandvoort s45: 1003 -> 1001 turns, and G rises from sixth
+to fourth; the same one crash. Seven of 24 pins moved. The loop re-froze
+four:
+- graduated_field_accel: Coil s1, a point-to-point course; the last finisher
+  is a move faster (62 -> 61).
+- pace: Le Mans s12 finishes 66 67 68 69 71 73 75, not 66 67 68 69 70 72 73.
+- six_ahead_high_speed: Spa s47's trajectory.
+- private_slack: Spa s1's trajectory.
+
+Three were re-frozen by hand from the probe records
+(E:/tmp-claude/refreeze279_hand.py):
+- fast_funnel: Le Mans s36; one place changes cohort (AI1 21 -> 20, AI2
+  15 -> 16), still crash-free.
+- bounded_uncertain_field: Le Mans s14 has one car a move faster and one a
+  move slower, the same seven finishers, plus Spa s47 as above. The loop
+  could not rewrite it because s29's promoted tuple is the same text.
+- staged_pace: Le Mans s3 loses p7 on turn 63, recorded and not vetoed.
+  Hungaroring s8's finisher sum goes 883 -> 884.
+
+Every pin script and the goldens then pass as CI runs them: 21 pins in the
+corpus job's verify pass, and the three hand-frozen ones re-run on the box
+after the edit.
+
+The lone-candidate check, the owner's promotion gate: one s278all4 car
+against seven round-278 champions, every seat, seeds 1-5, each race paired
+with the all-champion race. -0.002 +- 0.002 places. Three courses favour the
+candidate (hybrid9 and lobe4 -0.075, hybrid1 -0.050), none the champion, 81
+tied. Crashes 34 against 35 for the champion in the same seats.
+
+The box's disk filled on 2026-09-25 at 20:05. Of its 48 GB, 18 GB are reach
+maps, 14 GB screens and 11 GB a swapfile. Nine queued jobs failed, the queue
+drained, and the idle alarm stopped the box. One finished screen was packed
+losslessly as a trial (s274_stand_1v7: 440 MB -> 71 MB, 6,084 entries,
+reports left in place); packing the rest waits on the owner. This round's
+lone-candidate check ran on /dev/shm, and its 3,780 races were packed to disk
+beside its report (69 MB).
 
 ## Round 278: the chooser's pick stands (round 269 promoted)
 

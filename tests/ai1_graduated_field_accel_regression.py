@@ -15,7 +15,8 @@ PROMOTED = {
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-    1: (7, 0, [58, 59, 60, 60, 60, 61, 62]),
+    # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+    1: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
     38: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
     106: (7, 0, [58, 59, 59, 59, 61, 61, 61]),
 }
