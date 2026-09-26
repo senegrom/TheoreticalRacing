@@ -15,6 +15,7 @@ public final class RacecraftReviewTests {
     private RacecraftReviewTests() {}
     public static void main(final String[] args) throws Exception {
         testConfiguration();
+        testExperimentalSoloBoundary();
         testShortlist();
         testProjectedOrder();
         testDuelCertificates();
@@ -44,6 +45,21 @@ public final class RacecraftReviewTests {
         p.setProperty("racecraftReviewAudit", "perhaps");
         expectInvalid(p);
     }
+    private static void testExperimentalSoloBoundary() {
+        final Properties p = new Properties();
+        p.setProperty("candidateSlots", "1");
+        p.setProperty("racecraftReview", "all");
+        final RaceGame g = new RaceGame(p);
+        g.players = new Player[]{car(1, 50, 10, 3, 0), car(2, 70, 10, 0, 0)};
+        check(g.ai.reviewTrafficNearby(1), "twenty cells excluded from experiment boundary");
+        g.players[1].setPosition(new int[]{71, 10});
+        check(!g.ai.reviewTrafficNearby(1), "duel experiment can activate at twenty-one cells");
+        g.players[1].setPosition(new int[]{51, 10});
+        g.players[1].setFinishedPlace(1);
+        check(!g.ai.reviewTrafficNearby(1), "retired rival activates duel experiment");
+        check(!g.ai.reviewTrafficNearby(9), "missing mover activates duel experiment");
+    }
+
     private static void expectInvalid(final Properties p) {
         boolean rejected = false;
         try { RacecraftReview.Config.from(p); } catch (final IllegalArgumentException expected) { rejected = true; }
@@ -58,13 +74,13 @@ public final class RacecraftReviewTests {
         scores[Direction.S.ordinal()] = 1.5;
         scores[Direction.SW.ordinal()] = 3;
         final double[] before = scores.clone();
-        check(Arrays.equals(RacecraftReview.shortlist(scores, 0, false),
+        check(Arrays.equals(RacecraftReview.shortlist(scores, 0, 3, 1.0, false),
                 new Direction[]{Direction.NW, Direction.N, Direction.NE}), "control shortlist changed");
-        check(Arrays.equals(RacecraftReview.shortlist(scores, 0, true),
+        check(Arrays.equals(RacecraftReview.shortlist(scores, 0, 3, 1.0, true),
                 new Direction[]{Direction.NW, Direction.N, Direction.NE, Direction.S}), "diverse proposal wrong");
         check(Arrays.equals(scores, before), "shortlist mutated live scores");
         scores[Direction.S.ordinal()] = Double.NaN;
-        check(RacecraftReview.shortlist(scores, 0, true).length == 3, "nonfinite candidate admitted");
+        check(RacecraftReview.shortlist(scores, 0, 3, 1.0, true).length == 3, "nonfinite candidate admitted");
     }
     private static void testProjectedOrder() {
         check(RacecraftReview.projectedAhead(1, 2, new int[]{5, 5, 5}, new boolean[]{true, true, true}) == 3,

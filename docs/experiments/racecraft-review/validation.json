@@ -1,13 +1,14 @@
 {
   "baseline": "31bf6b986b669831a4ebc0b9d87cac5adb711a96",
-  "assembly_input": "4dfb935eaa83ebf607c047d5f7997d4eb7d81eb6",
-  "workflow_run": "36237540999",
+  "assembly_input": "51df1fcac05dd26bd6f2a7658710914a7bbdd2c1",
+  "workflow_run": "36238013549",
   "java": "openjdk version \"25.0.4.1\" 2026-08-18 LTS\nOpenJDK Runtime Environment Temurin-25.0.4.1+1 (build 25.0.4.1+1-LTS)\nOpenJDK 64-Bit Server VM Temurin-25.0.4.1+1 (build 25.0.4.1+1-LTS, mixed mode, sharing)",
   "passed": [
     "git diff --check",
     "sh build_main.sh",
     "sh run_tests.sh",
-    "python3 -m unittest discover -s tests -p test_*.py"
+    "python3 -m unittest discover -s tests -p test_*.py",
+    "python3 tests/ai1_review_controls_regression.py"
   ],
   "full_fleet_performed": false,
   "promoted": false

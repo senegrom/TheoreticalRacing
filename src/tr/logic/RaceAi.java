@@ -20,6 +20,16 @@ final class RaceAi {
 	private int reviewReplyRival = -1;
 	private boolean reviewReplyUsed;
 
+	/** Use the owner's one authoritative radius for experimental duel activation. */
+	boolean reviewTrafficNearby(final int playerNum) {
+		for (final Player p : game.players)
+			if (p.getNumber() == playerNum) {
+				final int[] pos = p.getPosition();
+				return rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST);
+			}
+		return false;
+	}
+
 	private void reviewStage(final String name, final Direction action) {
 		if (reviewTrace != null && simDepth == 0 && !inScorerSim) reviewTrace.stage(name, action);
 	}
@@ -4873,7 +4883,7 @@ final class RaceAi {
 				RacecraftReview.Feature.DIVERSE);
 		final boolean projected = rootExperiment && RacecraftReview.enabled(game, playerNum,
 				RacecraftReview.Feature.PROJECTED_PLACE);
-		final Direction[] order = RacecraftReview.shortlist(scoreByDir, bestScore, diverse);
+		final Direction[] order = RacecraftReview.shortlist(scoreByDir, bestScore, AI1_CHOOSER_WIDTH, AI1_CHOOSER_WINDOW, diverse);
 		if (order.length < 2) return best;
 		final long[] verdicts = new long[order.length];
 		java.util.Arrays.fill(verdicts, -1L);

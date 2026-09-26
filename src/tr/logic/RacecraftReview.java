@@ -58,24 +58,27 @@ final class RacecraftReview {
     /** Original stable score shortlist, optionally plus ONE kinematically distinct action.
      * Distinct means largest minimum Manhattan separation in acceleration space;
      * this is a proposal heuristic, not a proof of tactical superiority. */
-    static Direction[] shortlist(final double[] scores, final double bestScore, final boolean diverse) {
+    static Direction[] shortlist(final double[] scores, final double bestScore,
+            final int width, final double window, final boolean diverse) {
+        if (width < 1 || width > DIRECTIONS.length || !Double.isFinite(window) || window < 0)
+            throw new IllegalArgumentException("invalid shortlist limits");
         if (scores.length != DIRECTIONS.length) throw new IllegalArgumentException("wrong score row length");
         final List<Direction> sorted = new ArrayList<>();
         for (final Direction d : DIRECTIONS) {
             final double score = scores[d.ordinal()];
-            if (!Double.isFinite(score) || score == Double.MAX_VALUE || score > bestScore + 1.0) continue;
+            if (!Double.isFinite(score) || score == Double.MAX_VALUE || score > bestScore + window) continue;
             int index = sorted.size();
             while (index > 0 && scores[sorted.get(index - 1).ordinal()] > score) index--;
             sorted.add(index, d);
         }
-        final List<Direction> selected = new ArrayList<>(sorted.subList(0, Math.min(3, sorted.size())));
+        final List<Direction> selected = new ArrayList<>(sorted.subList(0, Math.min(width, sorted.size())));
         if (diverse && !selected.isEmpty()) {
             Direction extra = null;
             int bestSeparation = -1;
             for (final Direction d : DIRECTIONS) {
                 final double score = scores[d.ordinal()];
                 if (selected.contains(d) || !Double.isFinite(score) || score == Double.MAX_VALUE
-                        || score > bestScore + 2.0) continue;
+                        || score > bestScore + window + 1.0) continue;
                 int separation = Integer.MAX_VALUE;
                 for (final Direction existing : selected)
                     separation = Math.min(separation, Math.abs(d.dx - existing.dx) + Math.abs(d.dy - existing.dy));
