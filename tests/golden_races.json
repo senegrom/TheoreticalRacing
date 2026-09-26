@@ -128,9 +128,9 @@
       "track": "monaco",
       "seed": 16,
       "players": 8,
-      "sha256": "e23de9ebdff825797b0c5c04331119196863f3fdccae6e51745c7e9461d93f6d",
+      "sha256": "5a2c445084e8c4c347767e56c8690d8550455ffc6eac744720c444aceac4b79f",
       "summary": {
-        "turns": 1107,
+        "turns": 1105,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -139,8 +139,8 @@
           "C",
           "D",
           "E",
-          "G",
           "F",
+          "G",
           "H"
         ]
       }
@@ -216,18 +216,18 @@
       "track": "zandvoort",
       "seed": 45,
       "players": 8,
-      "sha256": "cdab9a9521772cf904e22bb0c843cd9ec3345efa3c107458bcfa03215e86ac9d",
+      "sha256": "13e53f0efa6a8069ce6c58ebc5c58ddea1f1a6c4683e47ff7bb2daf50a579fd9",
       "summary": {
-        "turns": 1003,
+        "turns": 1001,
         "finishes": 6,
         "crashes": 1,
         "results": [
           "D",
           "E",
           "F",
+          "G",
           "A",
           "B",
-          "G",
           "C",
           "H"
         ]

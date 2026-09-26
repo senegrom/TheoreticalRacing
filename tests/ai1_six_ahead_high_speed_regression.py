@@ -93,7 +93,8 @@ VETO_CASES = {
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
         (7, 0, [78, 80, 81, 81, 82, 82, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
-        "8f19c7acc7ef65cd89932cf67b4c04b3348dc890ff0470e3fa9973ded48c0c67",
+        # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
+        "a3149936e5c9f81971f69db992df88c50855d2e4e423ad67ed7c31f9a58cdab4",
     ),
     ("coil", 5): (
         (7, 0, [58, 59, 59, 59, 60, 60, 60]),
