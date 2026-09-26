@@ -1208,6 +1208,9 @@ final class Reachability {
 		int[][] gateTurns; BitSet[] robustReach; BitSet lapAlive, lapRoomy0, lapRoomy1;
 		byte[] lapShed2, lapShed2Roomy, lapCert;
 		boolean robustSeedFallback; int phantomAlive; long lapBytes;
+		/** The gates the lap bundle was built for (RaceGame.lapIdentity): the
+		 *  entry's key covers the finish line but not the checkpoints. */
+		String lapKey;
 
 		ReachMemoEntry(final Reachability r) {
 			w = r.aliveW; h = r.aliveH; vmax = r.aliveVMAX; span = r.aliveSpan;
@@ -1263,6 +1266,7 @@ final class Reachability {
 		synchronized (REACH_MEMO) {
 			final ReachMemoEntry m = key == null ? null : REACH_MEMO.get(key);
 			if (m == null || m.gateTurns == null) return false;
+			if (!m.lapKey.equals(lapKey())) return false; // built for other checkpoints
 			gateTurns = m.gateTurns; robustReach = m.robustReach; aliveStates = m.lapAlive;
 			roomy0 = m.lapRoomy0; roomy1 = m.lapRoomy1; minShed2 = m.lapShed2;
 			minShed2Roomy = m.lapShed2Roomy; certSq = m.lapCert;
@@ -1295,8 +1299,15 @@ final class Reachability {
 			m.lapRoomy0 = roomy0; m.lapRoomy1 = roomy1; m.lapShed2 = minShed2;
 			m.lapShed2Roomy = minShed2Roomy; m.lapCert = certSq;
 			m.robustSeedFallback = robustSeedFallback; m.phantomAlive = phantomAlive; m.lapBytes = extra;
+			m.lapKey = lapKey();
 			reachMemoBytes += extra;
 		}
+	}
+
+	/** The gates this map's lap bundle belongs to (RaceGame.lapIdentity); a
+	 *  test fixture may build a map without a game. */
+	private String lapKey() {
+		return game == null ? "" : game.lapIdentity();
 	}
 
 	static void clearReachMemoForTests() { synchronized (REACH_MEMO) { REACH_MEMO.clear(); reachMemoBytes = 0; } }

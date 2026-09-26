@@ -1321,7 +1321,7 @@ public final class RaceGame {
 
 	private OptimalPotential computeOptimalPotentialNow() {
 		if (lapGates == null) return null;
-		final String key = reach.geometryCacheKey() + "-laps" + totalLaps;
+		final String key = reach.geometryCacheKey() + "-laps" + totalLaps + "-gates" + lapIdentity();
 		OptimalPotential prepared;
 		synchronized (OPTIMAL_MEMO) { prepared = OPTIMAL_MEMO.get(key); }
 		if (prepared != null) return prepared;
@@ -1463,6 +1463,25 @@ public final class RaceGame {
 			return new double[6];
 		return new double[]{line.getX1(), line.getY1(), line.getX2(), line.getY2(),
 				lapGates != null ? lapFwdX : finishFwdX, lapGates != null ? lapFwdY : finishFwdY};
+	}
+
+	/** What the lap products (the gate maps and the exact potential) depend on
+	 *  beyond the reachability key: every lap gate, checkpoints included, and
+	 *  the crossing gate with its forward direction. It keys the in-memory
+	 *  memos only (review, 2026-09-26). Production derives the gates from the
+	 *  boundary, so there it never tells two games apart, but hand-built games
+	 *  -- the test suites -- can share a boundary and a finish line and still
+	 *  place their checkpoints differently. No disk cache holds a gate product. */
+	String lapIdentity() {
+		if (lapGates == null)
+			return "";
+		final StringBuilder s = new StringBuilder();
+		for (final Line2D g : lapGates)
+			s.append(g == null ? "-" : g.getX1() + "," + g.getY1() + "," + g.getX2() + "," + g.getY2()).append(';');
+		if (lapCrossGate != null)
+			s.append(lapCrossGate.getX1()).append(',').append(lapCrossGate.getY1()).append(',')
+					.append(lapCrossGate.getX2()).append(',').append(lapCrossGate.getY2());
+		return s.append(';').append(lapFwdX).append(',').append(lapFwdY).toString();
 	}
 
 	private boolean crossesFinishUncached(final double x1, final double y1, final double x2, final double y2) {

@@ -628,6 +628,16 @@ public final class CoreTests {
             check(adopted.gateTurns == lap.gateTurns && adopted.robustReach == lap.robustReach
                     && adopted.aliveStates == lap.aliveStates && adopted.phantomAlive == 3
                     && adopted.robustSeedFallback, "lap memo did not restore the coherent bundle atomically");
+            // The entry's key covers the finish line, not the checkpoints: a game
+            // with other lap gates takes the base maps but builds its own bundle.
+            final Reachability otherGates = syntheticReachability(8);
+            final java.lang.reflect.Field gameField = Reachability.class.getDeclaredField("game");
+            gameField.setAccessible(true);
+            ((RaceGame) gameField.get(otherGates)).lapGates = new java.awt.geom.Line2D[]{
+                    new java.awt.geom.Line2D.Double(0, 0, 0, 4), new java.awt.geom.Line2D.Double(2, 0, 2, 4),
+                    new java.awt.geom.Line2D.Double(3, 0, 3, 4)};
+            check((Boolean) adopt.invoke(otherGates, "memo-lap") && !(Boolean) adoptLap.invoke(otherGates, "memo-lap"),
+                    "a lap bundle was reused for other checkpoint gates");
 
             final java.lang.reflect.Constructor<OptimalPotential> ctor = OptimalPotential.class
                     .getDeclaredConstructor(int.class, int.class, int.class, int.class, short[].class);

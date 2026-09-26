@@ -1,5 +1,25 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 279 follow-up: the in-memory memos carry the checkpoints
+
+The Java review's last finding (handed over 2026-09-26): the exact-potential
+memo (OPTIMAL_MEMO) and the lap-map bundle in REACH_MEMO were keyed by the
+reachability key, which covers the boundary, grid, speed cap and finish line
+but not the two checkpoints. Two games in one JVM that share a boundary and a
+finish line but place their checkpoints differently therefore shared one
+potential. The review's probe: checkpoints 20/40 and then 60/66 gave the
+second game 41/47/51/54 moves where its own map says 29/27/23/25.
+
+Only hand-built games are exposed; the test suites build several on one
+boundary. Production derives the checkpoints from the boundary, and every
+headless race runs in its own JVM. Both memos now key the lap products by
+RaceGame.lapIdentity(): every lap gate, the crossing gate and the forward
+direction. The disk caches hold no gate product and keep their keys
+(CACHE_SEMANTICS unchanged). OwnerRuleTests builds both layouts on one
+straight: a car at x = 100 owing CP1 races on with CP1 at 120 and turns back
+with CP1 at 60. CoreTests refuses a lap bundle to a game with other gates.
+Both tests fail on the old keys.
+
 ## Round 279: four fixes that cost nothing, promoted together
 
 The owner's word (2026-09-25): a correctness fix that costs nothing ships.

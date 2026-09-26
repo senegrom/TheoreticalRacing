@@ -20,9 +20,10 @@ public final class OwnerRuleTests {
         testPointToPointSolo();
         testFinishingMove();
         testLappedRival();
+        testCheckpointMemoKeys();
         testGridRule();
         System.out.println("OwnerRuleTests: rank-first verdicts, the 20-cell single-player boundary in lap and"
-                + " point-to-point races, finishing crossings, lapped rivals and the grid rule OK");
+                + " point-to-point races, finishing crossings, lapped rivals, checkpoint memo keys and the grid rule OK");
     }
 
     /** Round 279 (round 275): a point-to-point course builds no exact potential,
@@ -111,6 +112,28 @@ public final class OwnerRuleTests {
         final RaceGame p = straight();
         p.players = new Player[]{car(1, 50, 10, 3, 0), car(2, 160, 10, 0, 0)};
         check(!(boolean) isLapped.invoke(p.ai, p.players[1], 1), "a point-to-point race has laps");
+    }
+
+    /** The in-memory memos carry the checkpoint gates (review, 2026-09-26): two
+     *  games that share a boundary and a finish line but place their
+     *  checkpoints differently must not share an exact potential. A car at
+     *  x = 100 that still owes CP1 races on with CP1 at 120, but has to go back
+     *  for it with CP1 at 60. */
+    private static void testCheckpointMemoKeys() throws Exception {
+        RaceGame.clearOptimalMemoForTests();
+        final int back = checkpoints(lapStraight(), 60, 66).optimalPotential().movesToFinish(3, 100, 10, 0, 0);
+        RaceGame.clearOptimalMemoForTests();
+        final int ahead = lapStraight().optimalPotential().movesToFinish(3, 100, 10, 0, 0);
+        check(back != ahead, "the fixture does not tell the two checkpoint layouts apart");
+        check(checkpoints(lapStraight(), 60, 66).optimalPotential().movesToFinish(3, 100, 10, 0, 0) == back,
+                "a game reused another checkpoint layout's exact potential");
+        RaceGame.clearOptimalMemoForTests();
+    }
+
+    private static RaceGame checkpoints(final RaceGame g, final double cp1, final double cp2) {
+        g.lapGates[1] = new Line2D.Double(cp1, 1, cp1, 19);
+        g.lapGates[2] = new Line2D.Double(cp2, 1, cp2, 19);
+        return g;
     }
 
     /** The owner's grid rule (2026-09-24): the starting grid is legal ground for
