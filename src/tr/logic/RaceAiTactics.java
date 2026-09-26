@@ -42,8 +42,13 @@ final class RaceAiTactics {
         // mirrored pairs a slice: -0.015 +- 0.004 on random two-car starts,
         // -0.017 +- 0.004 computed, -0.005 +- 0.002 scattered, -0.015 +- 0.004
         // on held-out seeds; no board against it; eight-car fields byte-identical.
-        if (realDecision)
+        if (realDecision) {
+            final boolean retain = RacecraftReview.enabled(game, playerNumber, RacecraftReview.Feature.DUEL_ANYTIME);
+            final boolean cache = RacecraftReview.enabled(game, playerNumber, RacecraftReview.Feature.DUEL_CACHE);
+            if (retain || cache || game.racecraftReview.audit)
+                return RaceAiDuelSearch.winWithinFourMoves(game, playerNumber, retain, cache, game.racecraftReview.audit);
             return RaceAiDuelSearch.winWithinFourMoves(game, playerNumber);
+        }
         return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
     }
 

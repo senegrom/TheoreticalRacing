@@ -17,5 +17,6 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.logic.OwnerRuleTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.SimulationFollowupTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.EndgamePhysicalTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RaceAiDuelSearchTests
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftReviewTests
 
 java -ea --add-modules jdk.jdi -cp test-bin tr.logic.LapMemoPublicationTests src/tr/logic/Reachability.java

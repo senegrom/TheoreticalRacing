@@ -70,6 +70,7 @@ public final class RaceGame {
 	private final ArrayDeque<MoveSnapshot>	moveHistory	= new ArrayDeque<>();
 	Player[]			players;
 	private final Properties	prop;
+	final RacecraftReview.Config racecraftReview;
 	private RaceUI				rui;
 	private float[][]			startZone;
 	Area				startZoneA;
@@ -149,6 +150,7 @@ public final class RaceGame {
 	/** Create new RaceGame. Call {@link #start()} afterwards. */
 	public RaceGame(final Properties prop) {
 		this.prop = prop;
+		racecraftReview = RacecraftReview.Config.from(prop);
 		maxPlayers = sanitizeIntProp("maxPlayers", defPlayerColors.length, 1, defPlayerColors.length);
 		sanitizeIntProp("nPlayers", 2, 1, maxPlayers);
 		sanitizeIntProp("windowX", defWindowX, 200, 10000);
