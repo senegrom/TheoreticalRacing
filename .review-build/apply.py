@@ -65,8 +65,11 @@ for method, label in [("privatePaceOverride", "private-pace"), ("stagedPaceOverr
     file.write_text(text, encoding="utf-8")
 file = ROOT / "src/tr/logic/RaceAi.java"
 text = file.read_text(encoding="utf-8")
-start = text.index("\tprivate Direction jointChooser(")
-end = text.index("\t/** Round 262: Chebyshev distance", start)
+method_start = text.index("\tprivate Direction jointChooser(")
+start = text.rfind("\t/** Round 256: among the landings", 0, method_start)
+if start < 0:
+    raise RuntimeError("missing chooser documentation anchor")
+end = text.index("\t/** Round 262: Chebyshev distance", method_start)
 text = text[:start] + (ROOT / ".review-build/chooser.java.inc").read_text(encoding="utf-8") + text[end:]
 file.write_text(text, encoding="utf-8")
 edit("src/tr/logic/RaceAi.java", "\t\t\t\telse if (scorerSet[i])\n\t\t\t\t\tmoved = scorerMoveOverState",
