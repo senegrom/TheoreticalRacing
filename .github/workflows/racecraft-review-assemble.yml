@@ -5,9 +5,6 @@ on:
     paths:
       - '.review-build/**'
       - '.github/workflows/racecraft-review-assemble.yml'
-      - 'src/tr/logic/RaceAiDuelSearch.java'
-      - 'src/tr/logic/RacecraftReview.java'
-      - 'tests/tr/logic/RacecraftReviewTests.java'
 permissions:
   contents: write
 concurrency:
@@ -31,6 +28,9 @@ jobs:
           if ! grep -q 'private int reviewProjectedDepth' src/tr/logic/RaceAi.java; then
             python3 .review-build/apply.py
           fi
+          if ! grep -q 'boolean reviewTrafficNearby' src/tr/logic/RaceAi.java; then
+            python3 .review-build/finalize.py
+          fi
           git diff --check
       - name: Build and run contracts
         shell: bash
@@ -39,6 +39,7 @@ jobs:
           sh build_main.sh 2>&1 | tee /tmp/review-build.log
           sh run_tests.sh 2>&1 | tee /tmp/review-tests.log
           python3 -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee /tmp/review-python.log
+          python3 tests/ai1_review_controls_regression.py 2>&1 | tee /tmp/review-controls.log
       - name: Record validation and commit assembled sources
         shell: bash
         run: |
@@ -51,7 +52,7 @@ jobs:
             'assembly_input': os.environ['GITHUB_SHA'],
             'workflow_run': os.environ['GITHUB_RUN_ID'],
             'java': subprocess.run(['java', '-version'], capture_output=True, text=True, check=True).stderr.strip(),
-            'passed': ['git diff --check', 'sh build_main.sh', 'sh run_tests.sh', "python3 -m unittest discover -s tests -p test_*.py"],
+            'passed': ['git diff --check', 'sh build_main.sh', 'sh run_tests.sh', "python3 -m unittest discover -s tests -p test_*.py", 'python3 tests/ai1_review_controls_regression.py'],
             'full_fleet_performed': False,
             'promoted': False
           }
@@ -59,9 +60,9 @@ jobs:
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java src/tr/logic/RaceAiTactics.java run_tests.sh racing-memory.md docs/experiments/racecraft-review/validation.json
+          git add src/tr/logic/RaceAi.java src/tr/logic/RaceGame.java src/tr/logic/RaceAiTactics.java src/tr/logic/RacecraftReview.java tests/tr/logic/RacecraftReviewTests.java run_tests.sh racing-memory.md docs/experiments/racecraft-review/validation.json
           if ! git diff --cached --quiet; then
-            git commit -m 'Integrate candidate-gated racecraft review and record JDK 25 contracts'
+            git commit -m 'Enforce experimental solo boundary and record completed review contracts'
             git push origin HEAD:work/racecraft-review-20260926
           fi
       - uses: actions/upload-artifact@v7
