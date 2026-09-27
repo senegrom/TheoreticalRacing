@@ -174,8 +174,10 @@ final class Reachability {
 	 *  {state's own |v|^2} plus {minShed2 of every qualifying braking
 	 *  successor} -- i.e. the minimal T^2 such that at least two independent
 	 *  blind braking descents reach |v| <= T within the
-	 *  {@link #countBrakeProofs} horizon. Built by {@link #sweepCertSq};
-	 *  consumed via {@link #certBudget} by AI2 only. */
+	 *  {@link #countBrakeProofs} horizon. Built by {@link #sweepCertSq}. No AI
+	 *  decision reads it since the old AI2 left (only the tests, through
+	 *  {@link #certBudget}), nor minShed2Roomy: both stay because the .derived
+	 *  cache format and the reachability memo carry them (review, 2026-09-26). */
 	byte[]	certSq;
 
 	int aliveIdx(final int x, final int y, final int vx, final int vy) {
@@ -990,15 +992,14 @@ final class Reachability {
 		return arr;
 	}
 
-	/** Certified per-state speed budget for AI2's pace discipline: the minimal
+	/** Certified per-state speed budget, once AI2's pace discipline: the minimal
 	 *  integer target T such that at least two independent blind braking
 	 *  descents from (x,y,vx,vy) reach |v| <= T within the
 	 *  {@link #countBrakeProofs} horizon -- {@code ceil(sqrt(certSq))} over
 	 *  the precomputed map (the uncertified 255 maps to 16, an effectively
-	 *  unbounded budget). Replaces the global constant base 5 of the
-	 *  pre-certification widthBudget with local, heading- and speed-exact map
-	 *  truth. Conservative 0 for states outside the precomputed space or
-	 *  before the map exists (never the case after ensureReachabilityReady). */
+	 *  unbounded budget). Conservative 0 for states outside the precomputed
+	 *  space or before the map exists. No AI decision calls it any more; the
+	 *  tests read certSq through it. */
 	int certBudget(final int x, final int y, final int vx, final int vy) {
 		if (certSq == null)
 			return 0;

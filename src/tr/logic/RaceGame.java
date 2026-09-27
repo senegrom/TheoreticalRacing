@@ -1613,11 +1613,6 @@ public final class RaceGame {
 		return new Line2D[]{new Line2D.Double(last[0], last[1], first[0], first[1]) };
 	}
 
-	private static boolean segTouches(final Line2D gate, final int[] a, final int[] b) {
-		return Line2D.linesIntersect(gate.getX1(), gate.getY1(), gate.getX2(), gate.getY2(),
-				a[0], a[1], b[0], b[1]);
-	}
-
 	/**
 	 * Compute the racing-direction unit vector at the finish, as the average of
 	 * the last left and right border segments (which point from the track

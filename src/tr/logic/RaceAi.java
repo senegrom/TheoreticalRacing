@@ -43,27 +43,19 @@ final class RaceAi {
 
 	private static final class CandidateWorkspace {
 		final double[] trapByDirection = new double[DIRECTIONS.length];
-		final double[] scoreWithoutSpread = new double[DIRECTIONS.length];
 		final int[] turnsByDirection = new int[DIRECTIONS.length];
 		final double[] scoreByDirection = new double[DIRECTIONS.length];
-		final double[] uncertaintyByDirection = new double[DIRECTIONS.length];
 
 		void reset() {
 			java.util.Arrays.fill(trapByDirection, 0.0);
-			java.util.Arrays.fill(scoreWithoutSpread, Double.MAX_VALUE);
 			java.util.Arrays.fill(turnsByDirection, Integer.MAX_VALUE);
 			java.util.Arrays.fill(scoreByDirection, Double.MAX_VALUE);
-			java.util.Arrays.fill(uncertaintyByDirection, 0.0);
 		}
 
 		void copyFrom(final CandidateWorkspace source) {
 			System.arraycopy(source.trapByDirection, 0, trapByDirection, 0, DIRECTIONS.length);
-			System.arraycopy(source.scoreWithoutSpread, 0, scoreWithoutSpread, 0,
-					DIRECTIONS.length);
 			System.arraycopy(source.turnsByDirection, 0, turnsByDirection, 0, DIRECTIONS.length);
 			System.arraycopy(source.scoreByDirection, 0, scoreByDirection, 0, DIRECTIONS.length);
-			System.arraycopy(source.uncertaintyByDirection, 0, uncertaintyByDirection, 0,
-					DIRECTIONS.length);
 		}
 	}
 
@@ -143,30 +135,24 @@ final class RaceAi {
 		}
 	}
 
+	/** The simulated next opponent round. It was two rounds until 2026-09-26;
+	 *  the second fed only the ply-2 price, which round 247's one-level
+	 *  lookahead never reaches. */
 	private static final class TwoRoundWorkspace {
 		final int[][] current;
 		final int[][] world1;
 		final int[][] simulatedVelocity;
 		final int[][] round1Position;
-		final int[][] round2Position;
 		final int[][] round1Velocity;
-		final int[][] round2Velocity;
-		final byte[] aheadOccupancy;
-		final int[] aheadTouched;
 		final CellOccupancy blockedOccupancy;
 		final CellOccupancy world1Occupancy;
-		int aheadTouchedCount;
 
 		TwoRoundWorkspace(final int players, final int width, final int height) {
 			current = new int[players][];
 			world1 = new int[players][];
 			simulatedVelocity = new int[players][];
 			round1Position = new int[players][2];
-			round2Position = new int[players][2];
 			round1Velocity = new int[players][2];
-			round2Velocity = new int[players][2];
-			aheadOccupancy = new byte[width * height];
-			aheadTouched = new int[players];
 			blockedOccupancy = new CellOccupancy(width, height);
 			world1Occupancy = new CellOccupancy(width, height);
 		}
@@ -224,9 +210,6 @@ final class RaceAi {
 		final boolean[] alive;
 		final boolean[] scorerSet;
 		final int[] projectedMoves;
-		final boolean[] faithfulOriginallyLiveRival;
-		final long[] faithfulChosenRivalCost;
-		final long[] faithfulCandidateRivalCost;
 		final int[] move = new int[4];
 		final int[] finalTier = new int[1];
 		final ScorerWorkspace scorer;
@@ -243,9 +226,6 @@ final class RaceAi {
 			alive = new boolean[players];
 			scorerSet = new boolean[players];
 			projectedMoves = new int[players];
-			faithfulOriginallyLiveRival = new boolean[players];
-			faithfulChosenRivalCost = new long[players];
-			faithfulCandidateRivalCost = new long[players];
 			scorer = new ScorerWorkspace(players);
 		}
 	}
@@ -415,26 +395,13 @@ final class RaceAi {
 		return bestLegal != null ? bestLegal : fallback;
 	}
 
-	/** Explicit search depth for the soft depth-2 search
-	 *  ({@link #searchMinTurnsCountedSoft3}) -- my next TWO moves are searched
-	 *  explicitly, each ply priced against its own simulated opponent round
-	 *  (world1 at stepIdx 0, world2 at stepIdx 1) before the opponent-blind
-	 *  map takes over. */
+	/** Explicit search depth of the soft search
+	 *  ({@link #searchMinTurnsCountedSoft3}): my next move is searched against
+	 *  the simulated next opponent round, then the opponent-blind map takes
+	 *  over. Two levels priced a second simulated round (AI1_PLY2_PRICE, the
+	 *  ahead-rival bodies of round two); that machinery was removed on
+	 *  2026-09-26, so raising this needs it back (git history). */
 	private final static int		AI1_DEEP_LOOKAHEAD	= 1;	// round 247: one round of world-step, not two -- the second round priced where seven rivals might be and cost 0.155 places (three rounds cost 0.279)
-
-	/** Shared champion frontier: soft price for landing, at the second explicit search
-	 *  ply (stepIdx 1), on a round-2-simulated body -- applied in OPEN RUNNING
-	 *  only (v4): with any rival within squared distance 36 of my current cell
-	 *  the price is disabled for the move (occupancy2 = null), because a
-	 *  two-rounds-out detour ceded while a rival is close enough to take the
-	 *  vacated line converts saved time into lost PLACES (h2h forensics:
-	 *  price-all lost 4.540/4.460, ahead-only lost harder 4.597/4.403 -- a
-	 *  coordination asymmetry, since in all-frontier fields the collective
-	 *  spreading is what buys the pace). Probes proved the price LEVEL is a
-	 *  dead knob (2.0 == 3.0 bench-identical; 0.0 reverts to the exact frozen
-	 *  baseline -- the entire depth-2 gain flows through this pricing), so the
-	 *  structure, not the level, carries the design. */
-	private final static double	AI1_PLY2_PRICE	= 3.0;
 	private final static int		AI1_SEAL_MAXRIVALS	= 3;	// endgame seal fires when <= this many rivals remain
 	private final static double	AI1_PACE_FLOOR	= 0.60;	// min poRoom to take an unsealable faster move (sparse field only)
 	private final static int		AI1_SPARSE_RIVALS	= 3;
@@ -484,7 +451,6 @@ final class RaceAi {
 	private final static int		AI1_PRIVATE_EXACT_HORIZON	= 4;	// round 77: geometry-clipped fallback horizon
 	private final static int		AI1_PRIVATE_BASE_ESCAPES	= 3;	// broad rectangles need the original wide frontier
 	private final static int		AI1_PRIVATE_EXACT_ESCAPES	= 2;	// clipped slow or homogeneous moderate-risk lines may use two exits
-	private final static double	AI1_PRIVATE_EXACT_UNC_MAX	= 15.0;	// round 77: homogeneous fast lines above this retain three exits
 	private final static int		AI1_PRIVATE_EXACT_NODES	= 512;	// per-turn exact-search budget; exhaustion fails closed
 	private final static double	AI1_PRIVATE_FRONTIER_REST_SLACK	= 0.25;	// round 169: bounded exact-private/scorer-field frontier
 	private final static int		AI1_PRIVATE_FRONTIER_MIN_TTF	= 46;	// incumbent phase; the candidate is exactly one turn faster
@@ -494,15 +460,10 @@ final class RaceAi {
 	private final static int		AI1_PRIVATE_CONVOY_HALF_WIDTH	= 4;	// maximum perpendicular distance from the mover's velocity ray
 	private final static int		AI1_PRIVATE_CONVOY_MAX_AHEAD	= 1;	// the externality case is a compact rear train, not a two-sided pack
 	private final static double	AI1_STAGED_REST_SLACK	= 1.00;	// round 81: one scorer point still needs strict rollout and field proof
-	private final static double	AI1_STAGED_UNC_MAX	= 2.5;	// keep the staged rollout below the high-uncertainty class
 	private final static int		AI1_STAGED_HORIZON	= 8;	// strict gain + non-worsening field
 	private final static int		AI1_STAGED_MIN_TURNS	= 35;	// leave the existing finish sprint in charge near the line
 	private final static int		AI1_STAGED_MAX_SPEED2_GAIN	= 9;	// at most one |v|=4->5 axis of extra energy vs the scorer
 	private final static int		AI1_FIELD_ACCEL_MIN_SPEED2_GAIN	= 16;	// round 106: decisive one-turn energy gain
-	private final static int		AI1_FIELD_UNCERTAIN_MIN_TTF	= 46;	// round 177: exact medium-range band
-	private final static int		AI1_FIELD_UNCERTAIN_MAX_TTF	= 60;
-	private final static int		AI1_FIELD_UNCERTAIN_LAST_MOVERS	= 3;	// avoid early partial-round trajectory drift
-	private final static double	AI1_FIELD_UNCERTAIN_MAX	= 1.0;	// mild positive uncertainty only
 	private final static int		AI1_FIELD_ACCEL_MIN_AHEAD	= 2;	// require a real forward pack
 	private final static int		AI1_FIELD_ACCEL_MAX_AHEAD	= 5;	// bounded proof excludes full-tail six-ahead cases
 	private final static int		AI1_FIELD_ACCEL_MAX_TTF	= 90;	// keep the 8-round proof in the medium-range race phase
@@ -512,8 +473,9 @@ final class RaceAi {
 	private final static int		AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2	= 49;	// round 175: cross the high-speed threshold with a bounded gain
 	private final static int		AI1_MOBILITY_DEPTH	= 4;	// frontier; projection/cache shared per turn
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
-	 *  -Dai.debug.djs DJS-death events for all players; -Dai.debug.fieldVector
-	 *  only the bounded field proof. All are off by default. */
+	 *  -Dai.debug.djs DJS-death events for all players. All are off by default.
+	 *  (-Dai.debug.fieldVector printed the round-177 field proof, removed with
+	 *  it on 2026-09-26; the flag is now ignored.) */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
 	private final static boolean	AI_DEBUG_FINISH_DENIAL	=
@@ -521,8 +483,6 @@ final class RaceAi {
 	private final static int		AI_DEBUG_FINISH_DENIAL_RIVAL_CAP	=
 			Integer.getInteger("ai.debug.finishDenialRivalCap", AI1_FINISH_DENIAL_RIVALS);
 	private final static boolean	AI_DEBUG_COMP	= Boolean.getBoolean("ai.debug.comp");
-	private final static boolean	AI_DEBUG_FIELD_VECTOR	=
-			Boolean.getBoolean("ai.debug.fieldVector");
 	/** True while this game instance computes a rollout move with the real
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
@@ -560,8 +520,6 @@ final class RaceAi {
 	private final static double	AI1_PO_ROOM_MID	= 0.78;	// paceOverride: mid-roominess clause (slow landings)
 	private final static int		AI1_PO_SPD_MAX	= 4;		// paceOverride: max |v| component for the mid clause
 	private final static double	AI1_BRAKE_SPEED	= 4.0;	// arming gate + slope base of the speed brakes
-	private final static double	AI1_FOLLOW_LAT	= 1.5;	// round 206: lateral half-width of the following cone (2.5 cured monaco 10 -> 0 but braked for adjacent-lane leaders on open track: four clean guards dirtied; 1.5 = same lane only)
-	private final static double	AI1_FOLLOW_RANGE	= 40.0;	// round 206: look-ahead along my heading
 	private final static int		AI1_PACK_R2		= 36;	// cornerEntry pack radius^2
 	private final static int		AI1_VACATE_SPEED2	= 9;	// |v| >= 3: predicted cell nulled (transiting)
 	private final static int		STALLED_RIVAL_SPEED2	= 6;	// integer |v| <= 2.5
@@ -677,26 +635,19 @@ final class RaceAi {
 		// original candidate-conditioned simulation.
 		final TwoRoundWorkspace twoRoundReference = trueConfirmDepth > 0 || inScorerSim
 				? prepareTwoRoundReference(playerNum) : null;
-		// In-traffic ply-2 foresight RESTORED (fore2): the v4/v5 pack gate that
-		// disabled the ply-2 price whenever any rival sat within squared
-		// distance 36 is GONE -- the round-2 world (worlds[1]) is now priced on
-		// every move. Ahead-rivals only: only bodies of rivals currently AHEAD
-		// of me on track are priced (see occupiedByAheadRival +
-		// searchMinTurnsCountedSoft3 below); a chaser's body is not priced,
-		// since ceding a line two rounds out to a car behind me trades race
-		// position for nothing. The queue brakes (queueBox, cornerEntry) now
-		// guard the corridors the old gate was protecting.
+		// The ply-2 foresight (fore2) that priced the bodies of rivals AHEAD of
+		// me in a second simulated round ended with round 247: the lookahead is
+		// one level (AI1_DEEP_LOOKAHEAD), so the search never reaches a second
+		// ply. The second round, its ahead-occupancy map and AI1_PLY2_PRICE were
+		// removed on 2026-09-26; a deeper lookahead needs them back (git history).
 
 		final CandidateWorkspace candidateWorkspace = candidateWorkspace();
 		final double[] trapByDir = candidateWorkspace.trapByDirection;
-		// round 49 arm C: non-spread score and raw map ttf per candidate, for the
-		// certified pace tie-break after the loop.
-		final double[] scoreNSByDir = candidateWorkspace.scoreWithoutSpread;
+		// round 49 arm C: raw map ttf per candidate, for the certified pace
+		// tie-break after the loop.
 		final int[] poTByDir = candidateWorkspace.turnsByDirection;
-		// round 62: full score and unc per candidate, for the certified UNC
-		// override after the loop.
+		// round 62: the score per candidate, for the pace overrides after the loop.
 		final double[] scoreByDir = candidateWorkspace.scoreByDirection;
-		final double[] uncByDir = candidateWorkspace.uncertaintyByDirection;
 		MobilitySearch paceMobility = null;
 		Direction best = null;
 		double bestScore = Double.MAX_VALUE;
@@ -765,23 +716,14 @@ final class RaceAi {
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
-			// TWO-ROUND SOFT WORLD-STEP (the experiment): simulate TWO whole
-			// rounds in actual turn order, conditioned on THIS candidate
-			// landing. worlds[0] answers the round-r+1 questions (safe
-			// successors, ply-1 pricing) exactly as before; worlds[1] gives the
-			// bodies' cells when I make my round-r+2 move, pricing the second
-			// explicit search ply -- ALWAYS on now (fore2, no pack gate), but
-			// ahead-rivals only: searchMinTurnsCountedSoft3 prices the ply-2
-			// landing only when the round-2 body belongs to a rival currently
-			// AHEAD of me on track (myDist = distAt of my CURRENT cell); a
-			// chaser's body is left unpriced (ceding a line two rounds out to
-			// a car behind me trades race position for nothing).
+			// SOFT WORLD-STEP: simulate the next whole opponent round in actual
+			// turn order, conditioned on THIS candidate landing. It answers the
+			// round-r+1 questions: safe successors, and the ply-1 price of a
+			// follow-up landing on a simulated body.
 			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY,
 					twoRoundReference);
-			final byte[] aheadOccupancy = buildAheadOccupancy(worlds.current,
-					reach.distAt(pos[0], pos[1]));
-			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD, 0,
-					predictionWorkspace.occupancy, playerNum, worlds.world1Occupancy, aheadOccupancy);
+			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD,
+					worlds.world1Occupancy);
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -875,12 +817,10 @@ final class RaceAi {
 			// steers away from company concedes the position it is racing for.
 			// Head-to-head, mirrored, 840 pairs a slice: -0.641 +- 0.035 on seeds
 			// 1-10 and -0.655 +- 0.035 on seeds 11-20, and the candidate crashes no
-			// more than the champion doing it (77 against 92, 75 against 77). The
-			// term is still computed: the round-201 census stands as the record of
-			// what a shared geodesic costs, and zeroing here keeps scoreNSByDir --
-			// the round-49 tie-break's non-spread score -- exactly what the measured
-			// candidate used.
-			final double spread = 0.0 * opponentSpreadPenalty(newX, newY, playerNum);
+			// more than the champion doing it (77 against 92, 75 against 77). It was
+			// still computed and multiplied by zero -- a loop over every rival for
+			// every candidate -- until 2026-09-26; adding that exact 0.0 changed no
+			// score, so its removal changes no decision.
 			// Racing-line momentum tie-break: among moves of otherwise-equal cost,
 			// prefer the one carrying more usable speed.
 			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
@@ -903,13 +843,13 @@ final class RaceAi {
 			// measured by places, every term was a veto over the one-move quantum
 			// (-0.82 places without it). The ladder still feeds trapByDir and the
 			// corner-entry brake still arms queueBox; the score is the exact race
-			// distance, the traffic gates, the lane spread and the tie-breaks.
+			// distance, the traffic gates and the tie-breaks.
 			final double score;
 			if (game.lapGates != null && playerNum > 0) {
 				final double f = 1.0 + AI1_LANE_STYLE * ((playerNum % 3) - 1);
-				score = costToFinish + queueBox + spread - (momentum * f + robustness * (2.0 - f));
+				score = costToFinish + queueBox - (momentum * f + robustness * (2.0 - f));
 			} else {
-				score = costToFinish + queueBox + spread - momentum - robustness;
+				score = costToFinish + queueBox - momentum - robustness;
 			}
 			final int poT = ownTurns;
 			if (AI_DEBUG_COMP)
@@ -917,9 +857,8 @@ final class RaceAi {
 						+ vel[0] + "," + vel[1] + ") d=" + d + " land=(" + newX + "," + newY + ") ttf=" + poT
 						+ " score=" + score + " cost=" + costToFinish + " trap=" + trapPenalty
 						+ " ce=" + cornerEntry
-						+ " qb=" + queueBox + " spread=" + spread + " mom=" + momentum
+						+ " qb=" + queueBox + " mom=" + momentum
 						+ " rob=" + robustness);
-			scoreNSByDir[d.ordinal()] = score - spread;
 			poTByDir[d.ordinal()] = poT;
 			scoreByDir[d.ordinal()] = score;
 			if (poT < poBestT) {
@@ -951,7 +890,7 @@ final class RaceAi {
 		// priced the gate at 20 cells: +0.001 places in packs (81 boards tied),
 		// +0.004 scattered, one synthetic course; the guarantee is worth that.
 		boolean chooserConsulted = false;
-		if (best != null && !inScorerSim && sealRivals >= 1
+		if (best != null && !inScorerSim
 			&& nearestLiveRival(pos, playerNum) <= AI1_CHOOSER_MAXDIST) {
 			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
 			poScorerT = poTByDir[best.ordinal()];
@@ -975,13 +914,13 @@ final class RaceAi {
 		// score's argmin back from 315 of 356 chooser picks in 8-car races.
 		// -0.047 +- 0.011 places against round 274.
 		if (best != null && !inScorerSim && !chooserConsulted) {
-			final double bestNS = scoreNSByDir[best.ordinal()];
+			final double bestNS = scoreByDir[best.ordinal()];
 			int fastT = poTByDir[best.ordinal()];
 			Direction fast = null;
 			for (final Direction d : DIRECTIONS) {
 				if (d == best || poTByDir[d.ordinal()] >= fastT)
 					continue;
-				if (scoreNSByDir[d.ordinal()] > bestNS + 1e-9)
+				if (scoreByDir[d.ordinal()] > bestNS + 1e-9)
 					continue;
 				if (trapByDir[d.ordinal()] != 0.0)
 					continue;
@@ -1005,12 +944,9 @@ final class RaceAi {
 		// private, then require the independent real-scorer rollout to agree. The
 		// existing seal and danger guards below keep final veto authority.
 		if (chosen != null && !inScorerSim) {
-			chosen = privatePaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
-					trapByDir, uncByDir, poTByDir);
-			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, scoreNSByDir,
-					trapByDir, uncByDir, poTByDir);
-			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen,
-					trapByDir, uncByDir, poTByDir);
+			chosen = privatePaceOverride(pos, vel, playerNum, chosen, scoreByDir, trapByDir, poTByDir);
+			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, trapByDir, poTByDir);
+			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen, trapByDir, poTByDir);
 		}
 		// Round 232: the last-resort kinematic confirm. Every guard leg above
 		// certifies the chosen move with a world that ends BEFORE the car could
@@ -1083,8 +1019,7 @@ final class RaceAi {
 					final boolean extendedFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF
 							&& t <= AI1_FINISH_EXTENDED_TTF && t + 1 == chosenT
 							&& d != Direction.NONE && extendedContext
-							&& trapByDir[d.ordinal()] == AI1_TRAP_L2
-							&& uncByDir[d.ordinal()] == 0.0;
+							&& trapByDir[d.ordinal()] == AI1_TRAP_L2;
 					if (d == chosen || t >= sprintT
 							|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !extendedFrontier)
 							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
@@ -1412,7 +1347,6 @@ final class RaceAi {
 											// survival switch.
 											boolean retainChosen = false;
 											if (trapByDir[chosen.ordinal()] == AI1_TRAP_L2
-													&& uncByDir[chosen.ordinal()] == 0.0
 													&& poTByDir[chosen.ordinal()] + 1 == poTByDir[smomAlt.ordinal()]
 													&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
 													&& kindHomogeneousField(playerNum)) {
@@ -1823,7 +1757,6 @@ final class RaceAi {
 				|| !game.onFinalLap(playerNum) || lapGate != 0)
 			return chosen;
 		final double[] trapByDir = candidates.trapByDirection;
-		final double[] uncByDir = candidates.uncertaintyByDirection;
 		final int[] turnsByDir = candidates.turnsByDirection;
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT < 0 || chosenT > AI1_FINISH_DENIAL_MAX_TTF
@@ -1858,8 +1791,7 @@ final class RaceAi {
 		int brakeMask = 0;
 		for (final Direction d : DIRECTIONS) {
 			if (d == chosen || turnsByDir[d.ordinal()] > chosenT + 1
-					|| trapByDir[d.ordinal()] > AI1_TRAP_L1
-					|| uncByDir[d.ordinal()] > uncByDir[chosen.ordinal()])
+					|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 				continue;
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			if (chosenSpeed2 - speedSquared(nvx, nvy) >= AI1_FINISH_DENIAL_MIN_BRAKE2)
@@ -2129,12 +2061,12 @@ final class RaceAi {
 	 * additionally admits a positive L1/L2 candidate only for the first two
 	 * movers inside TTF 45; the partial-round counterexamples remain excluded.
 	 * Round 175 admits a bounded moderate-gain six-ahead move only when it
-	 * crosses into the high-speed band. Round 177 admits one five-ahead,
-	 * low-energy, mildly uncertain winner from one of the round's last three
-	 * movers only after a full-field componentwise faithful confirmation. */
+	 * crosses into the high-speed band. (Round 177's mildly uncertain five-ahead
+	 * winner needed a positive uncertainty, which nothing has written since round
+	 * 229; its arm and its faithful vector proof were removed on 2026-09-26.) */
 	private Direction guardedFieldPaceOverride(final int[] pos, final int[] vel,
 			final int playerNum, final Direction chosen, final double[] trapByDir,
-			final double[] uncByDir, final int[] turnsByDir) {
+			final int[] turnsByDir) {
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT == Integer.MAX_VALUE || chosenT < AI1_FINISH_HOMOGENEOUS_TTF + 2
 				|| chosenT > AI1_FIELD_ACCEL_MAX_TTF || !kindHomogeneousRoster(playerNum))
@@ -2186,15 +2118,9 @@ final class RaceAi {
 		Direction best = null;
 		int bestFinal = Integer.MAX_VALUE;
 		long bestField = Long.MAX_VALUE;
-		Direction uncertainBest = null;
-		int uncertainBestFinal = Integer.MAX_VALUE;
-		long uncertainBestField = Long.MAX_VALUE;
-		int uncertainBestX = 0, uncertainBestY = 0;
-		int uncertainBestVx = 0, uncertainBestVy = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
 			final double candidateTrap = trapByDir[d.ordinal()];
-			final double candidateUnc = uncByDir[d.ordinal()];
 			final boolean frontierTrapCandidate = earlyRoundTrapFrontier
 					&& candidateTrap > 0.0 && candidateTrap <= AI1_TRAP_L2;
 			if (d == chosen || d == Direction.NONE || turns == Integer.MAX_VALUE
@@ -2215,22 +2141,8 @@ final class RaceAi {
 					&& speed2 >= AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
 					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN
 					&& speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN;
-			final boolean boundedUncertainModerateGain = rivalsAhead == AI1_FIELD_ACCEL_MAX_AHEAD
-					&& chosen != Direction.NONE && candidateTrap == 0.0
-					&& game.subgamestate >= game.players.length - AI1_FIELD_UNCERTAIN_LAST_MOVERS
-					&& chosenT >= AI1_FIELD_UNCERTAIN_MIN_TTF
-					&& chosenT <= AI1_FIELD_UNCERTAIN_MAX_TTF
-					&& chosenSpeed2 < AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
-					&& speed2 < AI1_FIELD_ACCEL_SIX_AHEAD_MODERATE_MIN_SPEED2
-					&& speed2 >= speedSquared(vel[0], vel[1])
-					&& speed2Gain >= AI1_FIELD_ACCEL_FRONTIER_MIN_SPEED2_GAIN
-					&& speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
-					&& candidateUnc > 0.0 && candidateUnc <= AI1_FIELD_UNCERTAIN_MAX;
-			if (candidateUnc != 0.0 && !boundedUncertainModerateGain)
-				continue;
 			if (speed2Gain < AI1_FIELD_ACCEL_MIN_SPEED2_GAIN
-					&& !frontierModerateGain && !sixAheadHighSpeedModerateGain
-					&& !boundedUncertainModerateGain)
+					&& !frontierModerateGain && !sixAheadHighSpeedModerateGain)
 				continue;
 			// Six-ahead moderate acceleration is limited to Round 175's bounded
 			// transition into the high-speed band; the broad class stays excluded.
@@ -2269,34 +2181,11 @@ final class RaceAi {
 			// Round 279: the field's cost is no veto (the racecraft rule).
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal)
 				continue;
-			if (boundedUncertainModerateGain) {
-				if (uncertainBest == null || candidateFinal < uncertainBestFinal
-						|| candidateFinal == uncertainBestFinal
-								&& candidateField < uncertainBestField) {
-					uncertainBest = d;
-					uncertainBestFinal = candidateFinal;
-					uncertainBestField = candidateField;
-					uncertainBestX = nx;
-					uncertainBestY = ny;
-					uncertainBestVx = nvx;
-					uncertainBestVy = nvy;
-				}
-			} else if (best == null || candidateFinal < bestFinal
+			if (best == null || candidateFinal < bestFinal
 					|| candidateFinal == bestFinal && candidateField < bestField) {
 				best = d;
 				bestFinal = candidateFinal;
 				bestField = candidateField;
-			}
-		}
-		if (uncertainBest != null && (best == null || uncertainBestFinal < bestFinal
-				|| uncertainBestFinal == bestFinal && uncertainBestField < bestField)) {
-			final boolean faithfulImproves = faithfulFieldPaceImproves(chosenX, chosenY,
-					chosenVx, chosenVy, uncertainBestX, uncertainBestY,
-					uncertainBestVx, uncertainBestVy, playerNum, fieldProofRounds);
-			if (faithfulImproves) {
-				best = uncertainBest;
-				bestFinal = uncertainBestFinal;
-				bestField = uncertainBestField;
 			}
 		}
 		if (best != null && AI_DEBUG_DJS)
@@ -2308,100 +2197,13 @@ final class RaceAi {
 		return best != null ? best : chosen;
 	}
 
-	/** Round 177 vector proof for the bounded positive-uncertainty arm. The
-	 * suppressed scorer proof ranks candidates first, so this expensive pair is
-	 * run at most once per move. Every rival that is live in the real position
-	 * runs its unsuppressed scorer, with no radius or cap filter. Besides strict
-	 * self and aggregate-field improvements, no rival may have a worse projected
-	 * personal cost (simulated move slots plus terminal TTF). */
-	private boolean faithfulFieldPaceImproves(final int chosenX, final int chosenY,
-			final int chosenVx, final int chosenVy, final int candidateX,
-			final int candidateY, final int candidateVx, final int candidateVy,
-			final int playerNum, final int rounds) {
-		if (trueConfirmDepth >= trueConfirmCandidateSnapshots.length)
-			return false;
-		final int players = game.players.length;
-		final RolloutWorkspace proofWorkspace = rolloutWorkspace();
-		final boolean[] originallyLiveRival = proofWorkspace.faithfulOriginallyLiveRival;
-		final long[] chosenRivalCost = proofWorkspace.faithfulChosenRivalCost;
-		final long[] candidateRivalCost = proofWorkspace.faithfulCandidateRivalCost;
-		for (int i = 0; i < players; i++) {
-			final Player player = game.players[i];
-			originallyLiveRival[i] = player.getNumber() != playerNum && !player.isFinished();
-		}
-		final CandidateWorkspace snapshot = trueConfirmCandidateSnapshots[trueConfirmDepth];
-		snapshot.copyFrom(candidatesByDepth[simDepth]);
-		trueConfirmDepth++;
-		try {
-			final int chosenFinal = simOutcome(chosenX, chosenY, chosenVx, chosenVy,
-					playerNum, rounds, true, true, true, true, true, true, players,
-					null, rolloutFieldCost, null, true, chosenRivalCost);
-			final long chosenField = rolloutFieldCost[0];
-			final int candidateFinal = simOutcome(candidateX, candidateY,
-					candidateVx, candidateVy, playerNum, rounds,
-					true, true, true, true, true, true, players,
-					null, rolloutFieldCost, null, true, candidateRivalCost);
-			final long candidateField = rolloutFieldCost[0];
-			long chosenProjectedField = 0L, candidateProjectedField = 0L;
-			boolean componentwiseNonWorse = true;
-			for (int i = 0; i < players; i++) {
-				if (!originallyLiveRival[i])
-					continue;
-				if (chosenRivalCost[i] < 0L || candidateRivalCost[i] < 0L
-						|| candidateRivalCost[i] > chosenRivalCost[i])
-					componentwiseNonWorse = false;
-				chosenProjectedField += chosenRivalCost[i];
-				candidateProjectedField += candidateRivalCost[i];
-			}
-			final boolean accepted = chosenFinal >= 0 && candidateFinal >= 0
-					&& candidateFinal < chosenFinal
-					&& chosenField < ROLLOUT_FAILURE_COST && candidateField < chosenField
-					&& componentwiseNonWorse
-					&& candidateProjectedField < chosenProjectedField;
-			if (AI_DEBUG_DJS || AI_DEBUG_FIELD_VECTOR) {
-				System.err.println("AIDBG FIELD-VECTOR p=" + playerNum + " chosen=("
-						+ chosenX + "," + chosenY + ")v(" + chosenVx + "," + chosenVy
-						+ ") candidate=(" + candidateX + "," + candidateY + ")v("
-						+ candidateVx + "," + candidateVy + ") rounds=" + rounds
-						+ " self=" + chosenFinal + "->" + candidateFinal
-						+ " field=" + chosenField + "->" + candidateField
-						+ " projected=" + chosenProjectedField + "->"
-						+ candidateProjectedField + " componentwise="
-						+ componentwiseNonWorse + " accepted=" + accepted
-						+ " chosenRivals=" + projectedRivalVector(chosenRivalCost,
-								originallyLiveRival)
-						+ " candidateRivals=" + projectedRivalVector(candidateRivalCost,
-								originallyLiveRival));
-			}
-			return accepted;
-		} finally {
-			trueConfirmDepth--;
-			candidatesByDepth[simDepth].copyFrom(snapshot);
-		}
-	}
-
-	private String projectedRivalVector(final long[] costs, final boolean[] included) {
-		final StringBuilder result = new StringBuilder("{");
-		boolean first = true;
-		for (int i = 0; i < costs.length; i++) {
-			if (!included[i])
-				continue;
-			if (!first)
-				result.append(',');
-			first = false;
-			result.append('p').append(game.players[i].getNumber()).append('=').append(costs[i]);
-		}
-		return result.append('}').toString();
-	}
-
 	private Direction privatePaceOverride(final int[] pos, final int[] vel, final int playerNum,
-			final Direction chosen, final double[] scoreByDir, final double[] scoreNSByDir,
-			final double[] trapByDir, final double[] uncByDir, final int[] turnsByDir) {
+			final Direction chosen, final double[] scoreByDir, final double[] trapByDir,
+			final int[] turnsByDir) {
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT == Integer.MAX_VALUE)
 			return chosen;
-		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
-				- uncByDir[chosen.ordinal()];
+		final double chosenRest = scoreByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()];
 		RaceAiPrivateLane.ProofSession privateProof = null;
 		RaceAiPrivateLane.ProofSession slackProof = null;
 		// Promotion semantics (round 83 mirror, round 223): "self-play" means
@@ -2432,20 +2234,18 @@ final class RaceAi {
 		double slackBestScore = Double.MAX_VALUE;
 		double slackBestRestDelta = Double.MAX_VALUE;
 		double bestTrap = Double.MAX_VALUE;
-		double bestUnc = Double.MAX_VALUE;
 		double bestScore = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
 			if (turns >= chosenT || turns > bestT)
 				continue;
 			final double trap = trapByDir[d.ordinal()];
-			final double unc = uncByDir[d.ordinal()];
 			// Spread-only lanes already have their own certified override. This
-			// stronger proof targets the residual trap/uncertainty pool; skipping
-			// pure lateral ties also bounds scorer-rollout exposure on open tracks.
-			if (trap == 0.0 && unc == 0.0)
+			// stronger proof targets the residual trap pool; skipping pure lateral
+			// ties also bounds scorer-rollout exposure on open tracks.
+			if (trap == 0.0)
 				continue;
-			final double rest = scoreNSByDir[d.ordinal()] - trap - unc;
+			final double rest = scoreByDir[d.ordinal()] - trap;
 			if (rest > chosenRest + 1e-9) {
 				final double restDelta = rest - chosenRest;
 				// Frontier experiment: a tiny non-trap score concession may recover
@@ -2461,7 +2261,7 @@ final class RaceAi {
 				if (slackFrontier && restDelta <= AI1_PRIVATE_FRONTIER_REST_SLACK + 1e-9
 						&& turns + 1 == chosenT && d != Direction.NONE
 						&& chosen.dx * d.dx + chosen.dy * d.dy > 0
-						&& trap == AI1_TRAP_L2 && unc == 0.0) {
+						&& trap == AI1_TRAP_L2) {
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 					final int speed2 = speedSquared(nvx, nvy);
@@ -2521,10 +2321,8 @@ final class RaceAi {
 				// the same frontier policy. In mixed fields, one car's acceleration
 				// can perturb a frozen-policy rival and create a delayed crash for a
 				// third car, so fast moves retain the broader three-exit certificate.
-				final boolean moderateHomogeneousFast = homogeneousFrontier
-						&& unc <= AI1_PRIVATE_EXACT_UNC_MAX;
 				final int requiredEscapes = speedSquared(nvx, nvy) < AI1_DJS_SPD2
-						|| moderateHomogeneousFast
+						|| homogeneousFrontier
 						? AI1_PRIVATE_EXACT_ESCAPES : AI1_PRIVATE_BASE_ESCAPES;
 				certified = privateProof.certifiesExact(nx, ny, nvx, nvy, turns,
 						AI1_PRIVATE_EXACT_HORIZON, requiredEscapes);
@@ -2533,12 +2331,10 @@ final class RaceAi {
 				continue;
 			final double score = scoreByDir[d.ordinal()];
 			if (turns < bestT || turns == bestT && (trap < bestTrap
-					|| trap == bestTrap && (unc < bestUnc
-							|| unc == bestUnc && score < bestScore))) {
+					|| trap == bestTrap && score < bestScore)) {
 				best = d;
 				bestT = turns;
 				bestTrap = trap;
-				bestUnc = unc;
 				bestScore = score;
 			}
 		}
@@ -2549,8 +2345,7 @@ final class RaceAi {
 						+ chosenT + " -> " + turnsByDir[slackBest.ordinal()] + " self "
 						+ slackChosenFinal + " -> " + slackBestFinal + " field "
 						+ slackChosenField + " -> " + slackBestField + " trap "
-						+ AI1_TRAP_L2 + " unc 0.0 restDelta "
-						+ slackBestRestDelta);
+						+ AI1_TRAP_L2 + " restDelta " + slackBestRestDelta);
 			return slackBest != null ? slackBest : chosen;
 		}
 		final int bestVx = vel[0] + best.dx, bestVy = vel[1] + best.dy;
@@ -2604,8 +2399,8 @@ final class RaceAi {
 	 * seal and danger guards still run afterwards.
 	 */
 	private Direction stagedPaceOverride(final int[] pos, final int[] vel, final int playerNum,
-			final Direction chosen, final double[] scoreByDir, final double[] scoreNSByDir,
-			final double[] trapByDir, final double[] uncByDir, final int[] turnsByDir) {
+			final Direction chosen, final double[] scoreByDir, final double[] trapByDir,
+			final int[] turnsByDir) {
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT == Integer.MAX_VALUE || chosenT < AI1_STAGED_MIN_TURNS)
 			return chosen;
@@ -2640,8 +2435,7 @@ final class RaceAi {
 		// scorer-world field outcome is finite. The four-ahead class is unchanged.
 		if (rivalsAhead < 3)
 			return chosen;
-		final double chosenRest = scoreNSByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()]
-				- uncByDir[chosen.ordinal()];
+		final double chosenRest = scoreByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()];
 		final int chosenVx = vel[0] + chosen.dx, chosenVy = vel[1] + chosen.dy;
 		final int chosenSpeed2 = speedSquared(chosenVx, chosenVy);
 		if (rivalsAhead == 3 && chosenSpeed2 < AI1_SLOW_PACK_SPD2)
@@ -2651,17 +2445,15 @@ final class RaceAi {
 		long chosenField = Long.MAX_VALUE;
 		Direction best = null;
 		double bestRestDelta = Double.MAX_VALUE;
-		RaceAiPrivateLane.ProofSession energyProof = null;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
 			if (turns == Integer.MAX_VALUE || chosenT - turns != 1
 					|| scoreByDir[d.ordinal()] == Double.MAX_VALUE)
 				continue;
 			final double trap = trapByDir[d.ordinal()];
-			final double unc = uncByDir[d.ordinal()];
-			if (trap > 0.0 || unc > AI1_STAGED_UNC_MAX)
+			if (trap > 0.0)
 				continue;
-			final double rest = scoreNSByDir[d.ordinal()] - trap - unc;
+			final double rest = scoreByDir[d.ordinal()] - trap;
 			final double restDelta = rest - chosenRest;
 			if (restDelta > AI1_STAGED_REST_SLACK)
 				continue;
@@ -2670,19 +2462,11 @@ final class RaceAi {
 			if (speed2 >= AI1_DJS_SPD2)
 				continue;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-			final boolean highEnergy = speed2 - chosenSpeed2 > AI1_STAGED_MAX_SPEED2_GAIN;
-			if (highEnergy) {
-				if (rivalsAhead < 4)
-					continue;
-				if (energyProof == null)
-					energyProof = privateLane.begin(playerNum, AI1_PRIVATE_EXACT_HORIZON + 1,
-							AI1_PRIVATE_EXACT_NODES);
-				final int requiredEscapes = unc <= AI1_PRIVATE_EXACT_UNC_MAX
-						? AI1_PRIVATE_EXACT_ESCAPES : AI1_PRIVATE_BASE_ESCAPES;
-				if (!energyProof.certifiesExact(nx, ny, nvx, nvy, turns,
-						AI1_PRIVATE_EXACT_HORIZON, requiredEscapes))
-					continue;
-			}
+			// A high-energy candidate needed a positive uncertainty to pass, and
+			// nothing has written one since round 229: it used to run the exact
+			// private-lane proof and two eight-round rollouts first (2026-09-26).
+			if (speed2 - chosenSpeed2 > AI1_STAGED_MAX_SPEED2_GAIN)
+				continue;
 			if (sealable(nx, ny, nvx, nvy, playerNum))
 				continue;
 			if (chosenFinal == Integer.MIN_VALUE) {
@@ -2700,9 +2484,6 @@ final class RaceAi {
 			// Round 279: the field's cost is no veto (the racecraft rule).
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal)
 				continue;
-			if (highEnergy && (unc <= 0.0
-					|| rivalsAhead >= 5 && candidateField >= chosenField))
-				continue;
 			if (best == null || restDelta < bestRestDelta) {
 				best = d;
 				bestRestDelta = restDelta;
@@ -2712,7 +2493,7 @@ final class RaceAi {
 			System.err.println("AIDBG STAGED p=" + playerNum + " pos=(" + pos[0] + ","
 					+ pos[1] + ") " + chosen + " -> " + best + " ttf " + chosenT
 					+ " -> " + turnsByDir[best.ordinal()] + " trap="
-					+ trapByDir[best.ordinal()] + " unc=" + uncByDir[best.ordinal()]);
+					+ trapByDir[best.ordinal()]);
 		return best != null ? best : chosen;
 	}
 
@@ -2905,9 +2686,10 @@ final class RaceAi {
 		return simulateTwoRounds(playerNum, candX, candY);
 	}
 
-	/** Simulate two complete opponent rounds in actual turn order, conditioned
-	 *  on my candidate landing. {@code world1} contains the cells for my next
-	 *  move and {@code current} the cells for the move after that. */
+	/** Simulate the next complete opponent round in actual turn order,
+	 *  conditioned on my candidate landing: {@code world1} contains the cells
+	 *  for my next move. (A second round, the cells for the move after that,
+	 *  fed only the ply-2 price and was removed on 2026-09-26.) */
 	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY) {
 		return simulateTwoRounds(twoRoundWorkspace(), playerNum, candX, candY, true);
 	}
@@ -2932,10 +2714,6 @@ final class RaceAi {
 				workspace.blockedOccupancy, workspace.round1Position, workspace.round1Velocity);
 		System.arraycopy(current, 0, workspace.world1, 0, current.length);
 		workspace.world1Occupancy.rebuild(workspace.world1);
-		if (blockCandidate)
-			workspace.blockedOccupancy.remove(candX, candY);
-		simulateRoundPass(playerNum, current, simulatedVelocity,
-				workspace.blockedOccupancy, workspace.round2Position, workspace.round2Velocity);
 		return workspace;
 	}
 
@@ -2981,52 +2759,14 @@ final class RaceAi {
 		}
 	}
 
-	/** Build the exact first-occupant ahead verdict once for this candidate.
-	 * Byte 1 means the first simulated occupant is not ahead; byte 2 means it
-	 * is ahead. Duplicate simulated cells therefore retain the original loop's
-	 * first-match semantics. */
-	private byte[] buildAheadOccupancy(final int[][] occupancy, final int myDist) {
-		final TwoRoundWorkspace workspace = twoRoundWorkspace();
-		final byte[] direct = workspace.aheadOccupancy;
-		for (int i = 0; i < workspace.aheadTouchedCount; i++)
-			direct[workspace.aheadTouched[i]] = 0;
-		workspace.aheadTouchedCount = 0;
-		final int h = game.gameRows + 1;
-		for (int i = 0; i < occupancy.length; i++) {
-			final int[] cell = occupancy[i];
-			if (cell == null || cell[0] < 0 || cell[1] < 0
-					|| cell[0] > game.gameCols || cell[1] > game.gameRows)
-				continue;
-			final int index = cell[0] * h + cell[1];
-			if (direct[index] != 0)
-				continue;
-			final int[] rivalPos = game.players[i].getPosition();
-			direct[index] = reach.distAt(rivalPos[0], rivalPos[1]) < myDist
-					? (byte) 2 : (byte) 1;
-			workspace.aheadTouched[workspace.aheadTouchedCount++] = index;
-		}
-		return direct;
-	}
-
-	private boolean occupiedByAheadRival(final int x, final int y,
-			final byte[] occupancy) {
-		if (x < 0 || y < 0 || x > game.gameCols || y > game.gameRows)
-			return false;
-		return occupancy[x * (game.gameRows + 1) + y] == 2;
-	}
-
-	/** The champion's soft-priced depth-2 search (both AI bodies). Each of my
-	 *  next TWO moves is searched explicitly: a {@code stepIdx == 0} landing on a
-	 *  round-1 sim body is priced (+3.0, the conflict weight) rather than
-	 *  hard-skipped, and a {@code stepIdx == 1} landing is priced only when the
-	 *  round-2 body (the round-two occupancy map) belongs to a rival currently AHEAD of me
-	 *  on track (the mover's current progress), via
-	 *  {@link #occupiedByAheadRival} instead of {@link CellOccupancy#contains}.
-	 *  A chaser's body is left unpriced; the precomputed verdict map threads unchanged through
-	 *  the recursion. Geometry stays hard; a finish crossing escapes pricing. */
-	private double searchMinTurnsSoft3(final int x, final int y, final int vx, final int vy, final int levels, final int stepIdx,
-			final CellOccupancy[] predictedSteps, final int playerNum,
-			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
+	/** The search below the first ply: a plain min-turns search {@code levels}
+	 *  moves deep over live geometry, a finish crossing ending it. Round 247 set
+	 *  the lookahead at one level (AI1_DEEP_LOOKAHEAD), so it is reached with
+	 *  {@code levels == 0} and reads the map. Until 2026-09-26 its first ply
+	 *  priced the bodies of rivals ahead of me in a second simulated round
+	 *  (AI1_PLY2_PRICE); one level never reached it, and a deeper lookahead needs
+	 *  that pricing back (git history). */
+	private double searchMinTurnsSoft3(final int x, final int y, final int vx, final int vy, final int levels) {
 		if (levels == 0) {
 			final int t = ttf(x, y, vx, vy);
 			return t == Integer.MAX_VALUE ? Double.MAX_VALUE : t;
@@ -3042,41 +2782,24 @@ final class RaceAi {
 				return 1;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
-			double price = 0.0;
-			if (stepIdx == 0) {
-				if (occupancy.contains(nx, ny))
-					price = 3.0;
-			} else {
-				// Round 217: the predicted-occupancy veto that used to sit here
-				// could not fire. predictedSteps is built one step deep
-				// (predictedOpponentSteps(playerNum, 1)), so its length-1 bound
-				// admits only stepIdx == 0 -- the other arm of this if/else.
-				// Pricing it 0.0 through 6.0 gave byte-identical logs over
-				// thirty races. Ply-1 bodies are priced through aheadOccupancy
-				// below, which is live.
-				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
-					price = AI1_PLY2_PRICE;
-			}
-			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
-					occupancy, aheadOccupancy);
+			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1);
 			if (sub == Double.MAX_VALUE)
 				continue;
-			if (1.0 + price + sub < best)
-				best = 1.0 + price + sub;
+			if (1.0 + sub < best)
+				best = 1.0 + sub;
 		}
 		return best;
 	}
 
-	/** Plateau-counting twin of {@link #searchMinTurnsSoft3} (both AI bodies):
-	 *  same ahead-only ply-2 pricing (at {@code stepIdx == 1} only bodies of
-	 *  rivals AHEAD of me are priced), recursing into
-	 *  {@link #searchMinTurnsSoft3}, and additionally reporting the plateau
-	 *  width (how many follow-ups achieve the minimum) for the robustness
-	 *  tie-break. The ahead-occupancy verdict map is built once by the caller. Prices stay exact small constants, so the plateau compare
-	 *  remains an exact {@code ==}. */
+	/** The first ply of the soft-priced search, counting its plateau (both AI
+	 *  bodies): a follow-up landing on a body of the simulated next round is
+	 *  priced (+3.0, the conflict weight) rather than hard-skipped, and the
+	 *  plateau width (how many follow-ups achieve the minimum) feeds the
+	 *  robustness tie-break. Prices stay exact small constants, so the plateau
+	 *  compare remains an exact {@code ==}. Geometry stays hard; a finish
+	 *  crossing escapes pricing. */
 	private double[] searchMinTurnsCountedSoft3(final int x, final int y, final int vx, final int vy, final int levels,
-			final int stepIdx, final CellOccupancy[] predictedSteps, final int playerNum,
-			final CellOccupancy occupancy, final byte[] aheadOccupancy) {
+			final CellOccupancy occupancy) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
 		final int sm = succMask(x, y, vx, vy);
@@ -3089,23 +2812,8 @@ final class RaceAi {
 				return new double[]{1, 9 };
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
-			double price = 0.0;
-			if (stepIdx == 0) {
-				if (occupancy.contains(nx, ny))
-					price = 3.0;
-			} else {
-				// Round 217: the predicted-occupancy veto that used to sit here
-				// could not fire. predictedSteps is built one step deep
-				// (predictedOpponentSteps(playerNum, 1)), so its length-1 bound
-				// admits only stepIdx == 0 -- the other arm of this if/else.
-				// Pricing it 0.0 through 6.0 gave byte-identical logs over
-				// thirty races. Ply-1 bodies are priced through aheadOccupancy
-				// below, which is live.
-				if (stepIdx == 1 && aheadOccupancy != null && occupiedByAheadRival(nx, ny, aheadOccupancy))
-					price = AI1_PLY2_PRICE;
-			}
-			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1, stepIdx + 1, predictedSteps, playerNum,
-					occupancy, aheadOccupancy);
+			final double price = occupancy.contains(nx, ny) ? 3.0 : 0.0;
+			final double sub = searchMinTurnsSoft3(nx, ny, nvx, nvy, levels - 1);
 			if (sub == Double.MAX_VALUE)
 				continue;
 			final double total = 1.0 + price + sub;
@@ -4673,24 +4381,6 @@ final class RaceAi {
 		return count;
 	}
 
-	/** Tiny penalty for ending up close to other live game.players, breaks lateral ties. */
-	private double opponentSpreadPenalty(final int x, final int y, final int playerNum) {
-		double penalty = 0;
-		for (final Player p : game.players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pp = p.getPosition();
-			final int dx = x - pp[0];
-			final int dy = y - pp[1];
-			final long d2 = distanceSquared(dx, dy);
-			if (d2 <= 4)
-				penalty += 0.3;
-			else if (d2 <= 9)
-				penalty += 0.1;
-		}
-		return penalty;
-	}
-
 	/**
 	 * Count alive 1-step successors of (x,y,vx,vy) that are NOT also predicted
 	 * to be occupied by an opponent's next move. Approximates the number of
@@ -5663,39 +5353,6 @@ final class RaceAi {
 		if (t3 != Integer.MAX_VALUE)
 			block[count++] = ((long) x3 << 32) | (y3 & 0xffffffffL);
 		return writeMove(out, x1, y1, vx1, vy1) ? count : -1;
-	}
-
-	/** True iff speed can be reduced to <= targetSpeed within {@code depth} moves
-	 *  using only non-speed-increasing, geometry-legal moves through alive
-	 *  states -- additionally recursively roomy states when {@code requireRoomy}
-	 *  ({@link #isRoomy} -- knife-edge single-file threads don't count).
-	 *  Opponent-blind beyond the first move, like the reachability map. */
-	private boolean canShedSpeed(final int x, final int y, final int vx, final int vy, final double targetSpeed, final int depth,
-			final boolean requireRoomy) {
-		if (Math.hypot(vx, vy) <= targetSpeed)
-			return true;
-		if (depth == 0)
-			return false;
-		final double speed = Math.hypot(vx, vy);
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx;
-			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-				continue;
-			if (Math.hypot(nvx, nvy) > speed)
-				continue; // braking cone only
-			final int nx = x + nvx;
-			final int ny = y + nvy;
-			if (!game.aiMoveLegal(x, y, nx, ny))
-				continue;
-			if (!reach.isAlive(nx, ny, nvx, nvy))
-				continue;
-			if (requireRoomy && !isRoomy(nx, ny, nvx, nvy, 1))
-				continue;
-			if (canShedSpeed(nx, ny, nvx, nvy, targetSpeed, depth - 1, requireRoomy))
-				return true;
-		}
-		return false;
 	}
 
 	/** True iff (x,y,vx,vy) has at least two one-step continuations that are

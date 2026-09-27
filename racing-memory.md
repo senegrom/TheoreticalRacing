@@ -1,5 +1,39 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 280: the review's dead code leaves the AI -- identical races, 5% less CPU
+
+The Java review listed code in RaceAi that could no longer change a decision.
+Checked item by item against the source, then removed:
+- The uncertainty column: nothing has written a positive uncertainty since
+  round 229, so every read was 0.0. With it went round 177's uncertain
+  five-ahead arm and its faithful vector proof (unreachable; it also carried
+  a field-cost veto of the kind round 279 removed), and the
+  -Dai.debug.fieldVector switch.
+- The staged override's high-energy branch: it needed a positive uncertainty,
+  so after the exact private-lane proof and up to two eight-round rollouts it
+  always skipped the candidate. High-energy candidates are now skipped first.
+- The lane spread, still computed and multiplied by 0.0 -- a loop over every
+  rival for every candidate. The no-spread score was therefore always the
+  score, and the second score array is gone.
+- The second simulated opponent round per candidate, its ahead-occupancy map
+  and AI1_PLY2_PRICE: round 247's one-level lookahead never reaches the ply
+  they priced. A deeper lookahead needs them back (git history).
+- canShedSpeed, the car-following constants, RaceGame.segTouches, and the
+  chooser gate's `sealRivals >= 1`, which a rival within 20 cells implies.
+- Kept on purpose: candidate() (the gated arms' hook), and certSq /
+  minShed2Roomy with Reachability.certBudget. The disk cache format and the
+  memo carry them, and the tests read them.
+
+Every change removes a read of a provably constant value or unread work, and
+no floating-point sum changes order (adding the exact 0.0 was an identity).
+The fleet agrees: jar 9dafdc0a against master 8721abc (717858fb), 210 races
+each (all 84 courses at eight cars on random starts, half of them scattered,
+half computed, half as duels): 210 of 210 normalized logs identical
+(E:/tmp-claude/identity_cpu_box.py). CPU new/old 0.954: 0.931 in eight-car
+random starts, 0.966 scattered, 0.945 computed, 0.995 in duels. The unit
+tests pass unchanged; E:/tmp-claude/unused_privates.py finds no other
+unreferenced private member.
+
 ## Round 279 follow-up: the in-memory memos carry the checkpoints
 
 The Java review's last finding (handed over 2026-09-26): the exact-potential
