@@ -307,6 +307,13 @@ final class Reachability {
 	 *  direction touches with an alive landing (touching at speed is fine).
 	 *  Requires the finish map and minShed2 to be ready. */
 	void computeGateMaps(final java.awt.geom.Line2D[] gates) {
+		// A memo hit brings the finish map but not these: refuse clearly rather
+		// than run out of memory half-way through the fixpoint.
+		final long lapBytes = (long) turnsArr.length * LAP_MAP_BYTES_PER_STATE;
+		final long lapAvailable = availablePreparationMemory(lapBytes);
+		if (lapBytes > lapAvailable * 3 / 4)
+			throw new IllegalStateException("Lap checkpoint maps need roughly " + (lapBytes >> 20)
+					+ " MiB but the JVM has only " + (lapAvailable >> 20) + " MiB available");
 		// Product coherence across the lap cycle: a gate passage only counts
 		// as progress if its landing can continue to the NEXT gate -- on
 		// lobe-class geometry the finish map's alive can ride a shortcut
@@ -387,6 +394,7 @@ final class Reachability {
 			robustSeedFallback = true;
 		final boolean robust = gate == 0 && pass == 0;
 		for (int x = 0; x < aliveW; x++) {
+			game.checkPreparation(); // per column: the seed scans ran unpolled
 			for (int y = 0; y < aliveH; y++) {
 				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5)) continue;
 				// One geometric edge per landing velocity; distribute to predecessors.
@@ -478,6 +486,7 @@ final class Reachability {
 		Arrays.fill(arrivals, (byte) 0);
 		final IntQueue queue = new IntQueue();
 		for (int x = 0; x < aliveW; x++) {
+			game.checkPreparation(); // per column: the seed scans ran unpolled
 			for (int y = 0; y < aliveH; y++) {
 				if (!cellNearSegment(line, x, y, 2 * aliveVMAX + 5)) continue;
 				// One geometric edge per landing velocity; distribute to predecessors.
@@ -547,6 +556,18 @@ final class Reachability {
 		return in;
 	}
 
+	/** Bytes per state a preparation allocates: the finish map and its sweeps
+	 *  (12), plus the lap maps in a lap race (LAP_MAP_BYTES_PER_STATE). The
+	 *  12-byte guard alone let a lap race run out of memory instead of
+	 *  refusing (review, 2026-09-27). */
+	private long preparationBytesPerState() {
+		return game.lapGates != null ? 12L + LAP_MAP_BYTES_PER_STATE : 12L;
+	}
+
+	/** The lap maps' peak: three gate maps and the fixpoint's next map (16),
+	 *  the robust scratch and arrivals (5), the robust and coherent sets. */
+	private static final long LAP_MAP_BYTES_PER_STATE = 20L;
+
 	/** Reclaim discarded races before refusing a large preparation allocation.
 	 * Ordinary builds with enough headroom do not request a collection. */
 	private static long availablePreparationMemory(final long estimatedBytes) {
@@ -573,7 +594,7 @@ final class Reachability {
 		final long stateCount = (long) aliveW * aliveH * aliveSpan * aliveSpan;
 		if (stateCount > Integer.MAX_VALUE)
 			throw new IllegalStateException("Reachability state space is too large: " + stateCount);
-		final long estimatedBytes = stateCount * 12L;
+		final long estimatedBytes = stateCount * preparationBytesPerState();
 		final long availableBytes = availablePreparationMemory(estimatedBytes);
 		if (estimatedBytes > availableBytes * 3 / 4)
 			throw new IllegalStateException("Reachability needs roughly " + (estimatedBytes >> 20)
@@ -584,6 +605,7 @@ final class Reachability {
 		Arrays.fill(turnsArr, Integer.MAX_VALUE);
 		final IntQueue queue = new IntQueue();
 		for (int x = 0; x < aliveW; x++) {
+			game.checkPreparation(); // per column: the seed scans ran unpolled
 			for (int y = 0; y < aliveH; y++) {
 				if (game.lapGates != null) {
 					// the legacy distMap ends at the S/F: prefilter by direct
@@ -673,6 +695,7 @@ final class Reachability {
 		game.checkPreparation();
 		derivePrecomputes(legalAlive);
 		final long tDerive = System.nanoTime();
+		game.checkPreparation(); // a cancelled game skips the (large) cache writes
 		writeReachabilityCache(legalAlive);
 		saveDerived();
 		final long tCache = System.nanoTime();
@@ -1262,9 +1285,12 @@ final class Reachability {
 
 	private void publishMemo(final String key) {
 		if (key == null || turnsArr == null) return;
-		final ReachMemoEntry created = new ReachMemoEntry(this);
-		if (created.baseBytes > reachMemoLimit()) return;
 		synchronized (REACH_MEMO) {
+			// releaseMaps takes this monitor after a cancellation: a cancelled game
+			// may hold half-released maps and must not share them (review, 2026-09-27).
+			if (cancelled() || turnsArr == null) return;
+			final ReachMemoEntry created = new ReachMemoEntry(this);
+			if (created.baseBytes > reachMemoLimit()) return;
 			final ReachMemoEntry old = REACH_MEMO.get(key);
 			if (old != null && old.compatible(this)) return;
 			if (old != null) { REACH_MEMO.remove(key); reachMemoBytes -= old.totalBytes(); }
@@ -1292,6 +1318,7 @@ final class Reachability {
 	private void publishLapMemo(final String key) {
 		if (key == null || gateTurns == null) return;
 		synchronized (REACH_MEMO) {
+			if (cancelled() || gateTurns == null) return; // see publishMemo
 			final ReachMemoEntry m = REACH_MEMO.get(key);
 			if (m == null || m.gateTurns != null) return;
 			final long extra = bytes(gateTurns) + bytes(robustReach) + bytes(aliveStates)
@@ -1320,6 +1347,10 @@ final class Reachability {
 
 	/** The gates this map's lap bundle belongs to (RaceGame.lapIdentity); a
 	 *  test fixture may build a map without a game. */
+	private boolean cancelled() {
+		return game != null && game.isPreparationCancelled();
+	}
+
 	private String lapKey() {
 		return game == null ? "" : game.lapIdentity();
 	}
@@ -1364,6 +1395,11 @@ final class Reachability {
 					publishLapMemo(memoKey);
 				}
 				if (game.needsInformedStartMaps()) game.prepareOptimalStartMap();
+				// With legacy starts nothing built the exact potential before the
+				// first AI decision, which in a GUI or browser race then built it on
+				// the event thread: seconds of frozen window without a word (review,
+				// 2026-09-27). Build it here, before ready is published.
+				else if (game.lapGates != null && game.hasAiPlayer()) game.optimalPotential();
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
 			} finally {
@@ -1391,15 +1427,18 @@ final class Reachability {
 	 *  use the heap (RaceGame.cancelPreparation). Memoized copies stay with the
 	 *  memo; a build still running fails on the next access, as it should. */
 	void releaseMaps() {
-		turnsArr = null;
-		aliveStates = null;
-		roomy0 = null;
-		roomy1 = null;
-		minShed2 = null;
-		minShed2Roomy = null;
-		certSq = null;
-		gateTurns = null;
-		robustReach = null;
+		// Under the publishers' monitor: a publication sees all maps or none.
+		synchronized (REACH_MEMO) {
+			turnsArr = null;
+			aliveStates = null;
+			roomy0 = null;
+			roomy1 = null;
+			minShed2 = null;
+			minShed2Roomy = null;
+			certSq = null;
+			gateTurns = null;
+			robustReach = null;
+		}
 	}
 
 	/** Wait for reachability and never expose a partial map after interruption or
@@ -1516,8 +1555,9 @@ final class Reachability {
 		} catch (final IOException e) {
 			return false;
 		}
-		final long availableBytes = availablePreparationMemory(stateCount * 12L);
-		if (stateCount * 12L > availableBytes * 3 / 4)
+		final long neededBytes = stateCount * preparationBytesPerState();
+		final long availableBytes = availablePreparationMemory(neededBytes);
+		if (neededBytes > availableBytes * 3 / 4)
 			return false; // let computeReachability raise its descriptive error
 		final int total = (int) stateCount;
 		final int[] turns = new int[total];
@@ -1538,6 +1578,7 @@ final class Reachability {
 		turnsArr = turns;
 		aliveStates = alive;
 		final long tLoad = System.nanoTime();
+		game.checkPreparation();
 		if (!tryLoadDerived()) {
 			derivePrecomputes(legalAlive);
 			saveDerived();

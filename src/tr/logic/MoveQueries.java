@@ -76,7 +76,13 @@ final class MoveQueries {
 			player.setPosition(new int[]{c.x(), c.y()});
 			player.setVelocity(new int[]{c.vx(), c.vy()});
 			player.setFinishedPlace(c.finished());
-			player.restoreLapState(new int[]{c.lap(), c.gate(), 0, 0, 0, 0});
+			// V2 carries no grid flag. The referee sets it at a car's first landing
+			// off the grid, so a car standing off it, past CP1 or on a later lap has
+			// left it; restoring every car as unmoved made pocket moves legal
+			// again (review, 2026-09-27).
+			final boolean onGrid = game.startZoneA != null && game.startZoneA.contains(c.x(), c.y());
+			final boolean leftGrid = !onGrid || game.lapGates != null && (c.lap() > 0 || c.gate() != 1);
+			player.restoreLapState(new int[]{c.lap(), c.gate(), 0, 0, 0, 0, leftGrid ? 1 : 0});
 			player.getHistory().clear();
 		}
 		game.subgamestate = mover;

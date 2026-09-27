@@ -430,6 +430,12 @@ public final class CoreTests {
         check(RaceGame.DenseEdgeLegalCache.shared(
                 "core-test-private", 3, 4, 10_000, 1_000) != oversized,
                 "table larger than the pool cap was retained globally");
+        // The pool weighs both 2-bit planes, legality and finish verdicts: 7,500
+        // entries are 15,000 cells, over a 10,000-cell cap (review, 2026-09-27).
+        final RaceGame.DenseEdgeLegalCache twoPlanes = RaceGame.DenseEdgeLegalCache.shared(
+                "core-test-planes", 3, 4, 10_000, 10_000);
+        check(RaceGame.DenseEdgeLegalCache.shared("core-test-planes", 3, 4, 10_000, 10_000) != twoPlanes,
+                "the pool counted the legality plane only");
     }
 
     private static void testSharedRasterMaps() {

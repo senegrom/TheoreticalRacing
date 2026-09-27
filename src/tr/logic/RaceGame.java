@@ -939,6 +939,11 @@ public final class RaceGame {
 			states = new int[(entries + 15) >>> 4];
 		}
 
+		/** Pool weight: the legality plane and the finish plane. */
+		private long poolCells() {
+			return 2L * entries;
+		}
+
 		int get(final int index) {
 			final int shift = (index & 15) << 1;
 			return states[index >>> 4] >>> shift & 3;
@@ -988,8 +993,10 @@ public final class RaceGame {
 		}
 
 		/** Reuse an exact table for the same immutable track geometry. The pool
-		 * is access-ordered and measured in EDGE ENTRIES (2 bits each since
-		 * round 182). A table larger than the pool cap remains private. */
+		 * is access-ordered and measured in 2-bit cells over BOTH planes: the
+		 * legality entries and the finish verdicts every race fills, which the
+		 * count used to leave out, retaining twice the cap (review, 2026-09-27).
+		 * A table larger than the pool cap remains private. */
 		static synchronized DenseEdgeLegalCache shared(final String key,
 				final int width, final int height, final long maxEntries,
 				final long maxPoolEntries) {
@@ -1000,25 +1007,25 @@ public final class RaceGame {
 				return existing;
 			if (existing != null) {
 				SHARED.remove(key);
-				sharedEntries -= existing.entries;
+				sharedEntries -= existing.poolCells();
 			}
 			final DenseEdgeLegalCache created = create(width, height, maxEntries);
 			if (created == null)
 				return null;
 			created.persistPath = java.nio.file.Path.of(key + ".edges");
 			created.tryLoadPersisted();
-			if (created.entries > maxPoolEntries)
+			if (created.poolCells() > maxPoolEntries)
 				return created;
 			while (!SHARED.isEmpty()
-					&& sharedEntries + created.entries > maxPoolEntries) {
+					&& sharedEntries + created.poolCells() > maxPoolEntries) {
 				final java.util.Iterator<java.util.Map.Entry<String, DenseEdgeLegalCache>> it =
 						SHARED.entrySet().iterator();
 				final DenseEdgeLegalCache evicted = it.next().getValue();
 				it.remove();
-				sharedEntries -= evicted.entries;
+				sharedEntries -= evicted.poolCells();
 			}
 			SHARED.put(key, created);
-			sharedEntries += created.entries;
+			sharedEntries += created.poolCells();
 			return created;
 		}
 
@@ -1284,6 +1291,10 @@ public final class RaceGame {
 	 *  published: every memo and cache write follows a completed build. */
 	private volatile boolean preparationCancelled;
 	static final int PREPARATION_POLL_MASK = 0xFFFF;
+
+	boolean isPreparationCancelled() {
+		return preparationCancelled;
+	}
 
 	/** Throws once this game's preparation has been cancelled. */
 	void checkPreparation() {
@@ -2179,7 +2190,11 @@ public final class RaceGame {
 	}
 
 	boolean needsInformedStartMaps() {
-		if (!informedStartPlacement() || players == null) return false;
+		return informedStartPlacement() && hasAiPlayer();
+	}
+
+	boolean hasAiPlayer() {
+		if (players == null) return false;
 		for (final Player player : players) if (player.isAi()) return true;
 		return false;
 	}

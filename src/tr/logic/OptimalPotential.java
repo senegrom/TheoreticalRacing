@@ -124,6 +124,7 @@ final class OptimalPotential {
 			for (int y = 0; y < h; y++) {
 				if (!Reachability.cellNearSegment(sf, x, y, 2 * vmax + 5))
 					continue;
+				game.checkPreparation(); // per cell near the line, the seed scan's cost
 				for (int vx = -vmax; vx <= vmax; vx++)
 					for (int vy = -vmax; vy <= vmax; vy++)
 						for (int dvx = -1; dvx <= 1; dvx++)

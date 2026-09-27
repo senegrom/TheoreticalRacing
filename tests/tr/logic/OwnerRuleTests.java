@@ -164,6 +164,24 @@ public final class OwnerRuleTests {
         check(!g.aiMoveLegal(8, 2, 8, 0), "the AI's world without the grid allowed the pocket");
         check(g.aiMoveLegal(8, 2, 9, 3), "the AI's world without the grid refused ordinary track");
         g.aiGridLegal = true;
+        // The move oracle's V2 board carries no grid flag (review, 2026-09-27): a
+        // lap car past CP1 standing on the grid has left it, and N from (8,2) at
+        // v(0,-1) lands in the pocket. Restoring every car as unmoved allowed it.
+        g.totalLaps = 3;
+        g.lapGates = new Line2D[]{new Line2D.Double(150, 1, 150, 19), new Line2D.Double(60, 1, 60, 19),
+                new Line2D.Double(100, 1, 100, 19)};
+        set(g, "lapCrossGate", g.lapGates[0]);
+        set(g, "lapFwdX", 1.0);
+        MoveQueries.restoreBoard(g, "v2,0,0,3;8,2,0,-1,0,1,0;60,10,0,0,0,0,1");
+        check(g.players[0].hasLeftGrid(), "a restored car past CP1 kept its grid rights");
+        check(MoveQueries.candidates(g, 0, true).charAt(Direction.N.ordinal()) == 'X',
+                "the oracle let a car past CP1 into the pocket");
+        MoveQueries.restoreBoard(g, "v2,0,0,3;8,2,0,-1,0,0,1;60,10,0,0,0,0,1");
+        check(!g.players[0].hasLeftGrid(), "a restored car on the grid before CP1 lost its grid rights");
+        MoveQueries.restoreBoard(g, "v2,0,0,3;11,2,0,-1,0,0,1;60,10,0,0,0,0,1");
+        check(g.players[0].hasLeftGrid(), "a restored car off the grid kept grid rights");
+        g.lapGates = null;
+        g.totalLaps = 1;
     }
 
     /** A straight whose upper wall starts at x = 11, so a grid jutting out below
