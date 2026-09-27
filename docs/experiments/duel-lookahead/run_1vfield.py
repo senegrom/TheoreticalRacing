@@ -82,6 +82,9 @@ def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
         'crashes      lone candidate %d   champion in the same seat %d' % (cand_crash, champ_crash),
         'paired track-seeds %d: candidate minus champion place %+.3f  (standard error %.3f; negative favours the candidate)'
         % (n, mean, se),
+        # One candidate car's shift; head_to_head's mirrored difference is twice
+        # this unit and prints it as its per-car line (review, 2026-09-27).
+        "(one candidate car's shift in its seat: the unit of the mirrored screen's per-car line)",
     ]
     rows = sorted((statistics.mean(v), t) for t, v in per_track.items())
     lines.append('\ntracks where the lone candidate gains most (mean place difference):')

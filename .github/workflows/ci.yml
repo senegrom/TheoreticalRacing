@@ -79,9 +79,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
-      - run: python -m compileall -q tracks tests
+      - run: python -m compileall -q tracks tests docs/experiments
       - run: python -m unittest discover -s tests -p 'test_*.py'
-      - run: sh -n build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh
+      # sh -n checks only its first operand; the rest become $1..$n.
+      - run: for f in build_main.sh run_tests.sh run_golden_tests.sh tracks/fleet_grid.sh tracks/verify_reach_cache.sh; do sh -n "$f"; done
 
   # Every master push (including docs-only successors) builds a publishable
   # artifact. Only pull requests use path filtering. The freshness guard still

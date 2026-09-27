@@ -1382,12 +1382,16 @@ public final class RaceGame {
 		final long distanceBudget = optimalDistanceBudget();
 		final long distanceBytes = OptimalPotential.estimatedDistanceBytes(this, totalLaps);
 		final long totalBudget = optimalTotalBuildBudget(distanceBytes);
-		prepared = distanceBudget <= 0 || distanceBytes > distanceBudget || totalBudget < distanceBytes
+		// Over the distance cap the potential is never built, at any heap (the
+		// Nordschleife); short of heap the champion races demoted, which the fleet
+		// runner refuses -- so the log says which (review, 2026-09-27).
+		final boolean capped = distanceBudget <= 0 || distanceBytes > distanceBudget;
+		prepared = capped || totalBudget < distanceBytes
 				? null : OptimalPotential.build(this, totalLaps, distanceBudget, totalBudget);
 		cacheOptimal(key, prepared);
 		if (autoMode)
 			System.out.printf("[optimal] potential %s in %.1fs (distance %.0f MiB, total %.0f MiB)%n",
-					prepared == null ? "SKIPPED (over budget)" : "built",
+					prepared != null ? "built" : capped ? "SKIPPED (over the distance cap)" : "SKIPPED (heap too small)",
 					(System.nanoTime() - t0) / 1e9, distanceBudget / (double) (1 << 20),
 					totalBudget / (double) (1 << 20));
 		return prepared;

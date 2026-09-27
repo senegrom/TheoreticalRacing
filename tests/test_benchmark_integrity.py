@@ -122,6 +122,21 @@ class CompletedLogTests(unittest.TestCase):
             self.assertIsNone(bench_ai.run_track_h2h('example'))
 
 
+def ordered_log(slots, order):
+    """A complete race in which the players finish in ``order``; the last one
+    is the last survivor. ``slots`` is the candidate-slot list, or None."""
+    names = {n: 'Player %d' % n for n in order}
+    lines = ['# Theoretical Racing 0.3.0 — game log', '# Grid 80x30',
+             'trackLeft=0,0;0,10', 'trackRight=10,0;10,10']
+    if slots:
+        lines.append('# candidate-slots ' + slots)
+    lines += ['player%d name=%s kind=AI1 start=%d,0' % (n, names[n], n) for n in sorted(order)]
+    for place, n in enumerate(order[:-1], 1):
+        lines.append('%d p%d AI1 E v(0,0)→(1,0) (%d,0)→(%d,0) FINISH place=%d' % (place, n, n, n + 1, place))
+    lines += ['# results'] + ['%d. %s' % (p, names[n]) for p, n in enumerate(order, 1)]
+    return '\n'.join(lines) + '\n'
+
+
 class MirroredGridTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -134,7 +149,7 @@ class MirroredGridTests(unittest.TestCase):
         (self.root / 'tracks').mkdir()
         (self.root / 'tracks/example.track').write_text('course')
 
-    def grid(self, name, slots, lo=1, hi=2, extra='', mutate=None):
+    def grid(self, name, slots, lo=1, hi=2, extra='', mutate=None, log=None):
         directory = self.root / name
         directory.mkdir()
         props = self.root / (name + '.properties')
@@ -148,7 +163,7 @@ class MirroredGridTests(unittest.TestCase):
         logs = []
         for seed in range(lo, hi + 1):
             path = directory / ('example_s%d.log' % seed)
-            path.write_text(race_log(slots), encoding='utf-8')
+            path.write_text(log(seed) if log else race_log(slots), encoding='utf-8')
             logs.append({'sha256': fleet_grid.digest(path), 'counts': fleet_grid.parse_log(path)})
         record = {'run_id': run_id, 'seeds': list(range(lo, hi + 1)), 'no_loop': False, 'logs': logs}
         (directory / 'example.complete.json').write_text(fleet_grid.json_text(record))
@@ -167,6 +182,19 @@ class MirroredGridTests(unittest.TestCase):
         self.assertEqual(0, status, error)
         self.assertIn('candidate 4.500   champion 4.500', output)
         self.assertIn('mirrored races 2', output)
+
+    def test_the_paired_statistic_and_its_units(self):
+        # Pin the promotion statistic itself (review, 2026-09-27): scoring one
+        # grid only, flipping the sign or printing the SD as the SE all passed.
+        # The candidate gains in both halves, unequally over the two seeds.
+        a = self.grid('a', '1,3,5,7', log=lambda seed: ordered_log(
+            '1,3,5,7', [1, 2, 3, 4, 5, 6, 7, 8] if seed == 1 else [1, 3, 5, 7, 2, 4, 6, 8]))
+        b = self.grid('b', '2,4,6,8', log=lambda seed: ordered_log('2,4,6,8', [2, 1, 4, 3, 6, 5, 8, 7]))
+        status, output, error = self.score(a, b)
+        self.assertEqual(0, status, error)
+        self.assertIn('mirrored races 2: candidate minus champion mean place -1.750  '
+                      '(standard error 0.750; negative favours the candidate)', output)
+        self.assertIn('per candidate car -0.875 places (standard error 0.375)', output)
 
     def test_duplicate_and_noncomplementary_inputs_are_rejected(self):
         a = self.grid('a', '1,3,5,7')
@@ -187,7 +215,7 @@ class MirroredGridTests(unittest.TestCase):
                 elif mode == 'truncated':
                     path.write_text('# results\n')
                 elif mode == 'extra':
-                    (b / 'stale_s1.log').write_text(race_log())
+                    (b / 'stale_s1.log').write_text(race_log(), encoding='utf-8')
                 elif mode == 'manifest':
                     (b / 'manifest.json').unlink()
                 else:
@@ -335,3 +363,87 @@ class BaselineCacheTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class LoneCandidateReportTests(unittest.TestCase):
+    """run_1vfield.report, the lone-candidate check CLAUDE.md requires before a
+    promotion, had no test at all (review, 2026-09-27)."""
+
+    def test_seat_pairing_mean_and_standard_error(self):
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'docs/experiments/duel-lookahead'))
+        import run_1vfield
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            control, seat1, seat2 = root / 'control', root / 'seat1', root / 'seat2'
+            for d in (control, seat1, seat2):
+                d.mkdir()
+            (control / 'manifest.json').write_text(json.dumps({'tracks': {'example': 'x'}}), encoding='utf-8')
+            # Control: seat 1 wins seed 1, seat 2 wins seed 2.
+            (control / 'example_s1.log').write_text(ordered_log(None, [1, 2]), encoding='utf-8')
+            (control / 'example_s2.log').write_text(ordered_log(None, [2, 1]), encoding='utf-8')
+            # The lone candidate in seat 1: 0 on seed 1, -1 on seed 2; in seat 2:
+            # -1 on seed 1, +1 on seed 2. Units -0.5 and 0: mean -0.25, SE 0.25.
+            (seat1 / 'example_s1.log').write_text(ordered_log('1', [1, 2]), encoding='utf-8')
+            (seat1 / 'example_s2.log').write_text(ordered_log('1', [1, 2]), encoding='utf-8')
+            (seat2 / 'example_s1.log').write_text(ordered_log('2', [2, 1]), encoding='utf-8')
+            (seat2 / 'example_s2.log').write_text(ordered_log('2', [1, 2]), encoding='utf-8')
+            text = run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+        self.assertIn('paired track-seeds 2: candidate minus champion place -0.250  '
+                      '(standard error 0.250; negative favours the candidate)', text)
+        self.assertIn('crashes      lone candidate 0   champion in the same seat 0', text)
+
+
+class FleetGridGuardTests(unittest.TestCase):
+    """Review, 2026-09-27: a demoted champion must not pass as a measurement,
+    and a killed runner must not race its finished tracks again."""
+
+    def test_a_potential_skipped_for_want_of_heap_fails_the_track(self):
+        built = '[optimal] potential built in 1.2s (distance 1536 MiB, total 859 MiB)\n'
+        self.assertEqual('built', fleet_grid.potential_status('lemans', built))
+        capped = '[optimal] potential SKIPPED (over the distance cap) in 0.0s (distance 1536 MiB, total 0 MiB)\n'
+        self.assertEqual('capped', fleet_grid.potential_status('nordschleife', capped))
+        legacy = '[optimal] potential SKIPPED (over budget) in 0.0s (distance 1536 MiB, total 0 MiB)\n'
+        self.assertEqual('capped', fleet_grid.potential_status('nordschleife', legacy))
+        self.assertIsNone(fleet_grid.potential_status('hairpin', '[laps] too coarse -- laps disabled\n'))
+        for text in (legacy, capped.replace('over the distance cap', 'heap too small')):
+            with self.assertRaises(ValueError):
+                fleet_grid.potential_status('lemans', text)
+
+    def test_a_killed_grid_resumes_without_racing_finished_tracks(self):
+        import sys
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            jar = root / 'racing.jar'
+            jar.write_bytes(b'jar')
+            (root / 'tracks').mkdir()
+            for track in ('a', 'b'):
+                (root / 'tracks' / (track + '.track')).write_text(track)
+            props = root / 'p.properties'
+            props.write_text('nPlayers=8\n')
+            launched = []
+
+            def fake_java(command, cwd=None, stdout=None, stderr=None, timeout=None, check=False):
+                track = command[command.index('--track') + 1]
+                launched.append(track)
+                if launched == ['a', 'b']:
+                    raise KeyboardInterrupt  # the runner is killed during track b
+                log = command[command.index('--log') + 1]
+                lo, hi = map(int, command[command.index('--seed') + 1].split('-'))
+                for seed in range(lo, hi + 1):
+                    Path(log[:-len('.log')] + '_s%d.log' % seed).write_text(race_log(''), encoding='utf-8')
+                stdout.write('[optimal] potential built in 0.1s (distance 1536 MiB, total 100 MiB)\n')
+                return subprocess.CompletedProcess(command, 0)
+
+            env = {'RACING_JAR': str(jar), 'RACING_PROPS': str(props), 'RACING_JAVA': sys.executable,
+                   'RACING_TRACKS': ''}
+            out = str(root / 'out')
+            with mock.patch.dict(os.environ, env), \
+                    mock.patch.object(fleet_grid.subprocess, 'run', side_effect=fake_java), \
+                    contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(KeyboardInterrupt):
+                    fleet_grid.main(['1-2', '1', out])
+                self.assertEqual(0, fleet_grid.main(['1-2', '1', out]))
+            self.assertEqual(['a', 'b', 'b'], launched)
+            record = json.loads((root / 'out' / 'a.complete.json').read_text(encoding='utf-8'))
+            self.assertEqual('built', record['potential'])

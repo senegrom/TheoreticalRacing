@@ -167,6 +167,11 @@ def main(argv=None) -> int:
         se = statistics.stdev(paired) / math.sqrt(len(paired)) if len(paired) > 1 else float("nan")
         print("mirrored races %d: candidate minus champion mean place %+.3f  (standard error %.3f; negative favours the candidate)"
               % (len(paired), m, se))
+        # Half the field is candidate, so each race's places sum to a constant and
+        # the difference above is twice one candidate car's shift against the tie
+        # -- the unit run_1vfield reports (review, 2026-09-27).
+        print("per candidate car %+.3f places (standard error %.3f), the unit of the lone-candidate check"
+              % (m / 2, se / 2))
     rows = sorted(((statistics.mean(c) - statistics.mean(h), t, len(c)) for t, (c, h) in per_track.items() if c and h))
     print("\ntracks where the candidate gains most (mean place difference, candidate car-races):")
     for d, t, k in rows[:8]:

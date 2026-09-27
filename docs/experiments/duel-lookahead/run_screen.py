@@ -33,7 +33,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument('--jar', type=Path, default=ROOT/'theoreticRacing.jar')
     parser.add_argument('--seeds', default='1-2')
     parser.add_argument('--jobs', type=int, default=1)
-    parser.add_argument('--heap', default='-Xmx2g')
+    # The Nordschleife's maps need 8 GiB; at 2 GiB a full slice never completed.
+    parser.add_argument('--heap', default='-Xmx8g')
     parser.add_argument('--players', nargs='+', type=int, choices=(2, 8), default=[2, 8])
     parser.add_argument('--modes', nargs='+', choices=('legacy', 'informed', 'scatter'),
                         default=['legacy', 'informed', 'scatter'])

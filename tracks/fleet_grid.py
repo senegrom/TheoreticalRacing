@@ -135,6 +135,30 @@ def parse_log(path):
     return counters
 
 
+# Courses whose exact potential exceeds its distance cap at any heap; older
+# jars reported them only as "SKIPPED (over budget)".
+CAPPED_TRACKS = frozenset({'nordschleife'})
+
+
+def potential_status(track, output):
+    """The exact potential's fate in this JVM: 'built', 'capped' (over the
+    distance cap, by design) or None (no lap potential). A potential skipped
+    for want of heap means the champion raced demoted -- a complete, valid
+    screen of a policy nobody ships -- so the track fails (review, 2026-09-27)."""
+    kinds = set()
+    for whole, reason in re.findall(r'^\[optimal\] potential (built|SKIPPED \(([^)]*)\))', output, re.MULTILINE):
+        if whole == 'built':
+            kinds.add('built')
+        elif reason == 'over the distance cap' or reason == 'over budget' and track in CAPPED_TRACKS:
+            kinds.add('capped')
+        else:
+            raise ValueError('%s: the exact potential was skipped (%s); the champion raced without it, '
+                             'so raise the heap' % (track, reason))
+    if len(kinds) > 1:
+        raise ValueError('%s: the exact potential was built in some races and not in others' % track)
+    return kinds.pop() if kinds else None
+
+
 def manifest_for(jar, props, java, heap, tracks, lo, hi):
     return {
         'schema': 2, 'runner': digest(Path(__file__)),
@@ -189,8 +213,9 @@ def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout):
                                     timeout=timeout, check=False)
         if result.returncode != 0:
             raise ValueError('%s: Java exited %d (see %s)' % (track, result.returncode, output))
-        no_loop = re.search(r'^\[laps\] .* -- laps disabled$',
-                            output.read_text(encoding='utf-8', errors='replace'), re.MULTILINE) is not None
+        text = output.read_text(encoding='utf-8', errors='replace')
+        no_loop = re.search(r'^\[laps\] .* -- laps disabled$', text, re.MULTILINE) is not None
+        potential = potential_status(track, text)
         logs = []
         for seed in seeds:
             log = work / ('%s_s%d.log' % (track, seed))
@@ -199,7 +224,7 @@ def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout):
         for seed in seeds:
             name = '%s_s%d.log' % (track, seed)
             os.replace(work / name, out / name)
-        record = dict(run_id=run_id, seeds=list(seeds), no_loop=no_loop, logs=logs)
+        record = dict(run_id=run_id, seeds=list(seeds), no_loop=no_loop, potential=potential, logs=logs)
         # main publishes resumable completion only after input revalidation.
         return record
 
@@ -256,6 +281,16 @@ def main(argv=None):
                     except (OSError, ValueError, subprocess.SubprocessError) as error:
                         failures[track] = str(error)
                         print('%s: %s' % (track, error), file=sys.stderr)
+                        continue
+                    # Publish this track's marker now, so a runner killed later
+                    # in the grid resumes without racing it again; the final
+                    # check below still revokes every marker if the inputs
+                    # changed (review, 2026-09-27).
+                    try:
+                        if manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest:
+                            atomic_text(out / (track + '.complete.json'), json_text(results[track]))
+                    except OSError:
+                        pass
             # A missing/malformed input is just as invalid as a changed hash.
             # Do not leave either resumable markers or an old report behind when
             # validation raises (including interruption), rather than returning.
