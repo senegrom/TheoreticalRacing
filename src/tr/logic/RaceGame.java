@@ -56,6 +56,8 @@ public final class RaceGame {
 	 *  (arrive, stop, creep across), which in traffic is a death queue. */
 	private Line2D				lapCrossGate;
 	private final static double	LAP_CLOSURE_MAX	= 8.0;
+	/** Points each border needs for the automatic checkpoints (computeLapGates). */
+	private final static int	LAP_MIN_BORDER_POINTS	= 8;
 	private boolean				startZoneGone;
 	Line2D				finishLine;
 	/** Unit vector of the racing direction at the finish line. A move only
@@ -1498,6 +1500,32 @@ public final class RaceGame {
 		return (x2 - x1) * finishFwdX + (y2 - y1) * finishFwdY > 0;
 	}
 
+	/** The owner's rule for drawn tracks (2026-09-27): a closed loop needs
+	 *  LAP_MIN_BORDER_POINTS points on each border for its checkpoints. With
+	 *  fewer, computeLapGates disables laps and the race runs point to point to
+	 *  the start/finish line, so a car on the grid can finish with its first
+	 *  move. A border is closed when its ends lie within LAP_CLOSURE_MAX of
+	 *  each other after it has run at least twice that far -- it went out and
+	 *  came back; a short open border's ends are its whole length apart. */
+	static boolean closedCoarseBorder(final java.util.List<int[]> border) {
+		if (border.size() >= LAP_MIN_BORDER_POINTS || border.size() < 3)
+			return false;
+		double length = 0;
+		for (int i = 1; i < border.size(); i++)
+			length += Math.hypot(border.get(i)[0] - border.get(i - 1)[0], border.get(i)[1] - border.get(i - 1)[1]);
+		final int[] first = border.get(0), last = border.get(border.size() - 1);
+		return length >= 2 * LAP_CLOSURE_MAX
+				&& Math.hypot(last[0] - first[0], last[1] - first[1]) <= LAP_CLOSURE_MAX;
+	}
+
+	private boolean refuseCoarseLoop(final java.util.List<int[]> border) {
+		if (!closedCoarseBorder(border))
+			return false;
+		dispMessage("A closed loop needs at least " + LAP_MIN_BORDER_POINTS
+				+ " points on each border for its checkpoints (this border has " + border.size() + ").");
+		return true;
+	}
+
 	/** Multi-lap: three short cross-track gates -- [0] the real S/F line at
 	 *  the boundary gap, [1]/[2] auto checkpoints at 1/3 and 2/3 of the
 	 *  left-boundary index space, each pairing a left point with its nearest
@@ -1509,7 +1537,7 @@ public final class RaceGame {
 		lapCrossGate = null;
 		final java.util.List<int[]> lefts = track.getLeft();
 		final java.util.List<int[]> rights = track.getRight();
-		if (lefts.size() < 8 || rights.size() < 8) {
+		if (lefts.size() < LAP_MIN_BORDER_POINTS || rights.size() < LAP_MIN_BORDER_POINTS) {
 			totalLaps = 1;
 			System.out.println("[laps] track boundary too coarse for gates -- laps disabled");
 			return;
@@ -2498,6 +2526,8 @@ public final class RaceGame {
 				dispMessage("Track too short.");
 				return;
 			}
+			if (refuseCoarseLoop(track.getLeft()))
+				return;
 			gameFrame.setStatus("Draw right track border.");
 			subgamestate = 1;
 		} else if (gamestate == GameState.DRAWTRACK && subgamestate == 1) {
@@ -2505,6 +2535,8 @@ public final class RaceGame {
 				dispMessage("Track too short.");
 				return;
 			}
+			if (refuseCoarseLoop(track.getRight()))
+				return;
 			if (!TrackIO.validBorders(track.getLeft(), track.getRight())) {
 				dispMessage("Start and finish lines must have non-zero width, and border points must be distinct.");
 				return;

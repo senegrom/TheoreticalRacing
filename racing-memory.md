@@ -1,5 +1,22 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## A drawn closed loop needs eight points on each border (owner, 2026-09-27)
+
+The game-layer review found that a drawn loop too coarse for checkpoint gates
+(fewer than 8 points on a border) silently lost its laps. computeLapGates
+fell back to a point-to-point race to the start/finish line, so a car on the
+grid could finish with its first move. The owner chose to refuse such a
+track while it is drawn. A border counts as closed when its ends lie within
+LAP_CLOSURE_MAX (8 cells) of each other after it has run at least twice
+that far. That excludes short open borders, whose ends are their whole
+length apart: the browser's tiny two-point test circuit stays legal. A
+closed border with fewer than LAP_MIN_BORDER_POINTS points is refused at
+that border's OK, with a message saying how many it needs. A narrow U whose
+tips are within 8 cells counts as a loop too, which is the game's own lap
+definition: with eight points a border it gets gates. CoreTests pins the
+rule and BrowserTests the flow (refused at 5 and 7 points, accepted at 8).
+Tracks loaded from files are untouched, so no race or pin changes.
+
 ## Round 280: the review's dead code leaves the AI -- identical races, 5% less CPU
 
 The Java review listed code in RaceAi that could no longer change a decision.

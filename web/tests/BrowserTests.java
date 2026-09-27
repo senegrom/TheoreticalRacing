@@ -86,11 +86,38 @@ public final class BrowserTests {
         check(crashed.contains("\"outcome\":\"CRASH\""), "snapshot loses recorded crash outcome");
         check(g.players[0].getFinishedPlace() == 2 && b.log().contains(" CRASH place=2"), "confirmed crash did not use referee");
         testCustomTrackDrawing();
+        testCoarseLoopRefused();
         testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
         testTimeoutUndo();
-        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points and placement recovery OK");
+        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points, coarse loops refused and placement recovery OK");
+    }
+
+    /** The owner's drawn-track rule (2026-09-27): a closed loop drawn with too
+     *  few points for its checkpoints is refused at that border's OK, and the
+     *  same border is accepted once it has eight points. */
+    private static void testCoarseLoopRefused() throws Exception {
+        final BrowserBridge bridge = new BrowserBridge();
+        bridge.create("", "nPlayers=1\nplayer1Kind=HUMAN\ngameX=40\ngameY=30\n", "1");
+        bridge.ok();
+        for (final int[] p : new int[][]{{10, 5}, {30, 5}, {30, 25}, {5, 25}, {5, 7}})
+            bridge.click(p[0], p[1]);
+        bridge.ok();
+        final RaceGame game = (RaceGame) get(bridge, "game");
+        check(game.subgamestate == 0, "a closed loop too coarse for checkpoints was accepted");
+        bridge.undo(); bridge.undo();
+        for (final int[] p : new int[][]{{20, 25}, {5, 25}, {5, 15}, {5, 7}})
+            bridge.click(p[0], p[1]);
+        bridge.ok();
+        check(game.track.getLeft().size() == 7 && game.subgamestate == 0,
+                "a seven-point closed loop was accepted");
+        bridge.undo();
+        for (final int[] p : new int[][]{{5, 10}, {5, 7}})
+            bridge.click(p[0], p[1]);
+        bridge.ok();
+        check(game.track.getLeft().size() == 8 && game.subgamestate == 1,
+                "an eight-point closed loop was refused");
     }
 
     private static void testCustomTrackDrawing() throws Exception {

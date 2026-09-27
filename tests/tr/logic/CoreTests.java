@@ -50,6 +50,7 @@ public final class CoreTests {
         testReachabilityCacheIO();
         testAutomaticStartPositionBounds();
         testEmptyTrackUndo();
+        testCoarseLoopBorders();
         testAiTurnRejectsManualDirection();
         tr.gui.GameUITests.run();
         testSegmentIntersection();
@@ -839,6 +840,24 @@ public final class CoreTests {
         } catch (final ReflectiveOperationException error) {
             throw new AssertionError("could not arrange automatic start-position test", error);
         }
+    }
+
+    /** The owner's drawn-track rule (2026-09-27): a closed loop needs eight
+     *  points on each border for its checkpoints; open borders are free. */
+    private static void testCoarseLoopBorders() {
+        check(RaceGame.closedCoarseBorder(java.util.List.of(new int[]{10, 5}, new int[]{30, 5},
+                new int[]{30, 25}, new int[]{5, 25}, new int[]{5, 7})),
+                "a five-point border that closes on itself was not refused");
+        check(!RaceGame.closedCoarseBorder(java.util.List.of(new int[]{10, 5}, new int[]{20, 5},
+                new int[]{30, 5}, new int[]{30, 15}, new int[]{30, 25}, new int[]{15, 25},
+                new int[]{5, 25}, new int[]{5, 7})),
+                "an eight-point closed loop was refused");
+        check(!RaceGame.closedCoarseBorder(java.util.List.of(new int[]{5, 5}, new int[]{30, 5},
+                new int[]{30, 20})), "an open border was refused");
+        check(!RaceGame.closedCoarseBorder(java.util.List.of(new int[]{7, 10}, new int[]{6, 6})),
+                "the browser's tiny two-point circuit was refused");
+        check(!RaceGame.closedCoarseBorder(java.util.List.of(new int[]{5, 5}, new int[]{8, 5},
+                new int[]{6, 7})), "a short wiggle that never left its start was refused");
     }
 
     private static void testEmptyTrackUndo() {
