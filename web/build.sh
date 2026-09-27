@@ -25,5 +25,6 @@ import hashlib, json
 root = Path('web/dist')
 (root / 'track-hashes.json').write_text(json.dumps({p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(Path('tracks').glob('*.track'))}, indent=2) + '\n')
 PY
+python3 web/scripts/stamp_versions.py web/dist
 python3 web/scripts/site_artifact.py seal web/dist
 printf 'Browser build: web/dist/\n'

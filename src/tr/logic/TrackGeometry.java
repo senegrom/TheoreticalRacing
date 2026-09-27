@@ -244,6 +244,46 @@ final class TrackGeometry {
 		return false;
 	}
 
+	/** The point at {@code fraction} of a polyline's length (its last point
+	 *  when the fraction reaches the end). */
+	static double[] pointAlong(final List<int[]> path, final double fraction) {
+		double length = 0;
+		for (int i = 1; i < path.size(); i++)
+			length += Math.hypot(path.get(i)[0] - path.get(i - 1)[0], path.get(i)[1] - path.get(i - 1)[1]);
+		double rest = fraction * length;
+		for (int i = 1; i < path.size(); i++) {
+			final int[] a = path.get(i - 1), b = path.get(i);
+			final double segment = Math.hypot(b[0] - a[0], b[1] - a[1]);
+			if (segment > 0 && rest <= segment) {
+				final double t = rest / segment;
+				return new double[]{a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]) };
+			}
+			rest -= segment;
+		}
+		final int[] last = path.get(path.size() - 1);
+		return new double[]{last[0], last[1] };
+	}
+
+	/** The point of a polyline nearest to (x, y). */
+	static double[] nearestOn(final List<int[]> path, final double x, final double y) {
+		final int[] first = path.get(0);
+		double[] best = {first[0], first[1] };
+		double bestD2 = (x - first[0]) * (x - first[0]) + (y - first[1]) * (y - first[1]);
+		for (int i = 1; i < path.size(); i++) {
+			final int[] a = path.get(i - 1), b = path.get(i);
+			final double dx = b[0] - a[0], dy = b[1] - a[1];
+			final double len2 = dx * dx + dy * dy;
+			final double t = len2 == 0 ? 0 : Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / len2));
+			final double px = a[0] + t * dx, py = a[1] + t * dy;
+			final double d2 = (x - px) * (x - px) + (y - py) * (y - py);
+			if (d2 < bestD2) {
+				bestD2 = d2;
+				best = new double[]{px, py };
+			}
+		}
+		return best;
+	}
+
 	static boolean segmentCrossesPath(final int[] from, final int[] to, final List<int[]> path) {
 		int[] prev = null;
 		for (final int[] cur : path) {

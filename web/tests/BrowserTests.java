@@ -87,11 +87,12 @@ public final class BrowserTests {
         check(g.players[0].getFinishedPlace() == 2 && b.log().contains(" CRASH place=2"), "confirmed crash did not use referee");
         testCustomTrackDrawing();
         testCoarseLoopRefused();
+        testDrawnCheckpointsByLength();
         testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
         testTimeoutUndo();
-        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points, coarse loops refused and placement recovery OK");
+        System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points, coarse loops refused, drawn checkpoints by length and placement recovery OK");
     }
 
     /** The owner's drawn-track rule (2026-09-27): a closed loop drawn with too
@@ -118,6 +119,38 @@ public final class BrowserTests {
         bridge.ok();
         check(game.track.getLeft().size() == 8 && game.subgamestate == 1,
                 "an eight-point closed loop was refused");
+    }
+
+    /** The owner's rule for drawings (2026-09-27): the checkpoints sit at a third
+     *  and two thirds of the left border's LENGTH. Placed by index, this nine-point
+     *  loop put both on its last side, and a 14-move backwards lap counted. */
+    private static void testDrawnCheckpointsByLength() throws Exception {
+        final BrowserBridge bridge = new BrowserBridge();
+        bridge.create("", "nPlayers=1\nplayer1Kind=HUMAN\ngameX=45\ngameY=85\n", "1");
+        bridge.ok();
+        for (final int[] p : new int[][]{{5, 8}, {5, 75}, {35, 75}, {35, 8}, {35, 5}, {20, 5}, {15, 5}, {11, 5}, {8, 5}})
+            bridge.click(p[0], p[1]);
+        bridge.ok();
+        for (final int[] p : new int[][]{{15, 16}, {15, 65}, {25, 65}, {25, 16}, {25, 15}, {22, 15}, {19, 15}, {17, 15}, {16, 15}})
+            bridge.click(p[0], p[1]);
+        bridge.ok();
+        bridge.awaitReady();
+        final RaceGame game = (RaceGame) get(bridge, "game");
+        check(game.lapGates != null, "the drawn loop was not lapped");
+        // The left border is 194 cells long: a third lies on its first side, two
+        // thirds on its third; each checkpoint runs to the nearest inner point.
+        check(game.lapGates[1].getX1() == 5 && Math.abs(game.lapGates[1].getY1() - 8 - 194 / 3.0) < 1e-9
+                && game.lapGates[1].getX2() == 15 && game.lapGates[1].getY2() == 65,
+                "CP1 is not at a third of the border's length: " + game.lapGates[1].getP1() + " " + game.lapGates[1].getP2());
+        check(game.lapGates[2].getX1() == 35 && Math.abs(game.lapGates[2].getY1() - (75 - (2 * 194 / 3.0 - 97))) < 1e-9
+                && game.lapGates[2].getX2() == 25,
+                "CP2 is not at two thirds of the border's length: " + game.lapGates[2].getP1() + " " + game.lapGates[2].getP2());
+        int[] start = null;
+        outer: for (int x = 0; x <= game.gameCols; x++) for (int y = 0; y <= game.gameRows; y++)
+            if (game.startZoneA.contains(x, y) && game.trackA.contains(x, y)) { start = new int[]{x, y}; break outer; }
+        check(start != null, "no grid cell on the drawn loop");
+        final int lap = OptimalLap.solve(game, start[0], start[1], 1);
+        check(lap > 20, "a short lap still counts on the drawn loop: " + lap + " moves");
     }
 
     private static void testCustomTrackDrawing() throws Exception {

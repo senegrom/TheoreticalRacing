@@ -52,6 +52,9 @@ public final class StartDialog extends JFrame {
 	private final JButton				btnPlus;
 	private final JComboBox<String>		cmbTrack;
 	private final JComboBox<String> cmbStartPlacement;
+	/** The placement shown at open: an untouched combo leaves the stored value
+	 *  alone (it shows scatter as Computed and must not rewrite it). */
+	private final int initialStartPlacement;
 	private final TrackPreviewPanel		previewPanel;
 	private final GridBagLayout			gridBag;
 	private final JPanel				gridContainer;
@@ -94,7 +97,8 @@ public final class StartDialog extends JFrame {
 		pnlSize = new JPanel();
 		cmbTrack = new JComboBox<>();
 		cmbStartPlacement = new JComboBox<>(new String[]{"Computed AI starts", "Legacy benchmark starts"});
-		cmbStartPlacement.setSelectedIndex("legacy".equalsIgnoreCase(prop.getProperty("aiStartPlacement")) ? 1 : 0);
+		initialStartPlacement = "legacy".equalsIgnoreCase(prop.getProperty("aiStartPlacement")) ? 1 : 0;
+		cmbStartPlacement.setSelectedIndex(initialStartPlacement);
 		previewPanel = new TrackPreviewPanel();
 		populateTrackCombo();
 	}
@@ -163,6 +167,9 @@ public final class StartDialog extends JFrame {
 		final int[] mins = {200, 200, 2, 2 };
 		final int[] maxs = {10000, 10000, 500, 500 };
 		for (int i = 0; i < 4; i++) {
+			// A chosen track brings its own grid size; only a new drawing takes one.
+			if (!txtSize[i].isEnabled())
+				continue;
 			int val;
 			try {
 				val = Integer.parseInt(txtSize[i].getText());
@@ -180,7 +187,8 @@ public final class StartDialog extends JFrame {
 	 *  kind the user changed, but it must not commit a track either -- browsing
 	 *  the combo to look at a circuit is not choosing it. */
 	private void commitPlayerKinds() {
-		prop.setProperty("aiStartPlacement", cmbStartPlacement.getSelectedIndex() == 0 ? "informed" : "legacy");
+		if (cmbStartPlacement.getSelectedIndex() != initialStartPlacement)
+			prop.setProperty("aiStartPlacement", cmbStartPlacement.getSelectedIndex() == 0 ? "informed" : "legacy");
 		for (int i = 0; i < maxPlayers; i++) {
 			final String sel = String.valueOf(cmbKind[i].getSelectedItem());
 			prop.put("player" + (i + 1) + "Kind", "Human".equals(sel) ? "HUMAN" : sel);
@@ -204,6 +212,7 @@ public final class StartDialog extends JFrame {
 		final String sel = (String) cmbTrack.getSelectedItem();
 		if (sel == null || TRACK_DRAW_NEW.equals(sel)) {
 			previewPanel.clearTrack("Draw a new track");
+			showGameSize(prop.getProperty("gameX"), prop.getProperty("gameY"), true);
 			return;
 		}
 		final TrackData td;
@@ -215,6 +224,19 @@ public final class StartDialog extends JFrame {
 			previewPanel.clearTrack("Track unavailable");
 		else
 			previewPanel.setTrack(td.gameX(), td.gameY(), td.left(), td.right(), td.name());
+		// A track's size is its own: editing it made "<Last>" open blank (it no
+		// longer fit the grid) and was ignored for a named track (review, 2026-09-27).
+		if (td != null)
+			showGameSize(String.valueOf(td.gameX()), String.valueOf(td.gameY()), false);
+	}
+
+	private void showGameSize(final String x, final String y, final boolean editable) {
+		if (txtSize[2] == null)
+			return;
+		txtSize[2].setText(x);
+		txtSize[3].setText(y);
+		txtSize[2].setEnabled(editable);
+		txtSize[3].setEnabled(editable);
 	}
 
 	/** Redraw the player rows. */

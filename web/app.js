@@ -277,8 +277,9 @@ window.addEventListener('pagehide', () => { clearTimeout(timer); activity.hide()
 window.addEventListener('pageshow', event => { if (event.persisted) { engine = null; failed = true; notice('The engine was closed when you left this page. Start a new race.'); render(); } });
 window.addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || modalOpen() || e.target.isContentEditable || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
-  // Preserve native activation of focused buttons and links, not letter shortcuts.
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button, a') && !e.target.closest('#moves')) return;
+  // Preserve native activation of focused buttons, links and menus (the More
+  // menu's summary), not letter shortcuts.
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button, a, summary') && !e.target.closest('#moves')) return;
   const map = {q:0,w:1,e:2,a:3,s:4,d:5,z:6,x:7,c:8,ArrowUp:1,ArrowLeft:3,ArrowRight:5,ArrowDown:7,' ':4};
   const keypad = {Numpad7:0,Numpad8:1,Numpad9:2,Numpad4:3,Numpad5:4,Numpad6:5,Numpad1:6,Numpad2:7,Numpad3:8};
   const index = keypad[e.code] ?? map[e.key.length === 1 ? e.key.toLowerCase() : e.key];

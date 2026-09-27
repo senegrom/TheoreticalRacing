@@ -1549,7 +1549,12 @@ public final class RaceGame {
 	 *  each other after it has run at least twice that far -- it went out and
 	 *  came back; a short open border's ends are its whole length apart. */
 	static boolean closedCoarseBorder(final java.util.List<int[]> border) {
-		if (border.size() >= LAP_MIN_BORDER_POINTS || border.size() < 3)
+		return border.size() < LAP_MIN_BORDER_POINTS && closedBorder(border);
+	}
+
+	/** Does this drawn border close on itself (see closedCoarseBorder)? */
+	static boolean closedBorder(final java.util.List<int[]> border) {
+		if (border.size() < 3)
 			return false;
 		double length = 0;
 		for (int i = 1; i < border.size(); i++)
@@ -1557,6 +1562,27 @@ public final class RaceGame {
 		final int[] first = border.get(0), last = border.get(border.size() - 1);
 		return length >= 2 * LAP_CLOSURE_MAX
 				&& Math.hypot(last[0] - first[0], last[1] - first[1]) <= LAP_CLOSURE_MAX;
+	}
+
+	/** A drawing is a loop once either border closes on itself; laps then need
+	 *  both borders to end within LAP_CLOSURE_MAX of their starts, or
+	 *  computeLapGates disables them and the race runs point to point to a line
+	 *  beside the grid -- one move from the start (review, 2026-09-27). Returns
+	 *  the refusal, or null for an acceptable drawing. */
+	static String openLoopProblem(final java.util.List<int[]> left, final java.util.List<int[]> right) {
+		if (!closedBorder(left) && !closedBorder(right))
+			return null;
+		final double gapL = endGap(left), gapR = endGap(right);
+		if (gapL <= LAP_CLOSURE_MAX && gapR <= LAP_CLOSURE_MAX)
+			return null;
+		return "A closed loop needs both borders to end within " + (int) LAP_CLOSURE_MAX
+				+ " cells of where they started (the " + (gapL > gapR ? "left" : "right") + " border ends "
+				+ Math.round(Math.max(gapL, gapR)) + " cells away).";
+	}
+
+	private static double endGap(final java.util.List<int[]> border) {
+		final int[] first = border.get(0), last = border.get(border.size() - 1);
+		return Math.hypot(last[0] - first[0], last[1] - first[1]);
 	}
 
 	private boolean refuseCoarseLoop(final java.util.List<int[]> border) {
@@ -1568,10 +1594,10 @@ public final class RaceGame {
 	}
 
 	/** Multi-lap: three short cross-track gates -- [0] the real S/F line at
-	 *  the boundary gap, [1]/[2] auto checkpoints at 1/3 and 2/3 of the
-	 *  left-boundary index space, each pairing a left point with its nearest
-	 *  right point (auto-computed, works on custom-drawn tracks). Degenerate
-	 *  tracks disable laps instead of racing broken gates. */
+	 *  the boundary gap, [1]/[2] auto checkpoints at 1/3 and 2/3 of the left
+	 *  boundary (of its index space for a track file, of its length for a
+	 *  drawing), each pairing a left point with its nearest right point.
+	 *  Degenerate tracks disable laps instead of racing broken gates. */
 	private void computeLapGates() {
 		lapGates = null;
 		lapGatePoints = null;
@@ -1624,7 +1650,20 @@ public final class RaceGame {
 		lapGates = new Line2D[3];
 		lapGatePoints = new int[3][];
 		final double[] fractions = {0.0, 1.0 / 3, 2.0 / 3 };
+		// A drawing places its checkpoints by LENGTH: by index, sparse early points
+		// put both on the last side, and a short run backwards and back counted as
+		// a lap (the owner's choice, 2026-09-27). Track files keep their index
+		// placement, so no fleet race moves.
+		final boolean drawn = Boolean.parseBoolean(prop.getProperty("lastTrackDrawn", "false"));
 		for (int k = 0; k < 3; k++) {
+			if (drawn && k > 0) {
+				final double[] lp = TrackGeometry.pointAlong(lefts, fractions[k]);
+				final double[] rp = TrackGeometry.nearestOn(rights, lp[0], lp[1]);
+				lapGates[k] = new Line2D.Double(lp[0], lp[1], rp[0], rp[1]);
+				lapGatePoints[k] = new int[]{(int) Math.round(lp[0]), (int) Math.round(lp[1]),
+						(int) Math.round(rp[0]), (int) Math.round(rp[1]) };
+				continue;
+			}
 			final int[] lp = lefts.get((int) Math.round(fractions[k] * (lefts.size() - 1)));
 			int[] best = null;
 			long bestD2 = Long.MAX_VALUE;
@@ -2579,6 +2618,11 @@ public final class RaceGame {
 			}
 			if (refuseCoarseLoop(track.getRight()))
 				return;
+			final String openLoop = openLoopProblem(track.getLeft(), track.getRight());
+			if (openLoop != null) {
+				dispMessage(openLoop);
+				return;
+			}
 			if (!TrackIO.validBorders(track.getLeft(), track.getRight())) {
 				dispMessage("Start and finish lines must have non-zero width, and border points must be distinct.");
 				return;
@@ -2594,6 +2638,7 @@ public final class RaceGame {
 			// nothing, and inheriting a real circuit's waiver would skip the
 			// loop-closure clamp on an open drawing.
 			prop.put("lapClosable", "false");
+			prop.put("lastTrackDrawn", "true");
 			buildTrackGeometry();
 			autoPlaceAiPlayers();
 			updatePlaceStatus();
@@ -2692,6 +2737,8 @@ public final class RaceGame {
 				next.propertiesOverride = propertiesOverride;
 				next.gameLogOverride = gameLogOverride;
 				next.startRng = startRng;
+				// Computed starts break ties with the seed itself (review, 2026-09-27).
+				next.startSeed = startSeed;
 				next.start();
 			});
 		}

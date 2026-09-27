@@ -51,6 +51,8 @@ public final class CoreTests {
         testAutomaticStartPositionBounds();
         testEmptyTrackUndo();
         testCoarseLoopBorders();
+        testOpenLoopRefused();
+        testPolylineHelpers();
         testAiTurnRejectsManualDirection();
         tr.gui.GameUITests.run();
         testSegmentIntersection();
@@ -858,6 +860,39 @@ public final class CoreTests {
                 "the browser's tiny two-point circuit was refused");
         check(!RaceGame.closedCoarseBorder(java.util.List.of(new int[]{5, 5}, new int[]{8, 5},
                 new int[]{6, 7})), "a short wiggle that never left its start was refused");
+    }
+
+    /** Review, 2026-09-27: a drawing whose outer border closes but whose inner
+     *  border stops more than LAP_CLOSURE_MAX short is refused -- computeLapGates
+     *  would disable laps and race it point to point to a line beside the grid. */
+    private static void testOpenLoopRefused() {
+        final java.util.List<int[]> outer = java.util.List.of(new int[]{10, 5}, new int[]{25, 5},
+                new int[]{40, 5}, new int[]{40, 20}, new int[]{40, 40}, new int[]{20, 40}, new int[]{5, 40},
+                new int[]{5, 25}, new int[]{5, 12}, new int[]{6, 8});
+        final java.util.List<int[]> shortInner = java.util.List.of(new int[]{14, 12}, new int[]{25, 12},
+                new int[]{33, 12}, new int[]{33, 20}, new int[]{33, 33}, new int[]{20, 33}, new int[]{12, 33},
+                new int[]{12, 25}, new int[]{12, 23});
+        final java.util.List<int[]> closedInner = java.util.List.of(new int[]{14, 12}, new int[]{25, 12},
+                new int[]{33, 12}, new int[]{33, 20}, new int[]{33, 33}, new int[]{20, 33}, new int[]{12, 33},
+                new int[]{12, 25}, new int[]{12, 15});
+        final String refusal = RaceGame.openLoopProblem(outer, shortInner);
+        check(refusal != null && refusal.contains("right border ends 11 cells"),
+                "a loop whose inner border stops 11 cells short was accepted: " + refusal);
+        check(RaceGame.openLoopProblem(outer, closedInner) == null, "a closed loop was refused");
+        check(RaceGame.openLoopProblem(java.util.List.of(new int[]{5, 5}, new int[]{40, 5}),
+                java.util.List.of(new int[]{5, 12}, new int[]{40, 12})) == null, "a point-to-point drawing was refused");
+    }
+
+    private static void testPolylineHelpers() {
+        final java.util.List<int[]> path = java.util.List.of(new int[]{0, 0}, new int[]{0, 30}, new int[]{30, 30});
+        final double[] third = TrackGeometry.pointAlong(path, 1.0 / 3);
+        check(third[0] == 0 && Math.abs(third[1] - 20) < 1e-9, "a third of the length is not (0,20)");
+        final double[] twoThirds = TrackGeometry.pointAlong(path, 2.0 / 3);
+        check(Math.abs(twoThirds[0] - 10) < 1e-9 && twoThirds[1] == 30, "two thirds of the length is not (10,30)");
+        final double[] near = TrackGeometry.nearestOn(path, 12, 20);
+        check(near[0] == 12 && near[1] == 30, "the nearest point is not the foot on the second segment");
+        final double[] corner = TrackGeometry.nearestOn(path, -5, 40);
+        check(corner[0] == 0 && corner[1] == 30, "the nearest point is not the corner");
     }
 
     private static void testEmptyTrackUndo() {

@@ -13,6 +13,9 @@ public final class MainTests {
 		expectFailure(new String[]{"--query-moves", "in"}, "--query-moves requires a value");
 		expectFailure(new String[]{"--unknown"}, "Unknown option");
 		expectFailure(new String[]{"positional"}, "Unknown option");
+		expectFailure(new String[]{"--dump-reach", "r", "--query-moves", "i", "o"}, "exclusive");
+		expectFailure(new String[]{"--auto", "--query-moves", "i", "o", "--optimal-laps", "1,2"}, "exclusive");
+		testHelp();
 		System.out.println("MainTests: OK");
 	}
 
@@ -45,15 +48,15 @@ public final class MainTests {
 	private static void testValidOptions() {
 		final Main.Options options = Main.parseArgs(new String[]{
 				"--auto", "--track", "sprint", "--props", "p.properties",
-				"--log", "race.log", "--seed", "42", "--dump-reach", "reach.bin",
-				"--query-moves", "-", "-"
+				"--log", "race.log", "--seed", "42", "--query-moves", "-", "-"
 		});
 		check(options.auto(), "auto flag lost");
 		check("sprint".equals(options.trackName()), "track value lost");
 		check("p.properties".equals(options.propsPath()), "props value lost");
 		check("race.log".equals(options.logPath()), "log value lost");
 		check(Long.valueOf(42).equals(options.seed()), "seed value lost");
-		check("reach.bin".equals(options.dumpReach()), "dump path lost");
+		check("reach.bin".equals(Main.parseArgs(new String[]{"--dump-reach", "reach.bin"}).dumpReach()),
+				"dump path lost");
 		check("-".equals(options.queryIn()) && "-".equals(options.queryOut()), "query paths lost");
 	}
 
@@ -62,6 +65,17 @@ public final class MainTests {
 		check(Main.parseArgs(new String[]{"--auto"}).headless(), "auto mode not headless");
 		check(Main.parseArgs(new String[]{"--dump-reach", "r"}).headless(), "dump mode not headless");
 		check(Main.parseArgs(new String[]{"--query-moves", "i", "o"}).headless(), "query mode not headless");
+	}
+
+	private static void testHelp() {
+		for (final String flag : new String[]{"--help", "-h"}) {
+			try {
+				Main.parseArgs(new String[]{flag});
+				throw new AssertionError(flag + " was not a help request");
+			} catch (final Main.HelpRequested help) {
+				check(help.getMessage().startsWith("Usage:"), "help without the usage");
+			}
+		}
 	}
 
 	private static void expectFailure(final String[] args, final String expected) {

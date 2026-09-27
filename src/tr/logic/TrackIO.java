@@ -229,6 +229,7 @@ public final class TrackIO {
 		prop.put("gameY", String.valueOf(td.gameY()));
 		prop.put("useLastTrack", "true");
 		prop.put("lapClosable", String.valueOf(trackDeclaresClosable(name)));
+		prop.put("lastTrackDrawn", "false");
 		return true;
 	}
 

@@ -30,6 +30,9 @@ public final class Main {
 		final Options options;
 		try {
 			options = parseArgs(args);
+		} catch (final HelpRequested help) {
+			System.out.println(usage());
+			return;
 		} catch (final IllegalArgumentException error) {
 			System.err.println(error.getMessage());
 			System.err.println(usage());
@@ -184,10 +187,13 @@ public final class Main {
 					queryIn = value(args, ++i, option);
 					queryOut = value(args, ++i, option);
 				}
-				case "--help", "-h" -> throw new IllegalArgumentException(usage());
+				case "--help", "-h" -> throw new HelpRequested();
 				default -> throw new IllegalArgumentException("Unknown option: " + option);
 			}
 		}
+		// Each of these modes ends the run once done, so only one can happen.
+		if ((dumpReach != null ? 1 : 0) + (queryIn != null ? 1 : 0) + (optimalStart != null ? 1 : 0) > 1)
+			throw new IllegalArgumentException("--dump-reach, --query-moves and --optimal-laps are exclusive");
 		if (seedEnd != null && !auto)
 			throw new IllegalArgumentException("--seed range requires --auto");
 		if (seedEnd != null && (dumpReach != null || queryIn != null || optimalStart != null))
@@ -195,6 +201,15 @@ public final class Main {
 					"--seed range cannot be combined with reach/query/optimal-laps modes");
 		return new Options(auto, trackName, listTracks, dumpReach, queryIn, queryOut,
 				optimalStart, seed, seedEnd, logPath, propsPath);
+	}
+
+	/** --help is a request, not an error: main prints the usage and exits 0. */
+	static final class HelpRequested extends IllegalArgumentException {
+		private static final long serialVersionUID = 1L;
+
+		HelpRequested() {
+			super(usage());
+		}
 	}
 
 	private static String value(final String[] args, final int index, final String option) {

@@ -3,9 +3,12 @@ package tr.gui;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Dimension;
+import java.awt.GraphicsEnvironment;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
+import java.awt.Insets;
 import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -31,6 +34,8 @@ import tr.logic.RaceGame;
 /** Main game-window facade. Swing controls are allocated only for GUI games. */
 public final class GameUI {
 	private static final int RIGHT_SIZE = 170;
+	/** The narrowest field, in pixels, the window can be shrunk to. */
+	private static final int MIN_FIELD = 200;
 
 	private JButton[] btnDirections;
 	private JButton btnExit;
@@ -112,9 +117,12 @@ public final class GameUI {
 			throw new IllegalStateException("game window already initialized");
 		createControls();
 		frame = new JFrame(title);
-		frame.setSize(windowX, windowY);
+		// The field scrolls, so the window may take any size: open it no larger
+		// than the screen's usable area (the 1500x800 default ran off a 1366x768
+		// laptop, controls and all) and let the player resize it.
+		final Rectangle usable = GraphicsEnvironment.getLocalGraphicsEnvironment().getMaximumWindowBounds();
+		frame.setSize(Math.min(windowX, usable.width), Math.min(windowY, usable.height));
 		frame.setLocationRelativeTo(null);
-		frame.setResizable(false);
 		frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
 		frame.setLayout(new BorderLayout());
 
@@ -201,6 +209,8 @@ public final class GameUI {
 		grid.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(final MouseEvent event) {
+				if (!SwingUtilities.isLeftMouseButton(event))
+					return;
 				final int x = (int) Math.round(event.getX() / (double) RaceUI.GRID_DIST);
 				final int y = (int) Math.round(event.getY() / (double) RaceUI.GRID_DIST);
 				game.clickedGrid(x, y);
@@ -208,6 +218,11 @@ public final class GameUI {
 		});
 
 		frame.setVisible(true);
+		// Shrinking stops where the controls and the status line still fit.
+		final Insets insets = frame.getInsets();
+		final Dimension controls = rightContainer.getPreferredSize();
+		frame.setMinimumSize(new Dimension(controls.width + MIN_FIELD + insets.left + insets.right,
+				controls.height + lblStatus.getPreferredSize().height + insets.top + insets.bottom));
 		// Windows denies foreground to windows opened by background-launched
 		// processes; without the nudge the game appears BEHIND the launching
 		// terminal and looks like "nothing displayed".
