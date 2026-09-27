@@ -150,7 +150,11 @@ final class OptimalPotential {
 
 		// Backward breadth-first search: every edge and every seed costs one
 		// move, so FIFO order keeps the values exact.
+		game.checkPreparation();
+		int polls = 0;
 		while (!frontier.isEmpty()) {
+			if ((++polls & RaceGame.PREPARATION_POLL_MASK) == 0)
+				game.checkPreparation();
 			final int cur = frontier.remove();
 			final int next = Short.toUnsignedInt(dist[cur]) + 1;
 			int rest = cur / stages;

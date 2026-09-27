@@ -1,5 +1,29 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Restart cancels the old game's map preparation (owner, 2026-09-27)
+
+The game-layer review: a desktop restart while the old game still prepared
+its maps left the old daemons computing beside the new ones. At a 256 MB
+heap the replacement failed ("Reachability needs roughly 141 MiB but the JVM
+has only 186 MiB available", serpentine2). The owner chose to cancel. Each
+game has a cancellation flag. The long builds poll it every 65,536 steps:
+the reachability BFS, both gate-map BFSes and the exact potential's BFS,
+plus checks between their phases and at the top of the preparation daemon.
+A cancelled build throws CancellationException, which the daemon records as
+its failure. Nothing is published, since every memo and cache write follows
+a completed build. restartMe calls RaceGame.cancelPreparation, which waits
+up to 5 s for the daemons to stop and then drops the game's big structures:
+the reachability arrays, the dense edge cache and the potentials. A finished
+game object can outlive its race, and cancelling alone still ran out of
+memory in the probe that keeps it.
+
+With both, the reviewer's probe (adapted, E:/tmp-claude/probe_restart)
+prepares the replacement at 256 MB. PreparationSafetyTests pins the
+contract: a cancelled build stops, the daemon reports the cancellation and
+publishes nothing, and the next game prepares. The browser gives every
+session a fresh engine and was never exposed. No race can change: the
+checks only throw in a cancelled game.
+
 ## A drawn closed loop needs eight points on each border (owner, 2026-09-27)
 
 The game-layer review found that a drawn loop too coarse for checkpoint gates
@@ -148,7 +172,12 @@ The lone-candidate check, the owner's promotion gate: one s278all4 car
 against seven round-278 champions, every seat, seeds 1-5, each race paired
 with the all-champion race. -0.002 +- 0.002 places. Three courses favour the
 candidate (hybrid9 and lobe4 -0.075, hybrid1 -0.050), none the champion, 81
-tied. Crashes 34 against 35 for the champion in the same seats.
+tied. Crashes 34 against 35 for the champion in the same seats. The rest of
+the record, complete the next morning (races on /dev/shm, packed beside the
+reports), agrees:
+- computed starts -0.005 +- 0.003 places (20 boards for, 10 against, 54
+  tied; crashes 167:168);
+- duels +0.000 (84 of 84 boards tied; the candidate crashed less, 208:222).
 
 The box's disk filled on 2026-09-25 at 20:05. Of its 48 GB, 18 GB are reach
 maps, 14 GB screens and 11 GB a swapfile. Nine queued jobs failed, the queue
@@ -315,7 +344,10 @@ hybrid1 (+0.750 per car; rand14 -0.100 the only other board off zero), with
 the candidate crashing 204 times to 174. That is the price of the rule where
 it bites; the owner's guarantee stands, and the promotion's own battery
 (mirrored random, scattered and duels, plus the lone-candidate check)
-measures the whole of round 274 against round 262 for the record.
+measures the whole of round 274 against round 262 for the record. Its
+scattered slice, lost to the full disk and re-run on 2026-09-26: -0.006 +-
+0.002 places (35 boards for, 20 against, 29 tied; crashes 13:9). The duel
+slice was dropped once two rounds had landed on top of it.
 
 A NEW PROMOTION CHECK (owner, 2026-09-23): before a promotion, one candidate
 car against n-1 champions, rotated through every seat and paired with the

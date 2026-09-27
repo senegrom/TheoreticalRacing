@@ -25,7 +25,52 @@ public final class PreparationSafetyTests {
         testPreparationFailures();
         testCheckpointMetadata();
         testCacheGeneration();
-        System.out.println("PreparationSafetyTests: concurrent fallback, serial/parallel maps, failure recovery and checkpoint metadata OK");
+        testCancelledPreparation();
+        System.out.println("PreparationSafetyTests: concurrent fallback, serial/parallel maps, failure recovery, checkpoint metadata and cancelled preparation OK");
+    }
+
+    /** Restart cancels the old game's map preparation (owner, 2026-09-27): a
+     *  cancelled build stops at its next check, the daemon reports the
+     *  cancellation as its failure and publishes nothing, and a new game on
+     *  the same track prepares normally. */
+    private static void testCancelledPreparation() {
+        Reachability.clearReachMemoForTests();
+        RaceGame.clearOptimalMemoForTests();
+        final RaceGame direct = corridor();
+        direct.reach.computeDistMap();
+        direct.cancelPreparation(0);
+        try {
+            direct.reach.computeReachability();
+            throw new AssertionError("a cancelled reachability build completed");
+        } catch (final java.util.concurrent.CancellationException expected) {
+            // the build stopped at its first check
+        } finally { direct.clearPointContainmentCacheForCurrentThread(); }
+        try {
+            OptimalPotential.build(direct, 1, 16L << 20);
+            throw new AssertionError("a cancelled exact-potential build completed");
+        } catch (final java.util.concurrent.CancellationException expected) {
+            // likewise
+        } finally { direct.clearPointContainmentCacheForCurrentThread(); }
+
+        final RaceGame threaded = corridor();
+        threaded.reach.computeDistMap();
+        threaded.cancelPreparation(0);
+        threaded.reach.startReachabilityCompute();
+        try {
+            threaded.reach.ensureReachabilityReady();
+            throw new AssertionError("a cancelled preparation reported ready");
+        } catch (final java.util.concurrent.CancellationException expected) {
+            // the daemon's recorded failure
+        }
+        check(Reachability.reachMemoBytesForTests() == 0, "a cancelled preparation published maps");
+
+        final RaceGame fresh = corridor();
+        fresh.reach.computeDistMap();
+        prepareReach(fresh);
+        check(fresh.reach.isAlive(1, 1, 1, 0) && OptimalPotential.build(fresh, 1, 16L << 20) != null,
+                "a game after a cancelled one did not prepare");
+        Reachability.clearReachMemoForTests();
+        RaceGame.clearOptimalMemoForTests();
     }
 
     private static void check(final boolean condition, final String message) {

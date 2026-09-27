@@ -1277,6 +1277,46 @@ public final class RaceGame {
 	private boolean optimalPotentialStarted;
 	private boolean optimalPotentialReady;
 	private Throwable optimalPotentialFailure;
+	private volatile Thread optimalWorker;
+	/** Restart cancels this game's map preparation (owner, 2026-09-27): the
+	 *  long builds call {@link #checkPreparation} every
+	 *  PREPARATION_POLL_MASK + 1 steps and abandon the work. Nothing partial is
+	 *  published: every memo and cache write follows a completed build. */
+	private volatile boolean preparationCancelled;
+	static final int PREPARATION_POLL_MASK = 0xFFFF;
+
+	/** Throws once this game's preparation has been cancelled. */
+	void checkPreparation() {
+		if (preparationCancelled)
+			throw new java.util.concurrent.CancellationException("track preparation cancelled");
+	}
+
+	/** Cancel this game's map preparation and wait up to {@code millis} for its
+	 *  threads to stop, so a replacement game does not prepare beside them. */
+	void cancelPreparation(final long millis) {
+		preparationCancelled = true;
+		final long deadline = System.nanoTime() + millis * 1_000_000L;
+		for (final Thread thread : new Thread[]{reach.preparationThread(), optimalWorker}) {
+			final long left = (deadline - System.nanoTime()) / 1_000_000L;
+			if (thread == null || left <= 0)
+				continue;
+			try {
+				thread.join(left);
+			} catch (final InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+		}
+		// Drop the maps too: a finished game object can outlive its race (its
+		// disposed window, a pending callback), and at a small heap its
+		// partial maps starve the replacement game. Shared memo copies stay.
+		reach.releaseMaps();
+		denseEdgeLegalCache = null;
+		startPotential = null;
+		synchronized (optimalPotentialLock) {
+			optimalPotential = null;
+		}
+	}
 
 	private static long optimalMemoLimit() {
 		final long adaptive = Math.min(OPTIMAL_MEMO_MAX_BYTES, Math.max(32L << 20, Runtime.getRuntime().maxMemory() / 4));
@@ -1397,6 +1437,7 @@ public final class RaceGame {
 				}
 			}, "optimal-potential-compute");
 			worker.setDaemon(true);
+			optimalWorker = worker;
 		}
 		worker.start();
 	}
@@ -2108,6 +2149,7 @@ public final class RaceGame {
 	 * A board too large for the exact full-race map falls back to random starts
 	 * and says so in the log; it does not refuse to race. */
 	void prepareOptimalStartMap() {
+		checkPreparation();
 		if (lapGates != null) {
 			final OptimalPotential prepared = optimalPotential();
 			if (prepared == null) {
@@ -2641,6 +2683,9 @@ public final class RaceGame {
 			// reachability poll would otherwise keep this game running on
 			// the EDT beside the next one.
 			gamestate = GameState.FINISHED;
+			// The old maps must not be built beside the new ones: at a small
+			// heap the replacement game ran out of memory (review, 2026-09-26).
+			cancelPreparation(5_000);
 			gameFrame.dispose();
 			SwingUtilities.invokeLater(() -> {
 				final RaceGame next = new RaceGame(prop);

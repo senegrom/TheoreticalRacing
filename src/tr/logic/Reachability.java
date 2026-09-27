@@ -350,6 +350,7 @@ final class Reachability {
 		}
 		phantomAlive = aliveStates.cardinality() - coherent.cardinality();
 		aliveStates = coherent;
+		game.checkPreparation();
 		derivePrecomputes(buildLegalAliveMask(turnsArr.length));
 		if (game.autoMode)
 			for (int g = 0; g < 3; g++) {
@@ -418,7 +419,10 @@ final class Reachability {
 		}
 		}
 
+		int polls = 0;
 		while (!queue.isEmpty()) {
+			if ((++polls & RaceGame.PREPARATION_POLL_MASK) == 0)
+				game.checkPreparation();
 			int rest = queue.remove();
 			final int curIdx = rest;
 			final int vyp = rest % aliveSpan - aliveVMAX;
@@ -505,7 +509,10 @@ final class Reachability {
 			}
 		}
 
+		int polls = 0;
 		while (!queue.isEmpty()) {
+			if ((++polls & RaceGame.PREPARATION_POLL_MASK) == 0)
+				game.checkPreparation();
 			int rest = queue.remove();
 			final int curIdx = rest;
 			final int vyp = rest % aliveSpan - aliveVMAX;
@@ -615,7 +622,11 @@ final class Reachability {
 
 		final long tInit = System.nanoTime();
 
+		game.checkPreparation();
+		int polls = 0;
 		while (!queue.isEmpty()) {
+			if ((++polls & RaceGame.PREPARATION_POLL_MASK) == 0)
+				game.checkPreparation();
 			int rest = queue.remove();
 			final int curIdx = rest;
 			final int vyp = rest % aliveSpan - aliveVMAX;
@@ -656,8 +667,10 @@ final class Reachability {
 		// successors (alive-closure of the BFS above) nor finish crossings
 		// (those are seeded with turns == 1), so isRoomy is false there, and
 		// the shed maps are only ever consulted behind an isAlive check.
+		game.checkPreparation();
 		final short[] legalAlive = buildLegalAliveMask(total);
 		final long tMask = System.nanoTime();
+		game.checkPreparation();
 		derivePrecomputes(legalAlive);
 		final long tDerive = System.nanoTime();
 		writeReachabilityCache(legalAlive);
@@ -1333,6 +1346,7 @@ final class Reachability {
 		reachabilityFailure = null;
 		final Thread t = new Thread(() -> {
 			try {
+				game.checkPreparation(); // a cancelled game never starts (not even from the cache)
 				final java.nio.file.Path cachePath = reachCachePath();
 				final String memoKey = cachePath == null ? null : cachePath.toString();
 				if (!adoptMemo(memoKey)) {
@@ -1366,6 +1380,26 @@ final class Reachability {
 	/** Non-blocking completion probe (ensureReachabilityReady joins and rethrows failures). */
 	boolean isReady() {
 		return reachabilityReady;
+	}
+
+	/** The preparation daemon, for RaceGame.cancelPreparation to wait on. */
+	Thread preparationThread() {
+		return reachabilityThread;
+	}
+
+	/** A cancelled game's state-space maps, dropped so the replacement game can
+	 *  use the heap (RaceGame.cancelPreparation). Memoized copies stay with the
+	 *  memo; a build still running fails on the next access, as it should. */
+	void releaseMaps() {
+		turnsArr = null;
+		aliveStates = null;
+		roomy0 = null;
+		roomy1 = null;
+		minShed2 = null;
+		minShed2Roomy = null;
+		certSq = null;
+		gateTurns = null;
+		robustReach = null;
 	}
 
 	/** Wait for reachability and never expose a partial map after interruption or
