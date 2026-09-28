@@ -3,10 +3,11 @@
 
     python3 web/scripts/stamp_versions.py web/dist
 
-The sources keep hand-numbered references (app.js?v=7); a number nobody
-bumps lets a returning browser pair a cached old module with a new one
-(review, 2026-09-27). Each reference NAME?v=... in a published .html, .js,
-.css or .webmanifest file becomes NAME?v=<first 12 hex of sha256(NAME)>.
+The sources carry the placeholder ?v=0 (a hand-bumped number let a returning
+browser pair a cached old module with a new one; review, 2026-09-27). Each
+reference NAME?v=... in a published .html, .js, .css, .webmanifest or .json
+file becomes NAME?v=<first 12 hex of sha256(NAME)>; tracks.json too, since
+2026-09-28 (a cached catalogue could name courses the new jar lacks).
 Files are stamped leaves first, so a module's hash covers the stamps of the
 modules it imports, and a change anywhere below reaches index.html.
 """
@@ -15,8 +16,8 @@ import re
 import sys
 from pathlib import Path
 
-REFERENCE = re.compile(r'([A-Za-z0-9_.-]+\.(?:js|css|html|webmanifest))\?v=[A-Za-z0-9]+')
-TEXT = ('.html', '.js', '.css', '.webmanifest')
+REFERENCE = re.compile(r'([A-Za-z0-9_.-]+\.(?:js|css|html|webmanifest|json))\?v=[A-Za-z0-9]+')
+TEXT = ('.html', '.js', '.css', '.webmanifest', '.json')
 
 
 def references(text):

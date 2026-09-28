@@ -41,6 +41,15 @@ class StampVersionsTests(unittest.TestCase):
                 pages.append((root / 'index.html').read_text())
         self.assertNotEqual(pages[0], pages[1])
 
+    def test_the_catalogue_is_stamped_too(self):
+        # A cached tracks.json could name courses a new jar lacks (review, 2026-09-28).
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'tracks.json').write_text('[{"id": "hairpin"}]\n', encoding='utf-8')
+            (root / 'app.js').write_text("fetch(new URL('./tracks.json?v=0', import.meta.url));\n", encoding='utf-8')
+            stamp_versions.stamp(root)
+            self.assertIn('tracks.json?v=' + short(root / 'tracks.json'), (root / 'app.js').read_text())
+
     def test_an_unpublished_reference_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

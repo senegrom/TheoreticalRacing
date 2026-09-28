@@ -224,6 +224,16 @@ public final class BrowserBridge {
         return transportSnapshot();
     }
     public String log() { requireGame(); return field("gameLog").toString(); }
+
+    /** The engine build this jar was made from (web/scripts/engine_identity.py);
+     *  the worker compares it with its own before the first race. */
+    public String build() {
+        try (java.io.InputStream in = BrowserBridge.class.getResourceAsStream("/tr/browser/engine-build.txt")) {
+            return in == null ? "" : new String(in.readAllBytes(), java.nio.charset.StandardCharsets.US_ASCII).trim();
+        } catch (final IOException unreadable) {
+            return "";
+        }
+    }
     public void awaitReady() { requireGame(); game.reach.ensureReachabilityReady(); }
     private void requireGame() {
         if (game == null) throw new IllegalStateException("No race has been created");

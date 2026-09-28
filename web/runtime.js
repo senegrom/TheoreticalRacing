@@ -1,6 +1,9 @@
 // Dedicated worker: never import this file as a document script.
 // The original Java algorithms, including their threads, live in this realm.
 const send = message => self.postMessage({scope: 'theoretical-racing', ...message});
+// This build's engine identity: web/scripts/engine_identity.py stamps it into
+// the published copy; unbuilt sources keep the placeholder and skip the check.
+const ENGINE_BUILD = '__ENGINE_BUILD__';
 const describe = async error => {
   try { return String((await error?.getMessage?.()) ?? error?.message ?? error); }
   catch { return 'The Java engine failed'; }
@@ -38,6 +41,10 @@ self.addEventListener('unhandledrejection', event => {
   const library = await cheerpjRunLibrary(`/app${jar.pathname}`);
   const Bridge = await library.tr.logic.BrowserBridge;
   const bridge = await new Bridge();
+  // For a few minutes after a deploy a browser cache can pair this page with a
+  // jar from another deploy: refuse before the first race, not midway through.
+  if (!ENGINE_BUILD.startsWith('__') && String(await bridge.build()) !== ENGINE_BUILD)
+    throw new Error('This page and its game engine come from different versions of the site. Reload the page to race.');
   const allowed = new Set(['create', 'tick', 'click', 'ok', 'undo', 'preview', 'move', 'snapshot', 'readiness', 'log']);
   let queue = Promise.resolve();
   self.addEventListener('message', ({data: message}) => {

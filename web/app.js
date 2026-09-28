@@ -1,6 +1,6 @@
-import {Engine} from './engine.js?v=6';
-import {Activity} from './activity.js?v=7';
-import {Board} from './board.js?v=6';
+import {Engine} from './engine.js?v=0';
+import {Activity} from './activity.js?v=0';
+import {Board} from './board.js?v=0';
 
 const $ = id => document.getElementById(id);
 const names = ['North-west', 'North', 'North-east', 'West', 'No acceleration', 'East', 'South-west', 'South', 'South-east'];
@@ -404,7 +404,7 @@ $('setup-form').addEventListener('submit', async e => {
 });
 async function init() {
   if (!/^https?:$/.test(location.protocol)) throw new Error('Serve this app over HTTP or HTTPS, not by opening index.html as a file.');
-  const response = await fetch(new URL('./tracks.json', import.meta.url));
+  const response = await fetch(new URL('./tracks.json?v=0', import.meta.url));
   if (!response.ok) throw new Error('Track catalogue is missing. Run web/build.sh and serve web/dist.');
   catalog = await response.json();
   $('track').replaceChildren(...catalog.map(t => new Option(t.name, t.id)), new Option('Draw a custom circuit', ''));

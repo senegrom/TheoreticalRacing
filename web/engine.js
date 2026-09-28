@@ -17,7 +17,7 @@ export class Engine {
     this.ready.catch(() => {});
     this.armBoot();
     try {
-      this.worker = new Worker(new URL('./runtime.js?v=6', import.meta.url), {name: 'racing-java'});
+      this.worker = new Worker(new URL('./runtime.js?v=0', import.meta.url), {name: 'racing-java'});
       this.worker.onmessage = ({data: message}) => {
         if (this.dead || !message || message.scope !== 'theoretical-racing') return;
         if (message.fatal) { this.fail(new Error(message.fatal)); return; }

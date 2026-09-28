@@ -96,6 +96,10 @@ def main():
                 marker = page.request.get(url + 'deployment.json?expected=' + args.expected_sha,
                                           headers={'Cache-Control': 'no-cache'}).json()
                 assert marker == {'source': args.expected_sha, 'repository': args.expected_repository}
+                # And the page itself, not only deployment.json: a stale HTML copy
+                # would link another build (review, 2026-09-28).
+                revision = page.locator('#build-revision').get_attribute('href') or ''
+                assert revision.endswith('/' + args.expected_sha), revision
 
             # Decode the real HTTP PNGs, including all Apple and manifest sizes.
             icons = page.evaluate("""async () => {
@@ -342,7 +346,9 @@ def main():
                 assert page.locator('[data-preparation-stages] li[data-state="complete"]').count() == 11
                 assert page.locator('#standings .result').all_text_contents() == ['On grid', 'On grid']
                 page.screenshot(path=str(out / 'exact-map-before-starts.png'), full_page=True)
+                page.once('dialog', lambda dialog: dialog.accept())  # a dismissed confirm stops nothing
                 page.locator('#stop-work').click()
+                assert page.locator('body').get_attribute('data-phase') == 'STOPPED'
                 print(f'{args.browser}: exact full-race potential completed before computed AI placement', flush=True)
             assert not errors, errors
             (out / 'result.json').write_text(json.dumps({'browser': args.browser, 'ui_only': args.ui_only, 'passed': True}))

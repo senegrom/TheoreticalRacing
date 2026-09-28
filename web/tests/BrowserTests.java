@@ -93,7 +93,25 @@ public final class BrowserTests {
         testOneAiMovePerStep();
         testTimeoutUndo();
         testReachCachePruned();
+        check(b.build().matches("[0-9a-f]{64}"), "the jar carries no engine build identity: " + b.build());
+        testExactMapBesideTheMaps();
         System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points, coarse loops refused, drawn checkpoints by length and placement recovery OK");
+    }
+
+    /** Review, 2026-09-28: with computed starts the exact race map builds beside
+     *  the reachability maps; its stage must not mark theirs complete. */
+    private static void testExactMapBesideTheMaps() {
+        tr.browser.Progress.geometry();
+        tr.browser.Progress.plan(true, true, true);
+        tr.browser.Progress.begin("Scanning finish approaches", 4);
+        tr.browser.Progress.begin("Exact full-race map", 9);
+        check(tr.browser.Progress.stage() == 4, "the exact map jumped the checklist to " + tr.browser.Progress.stage());
+        tr.browser.Progress.begin("Resolving lap checkpoints", 6);
+        tr.browser.Progress.begin("Lap safety", 7);
+        tr.browser.Progress.begin("Computing braking maps", 5);
+        check(tr.browser.Progress.stage() == 8, "the lap-driving sweeps did not show as stage 8");
+        tr.browser.Progress.begin("Exact full-race map", 9);
+        check(tr.browser.Progress.stage() == 9, "the exact map did not follow the lap maps");
     }
 
     /** Review, 2026-09-28: the browser's map caches never shrank. Pruning keeps

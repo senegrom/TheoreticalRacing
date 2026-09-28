@@ -13,7 +13,7 @@ MANIFEST = 'asset-manifest.json'
 REVISION_LINK = re.compile(r'<a id="build-revision"[^>]*>[^<]*</a>')
 REQUIRED = {
     '.nojekyll', 'index.html', 'app.css', 'app.js', 'activity.js', 'board.js',
-    'engine.js', 'runtime.js', 'runtime.html', 'racing.jar', 'tracks.json',
+    'engine.js', 'runtime.js', 'racing.jar', 'tracks.json',
     'manifest.webmanifest', 'deployment.json', 'track-hashes.json',
     'engine-sources.json', 'icon-hashes.json', 'LICENSE.txt', 'favicon.ico',
     'icons/racing-apple-180-v3.png', 'icons/racing-app-192-v3.png',

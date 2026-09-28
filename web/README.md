@@ -32,8 +32,9 @@ source for the exact commit) and `deployment.json` (that commit and the
 repository). After deployment the workflow plays a real Java race against the
 public URL, and saves the evidence as `live-pages-evidence` in Actions.
 
-Generated `site/` files are not versioned. The publish job empties a staging
-folder under `RUNNER_TEMP` before downloading the tested artifact. The build's
+The publish job empties a staging folder under `RUNNER_TEMP` before
+downloading the tested artifact -- the one both browser suites raced, since they
+download it from the parity job rather than rebuild. The build's
 `asset-manifest.json` binds every file to its SHA-256 digest and source commit;
 missing files, altered files, symlinks and leftovers fail publication. Matching
 source is archived from that exact checkout, then hashed into the manifest too.
@@ -167,6 +168,13 @@ an offline/self-contained PWA. The home-screen manifest does not install an
 incomplete service-worker cache. Game decisions run locally; the runtime is
 third-party code downloaded by the browser.
 
+Every build stamps one engine identity into both `racing.jar` and the worker
+(`web/scripts/engine_identity.py`). For a few minutes after a deploy a browser
+cache can pair a page with a jar from the other side of it; the worker then
+refuses to race and asks for a reload instead of failing midway. The map
+caches the engine keeps in the browser's storage are bounded: each new race
+keeps its own maps and the most recently written others within 1 GiB.
+
 Game and adapter retain AGPL-3.0. CheerpJ has its separate
 [Community License](https://cheerpj.com/docs/licensing.html), covering personal
 and FOSS projects with attribution; other uses or runtime self-hosting may need
@@ -244,10 +252,13 @@ with a second progress bar for **completed prerequisite stages**, not elapsed
 or remaining time. The actual Java geometry selects six stages for a single-lap
 course (runtime, geometry, distance map, cache check, finish routes, driving
 maps) or nine when lap maps are needed (lap routes, lap safety, lap driving).
-Computed placement on a checkpoint course adds an Exact race map stage;
+A checkpoint course with an AI adds an Exact race map stage, ten in all;
 this was formerly a lazy calculation on the first AI driving turn. Computed
 starts also add a final Starting alternatives scan: seven stages on an open
 single-lap course, eleven when exact checkpoint-aware race maps are needed.
+When computed starts build the exact map beside the reachability maps, its
+work shows as activity until those reach lap driving, so no stage is marked
+complete while it still runs.
 Validated cache hits can satisfy stages without recomputation. Checkpoint
 convergence and the different braking/safety passes remain visible within their
 stage; there is no guessed time percentage or fixed number of convergence rounds.
@@ -296,9 +307,6 @@ practice) starts every AI mid-course at speed for racecraft measurement. A board
 whose exact full-race map is over budget falls back to random starts in every
 host and says so in the log. Existing golden fixtures are tested in explicit
 legacy mode, unchanged, alongside new native/browser computed-start comparisons.
-If the exact multi-lap map exceeds the existing memory budget, computed placement
-fails visibly rather than silently switching to random starts; choose a smaller
-course/fewer laps or explicitly select the legacy policy.
 
 Startup regressions independently block distance calculation, full-race potential
 and the starting-alternatives scan. An AI at the current slot prevents manual
