@@ -53,7 +53,7 @@ public final class RaceUI {
 	}
 
 	private Line2D				finishLine; // pixel coordinates, including fractional gate endpoints
-	private int[][]				checkpoints;	// light-grey gate lines, same coords
+	private Line2D[]			checkpoints;	// light-grey gate lines, same coords
 	private int[][]				loopClosure;	// blue closing boundary, same coords
 	private final JPanel		grid;
 	private final int			rows, cols;
@@ -115,8 +115,8 @@ public final class RaceUI {
 		if (checkpoints != null) {
 			g.setColor(colCheckpoint);
 			g.setStroke(strkFinish);
-			for (final int[] cp : checkpoints)
-				g.drawLine(cp[0], cp[1], cp[2], cp[3]);
+			for (final Line2D cp : checkpoints)
+				g.draw(cp);
 		}
 		if (loopClosure != null) {
 			g.setColor(colClosure);
@@ -222,16 +222,16 @@ public final class RaceUI {
 		startZone = null;
 	}
 
-	/** Multi-lap checkpoint lines in grid coords (x1,y1,x2,y2), or null. */
-	public void setCheckpoints(final int[][] cps) {
+	/** Multi-lap checkpoint lines, the referee's segments in grid coords, or null. */
+	public void setCheckpoints(final Line2D[] cps) {
 		if (cps == null) {
 			checkpoints = null;
 			return;
 		}
-		checkpoints = new int[cps.length][];
+		checkpoints = new Line2D[cps.length];
 		for (int i = 0; i < cps.length; i++)
-			checkpoints[i] = new int[]{cps[i][0] * GRID_DIST, cps[i][1] * GRID_DIST,
-					cps[i][2] * GRID_DIST, cps[i][3] * GRID_DIST };
+			checkpoints[i] = new Line2D.Double(cps[i].getX1() * GRID_DIST, cps[i].getY1() * GRID_DIST,
+					cps[i].getX2() * GRID_DIST, cps[i].getY2() * GRID_DIST);
 	}
 
 	/** Same finish segment as the referee, with no rounding to grid cells. */

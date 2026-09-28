@@ -153,7 +153,7 @@ public final class GameUI {
 			else
 				for (int i = 0; i < btnDirections.length; i++)
 					if (source == btnDirections[i]) {
-						game.clickedDirection(Direction.fromIndex(i));
+						game.clickedDirection(Direction.fromIndex(i), event.getWhen());
 						break;
 					}
 		};
@@ -213,7 +213,7 @@ public final class GameUI {
 					return;
 				final int x = (int) Math.round(event.getX() / (double) RaceUI.GRID_DIST);
 				final int y = (int) Math.round(event.getY() / (double) RaceUI.GRID_DIST);
-				game.clickedGrid(x, y);
+				game.clickedGrid(x, y, event.getWhen());
 			}
 		});
 

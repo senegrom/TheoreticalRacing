@@ -1809,6 +1809,24 @@ public final class RaceGame {
 		finishFwdY = len == 0 ? 0 : hy / len;
 	}
 
+	/** When the last AI move or placement on the event thread ended. Input the
+	 *  user made while it ran was queued behind it and dispatched after it, on
+	 *  a board they had not seen: two clicks on one direction during an AI's
+	 *  think committed a move whose preview never showed (review, 2026-09-28). */
+	private long aiInputBarrier = Long.MIN_VALUE;
+
+	/** A direction button's click, stamped with its event time. */
+	public void clickedDirection(final Direction direction, final long when) {
+		if (when >= aiInputBarrier)
+			clickedDirection(direction);
+	}
+
+	/** A grid click, stamped with its event time. */
+	public void clickedGrid(final int x, final int y, final long when) {
+		if (when >= aiInputBarrier)
+			clickedGrid(x, y);
+	}
+
 	/** Activated when a direction button is clicked. */
 	public void clickedDirection(final Direction direction) {
 		if (gamestate != GameState.PLAY || players[subgamestate].isAi())
@@ -2186,6 +2204,7 @@ public final class RaceGame {
 			}
 		}
 		executeMove(ai.computeAiMove());
+		aiInputBarrier = System.currentTimeMillis();
 	}
 
 	final static int		AI_MAX_SPEED	= 12;
@@ -2309,6 +2328,7 @@ public final class RaceGame {
 			players[subgamestate].setPosition(pos);
 			subgamestate++;
 		}
+		aiInputBarrier = System.currentTimeMillis();
 	}
 
 	/** Round 225 benchmark mode: a seeded random alive, robust state anywhere on
@@ -2488,8 +2508,9 @@ public final class RaceGame {
 		rui.setFinishLine(lapGates == null ? finishLine : lapCrossGate);
 		startZone = TrackGeometry.makeStartZone(track.getLeft().getFirst(), track.getRight().getFirst());
 		rui.setStartZone(startZone);
-		rui.setCheckpoints(lapGates != null && lapGatePoints != null
-				? new int[][]{lapGatePoints[1], lapGatePoints[2] } : null);
+		// The referee's own segments: a drawing's checkpoints sit between grid
+		// points, and rounded they were drawn up to half a cell off (review, 2026-09-28).
+		rui.setCheckpoints(lapGates != null ? new Line2D[]{lapGates[1], lapGates[2] } : null);
 		rui.setLoopClosure(lapGates != null && lapClosurePoints != null
 				? java.util.stream.Stream.of(lapClosurePoints)
 						.flatMap(java.util.stream.Stream::of).toArray(int[][]::new)
@@ -2685,6 +2706,10 @@ public final class RaceGame {
 			// loop-closure clamp on an open drawing.
 			prop.put("lapClosable", "false");
 			prop.put("lastTrackDrawn", "true");
+			// The flags describe the stored last track, which the geometry build
+			// reads them for: store the drawing's points with them, or a build that
+			// throws leaves them on the previous track's points (review, 2026-09-28).
+			saveTrackToProperties();
 			buildTrackGeometry();
 			autoPlaceAiPlayers();
 			updatePlaceStatus();

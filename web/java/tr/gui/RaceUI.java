@@ -11,7 +11,8 @@ import tr.logic.Track;
 public final class RaceUI {
     public static final int GRID_DIST = 1;
     public float[][] startZone;
-    public int[][] checkpoints, closures;
+    public double[][] checkpoints;
+    public int[][] closures;
     public Shape trackPol;
     public Line2D finishLine;
     public List<int[]> prePath;
@@ -22,7 +23,10 @@ public final class RaceUI {
     public Object getGrid() { return null; }
     public void setLoopClosure(final int[][] value) { closures = value; }
     public void hideStartZone() { startZone = null; }
-    public void setCheckpoints(final int[][] value) { checkpoints = value; }
+    public void setCheckpoints(final Line2D[] value) {
+        checkpoints = value == null ? null : java.util.Arrays.stream(value)
+                .map(l -> new double[]{l.getX1(), l.getY1(), l.getX2(), l.getY2()}).toArray(double[][]::new);
+    }
     public void setFinishLine(final Line2D line) {
         finishLine = line == null ? null : new Line2D.Double(
                 line.getX1(), line.getY1(), line.getX2(), line.getY2());

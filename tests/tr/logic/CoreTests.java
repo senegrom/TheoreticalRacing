@@ -1115,6 +1115,23 @@ public final class CoreTests {
         game.clickedDirection(Direction.E);
         checkPoint(ai.getPosition(), 5, 6);
         checkPoint(ai.getVelocity(), 1, 0);
+        // Review, 2026-09-28: a human's click made while an AI computed -- stamped
+        // before the barrier its move set -- is dropped, not taken as a preview.
+        final Player human = new Player("H", 1, Color.RED, Player.Kind.HUMAN);
+        human.setPosition(p(5, 6));
+        game.players = new Player[]{human};
+        try {
+            final java.lang.reflect.Field barrier = RaceGame.class.getDeclaredField("aiInputBarrier");
+            barrier.setAccessible(true);
+            barrier.setLong(game, 1_000L);
+            final java.lang.reflect.Field preview = RaceGame.class.getDeclaredField("isShowingPrePath");
+            preview.setAccessible(true);
+            final int before = preview.getInt(game);
+            game.clickedDirection(Direction.E, 999L);
+            check(preview.getInt(game) == before, "a click queued behind an AI move was taken");
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("could not arrange the queued-click test", error);
+        }
     }
 
     private static void testSegmentIntersection() {

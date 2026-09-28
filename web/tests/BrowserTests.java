@@ -178,6 +178,10 @@ public final class BrowserTests {
         check(game.lapGates[2].getX1() == 35 && Math.abs(game.lapGates[2].getY1() - (75 - (2 * 194 / 3.0 - 97))) < 1e-9
                 && game.lapGates[2].getX2() == 25,
                 "CP2 is not at two thirds of the border's length: " + game.lapGates[2].getP1() + " " + game.lapGates[2].getP2());
+        // The page draws the referee's segments, not rounded ones (review, 2026-09-28).
+        final double[][] drawn = ((tr.gui.RaceUI) get(bridge, "scene")).checkpoints;
+        check(drawn.length == 2 && drawn[0][1] == game.lapGates[1].getY1() && drawn[1][1] == game.lapGates[2].getY1(),
+                "the page draws the checkpoints off the referee's: " + java.util.Arrays.deepToString(drawn));
         int[] start = null;
         outer: for (int x = 0; x <= game.gameCols; x++) for (int y = 0; y <= game.gameRows; y++)
             if (game.startZoneA.contains(x, y) && game.trackA.contains(x, y)) { start = new int[]{x, y}; break outer; }
