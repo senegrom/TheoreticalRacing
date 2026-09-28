@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import hashlib
 import json
 import math
 import os
@@ -31,7 +32,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tracks'))
 from benchmark_io import read_race  # noqa: E402
-from fleet_grid import seed_range  # noqa: E402
+from fleet_grid import completed, json_text, seed_range  # noqa: E402
 
 
 def write_once(path: Path, content: str) -> None:
@@ -52,8 +53,25 @@ def run_grid(args, jar: Path, props: Path, grid: Path) -> None:
                     str(args.jobs), str(grid)], cwd=ROOT, env=env, check=True)
 
 
+def validated_grid(grid: Path, seeds: range) -> dict:
+    """The grid's manifest, once every track in it is a validated completion;
+    its build, runtime, seeds and courses, which every paired grid must share."""
+    manifest = json.loads((grid / 'manifest.json').read_text(encoding='utf-8'))
+    run_id = hashlib.sha256(json_text(manifest).encode('utf-8')).hexdigest()
+    for track in manifest['tracks']:
+        if completed(grid, track, run_id, seeds) is None:
+            raise ValueError(f'{grid.name}: {track} is missing, incomplete or corrupt')
+    return {k: v for k, v in manifest.items() if k not in ('properties', 'comparison')}
+
+
 def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
-    tracks = sorted(json.loads((control / 'manifest.json').read_text(encoding='utf-8'))['tracks'])
+    # The pairing means something only between races of one build, runtime and
+    # course set: every seat grid must match the control (review, 2026-09-28).
+    common = validated_grid(control, seeds)
+    for seat, grid in seats.items():
+        if validated_grid(grid, seeds) != common:
+            raise ValueError(f'seat {seat} was raced by another build, runtime, seed window or course set')
+    tracks = sorted(common['tracks'])
     units, per_track = [], collections.defaultdict(list)
     cand_places, cand_crash, champ_crash = [], 0, 0
     for track in tracks:

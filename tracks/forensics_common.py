@@ -35,6 +35,40 @@ START_LINE = re.compile(
 )
 ORACLE_ANSWER = re.compile(r"^(-?\d+),(-?\d+);([FXBDA]{9})$")
 
+# Courses whose exact potential exceeds its distance cap at any heap; older
+# jars reported them only as "SKIPPED (over budget)".
+CAPPED_TRACKS = frozenset({'nordschleife'})
+# RaceGame.OPTIMAL_BUDGET_BYTES: a cap in force at any other size came from
+# -Dtr.optimalBuildBytes, and capped courses the champion races on.
+DEFAULT_DISTANCE_CAP_MIB = 1536
+POTENTIAL_LINE = re.compile(r'^\[optimal\] potential (built|SKIPPED \(([^)]*)\))(.*)$', re.MULTILINE)
+
+
+def potential_status(track, output):
+    """The exact potential's fate in this JVM: 'built', 'capped' (over the
+    default distance cap, by design) or None (no lap potential). A potential
+    skipped for want of heap or frontier -- or capped by a lowered
+    -Dtr.optimalBuildBytes -- means the champion raced demoted: a complete,
+    valid screen of a policy nobody ships, so the track fails (reviews,
+    2026-09-27 and 2026-09-28)."""
+    kinds = set()
+    for whole, reason, rest in POTENTIAL_LINE.findall(output):
+        if whole == 'built':
+            kinds.add('built')
+            continue
+        budget = re.search(r'\(distance ([0-9]+) MiB', rest)
+        default_cap = budget is not None and int(budget.group(1)) == DEFAULT_DISTANCE_CAP_MIB
+        if reason == 'over the distance cap' and default_cap or reason == 'over budget' and track in CAPPED_TRACKS:
+            kinds.add('capped')
+            continue
+        if reason == 'over the distance cap':
+            reason += ' of %s MiB, not the default %d' % (budget.group(1) if budget else '?', DEFAULT_DISTANCE_CAP_MIB)
+        raise ValueError('%s: the exact potential was skipped (%s); the champion raced without it%s'
+                         % (track, reason, ', so raise the heap' if reason == 'heap too small' else ''))
+    if len(kinds) > 1:
+        raise ValueError('%s: the exact potential was built in some races and not in others' % track)
+    return kinds.pop() if kinds else None
+
 
 class LogMove(NamedTuple):
     index: int
@@ -340,6 +374,7 @@ class Oracle:
     """Persistent adapter for the game's ``--query-moves`` protocol."""
 
     def __init__(self, track, jar, properties, seed=1):
+        self.track = track
         self.proc = subprocess.Popen(
             [
                 "java", "-jar", str(jar), "--auto", "--track", track,
@@ -372,6 +407,9 @@ class Oracle:
             line = self.proc.stdout.readline()
             if not line:
                 raise RuntimeError("oracle died while answering query")
+            if line.startswith('[optimal] potential'):
+                potential_status(self.track, line)  # a demoted champion's answers are not the champion's
+                continue
             if line.startswith('v2;'):
                 if not complete:
                     raise ValueError('unexpected V2 reply to a legacy query')

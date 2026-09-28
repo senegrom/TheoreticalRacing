@@ -19,11 +19,13 @@ import sys
 
 if __package__:
     from .benchmark_io import configured_players, read_race, update_properties
+    from .forensics_common import potential_status
 else:
     # A pin may load this file by path rather than as a package.
     if str(Path(__file__).resolve().parent) not in sys.path:
         sys.path.insert(0, str(Path(__file__).resolve().parent))
     from benchmark_io import configured_players, read_race, update_properties
+    from forensics_common import potential_status
 
 ROOT = Path(__file__).resolve().parents[1]
 JAR = str(ROOT / 'theoreticRacing.jar')
@@ -89,6 +91,18 @@ def parse_race_log(path, expected_players=None):
         return None
 
 
+def champion_raced(track, result):
+    """False, with the reason on stderr, when this JVM skipped the exact
+    potential for want of heap or frontier: its champion raced demoted, so
+    its race says nothing about the champion (review, 2026-09-28)."""
+    try:
+        potential_status(track, result.stdout)
+        return True
+    except ValueError as error:
+        print(error, file=sys.stderr)
+        return False
+
+
 def run_track(track, timeout=240, seed=None):
     require_runtime()
     cmd = ['java', '-Djava.awt.headless=true', '-jar', JAR, '--auto', '--track', track, '--props', PROPS, '--log', LOG]
@@ -100,6 +114,8 @@ def run_track(track, timeout=240, seed=None):
     if r.returncode != 0 or 'Aborting' in r.stdout:
         if r.stderr.strip():
             print(r.stderr.rstrip(), file=sys.stderr)
+        return None
+    if not champion_raced(track, r):
         return None
     return parse_race_log(LOG, configured_players(PROPS))
 
@@ -117,6 +133,8 @@ def run_track_h2h(track, timeout=240, seed=None):
     if r.returncode != 0 or 'Aborting' in r.stdout or not os.path.exists(LOG):
         if r.stderr.strip():
             print(r.stderr.rstrip(), file=sys.stderr)
+        return None
+    if not champion_raced(track, r):
         return None
     try:
         race = read_race(LOG, configured_players(PROPS))

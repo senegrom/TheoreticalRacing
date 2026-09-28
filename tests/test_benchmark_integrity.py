@@ -1,5 +1,6 @@
 """Invalid measurements must fail closed; valid last-survivor races still score."""
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -146,7 +147,7 @@ class MirroredGridTests(unittest.TestCase):
             path = directory / ('example_s%d.log' % seed)
             path.write_text(log(seed) if log else race_log(slots), encoding='utf-8')
             logs.append({'sha256': fleet_grid.digest(path), 'counts': fleet_grid.parse_log(path)})
-        record = {'run_id': run_id, 'seeds': list(range(lo, hi + 1)), 'no_loop': False, 'logs': logs}
+        record = {'run_id': run_id, 'seeds': list(range(lo, hi + 1)), 'no_loop': False, 'potential': None, 'logs': logs}
         (directory / 'example.complete.json').write_text(fleet_grid.json_text(record))
         return directory
 
@@ -235,6 +236,18 @@ class MirroredGridTests(unittest.TestCase):
         self.assertNotEqual(comparison_profile(a)['candidate_slots'], comparison_profile(b)['candidate_slots'])
 
 
+def publish(grid, manifest, seeds):
+    """A grid's manifest and its tracks' validated completion markers."""
+    text = fleet_grid.json_text(manifest)
+    (grid / 'manifest.json').write_text(text, encoding='utf-8')
+    run_id = hashlib.sha256(text.encode('utf-8')).hexdigest()
+    for track in manifest['tracks']:
+        logs = [{'sha256': fleet_grid.digest(grid / ('%s_s%d.log' % (track, seed))),
+                 'counts': fleet_grid.parse_log(grid / ('%s_s%d.log' % (track, seed)))} for seed in seeds]
+        record = {'run_id': run_id, 'seeds': list(seeds), 'no_loop': False, 'potential': None, 'logs': logs}
+        (grid / (track + '.complete.json')).write_text(fleet_grid.json_text(record), encoding='utf-8')
+
+
 class LoneCandidateReportTests(unittest.TestCase):
     """run_1vfield.report, the lone-candidate check CLAUDE.md requires before a
     promotion, had no test at all (review, 2026-09-27)."""
@@ -258,7 +271,19 @@ class LoneCandidateReportTests(unittest.TestCase):
             (seat1 / 'example_s2.log').write_text(ordered_log('1', [1, 2]), encoding='utf-8')
             (seat2 / 'example_s1.log').write_text(ordered_log('2', [2, 1]), encoding='utf-8')
             (seat2 / 'example_s2.log').write_text(ordered_log('2', [1, 2]), encoding='utf-8')
+            for grid, slots in ((control, []), (seat1, [1]), (seat2, [2])):
+                publish(grid, {'jar': 'build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
+                               'comparison': {'candidate_slots': slots}}, range(1, 3))
             text = run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+            # Review, 2026-09-28: a seat raced by another build is refused, and
+            # so is a grid whose track never completed.
+            publish(seat2, {'jar': 'other build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
+                            'comparison': {'candidate_slots': [2]}}, range(1, 3))
+            with self.assertRaisesRegex(ValueError, 'another build'):
+                run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+            (seat1 / 'example.complete.json').unlink()
+            with self.assertRaisesRegex(ValueError, 'incomplete'):
+                run_1vfield.report(control, {1: seat1}, range(1, 3))
         self.assertIn('paired track-seeds 2: candidate minus champion place -0.250  '
                       '(standard error 0.250; negative favours the candidate)', text)
         self.assertIn('crashes      lone candidate 0   champion in the same seat 0', text)
@@ -279,6 +304,35 @@ class FleetGridGuardTests(unittest.TestCase):
         for text in (legacy, capped.replace('over the distance cap', 'heap too small')):
             with self.assertRaises(ValueError):
                 fleet_grid.potential_status('lemans', text)
+        # A lowered -Dtr.optimalBuildBytes caps every course: not the champion.
+        with self.assertRaisesRegex(ValueError, 'not the default 1536'):
+            fleet_grid.potential_status('lemans', capped.replace('distance 1536 MiB', 'distance 512 MiB'))
+        with self.assertRaises(ValueError) as frontier:
+            fleet_grid.potential_status('lemans', capped.replace('over the distance cap', 'frontier budget'))
+        self.assertNotIn('raise the heap', str(frontier.exception))
+
+    def test_runners_refuse_a_demoted_champion(self):
+        skipped = '[optimal] potential SKIPPED (heap too small) in 0.0s (distance 1536 MiB, total 0 MiB)\n'
+        with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stderr(io.StringIO()) as errors:
+            bench_ai.configure_runtime(tmp)
+            completed = subprocess.CompletedProcess([], 0, stdout=skipped, stderr='')
+            with mock.patch.object(bench_ai.subprocess, 'run', return_value=completed):
+                self.assertIsNone(bench_ai.run_track('lemans', seed=1))
+                self.assertIsNone(bench_ai.run_track_h2h('lemans', seed=1))
+        self.assertIn('raced without it', errors.getvalue())
+
+    def test_a_marker_without_the_potential_is_not_resumable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp)
+            log = out / 'a_s1.log'
+            log.write_text(race_log(''), encoding='utf-8')
+            record = {'run_id': 'r', 'seeds': [1], 'no_loop': False, 'potential': 'built',
+                      'logs': [{'sha256': fleet_grid.digest(log), 'counts': fleet_grid.parse_log(log)}]}
+            (out / 'a.complete.json').write_text(json.dumps(record), encoding='utf-8')
+            self.assertIsNotNone(fleet_grid.completed(out, 'a', 'r', range(1, 2)))
+            del record['potential']
+            (out / 'a.complete.json').write_text(json.dumps(record), encoding='utf-8')
+            self.assertIsNone(fleet_grid.completed(out, 'a', 'r', range(1, 2)))
 
     def test_a_killed_grid_resumes_without_racing_finished_tracks(self):
         # Ctrl+C reaches the main thread while track b's JVM runs and c waits:

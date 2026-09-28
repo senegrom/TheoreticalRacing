@@ -21,10 +21,10 @@ import tempfile
 import threading
 
 if __package__:
-    from .forensics_common import parse_move
+    from .forensics_common import parse_move, potential_status
     from .benchmark_io import comparison_profile
 else:
-    from forensics_common import parse_move
+    from forensics_common import parse_move, potential_status
     from benchmark_io import comparison_profile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -138,30 +138,6 @@ def parse_log(path):
     return counters
 
 
-# Courses whose exact potential exceeds its distance cap at any heap; older
-# jars reported them only as "SKIPPED (over budget)".
-CAPPED_TRACKS = frozenset({'nordschleife'})
-
-
-def potential_status(track, output):
-    """The exact potential's fate in this JVM: 'built', 'capped' (over the
-    distance cap, by design) or None (no lap potential). A potential skipped
-    for want of heap means the champion raced demoted -- a complete, valid
-    screen of a policy nobody ships -- so the track fails (review, 2026-09-27)."""
-    kinds = set()
-    for whole, reason in re.findall(r'^\[optimal\] potential (built|SKIPPED \(([^)]*)\))', output, re.MULTILINE):
-        if whole == 'built':
-            kinds.add('built')
-        elif reason == 'over the distance cap' or reason == 'over budget' and track in CAPPED_TRACKS:
-            kinds.add('capped')
-        else:
-            raise ValueError('%s: the exact potential was skipped (%s); the champion raced without it%s'
-                             % (track, reason, ', so raise the heap' if reason == 'heap too small' else ''))
-    if len(kinds) > 1:
-        raise ValueError('%s: the exact potential was built in some races and not in others' % track)
-    return kinds.pop() if kinds else None
-
-
 class Jvms:
     """The grid's running JVMs. An interrupted grid stops them, and no track
     starts after that: a Ctrl+C used to wait for every queued track to race,
@@ -233,6 +209,9 @@ def completed(out, track, run_id, seeds):
         if record['run_id'] != run_id or record['seeds'] != list(seeds):
             return None
         if not isinstance(record['no_loop'], bool) or len(record['logs']) != len(seeds):
+            return None
+        # A marker from before the potential was checked proves nothing about it.
+        if record['potential'] not in ('built', 'capped', None):
             return None
         for seed, saved in zip(seeds, record['logs']):
             log = out / ('%s_s%d.log' % (track, seed))
