@@ -388,8 +388,8 @@ final class Reachability {
 		// robustly; if a gate has no robust seed at all, pass 1 falls back to
 		// the plain law so no track loses its laps.
 		for (int pass = 0; pass < 2; pass++) {
-		if (pass == 1 && !queue.isEmpty())
-			break;
+		if (pass == 1 && (!queue.isEmpty() || gate != 0))
+			break; // a checkpoint's second pass would repeat the first
 		if (pass == 1 && gate == 0)
 			robustSeedFallback = true;
 		final boolean robust = gate == 0 && pass == 0;

@@ -708,18 +708,7 @@ public final class RaceGame {
 	 * A move that does not reach the line is judged in full.
 	 */
 	boolean finishRunUpLegal(final int x1, final int y1, final int x2, final int y2) {
-		final Line2D line = lapGates != null ? lapCrossGate : finishLine;
-		final double px = line.getX1(), py = line.getY1();
-		final double rx = line.getX2() - px, ry = line.getY2() - py;
-		final double sx = (double) x2 - x1, sy = (double) y2 - y1;
-		final double denom = rx * sy - ry * sx;
-		double u = 1.0;
-		if (denom != 0.0) {
-			final double qx = x1 - px, qy = y1 - py;
-			final double along = (qx * ry - qy * rx) / denom;
-			if (along >= 0.0 && along <= 1.0)
-				u = along;
-		}
+		final double u = finishCrossingFraction(x1, y1, x2, y2);
 		if (u >= 1.0)
 			return isMoveLegalGeometry(x1, y1, x2, y2);
 		// Sampling alone misses arbitrarily thin notches between two probes.
@@ -729,6 +718,7 @@ public final class RaceGame {
 			return false;
 		if (!containsTrackOrStart(x1, y1))
 			return false;
+		final double sx = (double) x2 - x1, sy = (double) y2 - y1;
 		final double ex = x1 + u * sx, ey = y1 + u * sy;
 		final int n = Math.max(2, (int) Math.ceil(Math.hypot(ex - x1, ey - y1) * 2));
 		for (int j = 1; j < n; j++) {
@@ -737,6 +727,22 @@ public final class RaceGame {
 				return false;
 		}
 		return true;
+	}
+
+	/** Where along a move (0..1) it crosses the finish line, or 1.0 when it does
+	 *  not: the run-up rule and the pocket test judge the move only up to there. */
+	private double finishCrossingFraction(final int x1, final int y1, final int x2, final int y2) {
+		final Line2D line = lapGates != null ? lapCrossGate : finishLine;
+		final double px = line.getX1(), py = line.getY1();
+		final double rx = line.getX2() - px, ry = line.getY2() - py;
+		final double sx = (double) x2 - x1, sy = (double) y2 - y1;
+		final double denom = rx * sy - ry * sx;
+		if (denom != 0.0) {
+			final double along = ((x1 - px) * ry - (y1 - py) * rx) / denom;
+			if (along >= 0.0 && along <= 1.0)
+				return along;
+		}
+		return 1.0;
 	}
 
 	/**
@@ -836,19 +842,7 @@ public final class RaceGame {
 		if (b == null || Math.max(x1, x2) < b.getMinX() - 1 || Math.min(x1, x2) > b.getMaxX() + 1
 				|| Math.max(y1, y2) < b.getMinY() - 1 || Math.min(y1, y2) > b.getMaxY() + 1)
 			return false;
-		double u = 1.0;
-		if (finishing) {
-			final Line2D line = lapGates != null ? lapCrossGate : finishLine;
-			final double px = line.getX1(), py = line.getY1();
-			final double rx = line.getX2() - px, ry = line.getY2() - py;
-			final double sx = (double) x2 - x1, sy = (double) y2 - y1;
-			final double denom = rx * sy - ry * sx;
-			if (denom != 0.0) {
-				final double along = ((x1 - px) * ry - (y1 - py) * rx) / denom;
-				if (along >= 0.0 && along <= 1.0)
-					u = along;
-			}
-		}
+		final double u = finishing ? finishCrossingFraction(x1, y1, x2, y2) : 1.0;
 		if (inPocket(x1, y1) || u >= 1.0 && inPocket(x2, y2))
 			return true;
 		final long dxi = (long) x2 - x1, dyi = (long) y2 - y1;
@@ -2030,10 +2024,6 @@ public final class RaceGame {
 		return out;
 	}
 
-	private static String show(final int v) {
-		return v == Integer.MAX_VALUE ? "INF" : String.valueOf(v);
-	}
-
 	/** True when this player's NEXT S/F crossing ends their race. */
 	boolean onFinalLap(final int playerNum) {
 		for (final Player p : players)
@@ -2500,16 +2490,6 @@ public final class RaceGame {
 			reach.ensureReachabilityReady();
 			processQueries(queryInPath, queryOutPath);
 			System.exit(0);
-		}
-		if (lapGates != null && autoMode) {
-			reach.ensureReachabilityReady();
-			final int[] lf = track.getLeft().getFirst();
-			final int[] rf = track.getRight().getFirst();
-			final int mx = (lf[0] + rf[0]) / 2, my = (lf[1] + rf[1]) / 2;
-			System.out.println("[laps] gate-mid values @(" + mx + "," + my + "): g0="
-					+ show(reach.turnsToGate(0, mx, my, 0, 0)) + " g1="
-					+ show(reach.turnsToGate(1, mx, my, 0, 0)) + " g2="
-					+ show(reach.turnsToGate(2, mx, my, 0, 0)));
 		}
 		saveTrackToProperties();
 	}
