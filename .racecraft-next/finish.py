@@ -13,6 +13,8 @@ s = s.replace('if (game.startZoneA != null) for (final PathIterator it = game.st
 s = s.replace('if (maxMoves < 1 || self < 0 || self >= root.cars.length)', 'if (maxMoves < 1 || root.turn > Integer.MAX_VALUE - maxMoves || self < 0 || self >= root.cars.length)')
 s = s.replace('RacecraftOutcome.Status focalStatus = RacecraftOutcome.Status.RUNNING;', '''RacecraftOutcome.Status focalStatus = complete ? RacecraftOutcome.Status.CLASSIFIED
                     : RacecraftOutcome.Status.RUNNING;''')
+s = s.replace('            survivor.setFinishedPlace(first);\n            game.researchClassification(first, game.researchFinishedLast());', '''            survivor.setFinishedPlace(first);
+            // checkFinished assigns this place without incrementing finishedFirst.''')
 p.write_text(s)
 p = Path('src/tr/logic/RaceAi.java')
 s = p.read_text()
@@ -24,13 +26,5 @@ s = s.replace('            lastResearchOutcome = workspace.researchOutcome;\n   
 s = s.replace('if (t >= 0 && t != Integer.MAX_VALUE && (rankRescue', 'if (t >= 0 && (!rankRescue || t != Integer.MAX_VALUE) && (rankRescue')
 s = s.replace('        final int horizon = game.racecraftNext.openingRounds;', '        researchOpeningTrials = 0;\n        final int horizon = game.racecraftNext.openingRounds;')
 s = s.replace('        researchDemandDepth = forcedSecondDepth = simDepth + 1;', '        researchOpeningTrials++;\n        researchDemandDepth = forcedSecondDepth = simDepth + 1;')
-# The root detail flag must not let an audit-only query change any pass/fail reading.
 p.write_text(s)
-print('Finished status adapters and exact disabled controls')
-# Review the remaining scalar consumers rather than hiding them.
-for i, line in enumerate(s.splitlines(), 1):
-    if '% VERDICT_PLACE_STRIDE' in line:
-        print('TIME-CONSUMER', i, line.strip())
-g = Path('src/tr/logic/RaceGame.java').read_text()
-i = g.index('private boolean checkFinished()')
-print(g[i:i+2000])
+print('Finished status adapters, exact disabled controls and referee bookkeeping')
