@@ -299,7 +299,7 @@ public final class BrowserBridge {
                     final int[] nextVel = {vel[0] + d.dx, vel[1] + d.dy};
                     final int[] end = {pos[0] + nextVel[0], pos[1] + nextVel[1]};
                     final RaceGame.MoveResult result = game.evaluateMove(player, pos, end);
-                    moves.add(Map.of("index", d.ordinal(), "position", end, "velocity", nextVel,
+                    moves.add(ordered("index", d.ordinal(), "position", end, "velocity", nextVel,
                             "legal", result.legal(), "finishes", result.finishes(),
                             "lap", result.lapCross(), "timeout", game.raceTurnLimitReached()));
                 }
@@ -431,10 +431,20 @@ public final class BrowserBridge {
         for (final String id : TrackIO.listTracks()) {
             final TrackIO.TrackData t = TrackIO.loadTrackData(id);
             if (t == null) throw new IllegalStateException("Invalid bundled track " + id);
-            tracks.add(Map.of("id", id, "name", t.name(), "cols", t.gameX(), "rows", t.gameY(),
+            tracks.add(ordered("id", id, "name", t.name(), "cols", t.gameX(), "rows", t.gameY(),
                     "left", t.left(), "right", t.right(), "lapClosable", TrackIO.trackDeclaresClosable(id)));
         }
         return Json.encode(tracks);
+    }
+
+    /** Map.of iterates in an order salted per JVM: every build published
+     *  tracks.json with its keys shuffled, so no two builds of one commit
+     *  matched (review, 2026-09-28). */
+    private static Map<String, Object> ordered(final Object... keysAndValues) {
+        final Map<String, Object> map = new LinkedHashMap<>();
+        for (int i = 0; i < keysAndValues.length; i += 2)
+            map.put((String) keysAndValues[i], keysAndValues[i + 1]);
+        return map;
     }
 
     /** Dependency-free development harness and differential-test transport. */
