@@ -2723,7 +2723,10 @@ public final class RaceGame {
 			subgamestate = 0;
 			gameFrame.setStatus(players[0].getName() + "'s turn...");
 			gameFrame.setDirectionsEnabled(!players[0].isAi());
-			rui.setVelVector(players[0].getPosition(), 0);
+			// The first mover's velocity arrow, as every later turn draws it: a
+			// scattered start already moves (review, 2026-09-28).
+			final int[] firstPos = players[0].getPosition(), firstVel = players[0].getVelocity();
+			rui.setVelVector(new int[]{firstPos[0] + firstVel[0], firstPos[1] + firstVel[1] }, 0);
 			rui.setPrePath(null);
 			isShowingPrePath = -1;
 			redoPlayerLabels();

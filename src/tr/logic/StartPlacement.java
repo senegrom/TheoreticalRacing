@@ -102,6 +102,8 @@ final class StartPlacement {
         return analysis;
     }
 
+    /** One cell's score, behind requireAnalysis's checks: the tests' entry point
+     *  (choose scores cells through the analysis directly). */
     static int score(final RaceGame game, final Player player, final int x, final int y) {
         final Analysis analysis = requireAnalysis(game, player);
         return analysis.score(game, player, analysis.find(x, y));
