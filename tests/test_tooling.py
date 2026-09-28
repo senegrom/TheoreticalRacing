@@ -9,60 +9,16 @@ import types
 import unittest
 from unittest import mock
 
-from tracks import bench_ai, bench_iso, oracle_roll
+from tracks import oracle_roll
 from tracks.forensics_common import (
     INF, LogMove, Reach, normalized_lines, normalized_sha256, parse_move, reconstruct_board,
 )
 
 
-class BenchmarkCliTests(unittest.TestCase):
-    def test_defaults_to_regular_self_play(self):
-        args = bench_ai.parse_cli([])
-        self.assertEqual('self-play', args.mode)
-        self.assertEqual(bench_ai.DEFAULT_TRACKS, args.tracks)
-        self.assertEqual([None], args.seed_values)
-
-    def test_four_player_aliases_are_equivalent(self):
-        canonical = bench_ai.parse_cli(['--4p', '--seeds', '2', 'sprint'])
-        alias = bench_ai.parse_cli(['--2v2', '--seeds', '2', 'sprint'])
-        self.assertEqual('4p', canonical.mode)
-        self.assertEqual(canonical.mode, alias.mode)
-        self.assertEqual([1, 2], canonical.seed_values)
-        self.assertEqual(canonical.seed_values, alias.seed_values)
-        self.assertEqual(['sprint'], alias.tracks)
-
-    def test_seed_range_and_slow_field_mode(self):
-        args = bench_ai.parse_cli(
-            ['--h2h', '--slow', '--seeds', '3', '--seed-start', '6']
-        )
-        self.assertEqual('h2h', args.mode)
-        self.assertEqual(bench_ai.SLOW_TRACKS, args.tracks)
-        self.assertEqual([6, 7, 8], args.seed_values)
-
-    def test_seed_start_requires_count(self):
-        with contextlib.redirect_stderr(io.StringIO()):
-            with self.assertRaises(SystemExit) as raised:
-                bench_ai.parse_cli(['--seed-start', '2'])
-        self.assertEqual(2, raised.exception.code)
-
-    def test_modes_are_mutually_exclusive(self):
-        with contextlib.redirect_stderr(io.StringIO()):
-            with self.assertRaises(SystemExit) as raised:
-                bench_ai.parse_cli(['--h2h', '--1v1'])
-        self.assertEqual(2, raised.exception.code)
-
-    def test_seed_values_must_be_positive(self):
-        with contextlib.redirect_stderr(io.StringIO()):
-            with self.assertRaises(SystemExit) as raised:
-                bench_ai.parse_cli(['--seeds', '0'])
-        self.assertEqual(2, raised.exception.code)
-
-
 class ForensicsCommonTests(unittest.TestCase):
     def test_forensic_entry_points_are_import_safe(self):
         modules = (
-            'tracks.board_at', 'tracks.oracle_roll', 'tracks.policy_matrix',
-            'tracks.crash_scan', 'tracks.needle_audit', 'tracks.extract_baseline',
+            'tracks.board_at', 'tracks.oracle_roll', 'tracks.needle_audit',
             'tracks.build_lemans', 'tracks.width_normalize', 'tracks.build_nordschleife',
         )
         for module in modules:
@@ -188,71 +144,6 @@ class ForensicsCommonTests(unittest.TestCase):
             path.write_bytes(payload + b'!')
             with self.assertRaisesRegex(ValueError, 'size mismatch'):
                 Reach(path)
-
-    def test_isolated_bench_propagates_invalid_result(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            (root / 'tracks').mkdir()
-            (root / 'tracks' / 'bench.properties').write_text('nPlayers=8\n', encoding='utf-8')
-            original_setter = lambda _n: None
-            fake = types.SimpleNamespace(
-                DEFAULT_TRACKS=['sprint'],
-                SLOW_TRACKS=['slow'],
-                SEEDS=[],
-                set_nplayers=original_setter,
-                bench=lambda _tracks: False,
-                bench_field=lambda *_args: False,
-            )
-            with mock.patch.object(bench_iso, 'REPO', str(root)), \
-                    mock.patch.object(bench_iso, 'S', str(root)), \
-                    mock.patch.object(bench_iso, 'm', fake):
-                with contextlib.redirect_stdout(io.StringIO()):
-                    self.assertFalse(bench_iso.main(['8car', '1', 'sprint']))
-                self.assertIs(original_setter, fake.set_nplayers)
-                self.assertFalse(Path(fake.PROPS).exists())
-                self.assertFalse(Path(fake.LOG).exists())
-
-    def test_isolated_bench_uses_canonical_props_and_process_unique_paths(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            (root / 'tracks').mkdir()
-            (root / 'tracks' / 'bench.properties').write_text(
-                'source=canonical\n', encoding='utf-8'
-            )
-            (root / 'user.properties').write_text(
-                'source=user-ui-state\n', encoding='utf-8'
-            )
-            observed = {}
-            original_setter = lambda _n: None
-
-            def bench(_tracks):
-                observed['props'] = Path(fake.PROPS).read_text(encoding='utf-8')
-                observed['props_path'] = Path(fake.PROPS)
-                observed['log_path'] = Path(fake.LOG)
-                return True
-
-            fake = types.SimpleNamespace(
-                DEFAULT_TRACKS=['sprint'],
-                SLOW_TRACKS=['slow'],
-                SEEDS=[],
-                set_nplayers=original_setter,
-                bench=bench,
-                bench_field=lambda *_args: True,
-            )
-            with mock.patch.object(bench_iso, 'REPO', str(root)), \
-                    mock.patch.object(bench_iso, 'S', str(root)), \
-                    mock.patch.object(bench_iso, 'm', fake), \
-                    mock.patch.dict(os.environ, {}, clear=True):
-                with contextlib.redirect_stdout(io.StringIO()):
-                    self.assertTrue(bench_iso.main(['8car', '1', 'sprint']))
-
-            self.assertEqual('source=canonical\n', observed['props'])
-            suffix = f'8car-{os.getpid()}'
-            self.assertIn(suffix, observed['props_path'].name)
-            self.assertIn(suffix, observed['log_path'].name)
-            self.assertFalse(observed['props_path'].exists())
-            self.assertFalse(observed['log_path'].exists())
-
 
 if __name__ == '__main__':
     unittest.main()

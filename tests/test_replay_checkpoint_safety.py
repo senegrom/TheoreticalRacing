@@ -4,7 +4,6 @@ import tempfile
 import unittest
 
 from tracks.forensics_common import normalized_sha256, reconstruct_board
-from tracks.policy_matrix import board_at
 
 STARTS = ('player1 name=Driver One kind=AI2 start=1,2\n'
           'player2 name=Driver Two kind=AI2 start=5,2\n')
@@ -37,10 +36,6 @@ class CheckpointReplayTests(unittest.TestCase):
         self.write('# checkpoints enabled\n', MOVES.splitlines(True)[1].replace('2 p2', '1 p2'))
         with self.assertRaisesRegex(ValueError, 'complete=True'):
             reconstruct_board(self.log, 1, 2)
-
-    def test_policy_matrix_rejects_one_lap_checkpoints(self):
-        with self.assertRaisesRegex(ValueError, 'checkpoint'):
-            board_at(self.write('# checkpoints enabled\n'), 3)
 
     def test_historical_log_still_has_complete_replay(self):
         self.write()

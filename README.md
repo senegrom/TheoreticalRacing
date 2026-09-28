@@ -58,19 +58,7 @@ The corpus spans short, long, congested, slow and endgame races, including the L
 
 ## Benchmarks
 
-The AI benchmark suite remains separate from the fast CI tests because the full promotion battery is intentionally expensive.
-
-Build first, then run, for example:
-
-```bash
-sh ./build_main.sh
-python3 tracks/bench_ai.py silverstone monza
-python3 tracks/bench_ai.py --seeds 5 silverstone
-python3 tracks/bench_ai.py --h2h --seeds 5
-python3 tracks/bench_ai.py --4p --seeds 5
-python3 tracks/bench_ai.py --1v1 --seeds 5
-python3 tracks/bench_ai.py --slow --seeds 5
-```
+AI measurement stays out of the fast CI tests because it is expensive. Build first (`sh ./build_main.sh`).
 
 The campaign's primary instrument is the 8-car lap grid: every lap-capable track over a seed range, one JVM per track across a work queue.
 
@@ -85,43 +73,30 @@ Use a separate output directory for each experiment, for example `sh tracks/flee
 
 `RACING_JAR`, `RACING_JAVA`, `RACING_PROPS` and `RACING_HEAP` select the build, JVM, race shape and heap. `RACING_TRACKS` selects a comma/space-separated subset from the tracks beside the selected JAR. `RACING_TIMEOUT` bounds each track batch in seconds (default 3600). Choose concurrency to fit available memory: the default heap is 8 GB **per JVM**, not for the entire work queue.
 
-`tracks/bench_ai.py` creates an isolated temporary properties/log directory, so benchmarks do not mutate a developer's `user.properties`. Use `--seed-start 6 --seeds 5` for seeds 6–10.
-
 Reachability maps are cached on disk per track geometry (the reverse-BFS dominates race startup; seeds only move start placements). The cache lives in `%LOCALAPPDATA%/theoreticRacing/reach_cache` (or `~/.theoreticRacing/reach_cache`), can be overridden with `RACING_REACH_CACHE`, and is always safe to delete — a corrupt or missing file just recomputes. `tracks/verify_reach_cache.sh [track] [seed]` proves the cache is behavior-invisible (byte-identical race logs and reachability dumps, cold vs warm).
 
-Before a large run, locate AI1/AI2 behavior changes cheaply:
+An experiment runs behind `candidateSlots`: the named slots race the candidate
+branch, every other car the champion (the AI1/AI2 labels alone select nothing --
+both run the same policy since round 222). A promotion is measured by place, as
+CLAUDE.md sets out:
 
 ```bash
-python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans hungaroring
+# Mirrored screen: half the field candidate, then the complementary half,
+# on the same tracks and seeds; head_to_head.py scores the pair.
+python3 docs/experiments/duel-lookahead/run_screen.py --jar candidate.jar \
+  --out /tmp/screen --tracks ALL --seeds 1-10 --players 8 --modes legacy
+# Lone-candidate check: one candidate car rotated through every seat.
+python3 docs/experiments/duel-lookahead/run_1vfield.py --jar candidate.jar \
+  --out /tmp/lone --seeds 1-5 --players 8 --mode legacy
 ```
 
-For a promotion candidate, run the manual **AI promotion battery** workflow at
-the revision that implements the experiment behind `candidateSlots`. It runs
-**27 comparisons**: two-, four- and eight-car fields, legacy/computed/scattered
-starts, and independent seed windows 1–5, 6–10 and 11–15. Every comparison uses
-all bundled courses (including slow synthetic courses), `-Xmx8g`, and one JVM
-at a time. Each pair uses the same all-AI1 roster with complementary odd/even
-candidate slots; AI labels alone do **not** enable an experimental policy.
-
-The workflow uploads both runtime profiles, input manifests, complete race logs
-and the validated `head-to-head.txt` finishing-place report. Missing cohorts or
-incomplete/mismatched races fail the job. A green battery means complete evidence,
-not automatic promotion; crashes and summed moves remain descriptive field metrics,
-not vetoes. The historical `bench_ai.py`/`bench_iso.py` label comparisons remain
-available for diagnostics, but are not the candidate-slot promotion battery.
-
-For a bounded local check of the same production runner:
-
-```bash
-python3 tracks/promotion_pair.py --players 2 --start-mode legacy --seeds 1-2 \
-  --heap=-Xmx8g --tracks hairpin circle --out /tmp/racing-candidate-pair
-```
-
-Use a fresh output directory and unset `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS`
-and `_JAVA_OPTIONS`; hidden JVM settings must not change the measured policy.
-Omit `--tracks` for every course. Small local checks are not a full promotion.
-See [workflow review notes](docs/workflow-publication-promotion-review.md),
-[racing-memory.md](racing-memory.md) for the current campaign, and
+Run the screen on random, computed and scattered starts (`--modes legacy informed
+scatter`) and on held-out seeds. The screen's mirrored difference is twice one
+candidate car's shift; its per-car line is the lone-candidate check's unit.
+Crashes and summed moves are descriptive field metrics, never vetoes. Use a
+fresh output directory and unset `JAVA_TOOL_OPTIONS`, `JDK_JAVA_OPTIONS` and
+`_JAVA_OPTIONS`; hidden JVM settings must not change the measured policy. See
+[racing-memory.md](racing-memory.md) for the current campaign and
 [AI_DEVELOPMENT.md](AI_DEVELOPMENT.md) for older-era notes.
 
 ## Performance and memory
@@ -187,7 +162,7 @@ src/tr/gui/           Swing UI and rendering
 tracks/               bundled circuits, generators, benchmark tooling
 tests/tr/logic/       dependency-free regression tests
 tests/ai1_*.py        champion AI regression pins, run by CI on every push
-.github/workflows/    fast CI and the manual promotion battery
+.github/workflows/    fast CI, the browser build and GitHub Pages publication
 racing-memory.md      the AI campaign ledger: rounds, measurements, instruments, frontier
 AI_DEVELOPMENT.md     older-era AI notes (rounds 168-177), kept as history
 BRANCH_ARCHIVE.md     where the deleted development branches stay recoverable

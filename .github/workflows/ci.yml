@@ -29,7 +29,6 @@ jobs:
       - run: sh ./run_tests.sh
       - run: python3 tests/cross_era_referee_regression.py
       - run: sh ./build_main.sh
-      - run: python3 tests/promotion_pair_regression.py
       - run: java -Djava.awt.headless=true -jar theoreticRacing.jar --list-tracks | grep -q '^silverstone$'
 
   frozen-ai2:
@@ -48,7 +47,6 @@ jobs:
       - run: python tests/headless_smoke.py
       - run: python tests/query_replay_regression.py
       - run: python tests/lap_progress_regression.py
-      - run: python tests/selfplay_profile_regression.py
       - run: python tests/golden_races.py
       - name: Run every champion AI regression pin
         shell: bash
@@ -57,12 +55,6 @@ jobs:
             echo "==> $test"
             python "$test"
           done
-      - name: Verify benchmark failures propagate
-        run: |
-          if python tracks/bench_ai.py --seeds 1 definitely-not-a-track; then
-            echo 'benchmark unexpectedly accepted an invalid track' >&2
-            exit 1
-          fi
 
   tooling:
     name: Tooling checks

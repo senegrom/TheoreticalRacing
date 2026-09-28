@@ -80,7 +80,6 @@ class ReleaseGateTests(unittest.TestCase):
                         'python tests/golden_races.py',
                         'for test in tests/ai1_*_regression.py; do',
                         'python "$test"',
-                        'python tracks/bench_ai.py --seeds 1 definitely-not-a-track',
                         "python -m unittest discover -s tests -p 'test_*.py'"]:
             self.assertIn(command, self.ci)
         self.assertGreaterEqual(len(list((ROOT / 'tests').glob('ai1_*_regression.py'))), 22)

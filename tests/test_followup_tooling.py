@@ -9,80 +9,10 @@ import tempfile
 import unittest
 from unittest import mock
 
-from tracks import bench_ai, cross_era, extract_baseline
+from tracks import cross_era
 
 STARTS = [(n, 0) for n in range(1, 9)]
 SLOTS = {0, 2, 4, 6}
-
-
-class UncachedBenchmarkTests(unittest.TestCase):
-    def setUp(self):
-        temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(temporary.cleanup)
-        self.root = Path(temporary.name)
-        self.jar = self.root / 'candidate.jar'
-        self.jar.write_bytes(b'candidate')
-        self.champion = self.root / 'champion' / 'champion.jar'
-        self.champion.parent.mkdir()
-        self.champion.write_bytes(b'champion')
-        self.tracks = []
-        for jar in (self.jar, self.champion):
-            (jar.parent / 'tracks').mkdir()
-            track = jar.parent / 'tracks/example.track'
-            track.write_bytes(b'same course')
-            self.tracks.append(track)
-        for name in ('JAR', 'PROPS', 'LOG', 'SEEDS'):
-            self.addCleanup(setattr, bench_ai, name, getattr(bench_ai, name))
-        bench_ai.configure_runtime(self.root / 'runtime')
-        bench_ai.JAR = str(self.jar)
-        bench_ai.SEEDS = [1]
-        self.saved_props = Path(bench_ai.PROPS).read_bytes()
-        environment = {k: v for k, v in os.environ.items() if not k.startswith('BENCH_')}
-        environment['BENCH_CHAMPION_JAR'] = str(self.champion)
-        patch = mock.patch.dict(os.environ, environment, clear=True)
-        patch.start()
-        self.addCleanup(patch.stop)
-
-    def run_bench(self, effect=None):
-        output, errors = io.StringIO(), io.StringIO()
-        with mock.patch.object(bench_ai, 'run_track', side_effect=effect,
-                               return_value=(7, 0, [10] * 7)) as run, \
-                contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
-            result = bench_ai.bench(['example'])
-        self.assertEqual(self.saved_props, Path(bench_ai.PROPS).read_bytes())
-        self.assertEqual(str(self.jar), bench_ai.JAR)
-        return result, run.call_count, output.getvalue(), errors.getvalue()
-
-    def test_uncached_identical_courses_run_both_binaries(self):
-        seen = []
-        def record(*args, **kwargs):
-            seen.append(bench_ai.JAR)
-            return 7, 0, [10] * 7
-        result, calls, _, _ = self.run_bench(record)
-        self.assertTrue(result)
-        self.assertEqual(2, calls)
-        self.assertEqual([str(self.jar), str(self.champion)], seen)
-
-    def test_uncached_different_courses_fail_before_any_race(self):
-        self.tracks[1].write_bytes(b'different course under the same name')
-        result, calls, output, errors = self.run_bench()
-        self.assertFalse(result)
-        self.assertEqual(0, calls)
-        self.assertEqual('', output)
-        self.assertIn('track data differ', errors)
-
-    def test_uncached_inputs_cannot_change_during_comparison(self):
-        for target in (self.jar, self.champion, *self.tracks, Path(bench_ai.PROPS)):
-            with self.subTest(target=str(target)):
-                original = target.read_bytes()
-                def mutate(*args, **kwargs):
-                    target.write_bytes(target.read_bytes() + b'\nlaps=2\n')
-                    return 7, 0, [10] * 7
-                result, _, output, errors = self.run_bench(mutate)
-                self.assertFalse(result)
-                self.assertNotIn('TOTAL', output)
-                self.assertTrue('changed during' in errors or 'track data differ' in errors)
-                target.write_bytes(original)
 
 
 class ScriptedOracle:
@@ -264,30 +194,6 @@ class CrossEraStartTests(unittest.TestCase):
             self.assertEqual(2, cross_era.main(['example', '1']))
         self.assertEqual('', output.getvalue())
         self.assertIn('Properties file not found', errors.getvalue())
-
-
-class RetiredExtractionTests(unittest.TestCase):
-    def test_old_command_never_creates_or_overwrites_a_cache(self):
-        with tempfile.TemporaryDirectory() as directory:
-            report, out = Path(directory) / 'bench.log', Path(directory) / 'baseline.json'
-            report.write_text('hairpin | 7/0 mv=17.143 | 7/0 mv=17.143\n')
-            for exists in (False, True):
-                if exists:
-                    out.write_text('preserve existing evidence')
-                errors = io.StringIO()
-                with contextlib.redirect_stderr(errors):
-                    self.assertNotEqual(0, extract_baseline.main([str(report), str(out), '2']))
-                self.assertIn('BENCH_BASELINE', errors.getvalue())
-                self.assertIn('retired', errors.getvalue())
-                self.assertEqual(exists, out.exists())
-                if exists:
-                    self.assertEqual('preserve existing evidence', out.read_text())
-
-    def test_process_exit_code_reflects_retirement(self):
-        result = subprocess.run([sys.executable, extract_baseline.__file__, 'unused.log', 'unused.json'],
-                                capture_output=True, text=True, check=False)
-        self.assertEqual(2, result.returncode)
-        self.assertIn('No output was written', result.stderr)
 
 
 if __name__ == '__main__':

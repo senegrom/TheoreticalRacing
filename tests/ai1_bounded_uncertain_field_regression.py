@@ -119,36 +119,6 @@ RETENTION_CASES = {
 }
 
 
-def run_vector_debug_track(track: str, seed: int, timeout: int = 1200):
-    """Run one race with the observational field-vector switch enabled."""
-    log_path = Path(bench_ai.LOG)
-    log_path.unlink(missing_ok=True)
-    command = [
-        "java",
-        "-Djava.awt.headless=true",
-        "-Dai.debug.fieldVector=true",
-        "-jar",
-        bench_ai.JAR,
-        "--auto",
-        "--track",
-        track,
-        "--props",
-        bench_ai.PROPS,
-        "--log",
-        bench_ai.LOG,
-        "--seed",
-        str(seed),
-    ]
-    completed = subprocess.run(
-        command, capture_output=True, text=True, timeout=timeout, check=False
-    )
-    if completed.returncode != 0 or "Aborting" in completed.stdout:
-        if completed.stderr.strip():
-            print(completed.stderr.rstrip(), file=sys.stderr)
-        return None, completed.stderr
-    return bench_ai.parse_race_log(bench_ai.LOG), completed.stderr
-
-
 def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
@@ -167,10 +137,9 @@ def main() -> int:
             bench_ai.set_all_to(kind)
             for track, seed in cases:
                 try:
-                    if (track, seed) in (TARGET, PROOF_VETO):
-                        summary, _ = run_vector_debug_track(track, seed)
-                    else:
-                        summary = bench_ai.run_track(track, timeout=1200, seed=seed)
+                    # The observational field-vector switch these races once ran
+                    # with left the AI in round 280; they are ordinary races.
+                    summary = bench_ai.run_track(track, timeout=1200, seed=seed)
                 except subprocess.TimeoutExpired as error:
                     raise SystemExit(
                         f"bounded uncertain-field {track} seed-{seed} {kind} "

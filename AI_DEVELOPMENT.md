@@ -515,13 +515,10 @@ both AI1 and AI2.
 sh ./run_tests.sh
 sh ./run_golden_tests.sh
 for test in tests/ai1_*_regression.py; do python3 "$test"; done
-python3 tracks/ai_probe.py --allow-divergence --seeds 3 chicane hairpin lemans hungaroring
-python3 tracks/bench_ai.py --seeds 5 lemans monaco hungaroring zandvoort
-python3 tracks/bench_ai.py --h2h --seeds 5
-python3 tracks/bench_ai.py --4p --seeds 5
+sh tracks/fleet_grid.sh 1-10 8 /tmp/fleet-candidate
 ```
 
-The golden corpus always drives **AI2**. Changing a fixture is a champion-promotion action, not routine maintenance. `ai_probe.py` is the go/no-go test: it compares normalized AI1/AI2 move logs and reports the first changed decision, so inert experiments are rejected before expensive benchmarking.
+The golden corpus always drives **AI2**. Changing a fixture is a champion-promotion action, not routine maintenance. An experiment is gated by `candidateSlots`; before screening it, race the arm jar without slots (it must match its base byte for byte) and with every slot a candidate (it must differ somewhere), so an inert arm is caught before expensive measurement. The AI1-vs-AI2 label tools (`ai_probe.py`, the `bench_ai.py` benchmark, `bench_iso.py`) were retired on 2026-09-27: both labels run one policy.
 
 ## Forensic toolchain
 
@@ -535,25 +532,21 @@ Reach dumps named `tracks/reach_*.bin` are ignored by Git. The shared `forensics
 
 - **`oracle_roll.py`** — fidelity ceiling. Drives one interactive `--query-moves - -` JVM. It infers field size from the log; set `RACING_PROPS` to matching properties for non-eight-car analysis. `verify` must reproduce a logged race move-for-move; `cand` rolls each candidate forward with the real scorer as every car's policy.
 - **`board_at.py`** — reconstructs a board at a log move and classifies candidates quickly. The oracle mask remains authoritative for geometry.
-- **`policy_matrix.py`** — evaluates cheap simulated policies against known crash sites before Java implementation.
-- **`crash_scan.py`** — summarizes crashed players and final speeds.
-- **`extract_baseline.py`** — builds `BENCH_BASELINE` caches so candidate benchmarks can skip the champion AI2 control column. Rebuild caches after every promotion.
-- **`bench_iso.py`** — isolated all-AI battery runner, including 4-car and 2-car modes that `bench_ai.py` does not expose as all-AI comparisons. It always starts from canonical `tracks/bench.properties` (or explicit `RACING_PROPS`) and uses process-unique temp files, so concurrent checkouts cannot corrupt each other's evidence.
+- **`needle_audit.py`** — walks a crashed car back to the move that killed it, through the query oracle: its real choice set and the width of the lane it entered at each of its last moves.
 
 `racing-memory.md` keeps the detailed historical campaign record; this file only documents the current workflow.
 
-## Full promotion battery
+## Promotion measurement
 
-The manual **AI promotion battery** runs independent stages for:
-
-- 8-car self-play on seeds 1–5, 6–10 and 11–15
-- 4v4 mixed AI1/AI2 on the same three seed sets
-- 2v2 on seeds 1–5
-- 1v1 on seeds 1–5
-- homogeneous 4-car and 2-car self-play on seeds 1–5
-- slow synthetic tracks on seeds 1–5
-
-Every race must execute and produce a valid log. Promotion still requires reading the reports: aggregate move averages can worsen when a candidate saves a slow back-marker, and small crash differences can be noise.
+A candidate is promoted on places, not summed moves (CLAUDE.md): the mirrored
+screen (`docs/experiments/duel-lookahead/run_screen.py`, scored by
+`tracks/head_to_head.py`) on random, computed and scattered starts and on
+held-out seeds, two-car duels, the lone-candidate check (`run_1vfield.py`), and
+a fleet grid (`tracks/fleet_grid.sh`) in every start mode. The manual GitHub
+promotion workflow and `tracks/promotion_pair.py` were retired on 2026-09-27:
+no promotion since round 237 used them, and they lacked the lone-candidate
+check. Every race must execute and produce a valid log; crashes and summed
+moves remain descriptive.
 
 ## Round 91 promoted: proof-gated stationary launches
 

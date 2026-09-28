@@ -40,7 +40,7 @@ class CompletedLogTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.path = Path(self.tmp.name) / 'race.log'
-        for key in ('JAR', 'PROPS', 'LOG', 'SEEDS'):
+        for key in ('JAR', 'PROPS', 'LOG'):
             self.addCleanup(setattr, bench_ai, key, getattr(bench_ai, key))
 
     def parse(self, text):
@@ -65,25 +65,6 @@ class CompletedLogTests(unittest.TestCase):
         names[1] = 'Driver One'
         self.path.write_text(race_log(names=names), encoding='utf-8')
         self.assertEqual(8, len(head_to_head.read(self.path)[0]))
-
-    def test_incomplete_mixed_benchmark_returns_failure(self):
-        bench_ai.configure_runtime(self.tmp.name)
-        self.addCleanup(setattr, bench_ai, 'SEEDS', bench_ai.SEEDS)
-        jar = Path(self.tmp.name) / 'race.jar'
-        jar.write_bytes(b'fixture binary')
-        (jar.parent / 'tracks').mkdir()
-        (jar.parent / 'tracks/example.track').write_bytes(b'fixture course')
-        bench_ai.JAR = str(jar)
-        races = []
-        def fake_java(command, **kwargs):
-            if '--auto' in command:
-                races.append(command)
-                Path(bench_ai.LOG).write_text('# results\n')
-            return subprocess.CompletedProcess(command, 0, '', '')
-        with mock.patch.object(bench_ai.subprocess, 'run', side_effect=fake_java), \
-                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            self.assertFalse(bench_ai.main(['--h2h', '--seeds', '1', 'example']))
-        self.assertEqual(1, len(races), 'preflight must not hide the incomplete-log assertion')
 
     def test_corrupt_classifications_and_terminal_sequences_are_rejected(self):
         good = race_log()
@@ -252,113 +233,6 @@ class MirroredGridTests(unittest.TestCase):
         self.assertEqual('1,3,5,7', read_properties(a)['candidateSlots'])
         self.assertEqual(comparison_profile(a)['properties'], comparison_profile(b)['properties'])
         self.assertNotEqual(comparison_profile(a)['candidate_slots'], comparison_profile(b)['candidate_slots'])
-
-
-class BaselineCacheTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.root = Path(self.tmp.name)
-        self.jar = self.root / 'candidate.jar'
-        self.jar.write_bytes(b'candidate-v1')
-        (self.root / 'tracks').mkdir()
-        self.track = self.root / 'tracks/example.track'
-        self.track.write_bytes(b'course')
-        self.cache = self.root / 'baseline.json'
-        for key in ('JAR', 'PROPS', 'LOG', 'SEEDS'):
-            self.addCleanup(setattr, bench_ai, key, getattr(bench_ai, key))
-        bench_ai.JAR = str(self.jar)
-        bench_ai.configure_runtime(self.root / 'runtime')
-        bench_ai.SEEDS = [1]
-        env = {k: v for k, v in os.environ.items() if not k.startswith('BENCH_')}
-        env['BENCH_BASELINE'] = str(self.cache)
-        patch = mock.patch.dict(os.environ, env, clear=True)
-        patch.start()
-        self.addCleanup(patch.stop)
-
-    def bench(self, *, failed=False, side_effect=None):
-        with mock.patch.object(bench_ai, 'run_track', return_value=None if failed else (7, 0, [10] * 7),
-                               side_effect=side_effect) as single, \
-                mock.patch.object(bench_ai, 'run_track_batch',
-                                  return_value=None if failed else [(7, 0, [10] * 7)] * len(bench_ai.SEEDS)) as batch, \
-                contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-            status = bench_ai.bench(['example'])
-        return status, single.call_count + batch.call_count
-
-    def test_identical_experiment_reuses_only_the_champion_column(self):
-        self.assertEqual((True, 2), self.bench())
-        self.assertEqual((True, 1), self.bench())
-
-    def test_five_seed_baseline_rejects_one_seed_and_shifted_windows(self):
-        bench_ai.SEEDS = [1, 2, 3, 4, 5]
-        self.assertTrue(self.bench()[0])
-        self.assertEqual(35, json.loads(self.cache.read_text())['rows']['example'][0])
-        for seeds in ([1], [6, 7, 8, 9, 10]):
-            bench_ai.SEEDS = seeds
-            self.assertEqual((False, 0), self.bench())
-
-    def test_changed_properties_binary_tracks_and_legacy_cache_are_rejected(self):
-        self.assertTrue(self.bench()[0])
-        for path in (Path(bench_ai.PROPS), self.jar, self.track):
-            with self.subTest(path=path.name):
-                original = path.read_bytes()
-                path.write_bytes(original + b'\nlaps=2\n')
-                self.assertEqual((False, 0), self.bench())
-                path.write_bytes(original)
-        self.cache.write_text(json.dumps({'example': [7, 0, 10]}))
-        self.assertEqual((False, 0), self.bench())
-
-    def test_frozen_champion_survives_candidate_rebuild_and_is_actually_executed(self):
-        frozen = self.root / 'frozen.jar'
-        frozen.write_bytes(b'champion')
-        with mock.patch.dict(os.environ, {'BENCH_CHAMPION_JAR': str(frozen)}):
-            observed = []
-            def run(*args, **kwargs):
-                observed.append(bench_ai.JAR)
-                return 7, 0, [10] * 7
-            self.assertTrue(self.bench(side_effect=run)[0])
-            self.assertEqual([str(self.jar), str(frozen)], observed)
-            self.jar.write_bytes(b'candidate-v2')
-            self.assertEqual((True, 1), self.bench())
-            frozen.write_bytes(b'different champion')
-            self.assertEqual((False, 0), self.bench())
-
-    def test_failed_or_mutating_runs_never_publish_a_baseline(self):
-        original = Path(bench_ai.PROPS).read_bytes()
-        self.assertFalse(self.bench(failed=True)[0])
-        self.assertFalse(self.cache.exists())
-        def mutate(*args, **kwargs):
-            self.track.write_bytes(self.track.read_bytes() + b'changed')
-            return 7, 0, [10] * 7
-        self.assertFalse(self.bench(side_effect=mutate)[0])
-        self.assertFalse(self.cache.exists())
-        self.assertEqual(original, Path(bench_ai.PROPS).read_bytes())
-
-    def test_corrupt_results_and_nonfinite_metrics_are_rejected(self):
-        self.assertTrue(self.bench()[0])
-        saved = self.cache.read_text()
-        for row in (None, [7, 0, float('nan')], [True, 0, 10], [7, -1, 10], [8, 0, 10]):
-            with self.subTest(row=row):
-                import hashlib
-                data = json.loads(saved)
-                data['rows']['example'] = row
-                data['rows_sha256'] = hashlib.sha256(fleet_grid.json_text(data['rows']).encode()).hexdigest()
-                self.cache.write_text(json.dumps(data))
-                self.assertEqual((False, 0), self.bench())
-        data = json.loads(saved)
-        data['rows']['example'][2] = 5  # plausible corruption still fails the digest
-        self.cache.write_text(json.dumps(data))
-        self.assertEqual((False, 0), self.bench())
-
-    def test_frozen_champion_does_not_hide_a_candidate_mutating_mid_run(self):
-        frozen = self.root / 'frozen.jar'
-        frozen.write_bytes(b'champion')
-        def mutate(*args, **kwargs):
-            self.jar.write_bytes(self.jar.read_bytes() + b'changed')
-            return 7, 0, [10] * 7
-        with mock.patch.dict(os.environ, {'BENCH_CHAMPION_JAR': str(frozen)}):
-            self.assertFalse(self.bench(side_effect=mutate)[0])
-            self.assertFalse(self.cache.exists())
 
 
 if __name__ == '__main__':
