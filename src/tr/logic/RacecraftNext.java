@@ -41,6 +41,11 @@ final class RacecraftNext {
         return game.candidatePolicy(player) && features.contains(feature)
                 && (feature != Feature.OPENING || openingTrials > 0);
     }
+    boolean driving(final RaceGame game, final int player) {
+        return enabled(game, player, Feature.CRASH_RANK) || enabled(game, player, Feature.RANK_TIME)
+                || enabled(game, player, Feature.OPENING);
+    }
+
     String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials; }
 
     boolean any(final RaceGame game, final int player) {

@@ -1,5 +1,45 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Branch research: outcome ranks, opening plans and counterfactual corpus (2026-09-28)
+
+Owner request: implement review ideas 1, 2, 4 and 6 on a branch; examine 3
+critically. Branch `work/racecraft-outcomes-opening-20260928`, pinned base
+`955001104bbe315cf9b82a1cd2dfb447beddd211`. No champion promotion. The
+independent queued master arms (291/293/294/295) are not silently imported.
+
+Implemented behind `candidateSlots` AND `racecraftNext` feature flags:
+`crash-rank` preserves retirement order only when every considered action
+forecasts a known crash; unknown is not a crash. `rank-time` carries own
+elapsed moves and remaining moves separately, compares confirmed rescue
+outcomes by place/time rather than speed, and keeps finish/survival tests
+explicit. `opening` searches bounded first/second action pairs in the first
+four roster rounds; the observed board is replanned next turn and downstream
+pace/guards retain authority. `start-ties` compares at most four solo-equal
+cells for the final AI placer, with every other placement already observed;
+it does not alter the later driving policy. New driving arms respect the
+canonical 20-cell solo gate. Default flags are empty.
+
+Item 3 is an offline, shadow-only interaction diagnostic, not a live subset
+selector or extra caution penalty: conservative pre/post-action envelopes,
+including possible indirect blockers via two-hop links. No pruning guarantee
+or opponent coalition is claimed. See the branch design for why breadth
+should remain the measured baseline until subset selection earns its cost.
+
+Item 6: explicit rc3 snapshots (including exact left-grid and classification
+ledgers), bounded cf3 complete referee tails for every legal first action,
+actual-action replay validation, input hashes and place-regret diagnoses.
+Unknown/incomplete tails are never training labels. Human-roster continuation
+models and learned policies are not invented. Existing V2 stays unchanged.
+
+The initial JDK 25 build, original Java/Python contracts and new crash-rank,
+finish-time, opening-budget, placement-isolation and actual-referee replay
+contracts passed in the tested integration d39701b. The first replay test
+caught and fixed a last-survivor counter mismatch rather than changing the
+expected referee behavior. Expanded CLI/default-identity and corpus checks
+are separate; their executed results belong in the experiment validation
+record. No new mirrored fleet, lone-candidate place gain or CPU speedup is
+claimed. Master, physics, maps, tracks, goldens and user.properties unchanged.
+
 ## Rounds 281-295 (in progress, 2026-09-28): the reviews' AI bugs and the racecraft arms
 
 Every arm is candidate-gated against its base and identity-checked first

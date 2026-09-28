@@ -112,6 +112,8 @@ def influence_diagnostic(snapshot: str, horizon: int = 3) -> dict:
 def analyze(case: dict, answer: dict) -> dict:
     if answer.get('schema') != 3 or answer.get('baseline') != case['actual']:
         raise ValueError('counterfactual response does not match its captured decision')
+    if answer.get('rootIdentity') != board(case['snapshot'])[0][6]:
+        raise ValueError('counterfactual board identity mismatch')
     trials = answer.get('trials', [])
     actions = [t.get('action') for t in trials]
     if not trials or len(set(actions)) != len(actions) or any(a not in DIRECTIONS for a in actions):

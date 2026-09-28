@@ -66,6 +66,12 @@ class CorpusTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             corpus.analyze(case(), response)
 
+    def test_wrong_root(self):
+        response = self.response(trial('E', 1, 7))
+        response['rootIdentity'] = 'another-board'
+        with self.assertRaises(ValueError):
+            corpus.analyze(case(), response)
+
     def test_shortlist_not_forecast_error(self):
         value = corpus.analyze(case(), self.response(trial('E', 3, 7), trial('SE', 1, 9)))
         self.assertEqual(value['diagnosis'], 'shortlist-exclusion')

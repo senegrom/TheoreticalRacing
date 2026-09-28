@@ -567,7 +567,7 @@ final class RaceAi {
 		prepareDecisionFrame(pos, vel, playerNum);
         // Candidate experiments obey the literal solo rule even before a duel tactic.
         // The equivalent master rule correction is independently queued as round 294.
-        if (game.racecraftNext.any(game, playerNum)
+        if (game.racecraftNext.driving(game, playerNum)
                 && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
             final Direction solo = optimalAloneMove(pos, vel, playerNum);
             if (solo != null) return solo;
@@ -3362,6 +3362,11 @@ final class RaceAi {
             w.researchOutcome = new RacecraftOutcome(status, ahead, w.researchOwnMoves, remaining);
     }
 
+    private boolean researchSurvives(final int legacy) {
+        return !lastResearchRankTime ? legacy >= 0 : lastResearchOutcome != null
+                && lastResearchOutcome.known() && !lastResearchOutcome.crashed();
+    }
+
     private boolean researchFinishes(final int legacy) {
         return !lastResearchRankTime || lastResearchOutcome == null ? legacy >= 0 && legacy % VERDICT_PLACE_STRIDE == 0
                 : lastResearchOutcome.successful();
@@ -3507,7 +3512,7 @@ final class RaceAi {
 		workspace.turns = game.turnCount();
         workspace.researchOutcome = null;
         workspace.researchOwnMoves = candidatePending ? 1 : 0;
-        workspace.researchDetail = game.racecraftNext.any(game, playerNum)
+        workspace.researchDetail = game.racecraftNext.driving(game, playerNum)
                 || game.racecraftNext.capture || simDepth == researchDemandDepth;
 		java.util.Arrays.fill(scorerSet, false);
 		if (outRivalCost != null) {
@@ -4217,15 +4222,15 @@ final class RaceAi {
 				trueConfirmDepth++;
 				final boolean survives;
 				try {
-					survives = simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
+					survives = researchSurvives(simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
 							AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals, true,
 							scorerSelf, false, Math.max(scorerCap, AI1_DEEP_CERT_RIVALS),
-							null, null, null) >= 0
-							&& simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
+							null, null, null))
+							&& researchSurvives(simOutcome(pos[0] + ncvx, pos[1] + ncvy, ncvx, ncvy, playerNum,
 									AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish, exactSelf,
 									exactRivals, true, scorerSelf, true,
 									Math.max(scorerCap, AI1_DEEP_CERT_RIVALS),
-									null, null, null) >= 0;
+									null, null, null));
 				} finally {
 					trueConfirmDepth--;
 				}
@@ -4666,7 +4671,7 @@ final class RaceAi {
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			// A crossing is already decided by the precedence rules above.
             if (game.crossesFinishLegally(pos[0], pos[1], nx, ny)) {
-                if (!game.racecraftNext.any(game, playerNum)) return best;
+                if (!game.racecraftNext.driving(game, playerNum)) return best;
                 final Player me = game.players[game.subgamestate];
                 if (game.evaluateMove(me, pos, new int[]{nx, ny}).finishes()) return d;
                 // Nonterminal crossings are ordinary candidates, never an abort.
