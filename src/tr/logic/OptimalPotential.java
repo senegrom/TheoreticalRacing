@@ -85,16 +85,11 @@ final class OptimalPotential {
 	/**
 	 * Build the potential, or return null when the board is too large for the
 	 * byte budget (the Nordschleife's 89M states would need 1.6 GB, and it is
-	 * already within about a percent of optimal).
+	 * already within about a percent of optimal). The retained-distance limit
+	 * and the total construction limit are separate: production keeps the
+	 * historical distance-map eligibility while reserving additional, bounded
+	 * room for the pending FIFO; tests pass one limit twice.
 	 */
-	static OptimalPotential build(final RaceGame game, final int totalLaps, final long budgetBytes) {
-		return build(game, totalLaps, budgetBytes, budgetBytes);
-	}
-
-	/** The retained-distance limit and total construction limit are separate:
-	 * production keeps the historical distance-map eligibility while reserving
-	 * additional, bounded room for the pending FIFO. Tests may pass one shared
-	 * limit through the three-argument overload above. */
 	static OptimalPotential build(final RaceGame game, final int totalLaps,
 			final long distanceBudgetBytes, final long totalBudgetBytes) {
 		if (game.lapGates == null)

@@ -85,9 +85,9 @@ final class FollowupRuleTests {
 
     private static void testCombinedEvents() {
         final RaceGame g = corridor(8, 7, 5, 6);
-        final OptimalPotential pot = OptimalPotential.build(g, 1, 16L << 20);
+        final OptimalPotential pot = OptimalPotential.build(g, 1, 16L << 20, 16L << 20);
         check(pot != null, "small potential was skipped");
-        check(OptimalPotential.build(g, 1, pot.retainedBytes() + 1024) == null,
+        check(OptimalPotential.build(g, 1, pot.retainedBytes() + 1024, pot.retainedBytes() + 1024) == null,
                 "potential ignored construction/frontier memory budget");
         for (final int gate : new int[]{1, 2, 0}) {
             final int remaining = OptimalPotential.remainingEvents(gate, 0, 1);
@@ -101,7 +101,7 @@ final class FollowupRuleTests {
         }
         for (final int laps : new int[]{1, 2}) {
             g.totalLaps = laps;
-            final OptimalPotential multi = OptimalPotential.build(g, laps, 16L << 20);
+            final OptimalPotential multi = OptimalPotential.build(g, laps, 16L << 20, 16L << 20);
             check(multi != null, "small multi-lap potential was skipped");
             for (final int start : new int[]{3, 4, 5}) {
                 final int expected = referenceBfs(g, start, 2);
@@ -115,7 +115,7 @@ final class FollowupRuleTests {
 
     private static void testTerminalGridExit() {
         final RaceGame g = corridor(10, 10, 3, 5);
-        final OptimalPotential pot = OptimalPotential.build(g, 1, 16L << 20);
+        final OptimalPotential pot = OptimalPotential.build(g, 1, 16L << 20, 16L << 20);
         check(pot != null, "small potential was skipped");
         check(g.evaluateMove(0, 0, 9, 2, 13, 2, false).finishes(), "post-line exit should finish");
         check(pot.movesToFinish(1, 9, 2, 4, 0) == 1, "out-of-grid terminal seed was dropped");
@@ -146,7 +146,7 @@ final class FollowupRuleTests {
             check(result.legal() && result.passCp2() && !result.finishes() && result.gateAfter() == 0,
                     "finish crossed before the owed checkpoints ended the race");
         }
-        final OptimalPotential potential = OptimalPotential.build(finishFirst, 1, 16L << 20);
+        final OptimalPotential potential = OptimalPotential.build(finishFirst, 1, 16L << 20, 16L << 20);
         check(potential != null, "small ordered-gate potential was skipped");
         final int expected = referenceBfs(finishFirst, 2, 2);
         check(expected > 0 && OptimalLap.solve(finishFirst, 2, 2, 1) == expected,
@@ -218,7 +218,7 @@ final class FollowupRuleTests {
             for (int y = 0; y <= g.gameRows; y++)
                 check(g.trackA.contains(x, y) == corridor.contains(x * RaceUI.GRID_DIST, y * RaceUI.GRID_DIST),
                         "painted corridor differs from referee at " + x + "," + y);
-        final OptimalPotential pot = OptimalPotential.build(g, 1, 32L << 20);
+        final OptimalPotential pot = OptimalPotential.build(g, 1, 32L << 20, 32L << 20);
         check(g.evaluateMove(0, 2, 12, 2, 21, 2, false).finishes(), "actual CP2/SF fixture does not finish");
         check(pot != null && pot.movesToFinish(2, 12, 2, 9, 0) == 1,
                 "auto-generated CP2/SF crossing is not a one-move optimum");

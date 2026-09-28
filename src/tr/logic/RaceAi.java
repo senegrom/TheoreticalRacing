@@ -158,18 +158,16 @@ final class RaceAi {
 		}
 	}
 
+	/** Each opponent's predicted next cell, and those cells as an occupancy. */
 	private static final class PredictionWorkspace {
-		final int[][][] result;
-		final int[][][] cells;
-		final CellOccupancy[] occupancy;
+		final int[][] result;
+		final int[][] cells;
+		final CellOccupancy occupancy;
 
-		PredictionWorkspace(final int steps, final int players,
-				final int width, final int height) {
-			result = new int[steps][players][];
-			cells = new int[steps][players][2];
-			occupancy = new CellOccupancy[steps];
-			for (int step = 0; step < steps; step++)
-				occupancy[step] = new CellOccupancy(width, height);
+		PredictionWorkspace(final int players, final int width, final int height) {
+			result = new int[players][];
+			cells = new int[players][2];
+			occupancy = new CellOccupancy(width, height);
 		}
 	}
 
@@ -613,7 +611,7 @@ final class RaceAi {
 		// thresholds crashed 1 h2h game). Pinches keep full caution.
 		int poBestT = Integer.MAX_VALUE, poScorerT = Integer.MAX_VALUE;
 		Direction poDir = null;
-		final int[][][] predictedSteps = predictedOpponentSteps(playerNum, 1);
+		final int[][] predictedCells = predictedOpponentCells(playerNum);
 		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
 		// moved through/off its predicted cell by the time I could occupy it --
 		// blocking those cells causes phantom detours. Null out transiting
@@ -623,11 +621,10 @@ final class RaceAi {
 				continue;
 			final int[] pv = p.getVelocity();
 			if (speedSquared(pv[0], pv[1]) >= AI1_VACATE_SPEED2)
-				predictedSteps[0][p.getNumber() - 1] = null;
+				predictedCells[p.getNumber() - 1] = null;
 		}
-		for (int step = 0; step < predictedSteps.length; step++)
-			predictionWorkspace.occupancy[step].rebuild(predictedSteps[step]);
-		final CellOccupancy predictedOccupancy = predictionWorkspace.occupancy[0];
+		predictionWorkspace.occupancy.rebuild(predictedCells);
+		final CellOccupancy predictedOccupancy = predictionWorkspace.occupancy;
 		// Exact nested-scorer fast path. With the mover absent, record the
 		// reference first-round landings once. If a candidate landing is not one
 		// of those cells, adding it as a blocker cannot change the first mover;
@@ -2862,42 +2859,32 @@ final class RaceAi {
 	}
 
 	/**
-	 * Project each live opponent forward {@code steps} of their own moves using
-	 * the pure min-turns policy. {@code result[k][opponentIdx]} is that
-	 * opponent's position after {@code k+1} moves (null if it can't be
-	 * projected that far).
+	 * Project each live opponent one move with the pure min-turns policy:
+	 * {@code result[opponentIdx]} is its next cell, or null when it has none.
+	 * One move since round 247 (a one-level lookahead); the multi-step
+	 * generality had no caller (review, 2026-09-28).
 	 */
-	private int[][][] predictedOpponentSteps(final int myPlayerNum, final int steps) {
-		final int projectionSteps = Math.max(1, steps);
-		if (predictionWorkspace == null || predictionWorkspace.result.length != projectionSteps
-				|| predictionWorkspace.result[0].length != game.players.length)
-			predictionWorkspace = new PredictionWorkspace(projectionSteps, game.players.length,
+	private int[][] predictedOpponentCells(final int myPlayerNum) {
+		if (predictionWorkspace == null || predictionWorkspace.result.length != game.players.length)
+			predictionWorkspace = new PredictionWorkspace(game.players.length,
 					game.gameCols + 1, game.gameRows + 1);
-		for (final int[][] step : predictionWorkspace.result)
-			java.util.Arrays.fill(step, null);
+		java.util.Arrays.fill(predictionWorkspace.result, null);
 		for (final Player player : game.players) {
 			if (player.getNumber() == myPlayerNum || player.isFinished())
 				continue;
-			int px = player.getPosition()[0], py = player.getPosition()[1];
-			int pvx = player.getVelocity()[0], pvy = player.getVelocity()[1];
-			final int playerIndex = player.getNumber() - 1;
-			for (int step = 0; step < steps; step++) {
-				final Direction direction = pureMinTurnsMove(px, py, pvx, pvy, player.getNumber());
-				if (direction == null)
-					break;
-				final int nvx = pvx + direction.dx;
-				final int nvy = pvy + direction.dy;
-				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-					break;
-				px += nvx;
-				py += nvy;
-				pvx = nvx;
-				pvy = nvy;
-				final int[] cell = predictionWorkspace.cells[step][playerIndex];
-				cell[0] = px;
-				cell[1] = py;
-				predictionWorkspace.result[step][playerIndex] = cell;
-			}
+			final int px = player.getPosition()[0], py = player.getPosition()[1];
+			final int pvx = player.getVelocity()[0], pvy = player.getVelocity()[1];
+			final Direction direction = pureMinTurnsMove(px, py, pvx, pvy, player.getNumber());
+			if (direction == null)
+				continue;
+			final int nvx = pvx + direction.dx;
+			final int nvy = pvy + direction.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			final int[] cell = predictionWorkspace.cells[player.getNumber() - 1];
+			cell[0] = px + nvx;
+			cell[1] = py + nvy;
+			predictionWorkspace.result[player.getNumber() - 1] = cell;
 		}
 		return predictionWorkspace.result;
 	}
@@ -3923,37 +3910,29 @@ final class RaceAi {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
 								confirmCap, null, null, null) < 0;
-					} else if (legHoldV || legHold11) {
-						final long hvKey = ((long) playerNum << 40) | reach.aliveIdx(cx, cy, cvx, cvy);
-						final int hvSlot = (int) (hvKey * 0x9E3779B97F4A7C15L >>> 52);
-						if (holdVMemoEpochs[hvSlot] == fmMemoEpoch && holdVMemoKeys[hvSlot] == hvKey) {
-							trueDead = holdVMemoVals[hvSlot] != 0;
-						} else {
-							if (legHoldV) {
-								trueDead = simOutcome(cx, cy, cvx, cvy, playerNum,
-										AI1_DJS_SLOW_ROUNDS, simFinishVanish, exactSelf,
-										exactRivals, true, scorerSelf, false,
-										AI1_SCORER_MAXRIVALS, null, null, null) < 0;
-							} else {
-								final int[] h11Tr = { 0, 0 };
-								simOutcome(cx, cy, cvx, cvy, playerNum,
-										AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
-										true, scorerSelf, false, confirmCap, null, null, h11Tr);
-								// Round 177: the s8 verdict is ignored entirely (both
-								// worlds false-kill the round-93 pin fire, thread=1);
-								// the THREAD level is the separator -- pin 1, the
-								// lobe5 siblings 3 and 4, canon 279x0/3x1 -- so the
-								// true-4 verdict runs at thread >= 2.
-								trueDead = h11Tr[0] >= 2
-										&& simOutcome(cx, cy, cvx, cvy, playerNum,
-												AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish,
-												exactSelf, exactRivals, true, scorerSelf, true,
-												confirmCap, null, null, null) < 0;
-							}
-							holdVMemoKeys[hvSlot] = hvKey;
-							holdVMemoVals[hvSlot] = (byte) (trueDead ? 1 : 0);
-							holdVMemoEpochs[hvSlot] = fmMemoEpoch;
-						}
+					} else if (legHoldV) {
+						// Its round-175 verdict memo never hit: every nested compute bumps the
+						// epoch before a repeat (0 hits in 497 lookups on four fast courses;
+						// review, 2026-09-28).
+						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum,
+								AI1_DJS_SLOW_ROUNDS, simFinishVanish, exactSelf,
+								exactRivals, true, scorerSelf, false,
+								AI1_SCORER_MAXRIVALS, null, null, null) < 0;
+					} else if (legHold11) {
+						final int[] h11Tr = { 0, 0 };
+						simOutcome(cx, cy, cvx, cvy, playerNum,
+								AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
+								true, scorerSelf, false, confirmCap, null, null, h11Tr);
+						// Round 177: the s8 verdict is ignored entirely (both
+						// worlds false-kill the round-93 pin fire, thread=1);
+						// the THREAD level is the separator -- pin 1, the
+						// lobe5 siblings 3 and 4, canon 279x0/3x1 -- so the
+						// true-4 verdict runs at thread >= 2.
+						trueDead = h11Tr[0] >= 2
+								&& simOutcome(cx, cy, cvx, cvy, playerNum,
+										AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish,
+										exactSelf, exactRivals, true, scorerSelf, true,
+										confirmCap, null, null, null) < 0;
 					} else if (legPair && !legCorr && !legSlow && !legDeep) {
 						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, rounds,
 								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
@@ -4438,7 +4417,7 @@ final class RaceAi {
 				return 9;
 			if (!game.aiMoveLegal(x, y, nx, ny))
 				continue;
-			if (reach.isAlive(nx, ny, nvx, nvy) && isRoomy(nx, ny, nvx, nvy, 0))
+			if (reach.isAlive(nx, ny, nvx, nvy) && isRoomy(nx, ny, nvx, nvy))
 				count++;
 		}
 		return count;
@@ -5192,16 +5171,6 @@ final class RaceAi {
 	private final int[] fmMemoEpochs = new int[1 << FM_MEMO_BITS];
 	private int fmMemoEpoch;
 
-	/** Round 175: pooled verdict memo for the hold-overspeed cheap-world
-	 *  check. The same (landing, velocity) state re-fires across nested
-	 *  rival computes many times per turn on speed-10-native tracks; the
-	 *  verdict is deterministic per epoch, so a hit skips the whole sim.
-	 *  Epochs ride the mobility epoch (bumped per search build) -- staler
-	 *  entries only recompute, never mislead. */
-	private final long[] holdVMemoKeys = new long[1 << 12];
-	private final byte[] holdVMemoVals = new byte[1 << 12];
-	private final int[] holdVMemoEpochs = new int[1 << 12];
-
 	private static int fmMemoSlot(final long key) {
 		return (int) (key * 0x9E3779B97F4A7C15L >>> 64 - FM_MEMO_BITS);
 	}
@@ -5357,50 +5326,19 @@ final class RaceAi {
 		return writeMove(out, x1, y1, vx1, vy1) ? count : -1;
 	}
 
-	/** True iff (x,y,vx,vy) has at least two one-step continuations that are
-	 *  geometry-legal, alive and -- for depth > 0 -- themselves recursively
-	 *  roomy. Finish-crossings count unconditionally. Distinguishes genuinely
-	 *  open road from alive-but-knife-edge single-file threads. */
-	private boolean isRoomy(final int x, final int y, final int vx, final int vy, final int depth) {
-		// O(1) fast path via the maps precomputed in computeReachability()
-		// (always ready in practice: reach.ensureReachabilityReady() runs before any
-		// AI move). States outside the precomputed space fall through to the
-		// recursive body, which states the same rule (its in-range sub-calls
-		// hit the maps). Round 222: the body used to carry a lap-aware
-		// crossing rule -- a crossing is an out only when it finishes, or
-		// scores a lap onto a shedable landing -- that no reachable state
-		// ever ran, because the map answered first. Built as frame-specific
-		// maps and raced on the fleet it was inert (crashes 0 -> 0, +78 moves
-		// in 1854172, 708 of 730 races identical, fractal18 slower on seven of
-		// ten seeds), so the map's rule is the rule: a legal forward crossing
-		// counts as an out in every lap frame.
-		final BitSet roomyMap = depth == 0 ? reach.roomy0 : depth == 1 ? reach.roomy1 : null;
-		if (roomyMap != null && !reach.velocityOutOfRange(vx, vy) && x >= 0 && y >= 0 && x < reach.aliveW
-				&& y < reach.aliveH)
-			return roomyMap.get(reach.aliveIdx(x, y, vx, vy));
-		int count = 0;
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx;
-			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-				continue;
-			final int nx = x + nvx;
-			final int ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny)) {
-				count++;
-			} else {
-				if (!game.aiMoveLegal(x, y, nx, ny))
-					continue;
-				if (!reach.isAlive(nx, ny, nvx, nvy))
-					continue;
-				if (depth > 0 && !isRoomy(nx, ny, nvx, nvy, depth - 1))
-					continue;
-				count++;
-			}
-			if (count >= 2)
-				return true;
-		}
-		return false;
+	/** True iff the ALIVE state (x,y,vx,vy) has at least two one-step
+	 *  continuations that are geometry-legal and alive (a legal forward crossing
+	 *  counts): genuinely open road, not a knife-edge single-file thread. The
+	 *  precomputed roomy map answers every alive state (Reachability.sweepRoomy);
+	 *  the recursive fallback and the depth-1 map had no caller (review,
+	 *  2026-09-28). */
+	private boolean isRoomy(final int x, final int y, final int vx, final int vy) {
+		// Round 222: the body once carried a lap-aware crossing rule no reachable
+		// state ever ran (the map answered first); raced as frame-specific maps it
+		// was inert, so the map's rule is the rule. Without maps every state is
+		// alive (Reachability.isAlive) and every alive state roomy.
+		final BitSet roomy = reach.roomy0;
+		return roomy == null || roomy.get(reach.aliveIdx(x, y, vx, vy));
 	}
 
 }

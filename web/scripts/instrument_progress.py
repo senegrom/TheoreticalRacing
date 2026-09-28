@@ -23,17 +23,16 @@ def instrument(source: str) -> str:
         ('\tboolean tryLoadReachabilityCache() {', 'Checking saved track maps', 3),
         ('\tvoid computeReachability() {', 'Scanning finish approaches', 4),
         ('\tshort[] buildLegalAliveMask(final int total) {', 'Checking safe continuations', 5),
-        ('\tvoid sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {', 'Building manoeuvring maps', 5),
+        ('\tvoid sweepRoomy(final short[] legalAlive, final BitSet out) {', 'Building manoeuvring maps', 5),
         ('\tbyte[] initMinShed(final int total) {', 'Preparing braking maps', 5),
-        ('\tbyte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {', 'Computing braking maps', 5),
-        ('\tbyte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {', 'Certifying speed maps', 5),
+        ('\tbyte[] relaxMinShed(final byte[] in, final short[] legalAlive) {', 'Computing braking maps', 5),
         ('\tprivate void saveDerived() {', 'Saving computed maps', 5),
         ('\tvoid computeGateMaps(final java.awt.geom.Line2D[] gates) {', 'Resolving lap checkpoints', 6),
     ]:
         after(anchor, f'begin("{label}", {stage});')
     after('\tprivate boolean tryLoadDerived() {', 'begin("Loading saved driving maps", 5);')
     after('\t\taliveStates = alive;', 'reused();')
-    after('\t\tminShed2 = m.baseShed2; minShed2Roomy = m.baseShed2Roomy; certSq = m.baseCert;', 'reused();')
+    after('\t\tminShed2 = m.baseShed2;', 'reused();')
     # The daemon's finally: the point memo is also dropped between phases.
     after('\t\t\t} finally {\n\t\t\t\tgame.clearPointContainmentCacheForCurrentThread();',
           'if (reachabilityFailure == null) tr.browser.Progress.complete();', expression=True)
@@ -42,8 +41,10 @@ def instrument(source: str) -> str:
     after('\t\t\tfinal BitSet nextRobust, final int[] scratch, final byte[] arrivals) {',
           'begin(gate == 0 ? "Lap safety at finish" : "Lap safety at checkpoint " + gate, 7);')
     after('\t\tfor (int x = 0; x < aliveW; x++) {', 'scan(x, aliveW);', 3)
+    # Four alive-state sweeps: legal mask, roomy, and the two shed relaxations
+    # (the certified-speed sweep went with its map, 2026-09-28).
     after('\t\tfor (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {',
-          'scan(idx, turnsArr.length);', 5)
+          'scan(idx, turnsArr.length);', 4)
     # Unknown-length BFS: show explored states and an indeterminate bar.
     anchor = '\t\twhile (!queue.isEmpty()) {'
     if result.count(anchor) != 4:

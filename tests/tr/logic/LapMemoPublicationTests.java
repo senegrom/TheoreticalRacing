@@ -120,8 +120,8 @@ public final class LapMemoPublicationTests {
             reach.aliveW = reach.aliveH = reach.aliveSpan = 1;
             reach.turnsArr = new int[]{0};
             reach.aliveStates = new BitSet(1); reach.aliveStates.set(0);
-            reach.roomy0 = new BitSet(1); reach.roomy1 = new BitSet(1);
-            reach.minShed2 = new byte[]{0}; reach.minShed2Roomy = new byte[]{0}; reach.certSq = new byte[]{36};
+            reach.roomy0 = new BitSet(1);
+            reach.minShed2 = new byte[]{0};
         }
         public static void main(final String[] args) throws Exception {
             final Path go = Path.of(args[0]);
@@ -156,14 +156,12 @@ public final class LapMemoPublicationTests {
             reading.start(); writing.start(); reading.join(); writing.join();
             if (failure.get() != null) throw new AssertionError("publication schedule failed", failure.get());
             check(Boolean.TRUE.equals(invoke(reader, "adoptLapMemo")), "complete lap memo missing");
-            for (final String name : new String[]{"gateTurns", "robustReach", "aliveStates", "roomy0", "roomy1",
-                    "minShed2", "minShed2Roomy", "certSq"}) {
+            for (final String name : new String[]{"gateTurns", "robustReach", "aliveStates", "roomy0", "minShed2"}) {
                 final Field field = Reachability.class.getDeclaredField(name);
                 field.setAccessible(true);
                 check(field.get(reader) == field.get(publisher), "partial lap field: " + name);
             }
             check(fallback.getBoolean(reader) && phantom.getInt(reader) == 17, "lap diagnostics lost");
-            check(reader.certBudget(0, 0, 0, 0) == 6, "certified speed changed");
             check(reader.shedableLanding(0, 0, 0, 0), "shedable landing changed");
             final long before = Reachability.reachMemoBytesForTests();
             invoke(publisher, "publishLapMemo");

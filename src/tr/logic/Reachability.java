@@ -160,25 +160,15 @@ final class Reachability {
 	/** Round 209 diagnostics: finish-closure alive states dropped as phantom. */
 	int phantomAlive;
 	int		aliveW, aliveH, aliveVMAX, aliveSpan;
-	/** Precomputed {@link #isRoomy} (depth 0 / depth 1) over all alive states;
-	 *  non-alive states stay unset (isRoomy is false there — they can have
-	 *  neither legal alive successors nor finish crossings). */
-	BitSet	roomy0, roomy1;
-	/** Precomputed minimum |v|^2 over all states reachable in <= 2 braking
-	 *  moves (legal edges, alive landings; the Roomy variant additionally
-	 *  requires roomy1 landings). Unsigned bytes, clamped to 255. Together
-	 *  they answer {@link #canShedSpeed}(..., depth=2, ...) in O(1). */
-	byte[]	minShed2, minShed2Roomy;
-	/** Per-state certified speed budget, squared (unsigned bytes; 255 =
-	 *  uncertified / non-alive): the SECOND-smallest entry of the multiset
-	 *  {state's own |v|^2} plus {minShed2 of every qualifying braking
-	 *  successor} -- i.e. the minimal T^2 such that at least two independent
-	 *  blind braking descents reach |v| <= T within the
-	 *  {@link #countBrakeProofs} horizon. Built by {@link #sweepCertSq}. No AI
-	 *  decision reads it since the old AI2 left (only the tests, through
-	 *  {@link #certBudget}), nor minShed2Roomy: both stay because the .derived
-	 *  cache format and the reachability memo carry them (review, 2026-09-26). */
-	byte[]	certSq;
+	/** Every alive state with at least two legal alive continuations (a legal
+	 *  forward crossing counts): RaceAi's isRoomy. Non-alive states stay unset. */
+	BitSet	roomy0;
+	/** Minimum |v|^2 reachable in <= 2 braking moves (legal edges, alive
+	 *  landings), unsigned bytes clamped to 255: shedableLanding in O(1). The
+	 *  depth-1 roomy map, its roomy-landing shed variant and the certified-speed
+	 *  map fed no decision since the old AI2 left; they went with their sweeps,
+	 *  memo copies and cache bytes (review, 2026-09-28). */
+	byte[]	minShed2;
 
 	int aliveIdx(final int x, final int y, final int vx, final int vy) {
 		return ((x * aliveH + y) * aliveSpan + (vx + aliveVMAX)) * aliveSpan + (vy + aliveVMAX);
@@ -683,8 +673,8 @@ final class Reachability {
 
 		// --- Precomputed AI maps ------------------------------------------
 		// One-time sweeps over the alive states turn the runtime questions
-		// isRoomy(depth <= 1) and canShedSpeed(depth == 2) into O(1) lookups
-		// with exactly the original semantics (see those methods). Non-alive
+		// isRoomy and shedableLanding into O(1) lookups with exactly the
+		// original semantics (see those methods). Non-alive
 		// states keep unset/255 entries: they can have neither legal alive
 		// successors (alive-closure of the BFS above) nor finish crossings
 		// (those are seeded with turns == 1), so isRoomy is false there, and
@@ -706,33 +696,27 @@ final class Reachability {
 					(tCache - tDerive) / 1e6, (tCache - t0) / 1e6, aliveStates.cardinality());
 	}
 
-	/** Roomy / shed / certified-speed sweeps over the alive set: pure array
-	 *  passes shared by the compute and cache-load paths. */
+	/** Roomy and shed sweeps over the alive set: pure array passes shared by
+	 *  the compute and cache-load paths. */
 	private void derivePrecomputes(final short[] legalAlive) {
 		final int total = turnsArr.length;
 		final BitSet r0 = new BitSet(total);
-		sweepRoomy(legalAlive, null, r0);
-		final BitSet r1 = new BitSet(total);
-		sweepRoomy(legalAlive, r0, r1);
-		final byte[] shed0 = initMinShed(total);
-		final byte[] shed = relaxMinShed(relaxMinShed(shed0, legalAlive, null), legalAlive, null);
-		final byte[] shedRoomy = relaxMinShed(relaxMinShed(shed0, legalAlive, r1), legalAlive, r1);
-		final byte[] cert = sweepCertSq(legalAlive, shed);
+		sweepRoomy(legalAlive, r0);
+		final byte[] shed = relaxMinShed(relaxMinShed(initMinShed(total), legalAlive), legalAlive);
 		roomy0 = r0;
-		roomy1 = r1;
 		minShed2 = shed;
-		minShed2Roomy = shedRoomy;
-		certSq = cert;
 	}
 
 	/** Round 190: the derive outputs are pure functions of the cached
-	 *  (turns, legalAlive) state, so they persist beside the reach cache as
-	 *  <key>.derived -- deflated (the mostly-255/empty regions compress far
-	 *  below the raw ~3.2 bytes/state), CRC-checked over the inflated
-	 *  payload. Any mismatch falls back to a fresh derive. */
+	 *  (turns, legalAlive) state, so they persist beside the reach cache --
+	 *  deflated (the mostly-255/empty regions compress far below the raw ~1.1
+	 *  bytes/state), CRC-checked over the inflated payload. Any mismatch falls
+	 *  back to a fresh derive. Since 2026-09-28 the file is <key>.derived2 (two
+	 *  maps, not five): jars of both formats share the bench box's cache, and a
+	 *  shared name would have them rewrite each other's files. */
 	private Path derivedCachePath() {
 		final Path base = reachCachePath();
-		return base == null ? null : Path.of(base + ".derived");
+		return base == null ? null : Path.of(base + ".derived2");
 	}
 
 	private boolean tryLoadDerived() {
@@ -748,10 +732,7 @@ final class Reachability {
 		if (derived == null)
 			return false;
 		roomy0 = derived.roomy0();
-		roomy1 = derived.roomy1();
 		minShed2 = derived.minShed2();
-		minShed2Roomy = derived.minShed2Roomy();
-		certSq = derived.certSq();
 		return true;
 	}
 
@@ -761,7 +742,7 @@ final class Reachability {
 		final Path path = derivedCachePath();
 		if (path == null || minShed2 == null)
 			return;
-		final Derived derived = new Derived(roomy0, roomy1, minShed2, minShed2Roomy, certSq);
+		final Derived derived = new Derived(roomy0, minShed2);
 		try {
 			TrackIO.writeAtomically(path, out -> writeDerivedCache(out, derived));
 		} catch (final IOException | RuntimeException e) { // best effort, like every cache write
@@ -769,26 +750,23 @@ final class Reachability {
 		}
 	}
 
-	/** The derive outputs as the .derived cache holds them. */
-	record Derived(BitSet roomy0, BitSet roomy1, byte[] minShed2, byte[] minShed2Roomy, byte[] certSq) {}
+	/** The derive outputs as the .derived2 cache holds them. */
+	record Derived(BitSet roomy0, byte[] minShed2) {}
 
-	private static final int DERIVED_MAGIC = 0x44524956;
+	private static final int DERIVED_MAGIC = 0x44525632; // "DRV2"
 
 	/** Header (magic, state count, payload length, CRC32 of the payload), then
-	 *  the payload deflated at level 1: each roomy bitset as a count and
-	 *  big-endian words, then minShed2, minShed2Roomy and certSq. Streamed in
-	 *  two passes, checksum then deflate: the one-shot payload and deflate
-	 *  buffers peaked near 16.4 bytes per state beside the maps, over the
-	 *  12-byte preparation guard (review, 2026-09-28). */
+	 *  the payload deflated at level 1: roomy0 as a count and big-endian words,
+	 *  then minShed2. Streamed in two passes, checksum then deflate, so no
+	 *  whole-payload buffer sits beside the maps (review, 2026-09-28). */
 	static void writeDerivedCache(final OutputStream out, final Derived derived) throws IOException {
 		final long[] r0 = derived.roomy0().toLongArray();
-		final long[] r1 = derived.roomy1().toLongArray();
 		final int total = derived.minShed2().length;
-		final long payload = 2L * Integer.BYTES + (long) Long.BYTES * (r0.length + r1.length) + 3L * total;
+		final long payload = Integer.BYTES + (long) Long.BYTES * r0.length + total;
 		if (payload > Integer.MAX_VALUE)
 			throw new IOException("derived maps too large for the cache format");
 		final CRC32 crc = new CRC32();
-		writeDerivedPayload(new CheckedOutputStream(OutputStream.nullOutputStream(), crc), r0, r1, derived);
+		writeDerivedPayload(new CheckedOutputStream(OutputStream.nullOutputStream(), crc), r0, derived);
 		final java.io.DataOutputStream head = new java.io.DataOutputStream(out);
 		head.writeInt(DERIVED_MAGIC);
 		head.writeInt(total);
@@ -798,25 +776,21 @@ final class Reachability {
 		try {
 			final java.util.zip.DeflaterOutputStream deflated =
 					new java.util.zip.DeflaterOutputStream(out, deflater, CACHE_IO_BYTES);
-			writeDerivedPayload(deflated, r0, r1, derived);
+			writeDerivedPayload(deflated, r0, derived);
 			deflated.finish();
 		} finally {
 			deflater.end();
 		}
 	}
 
-	private static void writeDerivedPayload(final OutputStream out, final long[] r0, final long[] r1,
-			final Derived derived) throws IOException {
+	private static void writeDerivedPayload(final OutputStream out, final long[] r0, final Derived derived)
+			throws IOException {
 		final java.io.DataOutputStream data = new java.io.DataOutputStream(
 				new java.io.BufferedOutputStream(out, CACHE_IO_BYTES));
-		for (final long[] words : new long[][]{r0, r1}) {
-			data.writeInt(words.length);
-			for (final long word : words)
-				data.writeLong(word);
-		}
+		data.writeInt(r0.length);
+		for (final long word : r0)
+			data.writeLong(word);
 		data.write(derived.minShed2());
-		data.write(derived.minShed2Roomy());
-		data.write(derived.certSq());
 		data.flush(); // not close: the caller owns the stream
 	}
 
@@ -828,7 +802,7 @@ final class Reachability {
 			return null;
 		final int payload = head.readInt();
 		final int crc = head.readInt();
-		if (payload < 8 || payload > 3L * total + (total >> 2) + 64)
+		if (payload < Integer.BYTES || payload > total + (total >> 3) + 64L)
 			return null;
 		final CRC32 checksum = new CRC32();
 		final java.util.zip.Inflater inflater = new java.util.zip.Inflater();
@@ -836,18 +810,13 @@ final class Reachability {
 			final java.io.DataInputStream data = new java.io.DataInputStream(new CheckedInputStream(
 					new java.util.zip.InflaterInputStream(in, inflater, CACHE_IO_BYTES), checksum));
 			final long[] r0 = readDerivedWords(data, total);
-			final long[] r1 = r0 == null ? null : readDerivedWords(data, total);
-			if (r1 == null || payload != 2L * Integer.BYTES + (long) Long.BYTES * (r0.length + r1.length) + 3L * total)
+			if (r0 == null || payload != Integer.BYTES + (long) Long.BYTES * r0.length + total)
 				return null;
 			final byte[] shed = new byte[total];
-			final byte[] shedRoomy = new byte[total];
-			final byte[] cert = new byte[total];
 			data.readFully(shed);
-			data.readFully(shedRoomy);
-			data.readFully(cert);
 			if (data.read() != -1 || (int) checksum.getValue() != crc)
 				return null;
-			return new Derived(BitSet.valueOf(r0), BitSet.valueOf(r1), shed, shedRoomy, cert);
+			return new Derived(BitSet.valueOf(r0), shed);
 		} finally {
 			inflater.end();
 		}
@@ -902,12 +871,10 @@ final class Reachability {
 	}
 
 	/** Sweep helper for {@link #computeReachability}: sets in {@code out} every
-	 *  alive state with >= 2 qualifying continuations per the {@link #isRoomy}
-	 *  rule. A successor qualifies if it crosses the finish, or its
-	 *  {@code legalAlive} bit is set and (when {@code req != null}) its state
-	 *  bit is set in {@code req}. {@code req == null} computes depth 0;
-	 *  {@code req == roomy0} computes depth 1. */
-	void sweepRoomy(final short[] legalAlive, final BitSet req, final BitSet out) {
+	 *  alive state with >= 2 qualifying continuations (RaceAi's isRoomy rule):
+	 *  a successor qualifies if it crosses the finish or its {@code legalAlive}
+	 *  bit is set. */
+	void sweepRoomy(final short[] legalAlive, final BitSet out) {
 		final int span = aliveSpan;
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
 			int rest = idx;
@@ -931,8 +898,6 @@ final class Reachability {
 					count++;
 				} else {
 					if ((mask & 1 << di) == 0)
-						continue;
-					if (req != null && !req.get(aliveIdx(nx, ny, nvx, nvy)))
 						continue;
 					count++;
 				}
@@ -963,10 +928,8 @@ final class Reachability {
 	 *  the min-|v|^2-reachable-by-braking map (unsigned bytes): out[s] =
 	 *  min(in[s], min in[succ]) over successors in the braking cone (|v|
 	 *  non-increasing — the integer-square compare is exactly the runtime's
-	 *  hypot compare) whose {@code legalAlive} bit is set and (when
-	 *  {@code roomyReq != null}) whose state bit is set in {@code roomyReq} —
-	 *  exactly the per-step conditions of {@link #canShedSpeed}. */
-	byte[] relaxMinShed(final byte[] in, final short[] legalAlive, final BitSet roomyReq) {
+	 *  hypot compare) whose {@code legalAlive} bit is set. */
+	byte[] relaxMinShed(final byte[] in, final short[] legalAlive) {
 		final int span = aliveSpan;
 		final byte[] out = new byte[in.length];
 		Arrays.fill(out, (byte) 0xFF);
@@ -988,83 +951,13 @@ final class Reachability {
 				final int nvy = vy + DIRECTIONS[di].dy;
 				if (nvx * nvx + nvy * nvy > v2)
 					continue; // braking cone only
-				final int succ = aliveIdx(x + nvx, y + nvy, nvx, nvy);
-				if (roomyReq != null && !roomyReq.get(succ))
-					continue;
-				final int cand = in[succ] & 0xFF;
+				final int cand = in[aliveIdx(x + nvx, y + nvy, nvx, nvy)] & 0xFF;
 				if (cand < best)
 					best = cand;
 			}
 			out[idx] = (byte) best;
 		}
 		return out;
-	}
-
-	/** Sweep helper for {@link #computeReachability}: per-state certified speed
-	 *  budget, squared (unsigned bytes, 255 = uncertified). For every alive
-	 *  state the sweep collects {@code shed[succ]} (= minShed2, the min |v|^2
-	 *  shed-able in <= 2 further braking moves) of each qualifying braking
-	 *  successor -- braking cone by |v|^2, legal edge, alive landing: exactly
-	 *  the first-move semantics of {@link #countBrakeProofs} minus the runtime
-	 *  opponent-prediction filter -- plus the state's own |v|^2 (the zero-move
-	 *  descent: the state is already at that speed). The entry written is the
-	 *  SECOND-smallest of that multiset: the minimal target T^2 such that at
-	 *  least two independent blind braking descents reach |v| <= T within the
-	 *  proof horizon; 255 if fewer than two entries qualify. Non-alive states
-	 *  keep 255 (only ever consulted behind an alive candidate). */
-	byte[] sweepCertSq(final short[] legalAlive, final byte[] shed) {
-		final int span = aliveSpan;
-		final byte[] arr = new byte[shed.length];
-		Arrays.fill(arr, (byte) 0xFF);
-		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
-			int rest = idx;
-			final int vy = rest % span - aliveVMAX;
-			rest /= span;
-			final int vx = rest % span - aliveVMAX;
-			rest /= span;
-			final int y = rest % aliveH;
-			final int x = rest / aliveH;
-			final int mask = legalAlive[idx];
-			final int v2 = vx * vx + vy * vy;
-			// Two smallest entries of the witness multiset, seeded with the
-			// state's own |v|^2 (the zero-move descent).
-			int min1 = Math.min(v2, 255);
-			int min2 = 256; // sentinel: fewer than two entries so far
-			for (int di = 0; di < DIRECTIONS.length; di++) {
-				if ((mask & 1 << di) == 0)
-					continue;
-				final int nvx = vx + DIRECTIONS[di].dx;
-				final int nvy = vy + DIRECTIONS[di].dy;
-				if (nvx * nvx + nvy * nvy > v2)
-					continue; // braking cone only
-				final int cand = shed[aliveIdx(x + nvx, y + nvy, nvx, nvy)] & 0xFF;
-				if (cand < min1) {
-					min2 = min1;
-					min1 = cand;
-				} else if (cand < min2)
-					min2 = cand;
-			}
-			arr[idx] = (byte) Math.min(min2, 255);
-		}
-		return arr;
-	}
-
-	/** Certified per-state speed budget, once AI2's pace discipline: the minimal
-	 *  integer target T such that at least two independent blind braking
-	 *  descents from (x,y,vx,vy) reach |v| <= T within the
-	 *  {@link #countBrakeProofs} horizon -- {@code ceil(sqrt(certSq))} over
-	 *  the precomputed map (the uncertified 255 maps to 16, an effectively
-	 *  unbounded budget). Conservative 0 for states outside the precomputed
-	 *  space or before the map exists. No AI decision calls it any more; the
-	 *  tests read certSq through it. */
-	int certBudget(final int x, final int y, final int vx, final int vy) {
-		if (certSq == null)
-			return 0;
-		if (velocityOutOfRange(vx, vy))
-			return 0;
-		if (x < 0 || y < 0 || x >= aliveW || y >= aliveH)
-			return 0;
-		return (int) Math.ceil(Math.sqrt(certSq[aliveIdx(x, y, vx, vy)] & 0xFF));
 	}
 
 	double scorePos(final int x, final int y, final int vx, final int vy) {
@@ -1260,11 +1153,11 @@ final class Reachability {
 	private static final class ReachMemoEntry {
 		final int w, h, vmax, span;
 		final int[] turns;
-		final BitSet baseAlive, baseRoomy0, baseRoomy1;
-		final byte[] baseShed2, baseShed2Roomy, baseCert;
+		final BitSet baseAlive, baseRoomy0;
+		final byte[] baseShed2;
 		final long baseBytes;
-		int[][] gateTurns; BitSet[] robustReach; BitSet lapAlive, lapRoomy0, lapRoomy1;
-		byte[] lapShed2, lapShed2Roomy, lapCert;
+		int[][] gateTurns; BitSet[] robustReach; BitSet lapAlive, lapRoomy0;
+		byte[] lapShed2;
 		boolean robustSeedFallback; int phantomAlive; long lapBytes;
 		/** The gates the lap bundle was built for (RaceGame.lapIdentity): the
 		 *  entry's key covers the finish line but not the checkpoints. */
@@ -1272,10 +1165,9 @@ final class Reachability {
 
 		ReachMemoEntry(final Reachability r) {
 			w = r.aliveW; h = r.aliveH; vmax = r.aliveVMAX; span = r.aliveSpan;
-			turns = r.turnsArr; baseAlive = r.aliveStates; baseRoomy0 = r.roomy0; baseRoomy1 = r.roomy1;
-			baseShed2 = r.minShed2; baseShed2Roomy = r.minShed2Roomy; baseCert = r.certSq;
-			baseBytes = bytes(turns) + bytes(baseAlive) + bytes(baseRoomy0) + bytes(baseRoomy1)
-					+ bytes(baseShed2) + bytes(baseShed2Roomy) + bytes(baseCert);
+			turns = r.turnsArr; baseAlive = r.aliveStates; baseRoomy0 = r.roomy0;
+			baseShed2 = r.minShed2;
+			baseBytes = bytes(turns) + bytes(baseAlive) + bytes(baseRoomy0) + bytes(baseShed2);
 		}
 
 		long totalBytes() { return baseBytes + lapBytes; }
@@ -1299,8 +1191,8 @@ final class Reachability {
 		synchronized (REACH_MEMO) { m = key == null ? null : REACH_MEMO.get(key); }
 		if (m == null) return false;
 		aliveW = m.w; aliveH = m.h; aliveVMAX = m.vmax; aliveSpan = m.span; turnsArr = m.turns;
-		aliveStates = m.baseAlive; roomy0 = m.baseRoomy0; roomy1 = m.baseRoomy1;
-		minShed2 = m.baseShed2; minShed2Roomy = m.baseShed2Roomy; certSq = m.baseCert;
+		aliveStates = m.baseAlive; roomy0 = m.baseRoomy0;
+		minShed2 = m.baseShed2;
 		return true;
 	}
 
@@ -1329,8 +1221,7 @@ final class Reachability {
 			if (m == null || m.gateTurns == null) return false;
 			if (!m.lapKey.equals(lapKey())) return false; // built for other checkpoints
 			gateTurns = m.gateTurns; robustReach = m.robustReach; aliveStates = m.lapAlive;
-			roomy0 = m.lapRoomy0; roomy1 = m.lapRoomy1; minShed2 = m.lapShed2;
-			minShed2Roomy = m.lapShed2Roomy; certSq = m.lapCert;
+			roomy0 = m.lapRoomy0; minShed2 = m.lapShed2;
 			robustSeedFallback = m.robustSeedFallback; phantomAlive = m.phantomAlive;
 			return true;
 		}
@@ -1343,7 +1234,7 @@ final class Reachability {
 			final ReachMemoEntry m = REACH_MEMO.get(key);
 			if (m == null || m.gateTurns != null) return;
 			final long extra = bytes(gateTurns) + bytes(robustReach) + bytes(aliveStates)
-					+ bytes(roomy0) + bytes(roomy1) + bytes(minShed2) + bytes(minShed2Roomy) + bytes(certSq);
+					+ bytes(roomy0) + bytes(minShed2);
 			if (m.baseBytes + extra > reachMemoLimit()) return;
 			// Evict other entries first; never evict the entry currently being extended.
 			final long needed = reachMemoBytes + extra - reachMemoLimit();
@@ -1358,8 +1249,7 @@ final class Reachability {
 			}
 			if (reachMemoBytes + extra > reachMemoLimit()) return;
 			m.gateTurns = gateTurns; m.robustReach = robustReach; m.lapAlive = aliveStates;
-			m.lapRoomy0 = roomy0; m.lapRoomy1 = roomy1; m.lapShed2 = minShed2;
-			m.lapShed2Roomy = minShed2Roomy; m.lapCert = certSq;
+			m.lapRoomy0 = roomy0; m.lapShed2 = minShed2;
 			m.robustSeedFallback = robustSeedFallback; m.phantomAlive = phantomAlive; m.lapBytes = extra;
 			m.lapKey = lapKey();
 			reachMemoBytes += extra;
@@ -1386,8 +1276,9 @@ final class Reachability {
 	long estimatedConcurrentPreparationBytes() {
 		final long states = (long) (game.gameCols + 1) * (game.gameRows + 1)
 				* (2L * RaceGame.AI_MAX_SPEED + 1) * (2L * RaceGame.AI_MAX_SPEED + 1);
-		if (states <= 0 || states > Long.MAX_VALUE / 32L) return Long.MAX_VALUE;
-		final long arrays = states * 32L;
+		final long perState = preparationBytesPerState(); // one constant, not two to drift
+		if (states <= 0 || states > Long.MAX_VALUE / perState) return Long.MAX_VALUE;
+		final long arrays = states * perState;
 		final long queueAndObjectHeadroom = 64L << 20;
 		return arrays > Long.MAX_VALUE - queueAndObjectHeadroom
 				? Long.MAX_VALUE : arrays + queueAndObjectHeadroom;
@@ -1462,10 +1353,7 @@ final class Reachability {
 			turnsArr = null;
 			aliveStates = null;
 			roomy0 = null;
-			roomy1 = null;
 			minShed2 = null;
-			minShed2Roomy = null;
-			certSq = null;
 			gateTurns = null;
 			robustReach = null;
 		}
