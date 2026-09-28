@@ -38,12 +38,14 @@ final class RacecraftNext {
     }
 
     boolean enabled(final RaceGame game, final int player, final Feature feature) {
-        return game.candidatePolicy(player) && features.contains(feature);
+        return game.candidatePolicy(player) && features.contains(feature)
+                && (feature != Feature.OPENING || openingTrials > 0);
     }
     String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials; }
 
     boolean any(final RaceGame game, final int player) {
-        return game.candidatePolicy(player) && !features.isEmpty();
+        for (final Feature feature : features) if (enabled(game, player, feature)) return true;
+        return false;
     }
 
     private static int bounded(final Properties props, final String key, final int fallback,
