@@ -1,5 +1,10 @@
 # Input validation follow-up (2026-09-11)
 
+> **Historical note (2026-09-28).** A dated review record. The cross-era
+> exhibition it hardens (`tracks/cross_era.py`) was retired on 2026-09-28, the
+> owner's call; two eras race each other in one binary through `candidateSlots`
+> and `tracks/head_to_head.py`.
+
 This review starts from `80177394`, after the previous cache, checkpoint replay
 and preparation-error fixes. Two additional input-boundary defects are corrected;
 no AI policy, referee rule, map format or behavioral golden is changed.

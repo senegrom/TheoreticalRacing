@@ -19,7 +19,6 @@ class ForensicsCommonTests(unittest.TestCase):
     def test_forensic_entry_points_are_import_safe(self):
         modules = (
             'tracks.board_at', 'tracks.oracle_roll', 'tracks.needle_audit',
-            'tracks.build_lemans', 'tracks.width_normalize', 'tracks.build_nordschleife',
         )
         for module in modules:
             with self.subTest(module=module):
