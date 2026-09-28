@@ -34,12 +34,12 @@ def main() -> int:
             if result is None:
                 raise SystemExit(f"mixed serpentine2 seed-{seed} race failed or produced no log")
             for kind in ("AI1", "AI2"):
-                place_sum, finishers, crashes = result[kind]
+                place_sum, cars, crashes = result[kind]
                 if crashes != 0:
                     raise SystemExit(
                         "Round-133 vmax-deep regression: "
                         f"seed {seed} {kind} place_sum={place_sum}, "
-                        f"finishers={finishers}, crashes={crashes}"
+                        f"cars={cars}, crashes={crashes}"
                     )
     print("AI1 vmax deep pins hold (mixed serpentine2 seeds 6 and 35)")
     return 0

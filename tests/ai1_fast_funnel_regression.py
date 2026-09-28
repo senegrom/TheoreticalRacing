@@ -58,12 +58,12 @@ def main() -> int:
             if result is None:
                 raise SystemExit(f"mixed Le Mans seed-{seed} race failed or produced no log")
             for kind in ("AI1", "AI2"):
-                place_sum, finishers, crashes = result[kind]
-                if (place_sum, finishers, crashes) != EXPECTED[seed][kind]:
+                place_sum, cars, crashes = result[kind]
+                if (place_sum, cars, crashes) != EXPECTED[seed][kind]:
                     raise SystemExit(
                         "Round-128 fast-funnel regression: "
                         f"seed {seed} {kind} place_sum={place_sum}, "
-                        f"finishers={finishers}, crashes={crashes}, "
+                        f"cars={cars}, crashes={crashes}, "
                         f"expected {EXPECTED[seed][kind]}"
                     )
     print("AI1 fast finish-funnel pins hold (mixed Le Mans seeds 36 and 45, measured)")

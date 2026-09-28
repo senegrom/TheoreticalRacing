@@ -9,15 +9,14 @@ the round-175 bar, the round-83 funnel signal, and the round-83 deep
 guard alike. The root check audits scorer-8 (never a verdict), escalates
 DEAD-or-loud (thread >= 4) fires to the true-6 verdict, and switches
 only to a certified quiet-alive alternative. Rounds 178-180 were
-promoted into AI2 on the user's order, so BOTH kinds run the ridge
-check and both lobe2 races (seeds 111 and 132, whose crashers are AI1
-and AI2 respectively) must run crash-free.
+promoted on the user's order, so every car runs the ridge check and
+both lobe2 races (seeds 111 and 132) must run crash-free.
 
 Round 185 selectively extends that audit to a trap-zero, signed speed-10
 hold whose three alive exits narrow to child widths exactly 1/2/3. On
 rand13 seed 4, player 7's old S line crashes three turns later; the
-scorer certificate instead selects SE, which finishes third. Both smart
-kinds must take that same promoted rescue.
+scorer certificate instead selects SE, which finishes third; the mixed
+roster below must take that same promoted rescue.
 """
 
 from pathlib import Path
@@ -43,19 +42,19 @@ def main() -> int:
             result = bench_ai.run_track_h2h("lobe2", timeout=600, seed=seed)
             if result is None:
                 raise SystemExit(f"mixed lobe2 seed-{seed} race failed or produced no log")
-            place_sum, finishers, crashes = result["AI1"]
+            place_sum, cars, crashes = result["AI1"]
             if crashes != 0:
                 raise SystemExit(
                     "Round-178 thin-ridge regression: "
                     f"seed {seed} AI1 place_sum={place_sum}, "
-                    f"finishers={finishers}, crashes={crashes}"
+                    f"cars={cars}, crashes={crashes}"
                 )
-            place_sum, finishers, crashes = result["AI2"]
+            place_sum, cars, crashes = result["AI2"]
             if crashes != expected_ai2[seed]:
                 raise SystemExit(
                     "Round-178 thin-ridge regression (AI2 baseline drift): "
                     f"seed {seed} AI2 place_sum={place_sum}, "
-                    f"finishers={finishers}, crashes={crashes}, "
+                    f"cars={cars}, crashes={crashes}, "
                     f"expected {expected_ai2[seed]}"
                 )
 

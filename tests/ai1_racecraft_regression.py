@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact last-rival blocks, including array wrap, retired slots and both AI labels.
+"""Exact last-rival blocks, including array wrap and retired slots.
 
 These are constructed tactical boards, not claimed naturally occurring races.
 The old 8db66b3 policy missed these blocks; its ordinary continuation lost the

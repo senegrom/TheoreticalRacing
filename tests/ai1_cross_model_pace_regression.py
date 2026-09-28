@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Pin Round 95's strict cross-model pace retention."""
+"""Pin Round 95's strict pace retention (measured across two AI models then;
+one policy since round 222)."""
 
 from pathlib import Path
 import sys

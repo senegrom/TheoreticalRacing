@@ -30,7 +30,8 @@ MAX_FINISH_MOVE_SUM = 891
 # gain; Le Mans seed 12 pins the extended-band NONE veto that removed the
 # broad experiment's sole slower race.
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
-# assertion logic and AI1/AI2 identity checks remain intact.
+# assertion logic remains intact. (Its AI1/AI2 identity checks retired on
+# 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
 # Every case below retains seven finishers and zero crashes.
 FINISH_EXPECTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.

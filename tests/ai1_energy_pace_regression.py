@@ -5,7 +5,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
-# assertion logic and AI1/AI2 identity checks remain intact.
+# assertion logic remains intact. (Its AI1/AI2 identity checks retired on
+# 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
 # Round 247 (the soft rollout at one level, not two): Zandvoort s44 lost a
 # car -- recorded, not vetoed (AGENTS.md); round 248 (the physical world
 # model) gives it back. Every case pins its measured (finishers, crashes,
@@ -20,7 +21,8 @@ EXPECTED = {
  ("nurburgring",1): (7, 0, [92, 93, 93, 93, 94, 95, 95]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
- ("interlagos",47): (7, 0, [124, 125, 126, 127, 128, 129, 131]),
+ # Interlagos s47 races in ai1_private_slack_regression, which pins the same
+ # race by summary and digest (the labels race alike; review, 2026-09-28).
  ("spa",17): (7, 0, [78, 79, 80, 81, 82, 82, 83]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 144]),  # Round 260 (the chooser): whole again.

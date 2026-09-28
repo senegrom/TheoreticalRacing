@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the Round-78 and Round-93 heterogeneous-field safety boundaries."""
+"""Pin the Round-93 mixed-roster safety boundary and the Gear front order."""
 
 from pathlib import Path
 import sys
@@ -19,47 +19,17 @@ def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
 
-    # The unrestricted fast two-exit proof accelerated an AI1 car in this
-    # heterogeneous field and caused a different AI1 car to crash 66 global
-    # moves later. Keeping fast mixed-field candidates on the wider three-exit
-    # certificate makes the race match the crash-free pre-private-lane policy.
+    # Round 78's case, Le Mans seed 2 (the unrestricted fast two-exit proof once
+    # accelerated one car into another's crash 66 moves later), is the same race
+    # as ai1_private_slack_regression's Le Mans s2, pinned there by digest; it
+    # raced here as label halves only (review, 2026-09-28).
     with tempfile.TemporaryDirectory(prefix="theoretical-racing-ai1-mixed-") as directory:
         bench_ai.configure_runtime(directory)
         import fixture_install
         bench_ai.JAR = str(fixture_install.install(directory, ["lemans"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
-        bench_ai.set_kinds(["AI2"] * 4 + ["AI1"] * 4)
-        result = bench_ai.run_track_h2h("lemans", timeout=600, seed=2)
 
-        if result is None:
-            raise SystemExit("AI1 mixed Le Mans seed-2 race failed or produced no complete log")
-        # Round 232: the kinematic confirm switches p1's line at (78,128); five
-        # hundred moves later, with six cars already home, p1 dies ALONE in clear
-        # air at (9,56) -- the round-45 perturbation class, not a traffic death.
-        # The fleet says the confirm cuts crashes by two fifths in the same races
-        # (72 against 125 head-to-head), so this race is re-frozen from
-        # measurement rather than vetoing the change (AGENTS.md).
-        # Round 233: re-frozen from measurement; the victim is p4 now.
-        # Round 234: re-frozen from measurement (the seal guard left the decision).
-        # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-        # Round 254 (the danger guard in a faithful world): an AI1 car crashes
-        # here now -- recorded, not vetoed (AGENTS.md).
-        # Round 260 (the chooser): seed 2 is crash-free again.
-        # Round 274 (rank first; the single-player rule made literal):
-        # re-frozen from measurement, still crash-free.
-        # Round 278 (the chooser's pick stands): an AI2 car crashes here now --
-        # recorded, not vetoed (AGENTS.md).
-        SEED2_MEASURED = {"AI1": (22, 4, 0), "AI2": (14, 4, 1)}
-        for kind in ("AI1", "AI2"):
-            place_sum, finishers, crashes = result[kind]
-            if (place_sum, finishers, crashes) != SEED2_MEASURED[kind]:
-                raise SystemExit(
-                    "AI1 mixed-field safety regression: "
-                    f"{kind} place_sum={place_sum}, finishers={finishers}, crashes={crashes}, "
-                    f"expected {SEED2_MEASURED[kind]}"
-                )
-
-        # Round 93: in both kind orderings, player 6 used to choose S from the
+        # Round 93: player 6 used to choose S from the
         # fast L2 state below and crash 30 global moves later. The normal
         # three-round model sees that landing alive but fragile; a bounded
         # four-round scorer-rival recheck proves S dies and SW survives.
@@ -137,7 +107,7 @@ def main() -> int:
 
     print(
         "AI1MixedSafetyRegression: OK "
-        "(Le Mans seeds 2/7 safe; Gear seed 1 mixed places pinned)"
+        "(Le Mans seed 7 safe; Gear seed 1 mixed places pinned)"
     )
     return 0
 
