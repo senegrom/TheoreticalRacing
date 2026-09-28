@@ -1,0 +1,64 @@
+package tr.logic;
+
+import java.util.EnumSet;
+import java.util.Properties;
+
+/** Independent candidate arms; settings and shipped defaults stay unchanged. */
+final class RacecraftNext {
+    enum Feature {
+        CRASH_RANK("crash-rank"), RANK_TIME("rank-time"), OPENING("opening"), START_TIES("start-ties");
+        final String flag;
+        Feature(final String flag) { this.flag = flag; }
+    }
+
+    private final EnumSet<Feature> features;
+    final boolean capture;
+    final int openingRounds;
+    final int openingTrials;
+    final int captureEvery;
+    final int captureLimit;
+
+    RacecraftNext(final Properties props) {
+        features = EnumSet.noneOf(Feature.class);
+        final String spec = props.getProperty("racecraftNext", "").trim();
+        if (!spec.isEmpty()) for (final String token : spec.split(",", -1)) {
+            Feature found = null;
+            for (final Feature f : Feature.values()) if (f.flag.equals(token.trim())) found = f;
+            if (found == null || !features.add(found))
+                throw new IllegalArgumentException("unknown or repeated racecraftNext flag: " + token);
+        }
+        final String audit = props.getProperty("racecraftCapture", "false").trim();
+        if (!audit.equals("true") && !audit.equals("false"))
+            throw new IllegalArgumentException("racecraftCapture must be true or false");
+        capture = Boolean.parseBoolean(audit);
+        openingRounds = bounded(props, "racecraftOpeningRounds", 6, 2, 12);
+        openingTrials = bounded(props, "racecraftOpeningTrials", 18, 0, 36);
+        captureEvery = bounded(props, "racecraftCaptureEvery", 1, 1, 1000000);
+        captureLimit = bounded(props, "racecraftCaptureLimit", 100, 0, 100000);
+    }
+
+    boolean enabled(final RaceGame game, final int player, final Feature feature) {
+        return game.candidatePolicy(player) && features.contains(feature);
+    }
+    boolean any(final RaceGame game, final int player) {
+        return game.candidatePolicy(player) && !features.isEmpty();
+    }
+
+    private static int bounded(final Properties props, final String key, final int fallback,
+            final int minimum, final int maximum) {
+        final int value = Integer.parseInt(props.getProperty(key, Integer.toString(fallback)).trim());
+        if (value < minimum || value > maximum) throw new IllegalArgumentException(key + " out of range");
+        return value;
+    }
+
+    /** Initial four roster rounds, before the mover passes CP1. */
+    static boolean opening(final RaceGame game, final int player) {
+        if (game.turnCount() >= 4 * game.players.length) return false;
+        for (final Player p : game.players) {
+            if (p.getNumber() == player && (p.getLap() != 0
+                    || game.lapGates != null && p.getNextGate() != 1)) return false;
+            if (!p.isFinished() && p.getPosition()[0] == Player.INIT_POS) return false;
+        }
+        return true;
+    }
+}
