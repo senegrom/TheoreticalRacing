@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "date": "2026-09-28",
+  "baseline": "955001104bbe315cf9b82a1cd2dfb447beddd211",
+  "tested_revision": "5b423ef91dd46871e8e87792a9f727c5a7b39db0",
+  "source_preserving_cleanup": "208fbdbf0070e462e16d288f7dec649391a4ff2e",
+  "workflow_run": 36475118355,
+  "workflow_url": "https://github.com/senegrom/TheoreticalRacing/actions/runs/36475118355",
+  "completed_checks": [
+    "JDK 25: build_main.sh, run_tests.sh, Python unit tests, Python syntax, clean tracked working tree",
+    "JDK 26: build_main.sh, run_tests.sh, Python unit tests, Python syntax, clean tracked working tree",
+    "32 complete race controls against pinned master/default/no-slots/no-flags/audit/zero-opening/all-arms configurations",
+    "Hairpin and Circle end-to-end corpus capture and counterfactual replay: every legal first action completed; observed control trace matched the entire captured race",
+    "headless_smoke.py",
+    "query_replay_regression.py",
+    "lap_progress_regression.py"
+  ],
+  "pending_when_recorded": [
+    "Existing 12-race golden corpus",
+    "Every existing ai1_*_regression.py champion pin"
+  ],
+  "not_performed": [
+    "Full mirrored fleet promotion battery",
+    "Lone-candidate promotion battery",
+    "Held-out place-gain/CPU evaluation",
+    "Browser parity suite"
+  ],
+  "full_fleet_performed": false,
+  "promoted": false,
+  "note": "Only completed checks are listed as passed. Later CI status is authoritative. Cleanup removed temporary assembly scripts and the writable assembly workflow; tested source code was not changed. Item 3 is a shadow-only diagnostic, not a live selector. All new policy features are independently opt-in."
+}
