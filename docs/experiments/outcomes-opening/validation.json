@@ -13,10 +13,10 @@
     "Hairpin and Circle end-to-end corpus capture and counterfactual replay: every legal first action completed; observed control trace matched the entire captured race",
     "headless_smoke.py",
     "query_replay_regression.py",
-    "lap_progress_regression.py"
+    "lap_progress_regression.py",
+    "golden_races.py: all 12 existing golden races, expectations unchanged"
   ],
   "pending_when_recorded": [
-    "Existing 12-race golden corpus",
     "Every existing ai1_*_regression.py champion pin"
   ],
   "not_performed": [
