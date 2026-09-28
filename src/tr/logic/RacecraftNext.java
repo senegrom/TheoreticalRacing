@@ -40,6 +40,8 @@ final class RacecraftNext {
     boolean enabled(final RaceGame game, final int player, final Feature feature) {
         return game.candidatePolicy(player) && features.contains(feature);
     }
+    String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials; }
+
     boolean any(final RaceGame game, final int player) {
         return game.candidatePolicy(player) && !features.isEmpty();
     }

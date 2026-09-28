@@ -203,6 +203,9 @@ final class RaceAi {
 		final int[] remaining;
 		final boolean[] lapAware;
 		int turns;
+        int researchOwnMoves;
+        boolean researchDetail;
+        RacecraftOutcome researchOutcome;
 		final int[] px;
 		final int[] py;
 		final int[] vx;
@@ -259,7 +262,19 @@ final class RaceAi {
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
 		final int playerNum = p.getNumber();
-		return optimalMoveAI1(pos, vel, playerNum);
+        final boolean root = simDepth == 0 && !inScorerSim;
+        final boolean capture = root && !game.racecraftReplay && game.racecraftNext.capture
+                && capturedDecisions < game.racecraftNext.captureLimit
+                && game.turnCount() % game.racecraftNext.captureEvery == 0;
+        final String snapshot = capture ? RacecraftReplay.snapshot(game) : null;
+        if (root) { auditScorer = null; auditChooser = null; auditOpening = null; auditShortlist = ""; }
+        final Direction decision = optimalMoveAI1(pos, vel, playerNum);
+        if (capture) {
+            capturedDecisions++;
+            System.err.println("RACECRAFT_STATE " + snapshot + "|" + decision
+                    + "|" + auditScorer + "|" + auditChooser + "|" + auditOpening + "|" + auditShortlist);
+        }
+        return decision;
 	}
 
 	/**
@@ -550,6 +565,13 @@ final class RaceAi {
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
 		prepareDecisionFrame(pos, vel, playerNum);
+        // Candidate experiments obey the literal solo rule even before a duel tactic.
+        // The equivalent master rule correction is independently queued as round 294.
+        if (game.racecraftNext.any(game, playerNum)
+                && !rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
+            final Direction solo = optimalAloneMove(pos, vel, playerNum);
+            if (solo != null) return solo;
+        }
 		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum,
 				!inScorerSim && trueConfirmDepth == 0 && simDepth == 0);
 		if (tacticalWin != null)
@@ -1032,10 +1054,10 @@ final class RaceAi {
 					if (extendedFrontier && sealable(nx, ny, nvx, nvy, playerNum))
 						continue;
 					final int rounds = t + 1;
-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) % VERDICT_PLACE_STRIDE != 0)
+					if (!researchFinishes(simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false)))
 						continue;
-					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
-							AI1_DEEP_CERT_RIVALS, null) % VERDICT_PLACE_STRIDE != 0)
+					if (!researchFinishes(simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
+							AI1_DEEP_CERT_RIVALS, null)))
 						continue;
 					// Round 176: a one-successor sprint can pass both proxy worlds
 					// while faithful rivals occupy its only continuation one round
@@ -3312,6 +3334,39 @@ final class RaceAi {
 	 *  rollouts (inside scorer/true rival computes) stay silent. */
 	volatile boolean				simTrace;
 	private int						simDepth;
+    private RacecraftOutcome lastResearchOutcome;
+    private boolean lastResearchRankTime;
+    private int researchOpeningTrials;
+    private int researchDemandDepth = -1;
+    private int forcedSecondDepth = -1;
+    private Direction forcedSecond;
+    private int capturedDecisions;
+    private Direction auditScorer, auditChooser, auditOpening;
+    private String auditShortlist = "";
+
+    /** Isolated cheap continuation policy used by the placement experiment. */
+    Direction researchScorer() {
+        final boolean old = inScorerSim;
+        inScorerSim = true;
+        try { return computeAiMove(); }
+        finally { inScorerSim = old; }
+    }
+
+    private boolean nextEnabled(final int player, final RacecraftNext.Feature feature) {
+        return game.racecraftNext.enabled(game, player, feature);
+    }
+
+    private void recordResearch(final RolloutWorkspace w, final RacecraftOutcome.Status status,
+            final int ahead, final int remaining) {
+        if (w.researchDetail)
+            w.researchOutcome = new RacecraftOutcome(status, ahead, w.researchOwnMoves, remaining);
+    }
+
+    private boolean researchFinishes(final int legacy) {
+        return !lastResearchRankTime || lastResearchOutcome == null ? legacy >= 0 && legacy % VERDICT_PLACE_STRIDE == 0
+                : lastResearchOutcome.successful();
+    }
+
 
 	/** Query-sim entry (round 103): verdict of the core rollout from the
 	 *  installed board, me already AT the queried landing. */
@@ -3381,10 +3436,14 @@ final class RaceAi {
 			frameGate = workspace.gates;
 			frameRemaining = workspace.remaining;
 			frameLapAware = workspace.lapAware;
-			return simOutcomeCore(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish,
+			final int legacy = simOutcomeCore(myX, myY, myVx, myVy, playerNum, rounds, simFinishVanish,
 					exactSelf, exactRivals, scorerRivals, scorerSelf, trueRivals, scorerCap,
 					outFinalTier, outFieldCost, outThreadRounds, allScorerRivals,
 					outRivalCost, candidatePending);
+            lastResearchOutcome = workspace.researchOutcome;
+            lastResearchRankTime = nextEnabled(playerNum, RacecraftNext.Feature.RANK_TIME);
+            return lastResearchRankTime && lastResearchOutcome != null
+                    ? lastResearchOutcome.liveVerdict() : legacy;
 		} finally {
 			frameGate = outerGates;
 			frameRemaining = outerRemainingByPlayer;
@@ -3446,6 +3505,10 @@ final class RaceAi {
 		final int[] projectedMoves = workspace.projectedMoves;
 		final int[] move = workspace.move;
 		workspace.turns = game.turnCount();
+        workspace.researchOutcome = null;
+        workspace.researchOwnMoves = candidatePending ? 1 : 0;
+        workspace.researchDetail = game.racecraftNext.any(game, playerNum)
+                || game.racecraftNext.capture || simDepth == researchDemandDepth;
 		java.util.Arrays.fill(scorerSet, false);
 		if (outRivalCost != null) {
 			if (outRivalCost.length < game.players.length)
@@ -3479,17 +3542,22 @@ final class RaceAi {
 		}
 		if (candidatePending) {
 			// The referee retires the mover before evaluating its destination.
-			if (game.raceTurnLimitReached())
-				return -1;
+			if (game.raceTurnLimitReached()) {
+                recordResearch(workspace, RacecraftOutcome.Status.CRASHED, liveCount - 1, 0);
+                return -1;
+            }
 			final RaceGame.MoveResult candidate = game.evaluateMove(workspace.laps[myIdx], workspace.gates[myIdx],
 					px[myIdx], py[myIdx], myX, myY, occupiedByOther(myX, myY, myIdx, px, py, alive));
-			if (!candidate.legal())
-				return -1;
+			if (!candidate.legal()) {
+                recordResearch(workspace, RacecraftOutcome.Status.CRASHED, liveCount - 1, 0);
+                return -1;
+            }
 			workspace.laps[myIdx] = candidate.lapAfter();
 			workspace.gates[myIdx] = game.lapGates == null ? 0 : candidate.gateAfter();
 			updateRolloutFrame(workspace, myIdx);
 			workspace.turns++;
 			if (candidate.finishes() && simFinishVanish) {
+                recordResearch(workspace, RacecraftOutcome.Status.FINISHED, 0, 0);
 				alive[myIdx] = false;
 				liveCount--;
 				myFinished = true;
@@ -3567,6 +3635,7 @@ final class RaceAi {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
 				usePlayerFrame(i);
+                if (i == myIdx) workspace.researchOwnMoves++;
 				if (outRivalCost != null && i != myIdx)
 					projectedMoves[i]++;
 				if (i == myIdx && outThreadRounds != null) {
@@ -3597,7 +3666,18 @@ final class RaceAi {
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
 				boolean moved;
-				if (i == myIdx)
+                if (i == myIdx && simDepth == forcedSecondDepth && forcedSecond != null
+                        && workspace.researchOwnMoves == 2) {
+                    final int nvx = vx[i] + forcedSecond.dx, nvy = vy[i] + forcedSecond.dy;
+                    final int nx = px[i] + nvx, ny = py[i] + nvy;
+                    final RaceGame.MoveResult trial = game.evaluateMove(workspace.laps[i], workspace.gates[i],
+                            px[i], py[i], nx, ny, occupiedByOther(nx, ny, i, px, py, alive));
+                    if (RaceGame.aiVelocityOutOfRange(nvx, nvy) || !trial.legal()) {
+                        workspace.researchOutcome = RacecraftOutcome.unknown();
+                        return -1; // an inadmissible forced continuation is not a forecasted retirement
+                    }
+                    moved = writeMove(move, nx, ny, nvx, nvy);
+                } else if (i == myIdx)
 					moved = scorerSelf
 							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace)
 							: exactSelf
@@ -3637,6 +3717,7 @@ final class RaceAi {
 					liveCount--;
 					if (i == myIdx) {
 						myFinishRound = round;
+                        recordResearch(workspace, RacecraftOutcome.Status.FINISHED, rivalsFinished, 0);
 						aheadAtMyFinish = rivalsFinished;
 						if (outFinalTier != null)
 							outFinalTier[0] = 3;
@@ -3658,8 +3739,11 @@ final class RaceAi {
 					continue;
 				}
 				if (!moved || timedOut || !transition.legal()) {
-					if (i == myIdx)
-						return -1;
+					if (i == myIdx) {
+                        recordResearch(workspace, RacecraftOutcome.Status.CRASHED,
+                                RacecraftOutcome.retirementAhead(liveCount, rivalsFinished), 0);
+                        return -1;
+                    }
 					alive[i] = false;
 					liveCount--;
 					if (outFieldCost != null)
@@ -3689,6 +3773,7 @@ final class RaceAi {
 				alive[i] = false;
 				if (i == myIdx) {
 					myFinishRound = endRound;
+                    recordResearch(workspace, RacecraftOutcome.Status.CLASSIFIED, rivalsFinished, 0);
 					aheadAtMyFinish = rivalsFinished;
 					myFinished = true;
 					if (outFinalTier != null)
@@ -3720,6 +3805,7 @@ final class RaceAi {
 			outFinalTier[0] = safeSuccessorsOverState(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx],
 					myIdx, px, py, alive);
 		final int myTime = myFinished ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+        if (!myFinished) recordResearch(workspace, RacecraftOutcome.Status.RUNNING, rivalsFinished, myTime);
 		if (simDepth == placeKeyDepth)
 			placeKey = myFinished
 					? aheadAtMyFinish * PLACE_KEY_STRIDE + myFinishRound
@@ -3799,6 +3885,8 @@ final class RaceAi {
 		boolean trueDead = false;
 		final int chosenT = simOutcome(cx, cy, cvx, cvy, playerNum, rounds, simFinishVanish, exactSelf,
 				exactRivals, scorerRivals, scorerSelf, scorerCap, finalTier, null, threadRounds);
+        final int chosenRemaining = lastResearchOutcome == null ? chosenT % VERDICT_PLACE_STRIDE
+                : lastResearchOutcome.remaining();
 		if (chosenT >= 0) {
 			// Round 99: fragile alive verdict in pack traffic -> confirm the
 			// chosen with two rounds of FULL-FIDELITY rivals. The suppressed
@@ -3848,7 +3936,7 @@ final class RaceAi {
 			// the class commitments (both the tier=1 and tier=3 siblings).
 			final boolean legFastSlow = fastSlow && threadRounds != null
 					&& threadRounds[0] >= 2 && threadRounds[1] >= 2
-					&& chosenT % VERDICT_PLACE_STRIDE <= AI1_FASTSLOW_TTF;
+					&& chosenRemaining <= AI1_FASTSLOW_TTF;
 			// Round 133: the vmax overspeed deep check -- every harvest-25
 			// slow-track crash is one serpentine2 commitment: accelerating to
 			// max-axis 11 on the bottom straight is a 5-9-round joint doom
@@ -4091,7 +4179,9 @@ final class RaceAi {
 			// but truly-dead escape would trade one crash for another). Walk
 			// candidates by cheap sim-final ttf, first true-survivor wins.
 			Direction confirmed = null;
-			for (int pass = 0; pass < DIRECTIONS.length && confirmed == null; pass++) {
+            final boolean rankRescue = nextEnabled(playerNum, RacecraftNext.Feature.RANK_TIME);
+            int confirmedKey = Integer.MAX_VALUE;
+			for (int pass = 0; pass < DIRECTIONS.length && (rankRescue || confirmed == null); pass++) {
 				Direction cand = null;
 				int candT = Integer.MAX_VALUE;
 				int candSpd = Integer.MAX_VALUE;
@@ -4113,7 +4203,9 @@ final class RaceAi {
 					// switch targets too: a fast sibling passing both ladder
 					// worlds can still be a depth-7 doom (zandvoort s128).
 					final int spd = Math.max(Math.abs(nvx), Math.abs(nvy));
-					if (t >= 0 && (spd < candSpd || spd == candSpd && t < candT)) {
+					if (t >= 0 && (!rankRescue || t != Integer.MAX_VALUE) && (rankRescue
+                            ? t < candT || t == candT && spd < candSpd
+                            : spd < candSpd || spd == candSpd && t < candT)) {
 						candT = t;
 						candSpd = spd;
 						cand = d;
@@ -4140,10 +4232,16 @@ final class RaceAi {
 				if (dbg)
 					System.err.println("AIDBG TRUECONF  alt " + cand + " simT=" + candT
 							+ (survives ? " true-ALIVE" : " true-DIES"));
-				if (survives)
-					confirmed = cand;
-				else
-					rejected[cand.ordinal()] = true;
+                if (rankRescue) {
+                    // Compare the completed faithful confirmation, not the proposal's speed.
+                    final int key = lastResearchOutcome == null ? Integer.MAX_VALUE
+                            : lastResearchOutcome.liveVerdict();
+                    if (survives && key >= 0 && key < confirmedKey) {
+                        confirmed = cand; confirmedKey = key;
+                    }
+                    rejected[cand.ordinal()] = true;
+                } else if (survives) confirmed = cand;
+                else rejected[cand.ordinal()] = true;
 			}
 			// A confirm-capable search must never hand the race to an
 			// UNCERTIFIED escape: when every candidate fails the true-rival
@@ -4529,6 +4627,12 @@ final class RaceAi {
 	 *  wider vote both within noise of this. */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore) {
+        final boolean rankTime = nextEnabled(playerNum, RacecraftNext.Feature.RANK_TIME);
+        final boolean crashRank = nextEnabled(playerNum, RacecraftNext.Feature.CRASH_RANK);
+        final boolean opening = nextEnabled(playerNum, RacecraftNext.Feature.OPENING)
+                && RacecraftNext.opening(game, playerNum) && game.racecraftNext.openingTrials > 0;
+        final boolean audit = simDepth == 0 && !inScorerSim;
+        if (audit) auditScorer = best;
 		final Direction[] order = new Direction[DIRECTIONS.length];
 		int n = 0;
 		for (final Direction d : DIRECTIONS) {
@@ -4544,6 +4648,16 @@ final class RaceAi {
 		}
 		if (n < 2)
 			return best;
+        if (audit) {
+            final StringBuilder row = new StringBuilder();
+            for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
+                if (k > 0) row.append(','); row.append(order[k]);
+            }
+            auditShortlist = row.toString();
+        }
+        RacecraftOutcome bestCrash = null;
+        Direction crashPick = null;
+        boolean allCrash = true;
 		Direction pick = null;
 		long pickVerdict = -1;
 		for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
@@ -4551,8 +4665,12 @@ final class RaceAi {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			// A crossing is already decided by the precedence rules above.
-			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
-				return best;
+            if (game.crossesFinishLegally(pos[0], pos[1], nx, ny)) {
+                if (!game.racecraftNext.any(game, playerNum)) return best;
+                final Player me = game.players[game.subgamestate];
+                if (game.evaluateMove(me, pos, new int[]{nx, ny}).finishes()) return d;
+                // Nonterminal crossings are ordinary candidates, never an abort.
+            }
 			// Round 270/274: a live rollout ranks by place, then by the mover's
 			// projected total turns (its finishing round when it finishes).
 			final int outerKeyDepth = placeKeyDepth;
@@ -4562,14 +4680,67 @@ final class RaceAi {
 					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
 			final long key = placeKey;
 			placeKeyDepth = outerKeyDepth;
-			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
+            final RacecraftOutcome detail = lastResearchOutcome;
+            if (detail == null || !detail.known() || !detail.crashed()) allCrash = false;
+            else if (bestCrash == null || detail.betterThan(bestCrash, true)) {
+                bestCrash = detail; crashPick = d;
+            }
+			final long verdict = rankTime && detail != null ? detail.liveVerdict()
+                    : outcome >= 0 && key >= 0 ? key : outcome;
 			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
 				pick = d;
 				pickVerdict = verdict;
 			}
 		}
-		return pick == null ? best : pick;
+        if (crashRank && allCrash && crashPick != null) pick = crashPick;
+        final Direction nominal = pick == null ? best : pick;
+        if (audit) auditChooser = nominal;
+        final Direction planned = opening ? openingSearch(pos, vel, playerNum, nominal, order,
+                Math.min(n, AI1_CHOOSER_WIDTH)) : nominal;
+        if (audit) auditOpening = planned;
+        return planned;
 	}
+
+    private RacecraftOutcome researchForecast(final int[] pos, final int[] vel,
+            final int player, final Direction first, final int rounds, final Direction second) {
+        final int oldDemand = researchDemandDepth, oldSecondDepth = forcedSecondDepth;
+        final Direction oldSecond = forcedSecond;
+        researchOpeningTrials++;
+        researchDemandDepth = forcedSecondDepth = simDepth + 1;
+        forcedSecond = second;
+        try {
+            final int vx = vel[0] + first.dx, vy = vel[1] + first.dy;
+            simOutcome(pos[0] + vx, pos[1] + vy, vx, vy, player, rounds,
+                    true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+            return lastResearchOutcome == null ? RacecraftOutcome.unknown() : lastResearchOutcome;
+        } finally {
+            researchDemandDepth = oldDemand; forcedSecondDepth = oldSecondDepth; forcedSecond = oldSecond;
+        }
+    }
+
+    private Direction openingSearch(final int[] pos, final int[] vel, final int player,
+            final Direction nominal, final Direction[] order, final int width) {
+        researchOpeningTrials = 0;
+        final int horizon = game.racecraftNext.openingRounds;
+        RacecraftOutcome bestResult = researchForecast(pos, vel, player, nominal, horizon, null);
+        if (!bestResult.known()) return nominal;
+        Direction best = nominal;
+        final boolean crashes = nextEnabled(player, RacecraftNext.Feature.CRASH_RANK);
+        int used = 1;
+        // Round-robin the root actions so a small budget does not fund only root 0.
+        for (int follow = -1; follow < DIRECTIONS.length; follow++) {
+            for (int k = 0; k < width; k++) {
+                final Direction first = order[k];
+                if (follow == -1 && first == nominal) continue;
+                if (used >= game.racecraftNext.openingTrials) return best;
+                used++;
+                final RacecraftOutcome result = researchForecast(pos, vel, player, first, horizon,
+                        follow < 0 ? null : DIRECTIONS[follow]);
+                if (result.betterThan(bestResult, crashes)) { best = first; bestResult = result; }
+            }
+        }
+        return best;
+    }
 
 	/** Round 262: Chebyshev distance to the nearest live rival, or Integer.MAX_VALUE
 	 *  when every rival has finished. */

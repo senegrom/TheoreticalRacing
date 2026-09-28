@@ -122,6 +122,10 @@ final class StartPlacement {
         // existing computed-start fixtures without perturbing benchmark RNG.
         final int choice = seed == null ? 0 : new Random(seed ^ ((long) player.getNumber() << 32)).nextInt(bestCells.size());
         final Cell selected = bestCells.get(choice);
-        return new int[]{selected.x(), selected.y()};
+        final int[] stock = {selected.x(), selected.y()};
+        if (game.racecraftNext.enabled(game, player.getNumber(), RacecraftNext.Feature.START_TIES))
+            return RacecraftReplay.chooseStart(game, player, stock,
+                    bestCells.stream().map(c -> new int[]{c.x(), c.y()}).toArray(int[][]::new));
+        return stock;
     }
 }

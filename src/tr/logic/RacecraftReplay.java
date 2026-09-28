@@ -14,6 +14,7 @@ import java.util.List;
  * rc3 carries the decision-relevant ledger, including exact leftGrid and places.
  * UI history is not a policy input and is deliberately not serialized.
  */
+@SuppressWarnings("try")
 final class RacecraftReplay {
     private RacecraftReplay() {}
 
@@ -117,7 +118,8 @@ final class RacecraftReplay {
                 .append(game.finishLine.getY1()).append(',').append(game.finishLine.getX2()).append(',')
                 .append(game.finishLine.getY2());
         final double[] points = new double[6];
-        if (game.startZoneA != null) for (final PathIterator it = game.startZoneA.getPathIterator(null);
+        for (final java.awt.geom.Area area : new java.awt.geom.Area[]{game.trackA, game.startZoneA})
+            if (area != null) for (final PathIterator it = area.getPathIterator(null);
                 !it.isDone(); it.next()) {
             Arrays.fill(points, 0.0); s.append(';').append(it.currentSegment(points)).append(Arrays.toString(points));
         }
@@ -204,7 +206,7 @@ final class RacecraftReplay {
         if (live == 1 && game.players.length > 1) {
             final int first = game.researchFinishedFirst() + 1;
             survivor.setFinishedPlace(first);
-            game.researchClassification(first, game.researchFinishedLast());
+            // checkFinished assigns this place without incrementing finishedFirst.
             return true;
         }
         return false;
@@ -212,13 +214,14 @@ final class RacecraftReplay {
 
     static Tail run(final RaceGame game, final Board root, final int self, final Direction first,
             final int maxMoves, final boolean scorerOnly) {
-        if (maxMoves < 1 || self < 0 || self >= root.cars.length)
+        if (maxMoves < 1 || root.turn > Integer.MAX_VALUE - maxMoves || self < 0 || self >= root.cars.length)
             throw new IllegalArgumentException("invalid tail budget/mover");
         final List<String> trace = new ArrayList<>();
         try (Scope ignored = new Scope(game, root)) {
             final RaceAi policy = new RaceAi(game);
             int own = 0; boolean complete = classifyLast(game), firstAction = true;
-            RacecraftOutcome.Status focalStatus = RacecraftOutcome.Status.RUNNING;
+            RacecraftOutcome.Status focalStatus = complete ? RacecraftOutcome.Status.CLASSIFIED
+                    : RacecraftOutcome.Status.RUNNING;
             for (int step = 0; step < maxMoves && !complete; step++) {
                 final int slot = game.subgamestate;
                 if (game.players[slot].isFinished()) throw new IllegalStateException("retired tail slot");
