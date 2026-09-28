@@ -153,10 +153,23 @@ browser/desktop parity byte-identical on 17 complete races). CI green through
   (round 294), the field-cost tie-breaks are reversed (round 295), and the
   cross-era exhibition and the three generators that rewrote bundled tracks
   in place are retired (e221569).
-Open: the AI findings are round 293 (above); a JS/jar protocol check (a
-returning browser can pair a cached jar with new pages for a few minutes
-after a deploy); the browser's preparation stage is one number shared by
-two threads (cosmetic).
+- The remaining findings (the owner: "fix the remaining issues"):
+  93734ab drops the three derived maps no decision read (the depth-1 roomy
+  map, its shed variant and the certified-speed map: ~4 B/state of a lap
+  race, three of six derive sweeps; the cache is now <key>.derived2), the
+  dead isRoomy recursion, multi-step opponent prediction and the hold
+  verdict memo (0 hits in 497 lookups) -- 12/12 goldens identical, every
+  queued arm still applies. 81f999d gives each browser build one engine
+  identity (jar and worker must match, or the page asks for a reload),
+  stamps tracks.json, makes builds byte-reproducible, and has the browsers
+  job test the artifact parity built instead of a rebuild. 638ceef: the
+  race-start velocity arrow. e446b80: nine duplicate pin races run once.
+  4f9bf8a: grids race from private input copies; memory-aware default jobs.
+  Kept on purpose: `!lapAware && onFinalLap` (redundant only while every
+  caller runs in a decision frame), the pins' constant contract checks
+  (re-freeze tripwires), StartPlacement.score (the smallest test seam),
+  board_at and head_to_head.read (tools and tests use them), the pre-v3
+  icon exports (old installs link them).
 
 ## The 2026-09-27 code review: what landed
 
