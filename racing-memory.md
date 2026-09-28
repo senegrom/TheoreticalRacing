@@ -1,6 +1,6 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
-## Rounds 281-293 (in progress, 2026-09-28): the reviews' AI bugs and the racecraft arms
+## Rounds 281-295 (in progress, 2026-09-28): the reviews' AI bugs and the racecraft arms
 
 Every arm is candidate-gated against its base and identity-checked first
 (verify_pair.py: no slots races as the base; every slot a candidate differs
@@ -39,11 +39,17 @@ From the review (base m281base = master 8495da2):
 - 291 = 286+287+288+289 as one arm on master de0bef7 (base m291base
   ed0e1595, arm b4d6b2d8): identity INERT (all-candidate races identical on
   the four standard races). Scattered starts: -0.070 +- 0.013, and its cars
-  crash 17 times to the champion's 110. Legacy and computed starts running
-  (the legacy odd half lost one Nordschleife race to the kernel's OOM killer
-  -- three Nordschleife JVMs at once; screen4 retries by output directory),
-  then the lone check. The scatter placement fix (a car placed off the grid
-  is marked as having left it) rides with the promotion.
+  crash 17 times to the champion's 110. Random starts -0.002 +- 0.011
+  (crashes 89:77; 21 boards for, 23 against, 40 tied; rand19 worst at +0.525,
+  the round-286 forced-out trace), computed starts +0.008 +- 0.009 (crashes
+  84:74; 17/19/48). Place-neutral where it is not a gain: it clears the fleet
+  as a correctness fix. The legacy odd half lost one Nordschleife race to the
+  kernel's OOM killer (three Nordschleife JVMs at once); screen4's retry
+  re-raced it. promote291_fixed.py applies to master e221569 (jar
+  p291_on_e22 b46b7a45); its identity against the bundle (no slots == every
+  slot a candidate) and the lone check are queued first. The scatter
+  placement fix rides with the promotion. The queue's first fit starved
+  three-slot jobs behind two-slot ones, so the lone checks now take two.
 - 293, the second review's AI findings (base m293base = master 0498974,
   arm a293correct 4a98fc78): (1) the finish precedence guards the seal but
   was armed on all live rivals, lapped cars too, so with enough lapped cars
@@ -55,8 +61,19 @@ From the review (base m281base = master 8495da2):
   (rankVerdict already ranks it worst live); (5) the true-confirm rescue
   walked candidates slowest-first before its verdict -- the rank-first rule
   wants place first; (7a) needleHeadway read the mover's lap frame while
-  predicting a rival. Queued: identity, CPU, legacy/informed/scatter,
-  held-out, duels, lone check.
+  predicting a rival. Identity INERT (the four standard races never meet
+  these cases), CPU 1.00x; legacy and computed starts running, scatter,
+  held-out, duels and the lone check queued.
+- 294, the owner's single-player rule before the duel tactic (the owner's
+  call, 2026-09-28): RaceAiTactics.winNow ran before the 20-cell gate, so a
+  two-car endgame with a distant rival could leave the solo descent. Arm
+  a294solo (base m294base = master e221569): identity, 8-car legacy and
+  two-car duels queued. A rule conformance: ships unless it loses.
+- 295, the field-cost tie-breaks reversed (the owner's call): the
+  field-acceleration and private-slack overrides broke ties between lines
+  equally good for the mover by the LOWER rival cost -- the line helping
+  the rivals most. The owner: no cooperation; take the rivals' worse line.
+  Arm a295hostile: identity and 8-car legacy queued.
 - 292b, the chooser judges only a pace landing it ADDED (round 292 also
   let the pick stand when poDir was among the score's candidates -- round
   290 exactly): queued behind 283.
@@ -72,7 +89,8 @@ The owner's racecraft ideas ("implement them all", 2026-09-27; base m281base):
   held-out 11-20 -0.126 +- 0.022 (crashes 90:89), computed starts -0.114 +-
   0.018 (crashes 72:82). CPU 1.11x. Duels and the lone check running/queued.
 - 281 all, every live rival plays its scorer: -0.115 +- 0.020 (62 for, 20
-  against), CPU 1.38x; held-out and computed starts queued.
+  against), CPU 1.38x; held-out 11-20 -0.175 +- 0.022 (crashes 73:85);
+  computed starts running.
 - 282 endgame horizon: +0.007 +- 0.008 (crashes 86:96). Dead.
 - 283 defend: INERT on the standard races, screen queued. 283 wide (window
   2.0, width 5): CPU 1.35x, queued.
@@ -131,10 +149,14 @@ browser/desktop parity byte-identical on 17 complete races). CI green through
   stored with the drawing's points; clicks queued during an AI's think are
   dropped (two queued clicks on one direction committed an unseen move).
 - 97e532e, stale docs and comments.
-Open: the AI findings are round 293 (above); two questions for the owner
-(the duel tactic runs before the single-player gate; the field-cost
-tie-breaks favour rival-friendly lines); retiring the cross-era tool and the
-generators that rewrite fleet tracks in place; a JS/jar protocol check.
+- The owner's calls: the single-player rule goes before the duel tactic
+  (round 294), the field-cost tie-breaks are reversed (round 295), and the
+  cross-era exhibition and the three generators that rewrote bundled tracks
+  in place are retired (e221569).
+Open: the AI findings are round 293 (above); a JS/jar protocol check (a
+returning browser can pair a cached jar with new pages for a few minutes
+after a deploy); the browser's preparation stage is one number shared by
+two threads (cosmetic).
 
 ## The 2026-09-27 code review: what landed
 
