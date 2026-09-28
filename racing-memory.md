@@ -1,6 +1,6 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
-## Rounds 281-291 (in progress, 2026-09-28): the review's AI bugs and the racecraft arms
+## Rounds 281-293 (in progress, 2026-09-28): the reviews' AI bugs and the racecraft arms
 
 Every arm is candidate-gated against its base and identity-checked first
 (verify_pair.py: no slots races as the base; every slot a candidate differs
@@ -37,8 +37,29 @@ From the review (base m281base = master 8495da2):
   landing after the chooser is load-bearing; the review's "undoes chooser
   picks" was right about the mechanism and wrong about its worth. Not shipped.
 - 291 = 286+287+288+289 as one arm on master de0bef7 (base m291base
-  ed0e1595, arm b4d6b2d8): screen queued. The scatter placement fix (a car
-  placed off the grid is marked as having left it) rides with the promotion.
+  ed0e1595, arm b4d6b2d8): identity INERT (all-candidate races identical on
+  the four standard races). Scattered starts: -0.070 +- 0.013, and its cars
+  crash 17 times to the champion's 110. Legacy and computed starts running
+  (the legacy odd half lost one Nordschleife race to the kernel's OOM killer
+  -- three Nordschleife JVMs at once; screen4 retries by output directory),
+  then the lone check. The scatter placement fix (a car placed off the grid
+  is marked as having left it) rides with the promotion.
+- 293, the second review's AI findings (base m293base = master 0498974,
+  arm a293correct 4a98fc78): (1) the finish precedence guards the seal but
+  was armed on all live rivals, lapped cars too, so with enough lapped cars
+  the seal fired unguarded; (2) after a ridge switch the fast-fire block ran
+  on the pre-switch landing and could override it; (3) the ridge rank
+  rTurns + thread wrapped negative on an unknown ttf and ranked best; (4)
+  the chooser's finer key capped an unknown mover time at half a stride,
+  ranking a hopeless rollout above one where a single rival more finished
+  (rankVerdict already ranks it worst live); (5) the true-confirm rescue
+  walked candidates slowest-first before its verdict -- the rank-first rule
+  wants place first; (7a) needleHeadway read the mover's lap frame while
+  predicting a rival. Queued: identity, CPU, legacy/informed/scatter,
+  held-out, duels, lone check.
+- 292b, the chooser judges only a pace landing it ADDED (round 292 also
+  let the pick stand when poDir was among the score's candidates -- round
+  290 exactly): queued behind 283.
 
 The owner's racecraft ideas ("implement them all", 2026-09-27; base m281base):
 - The faithfulness diagnostic (faith285, 168 races): a rival the chooser's
@@ -48,11 +69,13 @@ The owner's racecraft ideas ("implement them all", 2026-09-27; base m281base):
   in their final place after round 1, 73.7% at half distance.
 - 281 near, every rival within the scorer radius plays its scorer: -0.090 +-
   0.021 (55 boards for, 23 against), scattered starts identical (84 tied);
-  held-out 11-20 and computed starts running. CPU 1.11x.
+  held-out 11-20 -0.126 +- 0.022 (crashes 90:89), computed starts -0.114 +-
+  0.018 (crashes 72:82). CPU 1.11x. Duels and the lone check running/queued.
 - 281 all, every live rival plays its scorer: -0.115 +- 0.020 (62 for, 20
   against), CPU 1.38x; held-out and computed starts queued.
-- 282 endgame horizon and 283 defend: INERT on the standard races, screens
-  queued (282 running). 283 wide (window 2.0, width 5): CPU 1.35x, queued.
+- 282 endgame horizon: +0.007 +- 0.008 (crashes 86:96). Dead.
+- 283 defend: INERT on the standard races, screen queued. 283 wide (window
+  2.0, width 5): CPU 1.35x, queued.
 - 284, the first scorer rival plays its full policy once: INERT and 33.7x the
   CPU. Dead.
 - 285 aware (the lab's forecasts on today's chooser): about 3x the CPU on its
@@ -64,6 +87,54 @@ Earlier results that were still open:
   -0.010 +- 0.002 -- ported as 285.
 - Round 278's duel slice: +0.018 +- 0.003 against it (3 boards, 81 tied),
   crashes 196:222.
+
+## The 2026-09-28 second review: what landed
+
+The owner asked for the whole repo to be reviewed again. Six reviewers; every
+finding checked against the code. No fleet race changed (twelve goldens, and
+browser/desktop parity byte-identical on 17 complete races). CI green through
+0498974:
+- c3b18b2, my own regressions from the first round: the browser's checklist
+  plans ten stages for a legacy-start lap race (its AIs now wait for the
+  exact map); a reach dump builds no potential; the start dialog offers
+  scattered starts and an unknown aiStartPlacement is refused headless and
+  dropped on the desktop (it used to throw in the preparation daemon, so
+  the race never started); a malformed candidateSlots shows a dialog instead
+  of dying silently; the minimum window size stays within the screen. Drawn
+  loops need eight points on each border once either closes, and one border
+  inside the other. fleet_grid: Ctrl+C and SIGTERM stop the grid's JVMs and
+  start no queued track (it used to race the whole queue first; a SIGTERM
+  left the JVMs running); an interruption revokes nothing, only a failed
+  validation does.
+- f97d1de, maps: the dense edge table covers every legal board (the
+  Nordschleife fell to the synchronised fallback map); a preparation thread
+  outliving the cancel's join releases what it attached; the skip label
+  names the frontier budget; the .derived cache is streamed both ways in the
+  same format (the one-shot buffers peaked at ~16.4 B/state, over the
+  12-byte guard).
+- bbc5b56, measurement guards: one potential check shared by fleet_grid, the
+  pin runners and the Oracle (the pins and the Oracle never checked);
+  "capped" only at the default 1536 MiB budget (a lowered
+  -Dtr.optimalBuildBytes caps every course); markers without the potential
+  field are not resumable; run_1vfield's report reads validated completions
+  of one build only.
+- df56b7f, 30e5667, browser: the IndexedDB map cache is bounded (1 GiB,
+  this race's maps kept; only the browser runtime asks -- desktop tests
+  drive the same bridge); cache writes are best effort everywhere; a failed
+  engine stops its worker; a focused direction button takes Space/Enter;
+  tracks.json is deterministic (Map.of iterates in a per-JVM salted order).
+- 7d5aed6 (+ ba0cd64, its browser-hook anchor): user.properties is written
+  durably; abandoned temporaries of killed JVMs are swept; the preparation
+  daemon drops its point memo between phases.
+- 0498974, referee UI: checkpoints drawn from the referee's own segments (a
+  drawing's were rounded up to half a cell off); the drawn-track flags are
+  stored with the drawing's points; clicks queued during an AI's think are
+  dropped (two queued clicks on one direction committed an unseen move).
+- 97e532e, stale docs and comments.
+Open: the AI findings are round 293 (above); two questions for the owner
+(the duel tactic runs before the single-player gate; the field-cost
+tie-breaks favour rival-friendly lines); retiring the cross-era tool and the
+generators that rewrite fleet tracks in place; a JS/jar protocol check.
 
 ## The 2026-09-27 code review: what landed
 
