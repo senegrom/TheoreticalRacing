@@ -1,5 +1,112 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Rounds 281-291 (in progress, 2026-09-28): the review's AI bugs and the racecraft arms
+
+Every arm is candidate-gated against its base and identity-checked first
+(verify_pair.py: no slots races as the base; every slot a candidate differs
+somewhere on the four standard races). Mirrored screens, 8 cars, legacy starts
+seeds 1-10 unless stated. The screen's number is the mirrored difference, twice
+one candidate car's shift (see the review entry below).
+
+From the review (base m281base = master 8495da2):
+- 286, the grid rule at the finish. Every AI finish shortcut
+  (crossesFinishLegally, the solo descent's finishing branch) tested the
+  run-up only; past CP1 the referee also refuses a finish that touches the
+  pocket. A car alone crashed on its winning move on fractal1, hybrid6,
+  hybrid7 and lobe6 in 12 of 12 solo races. The arm also builds the exact
+  potential with the rule (a car owing every event may use the grid, every
+  later stage not) and splits the successor-mask cache by grid world (it was
+  keyed by position and velocity only). Solo races all finish, on the same
+  move; descents from every cell of the ten pocket-finish courses all finish
+  at the potential's value (35,523 of 35,523). INERT on the standard races;
+  on the ten courses, seeds 1-20: +0.006 +- 0.013, seven courses identical,
+  lobe5 -0.137, hybrid7 -0.012, rand19 +0.213. Crashes 44:26 -- rand19,
+  traced: the pocket-aware potential changes p6's line at move 382 of s9, and
+  52 moves later p2 and p4 enter a state whose only alive landing a rival
+  occupies (forced out, legal racecraft). Place-neutral; a correctness fix.
+- 287, finishing without the exact potential (the Nordschleife at 8g, small
+  heaps): exactRemaining stayed 0, so every S/F crossing "finished", and the
+  private-lane proof compared turns to the finish with turns to the next
+  gate. Nordschleife, seeds 1-20: +0.000 (identical places), crashes 9:12.
+- 288, a crossing that does not finish no longer skips the guards, the danger
+  search or the chooser (14 sites; every lap race starts behind the line), and
+  289, no field-cost veto in the pace overrides: both INERT on the standard
+  races.
+- 290, the chooser's pick stands against the round-34 pace swap:
+  +0.832 +- 0.043 (14 boards for, 67 against). The swap to a roomy map-faster
+  landing after the chooser is load-bearing; the review's "undoes chooser
+  picks" was right about the mechanism and wrong about its worth. Not shipped.
+- 291 = 286+287+288+289 as one arm on master de0bef7 (base m291base
+  ed0e1595, arm b4d6b2d8): screen queued. The scatter placement fix (a car
+  placed off the grid is marked as having left it) rides with the promotion.
+
+The owner's racecraft ideas ("implement them all", 2026-09-27; base m281base):
+- The faithfulness diagnostic (faith285, 168 races): a rival the chooser's
+  rollout plays by its scorer is predicted exactly when its own chooser kept
+  the score's move (100%) and 28.8% when the chooser moved it; the smom proxy
+  62.7% and 43.6%. Width, not fidelity, is the bigger gap. 43.9% of cars are
+  in their final place after round 1, 73.7% at half distance.
+- 281 near, every rival within the scorer radius plays its scorer: -0.090 +-
+  0.021 (55 boards for, 23 against), scattered starts identical (84 tied);
+  held-out 11-20 and computed starts running. CPU 1.11x.
+- 281 all, every live rival plays its scorer: -0.115 +- 0.020 (62 for, 20
+  against), CPU 1.38x; held-out and computed starts queued.
+- 282 endgame horizon and 283 defend: INERT on the standard races, screens
+  queued (282 running). 283 wide (window 2.0, width 5): CPU 1.35x, queued.
+- 284, the first scorer rival plays its full policy once: INERT and 33.7x the
+  CPU. Dead.
+- 285 aware (the lab's forecasts on today's chooser): about 3x the CPU on its
+  first race, not screened yet.
+
+Earlier results that were still open:
+- The round-263 lab, against the round-260 base: assist -0.026 +- 0.013
+  (44 for, 34 against); aware -0.184 +- 0.016 (64 for, 16 against), scattered
+  -0.010 +- 0.002 -- ported as 285.
+- Round 278's duel slice: +0.018 +- 0.003 against it (3 boards, 81 tied),
+  crashes 196:222.
+
+## The 2026-09-27 code review: what landed
+
+The owner asked for a hard review of the whole app for bugs and debloat. Five
+reviewers (AI, maps and caches, referee, UI, tooling); every finding was
+checked against the code before a fix. Landed, no fleet race changed (the
+twelve goldens identical, the query replay and lap-progress regressions pass;
+CI green on a71ef2f):
+- c00a94e: the game window is resizable (the owner's choice), opens no larger
+  than the screen and stops shrinking at its controls; left-click only; a
+  drawing places its checkpoints by LENGTH (the owner's choice; by index,
+  sparse early points put both on the last side and a 14-move backwards lap
+  counted on a nine-point loop, now 30 moves; track files keep index
+  placement); a drawn loop whose other border stops more than 8 cells short
+  is refused (it raced point to point, one move); Restart keeps the start
+  seed; the start dialog keeps aiStartPlacement unless changed and shows a
+  chosen track's size read-only; --help exits 0; the three exclusive modes
+  are refused together; the browser's More menu opens on Enter; the browser
+  build stamps every ?v= with the file's hash; run_tests.sh uses a throwaway
+  reach cache (the unit tests wrote fixture maps into the player's).
+- 3e071c7: a lap race's preparation is guarded at 32 bytes per state, not
+  12 (circle at 150 MB ran out of memory instead of refusing); the daemon
+  builds the exact potential for any lap race an AI drives (a GUI legacy
+  race built it on the event thread at the first AI move); a cancelled
+  game publishes no half-released maps; the edge-cache pool counts both
+  planes; the move oracle infers the grid flag.
+- b19b3a9, a71ef2f: fleet_grid refuses a track whose potential was skipped
+  for want of heap (the champion raced demoted there), publishes each
+  track's marker once it is revalidated (a killed runner resumes; a failed
+  or interrupted revalidation leaves nothing resumable); CI syntax-checks
+  every shell script.
+- THE SCREEN'S UNIT. With half the field candidate, a race's places sum to
+  a constant, so head_to_head's mirrored difference is TWICE one candidate
+  car's shift; run_1vfield reports the per-car shift. Round 278 read -0.048
+  on the screen and -0.028 in the lone check: -0.024 against -0.028 per car,
+  the lone entrant gaining slightly more, not about half. head_to_head now
+  prints the per-car line too, and the statistic has tests.
+- de0bef7 (the owner's decision): the AI1-vs-AI2 label tools (ai_probe,
+  bench_iso, extract_baseline, the bench_ai benchmark and CLI, the self-play
+  profile regression) and the promotion gate (unused since round 237, no
+  lone-candidate check) are retired, with policy_matrix, plot_track and
+  crash_scan.
+
 ## Restart cancels the old game's map preparation (owner, 2026-09-27)
 
 The game-layer review: a desktop restart while the old game still prepared
@@ -210,7 +317,8 @@ round 274, complete the next morning, confirms it on every slice: held-out
 seeds 21-40 -0.029 +- 0.010 (48 boards for, 32 against), computed starts
 -0.033 +- 0.010 (crashes 167:180), and the lone candidate among seven
 champions over all eight seats -0.028 +- 0.012 (34 boards for, 21 against,
-crashes 38:37). The duel slice is still to come.
+crashes 38:37). The duel slice (recorded 2026-09-27): +0.018 +- 0.003 against
+it, three boards moving and 81 tied, crashes 196:222.
 
 The promoted jar (5705e0df) with no candidateSlots races exactly as the
 candidate-gated twin with every slot a candidate (PROMO278_IDENTITY OK, lap
