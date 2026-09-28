@@ -3,11 +3,14 @@ package tr.logic;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.FileChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -39,6 +42,19 @@ public final class TrackIO {
 	 *  one rename. Unique temporary files keep concurrent game instances from
 	 *  truncating each other's properties, logs, dumps or reachability caches. */
 	static void writeAtomically(final Path target, final OutputWriter writer) throws IOException {
+		write(target, writer, false);
+	}
+
+	/** writeAtomically, and the contents reach the storage device before the
+	 *  rename publishes them: after a crash the file holds the old or the new
+	 *  version, never an empty one (review, 2026-09-28). For the user's own
+	 *  data; the caches are re-derivable and skip the wait. */
+	static void writeDurably(final Path target, final OutputWriter writer) throws IOException {
+		write(target, writer, true);
+	}
+
+	private static void write(final Path target, final OutputWriter writer, final boolean durable)
+			throws IOException {
 		final Path absolute = target.toAbsolutePath().normalize();
 		final Path parent = absolute.getParent();
 		if (parent == null || absolute.getFileName() == null)
@@ -47,8 +63,18 @@ public final class TrackIO {
 		final Path temporary = Files.createTempFile(parent, "." + absolute.getFileName() + ".tmp.", null);
 		Throwable failure = null;
 		try {
-			try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temporary), 1 << 16)) {
-				writer.write(out);
+			if (durable) {
+				try (FileChannel channel = FileChannel.open(temporary, StandardOpenOption.WRITE,
+						StandardOpenOption.TRUNCATE_EXISTING);
+						OutputStream out = new BufferedOutputStream(Channels.newOutputStream(channel), 1 << 16)) {
+					writer.write(out);
+					out.flush();
+					channel.force(true);
+				}
+			} else {
+				try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(temporary), 1 << 16)) {
+					writer.write(out);
+				}
 			}
 			publish(temporary, absolute);
 		} catch (final IOException | RuntimeException | Error error) {
@@ -63,6 +89,37 @@ public final class TrackIO {
 				failure.addSuppressed(cleanupFailure);
 			}
 		}
+	}
+
+	/** Temporary files of writes whose process died before the rename -- a JVM
+	 *  the kernel killed for memory, as the bench box's fleet does -- are never
+	 *  published and never deleted: hundreds of MB each in a cache directory.
+	 *  Delete those untouched for an hour (a live write takes seconds); returns
+	 *  how many went. Best effort (review, 2026-09-28). */
+	static int deleteAbandonedTemporaries(final Path dir, final long nowMillis) {
+		int deleted = 0;
+		try (java.util.stream.Stream<Path> entries = Files.list(dir)) {
+			for (final Path file : entries.toList()) {
+				final String name = file.getFileName().toString();
+				if (name.startsWith(".") && name.contains(".tmp.") && Files.isRegularFile(file)
+						&& nowMillis - Files.getLastModifiedTime(file).toMillis() > ABANDONED_AFTER_MILLIS
+						&& Files.deleteIfExists(file))
+					deleted++;
+			}
+		} catch (final IOException | RuntimeException bestEffort) {
+			// a directory we cannot sweep keeps its files
+		}
+		return deleted;
+	}
+
+	private static final long ABANDONED_AFTER_MILLIS = 3_600_000L;
+	private static final java.util.concurrent.atomic.AtomicBoolean CACHE_SWEPT =
+			new java.util.concurrent.atomic.AtomicBoolean();
+
+	/** Sweep the map-cache directory once per process, before its first write. */
+	static void sweepCacheDirOnce() {
+		if (CACHE_SWEPT.compareAndSet(false, true) && Files.isDirectory(REACH_CACHE_DIR))
+			deleteAbandonedTemporaries(REACH_CACHE_DIR, System.currentTimeMillis());
 	}
 
 	/** Windows can briefly deny one of two simultaneous replacement renames.

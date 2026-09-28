@@ -1221,11 +1221,6 @@ public final class RaceGame {
 			return 0;
 		}
 
-		void clear() {
-			java.util.Arrays.fill(states, (byte) 0);
-			size = 0;
-		}
-
 		void put(final long xKey, final long yKey, final boolean value) {
 			if (size >= resizeAt)
 				grow();
@@ -2807,8 +2802,8 @@ public final class RaceGame {
 		final Path target = propertiesOverride != null
 				? propertiesOverride : TrackIO.userPropertiesPath();
 		try {
-			TrackIO.writeAtomically(target, out -> prop.store(out, null));
-		} catch (final IOException e) {
+			TrackIO.writeDurably(target, out -> prop.store(out, null));
+		} catch (final IOException | RuntimeException e) { // a store that cannot sync: settings unsaved, game on
 			e.printStackTrace();
 		}
 	}

@@ -1406,6 +1406,10 @@ final class Reachability {
 						computeReachability();
 					publishMemo(memoKey);
 				}
+				// The point memo only serves the phase that sampled it: later phases
+				// meet the same edges in the edge cache. Drop it between phases
+				// instead of holding every phase's points to the end (review, 2026-09-28).
+				game.clearPointContainmentCacheForCurrentThread();
 				// Round 209: the gate maps and the coherent alive set they
 				// define are per-race products of the memoized finish closure
 				// -- computed on every path, memo hits included (the memo
@@ -1414,6 +1418,7 @@ final class Reachability {
 				if (game.lapGates != null && !adoptLapMemo(memoKey)) {
 					computeGateMaps(game.lapGates);
 					publishLapMemo(memoKey);
+					game.clearPointContainmentCacheForCurrentThread();
 				}
 				if (!game.dumpsReachOnly()) { // a reach dump exits: no race follows
 					if (game.needsInformedStartMaps()) game.prepareOptimalStartMap();
@@ -1620,6 +1625,7 @@ final class Reachability {
 		final Path path = reachCachePath();
 		if (path == null)
 			return;
+		TrackIO.sweepCacheDirOnce();
 		try {
 			TrackIO.writeAtomically(path, out ->
 					writeCacheData(out, aliveW, aliveH, aliveVMAX, turnsArr, legalAlive));

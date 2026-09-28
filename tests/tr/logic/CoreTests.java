@@ -49,6 +49,7 @@ public final class CoreTests {
         testReachabilityVelocityBounds();
         testReachabilityCacheIO();
         testDerivedCacheStreams();
+        testAbandonedTemporariesSwept();
         testAutomaticStartPositionBounds();
         testEmptyTrackUndo();
         testCoarseLoopBorders();
@@ -503,8 +504,7 @@ public final class CoreTests {
         cache.put(0L, 0L, true);
         check(cache.get(0L, 0L) == RaceGame.PointContainmentCache.TRUE,
                 "point cache update failed");
-        cache.clear();
-        check(cache.get(0L, 0L) == 0, "point cache clear retained a stale geometry verdict");
+        // (0.0, 0.0) is cached: -0.0 has other bits and must not find it.
         check(cache.get(Double.doubleToRawLongBits(-0.0), Double.doubleToRawLongBits(-0.0)) == 0,
                 "point cache merged distinct double bit patterns");
     }
@@ -947,6 +947,32 @@ public final class CoreTests {
                 truncatedRejected = true;
             }
             check(truncatedRejected, "a truncated cache was accepted");
+        } catch (final java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    /** Review, 2026-09-28: a killed writer's temporary file is swept once it
+     *  has sat untouched for an hour; a fresh one may be a live write. */
+    private static void testAbandonedTemporariesSwept() {
+        try {
+            final java.nio.file.Path dir = java.nio.file.Files.createTempDirectory("sweep");
+            final long now = 100_000_000_000L;
+            final String[] names = {".reach-a.bin.tmp.1.tmp", ".reach-b.bin.tmp.2.tmp", "reach-c.bin", "keep.tmp.3"};
+            final long[] ages = {7_200_000L, 60_000L, 7_200_000L, 7_200_000L};
+            for (int i = 0; i < names.length; i++) {
+                final java.nio.file.Path p = dir.resolve(names[i]);
+                java.nio.file.Files.write(p, new byte[8]);
+                java.nio.file.Files.setLastModifiedTime(p, java.nio.file.attribute.FileTime.fromMillis(now - ages[i]));
+            }
+            check(TrackIO.deleteAbandonedTemporaries(dir, now) == 1, "the sweep deleted other than the one stale temporary");
+            check(!java.nio.file.Files.exists(dir.resolve(names[0])), "a stale temporary survived");
+            for (int i = 1; i < names.length; i++)
+                check(java.nio.file.Files.exists(dir.resolve(names[i])), names[i] + " was swept");
+            // A durable write publishes like an atomic one.
+            final java.nio.file.Path settings = dir.resolve("user.properties");
+            TrackIO.writeDurably(settings, out -> out.write("a=1\n".getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            check(java.nio.file.Files.readString(settings).equals("a=1\n"), "a durable write did not publish");
         } catch (final java.io.IOException e) {
             throw new AssertionError(e);
         }
