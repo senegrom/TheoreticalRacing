@@ -48,6 +48,7 @@ public final class CoreTests {
         testReachabilityFailurePropagation();
         testReachabilityVelocityBounds();
         testReachabilityCacheIO();
+        testDerivedCacheStreams();
         testAutomaticStartPositionBounds();
         testEmptyTrackUndo();
         testCoarseLoopBorders();
@@ -901,6 +902,82 @@ public final class CoreTests {
                 "two loops side by side were accepted: " + apart);
         check(RaceGame.openLoopProblem(java.util.List.of(new int[]{5, 5}, new int[]{40, 5}),
                 java.util.List.of(new int[]{5, 12}, new int[]{40, 12})) == null, "a point-to-point drawing was refused");
+    }
+
+    /** Review, 2026-09-28: the derived cache is streamed both ways instead of
+     *  through whole-payload buffers, in the unchanged format -- both old
+     *  (one-shot) files and new ones read either way. */
+    private static void testDerivedCacheStreams() {
+        final int total = 1000;
+        final java.util.Random random = new java.util.Random(7);
+        final java.util.BitSet r0 = new java.util.BitSet(total), r1 = new java.util.BitSet(total);
+        final byte[] shed = new byte[total], shedRoomy = new byte[total], cert = new byte[total];
+        for (int i = 0; i < total; i++) {
+            if (random.nextInt(3) == 0) r0.set(i);
+            if (random.nextInt(5) == 0) r1.set(i);
+            shed[i] = (byte) (random.nextInt(4) == 0 ? random.nextInt(256) : 255);
+            shedRoomy[i] = (byte) random.nextInt(256);
+            cert[i] = (byte) (i % 7 == 0 ? 255 : i);
+        }
+        try {
+            final java.io.ByteArrayOutputStream streamed = new java.io.ByteArrayOutputStream();
+            Reachability.writeDerivedCache(streamed, new Reachability.Derived(r0, r1, shed, shedRoomy, cert));
+            final byte[] oneShot = oneShotDerived(total, r0, r1, shed, shedRoomy, cert);
+            for (final byte[] file : new byte[][]{streamed.toByteArray(), oneShot}) {
+                final Reachability.Derived d = Reachability.readDerivedCache(new java.io.ByteArrayInputStream(file), total);
+                check(d != null && d.roomy0().equals(r0) && d.roomy1().equals(r1)
+                        && java.util.Arrays.equals(d.minShed2(), shed) && java.util.Arrays.equals(d.minShed2Roomy(), shedRoomy)
+                        && java.util.Arrays.equals(d.certSq(), cert), "a derived cache did not read back");
+            }
+            // The streamed file's header and payload are the one-shot format's.
+            final byte[] file = streamed.toByteArray();
+            check(java.util.Arrays.equals(java.util.Arrays.copyOf(file, 16), java.util.Arrays.copyOf(oneShot, 16)),
+                    "the streamed header differs from the one-shot format");
+            check(Reachability.readDerivedCache(new java.io.ByteArrayInputStream(file), total + 1) == null,
+                    "a cache for another state count was accepted");
+            final byte[] flipped = file.clone();
+            flipped[12] ^= 1; // the checksum
+            check(Reachability.readDerivedCache(new java.io.ByteArrayInputStream(flipped), total) == null,
+                    "a checksum mismatch was accepted");
+            boolean truncatedRejected;
+            try {
+                truncatedRejected = Reachability.readDerivedCache(new java.io.ByteArrayInputStream(
+                        java.util.Arrays.copyOf(file, file.length - 5)), total) == null;
+            } catch (final java.io.IOException expected) {
+                truncatedRejected = true;
+            }
+            check(truncatedRejected, "a truncated cache was accepted");
+        } catch (final java.io.IOException e) {
+            throw new AssertionError(e);
+        }
+    }
+
+    /** The pre-2026-09-28 writer: the whole payload, then one deflate call. */
+    private static byte[] oneShotDerived(final int total, final java.util.BitSet roomy0, final java.util.BitSet roomy1,
+            final byte[] shed, final byte[] shedRoomy, final byte[] cert) {
+        final long[] r0 = roomy0.toLongArray(), r1 = roomy1.toLongArray();
+        final int rawLen = 4 + 8 * r0.length + 4 + 8 * r1.length + 3 * total;
+        final byte[] raw = new byte[rawLen];
+        final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
+        buf.putInt(r0.length);
+        for (final long w : r0) buf.putLong(w);
+        buf.putInt(r1.length);
+        for (final long w : r1) buf.putLong(w);
+        buf.put(shed).put(shedRoomy).put(cert);
+        final java.util.zip.CRC32 c = new java.util.zip.CRC32();
+        c.update(raw, 0, rawLen);
+        final java.util.zip.Deflater def = new java.util.zip.Deflater(1);
+        def.setInput(raw);
+        def.finish();
+        final byte[] out = new byte[rawLen + 64];
+        int outLen = 0;
+        while (!def.finished() && outLen < out.length)
+            outLen += def.deflate(out, outLen, out.length - outLen);
+        def.end();
+        final byte[] file = new byte[16 + outLen];
+        java.nio.ByteBuffer.wrap(file).putInt(0x44524956).putInt(total).putInt(rawLen).putInt((int) c.getValue())
+                .put(out, 0, outLen);
+        return file;
     }
 
     private static void testPolylineHelpers() {

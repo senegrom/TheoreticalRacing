@@ -155,8 +155,8 @@ def potential_status(track, output):
         elif reason == 'over the distance cap' or reason == 'over budget' and track in CAPPED_TRACKS:
             kinds.add('capped')
         else:
-            raise ValueError('%s: the exact potential was skipped (%s); the champion raced without it, '
-                             'so raise the heap' % (track, reason))
+            raise ValueError('%s: the exact potential was skipped (%s); the champion raced without it%s'
+                             % (track, reason, ', so raise the heap' if reason == 'heap too small' else ''))
     if len(kinds) > 1:
         raise ValueError('%s: the exact potential was built in some races and not in others' % track)
     return kinds.pop() if kinds else None

@@ -739,61 +739,20 @@ final class Reachability {
 		final Path path = derivedCachePath();
 		if (path == null || !Files.isRegularFile(path))
 			return false;
-		final int total = turnsArr.length;
-		try {
-			final byte[] file = Files.readAllBytes(path);
-			if (file.length < 16)
-				return false;
-			final java.nio.ByteBuffer head = java.nio.ByteBuffer.wrap(file);
-			if (head.getInt() != 0x44524956 || head.getInt() != total)
-				return false;
-			final int rawLen = head.getInt();
-			final int crc = head.getInt();
-			if (rawLen < 8 || rawLen > 3L * total + (total >> 2) + 64)
-				return false;
-			final byte[] raw = new byte[rawLen];
-			final java.util.zip.Inflater inf = new java.util.zip.Inflater();
-			inf.setInput(file, 16, file.length - 16);
-			final int got = inf.inflate(raw);
-			final boolean whole = inf.finished();
-			inf.end();
-			if (got != rawLen || !whole)
-				return false;
-			final java.util.zip.CRC32 c = new java.util.zip.CRC32();
-			c.update(raw, 0, rawLen);
-			if ((int) c.getValue() != crc)
-				return false;
-			final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
-			final int n0 = buf.getInt();
-			if (n0 < 0 || n0 > (total >> 6) + 1)
-				return false;
-			final long[] r0 = new long[n0];
-			for (int i = 0; i < n0; i++)
-				r0[i] = buf.getLong();
-			final int n1 = buf.getInt();
-			if (n1 < 0 || n1 > (total >> 6) + 1)
-				return false;
-			final long[] r1 = new long[n1];
-			for (int i = 0; i < n1; i++)
-				r1[i] = buf.getLong();
-			if (buf.remaining() != 3 * total)
-				return false;
-			final byte[] shed = new byte[total];
-			buf.get(shed);
-			final byte[] shedRoomy = new byte[total];
-			buf.get(shedRoomy);
-			final byte[] cert = new byte[total];
-			buf.get(cert);
-			roomy0 = BitSet.valueOf(r0);
-			roomy1 = BitSet.valueOf(r1);
-			minShed2 = shed;
-			minShed2Roomy = shedRoomy;
-			certSq = cert;
-			return true;
-		} catch (final IOException | java.nio.BufferUnderflowException
-				| java.util.zip.DataFormatException e) {
+		final Derived derived;
+		try (InputStream in = new java.io.BufferedInputStream(Files.newInputStream(path), CACHE_IO_BYTES)) {
+			derived = readDerivedCache(in, turnsArr.length);
+		} catch (final IOException e) {
 			return false;
 		}
+		if (derived == null)
+			return false;
+		roomy0 = derived.roomy0();
+		roomy1 = derived.roomy1();
+		minShed2 = derived.minShed2();
+		minShed2Roomy = derived.minShed2Roomy();
+		certSq = derived.certSq();
+		return true;
 	}
 
 	/** Best-effort atomic save; a failure only costs the next process its
@@ -802,44 +761,106 @@ final class Reachability {
 		final Path path = derivedCachePath();
 		if (path == null || minShed2 == null)
 			return;
-		final int total = minShed2.length;
-		final long[] r0 = roomy0.toLongArray();
-		final long[] r1 = roomy1.toLongArray();
-		final int rawLen = 4 + 8 * r0.length + 4 + 8 * r1.length + 3 * total;
-		final byte[] raw = new byte[rawLen];
-		final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
-		buf.putInt(r0.length);
-		for (final long w : r0)
-			buf.putLong(w);
-		buf.putInt(r1.length);
-		for (final long w : r1)
-			buf.putLong(w);
-		buf.put(minShed2).put(minShed2Roomy).put(certSq);
-		final java.util.zip.CRC32 c = new java.util.zip.CRC32();
-		c.update(raw, 0, rawLen);
-		final java.util.zip.Deflater def = new java.util.zip.Deflater(1);
-		def.setInput(raw);
-		def.finish();
-		final byte[] out = new byte[rawLen + 64];
-		int outLen = 0;
-		while (!def.finished() && outLen < out.length)
-			outLen += def.deflate(out, outLen, out.length - outLen);
-		final boolean fit = def.finished();
-		def.end();
-		if (!fit)
-			return; // would not shrink: skip rather than grow the format
-		final int len = outLen;
-		final byte[] head = new byte[16];
-		java.nio.ByteBuffer.wrap(head).putInt(0x44524956).putInt(total)
-				.putInt(rawLen).putInt((int) c.getValue());
+		final Derived derived = new Derived(roomy0, roomy1, minShed2, minShed2Roomy, certSq);
 		try {
-			TrackIO.writeAtomically(path, o -> {
-				o.write(head);
-				o.write(out, 0, len);
-			});
+			TrackIO.writeAtomically(path, out -> writeDerivedCache(out, derived));
 		} catch (final IOException e) {
 			System.err.println("[reachability] derived cache write failed: " + e);
 		}
+	}
+
+	/** The derive outputs as the .derived cache holds them. */
+	record Derived(BitSet roomy0, BitSet roomy1, byte[] minShed2, byte[] minShed2Roomy, byte[] certSq) {}
+
+	private static final int DERIVED_MAGIC = 0x44524956;
+
+	/** Header (magic, state count, payload length, CRC32 of the payload), then
+	 *  the payload deflated at level 1: each roomy bitset as a count and
+	 *  big-endian words, then minShed2, minShed2Roomy and certSq. Streamed in
+	 *  two passes, checksum then deflate: the one-shot payload and deflate
+	 *  buffers peaked near 16.4 bytes per state beside the maps, over the
+	 *  12-byte preparation guard (review, 2026-09-28). */
+	static void writeDerivedCache(final OutputStream out, final Derived derived) throws IOException {
+		final long[] r0 = derived.roomy0().toLongArray();
+		final long[] r1 = derived.roomy1().toLongArray();
+		final int total = derived.minShed2().length;
+		final long payload = 2L * Integer.BYTES + (long) Long.BYTES * (r0.length + r1.length) + 3L * total;
+		if (payload > Integer.MAX_VALUE)
+			throw new IOException("derived maps too large for the cache format");
+		final CRC32 crc = new CRC32();
+		writeDerivedPayload(new CheckedOutputStream(OutputStream.nullOutputStream(), crc), r0, r1, derived);
+		final java.io.DataOutputStream head = new java.io.DataOutputStream(out);
+		head.writeInt(DERIVED_MAGIC);
+		head.writeInt(total);
+		head.writeInt((int) payload);
+		head.writeInt((int) crc.getValue());
+		final java.util.zip.Deflater deflater = new java.util.zip.Deflater(1);
+		try {
+			final java.util.zip.DeflaterOutputStream deflated =
+					new java.util.zip.DeflaterOutputStream(out, deflater, CACHE_IO_BYTES);
+			writeDerivedPayload(deflated, r0, r1, derived);
+			deflated.finish();
+		} finally {
+			deflater.end();
+		}
+	}
+
+	private static void writeDerivedPayload(final OutputStream out, final long[] r0, final long[] r1,
+			final Derived derived) throws IOException {
+		final java.io.DataOutputStream data = new java.io.DataOutputStream(
+				new java.io.BufferedOutputStream(out, CACHE_IO_BYTES));
+		for (final long[] words : new long[][]{r0, r1}) {
+			data.writeInt(words.length);
+			for (final long word : words)
+				data.writeLong(word);
+		}
+		data.write(derived.minShed2());
+		data.write(derived.minShed2Roomy());
+		data.write(derived.certSq());
+		data.flush(); // not close: the caller owns the stream
+	}
+
+	/** The cache for {@code total} states, inflated straight into its maps (no
+	 *  payload copy); null for any header, length or checksum mismatch. */
+	static Derived readDerivedCache(final InputStream in, final int total) throws IOException {
+		final java.io.DataInputStream head = new java.io.DataInputStream(in);
+		if (head.readInt() != DERIVED_MAGIC || head.readInt() != total)
+			return null;
+		final int payload = head.readInt();
+		final int crc = head.readInt();
+		if (payload < 8 || payload > 3L * total + (total >> 2) + 64)
+			return null;
+		final CRC32 checksum = new CRC32();
+		final java.util.zip.Inflater inflater = new java.util.zip.Inflater();
+		try {
+			final java.io.DataInputStream data = new java.io.DataInputStream(new CheckedInputStream(
+					new java.util.zip.InflaterInputStream(in, inflater, CACHE_IO_BYTES), checksum));
+			final long[] r0 = readDerivedWords(data, total);
+			final long[] r1 = r0 == null ? null : readDerivedWords(data, total);
+			if (r1 == null || payload != 2L * Integer.BYTES + (long) Long.BYTES * (r0.length + r1.length) + 3L * total)
+				return null;
+			final byte[] shed = new byte[total];
+			final byte[] shedRoomy = new byte[total];
+			final byte[] cert = new byte[total];
+			data.readFully(shed);
+			data.readFully(shedRoomy);
+			data.readFully(cert);
+			if (data.read() != -1 || (int) checksum.getValue() != crc)
+				return null;
+			return new Derived(BitSet.valueOf(r0), BitSet.valueOf(r1), shed, shedRoomy, cert);
+		} finally {
+			inflater.end();
+		}
+	}
+
+	private static long[] readDerivedWords(final java.io.DataInputStream in, final int total) throws IOException {
+		final int count = in.readInt();
+		if (count < 0 || count > (total >> 6) + 1)
+			return null;
+		final long[] words = new long[count];
+		for (int i = 0; i < count; i++)
+			words[i] = in.readLong();
+		return words;
 	}
 
 	/** Sweep helper for {@link #computeReachability}: per-alive-state bitmask
@@ -1406,6 +1427,8 @@ final class Reachability {
 				reachabilityFailure = failure;
 			} finally {
 				game.clearPointContainmentCacheForCurrentThread();
+				if (game.isPreparationCancelled())
+					game.releasePreparedMaps(); // this thread may have outlived the cancel's join
 				reachabilityReady = true;
 			}
 		}, "reachability-compute");

@@ -804,6 +804,12 @@ public final class RaceGame {
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
 	}
 
+	/** Every board the size sanitiser admits (500 x 500 cells, speed 12): 157M
+	 *  edges at two bits, 39 MiB. The old 64M cap sent the Nordschleife (126M)
+	 *  to the synchronised, unbounded fallback map, which every preparation
+	 *  thread then shared through one lock (review, 2026-09-28). Same verdicts. */
+	static final long DENSE_EDGE_MAX_ENTRIES = 501L * 501 * (2 * RaceGame.AI_MAX_SPEED + 1) * (2 * RaceGame.AI_MAX_SPEED + 1);
+
 	/** Primitive cache for geometry edges. Reachability is the dominant writer,
 	 *  but auto-mode games with identical geometry share the table, so its
 	 *  representation must also tolerate unsynchronised concurrent writers. */
@@ -1332,11 +1338,20 @@ public final class RaceGame {
 				break;
 			}
 		}
-		// Drop the maps too: a finished game object can outlive its race (its
-		// disposed window, a pending callback), and at a small heap its
-		// partial maps starve the replacement game. Shared memo copies stay.
+		releasePreparedMaps();
+	}
+
+	/** Drop the maps too: a finished game object can outlive its race (its
+	 *  disposed window, a pending callback), and at a small heap its partial
+	 *  maps starve the replacement game. Shared memo copies stay. A thread that
+	 *  outlived the cancel's join runs this again when it ends: it may have
+	 *  attached maps after the first release (review, 2026-09-28). */
+	void releasePreparedMaps() {
 		reach.releaseMaps();
 		denseEdgeLegalCache = null;
+		synchronized (this) {
+			edgeLegalCache = null;
+		}
 		startPotential = null;
 		synchronized (optimalPotentialLock) {
 			optimalPotential = null;
@@ -1400,12 +1415,16 @@ public final class RaceGame {
 		// Nordschleife); short of heap the champion races demoted, which the fleet
 		// runner refuses -- so the log says which (review, 2026-09-27).
 		final boolean capped = distanceBudget <= 0 || distanceBytes > distanceBudget;
-		prepared = capped || totalBudget < distanceBytes
+		// build refuses a frontier under 1024 ints; past that, a null is the
+		// frontier budget running out, which more heap does not cure.
+		final boolean shortOfHeap = totalBudget < distanceBytes + 1024L * Integer.BYTES;
+		prepared = capped || shortOfHeap
 				? null : OptimalPotential.build(this, totalLaps, distanceBudget, totalBudget);
 		cacheOptimal(key, prepared);
 		if (autoMode)
 			System.out.printf("[optimal] potential %s in %.1fs (distance %.0f MiB, total %.0f MiB)%n",
-					prepared != null ? "built" : capped ? "SKIPPED (over the distance cap)" : "SKIPPED (heap too small)",
+					prepared != null ? "built" : capped ? "SKIPPED (over the distance cap)"
+							: shortOfHeap ? "SKIPPED (heap too small)" : "SKIPPED (frontier budget)",
 					(System.nanoTime() - t0) / 1e9, distanceBudget / (double) (1 << 20),
 					totalBudget / (double) (1 << 20));
 		return prepared;
@@ -1413,7 +1432,8 @@ public final class RaceGame {
 
 	private void completeOptimalPotential(final OptimalPotential prepared, final Throwable failure) {
 		synchronized (optimalPotentialLock) {
-			optimalPotential = prepared;
+			// A build that outlived a cancel's join must not attach its map again.
+			optimalPotential = preparationCancelled ? null : prepared;
 			optimalPotentialFailure = failure;
 			optimalPotentialReady = true;
 			optimalPotentialLock.notifyAll();
@@ -2500,9 +2520,9 @@ public final class RaceGame {
 				: TrackGeometry.newPrefilledPath(track.getLeft(), track.getRight()));
 		final String denseKey = autoMode ? reach.geometryCacheKey() : null;
 		denseEdgeLegalCache = denseKey == null
-				? DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1, 64L << 20)
+				? DenseEdgeLegalCache.create(gameCols + 1, gameRows + 1, DENSE_EDGE_MAX_ENTRIES)
 				: DenseEdgeLegalCache.shared(denseKey, gameCols + 1, gameRows + 1,
-						64L << 20, 128L << 20);
+						DENSE_EDGE_MAX_ENTRIES, 128L << 20);
 		buildLegalRaster();
 		rui.finishTrack(trackA);
 		if (optimalStart != null) {
