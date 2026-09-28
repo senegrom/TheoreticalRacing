@@ -245,13 +245,17 @@ def main():
             assert page.locator('[data-preparation-progress]').get_attribute('max') == '9'
             assert page.locator('[data-preparation-stages] li').count() == 9
             assert page.locator('[data-preparation-stages] li[data-state="current"]').inner_text() == 'Driving maps'
-            for total, index in [(7, 6), (11, 10)]:
-                page.evaluate("""([total,index]) => window.testEngine.onStatus('', {
-                    kind:'preparation', phase:'Analysing starting alternatives for all AIs',
-                    done:2,total:4,unit:'scan',stage:index,stages:total})""", [total,index])
+            # Ten stages: a lap race with legacy starts whose AIs wait for the exact race map.
+            for total, index, name, phase in [
+                    (7, 6, 'Starting alternatives', 'Analysing starting alternatives for all AIs'),
+                    (10, 9, 'Exact race map', 'Exact full-race map'),
+                    (11, 10, 'Starting alternatives', 'Analysing starting alternatives for all AIs')]:
+                page.evaluate("""([total,index,phase]) => window.testEngine.onStatus('', {
+                    kind:'preparation', phase,
+                    done:2,total:4,unit:'scan',stage:index,stages:total})""", [total,index,phase])
                 assert page.locator('[data-preparation-stages] li').count() == total
                 current_stage = page.locator('[data-preparation-stages] li[data-state="current"]')
-                assert current_stage.inner_text() == 'Starting alternatives'
+                assert current_stage.inner_text() == name
                 assert current_stage.evaluate('(e)=>e.scrollWidth <= e.clientWidth'), f'current preparation stage truncates {width}'
                 if width <= 360:
                     assert page.locator('[data-preparation-stages]').evaluate('(e)=>getComputedStyle(e).gridTemplateColumns.split(/\\s+/).length === 1')

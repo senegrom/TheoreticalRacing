@@ -15,7 +15,7 @@ public final class Progress {
     public static final AtomicInteger BUILDS = new AtomicInteger(), DISTANCES = new AtomicInteger(), FINISHES = new AtomicInteger(), OPTIMAL = new AtomicInteger();
     private Progress() {}
     public static void geometry() { BUILDS.incrementAndGet(); }
-    public static void plan(final boolean multiLap, final boolean informed) {}
+    public static void plan(final boolean multiLap, final boolean informed, final boolean exact) {}
     public static void begin(final String phase, final int stage) {
         if (stage == 4) FINISHES.incrementAndGet();
         if (stage == 2) { DISTANCES.incrementAndGet(); block(ENTERED, RELEASE); }

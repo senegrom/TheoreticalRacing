@@ -22,8 +22,10 @@ public final class Progress {
         stage = 1; stages = 6; cached = false; complete = false;
         begin("Building track geometry");
     }
-    public static void plan(final boolean multiLap, final boolean informed) {
-        stages = multiLap ? (informed ? 11 : 9) : (informed ? 7 : 6);
+    /** exact: the daemon builds the exact race map too (any lap race an AI
+     *  drives); with informed starts it always does. */
+    public static void plan(final boolean multiLap, final boolean informed, final boolean exact) {
+        stages = multiLap ? (informed ? 11 : exact ? 10 : 9) : (informed ? 7 : 6);
         final Pass pass = CURRENT.get();
         pass.lastReport = 0;
         emit(pass, 0, 0);

@@ -885,6 +885,20 @@ public final class CoreTests {
         check(refusal != null && refusal.contains("right border ends 11 cells"),
                 "a loop whose inner border stops 11 cells short was accepted: " + refusal);
         check(RaceGame.openLoopProblem(outer, closedInner) == null, "a closed loop was refused");
+        check(RaceGame.openLoopProblem(closedInner, outer) == null, "a loop drawn inner border first was refused");
+        // Review, 2026-09-28: a five-point inner loop is too short to close by
+        // length, so refuseCoarseLoop passed it and laps were silently disabled.
+        final java.util.List<int[]> smallInner = java.util.List.of(new int[]{20, 20}, new int[]{23, 20},
+                new int[]{23, 23}, new int[]{20, 23}, new int[]{20, 21});
+        final String coarse = RaceGame.openLoopProblem(outer, smallInner);
+        check(coarse != null && coarse.contains("right border has 5"),
+                "a loop with a five-point inner border was accepted: " + coarse);
+        // Two loops side by side have no corridor between them.
+        final java.util.List<int[]> besideOuter = closedInner.stream()
+                .map(p -> new int[]{p[0] + 40, p[1]}).toList();
+        final String apart = RaceGame.openLoopProblem(outer, besideOuter);
+        check(apart != null && apart.contains("one border inside the other"),
+                "two loops side by side were accepted: " + apart);
         check(RaceGame.openLoopProblem(java.util.List.of(new int[]{5, 5}, new int[]{40, 5}),
                 java.util.List.of(new int[]{5, 12}, new int[]{40, 12})) == null, "a point-to-point drawing was refused");
     }

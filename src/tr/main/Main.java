@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import javax.swing.JOptionPane;
 import javax.swing.UIManager;
 import tr.logic.RaceGame;
 import tr.logic.TrackIO;
@@ -79,7 +80,18 @@ public final class Main {
 			return;
 		}
 		EventQueue.invokeLater(() -> {
-			final RaceGame game = new RaceGame(prop);
+			final RaceGame game;
+			try {
+				game = new RaceGame(prop);
+			} catch (final IllegalArgumentException error) {
+				// A malformed setting (candidateSlots) died on the event thread with
+				// only a stack trace: nothing at all for a desktop launch.
+				System.err.println(error.getMessage());
+				if (!options.headless())
+					JOptionPane.showMessageDialog(null, error.getMessage(), RaceGame.NAME, JOptionPane.ERROR_MESSAGE);
+				System.exit(2);
+				return;
+			}
 			game.setAutoMode(options.headless());
 			if (options.dumpReach() != null)
 				game.setDumpReachPath(options.dumpReach());

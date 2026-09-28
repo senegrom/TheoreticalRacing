@@ -27,7 +27,7 @@ class FleetFinalValidationTests(unittest.TestCase):
         self.calls = 0
         self.effect = None
 
-    def java_run(self, command, **kwargs):
+    def java_run(self, command, stream, timeout):
         self.calls += 1
         log = Path(command[command.index('--log') + 1])
         log.with_name('example_s1.log').write_text(
@@ -37,13 +37,13 @@ class FleetFinalValidationTests(unittest.TestCase):
             '# results\n1. A\n2. B\n')
         if self.effect:
             self.effect()
-        return subprocess.CompletedProcess(command, 0)
+        return 0
 
     def grid(self):
         output, errors = io.StringIO(), io.StringIO()
         with mock.patch.dict(os.environ, self.environment), \
                 mock.patch.object(fleet_grid.shutil, 'which', return_value=str(self.java)), \
-                mock.patch.object(fleet_grid.subprocess, 'run', side_effect=self.java_run), \
+                mock.patch.object(fleet_grid.Jvms, 'run', side_effect=self.java_run), \
                 contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             status = fleet_grid.main(['1', '1', str(self.out)])
         return status, output.getvalue(), errors.getvalue()
@@ -110,20 +110,27 @@ class FleetFinalValidationTests(unittest.TestCase):
             self.assertEqual(0, self.grid()[0])
         self.assertTrue((self.out / 'example.complete.json').exists())
 
-    def test_interrupted_final_validation_cannot_leave_resumable_output(self):
-        self.assertEqual(0, self.grid()[0])
+    def test_interrupted_final_validation_keeps_only_validated_markers(self):
+        # An interruption proves nothing about the inputs (2026-09-28): the
+        # marker validated after its track stays, and nothing else is written.
+        # The third manifest read is the final validation.
         actual = fleet_grid.manifest_for
         calls = 0
         def manifest(*args):
             nonlocal calls
             calls += 1
-            if calls == 2:
+            if calls == 3:
                 raise KeyboardInterrupt()
             return actual(*args)
         with mock.patch.object(fleet_grid, 'manifest_for', side_effect=manifest):
             with self.assertRaises(KeyboardInterrupt):
                 self.grid()
-        self.assert_no_publication()
+        self.assertTrue((self.out / 'example.complete.json').exists())
+        for name in ('example.row', 'fleet.txt'):
+            self.assertFalse((self.out / name).exists(), name + ' written by an interrupted validation')
+        self.assertEqual(0, self.grid()[0])
+        self.assertEqual(1, self.calls, 'the validated track raced again after the interruption')
+        self.assertTrue((self.out / 'fleet.txt').exists())
 
 
 if __name__ == '__main__':

@@ -1394,12 +1394,14 @@ final class Reachability {
 					computeGateMaps(game.lapGates);
 					publishLapMemo(memoKey);
 				}
-				if (game.needsInformedStartMaps()) game.prepareOptimalStartMap();
-				// With legacy starts nothing built the exact potential before the
-				// first AI decision, which in a GUI or browser race then built it on
-				// the event thread: seconds of frozen window without a word (review,
-				// 2026-09-27). Build it here, before ready is published.
-				else if (game.lapGates != null && game.hasAiPlayer()) game.optimalPotential();
+				if (!game.dumpsReachOnly()) { // a reach dump exits: no race follows
+					if (game.needsInformedStartMaps()) game.prepareOptimalStartMap();
+					// With legacy starts nothing built the exact potential before the
+					// first AI decision, which in a GUI or browser race then built it on
+					// the event thread: seconds of frozen window without a word (review,
+					// 2026-09-27). Build it here, before ready is published.
+					else if (game.lapGates != null && game.hasAiPlayer()) game.optimalPotential();
+				}
 			} catch (final RuntimeException | Error failure) {
 				reachabilityFailure = failure;
 			} finally {

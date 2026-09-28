@@ -235,10 +235,6 @@ class MirroredGridTests(unittest.TestCase):
         self.assertNotEqual(comparison_profile(a)['candidate_slots'], comparison_profile(b)['candidate_slots'])
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class LoneCandidateReportTests(unittest.TestCase):
     """run_1vfield.report, the lone-candidate check CLAUDE.md requires before a
     promotion, had no test at all (review, 2026-09-27)."""
@@ -285,39 +281,81 @@ class FleetGridGuardTests(unittest.TestCase):
                 fleet_grid.potential_status('lemans', text)
 
     def test_a_killed_grid_resumes_without_racing_finished_tracks(self):
+        # Ctrl+C reaches the main thread while track b's JVM runs and c waits:
+        # b's JVM is stopped, c never starts, and a resumes as finished.
+        import _thread
         import sys
+        import time
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             jar = root / 'racing.jar'
             jar.write_bytes(b'jar')
             (root / 'tracks').mkdir()
-            for track in ('a', 'b'):
+            for track in ('a', 'b', 'c'):
                 (root / 'tracks' / (track + '.track')).write_text(track)
             props = root / 'p.properties'
             props.write_text('nPlayers=8\n')
             launched = []
+            interrupted = []
 
-            def fake_java(command, cwd=None, stdout=None, stderr=None, timeout=None, check=False):
+            def fake_java(jvms, command, stream, timeout):
                 track = command[command.index('--track') + 1]
                 launched.append(track)
-                if launched == ['a', 'b']:
-                    raise KeyboardInterrupt  # the runner is killed during track b
+                if track == 'b' and not interrupted:
+                    interrupted.append(True)
+                    deadline = time.monotonic() + 10  # b races a while: a is published first
+                    while not (root / 'out' / 'a.complete.json').exists() and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    _thread.interrupt_main()
+                    deadline = time.monotonic() + 10
+                    while not jvms.stopped and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    return -15 if jvms.stopped else 0  # killed by the grid
                 log = command[command.index('--log') + 1]
                 lo, hi = map(int, command[command.index('--seed') + 1].split('-'))
                 for seed in range(lo, hi + 1):
                     Path(log[:-len('.log')] + '_s%d.log' % seed).write_text(race_log(''), encoding='utf-8')
-                stdout.write('[optimal] potential built in 0.1s (distance 1536 MiB, total 100 MiB)\n')
-                return subprocess.CompletedProcess(command, 0)
+                stream.write('[optimal] potential built in 0.1s (distance 1536 MiB, total 100 MiB)\n')
+                return 0
 
             env = {'RACING_JAR': str(jar), 'RACING_PROPS': str(props), 'RACING_JAVA': sys.executable,
                    'RACING_TRACKS': ''}
             out = str(root / 'out')
             with mock.patch.dict(os.environ, env), \
-                    mock.patch.object(fleet_grid.subprocess, 'run', side_effect=fake_java), \
+                    mock.patch.object(fleet_grid.Jvms, 'run', autospec=True, side_effect=fake_java), \
                     contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(KeyboardInterrupt):
                     fleet_grid.main(['1-2', '1', out])
+                self.assertEqual(['a', 'b'], launched, 'a queued track started after the interrupt')
+                self.assertFalse((root / 'out' / 'b.complete.json').exists())
                 self.assertEqual(0, fleet_grid.main(['1-2', '1', out]))
-            self.assertEqual(['a', 'b', 'b'], launched)
+            self.assertEqual(['a', 'b', 'b', 'c'], launched)
             record = json.loads((root / 'out' / 'a.complete.json').read_text(encoding='utf-8'))
             self.assertEqual('built', record['potential'])
+
+    def test_stopping_the_grid_ends_its_jvms_and_refuses_new_ones(self):
+        import sys
+        import threading
+        import time
+        jvms = fleet_grid.Jvms()
+        codes = []
+        with tempfile.TemporaryFile('w+') as stream:
+            worker = threading.Thread(target=lambda: codes.append(jvms.run(
+                [sys.executable, '-c', 'import time; time.sleep(60)'], stream, 120)))
+            worker.start()
+            deadline = time.monotonic() + 10
+            while not jvms.running and time.monotonic() < deadline:
+                time.sleep(0.01)
+            started = time.monotonic()
+            jvms.stop()
+            worker.join(15)
+            self.assertFalse(worker.is_alive())
+            self.assertLess(time.monotonic() - started, 15)
+            self.assertEqual(1, len(codes))
+            self.assertNotEqual(0, codes[0])
+            with self.assertRaises(ValueError):
+                jvms.run([sys.executable, '-c', 'pass'], stream, 10)
+
+
+if __name__ == '__main__':
+    unittest.main()

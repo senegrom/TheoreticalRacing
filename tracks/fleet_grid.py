@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+import contextlib
 from contextlib import contextmanager
 import hashlib
 import json
@@ -13,9 +14,11 @@ from pathlib import Path
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
+import threading
 
 if __package__:
     from .forensics_common import parse_move
@@ -159,6 +162,47 @@ def potential_status(track, output):
     return kinds.pop() if kinds else None
 
 
+class Jvms:
+    """The grid's running JVMs. An interrupted grid stops them, and no track
+    starts after that: a Ctrl+C used to wait for every queued track to race,
+    and a SIGTERM left the running JVMs behind (review, 2026-09-28)."""
+
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.running = set()
+        self.stopped = False
+
+    def run(self, command, stream, timeout):
+        with self.lock:
+            if self.stopped:
+                raise ValueError('the grid was interrupted before this track started')
+            process = subprocess.Popen(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT)
+            self.running.add(process)
+        try:
+            return process.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+            raise
+        finally:
+            with self.lock:
+                self.running.discard(process)
+
+    def stop(self):
+        with self.lock:
+            self.stopped = True
+            running = list(self.running)
+        for process in running:
+            with contextlib.suppress(OSError):
+                process.terminate()
+        for process in running:
+            try:
+                process.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                with contextlib.suppress(OSError):
+                    process.kill()
+
+
 def revoke_publication(out, tracks):
     """Remove every resumable marker, row and the report of this output."""
     for track in tracks:
@@ -202,7 +246,7 @@ def completed(out, track, run_id, seeds):
         return None
 
 
-def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout):
+def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout, jvms):
     previous = completed(out, track, run_id, seeds)
     if previous is not None:
         return previous
@@ -217,10 +261,9 @@ def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout):
                    '--log', str(work / (track + '.log')),
                    '--seed', '%d-%d' % (seeds.start, seeds.stop - 1)]
         with output.open('w', encoding='utf-8') as stream:
-            result = subprocess.run(command, cwd=ROOT, stdout=stream, stderr=subprocess.STDOUT,
-                                    timeout=timeout, check=False)
-        if result.returncode != 0:
-            raise ValueError('%s: Java exited %d (see %s)' % (track, result.returncode, output))
+            returncode = jvms.run(command, stream, timeout)
+        if returncode != 0:
+            raise ValueError('%s: Java exited %d (see %s)' % (track, returncode, output))
         text = output.read_text(encoding='utf-8', errors='replace')
         no_loop = re.search(r'^\[laps\] .* -- laps disabled$', text, re.MULTILINE) is not None
         potential = potential_status(track, text)
@@ -237,7 +280,22 @@ def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout):
         return record
 
 
+def _terminated(signum, frame):
+    raise KeyboardInterrupt('SIGTERM')
+
+
 def main(argv=None):
+    """A SIGTERM (a queue runner's kill) interrupts the grid like Ctrl+C."""
+    if threading.current_thread() is not threading.main_thread():
+        return grid(argv)
+    previous = signal.signal(signal.SIGTERM, _terminated)
+    try:
+        return grid(argv)
+    finally:
+        signal.signal(signal.SIGTERM, signal.SIG_DFL if previous is None else previous)
+
+
+def grid(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('seeds', nargs='?', default='1-10')
     parser.add_argument('jobs', nargs='?', type=int, default=os.cpu_count() or 4)
@@ -280,45 +338,56 @@ def main(argv=None):
             seeds = range(lo, hi + 1)
             results, failures = {}, {}
             unverified = False
-            with ThreadPoolExecutor(max_workers=min(args.jobs, len(tracks))) as pool:
-                futures = {pool.submit(run_track, out, t, run_id, seeds, java, heap, jar, props, timeout): t
+            jvms = Jvms()
+            pool = ThreadPoolExecutor(max_workers=min(args.jobs, len(tracks)))
+            try:
+                futures = {pool.submit(run_track, out, t, run_id, seeds, java, heap, jar, props, timeout, jvms): t
                            for t in tracks}
-                for future in as_completed(futures):
-                    track = futures[future]
-                    try:
-                        results[track] = future.result()
-                    except (OSError, ValueError, subprocess.SubprocessError) as error:
-                        failures[track] = str(error)
-                        print('%s: %s' % (track, error), file=sys.stderr)
-                        continue
-                    # Publish this track's marker once the inputs are revalidated,
-                    # so a runner killed later in the grid resumes without racing
-                    # it again (review, 2026-09-27). A revalidation that fails or
-                    # cannot be read makes the whole run unverified: nothing more
-                    # is published and the final check revokes everything; an
-                    # interrupted one leaves nothing resumable.
-                    if unverified:
-                        continue
-                    try:
-                        unverified = manifest_for(jar, props, java, heap, tracks, lo, hi) != manifest
-                    except (OSError, ValueError):
-                        unverified = True
-                    except BaseException:
-                        revoke_publication(out, tracks)
-                        raise
-                    if not unverified:
-                        atomic_text(out / (track + '.complete.json'), json_text(results[track]))
-            # A missing/malformed input is just as invalid as a changed hash.
-            # Do not leave either resumable markers or an old report behind when
-            # validation raises (including interruption), rather than returning.
-            inputs_valid = False
+                pending = set(futures)
+                while pending:
+                    # Polled: a blocked wait holds Ctrl+C on Windows until a track ends.
+                    done, pending = wait(pending, timeout=1.0, return_when=FIRST_COMPLETED)
+                    for future in sorted(done, key=futures.get):
+                        track = futures[future]
+                        try:
+                            results[track] = future.result()
+                        except (OSError, ValueError, subprocess.SubprocessError) as error:
+                            failures[track] = str(error)
+                            print('%s: %s' % (track, error), file=sys.stderr)
+                            continue
+                        # Publish this track's marker once the inputs are revalidated,
+                        # so a runner killed later in the grid resumes without racing
+                        # it again (review, 2026-09-27). A revalidation that fails or
+                        # cannot be read makes the whole run unverified: nothing more
+                        # is published and the final check revokes everything.
+                        if unverified:
+                            continue
+                        try:
+                            unverified = manifest_for(jar, props, java, heap, tracks, lo, hi) != manifest
+                        except (OSError, ValueError):
+                            unverified = True
+                        if not unverified:
+                            atomic_text(out / (track + '.complete.json'), json_text(results[track]))
+            except BaseException:
+                # Interrupted (Ctrl+C, SIGTERM): no queued track starts, the running
+                # JVMs are stopped, and every marker already validated stays
+                # resumable -- a resume must present the same manifest anyway.
+                pool.shutdown(wait=False, cancel_futures=True)
+                jvms.stop()
+                pool.shutdown(wait=True)
+                raise
+            pool.shutdown(wait=True)
+            # A missing/malformed input is just as invalid as a changed hash: leave
+            # neither resumable markers nor an old report behind. An interruption
+            # proves nothing about the inputs and revokes nothing.
             try:
                 inputs_valid = not unverified and manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
-                if not inputs_valid:
-                    raise ValueError('benchmark inputs changed during the run; results are not valid')
-            finally:
-                if not inputs_valid:
-                    revoke_publication(out, tracks)
+            except (OSError, ValueError):
+                revoke_publication(out, tracks)
+                raise
+            if not inputs_valid:
+                revoke_publication(out, tracks)
+                raise ValueError('benchmark inputs changed during the run; results are not valid')
             lines = []
             total = dict(crash=0, timeout=0, moves=0)
             races = 0
@@ -352,4 +421,8 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        print('fleet: interrupted; the tracks already validated resume without racing again', file=sys.stderr)
+        raise SystemExit(130)

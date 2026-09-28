@@ -66,7 +66,7 @@ def instrument_game(source: str) -> str:
     result = source
     for anchor, statement in [
         ('\tprivate void buildTrackGeometry() {', 'geometry();'),
-        ('\t\tcomputeLapGates();', 'plan(lapGates != null, needsInformedStartMaps());'),
+        ('\t\tcomputeLapGates();', 'plan(lapGates != null, needsInformedStartMaps(), hasAiPlayer());'),
     ]:
         if result.count(anchor) != 1:
             raise RuntimeError(f'Geometry progress hook drift: {anchor!r}')

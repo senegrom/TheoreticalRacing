@@ -218,11 +218,14 @@ public final class GameUI {
 		});
 
 		frame.setVisible(true);
-		// Shrinking stops where the controls and the status line still fit.
+		// Shrinking stops where the controls and the status line still fit --
+		// or at the screen, which a minimum must never exceed: Swing would grow
+		// the window past it again.
 		final Insets insets = frame.getInsets();
 		final Dimension controls = rightContainer.getPreferredSize();
-		frame.setMinimumSize(new Dimension(controls.width + MIN_FIELD + insets.left + insets.right,
-				controls.height + lblStatus.getPreferredSize().height + insets.top + insets.bottom));
+		frame.setMinimumSize(new Dimension(
+				Math.min(usable.width, controls.width + MIN_FIELD + insets.left + insets.right),
+				Math.min(usable.height, controls.height + lblStatus.getPreferredSize().height + insets.top + insets.bottom)));
 		// Windows denies foreground to windows opened by background-launched
 		// processes; without the nudge the game appears BEHIND the launching
 		// terminal and looks like "nothing displayed".

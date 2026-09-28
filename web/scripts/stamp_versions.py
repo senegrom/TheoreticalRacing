@@ -45,12 +45,12 @@ def stamp(root):
         visit(name, [])
     for name in order:
         path = pages[name]
-        text = path.read_text(encoding='utf-8')
+        text = path.read_bytes().decode('utf-8')  # bytes: line endings stay as built
         stamped = REFERENCE.sub(
             lambda m: m.group(1) + '?v=' + hashlib.sha256(pages[m.group(1)].read_bytes()).hexdigest()[:12],
             text)
         if stamped != text:
-            path.write_text(stamped, encoding='utf-8', newline='')
+            path.write_bytes(stamped.encode('utf-8'))
     return order
 
 

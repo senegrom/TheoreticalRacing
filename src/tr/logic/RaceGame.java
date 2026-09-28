@@ -246,6 +246,12 @@ public final class RaceGame {
 		dumpReachPath = p;
 	}
 
+	/** A reach dump exits once the maps are written: nothing only a race
+	 *  needs (the exact potential, the informed start maps) is built for it. */
+	boolean dumpsReachOnly() {
+		return dumpReachPath != null;
+	}
+
 	/** Override the game-log output path (default: next to the JAR). Lets
 	 *  concurrent --auto runs write distinct logs (pair with Main's --props). */
 	private Path gameLogOverride = null;
@@ -290,8 +296,28 @@ public final class RaceGame {
 		System.exit(2);
 	}
 
+	/** An unknown aiStartPlacement used to throw from whichever preparation
+	 *  step read it first -- in a desktop race the daemon, so the race never
+	 *  started. Headless runs refuse it (a mistyped mode must not measure
+	 *  another); the desktop drops it, so computed starts apply and the start
+	 *  dialog shows and saves them (review, 2026-09-28). */
+	private void sanitizeStartPlacement() {
+		try {
+			startPlacementMode();
+		} catch (final IllegalArgumentException invalid) {
+			final String problem = invalid.getMessage() + ", not \"" + prop.getProperty("aiStartPlacement") + "\"";
+			if (autoMode) {
+				abortAutoRace(problem);
+				return;
+			}
+			System.err.println(problem + "; using computed starts");
+			prop.remove("aiStartPlacement");
+		}
+	}
+
 	/** Show the start dialog and, on confirmation, build the play window. */
 	public void start() {
+		sanitizeStartPlacement();
 		if (autoMode) {
 			setupGameUI();
 			return;
@@ -1424,7 +1450,7 @@ public final class RaceGame {
 	}
 
 	void startOptimalPotentialCompute() {
-		if (!canPrepareOptimalInParallel()) return;
+		if (dumpsReachOnly() || !canPrepareOptimalInParallel()) return;
 		final Thread worker;
 		synchronized (optimalPotentialLock) {
 			if (optimalPotentialStarted) return;
@@ -1564,17 +1590,36 @@ public final class RaceGame {
 	/** A drawing is a loop once either border closes on itself; laps then need
 	 *  both borders to end within LAP_CLOSURE_MAX of their starts, or
 	 *  computeLapGates disables them and the race runs point to point to a line
-	 *  beside the grid -- one move from the start (review, 2026-09-27). Returns
-	 *  the refusal, or null for an acceptable drawing. */
+	 *  beside the grid -- one move from the start (review, 2026-09-27). So they
+	 *  do without LAP_MIN_BORDER_POINTS points on each border (a small inner
+	 *  loop too short to close by length passed refuseCoarseLoop), and two loops
+	 *  side by side have no corridor to lap (review, 2026-09-28). Returns the
+	 *  refusal, or null for an acceptable drawing. */
 	static String openLoopProblem(final java.util.List<int[]> left, final java.util.List<int[]> right) {
 		if (!closedBorder(left) && !closedBorder(right))
 			return null;
+		if (left.size() < LAP_MIN_BORDER_POINTS || right.size() < LAP_MIN_BORDER_POINTS)
+			return "A closed loop needs at least " + LAP_MIN_BORDER_POINTS
+					+ " points on each border for its checkpoints (the " + (left.size() < right.size() ? "left" : "right")
+					+ " border has " + Math.min(left.size(), right.size()) + ").";
 		final double gapL = endGap(left), gapR = endGap(right);
-		if (gapL <= LAP_CLOSURE_MAX && gapR <= LAP_CLOSURE_MAX)
-			return null;
-		return "A closed loop needs both borders to end within " + (int) LAP_CLOSURE_MAX
-				+ " cells of where they started (the " + (gapL > gapR ? "left" : "right") + " border ends "
-				+ Math.round(Math.max(gapL, gapR)) + " cells away).";
+		if (gapL > LAP_CLOSURE_MAX || gapR > LAP_CLOSURE_MAX)
+			return "A closed loop needs both borders to end within " + (int) LAP_CLOSURE_MAX
+					+ " cells of where they started (the " + (gapL > gapR ? "left" : "right") + " border ends "
+					+ Math.round(Math.max(gapL, gapR)) + " cells away).";
+		if (!ringContains(left, right.get(0)) && !ringContains(right, left.get(0)))
+			return "A closed loop needs one border inside the other.";
+		return null;
+	}
+
+	/** Is p inside the polygon the border makes with its closing chord? */
+	private static boolean ringContains(final java.util.List<int[]> ring, final int[] p) {
+		final java.awt.geom.Path2D.Double polygon = new java.awt.geom.Path2D.Double();
+		polygon.moveTo(ring.get(0)[0], ring.get(0)[1]);
+		for (int i = 1; i < ring.size(); i++)
+			polygon.lineTo(ring.get(i)[0], ring.get(i)[1]);
+		polygon.closePath();
+		return polygon.contains(p[0], p[1]);
 	}
 
 	private static double endGap(final java.util.List<int[]> border) {

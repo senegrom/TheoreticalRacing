@@ -52,8 +52,11 @@ public final class StartDialog extends JFrame {
 	private final JButton				btnPlus;
 	private final JComboBox<String>		cmbTrack;
 	private final JComboBox<String> cmbStartPlacement;
+	/** The combo's entries, by stored aiStartPlacement value. */
+	private static final String[] START_PLACEMENTS = {"informed", "legacy", "scatter"};
 	/** The placement shown at open: an untouched combo leaves the stored value
-	 *  alone (it shows scatter as Computed and must not rewrite it). */
+	 *  alone (an unset one stays unset). RaceGame.start has dropped an unknown
+	 *  value before the dialog opens. */
 	private final int initialStartPlacement;
 	private final TrackPreviewPanel		previewPanel;
 	private final GridBagLayout			gridBag;
@@ -96,8 +99,14 @@ public final class StartDialog extends JFrame {
 		txtSize = new JTextField[4];
 		pnlSize = new JPanel();
 		cmbTrack = new JComboBox<>();
-		cmbStartPlacement = new JComboBox<>(new String[]{"Computed AI starts", "Legacy benchmark starts"});
-		initialStartPlacement = "legacy".equalsIgnoreCase(prop.getProperty("aiStartPlacement")) ? 1 : 0;
+		cmbStartPlacement = new JComboBox<>(new String[]{
+				"Computed AI starts", "Legacy benchmark starts", "Scattered benchmark starts"});
+		final String placement = prop.getProperty("aiStartPlacement", "").trim();
+		int shown = 0;
+		for (int i = 0; i < START_PLACEMENTS.length; i++)
+			if (START_PLACEMENTS[i].equalsIgnoreCase(placement))
+				shown = i;
+		initialStartPlacement = shown;
 		cmbStartPlacement.setSelectedIndex(initialStartPlacement);
 		previewPanel = new TrackPreviewPanel();
 		populateTrackCombo();
@@ -188,7 +197,7 @@ public final class StartDialog extends JFrame {
 	 *  the combo to look at a circuit is not choosing it. */
 	private void commitPlayerKinds() {
 		if (cmbStartPlacement.getSelectedIndex() != initialStartPlacement)
-			prop.setProperty("aiStartPlacement", cmbStartPlacement.getSelectedIndex() == 0 ? "informed" : "legacy");
+			prop.setProperty("aiStartPlacement", START_PLACEMENTS[cmbStartPlacement.getSelectedIndex()]);
 		for (int i = 0; i < maxPlayers; i++) {
 			final String sel = String.valueOf(cmbKind[i].getSelectedItem());
 			prop.put("player" + (i + 1) + "Kind", "Human".equals(sel) ? "HUMAN" : sel);
@@ -226,8 +235,11 @@ public final class StartDialog extends JFrame {
 			previewPanel.setTrack(td.gameX(), td.gameY(), td.left(), td.right(), td.name());
 		// A track's size is its own: editing it made "<Last>" open blank (it no
 		// longer fit the grid) and was ignored for a named track (review, 2026-09-27).
+		// An unavailable track races as a new drawing, on the stored size.
 		if (td != null)
 			showGameSize(String.valueOf(td.gameX()), String.valueOf(td.gameY()), false);
+		else
+			showGameSize(prop.getProperty("gameX"), prop.getProperty("gameY"), true);
 	}
 
 	private void showGameSize(final String x, final String y, final boolean editable) {

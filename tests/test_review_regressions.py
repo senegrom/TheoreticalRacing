@@ -22,6 +22,12 @@ args = sys.argv[1:]
 with open(os.environ['FLEET_TEST_CALLS'], 'a') as stream:
     stream.write('called\n')
 mode = Path(os.environ['FLEET_TEST_MODE']).read_text().strip()
+if mode == 'hang':  # a long race, announced by an atomically written PID
+    pid = Path(os.environ['FLEET_TEST_PID'])
+    pid.with_suffix('.tmp').write_text(str(os.getpid()))
+    os.replace(pid.with_suffix('.tmp'), pid)
+    import time
+    time.sleep(60)
 if mode == 'mutate':
     Path(args[args.index('--props') + 1]).write_text('changed during run')
 if mode == 'fail-no-loop':
@@ -66,7 +72,8 @@ class FleetRunnerTests(unittest.TestCase):
         self.calls = self.work / 'calls'
         self.env = dict(os.environ, RACING_JAR=str(self.jar), RACING_JAVA=str(self.java),
                         RACING_PROPS=str(self.props), RACING_TRACKS='test', RACING_HEAP='-Xmx1g',
-                        RACING_TIMEOUT='10', FLEET_TEST_MODE=str(self.mode), FLEET_TEST_CALLS=str(self.calls))
+                        RACING_TIMEOUT='10', FLEET_TEST_MODE=str(self.mode), FLEET_TEST_CALLS=str(self.calls),
+                        FLEET_TEST_PID=str(self.work / 'java.pid'))
 
     def run_grid(self, seeds='1', jobs='1'):
         return subprocess.run([sys.executable, str(ROOT / 'tracks/fleet_grid.py'), seeds, jobs, str(self.out)],
@@ -90,6 +97,27 @@ class FleetRunnerTests(unittest.TestCase):
         self.assertEqual(0, third.returncode, third.stderr)
         self.assertIn('races=1 crashes=0 timeouts=0 moves=1 unusable=0', third.stdout)
         self.assertEqual(3, self.count())
+
+    @unittest.skipUnless(os.name == 'posix', 'signals a POSIX process')
+    def test_sigterm_stops_the_running_jvm(self):
+        # Review, 2026-09-28: a SIGTERM (a queue runner's kill) left the JVMs racing.
+        import signal
+        import time
+        self.mode.write_text('hang')
+        grid = subprocess.Popen([sys.executable, str(ROOT / 'tracks/fleet_grid.py'), '1', '1', str(self.out)],
+                                env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        pid_file = self.work / 'java.pid'
+        deadline = time.monotonic() + 10
+        while not pid_file.exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        java_pid = int(pid_file.read_text())
+        grid.send_signal(signal.SIGTERM)
+        _, errors = grid.communicate(timeout=30)
+        self.assertEqual(130, grid.returncode, errors)
+        self.assertIn('interrupted', errors)
+        with self.assertRaises(ProcessLookupError):
+            os.kill(java_pid, 0)
+        self.assertFalse((self.out / 'test.complete.json').exists())
 
     def test_partial_and_missing_results_are_not_completed(self):
         for mode in ('partial', 'missing', 'fail-no-loop'):
