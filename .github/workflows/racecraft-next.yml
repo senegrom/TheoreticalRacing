@@ -1,0 +1,94 @@
+name: Racecraft outcomes and opening validation
+on:
+  push:
+    branches: [work/racecraft-outcomes-opening-20260928]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/racecraft_corpus.py'
+      - 'run_tests.sh'
+      - '.github/workflows/racecraft-next.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: racecraft-next-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    name: Contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - run: sh build_main.sh
+      - run: sh run_tests.sh
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: python3 -m compileall -q tools tests
+      - run: git diff --exit-code
+  controls:
+    name: Complete-race and corpus controls
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build branch and pinned master independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build_main.sh
+          mkdir "$RUNNER_TEMP/racecraft-baseline"
+          git archive 955001104bbe315cf9b82a1cd2dfb447beddd211 | tar -x -C "$RUNNER_TEMP/racecraft-baseline"
+          (cd "$RUNNER_TEMP/racecraft-baseline" && sh build_main.sh)
+      - name: Full-race controls and counterfactual capture/replay
+        run: python3 tests/racecraft_next_cli.py --baseline-jar "$RUNNER_TEMP/racecraft-baseline/theoreticRacing.jar" --out "$RUNNER_TEMP/racecraft-next-controls"
+      - run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: racecraft-next-control-evidence
+          path: ${{ runner.temp }}/racecraft-next-controls
+          retention-days: 7
+  regressions:
+    name: Unchanged champion corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: sh build_main.sh
+      - run: python3 tests/headless_smoke.py
+      - run: python3 tests/query_replay_regression.py
+      - run: python3 tests/lap_progress_regression.py
+      - run: python3 tests/golden_races.py
+      - name: Every champion regression pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python3 "$test"
+          done
+      - run: git diff --exit-code
