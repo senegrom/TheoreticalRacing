@@ -76,12 +76,11 @@ finishing place, or a proof for three or more live cars. Players, histories,
 progress, occupancy and decision frames are not mutated.
 
 `RaceAiTactics.winNow` calls it only after the existing immediate tactic
-abstains **and only for slots selected by `candidateSlots`**. Both AI labels
-support it. An unset property preserves the champion's decisions; it does not
-silently turn AI1 into the candidate. For an eight-car mixed race, use a
-separate properties file with `candidateSlots=1,3,5,7`, then mirror with
-`candidateSlots=2,4,6,8`. For all candidate cars use all actual roster slots.
-The proof still waits until only two cars are live.
+abstains. While it was a candidate it ran only for the slots `candidateSlots`
+selected; since its promotion (rounds 237, 239, 240) every car runs it. The
+mirrored-screen recipe below still applies to any new candidate: one
+properties file with `candidateSlots=1,3,5,7`, its mirror with
+`candidateSlots=2,4,6,8`. The proof still waits until only two cars are live.
 
 ## Measured results
 
@@ -149,16 +148,17 @@ for test in tests/ai1_*_regression.py; do python3 "$test" || exit; done
 python3 -m unittest discover -s tests -p 'test_*.py'
 ```
 
-The measured bounded screen (do not run several large-heap grids concurrently
-on a memory-limited host):
+A bounded screen (do not run several large-heap grids concurrently on a
+memory-limited host). The screen above once ran at `--heap=-Xmx768m`; that
+demoted the champion and is invalid, and the heap guard now refuses it:
 
 ```sh
 python3 docs/experiments/duel-lookahead/run_screen.py \
-  --out /tmp/duel-screen --heap=-Xmx768m \
+  --out /tmp/duel-screen \
   --tracks hairpin chicane bigoval circle gear silverstone zigzag
 ```
 
-The wrapper defaults include Monaco and a 2 GiB heap; it creates independent
+The wrapper defaults include Monaco and the fleet's 8 GiB heap; it creates independent
 profiles, mirrors actual roster slots, validates completion, and refuses to
 overwrite a different existing profile. It never changes `user.properties`.
 Use a fresh output directory whenever the build/configuration changes.
@@ -168,7 +168,7 @@ validation**, is selectable without changing the runner:
 
 ```sh
 python3 docs/experiments/duel-lookahead/run_screen.py \
-  --out /tmp/duel-full --tracks ALL --seeds 1-10 --heap=-Xmx2g
+  --out /tmp/duel-full --tracks ALL --seeds 1-10
 ```
 
 Promotion still requires the repository's complete homogeneous fleet grids

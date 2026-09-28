@@ -321,6 +321,37 @@ class FleetGridGuardTests(unittest.TestCase):
                 self.assertIsNone(bench_ai.run_track_h2h('lemans', seed=1))
         self.assertIn('raced without it', errors.getvalue())
 
+    def test_the_default_jobs_fit_in_memory(self):
+        gib = 1 << 30
+        self.assertEqual(8 * gib, fleet_grid.heap_bytes(['-Xmx8g']))
+        self.assertEqual(512 << 20, fleet_grid.heap_bytes(['-Xms1g', '-Xmx512m']))
+        self.assertIsNone(fleet_grid.heap_bytes(['-Xms1g']))
+        self.assertEqual(3, fleet_grid.default_jobs(['-Xmx8g'], memory=32 * gib, cpus=16))
+        self.assertEqual(2, fleet_grid.default_jobs(['-Xmx8g'], memory=64 * gib, cpus=2))
+        self.assertEqual(1, fleet_grid.default_jobs(['-Xmx8g'], memory=4 * gib, cpus=8))
+        self.assertEqual(3, fleet_grid.default_jobs([], memory=32 * gib, cpus=8))
+
+    def test_races_run_from_private_copies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'tracks').mkdir()
+            (root / 'tracks' / 'a.track').write_text('a')
+            jar, props = root / 'race.jar', root / 'p.properties'
+            jar.write_bytes(b'jar')
+            props.write_text('nPlayers=8\n')
+            manifest = {'jar': fleet_grid.digest(jar), 'properties': fleet_grid.digest(props),
+                        'tracks': {'a': fleet_grid.digest(root / 'tracks' / 'a.track')}}
+            out = root / 'out'
+            out.mkdir()
+            run_jar, run_props = fleet_grid.snapshot_inputs(out, manifest, jar, props, ['a'])
+            self.assertNotEqual(jar, run_jar)
+            jar.write_bytes(b'rebuilt')  # the original changes; the copy raced does not
+            self.assertTrue(fleet_grid.snapshot_matches(manifest, run_jar, run_props, ['a']))
+            run_props.write_text('nPlayers=2\n')  # but a write into the copy is caught
+            self.assertFalse(fleet_grid.snapshot_matches(manifest, run_jar, run_props, ['a']))
+            with self.assertRaises(ValueError):  # an original already off the manifest
+                fleet_grid.snapshot_inputs(out, manifest, jar, props, ['a'])
+
     def test_a_marker_without_the_potential_is_not_resumable(self):
         with tempfile.TemporaryDirectory() as tmp:
             out = Path(tmp)

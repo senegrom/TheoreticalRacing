@@ -1,4 +1,9 @@
-"""Validate every Round 231 screening record before comparing candidate places."""
+"""Validate every Round 231 screening record before comparing candidate places.
+
+Run it at the commit that added it (`git log --diff-filter=A -- this file`): it
+asserts the digests of that commit's fleet parser, profiles and track files,
+which later commits change (review, 2026-09-28).
+"""
 import collections
 import csv
 import gzip

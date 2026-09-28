@@ -106,9 +106,9 @@ def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
     ]
     rows = sorted((statistics.mean(v), t) for t, v in per_track.items())
     lines.append('\ntracks where the lone candidate gains most (mean place difference):')
-    lines += ['    %-14s %+.3f' % (t, d) for d, t in rows[:8]]
+    lines += ['    %-14s %+.3f' % (t, d) for d, t in [r for r in rows if r[0] < 0][:8]]
     lines.append('tracks where it loses most:')
-    lines += ['    %-14s %+.3f' % (t, d) for d, t in rows[-8:]]
+    lines += ['    %-14s %+.3f' % (t, d) for d, t in [r for r in rows if r[0] > 0][-8:]]
     lines.append('\n%d tracks favour the candidate, %d the champion, %d tied'
                  % (sum(d < 0 for d, _ in rows), sum(d > 0 for d, _ in rows), sum(d == 0 for d, _ in rows)))
     return '\n'.join(lines) + '\n'

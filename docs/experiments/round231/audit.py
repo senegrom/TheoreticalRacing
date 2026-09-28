@@ -5,6 +5,10 @@ Extract all 18 GitHub fleet ZIPs into sibling directories named after their
 artifacts, then run: python docs/experiments/round231/audit.py ARTIFACT_ROOT OUT
 Run once with --phase mixed and once with --phase all. Requires the unchanged
 Round 231 track files, profiles and fleet parser from the recorded base commit.
+
+Run it at the commit that added it (`git log --diff-filter=A -- this file`): it
+asserts the digests of that commit's fleet parser, profiles and track files,
+which later commits change (review, 2026-09-28).
 """
 import argparse
 import collections

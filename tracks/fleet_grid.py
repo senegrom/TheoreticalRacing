@@ -179,6 +179,81 @@ class Jvms:
                     process.kill()
 
 
+def physical_memory():
+    """Installed memory in bytes, or None when the platform will not say."""
+    try:
+        return os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
+    except (AttributeError, ValueError, OSError):
+        pass
+    if os.name == 'nt':
+        import ctypes
+
+        class Status(ctypes.Structure):
+            _fields_ = [('dwLength', ctypes.c_ulong), ('dwMemoryLoad', ctypes.c_ulong),
+                        ('ullTotalPhys', ctypes.c_ulonglong), ('ullAvailPhys', ctypes.c_ulonglong),
+                        ('ullTotalPageFile', ctypes.c_ulonglong), ('ullAvailPageFile', ctypes.c_ulonglong),
+                        ('ullTotalVirtual', ctypes.c_ulonglong), ('ullAvailVirtual', ctypes.c_ulonglong),
+                        ('ullAvailExtendedVirtual', ctypes.c_ulonglong)]
+        status = Status()
+        status.dwLength = ctypes.sizeof(Status)
+        if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
+            return status.ullTotalPhys
+    return None
+
+
+def heap_bytes(heap):
+    """The -Xmx among these JVM options, in bytes; None when there is none."""
+    for option in heap:
+        m = re.fullmatch(r'-Xmx(\d+)([kKmMgGtT]?)', option)
+        if m:
+            return int(m.group(1)) << {'': 0, 'k': 10, 'm': 20, 'g': 30, 't': 40}[m.group(2).lower()]
+    return None
+
+
+def default_jobs(heap, memory=None, cpus=None):
+    """Parallel JVMs that fit: each may reach its -Xmx plus about a quarter more
+    off the heap. The old default, one per CPU at -Xmx8g, overcommitted any
+    machine with under ten GB per core -- the ledger records 15 JVMs exhausting
+    30 GB (review, 2026-09-28). An explicit jobs argument always wins."""
+    cpus = cpus or os.cpu_count() or 4
+    memory = physical_memory() if memory is None else memory
+    if not memory:
+        return max(1, min(cpus, 4))
+    per_jvm = heap_bytes(heap) or memory // 4  # without -Xmx the JVM takes a quarter
+    return max(1, min(cpus, int(memory // (per_jvm * 5 // 4))))
+
+
+INPUTS = '.inputs'
+
+
+def snapshot_inputs(out, manifest, jar, props, tracks):
+    """Race from private copies of the jar, the profile and the courses. The
+    revalidations see the originals only when a track completes: an input changed
+    and restored in between would have raced tracks unseen (review, 2026-09-28).
+    The copies must hash to the manifest, so nothing changed before they were made."""
+    root = out / INPUTS
+    shutil.rmtree(root, ignore_errors=True)
+    (root / 'tracks').mkdir(parents=True)
+    run_jar, run_props = root / jar.name, root / ('profile' + props.suffix)
+    shutil.copyfile(jar, run_jar)
+    shutil.copyfile(props, run_props)
+    for track in tracks:
+        shutil.copyfile(jar.parent / 'tracks' / (track + '.track'), root / 'tracks' / (track + '.track'))
+    if not snapshot_matches(manifest, run_jar, run_props, tracks):
+        raise ValueError('benchmark inputs changed while the run started; results would not be valid')
+    return run_jar, run_props
+
+
+def snapshot_matches(manifest, run_jar, run_props, tracks):
+    """The private copies still hash to the manifest (nothing wrote into them)."""
+    try:
+        return (digest(run_jar) == manifest['jar'] and digest(run_props) == manifest['properties']
+                and all(digest(run_jar.parent / 'tracks' / (t + '.track')) == manifest['tracks'][t]
+                        for t in tracks))
+    except OSError:
+        return False
+
+
 def revoke_publication(out, tracks):
     """Remove every resumable marker, row and the report of this output."""
     for track in tracks:
@@ -277,12 +352,12 @@ def main(argv=None):
 def grid(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('seeds', nargs='?', default='1-10')
-    parser.add_argument('jobs', nargs='?', type=int, default=os.cpu_count() or 4)
+    parser.add_argument('jobs', nargs='?', type=int, default=None)
     parser.add_argument('out', nargs='?', default=str(Path(tempfile.gettempdir()) / 'fleet_grid'))
     args = parser.parse_args(argv)
     try:
         lo, hi = seed_range(args.seeds)
-        if args.jobs < 1:
+        if args.jobs is not None and args.jobs < 1:
             raise ValueError('jobs must be positive')
         timeout = float(os.environ.get('RACING_TIMEOUT', '3600'))
         if not math.isfinite(timeout) or timeout <= 0:
@@ -295,6 +370,7 @@ def grid(argv=None):
             raise ValueError('Java executable not found: ' + java_name)
         java = Path(executable).resolve()
         heap = shlex.split(os.environ.get('RACING_HEAP', '-Xmx8g'))
+        jobs = args.jobs if args.jobs is not None else default_jobs(heap)
         selected = os.environ.get('RACING_TRACKS', '')
         tracks = sorted(set(filter(None, re.split(r'[,\s]+', selected)))) if selected.strip() else sorted(
             p.stem for p in (jar.parent / 'tracks').glob('*.track'))
@@ -315,12 +391,20 @@ def grid(argv=None):
             else:
                 atomic_text(path, manifest_text)
             seeds = range(lo, hi + 1)
+            run_jar, run_props = snapshot_inputs(out, manifest, jar, props, tracks)
+
+            def intact():
+                # The originals, as the manifest promises, and the copies raced.
+                return (manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
+                        and snapshot_matches(manifest, run_jar, run_props, tracks))
+
             results, failures = {}, {}
             unverified = False
             jvms = Jvms()
-            pool = ThreadPoolExecutor(max_workers=min(args.jobs, len(tracks)))
+            pool = ThreadPoolExecutor(max_workers=min(jobs, len(tracks)))
             try:
-                futures = {pool.submit(run_track, out, t, run_id, seeds, java, heap, jar, props, timeout, jvms): t
+                futures = {pool.submit(run_track, out, t, run_id, seeds, java, heap, run_jar, run_props,
+                                       timeout, jvms): t
                            for t in tracks}
                 pending = set(futures)
                 while pending:
@@ -342,7 +426,7 @@ def grid(argv=None):
                         if unverified:
                             continue
                         try:
-                            unverified = manifest_for(jar, props, java, heap, tracks, lo, hi) != manifest
+                            unverified = not intact()
                         except (OSError, ValueError):
                             unverified = True
                         if not unverified:
@@ -360,7 +444,7 @@ def grid(argv=None):
             # neither resumable markers nor an old report behind. An interruption
             # proves nothing about the inputs and revokes nothing.
             try:
-                inputs_valid = not unverified and manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
+                inputs_valid = not unverified and intact()
             except (OSError, ValueError):
                 revoke_publication(out, tracks)
                 raise

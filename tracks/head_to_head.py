@@ -173,11 +173,12 @@ def main(argv=None) -> int:
         print("per candidate car %+.3f places (standard error %.3f), the unit of the lone-candidate check"
               % (m / 2, se / 2))
     rows = sorted(((statistics.mean(c) - statistics.mean(h), t, len(c)) for t, (c, h) in per_track.items() if c and h))
+    # Split by sign: under 16 courses the two lists used to share tracks.
     print("\ntracks where the candidate gains most (mean place difference, candidate car-races):")
-    for d, t, k in rows[:8]:
+    for d, t, k in [row for row in rows if row[0] < 0][:8]:
         print("    %-14s %+.3f  (%d)" % (t, d, k))
     print("tracks where it loses most:")
-    for d, t, k in rows[-8:]:
+    for d, t, k in [row for row in rows if row[0] > 0][-8:]:
         print("    %-14s %+.3f  (%d)" % (t, d, k))
     better = sum(1 for d, _, _ in rows if d < 0)
     print("\n%d tracks favour the candidate, %d the champion, %d tied" % (better, sum(1 for d, _, _ in rows if d > 0), sum(1 for d, _, _ in rows if d == 0)))
