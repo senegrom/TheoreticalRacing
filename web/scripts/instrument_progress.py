@@ -34,7 +34,8 @@ def instrument(source: str) -> str:
     after('\tprivate boolean tryLoadDerived() {', 'begin("Loading saved driving maps", 5);')
     after('\t\taliveStates = alive;', 'reused();')
     after('\t\tminShed2 = m.baseShed2; minShed2Roomy = m.baseShed2Roomy; certSq = m.baseCert;', 'reused();')
-    after('\t\t\t\tgame.clearPointContainmentCacheForCurrentThread();',
+    # The daemon's finally: the point memo is also dropped between phases.
+    after('\t\t\t} finally {\n\t\t\t\tgame.clearPointContainmentCacheForCurrentThread();',
           'if (reachabilityFailure == null) tr.browser.Progress.complete();', expression=True)
     # Distinct signatures for each real checkpoint pass, including convergence.
     after('\tprivate int[] computeGateMap(final int gate, final java.awt.geom.Line2D line,\n\t\t\tfinal int[] nextMap) {', 'begin(gate == 0 ? "Lap route to finish" : "Lap route to checkpoint " + gate);')
