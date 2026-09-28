@@ -226,7 +226,10 @@ class FleetFinalValidationTests(unittest.TestCase):
         self.assertEqual(0, self.grid()[0])
         self.assertEqual(2, self.calls)
 
-    def test_no_completion_is_published_before_final_validation(self):
+    def test_no_completion_is_published_before_its_revalidation(self):
+        # Since 2026-09-27 each track's marker follows its own revalidation, not
+        # the whole grid's, so a killed runner resumes; the second manifest read
+        # is that revalidation.
         actual = fleet_grid.manifest_for
         calls = 0
         def manifest(*args):

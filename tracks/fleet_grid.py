@@ -159,6 +159,14 @@ def potential_status(track, output):
     return kinds.pop() if kinds else None
 
 
+def revoke_publication(out, tracks):
+    """Remove every resumable marker, row and the report of this output."""
+    for track in tracks:
+        (out / (track + '.complete.json')).unlink(missing_ok=True)
+        (out / (track + '.row')).unlink(missing_ok=True)
+    (out / 'fleet.txt').unlink(missing_ok=True)
+
+
 def manifest_for(jar, props, java, heap, tracks, lo, hi):
     return {
         'schema': 2, 'runner': digest(Path(__file__)),
@@ -271,6 +279,7 @@ def main(argv=None):
                 atomic_text(path, manifest_text)
             seeds = range(lo, hi + 1)
             results, failures = {}, {}
+            unverified = False
             with ThreadPoolExecutor(max_workers=min(args.jobs, len(tracks))) as pool:
                 futures = {pool.submit(run_track, out, t, run_id, seeds, java, heap, jar, props, timeout): t
                            for t in tracks}
@@ -282,29 +291,34 @@ def main(argv=None):
                         failures[track] = str(error)
                         print('%s: %s' % (track, error), file=sys.stderr)
                         continue
-                    # Publish this track's marker now, so a runner killed later
-                    # in the grid resumes without racing it again; the final
-                    # check below still revokes every marker if the inputs
-                    # changed (review, 2026-09-27).
+                    # Publish this track's marker once the inputs are revalidated,
+                    # so a runner killed later in the grid resumes without racing
+                    # it again (review, 2026-09-27). A revalidation that fails or
+                    # cannot be read makes the whole run unverified: nothing more
+                    # is published and the final check revokes everything; an
+                    # interrupted one leaves nothing resumable.
+                    if unverified:
+                        continue
                     try:
-                        if manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest:
-                            atomic_text(out / (track + '.complete.json'), json_text(results[track]))
-                    except OSError:
-                        pass
+                        unverified = manifest_for(jar, props, java, heap, tracks, lo, hi) != manifest
+                    except (OSError, ValueError):
+                        unverified = True
+                    except BaseException:
+                        revoke_publication(out, tracks)
+                        raise
+                    if not unverified:
+                        atomic_text(out / (track + '.complete.json'), json_text(results[track]))
             # A missing/malformed input is just as invalid as a changed hash.
             # Do not leave either resumable markers or an old report behind when
             # validation raises (including interruption), rather than returning.
             inputs_valid = False
             try:
-                inputs_valid = manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
+                inputs_valid = not unverified and manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
                 if not inputs_valid:
                     raise ValueError('benchmark inputs changed during the run; results are not valid')
             finally:
                 if not inputs_valid:
-                    for track in tracks:
-                        (out / (track + '.complete.json')).unlink(missing_ok=True)
-                        (out / (track + '.row')).unlink(missing_ok=True)
-                    (out / 'fleet.txt').unlink(missing_ok=True)
+                    revoke_publication(out, tracks)
             lines = []
             total = dict(crash=0, timeout=0, moves=0)
             races = 0
