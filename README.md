@@ -168,7 +168,7 @@ AI_DEVELOPMENT.md     older-era AI notes (rounds 168-177), kept as history
 BRANCH_ARCHIVE.md     where the deleted development branches stay recoverable
 ```
 
-`RaceAi` holds one promoted policy; the `AI1` and `AI2` kinds are two labels for it, kept so that an experiment can gate one kind while it is being measured against the other. AI changes are benchmarked against the previous champion on the fleet grid and promoted only when that measurement and the regression battery both pass.
+`RaceAi` holds one promoted policy; the `AI1` and `AI2` kinds are two labels for it. An experiment gates its change on the car's roster slot (`candidateSlots`), and is judged by the places its cars finish in, not by the field's summed moves: the mirrored head-to-head screen (`tracks/head_to_head.py`) and the lone-candidate check (`docs/experiments/duel-lookahead/run_1vfield.py`), on random, computed and scattered starts. The owner's rules are in `CLAUDE.md`; every measured round is in `racing-memory.md`.
 
 ## License
 

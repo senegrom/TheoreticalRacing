@@ -3,8 +3,10 @@
 Baseline: `7220dd5784d1ae6cb8833616a819c11d7c3243e9` (round-233 champion).
 Branch: `racecraft/two-move-duel-proofs`.
 
-**Status: merged as an opt-in candidate. Still gated on `candidateSlots`, so no
-shipped car changes behaviour.**
+**Status: promoted.** The two-move proof reached every car in round 237, the
+third and fourth moves in rounds 239 and 240 (`racing-memory.md`). This page
+keeps the experiment's history; its screen tools (`run_screen.py`,
+`run_1vfield.py`) are the campaign's current instruments.
 
 > **Correction, 2026-09-11 — the screen below is invalid, and its conclusion is
 > wrong.** It ran at `--heap=-Xmx768m`. Exact-potential eligibility depends on

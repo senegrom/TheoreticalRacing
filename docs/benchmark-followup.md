@@ -1,5 +1,9 @@
 # Follow-up measurement corrections (2026-09-10)
 
+> **Historical note (2026-09-28).** A dated review record. Tools it names --
+> `extract_baseline.py` -- were retired on 2026-09-27 with the AI1-vs-AI2 workflow; the
+> current instruments are in `README.md` and `racing-memory.md`.
+
 These fixes address the four findings from the follow-up review of `fe1e6123`.
 They retain the newer workflow dependency versions on `6f9491d` and change no
 engine source, AI decisions, game rules, track files or champion fixtures.

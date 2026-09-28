@@ -1,5 +1,9 @@
 # Self-play profile follow-up (2026-09-11)
 
+> **Historical note (2026-09-28).** A dated review record. Tools it names --
+> the self-play profile tools -- were retired on 2026-09-27 with the AI1-vs-AI2 workflow; the
+> current instruments are in `README.md` and `racing-memory.md`.
+
 This follows the review of `fce7170c`. The remaining finding was that valid
 Java-properties syntax could leave self-play running a different field or
 controller from the one named by its report. No racing policy, referee, map,

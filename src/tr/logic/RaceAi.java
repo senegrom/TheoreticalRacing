@@ -539,8 +539,9 @@ final class RaceAi {
 	 * Round 216's exact-potential pace number, and -- promoted on the user's
 	 * word on 2026-09-04 after a fleet grid -- the immediate-finish precedence,
 	 * the finish-denial override and the exact axial-vmax ridge extension. No
-	 * kind-gated arm remains; a candidate experiment must add an explicit kind
-	 * gate until its own independently measured promotion.
+	 * kind-gated arm remains; a candidate experiment gates on candidate(playerNum)
+	 * -- the slots a race's candidateSlots names -- until its own independently
+	 * measured promotion.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		// Endgame seal (frontier, per "force the last rival to crash = win"): with
@@ -4722,10 +4723,11 @@ final class RaceAi {
 	 *  of them lap-INF threads into a dead upper band, while the single
 	 *  certified continuation cell was occupied by the car ahead). A
 	 *  successor that itself crosses the S/F while heading for gate 0
-	 *  continues on the gate-1 map. A negative {@code gate} skips the
-	 *  continuation requirement (alive-only counting: the scorer surcharge
-	 *  uses it -- requiring continuation there over-brakes flowing traffic,
-	 *  gear 0 -> 1 and hybrid12 1 -> 3 in the round-199 ablation).
+	 *  continues on the gate-1 map. A negative {@code gate} would skip the
+	 *  continuation requirement, but no caller passes one: round 199 threads
+	 *  the post-landing gate through every site, the scorer surcharge included
+	 *  (the comment here used to say the surcharge counted alive successors
+	 *  only; the shipped round priced continuation there too).
 	 *  Early-exits at {@code cap}. */
 	private int currentFreeContinuingSuccessors(final int x, final int y, final int vx, final int vy,
 			final int playerNum, final int gate, final int cap) {

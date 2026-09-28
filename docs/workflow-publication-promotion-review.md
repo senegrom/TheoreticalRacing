@@ -1,5 +1,9 @@
 # Publication and candidate-cohort workflow fixes (2026-09-11)
 
+> **Historical note (2026-09-28).** A dated review record. Tools it names --
+> `promotion_pair.py` and the promotion gate -- were retired on 2026-09-27 with the AI1-vs-AI2 workflow; the
+> current instruments are in `README.md` and `racing-memory.md`.
+
 This addresses the two workflow findings from the review of `59a5530`, on top of
 `5aa9c8b`. The newer round-234 policy and its re-frozen corpus are preserved.
 No Java policy, referee, map, bundled track, saved user setting or golden pin is

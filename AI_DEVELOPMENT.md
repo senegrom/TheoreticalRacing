@@ -8,10 +8,11 @@
 
 
 `RaceAi` currently uses one promoted champion body: AI2 delegates to AI1.
-Candidate experiments are compared with a frozen copy of the previous champion
-before promotion, then checked for exact AI1/AI2 identity. A candidate remains
-explicitly unpromoted until that differential, its permanent regression and the
-full promotion battery all pass.
+Candidate experiments gate on `candidateSlots` and are judged by places against
+the current champion (the mirrored screen and the lone-candidate check; see
+`CLAUDE.md`). The AI1/AI2 identity check and the promotion gate that ran it were
+retired on 2026-09-27: both labels run one policy, which
+`tests/ai1_label_invariance_regression.py` pins.
 
 ## Round 177 pending final runtime: componentwise-confirmed uncertain field pace
 
@@ -525,7 +526,7 @@ The golden corpus always drives **AI2**. Changing a fixture is a champion-promot
 Tools live in `tracks/`. Temporary reach dumps and race logs may be placed in `RACING_WORK_DIR` (default: `tracks/`). Produce a reach dump with:
 
 ```bash
-java -jar theoreticRacing.jar --auto --track TRACK --props tracks/bench.properties --dump-reach reach_TRACK.bin
+java -jar theoreticRacing.jar --auto --track TRACK --props tracks/bench.properties --dump-reach tracks/reach_TRACK.bin
 ```
 
 Reach dumps named `tracks/reach_*.bin` are ignored by Git. The shared `forensics_common.py` module owns the log grammar, validated reach reader, board reconstruction and persistent oracle process used by the forensic scripts.

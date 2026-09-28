@@ -1,5 +1,9 @@
 # Preparation and replay safety corrections (2026-09-11)
 
+> **Historical note (2026-09-28).** A dated review record. Tools it names --
+> `policy_matrix.py` -- were retired on 2026-09-27 with the AI1-vs-AI2 workflow; the
+> current instruments are in `README.md` and `racing-memory.md`.
+
 These changes address the three findings reviewed at `7220dd5`. The promoted
 AI policy, referee rules, track files and behavioral golden hashes are unchanged.
 

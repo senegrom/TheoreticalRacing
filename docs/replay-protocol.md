@@ -85,8 +85,9 @@ metadata does not change gameplay or the normalized golden-race projection.
 Five-field Python reconstruction now requires exactly one explicit disabled
 marker and rejects checkpoint events, lap progress and scattered-start gate
 state anywhere in the log, including after the requested target. This protects
-`board_at.py` and `policy_matrix.py`, which cannot carry progress through their
-legacy simulations. No checkpoint event yet does not prove a course is ungated.
+`board_at.py` (and protected `policy_matrix.py` until its retirement on
+2026-09-27), which cannot carry progress through its legacy simulation. No
+checkpoint event yet does not prove a course is ungated.
 
 Historical logs without the marker remain supported by
 `reconstruct_board(..., complete=True)` and the V2 `oracle_roll.py` /

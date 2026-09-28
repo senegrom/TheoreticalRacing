@@ -1,5 +1,9 @@
 # Endgame proof audit and three-move candidate (2026-09-12)
 
+> **Historical note (2026-09-28).** A dated review record. Tools it names --
+> `promotion_pair.py` -- were retired on 2026-09-27 with the AI1-vs-AI2 workflow; the
+> current instruments are in `README.md` and `racing-memory.md`.
+
 Initial review base: `39cb7b2689befe57fd953d983f66f12f8a06b096`.
 Integrated onto `d6412d6adf45fcf72cb5d2ee3af6446e2085e882`, preserving the
 intervening round-237 two-move promotion, its golden files and regression pins.

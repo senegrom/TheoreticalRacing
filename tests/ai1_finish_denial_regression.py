@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Pin the contested-finish denial rescue, now for both kinds.
+"""Pin the contested-finish denial rescue.
 
 Hairpin seed 68, eight cars: p8 arrives at the flag on a high-energy line a
 rival can close, and without the override it crashes at move 104 (its old
@@ -7,9 +7,9 @@ frozen AI2 control: 6 finishers, one crash, p8 last). The finish-denial
 certificate switches it to a braking escape that survives both the deep
 scorer world and the faithful world, and it finishes sixth. Until the
 2026-09-04 promotion that arm was AI1-only and this pin froze the AI2 crash
-as a control; both kinds now run one policy, so every roster -- all-AI2,
-all-AI1 and the two mixed halves -- must drive the same rescued race, byte
-for byte once the kind labels are normalized away.
+as a control. Both kinds now run one policy, so since 2026-09-27 the pin
+races the all-AI2 roster once; ai1_label_invariance_regression checks that
+the labels race alike.
 """
 
 from pathlib import Path
