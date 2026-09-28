@@ -11,6 +11,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 from forensics_common import finishers, normalized_lines, normalized_sha256, player_moves  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 HUNGARORING_SEED = 12
 # Round 228: re-frozen from complete recorded races after removing the
 # narrow-lane distance surcharge: seven finishers and no crashes in every case.
@@ -39,7 +43,6 @@ HUNGARORING_SEED = 12
 HUNGARORING_PROMOTED = (7, 0, [122, 123, 124, 125, 127, 128, 129])
 HUNGARORING_PROMOTED_FINISHERS = [(3, 122), (4, 123), (6, 124), (7, 125), (1, 127), (5, 128), (8, 129)]
 HUNGARORING_ALL_MOVES = {
-    "AI1": {1: 127, 2: 129, 3: 122, 4: 123, 5: 128, 6: 124, 7: 125, 8: 129},
     "AI2": {1: 127, 2: 129, 3: 122, 4: 123, 5: 128, 6: 124, 7: 125, 8: 129},
 }
 HUNGARORING_NORMALIZED_SHA256 = (
@@ -155,7 +158,7 @@ def main() -> int:
         import fixture_install
         bench_ai.JAR = str(fixture_install.install(directory, ["hungaroring", "interlagos", "lemans", "monaco", "zandvoort", "spa", "monza"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             for track, seed in cases:
                 summaries[(kind, track, seed)] = bench_ai.run_track(
@@ -165,7 +168,7 @@ def main() -> int:
                     encoding="utf-8"
                 )
 
-    for kind in ("AI1", "AI2"):
+    for kind in LABELS:
         actual = summaries[(kind, "hungaroring", HUNGARORING_SEED)]
         if actual != HUNGARORING_PROMOTED:
             raise SystemExit(
@@ -175,10 +178,9 @@ def main() -> int:
 
     actual_finishers = {
         kind: finishers(logs[(kind, "hungaroring", HUNGARORING_SEED)])
-        for kind in ("AI1", "AI2")
+        for kind in LABELS
     }
     expected_finishers = {
-        "AI1": HUNGARORING_PROMOTED_FINISHERS,
         "AI2": HUNGARORING_PROMOTED_FINISHERS,
     }
     if actual_finishers != expected_finishers:
@@ -188,7 +190,7 @@ def main() -> int:
         )
     actual_moves = {
         kind: player_moves(logs[(kind, "hungaroring", HUNGARORING_SEED)])
-        for kind in ("AI1", "AI2")
+        for kind in LABELS
     }
     if actual_moves != HUNGARORING_ALL_MOVES:
         raise SystemExit(
@@ -202,11 +204,7 @@ def main() -> int:
     # Round 215 retired this check: it pinned one decision by the exact log line
     # it appears on, and with checkpoints on every race the car is somewhere else
     # by that move. The move-count pins above still hold the whole field.
-    if normalized_lines(logs[("AI1", "hungaroring", HUNGARORING_SEED)]) != normalized_lines(
-        logs[("AI2", "hungaroring", HUNGARORING_SEED)]
-    ):
-        raise SystemExit("private-slack Hungaroring seed-12 promotion is not mirrored")
-    for kind in ("AI1", "AI2"):
+    for kind in LABELS:
         digest = normalized_sha256(logs[(kind, "hungaroring", HUNGARORING_SEED)])
         if digest != HUNGARORING_NORMALIZED_SHA256:
             raise SystemExit(
@@ -215,7 +213,7 @@ def main() -> int:
             )
 
     for (track, seed), (expected, _) in VETO_CASES.items():
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             actual = summaries[(kind, track, seed)]
             if actual != expected:
                 raise SystemExit(
@@ -232,16 +230,10 @@ def main() -> int:
                     f"private-slack {track} seed-{seed} {kind} champion-trajectory "
                     f"regression: {digest}, expected {expected_digest}"
                 )
-        if normalized_lines(logs[("AI1", track, seed)]) != normalized_lines(
-            logs[("AI2", track, seed)]
-        ):
-            raise SystemExit(
-                f"private-slack {track} seed-{seed} veto lost champion identity"
-            )
 
     print(
         "AI1PrivateSlackRegression: OK "
-        "(Hungaroring s12 strict -1 mirrored; nine false-positive classes vetoed)"
+        "(Hungaroring s12 strict -1; nine false-positive classes vetoed)"
     )
     return 0
 

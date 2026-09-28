@@ -16,6 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRS, parse_v2_answer  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 # mover (x,y,vx,vy), rival (x,y,vx,vy), one physically identical board per slot order
 CASES = [
     ((14,16,2,4), (16,23,1,-4)),
@@ -59,7 +63,7 @@ def main():
         shutil.copyfile(jar, install/'theoreticRacing.jar')
         (install/'tracks').mkdir()
         shutil.copyfile(ROOT/'tests/fixtures/racecraft_hairpin.track', install/'tracks/hairpin.track')
-        for kind in ('AI1','AI2'):
+        for kind in LABELS:
             for players in (2,8):
                 props = install/'profile.properties'
                 props.write_text(f'nPlayers={players}\nlaps=1\n'+''.join(
@@ -81,7 +85,7 @@ def main():
                     _,_,reply = parse_v2_answer(answers[index+1],1)
                     assert all(t.status == 'CRASH' for t in reply.transitions), (lines[index+1],reply)
                     tested += 1
-    print(f'Racecraft: OK ({tested} winning boards; every rival reply checked; both kinds and slot orders)')
+    print(f'Racecraft: OK ({tested} winning boards; every rival reply checked; both slot orders)')
     return 0
 
 

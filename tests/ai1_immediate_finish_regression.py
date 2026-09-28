@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Pin immediate-finish precedence over a superficially winning endgame seal.
 
-Both kinds take the guaranteed crossing on every board. Until the 2026-09-04
-promotion the precedence was AI1-only and this pin froze AI2 forgoing it
-with two or three rivals as the control; the kinds are one policy now.
+The champion takes the guaranteed crossing on every board. Until the
+2026-09-04 promotion the precedence was AI1-only and this pin froze AI2
+forgoing it with two or three rivals as the control; the kinds are one policy
+now, so each board is asked once.
 """
 
 from pathlib import Path
@@ -16,6 +17,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 from forensics_common import Oracle  # noqa: E402
+
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
 
 TRACK = "sprint"
 # sprint left the fleet (2026-08-29): the pin races a PRIVATE install --
@@ -67,30 +72,24 @@ def main() -> int:
         (install / "tracks").mkdir(exist_ok=True)
         shutil.copyfile(ROOT / "tests" / "fixtures" / "sprint.track",
                         install / "tracks" / "sprint.track")
-        ai1 = {}
-        ai2 = {}
+        roots = {}
         for nplayers, board in ROOT_BOARDS.items():
             bench_ai.set_nplayers(nplayers)
-            ai1[nplayers] = ask("AI1", [(0, board)])[0]
-            ai2[nplayers] = ask("AI2", [(0, board)])[0]
+            roots[nplayers] = ask(LABELS[0], [(0, board)])[0]
 
         bench_ai.set_nplayers(3)
         boxed_rival, later_finisher = ask(
-            "AI2",
+            LABELS[0],
             [(1, AFTER_SEAL), (2, AFTER_RIVAL_CRASH)],
         )
 
     finish_mask = "XXAXXAXFF"
     for nplayers in ROOT_BOARDS:
-        if ai1[nplayers] != (0, 1, finish_mask):
+        if roots[nplayers] != (0, 1, finish_mask):
             raise SystemExit(
-                f"immediate-finish {nplayers}-player AI1 did not take S: "
-                f"{ai1[nplayers]}"
+                f"immediate-finish {nplayers}-player champion did not take S: "
+                f"{roots[nplayers]}"
             )
-    if ai2 != ai1:
-        raise SystemExit(
-            f"immediate-finish AI2 no longer matches AI1 on the root boards: {ai2}"
-        )
     if boxed_rival != (-1, -1, "XXXXXBXXB"):
         raise SystemExit(f"immediate-finish causal rival crash changed: {boxed_rival}")
     if later_finisher != (-1, 1, "XBAXAAFFF"):
@@ -98,7 +97,7 @@ def main() -> int:
 
     print(
         "AI1ImmediateFinishRegression: OK "
-        "(both kinds take guaranteed first with 1-3 live rivals)"
+        "(the champion takes guaranteed first with 1-3 live rivals)"
     )
     return 0
 

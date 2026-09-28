@@ -10,6 +10,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 # Monaco seed 1 is a deterministic traffic-heavy case where the geometry-clipped
 # private-lane certificate and its moderate-uncertainty two-exit refinement recover
 # repeated one-turn concessions. Keep the benchmark metric (sum of each finisher's
@@ -54,7 +58,7 @@ def main() -> int:
         bench_ai.set_all_to("AI1")
         result = bench_ai.run_track("monaco", timeout=600, seed=1)
         finish_results = {}
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             for track_seed in FINISH_EXPECTED:
                 track, seed = track_seed

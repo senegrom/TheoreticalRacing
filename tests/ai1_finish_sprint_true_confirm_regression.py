@@ -11,6 +11,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 TARGET = ("rand3", 1)
 # Round 226 re-froze this from measurement: the needle surcharge became a
 # tie-break (12 -> 1), which is worth 0.58-0.60 places head-to-head. Finishers
@@ -42,7 +46,7 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="finish-sprint-true-confirm-") as directory:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             summary = bench_ai.run_track(TARGET[0], timeout=1200, seed=TARGET[1])
             if summary is None:
@@ -53,7 +57,7 @@ def main() -> int:
             summaries[kind] = summary
             logs[kind] = log_path.read_text(encoding="utf-8")
 
-    for kind in ("AI1", "AI2"):
+    for kind in LABELS:
         text = logs[kind]
         if summaries[kind] != PROMOTED:
             raise SystemExit(
@@ -95,12 +99,9 @@ def main() -> int:
                 f"{digest}, expected {PROMOTED_SHA256}"
             )
 
-    if normalized_lines(logs["AI1"]) != normalized_lines(logs["AI2"]):
-        raise SystemExit("finish-sprint true-confirm Rand3 seed-1 rescue is not mirrored")
-
     print(
         "AI1FinishSprintTrueConfirmRegression: OK "
-        "(Rand3 s1 p8 crash-to-finish rescue mirrored; existing drivers unchanged)"
+        "(Rand3 s1 p8 crash-to-finish rescue holds; existing drivers unchanged)"
     )
     return 0
 

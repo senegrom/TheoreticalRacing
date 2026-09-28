@@ -8,6 +8,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 PROMOTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -20,25 +24,23 @@ PROMOTED = {
     86: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
-EXPECTED = {kind: PROMOTED for kind in ("AI1", "AI2")}
+EXPECTED = {kind: PROMOTED for kind in LABELS}
 
 
 def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
-    actual = {"AI1": {}, "AI2": {}}
+    actual = {kind: {} for kind in LABELS}
     with tempfile.TemporaryDirectory(prefix="round117-regression-") as directory:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             for seed in (5, 22, 86):
                 actual[kind][seed] = bench_ai.run_track("coil", timeout=1200, seed=seed)
     if actual != EXPECTED:
         raise SystemExit(f"Round-117 promoted regression: {actual}, expected {EXPECTED}")
-    if actual["AI1"] != actual["AI2"]:
-        raise SystemExit(f"Round-117 promotion is not mirrored: {actual}")
-    result = actual["AI1"][86]
+    result = actual[LABELS[0]][86]
     if result[:2] != LEGACY_CHAMPION_86[:2] or any(
             a > b for a, b in zip(result[2], LEGACY_CHAMPION_86[2])):
         raise SystemExit(f"Round-117 Pareto contract lost: {result}, {LEGACY_CHAMPION_86}")

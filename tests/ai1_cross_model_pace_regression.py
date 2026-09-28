@@ -10,14 +10,17 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 248: re-frozen from measurement (the physical world model: occupancy with lap state, rollouts that stop with the last survivor, blockades replayed).
     # Round 260 (the chooser): Silverstone s1 loses a car here -- recorded,
-    # not vetoed (AGENTS.md); the self-tie below is the pin's subject and holds.
-    "AI1": (6, 1, [82, 83, 83, 84, 84, 85]),
+    # not vetoed (AGENTS.md); the finisher moves below are the pin's subject.
     "AI2": (6, 1, [82, 83, 83, 84, 84, 85]),
 }
 
@@ -32,7 +35,7 @@ def main() -> int:
         import fixture_install
         bench_ai.JAR = str(fixture_install.install(directory, ["silverstone"]))  # frozen pre-repair geometry
         bench_ai.set_nplayers(8)
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             results[kind] = bench_ai.run_track("silverstone", timeout=900, seed=1)
 
@@ -43,19 +46,16 @@ def main() -> int:
                 f"{results[kind]}, expected {expected}"
             )
 
-    ai1_sum = sum(results["AI1"][2])
-    ai2_sum = sum(results["AI2"][2])
+    move_sum = sum(results[LABELS[0]][2])
     # Round 229: 596 is the sum of the re-frozen finisher moves.
     # Round 247: 586 (the soft rollout at one level, not two). Round 248: 587.
     # Round 260: 501 is the sum of the six re-frozen finisher moves.
-    if ai1_sum != 501 or ai2_sum != 501 or results["AI1"] != results["AI2"]:
-        raise SystemExit(
-            f"Round-95 champion self-tie lost: AI1 {results['AI1']}, AI2 {results['AI2']}"
-        )
+    if move_sum != 501:
+        raise SystemExit(f"Round-95 promoted finisher moves lost: {results[LABELS[0]]}")
 
     print(
         "AI1CrossModelPaceRegression: OK "
-        f"(promoted Silverstone seed 1 self-tie at {ai1_sum} finisher moves)"
+        f"(promoted Silverstone seed 1 at {move_sum} finisher moves)"
     )
     return 0
 

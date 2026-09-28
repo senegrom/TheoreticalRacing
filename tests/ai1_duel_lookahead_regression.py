@@ -16,6 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRS, parse_v2_answer  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 CASES = [
     ((10, 14, 4, 0), (12, 15, 5, 0), (0, -1)),
     ((14, 15, 3, -1), (11, 16, 6, -1), (0, -1)),
@@ -65,7 +69,7 @@ def main():
         shutil.copyfile(jar, install/'theoreticRacing.jar')
         (install/'tracks').mkdir()
         shutil.copyfile(ROOT/'tests/fixtures/racecraft_hairpin.track', install/'tracks/hairpin.track')
-        for kind in ('AI1', 'AI2'):
+        for kind in LABELS:
             for players in (2, 8):
                 (install/'profile.properties').write_text(
                     f'nPlayers={players}\nlaps=1\ncandidateSlots=1,{players}\n'+''.join(

@@ -75,11 +75,11 @@ def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
 
+    # One roster: both labels run one policy since round 222, so the three
+    # relabeled rosters raced the same race again (ai1_label_invariance_regression
+    # checks that once for every pin; 2026-09-27).
     rosters = {
         "AI2": ["AI2"] * 8,
-        "AI1": ["AI1"] * 8,
-        "MIXED_AI2_LAST": ["AI1"] * 4 + ["AI2"] * 4,
-        "MIXED_AI1_LAST": ["AI2"] * 4 + ["AI1"] * 4,
     }
     summaries = {}
     logs = {}
@@ -123,7 +123,7 @@ def main() -> int:
 
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68 p8 crash-to-sixth rescue, identical for every roster of both kinds)"
+        "(hairpin s68 p8 crash-to-sixth rescue)"
     )
     return 0
 

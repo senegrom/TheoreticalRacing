@@ -11,6 +11,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 from forensics_common import finishers, normalized_lines  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -54,13 +58,13 @@ def main() -> int:
     with tempfile.TemporaryDirectory(prefix="ai1-finish-frontier-") as directory:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             for seed in EXPECTED:
                 summaries[(kind, seed)] = bench_ai.run_track("coil", timeout=600, seed=seed)
                 logs[(kind, seed)] = Path(bench_ai.LOG).read_text(encoding="utf-8")
 
-    for kind in ("AI1", "AI2"):
+    for kind in LABELS:
         for seed, expected in EXPECTED.items():
             actual = summaries[(kind, seed)]
             if actual != expected:
@@ -80,13 +84,9 @@ def main() -> int:
                 f"{seed6_finishers}, expected {EXPECTED_SEED6_FINISHERS}"
             )
 
-    for seed in EXPECTED:
-        if normalized_lines(logs[("AI1", seed)]) != normalized_lines(logs[("AI2", seed)]):
-            raise SystemExit(f"Round-96 Coil seed-{seed} champion self-tie lost")
-
     move_sums = {
         kind: sum(summaries[(kind, 6)][2])
-        for kind in ("AI1", "AI2")
+        for kind in LABELS
     }
     # Round 229: 418 is the re-frozen seed-6 sum (the soft caution stack left the score).
     # Round 247: 417 (the soft rollout at one level, not two).
@@ -96,7 +96,7 @@ def main() -> int:
 
     print(
         "AI1FinishFrontierRegression: OK "
-        "(Coil seed 6 self-tie at 420 moves; seeds 47/49 vetoes pinned)"
+        "(Coil seed 6 at 420 moves; seeds 47/49 vetoes pinned)"
     )
     return 0
 

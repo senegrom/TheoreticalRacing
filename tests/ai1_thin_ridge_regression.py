@@ -59,9 +59,10 @@ def main() -> int:
                     f"expected {expected_ai2[seed]}"
                 )
 
+        # 2026-09-27: one ordering; the second was the same race with the labels
+        # swapped (one policy since round 222).
         for target_kind, kinds in (
             ("AI1", ["AI1", "AI2"] * 4),
-            ("AI2", ["AI2", "AI1"] * 4),
         ):
             bench_ai.set_kinds(kinds)
             result = bench_ai.run_track_h2h("rand13", timeout=600, seed=4)
@@ -108,7 +109,7 @@ def main() -> int:
                     "Round-185 width-three ridge regression crashed p7 "
                     f"for kind {target_kind}"
                 )
-    print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4 both kinds)")
+    print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4)")
     return 0
 
 

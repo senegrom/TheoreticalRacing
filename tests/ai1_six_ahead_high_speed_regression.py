@@ -11,6 +11,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
 from forensics_common import finishers, normalized_lines, normalized_sha256, player_moves  # noqa: E402
 
+# Both labels run one policy since round 222 and ai1_label_invariance_regression
+# checks it, so each case races once, under the champion label (2026-09-27).
+LABELS = ("AI2",)
+
 TARGET = ("spa", 83)
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
@@ -125,7 +129,7 @@ def main() -> int:
         import fixture_install
         bench_ai.JAR = str(fixture_install.install(directory, ["silverstone", "spa"]))  # frozen pre-repair geometry
         bench_ai.set_nplayers(8)
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             bench_ai.set_all_to(kind)
             for track, seed in cases:
                 summary = bench_ai.run_track(
@@ -145,7 +149,7 @@ def main() -> int:
                     encoding="utf-8"
                 )
 
-    for kind in ("AI1", "AI2"):
+    for kind in LABELS:
         target_log = logs[(kind, *TARGET)]
         actual = summaries[(kind, *TARGET)]
         if actual != PROMOTED:
@@ -188,13 +192,8 @@ def main() -> int:
                 f"{digest}, expected {PROMOTED_SHA256}"
             )
 
-    if normalized_lines(logs[("AI1", *TARGET)]) != normalized_lines(
-        logs[("AI2", *TARGET)]
-    ):
-        raise SystemExit("six-ahead high-speed Spa seed-83 promotion is not mirrored")
-
     for (track, seed), (expected, expected_digest) in VETO_CASES.items():
-        for kind in ("AI1", "AI2"):
+        for kind in LABELS:
             actual = summaries[(kind, track, seed)]
             if actual != expected:
                 raise SystemExit(
@@ -207,16 +206,10 @@ def main() -> int:
                     f"six-ahead high-speed {track} seed-{seed} {kind} champion "
                     f"trajectory regression: {digest}, expected {expected_digest}"
                 )
-        if normalized_lines(logs[("AI1", track, seed)]) != normalized_lines(
-            logs[("AI2", track, seed)]
-        ):
-            raise SystemExit(
-                f"six-ahead high-speed {track} seed-{seed} veto lost champion identity"
-            )
 
     print(
         "AI1SixAheadHighSpeedRegression: OK "
-        "(Spa s83 finisher -2/all-driver -3 mirrored; "
+        "(Spa s83 finisher -2/all-driver -3; "
         "nine veto/retention controls pinned)"
     )
     return 0

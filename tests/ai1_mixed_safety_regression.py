@@ -10,6 +10,10 @@ sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
 
+# Round 94's Gear seed 1 in the front ordering (slots 1-4 AI1, 5-8 AI2),
+# measured 2026-09-27: the first four grid slots finish first to fourth.
+GEAR_FRONT_MEASURED = {"AI1": (10, 4, 0), "AI2": (26, 4, 0)}
+
 
 def main() -> int:
     if not Path(bench_ai.JAR).is_file():
@@ -73,12 +77,13 @@ def main() -> int:
             # its identity below. The two orderings stay exact mirrors.
             # Round 278 (the chooser's pick stands): p7 keeps its race, both
             # orderings crash-free again and still exact mirrors.
+            # 2026-09-27: one ordering. The reverse ordering was the same race
+            # with the labels swapped (one policy since round 222); the label
+            # invariance pin checks that once for every pin.
             "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
-            "reverse": {"AI1": (22, 4, 0), "AI2": (14, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
-            ("reverse", ["AI2"] * 4 + ["AI1"] * 4),
         )
         # Round 215: the move index moved with the rules, the placing did not.
         # Round 229: p6 comes home fourth now, on the same move (565) in both orderings.
@@ -118,26 +123,21 @@ def main() -> int:
         # The finishing totals pinned above cover the outcome that matters.
 
         # Round 94's longer finish sprint is homogeneous-only. The unrestricted
-        # experiment shifted places against the frozen policy on Gear; both grid
-        # orderings must retain exact aggregate parity in a heterogeneous field.
-        gear_totals = {"AI1": [0, 0, 0], "AI2": [0, 0, 0]}
-        for label, kinds in orderings:
-            bench_ai.set_kinds(kinds)
-            result = bench_ai.run_track_h2h("gear", timeout=600, seed=1)
-            if result is None:
-                raise SystemExit(f"Round-94 mixed Gear seed-1 {label} produced no result")
-            for kind in ("AI1", "AI2"):
-                for index, value in enumerate(result[kind]):
-                    gear_totals[kind][index] += value
-        expected_gear = {"AI1": [36, 8, 0], "AI2": [36, 8, 0]}
-        if gear_totals != expected_gear:
+        # experiment shifted places against the frozen policy on Gear. Until
+        # 2026-09-27 this summed both orderings, which is 36 places per label by
+        # construction (the two orderings mirror each other), so it could only
+        # fail on a crash; the ordering's own measured totals are pinned now.
+        bench_ai.set_kinds(orderings[0][1])
+        gear = bench_ai.run_track_h2h("gear", timeout=600, seed=1)
+        expected_gear = GEAR_FRONT_MEASURED
+        if gear != expected_gear:
             raise SystemExit(
-                f"Round-94 mixed Gear seed-1 place-boundary regression: {gear_totals}"
+                f"Round-94 mixed Gear seed-1 place-boundary regression: {gear}, expected {expected_gear}"
             )
 
     print(
         "AI1MixedSafetyRegression: OK "
-        "(Le Mans seeds 2/7 safe; Gear seed 1 mixed place parity pinned)"
+        "(Le Mans seeds 2/7 safe; Gear seed 1 mixed places pinned)"
     )
     return 0
 
