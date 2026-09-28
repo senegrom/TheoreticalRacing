@@ -297,10 +297,8 @@ public final class RaceGame {
 			return;
 		}
 		final StartDialog startDial = new StartDialog(NAME + " " + VERSION, prop);
-		startDial.setOnConfirm(() -> {
-			saveProperties();
-			setupGameUI();
-		});
+		startDial.setOnSave(this::saveProperties);
+		startDial.setOnConfirm(() -> setupGameUI());
 		startDial.setOnCancel(() -> {
 			saveProperties();
 			System.exit(0);

@@ -65,7 +65,7 @@ public final class StartDialog extends JFrame {
 	private final Properties			prop;
 	private final JTextField[]			txtSize;
 
-	private transient Runnable			onConfirm, onCancel;
+	private transient Runnable			onConfirm, onCancel, onSave;
 
 	public StartDialog(final String title, final Properties prop) {
 		super(title);
@@ -126,6 +126,10 @@ public final class StartDialog extends JFrame {
 
 	public void setOnCancel(final Runnable r) {
 		onCancel = r;
+	}
+
+	public void setOnSave(final Runnable r) {
+		onSave = r;
 	}
 
 	private void chooseColor(final int i) {
@@ -389,6 +393,8 @@ public final class StartDialog extends JFrame {
 		commitPlayerKinds();
 		commitTrackSelection();
 		dispose();
+		if (onSave != null)
+			onSave.run();
 		if (onConfirm != null)
 			onConfirm.run();
 	}
