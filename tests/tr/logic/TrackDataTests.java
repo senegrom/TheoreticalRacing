@@ -57,7 +57,7 @@ final class TrackDataTests {
 		closed.addAll(left);
 		closed.addAll(right.reversed());
 		closed.add(left.getFirst());
-		check(!TrackGeometry.checkIntersect(closed, closed, false), file + ": self-intersecting corridor");
+		check(!TrackGeometry.checkIntersect(closed, closed), file + ": self-intersecting corridor");
 	}
 
 	private static void validateSide(final Path file, final String sideName, final List<int[]> side,

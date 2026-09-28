@@ -69,7 +69,7 @@ final class TrackGeometry {
 	/**
 	 * @return true iff the line paths p1, p2 intersect anywhere.
 	 */
-	final static boolean checkIntersect(final List<int[]> p1, final List<int[]> p2, final boolean allowEqual) {
+	final static boolean checkIntersect(final List<int[]> p1, final List<int[]> p2) {
 		if (p1 == null || p2 == null || p1.size() < 2 || p2.size() < 2)
 			return false;
 		if (p1.size() == 2 && Arrays.equals(p1.getFirst(), p1.getLast()))
@@ -87,9 +87,7 @@ final class TrackGeometry {
 					p22 = it2.next();
 					if (p21 != null && (p11 != p21 || p12 != p22)) {
 						final byte seq;
-						if (allowEqual)
-							seq = 3;
-						else if (p11 == p22)
+						if (p11 == p22)
 							seq = 1;
 						else if (p12 == p21)
 							seq = 2;

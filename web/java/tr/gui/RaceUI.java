@@ -12,7 +12,6 @@ public final class RaceUI {
     public static final int GRID_DIST = 1;
     public float[][] startZone;
     public int[][] checkpoints, closures;
-    public int[] velocity;
     public Shape trackPol;
     public Line2D finishLine;
     public List<int[]> prePath;
@@ -32,5 +31,6 @@ public final class RaceUI {
     public void setPrePath(final List<int[]> value) { prePath = value; }
     public void setStartZone(final float[][] value) { startZone = value; }
     public void setTrack(final Track track) {}
-    public void setVelVector(final int[] value, final int player) { velocity = value; }
+    /** The page draws velocities from the snapshot; nothing to keep. */
+    public void setVelVector(final int[] value, final int player) {}
 }

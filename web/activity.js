@@ -31,7 +31,7 @@ export class Activity {
   setPreparation(visible, progress = null, ready = false) {
     this.preparation.hidden = !visible;
     if (!visible) return;
-    if ([6, 7, 9, 10, 11].includes(progress?.stages)) this.stages = progress.stages;
+    if ([6, 7, 9, 11].includes(progress?.stages)) this.stages = progress.stages;
     if (Number.isInteger(progress?.stage)) this.stage = Math.max(this.stage, Math.min(this.stages, progress.stage));
     if (ready || progress?.complete) this.stage = this.stages;
     this.cached ||= Boolean(progress?.cached);

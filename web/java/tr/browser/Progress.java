@@ -5,8 +5,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 /** Output-only telemetry. Stage counts describe dependencies, never estimated time. */
 public final class Progress {
     private static final AtomicInteger PASSES = new AtomicInteger();
-    private static final AtomicInteger BUILDS = new AtomicInteger();
-    private static final AtomicInteger DISTANCES = new AtomicInteger();
     private static final ThreadLocal<Pass> CURRENT = ThreadLocal.withInitial(Pass::new);
     private static volatile boolean nativeAvailable = true;
     private static volatile int stage = 1, stages = 6;
@@ -21,7 +19,6 @@ public final class Progress {
             int stage, int stages, boolean complete, boolean cached);
     /** One geometry build owns one plan, irrespective of the number of drivers. */
     public static void geometry() {
-        BUILDS.incrementAndGet();
         stage = 1; stages = 6; cached = false; complete = false;
         begin("Building track geometry");
     }
@@ -34,7 +31,6 @@ public final class Progress {
     public static void begin(final String phase, final int step) {
         // Safety sweeps run again over the different coherent multi-lap graph.
         stage = step == 5 && stage >= 6 ? 8 : step;
-        if (step == 2) DISTANCES.incrementAndGet();
         begin(phase);
     }
     public static void alternatives() {
@@ -47,10 +43,6 @@ public final class Progress {
         stage = stages;
         begin("Track preparation complete");
     }
-    /** Read-only diagnostics used by startup regressions (not game decisions). */
-    public static int buildCount() { return BUILDS.get(); }
-    public static int distanceCount() { return DISTANCES.get(); }
-    public static int stageCount() { return stages; }
     public static void begin(final String phase) {
         final Pass pass = CURRENT.get();
         pass.phase = phase;

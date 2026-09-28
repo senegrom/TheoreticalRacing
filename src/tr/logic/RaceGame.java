@@ -395,12 +395,6 @@ public final class RaceGame {
 		return false;
 	}
 
-	/** Returns true if the move from `pos` to `newpos` is allowed for player i. */
-	boolean isMoveLegal(final int[] pos, final int[] newpos, final int playerNumber) {
-		return isMoveLegalGeometry(pos[0], pos[1], newpos[0], newpos[1])
-				&& !isCrashingPlayer(newpos[0], newpos[1], playerNumber);
-	}
-
 	/** Round 111: conservative legality raster over unit cells. Bit 0 = the
 	 *  cell's (margin-padded) closed square is provably fully inside trackA
 	 *  or startZoneA (exact Area.contains(rect)); bit 1 = the cell lies in
@@ -1505,12 +1499,6 @@ public final class RaceGame {
 		return crossesFinishUncached(x1, y1, x2, y2);
 	}
 
-	/** Retain the double overload for geometric callers/tests that are not on
-	 * lattice cells. Integer game moves select the cached overload above. */
-	boolean crossesFinish(final double x1, final double y1, final double x2, final double y2) {
-		return crossesFinishUncached(x1, y1, x2, y2);
-	}
-
 	/** The line the reachability BFS runs to, and the direction that counts as
 	 *  forward across it, as {x1, y1, x2, y2, fwdX, fwdY}. The map is a BFS to
 	 *  this line, so its disk-cache identity must cover it: two games can share
@@ -2167,7 +2155,6 @@ public final class RaceGame {
 	 *  informed placement is impossible there, so the AI takes a random start cell
 	 *  instead of refusing to race. Published through reachability readiness. */
 	private volatile boolean startPlacementFallback;
-	boolean startPlacementFellBack() { return startPlacementFallback; }
 
 	/** Interactive games compute their starts. Headless benchmarks keep the seeded
 	 * random sampling by default -- racecraft is measured from varied starts and the
@@ -2388,7 +2375,7 @@ public final class RaceGame {
 		while (it.hasNext())
 			closed.add(it.next());
 		closed.add(track.getLeft().getFirst());
-		return TrackGeometry.checkIntersect(closed, closed, false);
+		return TrackGeometry.checkIntersect(closed, closed);
 	}
 
 	private void initGameLog() {

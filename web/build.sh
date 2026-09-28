@@ -16,7 +16,6 @@ cp web/build/engine-sources.json web/dist/
 for f in index.html app.css app.js activity.js board.js engine.js runtime.html runtime.js manifest.webmanifest; do
     cp "web/$f" web/dist/
 done
-cp web/branding/racing-icon.svg web/dist/icon.svg
 cp LICENSE web/dist/LICENSE.txt
 printf '' > web/dist/.nojekyll
 python3 - <<'PY'

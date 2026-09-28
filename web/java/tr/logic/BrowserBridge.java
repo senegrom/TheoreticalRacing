@@ -163,11 +163,11 @@ public final class BrowserBridge {
         requireHumanTurn();
         if (index < 0 || index >= 9) throw new IllegalArgumentException("Invalid direction");
         if ((Integer) field("isShowingPrePath") != index) game.clickedDirection(Direction.fromIndex(index));
-        final int before = (Integer) field("turnCounter");
+        final int before = game.turnCount();
         JOptionPane.confirmCrash(crashConfirmed);
         try { game.clickedDirection(Direction.fromIndex(index)); }
         finally { JOptionPane.confirmCrash(false); }
-        if ((Integer) field("turnCounter") != before) selected = -1;
+        if (game.turnCount() != before) selected = -1;
         return transportSnapshot();
     }
     public String log() { requireGame(); return field("gameLog").toString(); }
@@ -190,7 +190,7 @@ public final class BrowserBridge {
         // failure for engine/preparation errors that require a new session.
         out.put("placementFailure", field("placementFailure"));
         out.put("cols", game.gameCols); out.put("rows", game.gameRows);
-        out.put("current", game.subgamestate); out.put("turn", field("turnCounter"));
+        out.put("current", game.subgamestate); out.put("turn", game.turnCount());
         out.put("laps", game.totalLaps); out.put("selected", selected);
         out.put("ok", ui.okEnabled); out.put("undo", ui.undoEnabled);
         out.put("ready", game.trackA == null || game.reach.isReady());
