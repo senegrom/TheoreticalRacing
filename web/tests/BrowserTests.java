@@ -92,7 +92,40 @@ public final class BrowserTests {
         testStartingZoneDeltas();
         testOneAiMovePerStep();
         testTimeoutUndo();
+        testReachCachePruned();
         System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points, coarse loops refused, drawn checkpoints by length and placement recovery OK");
+    }
+
+    /** Review, 2026-09-28: the browser's map caches never shrank. Pruning keeps
+     *  this race's maps and the newest others within the budget, drops stale
+     *  temporary files and the retired generation's files. */
+    private static void testReachCachePruned() throws Exception {
+        final java.nio.file.Path root = java.nio.file.Files.createTempDirectory("prune");
+        final java.nio.file.Path live = java.nio.file.Files.createDirectory(root.resolve("maps-v2"));
+        final long now = 10_000_000_000L;
+        final java.util.function.BiConsumer<String, Long> file = (name, age) -> {
+            try {
+                final java.nio.file.Path p = live.resolve(name);
+                java.nio.file.Files.write(p, new byte[100]);
+                java.nio.file.Files.setLastModifiedTime(p, java.nio.file.attribute.FileTime.fromMillis(now - age));
+            } catch (final java.io.IOException e) { throw new java.io.UncheckedIOException(e); }
+        };
+        java.nio.file.Files.write(root.resolve("reach-retired.bin"), new byte[100]);
+        file.accept("reach-current.bin", 9_000_000L);          // oldest, but this race's
+        file.accept("reach-current.bin.derived", 9_000_000L);
+        file.accept("reach-new.bin", 1_000L);
+        file.accept("reach-mid.bin", 5_000L);
+        file.accept("reach-old.bin", 8_000L);
+        file.accept(".reach-new.bin.tmp.1.tmp", 7_200_000L);   // abandoned two hours ago
+        file.accept(".reach-mid.bin.tmp.2.tmp", 60_000L);      // perhaps still being written
+        BrowserBridge.pruneReachCache(live, live.resolve("reach-current.bin").toString(), 400, now);
+        final java.util.Set<String> left = new java.util.TreeSet<>();
+        try (java.util.stream.Stream<java.nio.file.Path> s = java.nio.file.Files.list(live)) {
+            s.forEach(p -> left.add(p.getFileName().toString()));
+        }
+        check(left.equals(new java.util.TreeSet<>(java.util.List.of("reach-current.bin", "reach-current.bin.derived",
+                "reach-new.bin", "reach-mid.bin", ".reach-mid.bin.tmp.2.tmp"))), "pruned cache holds " + left);
+        check(!java.nio.file.Files.exists(root.resolve("reach-retired.bin")), "a retired generation's file survived");
     }
 
     /** The owner's drawn-track rule (2026-09-27): a closed loop drawn with too

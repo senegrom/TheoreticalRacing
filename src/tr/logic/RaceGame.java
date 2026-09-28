@@ -1090,7 +1090,7 @@ public final class RaceGame {
 			java.nio.ByteBuffer.wrap(raw, raw.length - 4, 4).putInt((int) crc.getValue());
 			try {
 				TrackIO.writeAtomically(persistPath, out -> out.write(raw));
-			} catch (final IOException e) {
+			} catch (final IOException | RuntimeException e) { // best effort, like every cache write
 				System.err.println("[edges] cache write failed: " + e);
 			}
 		}

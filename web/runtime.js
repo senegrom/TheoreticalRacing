@@ -21,7 +21,8 @@ self.addEventListener('unhandledrejection', event => {
   await cheerpjInit({
     version: 17, status: 'none',
     overrideDocumentBase: new URL('./', self.location.href).href,
-    javaProperties: ['java.awt.headless=true', 'user.home=/files'],
+    // The engine's map caches persist in IndexedDB; the bridge prunes them.
+    javaProperties: ['java.awt.headless=true', 'user.home=/files', 'tr.pruneReachCache=true'],
     preloadProgress: (done, total) => send({progress: {
       phase: 'Loading runtime resources', done, total, unit: 'resources', kind: 'runtime'
     }}),

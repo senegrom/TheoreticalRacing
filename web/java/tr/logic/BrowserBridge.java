@@ -4,8 +4,10 @@ import java.awt.geom.PathIterator;
 import java.io.IOException;
 import java.io.StringReader;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -95,9 +97,60 @@ public final class BrowserBridge {
         game.setGameLogPath(home.resolve("last_game.log").toString());
         game.setPropertiesPath(home.resolve("user.properties").toString());
         game.start();
+        // Only the browser runtime sets this: the desktop tests drive this bridge
+        // too, and must never prune a desktop's own cache.
+        if (Boolean.getBoolean("tr.pruneReachCache")) {
+            String currentKey = null; // a drawing has no maps yet
+            try { currentKey = game.reach.geometryCacheKey(); } catch (final RuntimeException noGeometry) { }
+            pruneReachCache(TrackIO.reachCacheDir(), currentKey, CACHE_BUDGET_BYTES, System.currentTimeMillis());
+        }
         ui = (GameUI) field("gameFrame");
         scene = (RaceUI) field("rui");
         return transportSnapshot();
+    }
+
+    /** Map caches live in IndexedDB here (/files), where nothing else ever
+     *  deletes them: 9-722 MB per course (review, 2026-09-28). */
+    static final long CACHE_BUDGET_BYTES = 1L << 30;
+
+    /** Keep this race's maps and the most recently written others within the
+     *  budget; drop temporary files older than an hour (a tab closed mid-write)
+     *  and the retired generations' files beside the live directory. Best
+     *  effort: a failure only leaves files behind. */
+    static void pruneReachCache(final Path live, final String currentKey, final long budget, final long nowMillis) {
+        try {
+            final Path root = live.getParent();
+            if (root != null && Files.isDirectory(root))
+                try (java.util.stream.Stream<Path> entries = Files.list(root)) {
+                    for (final Path retired : entries.filter(Files::isRegularFile).toList())
+                        Files.deleteIfExists(retired);
+                }
+            if (!Files.isDirectory(live)) return;
+            final List<Path> others = new ArrayList<>();
+            final Map<Path, Long> modified = new HashMap<>();
+            long used = 0;
+            try (java.util.stream.Stream<Path> entries = Files.list(live)) {
+                for (final Path file : entries.filter(Files::isRegularFile).toList()) {
+                    final long time = Files.getLastModifiedTime(file).toMillis();
+                    if (file.getFileName().toString().contains(".tmp.")) {
+                        if (nowMillis - time > 3_600_000L) Files.deleteIfExists(file);
+                    } else if (currentKey != null && file.toString().startsWith(currentKey)) {
+                        used += Files.size(file);
+                    } else {
+                        others.add(file);
+                        modified.put(file, time);
+                    }
+                }
+            }
+            others.sort((a, b) -> Long.compare(modified.get(b), modified.get(a)));
+            for (final Path file : others) {
+                final long size = Files.size(file);
+                if (used + size <= budget) used += size;
+                else Files.deleteIfExists(file);
+            }
+        } catch (final IOException | RuntimeException bestEffort) {
+            // A cache the browser could not prune is only larger than it needs to be.
+        }
     }
 
     private GameState phase() { return (GameState) field("gamestate"); }

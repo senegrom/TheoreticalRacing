@@ -179,6 +179,19 @@ def main():
             page.wait_for_function('document.body.dataset.turn === "1"')
             page.locator('#confirm').focus(); page.keyboard.press('u')
             page.wait_for_function('document.body.dataset.turn === "0"')
+            # A focused direction takes Space and Enter: they select it, and Enter
+            # on the selected direction confirms it (review, 2026-09-28).
+            pressed = '(index) => document.querySelector(`#moves button[data-index="${index}"]`).getAttribute("aria-pressed") === "true"'
+            page.locator('#moves button').nth(2).focus(); page.keyboard.press(' ')
+            page.wait_for_function(pressed, arg=2)
+            page.locator('#moves button').nth(7).focus(); page.keyboard.press('Enter')
+            page.wait_for_function(pressed, arg=7)
+            page.wait_for_function('!document.querySelector("#confirm").disabled')
+            assert page.evaluate('document.body.dataset.turn') == '0', 'Enter on an unselected direction confirmed'
+            page.keyboard.press('Enter')
+            page.wait_for_function('document.body.dataset.turn === "1"')
+            page.locator('#confirm').focus(); page.keyboard.press('u')
+            page.wait_for_function('document.body.dataset.turn === "0"')
             # Editing an input never sends an acceleration; held-key repeat is ignored.
             page.locator('#new-race').click()
             before = page.evaluate('window.calls.length')
@@ -343,6 +356,7 @@ def main():
         assert page.locator('#undo').is_disabled()
         assert 'Engine error' in page.locator('#notice').inner_text()
         assert 'stopped' in page.locator('#status').inner_text()
+        assert page.evaluate('window.testEngine.dead'), 'a failed engine kept its worker'
         page.close()
         # The same original drawing phase index is a border index, not a driver index.
         page = browser.new_page(viewport={'width':390,'height':844})

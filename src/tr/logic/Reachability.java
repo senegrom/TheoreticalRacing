@@ -764,7 +764,7 @@ final class Reachability {
 		final Derived derived = new Derived(roomy0, roomy1, minShed2, minShed2Roomy, certSq);
 		try {
 			TrackIO.writeAtomically(path, out -> writeDerivedCache(out, derived));
-		} catch (final IOException e) {
+		} catch (final IOException | RuntimeException e) { // best effort, like every cache write
 			System.err.println("[reachability] derived cache write failed: " + e);
 		}
 	}
@@ -1623,7 +1623,7 @@ final class Reachability {
 		try {
 			TrackIO.writeAtomically(path, out ->
 					writeCacheData(out, aliveW, aliveH, aliveVMAX, turnsArr, legalAlive));
-		} catch (final IOException e) {
+		} catch (final IOException | RuntimeException e) { // a browser's full store throws unchecked
 			System.err.println("[reachability] cache write failed: " + e);
 		}
 	}

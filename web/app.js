@@ -66,7 +66,10 @@ function accept(next) {
   state = next;
   window.removeEventListener('beforeunload', warnBeforeLeave);
   if (next.phase !== 'FINISHED') window.addEventListener('beforeunload', warnBeforeLeave);
-  if (next.failure) { failed = true; notice(`Engine error: ${next.failure}. No replacement AI has been substituted. Start a new race to recover.`); }
+  // A failed engine is never called again (export and every action check
+  // `failed`): stop its worker, as the other failure paths do, rather than
+  // leave its threads running until the next race (review, 2026-09-28).
+  if (next.failure) { failed = true; engine?.destroy(); notice(`Engine error: ${next.failure}. No replacement AI has been substituted. Start a new race to recover.`); }
   else if (next.placementFailure) notice(`${next.placementFailure} ${placementRecovery(next)}`);
   else if (next.phase === 'FINISHED') notice();
   else if (next.messages?.length) notice(next.messages.join(' '));
@@ -280,6 +283,18 @@ window.addEventListener('keydown', e => {
   // Preserve native activation of focused buttons, links and menus (the More
   // menu's summary), not letter shortcuts.
   if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('button, a, summary') && !e.target.closest('#moves')) return;
+  // A focused direction takes Space and Enter as its own: they select it, and
+  // Enter on the selected direction confirms. The shortcut map sent Space to
+  // the coast and Enter to the old selection (review, 2026-09-28).
+  const direction = e.target.closest('#moves button');
+  if ((e.key === 'Enter' || e.key === ' ') && direction) {
+    e.preventDefault();
+    if (!human()) return;
+    const index = Number(direction.dataset.index);
+    if (e.key === 'Enter' && state?.selected === index) $('confirm').click();
+    else act('preview', index);
+    return;
+  }
   const map = {q:0,w:1,e:2,a:3,s:4,d:5,z:6,x:7,c:8,ArrowUp:1,ArrowLeft:3,ArrowRight:5,ArrowDown:7,' ':4};
   const keypad = {Numpad7:0,Numpad8:1,Numpad9:2,Numpad4:3,Numpad5:4,Numpad6:5,Numpad1:6,Numpad2:7,Numpad3:8};
   const index = keypad[e.code] ?? map[e.key.length === 1 ? e.key.toLowerCase() : e.key];
