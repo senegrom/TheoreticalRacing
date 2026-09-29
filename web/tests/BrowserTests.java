@@ -91,7 +91,7 @@ public final class BrowserTests {
         testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
-        testTimeoutUndo();
+        testTurnLimitByProgress();
         testReachCachePruned();
         check(b.build().matches("[0-9a-f]{64}"), "the jar carries no engine build identity: " + b.build());
         testExactMapBesideTheMaps();
@@ -311,8 +311,8 @@ public final class BrowserTests {
         check(undone.contains("\"startZone\":[") && !undone.contains("\"shape\":"),
                 "restoring the start zone was omitted from the undo delta");
     }
-    /** The generated adapter only makes dialogs non-modal; commit/undo are the real engine. */
-    private static void testTimeoutUndo() throws Exception {
+    /** The generated adapter only makes dialogs non-modal; commit is the real engine. */
+    private static void testTurnLimitByProgress() throws Exception {
         final RaceGame game = new RaceGame(new java.util.Properties());
         game.gameCols = 80; game.gameRows = 20; game.track = new Track();
         game.track.addLeft(0, 1); game.track.addLeft(73, 1);
@@ -335,38 +335,37 @@ public final class BrowserTests {
         }
         final java.lang.reflect.Method commit = RaceGame.class.getDeclaredMethod("commitMove", int[].class, int[].class, int[].class);
         commit.setAccessible(true);
+        // The finished race writes its log: never beside the jar (the sealed site).
+        final java.nio.file.Path log = java.nio.file.Files.createTempFile("timeout", ".log");
+        game.setGameLogPath(log.toString());
+        // Declined crash consent must not add a committed action.
+        final String beforeDecline = get(game, "gameLog").toString();
+        commit.invoke(game, game.players[0].getPosition(), new int[]{0, -20}, new int[]{10, -10});
+        check(((java.util.Deque<?>) get(game, "moveHistory")).isEmpty()
+                && beforeDecline.equals(get(game, "gameLog").toString()), "declined crash recorded an Undo action");
+        // P2 has passed CP1 (x = 50); P1 and P3 still owe it.
+        game.players[1].setPosition(new int[]{55, 10});
+        game.players[1].setNextGate(2);
         game.setQueryTurnCounter(2249);
         for (int i = 0; i < 2; i++)
             commit.invoke(game, game.players[i].getPosition(), new int[]{0, 0}, game.players[i].getPosition().clone());
-        final String savedLog = get(game, "gameLog").toString();
-        final int[] savedLap = game.players[2].lapState();
-        final int savedHistory = game.players[2].getHistory().size();
-        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
-        check(game.turnCount() == 2252 && game.players[2].getFinishedPlace() == 3
-                && get(game, "gamestate") == GameState.PLAY, "timeout fixture did not leave an ongoing race");
-        check(get(game, "gameLog").toString().contains("TIMEOUT place=3"), "timeout was not committed");
-        game.clickedUndo();
-        check(game.turnCount() == 2251 && game.subgamestate == 2, "timeout undo consumed the preceding player's move");
-        check(savedLog.equals(get(game, "gameLog").toString()), "timeout undo did not restore the exact log");
-        check(game.players[2].getFinishedPlace() == 0 && (int) get(game, "finishedLast") == 0
-                && Arrays.equals(game.players[2].getPosition(), new int[]{30, 10})
-                && Arrays.equals(game.players[2].getVelocity(), new int[]{0, 0})
-                && Arrays.equals(game.players[2].lapState(), savedLap)
-                && game.players[2].getHistory().size() == savedHistory, "timeout undo did not restore all player state");
-        // Repeating the action must be deterministic, not consume an extra snapshot.
-        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
-        game.clickedUndo(); game.clickedUndo();
-        check(game.turnCount() == 2250 && game.subgamestate == 1, "successive undo lost the earlier action boundary");
-        // Declined crash consent still must not add a committed action.
         final int snapshots = ((java.util.Deque<?>) get(game, "moveHistory")).size();
-        final String beforeDecline = get(game, "gameLog").toString();
-        commit.invoke(game, game.players[1].getPosition(), new int[]{0, -20}, new int[]{20, -10});
-        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots
-                && beforeDecline.equals(get(game, "gameLog").toString()), "declined crash recorded an Undo action");
-        game.setAutoMode(true); game.setQueryTurnCounter(2251);
-        commit.invoke(game, game.players[1].getPosition(), new int[]{0, 0}, game.players[1].getPosition().clone());
-        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots, "auto timeout allocated Undo history");
-        System.out.println("Timeout Undo: mover, clock, classification, log, histories and lap state restored; consent preserved");
+        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
+        // The owner's rule (2026-09-29): the limit classifies every car still racing
+        // at once, by progress -- P2 first although it moves last; P3 before P1, the
+        // tie (both owe CP1, no maps here) going to the car that would move sooner.
+        check(get(game, "gamestate") == GameState.FINISHED, "the turn limit left the race running");
+        check(game.players[1].getFinishedPlace() == 1 && game.players[2].getFinishedPlace() == 2
+                && game.players[0].getFinishedPlace() == 3, "the turn limit did not classify by progress: "
+                + game.players[0].getFinishedPlace() + " " + game.players[1].getFinishedPlace() + " "
+                + game.players[2].getFinishedPlace());
+        final String text = get(game, "gameLog").toString();
+        check(game.turnCount() == 2253 && text.contains("\n2252 p1 HUMAN NONE v(0,0)→(0,0) (10,10)→(10,10) TIMEOUT place=3\n")
+                && text.contains("\n2253 p3 HUMAN NONE v(0,0)→(0,0) (30,10)→(30,10) TIMEOUT place=2\n")
+                && text.contains("# results\n1. P2\n2. P3\n3. P1\n"), "the timeouts were not logged worst first:\n" + text);
+        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots, "the race-ending timeout kept an Undo action");
+        java.nio.file.Files.deleteIfExists(log);
+        System.out.println("Turn limit: every car still racing classified by progress at once; consent preserved");
     }
 
     private static void set(final Object object, final String name, final Object value) throws Exception {

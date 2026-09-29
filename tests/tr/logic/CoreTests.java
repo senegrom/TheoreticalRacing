@@ -54,6 +54,7 @@ public final class CoreTests {
         testEmptyTrackUndo();
         testCoarseLoopBorders();
         testOpenLoopRefused();
+        testTurnLimitByProgress();
         testPolylineHelpers();
         testAiTurnRejectsManualDirection();
         tr.gui.GameUITests.run();
@@ -864,6 +865,24 @@ public final class CoreTests {
                 "the browser's tiny two-point circuit was refused");
         check(!RaceGame.closedCoarseBorder(java.util.List.of(new int[]{5, 5}, new int[]{8, 5},
                 new int[]{6, 7})), "a short wiggle that never left its start was refused");
+    }
+
+    /** The owner, 2026-09-29: at the race turn limit the cars still racing are
+     *  classified by progress -- fewer gate events owed, then nearer the next
+     *  gate (unknown last), then the car that would move sooner. */
+    private static void testTurnLimitByProgress() {
+        final Player a = new Player("A", 1, Color.RED, Player.Kind.AI2), b = new Player("B", 2, Color.RED, Player.Kind.AI2),
+                c = new Player("C", 3, Color.RED, Player.Kind.AI2), d = new Player("D", 4, Color.RED, Player.Kind.AI2),
+                e = new Player("E", 5, Color.RED, Player.Kind.AI2);
+        final List<RaceGame.Standing> standing = new ArrayList<>(List.of(
+                new RaceGame.Standing(a, 3, 20, 0),                 // owes CP1, 20 turns out, moves first
+                new RaceGame.Standing(b, 3, 5, 2),                  // owes CP1, 5 turns out
+                new RaceGame.Standing(c, 2, 40, 4),                 // past CP1: most progress, moves last
+                new RaceGame.Standing(d, 3, Integer.MAX_VALUE, 1),  // no map reading
+                new RaceGame.Standing(e, 3, 20, 3)));               // A's tie, moves later
+        standing.sort(RaceGame.BY_PROGRESS);
+        check(standing.stream().map(s -> s.player().getName()).toList().equals(List.of("C", "B", "A", "E", "D")),
+                "turn-limit standing not by progress: " + standing.stream().map(s -> s.player().getName()).toList());
     }
 
     /** Review, 2026-09-27: a drawing whose outer border closes but whose inner

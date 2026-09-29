@@ -1972,18 +1972,7 @@ public final class RaceGame {
 		// a capped car logs TIMEOUT, not CRASH -- benchmark metrics must not
 		// confuse slow traffic with wrecks.
 		if (raceTurnLimitReached()) {
-			// Timeout is a committed action too. Undo must restore this mover,
-			// not consume the preceding human's action from the history.
-			if (!autoMode)
-				moveHistory.push(new MoveSnapshot(this));
-			dispMessage(player.getName() + " retires (race turn limit).");
-			logMove(player, directionOf(player.getVelocity(), vel), player.getVelocity().clone(),
-					pos, vel, newpos, "TIMEOUT place=" + (players.length - finishedLast));
-			finishPlayer(player, newpos, players.length - finishedLast);
-			finishedLast++;
-			if (checkFinished())
-				return;
-			advanceToNextPlayer();
+			retireAtTurnLimit(); // ends the race: nothing is left to undo
 			return;
 		}
 		final MoveResult result = evaluateMove(player, pos, newpos);
@@ -2048,6 +2037,61 @@ public final class RaceGame {
 			player.leaveGrid();
 		maybeHideStartZone();
 		advanceToNextPlayer();
+	}
+
+	/** A car still racing at the turn limit, and its progress: the gate events
+	 *  it still owes, the turns to the next of them on the reachability maps
+	 *  (unknown sorts last), and how soon it would move from this turn. */
+	record Standing(Player player, int owed, int toGate, int order) {}
+
+	/** Most progress first: fewer events owed (laps, then checkpoints), then
+	 *  nearer the next one, then the car that would move sooner. */
+	static final java.util.Comparator<Standing> BY_PROGRESS = java.util.Comparator
+			.comparingInt(Standing::owed).thenComparingInt(Standing::toGate).thenComparingInt(Standing::order);
+
+	/** The race turn limit ends the race for every car still racing at once,
+	 *  classified by progress (the owner, 2026-09-29). They used to retire in
+	 *  turn order, the first to move taking the worst place, so a car a lap
+	 *  ahead could be classified behind. The retirements are logged worst
+	 *  first, each taking the worst place still open as every retirement does;
+	 *  the car with the most progress is the survivor, classified right after
+	 *  the finishers. */
+	private void retireAtTurnLimit() {
+		final java.util.List<Standing> standing = new java.util.ArrayList<>();
+		for (int k = 0; k < players.length; k++) {
+			final Player p = players[(subgamestate + k) % players.length];
+			if (p.isFinished())
+				continue;
+			standing.add(new Standing(p, OptimalPotential.remainingEvents(p.getNextGate(), p.getLap(), totalLaps),
+					turnsToGateOrUnknown(p), k));
+		}
+		standing.sort(BY_PROGRESS);
+		final StringBuilder ranked = new StringBuilder();
+		for (final Standing s : standing)
+			ranked.append(ranked.length() == 0 ? "" : ", ").append(s.player().getName());
+		dispMessage("Race turn limit: the cars still racing are classified by progress (" + ranked + ").");
+		final int survivors = players.length == 1 ? 0 : 1;
+		for (int k = standing.size() - 1; k >= survivors; k--) {
+			final Player p = standing.get(k).player();
+			final int[] pos = p.getPosition().clone(), vel = p.getVelocity().clone();
+			final int place = players.length - finishedLast;
+			logMove(p, Direction.NONE, vel, pos, vel, pos, "TIMEOUT place=" + place);
+			finishPlayer(p, pos, place);
+			finishedLast++;
+		}
+		checkFinished();
+	}
+
+	/** Turns to the car's next gate on the reachability maps, or unknown. */
+	private int turnsToGateOrUnknown(final Player p) {
+		if (!reach.isReady())
+			return Integer.MAX_VALUE;
+		final int[] pos = p.getPosition(), vel = p.getVelocity();
+		try {
+			return reach.turnsToGate(p.getNextGate(), pos[0], pos[1], vel[0], vel[1]);
+		} catch (final RuntimeException noMaps) { // a failed preparation: the order decides
+			return Integer.MAX_VALUE;
+		}
 	}
 
 	private static Direction directionOf(final int[] velBefore, final int[] velAfter) {
