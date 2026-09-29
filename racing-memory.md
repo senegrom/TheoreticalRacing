@@ -106,6 +106,105 @@ Earlier results that were still open:
 - Round 278's duel slice: +0.018 +- 0.003 against it (3 boards, 81 tied),
   crashes 196:222.
 
+## The 2026-09-29 third review: what landed
+
+Five read-only reviewers (AI, maps, referee and desktop UI, browser, tooling)
+while the round 291-295 screens ran. Every fix below races identically: the
+12 goldens are unchanged, the Java suite, BrowserTests, parity (quick) and
+the three browser suites pass, and every queued arm and promote291 still
+apply.
+
+Measurement tooling:
+- fleet_grid re-hashed the ORIGINAL jar, profile, courses and its own
+  sources after every track, although since 4f9bf8a the JVMs race private
+  copies: a rebuilt jar (build_main.sh deletes it first) or a pulled tool
+  mid-run revoked every marker of a valid grid. It checks the copies and the
+  Java runtime now; the originals only at start or resume, through the
+  manifest. Consequence for the box: never update the tools under
+  /home/ubuntu/duelpromo while a grid runs -- a running runner still has the
+  old check.
+- A SIGTERM to run_screen.py or run_1vfield.py killed only the wrapper and
+  left fleet_grid racing with its lock held; they forward it now.
+- The lone check never compared the grids' race profiles (only build,
+  runtime, seeds, courses); a seat raced on another profile was scored.
+- A lapped course whose JVM reported no exact potential passed the
+  demoted-champion check; silence fails now (a course without laps says so).
+- run_screen hid head_to_head's refusal reason; default jobs used installed
+  memory and the first -Xmx (the JVM takes the last).
+- Pins that could not fail: the graduated s106 check compared a value with
+  itself, thin_ridge's p7 crash scan was implied by zero crashes, four
+  assert-only scripts passed under -O (now refuse it). label_invariance's
+  all-AI2 Coil s5 race was six_ahead_high_speed's; it now compares with that
+  pinned digest. private_slack's nine unread decision strings went.
+- run_1vfield's control grid, with every seat raced, contributes exactly
+  (n+1)/2 per track-seed: the reading is the candidate's mean place minus
+  that. The docstring said seat effects cancel; it says what happens now.
+  Dropping the control would save a ninth of the check -- the owner's call
+  (CLAUDE.md prescribes the pairing).
+
+Referee and desktop UI:
+- A drawn hairpin whose closing walls met at its mouth has no lap, and the
+  one-point containment test accepted it opening west or north (Path2D
+  counts left and top edges inside) and refused it opening east or south.
+  The rings must not touch now, closing walls included.
+- The queued-click barrier compared the windowing system's event clock with
+  the wall clock; X11's stops in a suspend, after which every click was
+  dropped. The window now closes input after each AI move or placement and
+  reopens it with a marker queued behind the waiting input -- no clock.
+  OK and Undo are gated too (a greyed Undo re-enabled by the AI's reply fired).
+- Every desktop message showed the error icon (OK_OPTION is ERROR_MESSAGE).
+- An exception in an AI decision left a desktop race in PLAY with nothing
+  scheduled; it stops the race with the reason now (headless and the browser
+  report it as before). A malformed candidateSlots in a batch run exits 2
+  with its message, like a single run.
+- The blue closing walls are drawn where the corridor's ring runs (through
+  its rounded midpoints and corners), not from rounded closure endpoints.
+- Kept: the turn-limit classification (cars still racing at the limit are
+  placed in turn order, not by progress: a car a lap ahead can be classified
+  behind) -- a rule, for the owner; the fleet shows no timeouts.
+
+Maps: the abandoned-temporary sweep runs when a preparation starts (a JVM
+whose maps all come from the cache wrote nothing, so never swept) and skips
+a file it cannot delete instead of stopping; the potential worker releases
+maps it attached after a cancel; a restart drops the event thread's point
+memo; the alive-set sweeps poll the cancel; "frontier budget" reads "heap
+too small" when the heap cut the frontier. Kept: the two IntQueue classes
+(growable and bounded) and the duplicated gate-seed scans (the browser's
+progress hooks count them).
+
+AI (identical races): the debug flags steered decisions (they forced the
+smoke check, whose verdict then fed the danger search: probe_debug.py could
+replay moves the race never made); they only print now. Gone: the per-rival
+cost vector (its last reader left in round 280), a scorer-self rollout run on
+every thread-pack fire for a debug print, the finish-denial snapshots (the
+nested confirms have their own rows since round 223), field costs requested
+and never read (the rollouts stop at the mover's finish again). Kept:
+moverNumber (arm 293 gates on it), the lookahead's levels > 0 branch (the
+horizon knob), finish denial's crossing tests (promote291 rewrites them;
+unreachable, remove after 291).
+
+Browser: parity shared one reach cache between the desktop and browser
+engines, so the browser's instrumented searches were never compared; each
+has its own empty cache. The jar is published as racing-<build>.jar and the
+worker names it (a page never pairs with another deploy's cached jar; an
+unbuilt worker refuses). The IndexedDB prune keeps or drops a course's files
+together, marks this race's maps used and drops the retired .derived files.
+The exact race map's stage shows while the daemon waits on it. Live regions
+are written only on change, a control disabled while focused gets focus back,
+a dead engine no longer warns on leaving, the live check polls the page's
+revision link, stamp_versions scans only page files, JDK 19+.
+
+Decision-changing findings, for arms (round 296):
+- A1: the one-move lookahead and the rollout proxies (greedy, selfMove,
+  rivalMove) price a successor with the gate events owed BEFORE the move;
+  bestCheckpointMove and the private lane subtract them. A continuation past
+  an owed checkpoint reads as owing it again.
+- A3: a final-lap move that touches CP2 and crosses the line in one move
+  escapes the scan (no bundled lap course has CP2 that close).
+- A4: the thin-ridge switch ranks surviving alternatives by map time, not by
+  the rollout's place -- the rank-first rule.
+- A5: the seal's rivalEscapes skips a human's accelerations past the AI cap.
+
 ## The 2026-09-28 second review: what landed
 
 The owner asked for the whole repo to be reviewed again. Six reviewers; every
