@@ -16,6 +16,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRS, parse_v2_answer  # noqa: E402
 
+# These checks are asserts: under -O or PYTHONOPTIMIZE they would all pass.
+if not __debug__:
+    raise SystemExit("this regression checks with assert; run it without -O")
+
 # Both labels run one policy since round 222 and ai1_label_invariance_regression
 # checks it, so each case races once, under the champion label (2026-09-27).
 LABELS = ("AI2",)

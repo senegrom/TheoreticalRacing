@@ -59,55 +59,31 @@ def main() -> int:
                 )
 
         # 2026-09-27: one ordering; the second was the same race with the labels
-        # swapped (one policy since round 222).
-        for target_kind, kinds in (
-            ("AI1", ["AI1", "AI2"] * 4),
-        ):
-            bench_ai.set_kinds(kinds)
-            result = bench_ai.run_track_h2h("rand13", timeout=600, seed=4)
-            # Round 215: one policy in two grid slots, so the totals mirror
-            # Round 216 re-froze the place sums: the exact pace term reorders
-            # the finish without touching what the pin guards -- four cars home
-            # and none lost, whichever grid slot carries p7.
-            # Round 226: the place sums moved with the needle tie-break; the pin
-            # guards four cars home and none lost, and that is unchanged.
-            # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-            # Round 232 (the kinematic confirm): re-frozen from measurement.
-            # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-            # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-            # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-            expected = ({"AI1": (17, 4, 0), "AI2": (19, 4, 0)} if target_kind == "AI1"
-                        else {"AI1": (19, 4, 0), "AI2": (17, 4, 0)})
-            if result != expected:
-                raise SystemExit(
-                    "Round-185 width-three ridge regression: "
-                    f"p7={target_kind}, result={result}"
-                )
-            with open(bench_ai.LOG, encoding="utf-8") as log_file:
-                lines = log_file.read().splitlines()
-            # Round 215 retired this check: it pinned one move by its index in the
-            # log, and with checkpoints on every race and the finish-wall rule the
-            # car never reaches that state again -- replaying the same race on the
-            # pre-change build shows it leaves (86,10) there and nowhere now. The
-            # behaviour it guarded is covered by the fleet grid.
-            # Round 216: the rescued car now comes home FIFTH rather than
-            # seventh, on the same move (563) and identically for both kinds.
-            # What the round-185 rescue bought is that p7 survives the ridge at
-            # all -- its old line crashes three turns later -- so the pin still
-            # asserts a finish, at the place the faster pace term now earns.
-            # Round 228: p7 still finishes, now sixth in the faster field.
-            # Round 232: p7 SURVIVES the ridge -- what round 185 bought, since its old
-            # line crashed three turns later -- but it no longer beats the seventh
-            # finisher to the line: it is the car still racing at the flag, auto-placed
-            # eighth. Assert the survival, which is the pin's substance.
-            if any(
-                " p7 " in line and f" {target_kind} " in line and "CRASH" in line
-                for line in lines
-            ):
-                raise SystemExit(
-                    "Round-185 width-three ridge regression crashed p7 "
-                    f"for kind {target_kind}"
-                )
+        # swapped (one policy since round 222). p7 is an AI1 slot.
+        bench_ai.set_kinds(["AI1", "AI2"] * 4)
+        result = bench_ai.run_track_h2h("rand13", timeout=600, seed=4)
+        # Round 215: one policy in two grid slots, so the totals mirror
+        # Round 216 re-froze the place sums: the exact pace term reorders
+        # the finish without touching what the pin guards -- four cars home
+        # and none lost, whichever grid slot carries p7.
+        # Round 226: the place sums moved with the needle tie-break; the pin
+        # guards four cars home and none lost, and that is unchanged.
+        # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
+        # Round 232 (the kinematic confirm): re-frozen from measurement.
+        # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
+        # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
+        # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+        # What the round-185 rescue bought is that p7 SURVIVES the ridge -- its
+        # old line crashed three turns later. Since round 232 it is the car still
+        # racing at the flag, auto-placed eighth; zero AI1 crashes below include
+        # p7's survival, so the separate log scan for a p7 crash is retired
+        # (review, 2026-09-29).
+        expected = {"AI1": (17, 4, 0), "AI2": (19, 4, 0)}
+        if result != expected:
+            raise SystemExit(
+                "Round-185 width-three ridge regression: "
+                f"p7=AI1, result={result}"
+            )
     print("AI1 ridge pins hold (lobe2 seeds 111/132; rand13 seed 4)")
     return 0
 

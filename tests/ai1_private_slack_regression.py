@@ -66,50 +66,29 @@ VETO_CASES = {
     # Round 254 (the danger guard in a faithful world): Le Mans s2 loses a
     # car, Hungaroring s40 is whole again; four cases re-frozen from measurement.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("lemans", 2): ((6, 1, [66, 67, 68, 69, 71, 72]),
-        "311 p7 {kind} N v(1,6)→(1,5) (83,151)→(84,156) ok",
-    ),
-    ("spa", 1): (
-        (7, 0, [78, 79, 80, 81, 82, 82, 84]),
-        "163 p3 {kind} NW v(3,10)→(2,9) (99,107)→(101,116) ok",
-    ),
+    ("lemans", 2): (6, 1, [66, 67, 68, 69, 71, 72]),
+    ("spa", 1): (7, 0, [78, 79, 80, 81, 82, 82, 84]),
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247 (the soft rollout at one level, not two): every case below
     # re-frozen from measurement. Hungaroring s40 is whole again; Zandvoort
     # s34 loses a car. Recorded, not vetoed (AGENTS.md).
     # Round 248 (the physical world model): Hungaroring s40 loses a car again
     # and Zandvoort s34 is whole again; six cases re-frozen from measurement.
-    ("hungaroring", 40): ((7, 0, [122, 123, 124, 125, 126, 127, 128]),
-        "352 p8 {kind} N v(4,3)→(4,2) (52,113)→(56,115) ok",
-    ),
+    ("hungaroring", 40): (7, 0, [122, 123, 124, 125, 126, 127, 128]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("interlagos", 47): ((7, 0, [124, 125, 126, 127, 128, 129, 131]),
-        "175 p7 {kind} S v(5,-1)→(5,0) (49,5)→(54,5) ok",
-    ),
+    ("interlagos", 47): (7, 0, [124, 125, 126, 127, 128, 129, 131]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("monza", 30): ((7, 0, [77, 78, 79, 79, 80, 80, 81]),
-        "238 p6 {kind} SE v(-8,-1)→(-7,0) (118,61)→(111,61) ok",
-    ),
+    ("monza", 30): (7, 0, [77, 78, 79, 79, 80, 80, 81]),
     # Round 224 moved this race: still seven finishers and no crash, but the
     # car that misses out changes (car 7 finished before, car 1 finishes now)
     # and the last five finishers each take a few moves longer.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("monaco", 35): ((7, 0, [113, 114, 115, 116, 118, 119, 120]),
-        "609 p1 {kind} SW v(1,5)→(0,6) (19,125)→(19,131) ok",
-    ),
-    ("zandvoort", 34): (
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        (7, 0, [137, 138, 139, 140, 142, 143, 144]),
-        "80 p8 {kind} E v(3,-8)→(4,-8) (31,62)→(35,54) ok",
-    ),
+    ("monaco", 35): (7, 0, [113, 114, 115, 116, 118, 119, 120]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("monza", 145): ((7, 0, [77, 79, 79, 80, 80, 81, 81]),
-        "174 p6 {kind} NONE v(-8,5)→(-8,5) (192,53)→(184,58) ok",
-    ),
-    ("serpentine", 38): (
-        (7, 0, [103, 103, 103, 103, 103, 103, 103]),
-        "364 p4 {kind} E v(1,-2)→(2,-2) (18,58)→(20,56) ok",
-    ),
+    ("zandvoort", 34): (7, 0, [137, 138, 139, 140, 142, 143, 144]),
+    # Round 278: re-frozen from measurement (the chooser's pick stands).
+    ("monza", 145): (7, 0, [77, 79, 79, 80, 80, 81, 81]),
+    ("serpentine", 38): (7, 0, [103, 103, 103, 103, 103, 103, 103]),
 }
 VETO_NORMALIZED_SHA256 = {
     # Round 224 (rival predictor in its own lap frame): trajectory only.
@@ -212,7 +191,7 @@ def main() -> int:
                 f"{digest}, expected {HUNGARORING_NORMALIZED_SHA256}"
             )
 
-    for (track, seed), (expected, _) in VETO_CASES.items():
+    for (track, seed), expected in VETO_CASES.items():
         for kind in LABELS:
             actual = summaries[(kind, track, seed)]
             if actual != expected:

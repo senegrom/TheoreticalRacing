@@ -10,6 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRS  # noqa: E402
 
+# These checks are asserts: under -O or PYTHONOPTIMIZE they would all pass.
+if not __debug__:
+    raise SystemExit("this regression checks with assert; run it without -O")
+
 TRACE = re.compile(
     r'^SIMTRACE r=(\d+) i=(\d+) (\w+) '
     r'\((-?\d+),(-?\d+)\)v\((-?\d+),(-?\d+)\) -> '
