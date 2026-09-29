@@ -80,10 +80,12 @@ track without it; a car still on the grid by then is not worth modelling.
   artifacts are re-frozen from measurement, with the reason beside the number.
 - Before a promotion, also run the lone-candidate check
   (`docs/experiments/duel-lookahead/run_1vfield.py`): one candidate car
-  against n-1 champions, rotated through every seat, its mean place over the
-  seats of a track and seed read against (n+1)/2. It answers whether the
+  against n-1 champions, rotated through every seat and paired with the
+  all-champion race on the same track, seed and seat. It answers whether the
   candidate gains places on the current champion as a lone entrant, which
-  the mirrored half-and-half screen does not (owner, 2026-09-23). No
-  all-champion control race: with every seat raced it contributed exactly
-  (n+1)/2 (owner, 2026-09-29).
+  the mirrored half-and-half screen does not (owner, 2026-09-23). Keep the
+  all-champion race although, with every seat raced, it adds exactly (n+1)/2
+  to the place reading: it is the only race where a policy meets nothing but
+  its own kind, so a policy that behaves differently there (cooperating with
+  copies of itself, say) shows only in it (owner, 2026-09-29).
 - Never edit `user.properties`; never regenerate fleet tracks in place.

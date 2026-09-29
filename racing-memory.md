@@ -118,12 +118,13 @@ Earlier results that were still open:
   are unchanged -- and the car with the most progress is the survivor. No
   fleet race reaches the limit: the goldens are identical. The AI's rollouts
   still model a car's own timeout as its failure.
-- The lone-candidate check races no all-champion control grid. With every
-  seat raced, that race's places are a permutation of 1..n, so it added
-  exactly (n+1)/2 per track and seed: the reading is the candidate's mean
-  place over the seats minus (n+1)/2, identical to the paired one, for a
-  ninth less racing. CLAUDE.md and AGENTS.md say so. The crash line compares
-  the lone candidate with the champions beside it in the same races.
+- The lone-candidate check keeps its all-champion control grid (the owner,
+  the same day, reversing the first call; 53f8847 reverted). With every seat
+  raced its places are a permutation of 1..n, so for places the pairing
+  contributes exactly (n+1)/2 per track and seed -- but the all-champion race
+  is the only one in which a policy meets nothing but its own kind. A policy
+  that behaved differently there (one that cooperates when every other car
+  is the same AI, say) would show only in the control. Kept for safety.
 
 ## The 2026-09-29 third review: what landed
 
