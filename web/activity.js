@@ -1,11 +1,16 @@
 /** Stable activity slot with separate dependency-stage and current-work progress. */
+/** Live regions re-announce on every write, even of the same words: write only
+ *  a change (review, 2026-09-29). */
+export function setText(element, text) {
+  if (element.textContent !== text) element.textContent = text;
+}
 const PREPARATION_STAGES = [
   ['Runtime', 'Load and start Java in the background worker'],
   ['Geometry', 'Validate the corridor, start zone and finish/checkpoint geometry'],
   ['Distances', 'One distance map for the whole field'],
   ['Cache', 'Check saved geometry-keyed maps; validated hits skip recomputation'],
   ['Finish routes', 'Exact finish reachability over positions and velocities'],
-  ['Driving maps', 'Safe successors, manoeuvring, braking and speed certificates'],
+  ['Driving maps', 'Safe successors, manoeuvring and braking maps'],
   ['Lap routes', 'Checkpoint routes, repeated until their cycle converges'],
   ['Lap safety', 'Checkpoint safety, repeated until its cycle converges'],
   ['Lap driving', 'Driving maps for the different coherent multi-lap state set'],
@@ -38,7 +43,7 @@ export class Activity {
     this.stageBar.max = this.stages;
     this.stageBar.value = this.stage;
     this.stageBar.setAttribute('aria-label', `Preparation: ${this.stage} of ${this.stages} stages satisfied; not a time estimate`);
-    this.stageSummary.textContent = this.stage === this.stages ? 'All preparation stages ready' : `${this.stage} / ${this.stages} stages complete`;
+    setText(this.stageSummary, this.stage === this.stages ? 'All preparation stages ready' : `${this.stage} / ${this.stages} stages complete`);
     const plan = this.stages === 7 ? [...PREPARATION_STAGES.slice(0, 6), PREPARATION_STAGES[10]]
       : PREPARATION_STAGES.slice(0, this.stages);
     if (this.stageList.children.length !== this.stages) {
@@ -62,7 +67,7 @@ export class Activity {
     this.active = true;
     this.root.hidden = false;
     this.root.dataset.active = 'true';
-    this.label.textContent = label;
+    setText(this.label, label);
     this.label.title = label;
     const phase = (progress?.phase || 'Working in the background; the track view stays responsive.') +
       (Number.isInteger(progress?.pass) ? ` · pass ${progress.pass}` : '');
@@ -84,7 +89,7 @@ export class Activity {
   idle(label, detail = '') {
     this.active = false; this.key = ''; clearInterval(this.timer);
     this.root.hidden = false; this.root.dataset.active = 'false';
-    this.label.textContent = label; this.label.title = label;
+    setText(this.label, label); this.label.title = label;
     this.detail.textContent = detail; this.detail.title = detail;
     this.elapsed.textContent = ''; this.elapsed.removeAttribute('title');
     this.bar.value = 1; this.bar.setAttribute('aria-label', 'No calculation pending');

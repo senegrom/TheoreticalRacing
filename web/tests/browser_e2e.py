@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 import sys
 import threading
+import time
 
 from playwright.sync_api import sync_playwright
 from live_revision import wait_for_revision
@@ -97,8 +98,16 @@ def main():
                                           headers={'Cache-Control': 'no-cache'}).json()
                 assert marker == {'source': args.expected_sha, 'repository': args.expected_repository}
                 # And the page itself, not only deployment.json: a stale HTML copy
-                # would link another build (review, 2026-09-28).
-                revision = page.locator('#build-revision').get_attribute('href') or ''
+                # would link another build (review, 2026-09-28). The CDN can serve
+                # the old page for a while after deployment.json turned: poll it
+                # with a deadline, as wait_for_revision does (review, 2026-09-29).
+                deadline = time.monotonic() + 180
+                while True:
+                    revision = page.locator('#build-revision').get_attribute('href') or ''
+                    if revision.endswith('/' + args.expected_sha) or time.monotonic() > deadline:
+                        break
+                    page.wait_for_timeout(3000)
+                    page.goto(url + '?revision=' + args.expected_sha + '&probe=' + str(time.time_ns()))
                 assert revision.endswith('/' + args.expected_sha), revision
 
             # Decode the real HTTP PNGs, including all Apple and manifest sizes.

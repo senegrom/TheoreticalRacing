@@ -126,27 +126,42 @@ public final class BrowserBridge {
                         Files.deleteIfExists(retired);
                 }
             if (!Files.isDirectory(live)) return;
-            final List<Path> others = new ArrayList<>();
-            final Map<Path, Long> modified = new HashMap<>();
-            long used = 0;
+            TrackIO.deleteAbandonedTemporaries(live, nowMillis);
+            // One course's maps are one group, kept or dropped whole: the .bin and
+            // the siblings named after it (.derived2, .edges). A group ranks by its
+            // newest file; the pre-2026-09-28 .derived files no browser build reads
+            // go (review, 2026-09-29).
+            final Map<String, List<Path>> groups = new HashMap<>();
+            final Map<String, Long> newest = new HashMap<>(), sizes = new HashMap<>();
             try (java.util.stream.Stream<Path> entries = Files.list(live)) {
                 for (final Path file : entries.filter(Files::isRegularFile).toList()) {
-                    final long time = Files.getLastModifiedTime(file).toMillis();
-                    if (file.getFileName().toString().contains(".tmp.")) {
-                        if (nowMillis - time > 3_600_000L) Files.deleteIfExists(file);
-                    } else if (currentKey != null && file.toString().startsWith(currentKey)) {
-                        used += Files.size(file);
-                    } else {
-                        others.add(file);
-                        modified.put(file, time);
-                    }
+                    final String name = file.getFileName().toString();
+                    if (name.startsWith(".")) continue; // a write still in progress
+                    if (name.endsWith(".bin.derived")) { Files.deleteIfExists(file); continue; }
+                    final int bin = name.indexOf(".bin");
+                    final String key = bin < 0 ? name : name.substring(0, bin + 4);
+                    groups.computeIfAbsent(key, k -> new ArrayList<>()).add(file);
+                    newest.merge(key, Files.getLastModifiedTime(file).toMillis(), Math::max);
+                    sizes.merge(key, Files.size(file), Long::sum);
                 }
             }
-            others.sort((a, b) -> Long.compare(modified.get(b), modified.get(a)));
-            for (final Path file : others) {
-                final long size = Files.size(file);
-                if (used + size <= budget) used += size;
-                else Files.deleteIfExists(file);
+            final String current = currentKey == null ? null : Path.of(currentKey).getFileName().toString();
+            long used = 0;
+            if (groups.containsKey(current)) {
+                used = sizes.get(current);
+                // A cache hit writes nothing: mark this race's maps as used, or a
+                // course raced every day would rank by the day its maps were built.
+                for (final Path file : groups.get(current))
+                    try { Files.setLastModifiedTime(file, java.nio.file.attribute.FileTime.fromMillis(nowMillis)); }
+                    catch (final IOException | RuntimeException unsupported) { /* ranks as before */ }
+            }
+            final List<String> others = new ArrayList<>(groups.keySet());
+            others.remove(current);
+            others.sort((a, b) -> newest.get(a).equals(newest.get(b)) ? a.compareTo(b)
+                    : Long.compare(newest.get(b), newest.get(a)));
+            for (final String key : others) {
+                if (used + sizes.get(key) <= budget) used += sizes.get(key);
+                else for (final Path file : groups.get(key)) Files.deleteIfExists(file);
             }
         } catch (final IOException | RuntimeException bestEffort) {
             // A cache the browser could not prune is only larger than it needs to be.

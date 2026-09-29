@@ -35,6 +35,7 @@ public final class Progress {
         if (holdAlternatives) block(ALTERNATIVES_ENTERED, ALTERNATIVES_RELEASE);
     }
     public static void begin(final String phase) {}
+    public static void exactMap() {} // a stage display, never a build
     public static void reused() {}
     public static void complete() {}
     public static void scan(final int done, final int total) {}

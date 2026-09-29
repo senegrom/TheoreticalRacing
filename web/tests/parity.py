@@ -3,12 +3,16 @@
 
 No regenerated fixtures, replacement policy or approximate geometry. The twelve
 existing golden hashes are checked as well as full byte-for-byte native logs.
+Each engine builds its maps in its own empty reach cache: a shared cache would
+hand one engine's maps to the other and never compare the browser's
+instrumented searches.
 """
 import argparse
 import hashlib
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 
@@ -18,9 +22,10 @@ sys.path.insert(0, str(ROOT / 'tests'))
 from golden_races import normalized_log  # noqa: E402
 
 
-def run(args, path, timeout=600):
+def run(args, path, timeout=600, cache=None):
+    env = None if cache is None else dict(os.environ, RACING_REACH_CACHE=str(cache))
     with path.open('w', encoding='utf-8') as output:
-        subprocess.run(args, check=True, stdout=output, stderr=subprocess.STDOUT, timeout=timeout)
+        subprocess.run(args, check=True, stdout=output, stderr=subprocess.STDOUT, timeout=timeout, env=env)
 
 
 def main():
@@ -29,6 +34,10 @@ def main():
     args = parser.parse_args()
     build = ROOT / 'web/build/parity'
     build.mkdir(parents=True, exist_ok=True)
+    desktop_cache, browser_cache = build / 'cache-desktop', build / 'cache-browser'
+    for cache in (desktop_cache, browser_cache):
+        shutil.rmtree(cache, ignore_errors=True)
+        cache.mkdir(exist_ok=True)
     ref = build / 'reference'
     (ref / 'classes').mkdir(parents=True, exist_ok=True)
     sources = sorted(str(p) for p in (ROOT / 'src').rglob('*.java'))
@@ -39,7 +48,8 @@ def main():
     # Original direct rule-contract tests are also run on the generated engine.
     run(['javac', '-encoding', 'UTF-8', '-Xlint:all', '-Werror', '-cp', 'web/dist/racing.jar', '-d', str(build),
          'tests/tr/logic/ReviewRuleTests.java', 'tests/tr/logic/FollowupRuleTests.java', 'tests/tr/logic/StartPlacementTests.java', 'web/tests/BrowserTests.java'], build / 'test-compile.log')
-    run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'web/dist/racing.jar{os.pathsep}{build}', 'tr.logic.BrowserTests'], build / 'adapter-tests.log')
+    run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'web/dist/racing.jar{os.pathsep}{build}', 'tr.logic.BrowserTests'], build / 'adapter-tests.log',
+        cache=browser_cache)
     print((build / 'adapter-tests.log').read_text(), flush=True)
     # A test-only telemetry observer holds distance BFS at its entry while
     # humans can place in order, but AI decisions must wait for all maps.
@@ -50,14 +60,14 @@ def main():
     for players, track, laps in [(1, 'hairpin', 1), (4, 'hairpin', 1), (9, 'hairpin', 1), (9, 'monza', 2)]:
         output = build / f'startup-{players}-{laps}.log'
         run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'{startup}{os.pathsep}web/dist/racing.jar',
-             'tr.logic.StartupTests', str(players), track, str(laps)], output)
+             'tr.logic.StartupTests', str(players), track, str(laps)], output, cache=browser_cache)
         print(output.read_text(), flush=True)
     for roster, track, laps in [('AHHA', 'hairpin', 1), ('AAHA', 'hairpin', 1),
                                 ('HHAA', 'hairpin', 1), ('AAAA', 'hairpin', 1),
                                 ('AHAHAHAHA', 'monza', 2)]:
         output = build / f'player-order-{roster}-{laps}.log'
         run(['java', '-ea', '-Djava.awt.headless=true', '-cp', f'{startup}{os.pathsep}web/dist/racing.jar',
-             'tr.logic.PlayerOrderTests', roster, track, str(laps)], output)
+             'tr.logic.PlayerOrderTests', roster, track, str(laps)], output, cache=browser_cache)
         print(output.read_text(), flush=True)
     cases = json.loads((ROOT / 'tests/golden_races.json').read_text())['cases']
     if args.quick:
@@ -83,8 +93,9 @@ def main():
         cmd = ['java', '-Xmx2g', '-jar', str(ref / 'racing.jar'), '--auto', '--track', track, '--props', str(props), '--log', str(reference)]
         if seed:
             cmd += ['--seed', seed]
-        run(cmd, build / (name + '.desktop.stdout'))
-        run(['java', '-Xmx2g', '-Djava.awt.headless=true', '-cp', 'web/dist/racing.jar', 'tr.logic.BrowserBridge', track, str(count), str(laps), seed, str(browser), kind, policy], build / (name + '.browser.stdout'))
+        run(cmd, build / (name + '.desktop.stdout'), cache=desktop_cache)
+        run(['java', '-Xmx2g', '-Djava.awt.headless=true', '-cp', 'web/dist/racing.jar', 'tr.logic.BrowserBridge', track, str(count), str(laps), seed, str(browser), kind, policy], build / (name + '.browser.stdout'),
+            cache=browser_cache)
         if reference.read_bytes() != browser.read_bytes():
             import difflib
             diff = ''.join(difflib.unified_diff(reference.read_text().splitlines(True), browser.read_text().splitlines(True)))
@@ -94,13 +105,14 @@ def main():
             raise AssertionError(f'{name}: existing golden mismatch {digest} != {case["sha256"]}')
         results.append(dict(name=name, byte_identical=True, sha256=digest))
         print(f'{name}: byte-identical, golden {digest[:12]}', flush=True)
-    for name, digest in json.loads((ROOT / 'web/dist/track-hashes.json').read_text()).items():
+    track_hashes = json.loads((ROOT / 'web/dist/track-hashes.json').read_text())
+    for name, digest in track_hashes.items():
         assert (ROOT / 'tracks' / name).read_bytes() == (ROOT / 'web/dist/tracks' / name).read_bytes()
         assert hashlib.sha256((ROOT / 'tracks' / name).read_bytes()).hexdigest() == digest
     for name, digest in json.loads((ROOT / 'web/dist/engine-sources.json').read_text()).items():
         assert hashlib.sha256((ROOT / name).read_bytes()).hexdigest() == digest
-    (build / 'results.json').write_text(json.dumps({'cases': results, 'tracks': 84, 'adapter_tests': 'passed'}, indent=2) + '\n')
-    print(f'{len(results)} identical complete races; all 84 track files unchanged', flush=True)
+    (build / 'results.json').write_text(json.dumps({'cases': results, 'tracks': len(track_hashes), 'adapter_tests': 'passed'}, indent=2) + '\n')
+    print(f'{len(results)} identical complete races; all {len(track_hashes)} track files unchanged', flush=True)
 
 
 if __name__ == '__main__':

@@ -18,7 +18,9 @@ cp web/build/engine-sources.json web/dist/
 for f in index.html app.css app.js activity.js board.js engine.js runtime.js manifest.webmanifest; do
     cp "web/$f" web/dist/
 done
-python3 web/scripts/engine_identity.py stamp web/build/classes web/dist/runtime.js
+ENGINE_ID=$(python3 web/scripts/engine_identity.py stamp web/build/classes web/dist/runtime.js)
+# The page loads the jar by this build's name (runtime.js); racing.jar stays for the tools.
+cp web/dist/racing.jar "web/dist/racing-$(printf '%.12s' "$ENGINE_ID").jar"
 cp LICENSE web/dist/LICENSE.txt
 printf '' > web/dist/.nojekyll
 python3 - <<'PY'

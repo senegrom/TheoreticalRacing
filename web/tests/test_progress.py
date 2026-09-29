@@ -37,6 +37,14 @@ class ProgressTests(unittest.TestCase):
         source = (ROOT / 'src/tr/logic/RaceGame.java').read_text()
         self.assertEqual(strip(instrument_game(source)), source)
 
+    def test_the_daemon_shows_the_exact_map_stage(self):
+        # Review, 2026-09-29: stage 9 was current only when the map built on
+        # the daemon's own thread; the daemon now announces it where it waits.
+        generated = instrument((ROOT / 'src/tr/logic/Reachability.java').read_text())
+        head = 'if (!game.dumpsReachOnly()) { // a reach dump exits: no race follows\n'
+        hook = generated[generated.index(head) + len(head):].splitlines()[0]
+        self.assertIn('tr.browser.Progress.exactMap();', hook)
+
     def test_hooks_fail_closed_when_the_engine_changes(self):
         source = (ROOT / 'src/tr/logic/Reachability.java').read_text()
         with self.assertRaisesRegex(RuntimeError, 'drift'):

@@ -63,7 +63,7 @@ run's own OIDC identity, so the workflow needs `pages: write` and
 
 ## Build and play locally
 
-The browser build needs JDK 17+, Python 3.9+ and the pinned icon-export dependencies in `web/requirements-icons.txt` (CairoSVG uses the system Cairo library). Desktop/parity tests require
+The browser build needs JDK 19+ (the reproducible jar's `jar --date`), Python 3.9+ and the pinned icon-export dependencies in `web/requirements-icons.txt` (CairoSVG uses the system Cairo library). Desktop/parity tests require
 the repository's supported JDK 25+.
 
 ```sh

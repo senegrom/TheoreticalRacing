@@ -33,6 +33,13 @@ def instrument(source: str) -> str:
     after('\tprivate boolean tryLoadDerived() {', 'begin("Loading saved driving maps", 5);')
     after('\t\taliveStates = alive;', 'reused();')
     after('\t\tminShed2 = m.baseShed2;', 'reused();')
+    # The daemon builds or waits on the exact race map after the lap maps; it
+    # is stage 9 whether computed starts need it or the AI races on it. It ran
+    # beside the maps with computed starts, where stage 9 never showed current
+    # (review, 2026-09-29).
+    after('\t\t\t\tif (!game.dumpsReachOnly()) { // a reach dump exits: no race follows',
+          'if (game.lapGates != null && game.hasAiPlayer()) tr.browser.Progress.exactMap();',
+          expression=True)
     # The daemon's finally: the point memo is also dropped between phases.
     after('\t\t\t} finally {\n\t\t\t\tgame.clearPointContainmentCacheForCurrentThread();',
           'if (reachabilityFailure == null) tr.browser.Progress.complete();', expression=True)

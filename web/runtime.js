@@ -1,9 +1,12 @@
 // Dedicated worker: never import this file as a document script.
 // The original Java algorithms, including their threads, live in this realm.
 const send = message => self.postMessage({scope: 'theoretical-racing', ...message});
-// This build's engine identity: web/scripts/engine_identity.py stamps it into
-// the published copy; unbuilt sources keep the placeholder and skip the check.
+// This build's engine identity and its jar, named after it: stamped into the
+// published copy by web/scripts/engine_identity.py. A page of one deploy thus
+// never loads another deploy's jar from a cache under the same URL (review,
+// 2026-09-29).
 const ENGINE_BUILD = '__ENGINE_BUILD__';
+const ENGINE_JAR = '__ENGINE_JAR__';
 const describe = async error => {
   try { return String((await error?.getMessage?.()) ?? error?.message ?? error); }
   catch { return 'The Java engine failed'; }
@@ -13,10 +16,14 @@ self.addEventListener('unhandledrejection', event => {
   describe(event.reason).then(fatal => send({fatal}));
 });
 (async () => {
-  const jar = new URL('./racing.jar', self.location.href);
+  if (ENGINE_BUILD.startsWith('__') || ENGINE_JAR.startsWith('__'))
+    throw new Error('This worker is an unbuilt source file. Build the site with web/build.sh.');
+  const jar = new URL('./' + ENGINE_JAR, self.location.href);
   send({status: 'Checking the game download…'});
   const probe = await fetch(jar, {headers: {Range: 'bytes=0-0'}});
   await probe.body?.cancel();
+  // A page cached from an earlier deploy names a jar the site no longer has.
+  if (probe.status === 404) throw new Error('This page belongs to an earlier version of the site. Reload the page to race.');
   if (probe.status !== 206) throw new Error('The web host must support HTTP byte-range requests. For local play, use python3 web/serve.py.');
   send({status: 'Downloading the Java runtime…'});
   importScripts('https://cjrtnc.leaningtech.com/4.3/loader.js');
@@ -41,9 +48,11 @@ self.addEventListener('unhandledrejection', event => {
   const library = await cheerpjRunLibrary(`/app${jar.pathname}`);
   const Bridge = await library.tr.logic.BrowserBridge;
   const bridge = await new Bridge();
-  // For a few minutes after a deploy a browser cache can pair this page with a
-  // jar from another deploy: refuse before the first race, not midway through.
-  if (!ENGINE_BUILD.startsWith('__') && String(await bridge.build()) !== ENGINE_BUILD)
+  // The jar's own identity must match (a jar too old to report one does not):
+  // refuse before the first race, not midway through.
+  let built = null;
+  try { built = String(await bridge.build()); } catch { /* a jar without build() */ }
+  if (built !== ENGINE_BUILD)
     throw new Error('This page and its game engine come from different versions of the site. Reload the page to race.');
   const allowed = new Set(['create', 'tick', 'click', 'ok', 'undo', 'preview', 'move', 'snapshot', 'readiness', 'log']);
   let queue = Promise.resolve();

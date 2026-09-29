@@ -110,13 +110,16 @@ public final class BrowserTests {
         tr.browser.Progress.begin("Lap safety", 7);
         tr.browser.Progress.begin("Computing braking maps", 5);
         check(tr.browser.Progress.stage() == 8, "the lap-driving sweeps did not show as stage 8");
-        tr.browser.Progress.begin("Exact full-race map", 9);
+        // Review, 2026-09-29: the daemon shows the stage where it waits on the map.
+        tr.browser.Progress.exactMap();
         check(tr.browser.Progress.stage() == 9, "the exact map did not follow the lap maps");
     }
 
     /** Review, 2026-09-28: the browser's map caches never shrank. Pruning keeps
      *  this race's maps and the newest others within the budget, drops stale
-     *  temporary files and the retired generation's files. */
+     *  temporary files and the retired generation's files. Since 2026-09-29 a
+     *  course's files go together, ranked by the newest, this race's are marked
+     *  used, and the old .derived format goes. */
     private static void testReachCachePruned() throws Exception {
         final java.nio.file.Path root = java.nio.file.Files.createTempDirectory("prune");
         final java.nio.file.Path live = java.nio.file.Files.createDirectory(root.resolve("maps-v2"));
@@ -130,20 +133,28 @@ public final class BrowserTests {
         };
         java.nio.file.Files.write(root.resolve("reach-retired.bin"), new byte[100]);
         file.accept("reach-current.bin", 9_000_000L);          // oldest, but this race's
-        file.accept("reach-current.bin.derived", 9_000_000L);
+        file.accept("reach-current.bin.derived2", 9_000_000L);
+        file.accept("reach-current.bin.derived", 9_000_000L);  // the retired format
         file.accept("reach-new.bin", 1_000L);
         file.accept("reach-mid.bin", 5_000L);
+        file.accept("reach-mid.bin.edges", 9_500_000L);        // one course: kept with its .bin
         file.accept("reach-old.bin", 8_000L);
+        file.accept("reach-old.bin.derived2", 2_000L);         // ranks by its newest file...
         file.accept(".reach-new.bin.tmp.1.tmp", 7_200_000L);   // abandoned two hours ago
         file.accept(".reach-mid.bin.tmp.2.tmp", 60_000L);      // perhaps still being written
-        BrowserBridge.pruneReachCache(live, live.resolve("reach-current.bin").toString(), 400, now);
+        BrowserBridge.pruneReachCache(live, live.resolve("reach-current.bin").toString(), 600, now);
         final java.util.Set<String> left = new java.util.TreeSet<>();
         try (java.util.stream.Stream<java.nio.file.Path> s = java.nio.file.Files.list(live)) {
             s.forEach(p -> left.add(p.getFileName().toString()));
         }
-        check(left.equals(new java.util.TreeSet<>(java.util.List.of("reach-current.bin", "reach-current.bin.derived",
-                "reach-new.bin", "reach-mid.bin", ".reach-mid.bin.tmp.2.tmp"))), "pruned cache holds " + left);
+        // ...so the old course (newest 2 s) outranks the mid one (5 s): 200 + 100 +
+        // 200 bytes fit 600, the mid course's 200 more do not.
+        check(left.equals(new java.util.TreeSet<>(java.util.List.of("reach-current.bin", "reach-current.bin.derived2",
+                "reach-new.bin", "reach-old.bin", "reach-old.bin.derived2", ".reach-mid.bin.tmp.2.tmp"))),
+                "pruned cache holds " + left);
         check(!java.nio.file.Files.exists(root.resolve("reach-retired.bin")), "a retired generation's file survived");
+        check(java.nio.file.Files.getLastModifiedTime(live.resolve("reach-current.bin")).toMillis() == now,
+                "this race's maps were not marked as used");
     }
 
     /** The owner's drawn-track rule (2026-09-27): a closed loop drawn with too
@@ -200,6 +211,12 @@ public final class BrowserTests {
         final double[][] drawn = ((tr.gui.RaceUI) get(bridge, "scene")).checkpoints;
         check(drawn.length == 2 && drawn[0][1] == game.lapGates[1].getY1() && drawn[1][1] == game.lapGates[2].getY1(),
                 "the page draws the checkpoints off the referee's: " + java.util.Arrays.deepToString(drawn));
+        // The closing walls run where the corridor's ring does, through its
+        // rounded midpoints and corners (review, 2026-09-29).
+        final int[][] walls = ((tr.gui.RaceUI) get(bridge, "scene")).closures;
+        check(java.util.Arrays.deepEquals(walls, new int[][]{{8, 5, 7, 5}, {7, 5, 5, 5}, {5, 5, 5, 7}, {5, 7, 5, 8},
+                {16, 15, 15, 15}, {15, 15, 15, 16}}),
+                "the page draws the closing walls off the corridor: " + java.util.Arrays.deepToString(walls));
         int[] start = null;
         outer: for (int x = 0; x <= game.gameCols; x++) for (int y = 0; y <= game.gameRows; y++)
             if (game.startZoneA.contains(x, y) && game.trackA.contains(x, y)) { start = new int[]{x, y}; break outer; }

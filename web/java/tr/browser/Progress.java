@@ -42,6 +42,9 @@ public final class Progress {
         stage = step == 5 && stage >= 6 ? 8 : step;
         begin(phase);
     }
+    /** The daemon builds or waits on the exact race map: its stage shows,
+     *  but it is not a build (OptimalPotential.build reports that). */
+    public static void exactMap() { begin("Exact full-race map", 9); }
     /** The checklist position last reported. */
     public static int stage() { return stage; }
     public static void alternatives() {
