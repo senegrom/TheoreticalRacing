@@ -106,6 +106,25 @@ Earlier results that were still open:
 - Round 278's duel slice: +0.018 +- 0.003 against it (3 boards, 81 tied),
   crashes 196:222.
 
+## The owner's calls of 2026-09-29: the turn limit and the lone check
+
+- The race turn limit (750 x laps x cars turns) classifies every car still
+  racing at once, by progress: fewer gate events owed (laps, then
+  checkpoints), then fewer turns to the next gate on the reachability maps,
+  then the car that would move sooner. The cars used to retire in turn
+  order, the first to move taking the worst place, so a car a lap ahead
+  could be classified behind. The retirements are logged worst first, each
+  taking the worst place still open -- the log grammar and every validator
+  are unchanged -- and the car with the most progress is the survivor. No
+  fleet race reaches the limit: the goldens are identical. The AI's rollouts
+  still model a car's own timeout as its failure.
+- The lone-candidate check races no all-champion control grid. With every
+  seat raced, that race's places are a permutation of 1..n, so it added
+  exactly (n+1)/2 per track and seed: the reading is the candidate's mean
+  place over the seats minus (n+1)/2, identical to the paired one, for a
+  ninth less racing. CLAUDE.md and AGENTS.md say so. The crash line compares
+  the lone candidate with the champions beside it in the same races.
+
 ## The 2026-09-29 third review: what landed
 
 Five read-only reviewers (AI, maps, referee and desktop UI, browser, tooling)
