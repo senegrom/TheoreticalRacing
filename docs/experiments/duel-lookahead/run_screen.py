@@ -14,6 +14,9 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / 'tracks'))
+from fleet_grid import run_grid_process  # noqa: E402
+
 DEFAULT_TRACKS = ['hairpin', 'chicane', 'bigoval', 'circle', 'gear', 'monaco', 'silverstone', 'zigzag']
 
 
@@ -67,15 +70,17 @@ def main(argv: list[str] | None = None) -> int:
                                RACING_HEAP=args.heap,
                                RACING_TRACKS='' if args.tracks == ['ALL'] else ','.join(args.tracks))
                     print(f'==> {name}, seeds {args.seeds}', flush=True)
-                    subprocess.run([sys.executable, str(ROOT/'tracks/fleet_grid.py'), args.seeds,
-                                    str(args.jobs), str(grid)], cwd=ROOT, env=env, check=True)
+                    run_grid_process([sys.executable, str(ROOT/'tracks/fleet_grid.py'), args.seeds,
+                                      str(args.jobs), str(grid)], cwd=ROOT, env=env)
                     grids.append(str(grid))
                 report = subprocess.run([sys.executable, str(ROOT/'tracks/head_to_head.py'), *grids],
                                         cwd=ROOT, check=True, capture_output=True, text=True)
                 (out/f'{players}p-{mode}-head-to-head.txt').write_text(report.stdout, encoding='utf-8')
                 print(report.stdout, end='', flush=True)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
-        print(f'duel screen failed: {error}', file=sys.stderr)
+        # head_to_head says why it refused a pair on its stderr.
+        detail = getattr(error, 'stderr', None)
+        print(f'duel screen failed: {error}' + (f'\n{detail.rstrip()}' if detail else ''), file=sys.stderr)
         return 1
     return 0
 

@@ -21,10 +21,10 @@ import tempfile
 import threading
 
 if __package__:
-    from .forensics_common import parse_move, potential_status
+    from .forensics_common import NO_LOOP_LINE, parse_move, potential_status
     from .benchmark_io import comparison_profile
 else:
-    from forensics_common import parse_move, potential_status
+    from forensics_common import NO_LOOP_LINE, parse_move, potential_status
     from benchmark_io import comparison_profile
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -179,8 +179,17 @@ class Jvms:
                     process.kill()
 
 
-def physical_memory():
-    """Installed memory in bytes, or None when the platform will not say."""
+def available_memory():
+    """Memory free for new JVMs in bytes -- what the kernel calls available,
+    so other jobs already running count against it -- else the installed
+    memory, or None when the platform will not say."""
+    try:
+        with open('/proc/meminfo', encoding='ascii') as stream:
+            for line in stream:
+                if line.startswith('MemAvailable:'):
+                    return int(line.split()[1]) << 10
+    except (OSError, ValueError, IndexError):
+        pass
     try:
         return os.sysconf('SC_PAGE_SIZE') * os.sysconf('SC_PHYS_PAGES')
     except (AttributeError, ValueError, OSError):
@@ -197,13 +206,14 @@ def physical_memory():
         status = Status()
         status.dwLength = ctypes.sizeof(Status)
         if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):
-            return status.ullTotalPhys
+            return status.ullAvailPhys
     return None
 
 
 def heap_bytes(heap):
-    """The -Xmx among these JVM options, in bytes; None when there is none."""
-    for option in heap:
+    """The -Xmx the JVM honours among these options (the last), in bytes;
+    None when there is none."""
+    for option in reversed(heap):
         m = re.fullmatch(r'-Xmx(\d+)([kKmMgGtT]?)', option)
         if m:
             return int(m.group(1)) << {'': 0, 'k': 10, 'm': 20, 'g': 30, 't': 40}[m.group(2).lower()]
@@ -216,7 +226,7 @@ def default_jobs(heap, memory=None, cpus=None):
     machine with under ten GB per core -- the ledger records 15 JVMs exhausting
     30 GB (review, 2026-09-28). An explicit jobs argument always wins."""
     cpus = cpus or os.cpu_count() or 4
-    memory = physical_memory() if memory is None else memory
+    memory = available_memory() if memory is None else memory
     if not memory:
         return max(1, min(cpus, 4))
     per_jvm = heap_bytes(heap) or memory // 4  # without -Xmx the JVM takes a quarter
@@ -233,7 +243,8 @@ def snapshot_inputs(out, manifest, jar, props, tracks):
     The copies must hash to the manifest, so nothing changed before they were made."""
     root = out / INPUTS
     shutil.rmtree(root, ignore_errors=True)
-    (root / 'tracks').mkdir(parents=True)
+    # exist_ok: a copy a lock kept from the rmtree is overwritten below.
+    (root / 'tracks').mkdir(parents=True, exist_ok=True)
     run_jar, run_props = root / jar.name, root / ('profile' + props.suffix)
     shutil.copyfile(jar, run_jar)
     shutil.copyfile(props, run_props)
@@ -252,6 +263,38 @@ def snapshot_matches(manifest, run_jar, run_props, tracks):
                         for t in tracks))
     except OSError:
         return False
+
+
+def inputs_intact(manifest, java, run_jar, run_props, tracks):
+    """What the JVMs raced is still what the manifest promises: the private
+    copies and the Java runtime. The originals and this runner's own sources
+    are not read again once the copies exist -- a rebuilt jar or a pulled
+    tool mid-run changed nothing raced, and used to revoke every marker
+    (review, 2026-09-29). A resume still compares them through the manifest."""
+    try:
+        return (digest(java) == manifest['java_sha256']
+                and snapshot_matches(manifest, run_jar, run_props, tracks))
+    except OSError:
+        return False
+
+
+def run_grid_process(command, **kwargs):
+    """Run a fleet grid as a child process; a SIGTERM to the caller reaches
+    it. The default action would kill only the caller and leave the grid
+    racing with its lock held, so the queue's retry of the same output
+    directory would fail and the next job would overlap it (review,
+    2026-09-29). Raises CalledProcessError on a nonzero exit."""
+    child = subprocess.Popen(command, **kwargs)
+    previous = None
+    if threading.current_thread() is threading.main_thread():
+        previous = signal.signal(signal.SIGTERM, lambda signum, frame: child.terminate())
+    try:
+        returncode = child.wait()
+    finally:
+        if previous is not None:
+            signal.signal(signal.SIGTERM, previous)
+    if returncode:
+        raise subprocess.CalledProcessError(returncode, command)
 
 
 def revoke_publication(out, tracks):
@@ -319,7 +362,7 @@ def run_track(out, track, run_id, seeds, java, heap, jar, props, timeout, jvms):
         if returncode != 0:
             raise ValueError('%s: Java exited %d (see %s)' % (track, returncode, output))
         text = output.read_text(encoding='utf-8', errors='replace')
-        no_loop = re.search(r'^\[laps\] .* -- laps disabled$', text, re.MULTILINE) is not None
+        no_loop = NO_LOOP_LINE.search(text) is not None
         potential = potential_status(track, text)
         logs = []
         for seed in seeds:
@@ -394,9 +437,7 @@ def grid(argv=None):
             run_jar, run_props = snapshot_inputs(out, manifest, jar, props, tracks)
 
             def intact():
-                # The originals, as the manifest promises, and the copies raced.
-                return (manifest_for(jar, props, java, heap, tracks, lo, hi) == manifest
-                        and snapshot_matches(manifest, run_jar, run_props, tracks))
+                return inputs_intact(manifest, java, run_jar, run_props, tracks)
 
             results, failures = {}, {}
             unverified = False

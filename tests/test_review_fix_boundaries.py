@@ -35,6 +35,7 @@ class FleetFinalValidationTests(unittest.TestCase):
             'player2 name=B kind=AI2 start=2,1\n'
             '1 p1 AI1 E v(0,0)>(1,0) (1,1)>(2,1) FINISH place=1\n'
             '# results\n1. A\n2. B\n')
+        stream.write('[optimal] potential built in 0.1s (distance 1536 MiB, total 1600 MiB)\n')
         if self.effect:
             self.effect()
         return 0
@@ -52,41 +53,57 @@ class FleetFinalValidationTests(unittest.TestCase):
         for name in ('example.complete.json', 'example.row', 'fleet.txt'):
             self.assertFalse((self.out / name).exists(), name + ' survived failed validation')
 
-    def test_missing_final_course_is_rerun_after_restoration(self):
-        original = self.track.read_bytes()
-        self.effect = self.track.unlink
+    def copy(self, *parts):
+        """The private copy the JVMs race (review, 2026-09-28)."""
+        return self.out.joinpath('.inputs', *parts)
+
+    def test_missing_course_copy_is_rerun(self):
+        self.effect = self.copy('tracks', 'example.track').unlink
         status, output, _ = self.grid()
         self.assertEqual(2, status)
         self.assertNotIn('FLEETDONE', output)
         self.assert_no_publication()
-        self.track.write_bytes(original)
-        self.effect = None
+        self.effect = None  # the next run copies the originals again
         self.assertEqual(0, self.grid()[0])
         self.assertEqual(2, self.calls)
         self.assertEqual(0, self.grid()[0])
         self.assertEqual(2, self.calls, 'validated resume unnecessarily launched another JVM')
 
-    def test_malformed_final_profile_is_rerun_after_restoration(self):
-        original = self.props.read_bytes()
-        self.effect = lambda: self.props.write_bytes(b'bad=\\uZZZZ\n')
+    def test_malformed_profile_copy_is_rerun(self):
+        self.effect = lambda: self.copy('profile.properties').write_bytes(b'bad=\\uZZZZ\n')
         self.assertEqual(2, self.grid()[0])
         self.assert_no_publication()
-        self.props.write_bytes(original)
         self.effect = None
         self.assertEqual(0, self.grid()[0])
         self.assertEqual(2, self.calls)
 
+    def test_originals_changed_mid_run_leave_the_grid_valid(self):
+        # Review, 2026-09-29: the JVMs race the copies, so a rebuilt jar, an
+        # edited profile or a pulled course mid-run changes nothing raced. It
+        # used to revoke the whole grid. A resume still refuses the changed
+        # originals through the manifest.
+        original = self.props.read_bytes()
+        def rebuild():
+            self.jar.unlink()
+            self.props.write_bytes(original + b'# edited\n')
+            self.track.write_bytes(b'another course')
+        self.effect = rebuild
+        status, output, errors = self.grid()
+        self.assertEqual(0, status, errors)
+        self.assertIn('FLEETDONE', output)
+        self.assertTrue((self.out / 'example.complete.json').exists())
+        self.effect = None
+        self.assertEqual(2, self.grid()[0])
+        self.assertEqual(1, self.calls)
+
+    def test_changed_java_runtime_mid_run_revokes_the_grid(self):
+        self.effect = lambda: self.java.write_bytes(b'upgraded runtime')
+        self.assertEqual(2, self.grid()[0])
+        self.assert_no_publication()
+
     def test_failed_revalidation_removes_preexisting_markers_rows_and_report(self):
         self.assertEqual(0, self.grid()[0])
-        actual = fleet_grid.manifest_for
-        calls = 0
-        def manifest(*args):
-            nonlocal calls
-            calls += 1
-            if calls == 2:
-                raise OSError('injected final manifest read failure')
-            return actual(*args)
-        with mock.patch.object(fleet_grid, 'manifest_for', side_effect=manifest):
+        with mock.patch.object(fleet_grid, 'inputs_intact', return_value=False):
             self.assertEqual(2, self.grid()[0])
         self.assert_no_publication()
         self.assertEqual(0, self.grid()[0])
@@ -94,35 +111,34 @@ class FleetFinalValidationTests(unittest.TestCase):
 
     def test_no_completion_is_published_before_its_revalidation(self):
         # Since 2026-09-27 each track's marker follows its own revalidation, not
-        # the whole grid's, so a killed runner resumes; the second manifest read
-        # is that revalidation.
-        actual = fleet_grid.manifest_for
+        # the whole grid's, so a killed runner resumes.
+        actual = fleet_grid.inputs_intact
         calls = 0
-        def manifest(*args):
+        def intact(*args):
             nonlocal calls
             calls += 1
-            if calls == 2:
+            if calls == 1:
                 self.assertEqual(1, self.calls)
                 self.assertTrue((self.out / 'example_s1.log').exists())
                 self.assert_no_publication()
             return actual(*args)
-        with mock.patch.object(fleet_grid, 'manifest_for', side_effect=manifest):
+        with mock.patch.object(fleet_grid, 'inputs_intact', side_effect=intact):
             self.assertEqual(0, self.grid()[0])
         self.assertTrue((self.out / 'example.complete.json').exists())
 
     def test_interrupted_final_validation_keeps_only_validated_markers(self):
         # An interruption proves nothing about the inputs (2026-09-28): the
         # marker validated after its track stays, and nothing else is written.
-        # The third manifest read is the final validation.
-        actual = fleet_grid.manifest_for
+        # The second revalidation is the final one.
+        actual = fleet_grid.inputs_intact
         calls = 0
-        def manifest(*args):
+        def intact(*args):
             nonlocal calls
             calls += 1
-            if calls == 3:
+            if calls == 2:
                 raise KeyboardInterrupt()
             return actual(*args)
-        with mock.patch.object(fleet_grid, 'manifest_for', side_effect=manifest):
+        with mock.patch.object(fleet_grid, 'inputs_intact', side_effect=intact):
             with self.assertRaises(KeyboardInterrupt):
                 self.grid()
         self.assertTrue((self.out / 'example.complete.json').exists())

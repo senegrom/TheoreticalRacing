@@ -35,22 +35,28 @@ START_LINE = re.compile(
 )
 ORACLE_ANSWER = re.compile(r"^(-?\d+),(-?\d+);([FXBDA]{9})$")
 
-# Courses whose exact potential exceeds its distance cap at any heap; older
-# jars reported them only as "SKIPPED (over budget)".
+# Courses whose exact potential exceeds its distance cap in the fleet's
+# three-lap races at any heap (the Nordschleife needs 722/1444/2166 MiB at
+# one/two/three laps); jars before b19b3a9 reported them only as "SKIPPED
+# (over budget)". Retire this once no arm older than b19b3a9 is screened.
 CAPPED_TRACKS = frozenset({'nordschleife'})
 # RaceGame.OPTIMAL_BUDGET_BYTES: a cap in force at any other size came from
 # -Dtr.optimalBuildBytes, and capped courses the champion races on.
 DEFAULT_DISTANCE_CAP_MIB = 1536
 POTENTIAL_LINE = re.compile(r'^\[optimal\] potential (built|SKIPPED \(([^)]*)\))(.*)$', re.MULTILINE)
+# A course that cannot be lapped builds no potential, and says so.
+NO_LOOP_LINE = re.compile(r'^\[laps\] .* -- laps disabled$', re.MULTILINE)
 
 
 def potential_status(track, output):
     """The exact potential's fate in this JVM: 'built', 'capped' (over the
-    default distance cap, by design) or None (no lap potential). A potential
-    skipped for want of heap or frontier -- or capped by a lowered
+    default distance cap, by design) or None (a course without laps). A
+    potential skipped for want of heap or frontier -- or capped by a lowered
     -Dtr.optimalBuildBytes -- means the champion raced demoted: a complete,
     valid screen of a policy nobody ships, so the track fails (reviews,
-    2026-09-27 and 2026-09-28)."""
+    2026-09-27 and 2026-09-28). Every lap race with an AI reports its
+    potential, so silence from a lapped course fails too: a changed format or
+    a lost stdout must not pass a demoted champion (review, 2026-09-29)."""
     kinds = set()
     for whole, reason, rest in POTENTIAL_LINE.findall(output):
         if whole == 'built':
@@ -67,6 +73,8 @@ def potential_status(track, output):
                          % (track, reason, ', so raise the heap' if reason == 'heap too small' else ''))
     if len(kinds) > 1:
         raise ValueError('%s: the exact potential was built in some races and not in others' % track)
+    if not kinds and not NO_LOOP_LINE.search(output):
+        raise ValueError('%s: the JVM reported no exact potential for a lapped course' % track)
     return kinds.pop() if kinds else None
 
 

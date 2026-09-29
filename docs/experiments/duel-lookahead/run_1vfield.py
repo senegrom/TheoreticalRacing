@@ -10,8 +10,10 @@ race is paired with the all-champion race of the same track, seed and seat:
 the same jar with no candidateSlots, which the arm's identity check has
 already shown to race exactly as the champion. The reading is the candidate's
 place minus the champion's place in that seat of that race -- negative means
-the lone candidate gains places on the current champion. Seat and seed
-effects cancel in the pairing.
+the lone candidate gains places on the current champion. With every seat
+raced, the control's places in one track-seed are a permutation of 1..n, so
+its mean is (n+1)/2 exactly: the pairing fixes the reading's zero, and the
+control otherwise contributes only the descriptive crash count.
 
     run_1vfield.py --jar ARM.jar --out DIR [--seeds 1-5] [--jobs 3]
                    [--heap=-Xmx8g] [--players 8] [--mode legacy] [--tracks ALL]
@@ -32,7 +34,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tracks'))
 from benchmark_io import read_race  # noqa: E402
-from fleet_grid import completed, json_text, seed_range  # noqa: E402
+from fleet_grid import completed, json_text, run_grid_process, seed_range  # noqa: E402
 
 
 def write_once(path: Path, content: str) -> None:
@@ -49,19 +51,22 @@ def run_grid(args, jar: Path, props: Path, grid: Path) -> None:
     env = dict(os.environ, RACING_JAR=str(jar), RACING_PROPS=str(props), RACING_HEAP=args.heap,
                RACING_TRACKS='' if args.tracks == ['ALL'] else ','.join(args.tracks))
     print(f'==> {grid.name}, seeds {args.seeds}', flush=True)
-    subprocess.run([sys.executable, str(ROOT / 'tracks/fleet_grid.py'), args.seeds,
-                    str(args.jobs), str(grid)], cwd=ROOT, env=env, check=True)
+    run_grid_process([sys.executable, str(ROOT / 'tracks/fleet_grid.py'), args.seeds,
+                      str(args.jobs), str(grid)], cwd=ROOT, env=env)
 
 
 def validated_grid(grid: Path, seeds: range) -> dict:
     """The grid's manifest, once every track in it is a validated completion;
-    its build, runtime, seeds and courses, which every paired grid must share."""
+    its build, runtime, seeds, courses and race profile (all but the candidate
+    slot), which every paired grid must share."""
     manifest = json.loads((grid / 'manifest.json').read_text(encoding='utf-8'))
     run_id = hashlib.sha256(json_text(manifest).encode('utf-8')).hexdigest()
     for track in manifest['tracks']:
         if completed(grid, track, run_id, seeds) is None:
             raise ValueError(f'{grid.name}: {track} is missing, incomplete or corrupt')
-    return {k: v for k, v in manifest.items() if k not in ('properties', 'comparison')}
+    shared = {k: v for k, v in manifest.items() if k not in ('properties', 'comparison')}
+    shared['profile'] = manifest['comparison']['properties']
+    return shared
 
 
 def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
@@ -70,7 +75,7 @@ def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
     common = validated_grid(control, seeds)
     for seat, grid in seats.items():
         if validated_grid(grid, seeds) != common:
-            raise ValueError(f'seat {seat} was raced by another build, runtime, seed window or course set')
+            raise ValueError(f'seat {seat} was raced by another build, runtime, seed window, course set or profile')
     tracks = sorted(common['tracks'])
     units, per_track = [], collections.defaultdict(list)
     cand_places, cand_crash, champ_crash = [], 0, 0

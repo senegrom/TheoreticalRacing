@@ -1,6 +1,7 @@
 """The experiment wrapper must preserve profiles and mirror actual roster slots."""
 import importlib.util
 from pathlib import Path
+import signal
 import subprocess
 import tempfile
 import unittest
@@ -28,10 +29,12 @@ class DuelScreenTests(unittest.TestCase):
             jar = Path(directory)/'candidate.jar'
             jar.write_bytes(b'fixture only; Java is mocked')
             complete = subprocess.CompletedProcess([], 0, stdout='verified comparison\n')
-            with patch.object(screen.subprocess, 'run', return_value=complete) as run:
+            with patch.object(screen, 'run_grid_process') as grid, \
+                    patch.object(screen.subprocess, 'run', return_value=complete) as run:
                 status = screen.main(['--jar', str(jar), '--out', str(out), '--tracks', 'hairpin'])
             self.assertEqual(status, 0)
-            self.assertEqual(run.call_count, 18)  # 12 grids + 6 independently checked mirror pairs
+            self.assertEqual(grid.call_count, 12)
+            self.assertEqual(run.call_count, 6)  # independently checked mirror pairs
             for players in (2, 8):
                 for mode in ('legacy', 'informed', 'scatter'):
                     cohorts = []
@@ -48,20 +51,56 @@ class DuelScreenTests(unittest.TestCase):
                                      'verified comparison\n')
             for call in run.call_args_list:
                 self.assertTrue(call.kwargs['check'])
-                if 'env' in call.kwargs:
-                    self.assertEqual(call.kwargs['env']['RACING_JAR'], str(jar))
-                    self.assertEqual(call.kwargs['env']['RACING_TRACKS'], 'hairpin')
+            for call in grid.call_args_list:
+                self.assertEqual(call.kwargs['env']['RACING_JAR'], str(jar))
+                self.assertEqual(call.kwargs['env']['RACING_TRACKS'], 'hairpin')
 
     def test_failed_grid_has_no_performance_report(self):
         with tempfile.TemporaryDirectory() as directory:
             out, jar = Path(directory)/'results', Path(directory)/'candidate.jar'
             jar.write_bytes(b'fixture')
-            with patch.object(screen.subprocess, 'run',
-                              side_effect=subprocess.CalledProcessError(1, ['fleet'])):
+            with patch.object(screen, 'run_grid_process',
+                              side_effect=subprocess.CalledProcessError(1, ['fleet'])), \
+                    patch.object(screen.subprocess, 'run') as run:
                 status = screen.main(['--jar', str(jar), '--out', str(out), '--players', '2',
                                       '--modes', 'legacy', '--tracks', 'hairpin'])
             self.assertEqual(status, 1)
+            run.assert_not_called()
             self.assertFalse(list(out.glob('*head-to-head.txt')))
+
+    def test_a_refused_comparison_says_why(self):
+        with tempfile.TemporaryDirectory() as directory:
+            out, jar = Path(directory)/'results', Path(directory)/'candidate.jar'
+            jar.write_bytes(b'fixture')
+            refused = subprocess.CalledProcessError(1, ['head_to_head'], stderr='incompatible mirrored grids\n')
+            with patch.object(screen, 'run_grid_process'), \
+                    patch.object(screen.subprocess, 'run', side_effect=refused), \
+                    patch('sys.stderr') as errors:
+                status = screen.main(['--jar', str(jar), '--out', str(out), '--players', '2',
+                                      '--modes', 'legacy', '--tracks', 'hairpin'])
+            self.assertEqual(status, 1)
+            written = ''.join(call.args[0] for call in errors.write.call_args_list)
+            self.assertIn('incompatible mirrored grids', written)
+
+    def test_a_sigterm_reaches_the_grid(self):
+        # Review, 2026-09-29: the wrappers' default SIGTERM killed only
+        # themselves and left the grid racing with its lock held.
+        class Child:
+            terminated = False
+
+            def terminate(self):
+                self.terminated = True
+
+            def wait(self):
+                signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+                return 130 if self.terminated else 0
+        child = Child()
+        before = signal.getsignal(signal.SIGTERM)
+        with patch.object(screen.subprocess, 'Popen', return_value=child):
+            with self.assertRaises(subprocess.CalledProcessError):
+                screen.run_grid_process(['fleet'])
+        self.assertTrue(child.terminated)
+        self.assertIs(before, signal.getsignal(signal.SIGTERM))
 
 
 if __name__ == '__main__':
