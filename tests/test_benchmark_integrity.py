@@ -253,46 +253,47 @@ class LoneCandidateReportTests(unittest.TestCase):
     """run_1vfield.report, the lone-candidate check CLAUDE.md requires before a
     promotion, had no test at all (review, 2026-09-27)."""
 
-    def test_seat_pairing_mean_and_standard_error(self):
+    def test_seat_mean_and_standard_error(self):
         import sys
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'docs/experiments/duel-lookahead'))
         import run_1vfield
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            control, seat1, seat2 = root / 'control', root / 'seat1', root / 'seat2'
-            for d in (control, seat1, seat2):
+            seat1, seat2 = root / 'seat1', root / 'seat2'
+            for d in (seat1, seat2):
                 d.mkdir()
-            (control / 'manifest.json').write_text(json.dumps({'tracks': {'example': 'x'}}), encoding='utf-8')
-            # Control: seat 1 wins seed 1, seat 2 wins seed 2.
-            (control / 'example_s1.log').write_text(ordered_log(None, [1, 2]), encoding='utf-8')
-            (control / 'example_s2.log').write_text(ordered_log(None, [2, 1]), encoding='utf-8')
-            # The lone candidate in seat 1: 0 on seed 1, -1 on seed 2; in seat 2:
-            # -1 on seed 1, +1 on seed 2. Units -0.5 and 0: mean -0.25, SE 0.25.
+            # The lone candidate in seat 1: 1st on both seeds; in seat 2: 1st on
+            # seed 1, 2nd on seed 2. Against the mean place 1.5 of a two-car
+            # race, units -0.5 and 0: mean -0.25, SE 0.25 -- what the dropped
+            # all-champion control gave (the owner, 2026-09-29).
             (seat1 / 'example_s1.log').write_text(ordered_log('1', [1, 2]), encoding='utf-8')
             (seat1 / 'example_s2.log').write_text(ordered_log('1', [1, 2]), encoding='utf-8')
             (seat2 / 'example_s1.log').write_text(ordered_log('2', [2, 1]), encoding='utf-8')
             (seat2 / 'example_s2.log').write_text(ordered_log('2', [1, 2]), encoding='utf-8')
-            for grid, slots in ((control, []), (seat1, [1]), (seat2, [2])):
+            for grid, slots in ((seat1, [1]), (seat2, [2])):
                 publish(grid, {'jar': 'build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
                                'comparison': {'properties': 'profile', 'candidate_slots': slots}}, range(1, 3))
-            text = run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+            text = run_1vfield.report({1: seat1, 2: seat2}, range(1, 3))
+            # Every seat must be raced for (n+1)/2 to be the mean place.
+            with self.assertRaisesRegex(ValueError, 'every seat'):
+                run_1vfield.report({1: seat1}, range(1, 3))
             # Review, 2026-09-29: a seat raced with another profile is refused.
             publish(seat2, {'jar': 'build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
                             'comparison': {'properties': 'other profile', 'candidate_slots': [2]}}, range(1, 3))
             with self.assertRaisesRegex(ValueError, 'profile'):
-                run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+                run_1vfield.report({1: seat1, 2: seat2}, range(1, 3))
             # Review, 2026-09-28: a seat raced by another build is refused, and
             # so is a grid whose track never completed.
             publish(seat2, {'jar': 'other build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
                             'comparison': {'properties': 'profile', 'candidate_slots': [2]}}, range(1, 3))
             with self.assertRaisesRegex(ValueError, 'another build'):
-                run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+                run_1vfield.report({1: seat1, 2: seat2}, range(1, 3))
             (seat1 / 'example.complete.json').unlink()
             with self.assertRaisesRegex(ValueError, 'incomplete'):
-                run_1vfield.report(control, {1: seat1}, range(1, 3))
-        self.assertIn('paired track-seeds 2: candidate minus champion place -0.250  '
+                run_1vfield.report({1: seat1, 2: seat2}, range(1, 3))
+        self.assertIn('track-seeds 2: candidate place minus the mean place -0.250  '
                       '(standard error 0.250; negative favours the candidate)', text)
-        self.assertIn('crashes      lone candidate 0   champion in the same seat 0', text)
+        self.assertIn('crashes      lone candidate 0 in 4 races (0.0%)   champions beside it 0 in 4 (0.0%)', text)
 
 
 class FleetGridGuardTests(unittest.TestCase):

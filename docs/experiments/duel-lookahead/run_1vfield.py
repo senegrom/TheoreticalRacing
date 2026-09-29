@@ -5,15 +5,13 @@ The mirrored screen (run_screen.py) races half a field of candidates against
 half a field of champions. A promotion must also survive the opposite regime,
 ONE candidate car entering a field of n-1 champions -- a policy can win the
 mixed field and still lose places as a lone entrant, or the reverse. The
-candidate is rotated through every seat (candidateSlots=k, k = 1..n), and each
-race is paired with the all-champion race of the same track, seed and seat:
-the same jar with no candidateSlots, which the arm's identity check has
-already shown to race exactly as the champion. The reading is the candidate's
-place minus the champion's place in that seat of that race -- negative means
-the lone candidate gains places on the current champion. With every seat
-raced, the control's places in one track-seed are a permutation of 1..n, so
-its mean is (n+1)/2 exactly: the pairing fixes the reading's zero, and the
-control otherwise contributes only the descriptive crash count.
+candidate is rotated through every seat (candidateSlots=k, k = 1..n). The
+reading is the candidate's mean place over the seats of one track and seed
+minus (n+1)/2, the mean place of any car in an n-car race -- negative means
+the lone candidate gains places on the champions. Each race used to be paired
+with the all-champion race of the same track, seed and seat; with every seat
+raced that race's places are a permutation of 1..n, so it contributed exactly
+(n+1)/2 per track and seed, and the owner dropped it (2026-09-29).
 
     run_1vfield.py --jar ARM.jar --out DIR [--seeds 1-5] [--jobs 3]
                    [--heap=-Xmx8g] [--players 8] [--mode legacy] [--tracks ALL]
@@ -58,7 +56,7 @@ def run_grid(args, jar: Path, props: Path, grid: Path) -> None:
 def validated_grid(grid: Path, seeds: range) -> dict:
     """The grid's manifest, once every track in it is a validated completion;
     its build, runtime, seeds, courses and race profile (all but the candidate
-    slot), which every paired grid must share."""
+    slot), which every seat's grid must share."""
     manifest = json.loads((grid / 'manifest.json').read_text(encoding='utf-8'))
     run_id = hashlib.sha256(json_text(manifest).encode('utf-8')).hexdigest()
     for track in manifest['tracks']:
@@ -69,41 +67,50 @@ def validated_grid(grid: Path, seeds: range) -> dict:
     return shared
 
 
-def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
-    # The pairing means something only between races of one build, runtime and
-    # course set: every seat grid must match the control (review, 2026-09-28).
-    common = validated_grid(control, seeds)
+def report(seats: dict[int, Path], seeds: range) -> str:
+    # One build, runtime, seed window, course set and profile across the seats
+    # (review, 2026-09-28): the first seat's grid is the reference.
+    first = min(seats)
+    common = validated_grid(seats[first], seeds)
     for seat, grid in seats.items():
         if validated_grid(grid, seeds) != common:
             raise ValueError(f'seat {seat} was raced by another build, runtime, seed window, course set or profile')
     tracks = sorted(common['tracks'])
     units, per_track = [], collections.defaultdict(list)
-    cand_places, cand_crash, champ_crash = [], 0, 0
+    cand_places, cand_crash, champ_crash, champ_races = [], 0, 0, 0
+    players = None
     for track in tracks:
         for seed in seeds:
-            base = read_race(control / f'{track}_s{seed}.log')
-            if base.slots:
-                raise ValueError(f'control race has candidates: {track} s{seed}')
-            diffs = []
+            places = []
             for seat, grid in seats.items():
                 race = read_race(grid / f'{track}_s{seed}.log')
                 if race.slots != {seat}:
                     raise ValueError(f'seat {seat} race has candidates {sorted(race.slots)}: {track} s{seed}')
-                diffs.append(race.places[seat] - base.places[seat])
-                cand_places.append(race.places[seat])
+                players = players or len(race.places)
+                if len(race.places) != players:
+                    raise ValueError(f'seat {seat} raced another field size: {track} s{seed}')
+                places.append(race.places[seat])
                 cand_crash += seat in race.crashed
-                champ_crash += seat in base.crashed
-            units.append(statistics.mean(diffs))
-            per_track[track].append(statistics.mean(diffs))
+                champ_crash += len(race.crashed - {seat})
+                champ_races += players - 1
+            # (n+1)/2 is the mean place only when every seat is raced.
+            if set(seats) != set(range(1, players + 1)):
+                raise ValueError('the lone check needs every seat raced: seats %s of %d' % (sorted(seats), players))
+            cand_places += places
+            units.append(statistics.mean(places) - (players + 1) / 2)
+            per_track[track].append(units[-1])
     n = len(units)
     mean = statistics.mean(units)
     se = statistics.stdev(units) / math.sqrt(n) if n > 1 else float('nan')
+    races = len(cand_places)
     lines = [
-        '%d races per seat, %d seats, %d paired track-seeds' % (n, len(seats), n),
-        'lone candidate mean place %.3f  (the champion in the same seats: %.3f)'
-        % (statistics.mean(cand_places), statistics.mean(cand_places) - mean),
-        'crashes      lone candidate %d   champion in the same seat %d' % (cand_crash, champ_crash),
-        'paired track-seeds %d: candidate minus champion place %+.3f  (standard error %.3f; negative favours the candidate)'
+        '%d races per seat, %d seats, %d track-seeds' % (n, len(seats), n),
+        'lone candidate mean place %.3f  (a car in a %d-car race: %.3f)'
+        % (statistics.mean(cand_places), players, (players + 1) / 2),
+        'crashes      lone candidate %d in %d races (%.1f%%)   champions beside it %d in %d (%.1f%%)'
+        % (cand_crash, races, 100 * cand_crash / races, champ_crash, champ_races,
+           100 * champ_crash / champ_races if champ_races else 0.0),
+        'track-seeds %d: candidate place minus the mean place %+.3f  (standard error %.3f; negative favours the candidate)'
         % (n, mean, se),
         # One candidate car's shift; head_to_head's mirrored difference is twice
         # this unit and prints it as its per-car line (review, 2026-09-27).
@@ -143,10 +150,6 @@ def main(argv: list[str] | None = None) -> int:
     name = f'{args.players}p-{args.mode}'
     out.mkdir(parents=True, exist_ok=True)
     try:
-        props = out / f'{name}-control.properties'
-        write_once(props, base)
-        control = out / f'{name}-control'
-        run_grid(args, jar, props, control)
         seats = {}
         for seat in range(1, args.players + 1):
             props = out / f'{name}-seat{seat}.properties'
@@ -154,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
             seats[seat] = out / f'{name}-seat{seat}'
             run_grid(args, jar, props, seats[seat])
         lo, hi = seed_range(args.seeds)
-        text = report(control, seats, range(lo, hi + 1))
+        text = report(seats, range(lo, hi + 1))
         (out / f'{name}-1vfield.txt').write_text(text, encoding='utf-8')
         print(text, end='', flush=True)
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:
