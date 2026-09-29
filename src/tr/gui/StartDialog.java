@@ -219,23 +219,18 @@ public final class StartDialog extends JFrame {
 
 	private void updateTrackPreview() {
 		final String sel = (String) cmbTrack.getSelectedItem();
-		if (sel == null || TRACK_DRAW_NEW.equals(sel)) {
+		final boolean drawNew = sel == null || TRACK_DRAW_NEW.equals(sel);
+		final TrackData td = drawNew ? null
+				: TRACK_LAST.equals(sel) ? TrackIO.loadLastTrackData(prop) : TrackIO.loadTrackData(sel);
+		if (drawNew)
 			previewPanel.clearTrack("Draw a new track");
-			showGameSize(prop.getProperty("gameX"), prop.getProperty("gameY"), true);
-			return;
-		}
-		final TrackData td;
-		if (TRACK_LAST.equals(sel))
-			td = TrackIO.loadLastTrackData(prop);
-		else
-			td = TrackIO.loadTrackData(sel);
-		if (td == null)
+		else if (td == null)
 			previewPanel.clearTrack("Track unavailable");
 		else
 			previewPanel.setTrack(td.gameX(), td.gameY(), td.left(), td.right(), td.name());
 		// A track's size is its own: editing it made "<Last>" open blank (it no
 		// longer fit the grid) and was ignored for a named track (review, 2026-09-27).
-		// An unavailable track races as a new drawing, on the stored size.
+		// A new drawing, or an unavailable track, races on the stored size.
 		if (td != null)
 			showGameSize(String.valueOf(td.gameX()), String.valueOf(td.gameY()), false);
 		else

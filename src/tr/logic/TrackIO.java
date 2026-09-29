@@ -97,17 +97,25 @@ public final class TrackIO {
 	 *  Delete those untouched for an hour (a live write takes seconds); returns
 	 *  how many went. Best effort (review, 2026-09-28). */
 	static int deleteAbandonedTemporaries(final Path dir, final long nowMillis) {
-		int deleted = 0;
+		final java.util.List<Path> files;
 		try (java.util.stream.Stream<Path> entries = Files.list(dir)) {
-			for (final Path file : entries.toList()) {
+			files = entries.toList();
+		} catch (final IOException | RuntimeException bestEffort) {
+			return 0; // a directory we cannot list keeps its files
+		}
+		int deleted = 0;
+		for (final Path file : files) {
+			// One file another process holds or removes keeps only itself: the
+			// sweep used to stop at the first (review, 2026-09-29).
+			try {
 				final String name = file.getFileName().toString();
 				if (name.startsWith(".") && name.contains(".tmp.") && Files.isRegularFile(file)
 						&& nowMillis - Files.getLastModifiedTime(file).toMillis() > ABANDONED_AFTER_MILLIS
 						&& Files.deleteIfExists(file))
 					deleted++;
+			} catch (final IOException | RuntimeException bestEffort) {
+				// the next process's sweep tries it again
 			}
-		} catch (final IOException | RuntimeException bestEffort) {
-			// a directory we cannot sweep keeps its files
 		}
 		return deleted;
 	}
@@ -116,7 +124,9 @@ public final class TrackIO {
 	private static final java.util.concurrent.atomic.AtomicBoolean CACHE_SWEPT =
 			new java.util.concurrent.atomic.AtomicBoolean();
 
-	/** Sweep the map-cache directory once per process, before its first write. */
+	/** Sweep the map-cache directory once per process, when its first
+	 *  preparation starts: a process whose maps all come from the cache writes
+	 *  nothing, and the bench box's JVMs mostly do (review, 2026-09-29). */
 	static void sweepCacheDirOnce() {
 		if (CACHE_SWEPT.compareAndSet(false, true) && Files.isDirectory(REACH_CACHE_DIR))
 			deleteAbandonedTemporaries(REACH_CACHE_DIR, System.currentTimeMillis());

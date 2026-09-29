@@ -15,7 +15,7 @@ import java.util.zip.CRC32;
 
 /**
  * Track reachability solver extracted from {@link RaceGame}: the reverse-BFS
- * turnsToFinish map, the roomy / shed / certified-speed precompute, the
+ * turnsToFinish map, the roomy and shed precompute, the
  * distance-to-finish map, and their async lifecycle. Reads its host's geometry
  * predicates (finish crossing, edge legality, track area) through a back-ref;
  * the AI reads the resulting arrays directly.
@@ -335,7 +335,7 @@ final class Reachability {
 		// (143,9): braking 9,8,7,6,5 into the wall behind the line). Alive
 		// := finite on any product-coherent gate map (a state that can
 		// reach one coherent gate reaches them all); the successor mask and
-		// the roomy/shed/certified sweeps are re-derived over it. The final
+		// the roomy and shed sweeps are re-derived over it. The final
 		// lap's terminal crossing stays a precedence, not a map. laps=1 is
 		// untouched (no gate maps there).
 		final BitSet coherent = new BitSet(turnsArr.length);
@@ -835,15 +835,17 @@ final class Reachability {
 	/** Sweep helper for {@link #computeReachability}: per-alive-state bitmask
 	 *  over {@link Direction} ordinals — bit d set iff the successor under d
 	 *  stays in the velocity range, its edge is geometry-legal and its landing
-	 *  is alive (the shared non-crossing qualifying conditions of
-	 *  {@link #isRoomy} and {@link #canShedSpeed}). Every legality query here
+	 *  is alive (the shared non-crossing condition of the roomy and shed
+	 *  sweeps, and so of RaceAi's isRoomy). Every legality query here
 	 *  hits {@code edgeLegalCache}: when the BFS popped an alive landing it
 	 *  already checked the edge from the landing's unique cell-predecessor,
 	 *  which is exactly the source cell used here. */
 	short[] buildLegalAliveMask(final int total) {
 		final int span = aliveSpan;
 		final short[] mask = new short[total];
+		int visited = 0;
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			pollSweep(++visited);
 			int rest = idx;
 			final int vy = rest % span - aliveVMAX;
 			rest /= span;
@@ -876,7 +878,9 @@ final class Reachability {
 	 *  bit is set. */
 	void sweepRoomy(final short[] legalAlive, final BitSet out) {
 		final int span = aliveSpan;
+		int visited = 0;
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			pollSweep(++visited);
 			int rest = idx;
 			final int vy = rest % span - aliveVMAX;
 			rest /= span;
@@ -933,7 +937,9 @@ final class Reachability {
 		final int span = aliveSpan;
 		final byte[] out = new byte[in.length];
 		Arrays.fill(out, (byte) 0xFF);
+		int visited = 0;
 		for (int idx = aliveStates.nextSetBit(0); idx >= 0; idx = aliveStates.nextSetBit(idx + 1)) {
+			pollSweep(++visited);
 			int rest = idx;
 			final int vy = rest % span - aliveVMAX;
 			rest /= span;
@@ -1256,12 +1262,19 @@ final class Reachability {
 		}
 	}
 
-	/** The gates this map's lap bundle belongs to (RaceGame.lapIdentity); a
-	 *  test fixture may build a map without a game. */
+	/** A test fixture may build a map without a game. */
 	private boolean cancelled() {
 		return game != null && game.isPreparationCancelled();
 	}
 
+	/** Sweeps over the alive set poll the cancel as the searches do, once per
+	 *  PREPARATION_POLL_MASK + 1 states (review, 2026-09-29). */
+	private void pollSweep(final int visited) {
+		if ((visited & RaceGame.PREPARATION_POLL_MASK) == 0 && cancelled())
+			throw new java.util.concurrent.CancellationException("track preparation cancelled");
+	}
+
+	/** The gates this map's lap bundle belongs to (RaceGame.lapIdentity). */
 	private String lapKey() {
 		return game == null ? "" : game.lapIdentity();
 	}
@@ -1290,6 +1303,7 @@ final class Reachability {
 		final Thread t = new Thread(() -> {
 			try {
 				game.checkPreparation(); // a cancelled game never starts (not even from the cache)
+				TrackIO.sweepCacheDirOnce();
 				final java.nio.file.Path cachePath = reachCachePath();
 				final String memoKey = cachePath == null ? null : cachePath.toString();
 				if (!adoptMemo(memoKey)) {
@@ -1384,14 +1398,19 @@ final class Reachability {
 	// The turns map and the legal-alive mask are pure functions of the track
 	// geometry (seeds only move start placements), yet the BFS that builds
 	// them dominates race startup. Both arrays are cached keyed by a geometry
-	// hash; the cheap roomy/shed/cert sweeps are re-derived on load. Files
+	// hash; the cheap roomy and shed sweeps come from their own derived
+	// file (<key>.derived2) or are re-derived on load. Files
 	// live outside the install dir (TrackIO.reachCacheDir) so multi-MB caches
 	// never land in cloud-synced folders.
 
 	/** Round 222: the semantics version of the cached maps, on BOTH branches.
 	 *  Round 215 changed the alive seed for every course but bumped only the
 	 *  lap branch's suffix, so pre-215 point-to-point caches were still read.
-	 *  Bump this whenever the BFS or its seeds change meaning. */
+	 *  Bump this whenever the BFS or its seeds change meaning: it is part of
+	 *  the key, so the .bin and its .derived2 move to new names together. The
+	 *  derived file's own format (which maps, their layout) is versioned by
+	 *  its suffix and DERIVED_MAGIC: change both when that changes, so jars of
+	 *  both formats can share one cache directory (review, 2026-09-29). */
 	private static final String CACHE_SEMANTICS = "15";
 	// TRC2 appends a CRC32 so valid-looking, same-size corruption cannot alter AI decisions.
 	private static final int CACHE_MAGIC = 0x54524332; // "TRC2"
@@ -1513,7 +1532,6 @@ final class Reachability {
 		final Path path = reachCachePath();
 		if (path == null)
 			return;
-		TrackIO.sweepCacheDirOnce();
 		try {
 			TrackIO.writeAtomically(path, out ->
 					writeCacheData(out, aliveW, aliveH, aliveVMAX, turnsArr, legalAlive));

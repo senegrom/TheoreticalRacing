@@ -5,7 +5,8 @@ import java.util.List;
 
 /** Dialog transport, not a rules replacement. Crash consent is explicit and one-shot. */
 public final class JOptionPane {
-    public static final int YES_NO_OPTION = 0, YES_OPTION = 0, NO_OPTION = 1, OK_OPTION = 0;
+    public static final int YES_NO_OPTION = 0, YES_OPTION = 0, NO_OPTION = 1, OK_OPTION = 0,
+            INFORMATION_MESSAGE = 1;
     private static final List<String> MESSAGES = new ArrayList<>();
     private static boolean confirmed;
     private JOptionPane() {}

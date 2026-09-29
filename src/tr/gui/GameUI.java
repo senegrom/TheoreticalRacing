@@ -53,6 +53,39 @@ public final class GameUI {
 	private String status = " ";
 	private final String title;
 	private boolean undoEnabled;
+	private final InputGate input = new InputGate();
+
+	/** Input the user made while an AI moved or placed on the event thread is
+	 *  queued behind that work and dispatched after it, on a board the user
+	 *  has not seen: two clicks on one direction during an AI's think
+	 *  committed a move whose preview never showed (review, 2026-09-28). Each
+	 *  AI move or placement closes the gate and queues a marker behind the
+	 *  waiting input; the marker reopens it, so exactly that input is dropped.
+	 *  No clock: an event's time comes from the windowing system, whose clock
+	 *  X11 stops during a suspend (review, 2026-09-29). */
+	static final class InputGate {
+		private int epoch;
+		private boolean open = true;
+
+		void close(final java.util.function.Consumer<Runnable> later) {
+			open = false;
+			final int mine = ++epoch;
+			later.accept(() -> {
+				if (mine == epoch)
+					open = true;
+			});
+		}
+
+		boolean isOpen() {
+			return open;
+		}
+	}
+
+	/** After each AI move or placement: drop the input queued meanwhile. */
+	public void closeQueuedInput() {
+		if (frame != null)
+			input.close(SwingUtilities::invokeLater);
+	}
 
 	public GameUI(final String title, final int maxPlayers) {
 		this.title = title;
@@ -144,16 +177,18 @@ public final class GameUI {
 
 		final ActionListener buttonListener = event -> {
 			final Object source = event.getSource();
-			if (source == btnOK)
+			if (source == btnRestart)
+				game.restartMe();
+			else if (!input.isOpen())
+				return; // OK and Undo too: a greyed button re-enabled by the AI's reply
+			else if (source == btnOK)
 				game.clickedOK();
 			else if (source == btnUndo)
 				game.clickedUndo();
-			else if (source == btnRestart)
-				game.restartMe();
 			else
 				for (int i = 0; i < btnDirections.length; i++)
 					if (source == btnDirections[i]) {
-						game.clickedDirection(Direction.fromIndex(i), event.getWhen());
+						game.clickedDirection(Direction.fromIndex(i));
 						break;
 					}
 		};
@@ -209,11 +244,11 @@ public final class GameUI {
 		grid.addMouseListener(new MouseAdapter() {
 			@Override
 			public void mousePressed(final MouseEvent event) {
-				if (!SwingUtilities.isLeftMouseButton(event))
+				if (!SwingUtilities.isLeftMouseButton(event) || !input.isOpen())
 					return;
 				final int x = (int) Math.round(event.getX() / (double) RaceUI.GRID_DIST);
 				final int y = (int) Math.round(event.getY() / (double) RaceUI.GRID_DIST);
-				game.clickedGrid(x, y, event.getWhen());
+				game.clickedGrid(x, y);
 			}
 		});
 

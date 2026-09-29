@@ -899,6 +899,27 @@ public final class CoreTests {
                 "two loops side by side were accepted: " + apart);
         check(RaceGame.openLoopProblem(java.util.List.of(new int[]{5, 5}, new int[]{40, 5}),
                 java.util.List.of(new int[]{5, 12}, new int[]{40, 12})) == null, "a point-to-point drawing was refused");
+        // Review, 2026-09-29: a hairpin whose closing walls meet at its mouth has
+        // no lap. One point on the other ring's edge counted as inside when the
+        // edge was a left or top one, so it passed opening west or north only.
+        final int[][] inner = {{10, 14}, {15, 14}, {20, 14}, {25, 14}, {30, 14}, {37, 14},
+                {37, 11}, {30, 11}, {25, 11}, {20, 11}, {15, 11}, {10, 11}};
+        final int[][] outerU = {{10, 16}, {15, 16}, {20, 16}, {25, 16}, {30, 16}, {40, 16},
+                {40, 9}, {30, 9}, {25, 9}, {20, 9}, {15, 9}, {10, 9}};
+        final String[] openings = {"west", "east", "north", "south"};
+        for (int o = 0; o < 4; o++) {
+            final int orientation = o;
+            final java.util.function.Function<int[][], java.util.List<int[]>> turn = points ->
+                    java.util.Arrays.stream(points).map(q -> switch (orientation) {
+                        case 0 -> new int[]{q[0], q[1]};
+                        case 1 -> new int[]{50 - q[0], q[1]};
+                        case 2 -> new int[]{q[1], q[0]};
+                        default -> new int[]{q[1], 50 - q[0]};
+                    }).toList();
+            final String hairpin = RaceGame.openLoopProblem(turn.apply(inner), turn.apply(outerU));
+            check(hairpin != null && hairpin.contains("must not touch"),
+                    "a hairpin opening " + openings[o] + " was taken for a loop: " + hairpin);
+        }
     }
 
     /** Review, 2026-09-28: the derived cache is streamed both ways, and since
@@ -1077,23 +1098,7 @@ public final class CoreTests {
         game.clickedDirection(Direction.E);
         checkPoint(ai.getPosition(), 5, 6);
         checkPoint(ai.getVelocity(), 1, 0);
-        // Review, 2026-09-28: a human's click made while an AI computed -- stamped
-        // before the barrier its move set -- is dropped, not taken as a preview.
-        final Player human = new Player("H", 1, Color.RED, Player.Kind.HUMAN);
-        human.setPosition(p(5, 6));
-        game.players = new Player[]{human};
-        try {
-            final java.lang.reflect.Field barrier = RaceGame.class.getDeclaredField("aiInputBarrier");
-            barrier.setAccessible(true);
-            barrier.setLong(game, 1_000L);
-            final java.lang.reflect.Field preview = RaceGame.class.getDeclaredField("isShowingPrePath");
-            preview.setAccessible(true);
-            final int before = preview.getInt(game);
-            game.clickedDirection(Direction.E, 999L);
-            check(preview.getInt(game) == before, "a click queued behind an AI move was taken");
-        } catch (final ReflectiveOperationException error) {
-            throw new AssertionError("could not arrange the queued-click test", error);
-        }
+        // Input queued behind an AI move: GameUITests (the window's input gate).
     }
 
     private static void testSegmentIntersection() {

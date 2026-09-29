@@ -45,11 +45,9 @@ public final class RaceGame {
 	 *  disagree at gate 0 when a drawing's end curls (monaco, hungaroring:
 	 *  inverted forward seeded backward crossings into a dead pocket). */
 	private double				lapFwdX, lapFwdY;
-	private int[][]				lapGatePoints;
 	/** Multi-lap: blue closing boundary across the two S/F side gaps --
 	 *  per side a short polyline following the wall's natural extension. */
 	private Line2D[][]			lapClosures;
-	private int[][][]			lapClosurePoints;
 	/** Gate-0 segment shrunk at both ends: the span a crossing must actually
 	 *  intersect. An endpoint-only touch is not a crossing -- otherwise the
 	 *  maps route arrivals from the exit side onto a one-cell endpoint tap
@@ -805,7 +803,8 @@ public final class RaceGame {
 	}
 
 	/** Every board the size sanitiser admits (500 x 500 cells, speed 12): 157M
-	 *  edges at two bits, 39 MiB. The old 64M cap sent the Nordschleife (126M)
+	 *  edges at two bits, 37 MiB a plane and 75 MiB with the finish verdicts.
+	 *  The old 64M cap sent the Nordschleife (126M)
 	 *  to the synchronised, unbounded fallback map, which every preparation
 	 *  thread then shared through one lock (review, 2026-09-28). Same verdicts. */
 	static final long DENSE_EDGE_MAX_ENTRIES = 501L * 501 * (2 * RaceGame.AI_MAX_SPEED + 1) * (2 * RaceGame.AI_MAX_SPEED + 1);
@@ -1321,6 +1320,9 @@ public final class RaceGame {
 	 *  threads to stop, so a replacement game does not prepare beside them. */
 	void cancelPreparation(final long millis) {
 		preparationCancelled = true;
+		// The caller's own point memo (the event thread's, for a restart) is this
+		// game's too, and nothing else would drop it (review, 2026-09-29).
+		clearPointContainmentCacheForCurrentThread();
 		final long deadline = System.nanoTime() + millis * 1_000_000L;
 		for (final Thread thread : new Thread[]{reach.preparationThread(), optimalWorker}) {
 			final long left = (deadline - System.nanoTime()) / 1_000_000L;
@@ -1410,16 +1412,19 @@ public final class RaceGame {
 		// Nordschleife); short of heap the champion races demoted, which the fleet
 		// runner refuses -- so the log says which (review, 2026-09-27).
 		final boolean capped = distanceBudget <= 0 || distanceBytes > distanceBudget;
-		// build refuses a frontier under 1024 ints; past that, a null is the
-		// frontier budget running out, which more heap does not cure.
+		// build refuses a frontier under 1024 ints. Past that, a null is the
+		// frontier running out: of its own 64 MiB -- which more heap does not
+		// cure -- or of less, when the heap cut the total budget short of the
+		// distance map plus that frontier (review, 2026-09-29).
 		final boolean shortOfHeap = totalBudget < distanceBytes + 1024L * Integer.BYTES;
 		prepared = capped || shortOfHeap
 				? null : OptimalPotential.build(this, totalLaps, distanceBudget, totalBudget);
+		final boolean heapCutFrontier = totalBudget < distanceBytes + OPTIMAL_FRONTIER_BUDGET_BYTES;
 		cacheOptimal(key, prepared);
 		if (autoMode)
 			System.out.printf("[optimal] potential %s in %.1fs (distance %.0f MiB, total %.0f MiB)%n",
 					prepared != null ? "built" : capped ? "SKIPPED (over the distance cap)"
-							: shortOfHeap ? "SKIPPED (heap too small)" : "SKIPPED (frontier budget)",
+							: shortOfHeap || heapCutFrontier ? "SKIPPED (heap too small)" : "SKIPPED (frontier budget)",
 					(System.nanoTime() - t0) / 1e9, distanceBudget / (double) (1 << 20),
 					totalBudget / (double) (1 << 20));
 		return prepared;
@@ -1478,6 +1483,11 @@ public final class RaceGame {
 				finally {
 					clearPointContainmentCacheForCurrentThread();
 					completeOptimalPotential(prepared, failure);
+					// Like the reachability daemon: a worker that outlived the cancel's
+					// join may have filled the fallback edge cache since its release
+					// (review, 2026-09-29).
+					if (isPreparationCancelled())
+						releasePreparedMaps();
 				}
 			}, "optimal-potential-compute");
 			worker.setDaemon(true);
@@ -1622,17 +1632,37 @@ public final class RaceGame {
 			return "A closed loop needs both borders to end within " + (int) LAP_CLOSURE_MAX
 					+ " cells of where they started (the " + (gapL > gapR ? "left" : "right") + " border ends "
 					+ Math.round(Math.max(gapL, gapR)) + " cells away).";
-		if (!ringContains(left, right.get(0)) && !ringContains(right, left.get(0)))
+		// The rings must not touch anywhere, closing walls included: one point
+		// on the other ring's edge counted as inside when that edge was a left
+		// or top one (Path2D's rule), so a hairpin whose closing walls met at
+		// its mouth -- a course with no lap -- passed opening west or north and
+		// failed opening east or south (review, 2026-09-29). Rings that do not
+		// touch are nested or apart, which one point then decides.
+		final java.util.List<Line2D> ringL = closedRing(left), ringR = closedRing(right);
+		for (final Line2D a : ringL)
+			for (final Line2D b : ringR)
+				if (a.intersectsLine(b))
+					return "A closed loop's borders must not touch, their closing walls included.";
+		if (!ringContains(ringL, right.get(0)) && !ringContains(ringR, left.get(0)))
 			return "A closed loop needs one border inside the other.";
 		return null;
 	}
 
-	/** Is p inside the polygon the border makes with its closing chord? */
-	private static boolean ringContains(final java.util.List<int[]> ring, final int[] p) {
+	/** The border and the closing walls computeLapGates gives it, as segments. */
+	private static java.util.List<Line2D> closedRing(final java.util.List<int[]> border) {
+		final java.util.List<Line2D> ring = new java.util.ArrayList<>();
+		for (int i = 1; i < border.size(); i++)
+			ring.add(new Line2D.Double(border.get(i - 1)[0], border.get(i - 1)[1], border.get(i)[0], border.get(i)[1]));
+		ring.addAll(java.util.Arrays.asList(extendClosure(border)));
+		return ring;
+	}
+
+	/** Is p inside the polygon of a closed ring's segments? */
+	private static boolean ringContains(final java.util.List<Line2D> ring, final int[] p) {
 		final java.awt.geom.Path2D.Double polygon = new java.awt.geom.Path2D.Double();
-		polygon.moveTo(ring.get(0)[0], ring.get(0)[1]);
-		for (int i = 1; i < ring.size(); i++)
-			polygon.lineTo(ring.get(i)[0], ring.get(i)[1]);
+		polygon.moveTo(ring.get(0).getX1(), ring.get(0).getY1());
+		for (final Line2D segment : ring)
+			polygon.lineTo(segment.getX2(), segment.getY2());
 		polygon.closePath();
 		return polygon.contains(p[0], p[1]);
 	}
@@ -1657,7 +1687,6 @@ public final class RaceGame {
 	 *  Degenerate tracks disable laps instead of racing broken gates. */
 	private void computeLapGates() {
 		lapGates = null;
-		lapGatePoints = null;
 		lapCrossGate = null;
 		final java.util.List<int[]> lefts = track.getLeft();
 		final java.util.List<int[]> rights = track.getRight();
@@ -1682,16 +1711,6 @@ public final class RaceGame {
 			return;
 		}
 		lapClosures = new Line2D[][]{extendClosure(lefts), extendClosure(rights) };
-		lapClosurePoints = new int[2][][];
-		for (int s = 0; s < 2; s++) {
-			lapClosurePoints[s] = new int[lapClosures[s].length][];
-			for (int i = 0; i < lapClosures[s].length; i++) {
-				final Line2D seg = lapClosures[s][i];
-				lapClosurePoints[s][i] = new int[]{(int) Math.round(seg.getX1()),
-						(int) Math.round(seg.getY1()), (int) Math.round(seg.getX2()),
-						(int) Math.round(seg.getY2()) };
-			}
-		}
 		double hx = 0, hy = 0;
 		if (lefts.size() >= 2) {
 			hx += lefts.get(1)[0] - lFirst[0];
@@ -1705,7 +1724,6 @@ public final class RaceGame {
 		lapFwdX = hlen == 0 ? 0 : hx / hlen;
 		lapFwdY = hlen == 0 ? 0 : hy / hlen;
 		lapGates = new Line2D[3];
-		lapGatePoints = new int[3][];
 		final double[] fractions = {0.0, 1.0 / 3, 2.0 / 3 };
 		// A drawing places its checkpoints by LENGTH: by index, sparse early points
 		// put both on the last side, and a short run backwards and back counted as
@@ -1717,8 +1735,6 @@ public final class RaceGame {
 				final double[] lp = TrackGeometry.pointAlong(lefts, fractions[k]);
 				final double[] rp = TrackGeometry.nearestOn(rights, lp[0], lp[1]);
 				lapGates[k] = new Line2D.Double(lp[0], lp[1], rp[0], rp[1]);
-				lapGatePoints[k] = new int[]{(int) Math.round(lp[0]), (int) Math.round(lp[1]),
-						(int) Math.round(rp[0]), (int) Math.round(rp[1]) };
 				continue;
 			}
 			final int[] lp = lefts.get((int) Math.round(fractions[k] * (lefts.size() - 1)));
@@ -1733,7 +1749,6 @@ public final class RaceGame {
 				}
 			}
 			lapGates[k] = new Line2D.Double(lp[0], lp[1], best[0], best[1]);
-			lapGatePoints[k] = new int[]{lp[0], lp[1], best[0], best[1] };
 		}
 		final double gx1 = lapGates[0].getX1(), gy1 = lapGates[0].getY1();
 		final double gx2 = lapGates[0].getX2(), gy2 = lapGates[0].getY2();
@@ -1743,9 +1758,13 @@ public final class RaceGame {
 				gx1 + (gx2 - gx1) * shrink, gy1 + (gy2 - gy1) * shrink,
 				gx2 - (gx2 - gx1) * shrink, gy2 - (gy2 - gy1) * shrink);
 		if (autoMode)
-			System.out.println("[laps] gate geometry: S/F " + java.util.Arrays.toString(lapGatePoints[0])
-					+ " CP1 " + java.util.Arrays.toString(lapGatePoints[1])
-					+ " CP2 " + java.util.Arrays.toString(lapGatePoints[2]));
+			System.out.println("[laps] gate geometry: S/F " + roundedText(lapGates[0])
+					+ " CP1 " + roundedText(lapGates[1]) + " CP2 " + roundedText(lapGates[2]));
+	}
+
+	private static String roundedText(final Line2D gate) {
+		return java.util.Arrays.toString(new int[]{(int) Math.round(gate.getX1()), (int) Math.round(gate.getY1()),
+				(int) Math.round(gate.getX2()), (int) Math.round(gate.getY2()) });
 	}
 
 	/** Natural continuation closure for one boundary side: extend the final
@@ -1807,24 +1826,6 @@ public final class RaceGame {
 		final double len = Math.hypot(hx, hy);
 		finishFwdX = len == 0 ? 0 : hx / len;
 		finishFwdY = len == 0 ? 0 : hy / len;
-	}
-
-	/** When the last AI move or placement on the event thread ended. Input the
-	 *  user made while it ran was queued behind it and dispatched after it, on
-	 *  a board they had not seen: two clicks on one direction during an AI's
-	 *  think committed a move whose preview never showed (review, 2026-09-28). */
-	private long aiInputBarrier = Long.MIN_VALUE;
-
-	/** A direction button's click, stamped with its event time. */
-	public void clickedDirection(final Direction direction, final long when) {
-		if (when >= aiInputBarrier)
-			clickedDirection(direction);
-	}
-
-	/** A grid click, stamped with its event time. */
-	public void clickedGrid(final int x, final int y, final long when) {
-		if (when >= aiInputBarrier)
-			clickedGrid(x, y);
 	}
 
 	/** Activated when a direction button is clicked. */
@@ -2076,6 +2077,27 @@ public final class RaceGame {
 		return 0;
 	}
 
+	/** The closing walls as the corridor has them: lapClosedSide joins each
+	 *  side's ends through the ROUNDED midpoints and corners of its closure, so
+	 *  walls drawn from the closure's rounded endpoints ran up to half a cell
+	 *  off the wall a car meets (reviews, 2026-09-29). */
+	private int[][] closureWalls() {
+		final java.util.List<int[]> walls = new java.util.ArrayList<>();
+		final java.util.List<java.util.LinkedList<int[]>> sides = java.util.List.of(track.getLeft(), track.getRight());
+		for (int s = 0; s < 2; s++) {
+			final java.util.LinkedList<int[]> side = sides.get(s);
+			final java.util.LinkedList<int[]> ring = lapClosedSide(side, lapClosures == null ? null : lapClosures[s]);
+			int[] from = side.getLast();
+			for (int i = side.size(); i <= ring.size(); i++) {
+				final int[] to = i < ring.size() ? ring.get(i) : side.getFirst();
+				if (!java.util.Arrays.equals(from, to))
+					walls.add(new int[]{from[0], from[1], to[0], to[1] });
+				from = to;
+			}
+		}
+		return walls.toArray(int[][]::new);
+	}
+
 	/** Multi-lap: the containment polygon must cover the S/F gap band, so
 	 *  each boundary closes through its blue closure polyline -- the legacy
 	 *  polygon's closing edge slices the corridor at the lasts and walls off
@@ -2137,15 +2159,20 @@ public final class RaceGame {
 			if (subgamestate == players.length)
 				subgamestate = 0;
 		} while (players[subgamestate].isFinished());
+		showTurnStart();
+	}
 
-		final int[] vel = players[subgamestate].getVelocity();
-		final int[] pos = players[subgamestate].getPosition();
-		gameFrame.setStatus(players[subgamestate].getName() + "'s turn...");
-		gameFrame.setDirectionsEnabled(!players[subgamestate].isAi());
+	/** The mover's turn on screen: status, controls and velocity arrow -- a
+	 *  scattered start already moves (review, 2026-09-28). */
+	private void showTurnStart() {
+		final Player mover = players[subgamestate];
+		final int[] pos = mover.getPosition(), vel = mover.getVelocity();
+		gameFrame.setStatus(mover.getName() + "'s turn...");
+		gameFrame.setDirectionsEnabled(!mover.isAi());
 		rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
 		rui.setPrePath(null);
 		isShowingPrePath = -1;
-		gameFrame.setUndoEnabled(!players[subgamestate].isAi() && hasUndoableHumanMove());
+		gameFrame.setUndoEnabled(!mover.isAi() && hasUndoableHumanMove());
 	}
 
 	private boolean hasUndoableHumanMove() {
@@ -2183,28 +2210,43 @@ public final class RaceGame {
 			try {
 				reach.ensureReachabilityReady();
 			} catch (final RuntimeException | Error failure) {
-				// Stop callbacks and controls before reporting: even an allocation
-				// failure in the dialog must not leave this race marked PLAY.
-				gamestate = GameState.FINISHED;
-				isShowingPrePath = -1;
-				gameFrame.setDirectionsEnabled(false);
-				gameFrame.setUndoEnabled(false);
-				gameFrame.setOkEnabled(false);
-				if (rui != null) {
-					rui.setVelVector(null, -1);
-					rui.setPrePath(null);
-				}
-				clearPointContainmentCacheForCurrentThread();
-				final String message = "Track preparation failed: " + failure;
-				gameFrame.setStatus(message);
-				gameFrame.repaint();
-				// The status also survives without a native window (adapter/tests).
-				if (gameFrame.getDialogParent() != null) dispMessage(message);
+				stopFailedRace("Track preparation failed: " + failure);
 				return;
 			}
 		}
-		executeMove(ai.computeAiMove());
-		aiInputBarrier = System.currentTimeMillis();
+		final String mover = players[subgamestate].getName();
+		try {
+			executeMove(ai.computeAiMove());
+		} catch (final RuntimeException | Error failure) {
+			// A desktop window sat in PLAY with the AI to move and nothing
+			// scheduled, controls off and no word (review, 2026-09-29). Headless
+			// runs exit through the uncaught-exception handler, and the browser's
+			// transport reports the exception, as before.
+			if (gameFrame.getDialogParent() == null)
+				throw failure;
+			stopFailedRace(mover + " (AI) failed: " + failure);
+			return;
+		}
+		gameFrame.closeQueuedInput();
+	}
+
+	/** Stop a race that cannot go on: callbacks and controls first -- even an
+	 *  allocation failure in the dialog must not leave it marked PLAY -- then
+	 *  the reason. The status also survives without a native window. */
+	private void stopFailedRace(final String message) {
+		gamestate = GameState.FINISHED;
+		isShowingPrePath = -1;
+		gameFrame.setDirectionsEnabled(false);
+		gameFrame.setUndoEnabled(false);
+		gameFrame.setOkEnabled(false);
+		if (rui != null) {
+			rui.setVelVector(null, -1);
+			rui.setPrePath(null);
+		}
+		clearPointContainmentCacheForCurrentThread();
+		gameFrame.setStatus(message);
+		gameFrame.repaint();
+		if (gameFrame.getDialogParent() != null) dispMessage(message);
 	}
 
 	final static int		AI_MAX_SPEED	= 12;
@@ -2328,7 +2370,7 @@ public final class RaceGame {
 			players[subgamestate].setPosition(pos);
 			subgamestate++;
 		}
-		aiInputBarrier = System.currentTimeMillis();
+		gameFrame.closeQueuedInput();
 	}
 
 	/** Round 225 benchmark mode: a seeded random alive, robust state anywhere on
@@ -2511,10 +2553,7 @@ public final class RaceGame {
 		// The referee's own segments: a drawing's checkpoints sit between grid
 		// points, and rounded they were drawn up to half a cell off (review, 2026-09-28).
 		rui.setCheckpoints(lapGates != null ? new Line2D[]{lapGates[1], lapGates[2] } : null);
-		rui.setLoopClosure(lapGates != null && lapClosurePoints != null
-				? java.util.stream.Stream.of(lapClosurePoints)
-						.flatMap(java.util.stream.Stream::of).toArray(int[][]::new)
-				: null);
+		rui.setLoopClosure(lapGates != null ? closureWalls() : null);
 		final Path2D.Float p = new Path2D.Float();
 		p.moveTo(startZone[0][0], startZone[1][0]);
 		for (int i = 1; i < 4; i++)
@@ -2572,7 +2611,6 @@ public final class RaceGame {
 			processQueries(queryInPath, queryOutPath);
 			System.exit(0);
 		}
-		saveTrackToProperties();
 	}
 
 	/** Answer versioned, independent move queries using the live referee. */
@@ -2683,8 +2721,6 @@ public final class RaceGame {
 				dispMessage("Track too short.");
 				return;
 			}
-			if (refuseCoarseLoop(track.getRight()))
-				return;
 			final String openLoop = openLoopProblem(track.getLeft(), track.getRight());
 			if (openLoop != null) {
 				dispMessage(openLoop);
@@ -2721,14 +2757,7 @@ public final class RaceGame {
 			gamestate = GameState.PLAY;
 			moveHistory.clear();
 			subgamestate = 0;
-			gameFrame.setStatus(players[0].getName() + "'s turn...");
-			gameFrame.setDirectionsEnabled(!players[0].isAi());
-			// The first mover's velocity arrow, as every later turn draws it: a
-			// scattered start already moves (review, 2026-09-28).
-			final int[] firstPos = players[0].getPosition(), firstVel = players[0].getVelocity();
-			rui.setVelVector(new int[]{firstPos[0] + firstVel[0], firstPos[1] + firstVel[1] }, 0);
-			rui.setPrePath(null);
-			isShowingPrePath = -1;
+			showTurnStart();
 			redoPlayerLabels();
 			initGameLog();
 			maybeAiTurn();
@@ -2767,15 +2796,7 @@ public final class RaceGame {
 			}
 			if (target == null)
 				return;
-			gamestate = GameState.PLAY;
-			final int[] pos = players[subgamestate].getPosition();
-			final int[] vel = players[subgamestate].getVelocity();
-			gameFrame.setStatus(players[subgamestate].getName() + "'s turn...");
-			rui.setVelVector(new int[]{pos[0] + vel[0], pos[1] + vel[1] }, subgamestate);
-			rui.setPrePath(null);
-			isShowingPrePath = -1;
-			gameFrame.setUndoEnabled(hasUndoableHumanMove());
-			gameFrame.setDirectionsEnabled(true);
+			showTurnStart();
 			redoPlayerLabels();
 		}
 		gameFrame.repaint();
@@ -2786,7 +2807,7 @@ public final class RaceGame {
 			System.out.println("[msg] " + s);
 			return;
 		}
-		JOptionPane.showMessageDialog(gameFrame.getDialogParent(), s, NAME, JOptionPane.OK_OPTION);
+		JOptionPane.showMessageDialog(gameFrame.getDialogParent(), s, NAME, JOptionPane.INFORMATION_MESSAGE);
 	}
 
 	/** Exit the game after a prompt. */

@@ -19,4 +19,6 @@ public final class GameUI {
     public void setPlayerInfo(final String text, final int i) {}
     public void setStatus(final String text) { status = text; }
     public void setupUI(final Object grid, final RaceGame game, final int x, final int y, final Player[] players) {}
+    /** The page sends input only when the snapshot allows it; nothing queues. */
+    public void closeQueuedInput() {}
 }

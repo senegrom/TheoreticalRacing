@@ -11,7 +11,23 @@ import javax.swing.SwingUtilities;
 public final class GameUITests {
     private GameUITests() {}
 
+    /** Review, 2026-09-29: input queued behind an AI move is dropped by the
+     *  queue's own order, not by comparing clocks. */
+    private static void testQueuedInputGate() {
+        final GameUI.InputGate gate = new GameUI.InputGate();
+        final java.util.ArrayDeque<Runnable> queue = new java.util.ArrayDeque<>();
+        check(gate.isOpen(), "input starts closed");
+        gate.close(queue::add);
+        check(!gate.isOpen(), "input queued behind an AI move was accepted");
+        gate.close(queue::add); // the next AI moves before the first marker ran
+        queue.poll().run();
+        check(!gate.isOpen(), "the first move's marker reopened input during the second");
+        queue.poll().run();
+        check(gate.isOpen(), "input stayed closed after the queue drained");
+    }
+
     public static void run() {
+        testQueuedInputGate();
         final JPanel grid = new JPanel();
         grid.setPreferredSize(new Dimension(240, 160));
         final JScrollPane scroller = GameUI.createGridScroller(grid);
