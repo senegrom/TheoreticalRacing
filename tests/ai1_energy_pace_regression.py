@@ -18,7 +18,8 @@ EXPECTED = {
  # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
  # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
  # Round 278: re-frozen from measurement (the chooser's pick stands).
- ("nurburgring",1): (7, 0, [92, 93, 93, 93, 94, 95, 95]),
+ # Round 291: re-frozen from measurement (the grid rule at the finish, finishing without the potential, crossings that do not finish, no field-cost veto).
+ ("nurburgring",1): (7, 0, [92, 93, 93, 94, 94, 96, 97]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same

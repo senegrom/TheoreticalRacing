@@ -1,5 +1,52 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 291 promoted (2026-09-30): the reviews' four correctness fixes
+
+Master aa7c8a1 + promote291_fixed.py (jar 55c2a177): 286 (every finish
+shortcut honours the grid rule at the finish; the exact potential is built
+with it), 287 (finishing without the exact potential: exactRemaining 0 made
+every S/F crossing a finish), 288 (a crossing that does not finish no longer
+skips the guards, the danger search or the chooser), 289 (no field-cost veto
+in the pace overrides), and the scatter placement fix (a car scattered off
+the grid never stood on it). Measured as the gated bundle a291bundle against
+m291base: identity INERT on the four standard races; random starts -0.002 +-
+0.011 (crashes 89:77), computed +0.008 +- 0.009 (84:74), scattered -0.070 +-
+0.013 (17:110); the promoted jar races as the bundle with every slot a
+candidate (PROMO291_IDENTITY OK, 7 of 7). Lone check, seeds 1-5, every seat:
+-0.002 +- 0.006 (17 tracks for, 10 against, 57 tied; crashes 38:35).
+Place-neutral where it is not a gain: a correctness fix the fleet clears.
+
+Corpus (the box, one probe pass, loop, then every pin as CI runs it): 1 of 12
+goldens (nurburgring s19: 1119 turns, H from 8th to 6th, no crash), 2 of 24
+pins (energy_pace nurburgring s1: the same seven finishers and no crash,
+three cars one or two moves slower; private_slack interlagos s47: its
+trajectory digest), headless smoke, query replay and lap progress unchanged;
+the computed-start hairpin digest (the browser's) unchanged, warm and cold.
+
+Where the other arms stand (each against its own pre-291 base; 296 against
+master 82f0466 + 291, which races as the promoted master):
+- 296, the third review's decision-changing AI findings (A1: the one-move
+  lookahead and the rollout proxies price a move with the gate events it
+  collects paid; A3: a final-lap move touching CP2 and crossing the line
+  finishes; A4: the ridge switch ranks the rollout's place first; A5: a
+  human's replies past the AI cap are escapes): identity OK, CPU 1.08x.
+  Random starts -0.248 +- 0.023 (50 tracks for, 20 against, 14 tied;
+  crashes 80:64), computed -0.225 +- 0.020 (47/17/20; crashes 70:62),
+  scattered -0.019 +- 0.004 (21/5/58; crashes 15:15) -- the largest gain
+  since round 260. Held-out seeds, duels and the lone check next.
+- 293 (the second review's correctness bundle): legacy +0.000, computed
+  -0.000, scattered +0.000, held-out -0.001 +- 0.001, duels +0.000, lone
+  +0.000 -- all 84 tracks tied in every slice but held-out (82): inert.
+- 294 (the single-player rule before the duel tactic): legacy and duels
+  +0.000, 84 tied. 295 (hostile tie-breaks): legacy +0.000, 84 tied.
+- 292b (the chooser judges only a pace landing it added): -0.036 +- 0.018
+  (43/34/7), CPU 0.95x. 283 wide: -0.049 +- 0.018 (47/33/4), CPU 1.35x.
+  283 defend: -0.004 +- 0.005. The lab's terminal flag: legacy -0.007 +-
+  0.003, scattered -0.000.
+- 281 near: duels +0.000 (84 tied); lone check -0.105 +- 0.020 (crashes
+  30:35). 281 all: as before.
+All of these re-screen on the new champion before they can ship.
+
 ## Rounds 281-295 (in progress, 2026-09-28): the reviews' AI bugs and the racecraft arms
 
 Every arm is candidate-gated against its base and identity-checked first
@@ -45,7 +92,7 @@ From the review (base m281base = master 8495da2):
   84:74; 17/19/48). Place-neutral where it is not a gain: it clears the fleet
   as a correctness fix. The legacy odd half lost one Nordschleife race to the
   kernel's OOM killer (three Nordschleife JVMs at once); screen4's retry
-  re-raced it. promote291_fixed.py applies to master e221569 (jar
+  re-raced it. PROMOTED 2026-09-30 (see above). promote291_fixed.py applies to master e221569 (jar
   p291_on_e22 b46b7a45); its identity against the bundle (no slots == every
   slot a candidate) and the lone check are queued first. The scatter
   placement fix rides with the promotion. The queue's first fit starved

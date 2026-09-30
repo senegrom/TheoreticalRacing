@@ -38,6 +38,9 @@ final class RaceAiPrivateLane {
 			return new OwnState(x, y, vx, vy, move.lapAfter(), move.gateAfter(), move.finishes());
 		}
 
+		/** Round 291 (round 287): without the potential, progress in gate units. */
+		private final boolean gateUnits;
+
 		private ProofSession(final int playerNum, final RivalReach rectangles,
 				final int exactNodeBudget) {
 			this.playerNum = playerNum;
@@ -49,13 +52,14 @@ final class RaceAiPrivateLane {
 			originLap = mover.getLap();
 			originGate = game.lapGates == null ? 0 : mover.getNextGate();
 			pot = game.optimalPotential();
+			gateUnits = pot == null && game.lapGates != null;
 		}
 
 		boolean certifiesApproximate(final int x, final int y, final int vx, final int vy,
 				final int turns, final int horizon, final int requiredEscapes) {
 			final OwnState candidate = candidateState(x, y, vx, vy);
 			return candidate != null && (candidate.finished() || privatePaceCertificate(candidate,
-					reference(candidate, turns), rectangles, 0, horizon, requiredEscapes, pot));
+					reference(candidate, turns), rectangles, 0, horizon, requiredEscapes, pot, gateUnits));
 		}
 
 		boolean certifiesExact(final int x, final int y, final int vx, final int vy,
@@ -68,11 +72,13 @@ final class RaceAiPrivateLane {
 			if (exact == null)
 				exact = new ExactRivalReach(game, reach, playerNum, rectangles, exactNodeBudget);
 			return privatePaceCertificate(candidate, reference(candidate, turns), exact, 0, horizon,
-					requiredEscapes, pot);
+					requiredEscapes, pot, gateUnits);
 		}
 
 		/** The candidate's own progress in the proof's currency. */
 		private int reference(final OwnState state, final int turns) {
+			if (gateUnits)
+				return gateProgress(state.lap(), state.gate(), state.x(), state.y(), state.vx(), state.vy());
 			return pot == null ? turns : exactTurns(pot, state.lap(), state.gate(),
 					state.x(), state.y(), state.vx(), state.vy());
 		}
@@ -338,9 +344,22 @@ final class RaceAiPrivateLane {
 		return pot.movesToFinish(OptimalPotential.remainingEvents(gate, lap, game.totalLaps), x, y, vx, vy);
 	}
 
+	/** Round 291 (round 287): progress without the exact potential -- the gate
+	 *  events still owed, then the moves to the next of them on its gate map (the
+	 *  S/F map on the final lap), as one comparable number. */
+	private int gateProgress(final int lap, final int gate, final int x, final int y,
+			final int vx, final int vy) {
+		final int events = OptimalPotential.remainingEvents(gate, lap, game.totalLaps);
+		final int t = lap + 1 >= game.totalLaps && gate == 0 ? reach.turnsToFinish(x, y, vx, vy)
+				: reach.turnsToGate(gate, x, y, vx, vy);
+		if (t < 0 || t >= 1 << 16)
+			return Integer.MAX_VALUE;
+		return saturatingInt(((long) events << 16) + t);
+	}
+
 	private boolean privatePaceCertificate(final OwnState state, final int turns,
 			final RivalOccupancy rivals, final int ply, final int horizon, final int requiredEscapes,
-			final OptimalPotential pot) {
+			final OptimalPotential pot, final boolean gateUnits) {
 		if (countPrivateEscapes(state, rivals, ply + 1, requiredEscapes) >= requiredEscapes)
 			return true;
 		if (ply >= horizon)
@@ -358,12 +377,15 @@ final class RaceAiPrivateLane {
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int nextTurns = pot == null ? reach.turnsToFinish(nx, ny, nvx, nvy)
+			final int nextTurns = gateUnits
+					? gateProgress(move.lapAfter(), move.gateAfter(), nx, ny, nvx, nvy)
+					: pot == null ? reach.turnsToFinish(nx, ny, nvx, nvy)
 					: exactTurns(pot, move.lapAfter(), move.gateAfter(), nx, ny, nvx, nvy);
 			if (nextTurns >= turns)
 				continue;
 			final OwnState next = new OwnState(nx, ny, nvx, nvy, move.lapAfter(), move.gateAfter(), false);
-			if (privatePaceCertificate(next, nextTurns, rivals, ply + 1, horizon, requiredEscapes, pot))
+			if (privatePaceCertificate(next, nextTurns, rivals, ply + 1, horizon, requiredEscapes, pot,
+					gateUnits))
 				return true;
 		}
 		return false;

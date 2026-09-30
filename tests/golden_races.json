@@ -150,9 +150,9 @@
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "ab2c8684f32d1fa97b7ad1fad8b9ff02165adf95411c97d9bbc7011c435e45ff",
+      "sha256": "1ff16f390b6eba0411b79d43ad563100c5d19cb71b3d555b7f23cc2ff00987f5",
       "summary": {
-        "turns": 1118,
+        "turns": 1119,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -161,9 +161,9 @@
           "F",
           "E",
           "G",
+          "H",
           "A",
-          "B",
-          "H"
+          "B"
         ]
       }
     },

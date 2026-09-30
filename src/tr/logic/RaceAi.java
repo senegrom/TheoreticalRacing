@@ -949,7 +949,7 @@ final class RaceAi {
 			final int kx = pos[0] + kvx, ky = pos[1] + kvy;
 			final int kspd = Math.max(Math.abs(kvx), Math.abs(kvy));
 			if (trapByDir[chosen.ordinal()] >= AI1_TRAP_L2 && trapByDir[chosen.ordinal()] <= AI1_NEEDLE_TRAP
-					&& !game.crossesFinishLegally(pos[0], pos[1], kx, ky)
+					&& !finishingMove(pos[0], pos[1], kx, ky)
 					&& countRivalsWithinCheb(kx, ky, playerNum, AI1_KIN_CONFIRM_R) >= 1) {
 				final int kRounds = Math.min(AI1_KIN_HORIZON_CAP, Math.max(AI1_DJS_ROUNDS, kspd));
 				final Direction kChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
@@ -1151,12 +1151,12 @@ final class RaceAi {
 						final boolean axialVmaxHold = isExactAxialVmaxHold(vel[0], vel[1], djvx, djvy);
 						final int ridgeSucc = !deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
 								&& (fSpdInf < AI1_FASTV_MAX || axialVmaxHold)
-								&& !game.crossesFinishLegally(pos[0], pos[1], fCx, fCy)
+								&& !finishingMove(pos[0], pos[1], fCx, fCy)
 								? ridgeSuccAlive(fCx, fCy, djvx, djvy) : Integer.MAX_VALUE;
 						final boolean axialVmaxRidge = axialVmaxHold && ridgeSucc == 1;
 						if (!deepHandled && fSpdInf >= AI1_RIDGE_MIN_SPD
 								&& (fSpdInf < AI1_FASTV_MAX || axialVmaxRidge)
-								&& !game.crossesFinishLegally(pos[0], pos[1], fCx, fCy)
+								&& !finishingMove(pos[0], pos[1], fCx, fCy)
 								&& (ridgeSucc <= AI1_RIDGE_MAX_SUCC
 										|| fSpdInf == AI1_RIDGE_PLATEAU_SPD
 										&& trapByDir[chosen.ordinal()] == 0.0
@@ -1261,7 +1261,7 @@ final class RaceAi {
 									&& Math.abs(ppos[1] - dcy) <= AI1_DEEP_PACK_R)
 								packNear++;
 						}
-						if (packNear >= AI1_DEEP_PACK && !game.crossesFinishLegally(pos[0], pos[1], dcx, dcy)) {
+						if (packNear >= AI1_DEEP_PACK && !finishingMove(pos[0], pos[1], dcx, dcy)) {
 							final int[] ft = rolloutWorkspace().finalTier;
 							ft[0] = 3;
 							final int dv = simOutcome(dcx, dcy, djvx, djvy, playerNum, AI1_DEEP_HORIZON,
@@ -1314,7 +1314,7 @@ final class RaceAi {
 												trueConfirmDepth--;
 											}
 										}
-										if (!falseAliveTarget && (game.crossesFinishLegally(pos[0], pos[1], ax, ay)
+										if (!falseAliveTarget && (finishingMove(pos[0], pos[1], ax, ay)
 												|| simOutcome(ax, ay, avx, avy, playerNum, AI1_DEEP_HORIZON,
 												true, true, true, true) >= 0)) {
 											// Round 95 frontier: the topology-shaped model can false-kill a
@@ -1447,7 +1447,7 @@ final class RaceAi {
 						// only on that exact fragile class. A dead smom verdict falls back
 						// to the established selector unchanged.
 						final boolean fastL2 = !djSlow && trapByDir[chosen.ordinal()] == AI1_TRAP_L2
-								&& !game.crossesFinishLegally(pos[0], pos[1], ffx, ffy);
+								&& !finishingMove(pos[0], pos[1], ffx, ffy);
 						final int fastFragileRivals = fastL2
 								? countRivalsWithinCheb(ffx, ffy, playerNum, AI1_SCORER_NEAR) : 0;
 						// Three-or-more nearby rivals already have the deep-pack machinery.
@@ -1522,7 +1522,7 @@ final class RaceAi {
 										+ " thread=" + snug[0] + " snug=" + snug[1] + "/"
 										+ (dangerRounds - 1));
 								final int sfx = pos[0] + djvx, sfy = pos[1] + djvy;
-								final boolean scorerSelfDead = !game.crossesFinishLegally(pos[0], pos[1], sfx, sfy)
+								final boolean scorerSelfDead = !finishingMove(pos[0], pos[1], sfx, sfy)
 										&& simOutcome(sfx, sfy, djvx, djvy, playerNum, dangerRounds,
 												true, true, true, djSlow, true,
 												AI1_SCORER_MAXRIVALS, null) < 0;
@@ -1621,7 +1621,7 @@ final class RaceAi {
 							|| AI_DEBUG_PLAYER >= 0;
 					final int[] smokeThread = { 0, 0 };
 					final boolean smokeRead = smokeRun
-							&& !game.crossesFinishLegally(pos[0], pos[1], scx, scy)
+							&& !finishingMove(pos[0], pos[1], scx, scy)
 							&& simOutcome(scx, scy, scvx, scvy, playerNum, AI1_DJS_SLOW_ROUNDS,
 									true, true, true, true, false, AI1_SCORER_MAXRIVALS,
 									null, null, smokeThread) < 0;
@@ -1636,7 +1636,7 @@ final class RaceAi {
 					// keeps the doomed line). Single-world kill: true-4 reads the
 					// m81 sibling alive, so a conjunction would under-kill.
 					boolean squeezeRisk = false;
-					if (!smokeDies && !game.crossesFinishLegally(pos[0], pos[1], scx, scy)
+					if (!smokeDies && !finishingMove(pos[0], pos[1], scx, scy)
 							&& countRivalsWithinCheb(scx, scy, playerNum, 2) >= 1
 							&& (denseSlowPack || smokeRequired && smokeThread[0] >= 1
 									&& smokeThread[1] >= 2))
@@ -1742,7 +1742,7 @@ final class RaceAi {
 			return chosen;
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-		if (game.crossesFinishLegally(pos[0], pos[1], cx, cy))
+		if (finishingMove(pos[0], pos[1], cx, cy))
 			return chosen;
 		final int chosenSpeed2 = speedSquared(cvx, cvy);
 		if (chosenSpeed2 < AI1_FINISH_DENIAL_MIN_SPEED2
@@ -1811,7 +1811,7 @@ final class RaceAi {
 					continue;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				final int t = ttf(nx, ny, nvx, nvy);
-				if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+				if (finishingMove(pos[0], pos[1], nx, ny))
 					return d;
 				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
 						|| game.isCrashingPlayer(nx, ny, playerNum)
@@ -1877,13 +1877,13 @@ final class RaceAi {
 		robustMode = lapAware && rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum,
 				Math.max(AI1_ROBUST_RANGE, Math.min(robustSp * (robustSp + 1) / 2, AI1_ROBUST_KIN_CAP)));
 		exactPot = game.optimalPotential();
-		if (exactPot != null) {
-			int lapsDone = 0;
-			for (final Player q : game.players)
-				if (q.getNumber() == playerNum)
-					lapsDone = q.getLap();
-			exactRemaining = OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps);
-		}
+		// Round 291 (round 287): the events owed need no potential; finishingMove
+		// reads them on the Nordschleife too.
+		int lapsDone = 0;
+		for (final Player q : game.players)
+			if (q.getNumber() == playerNum)
+				lapsDone = q.getLap();
+		exactRemaining = OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps);
 		recordPlayerFrames();
 	}
 
@@ -2144,7 +2144,8 @@ final class RaceAi {
 				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
 						fieldProofRounds, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 				chosenField = rolloutFieldCost[0];
-				if (chosenFinal < 0 || chosenField >= ROLLOUT_FAILURE_COST)
+				// Round 291 (round 289): the field's cost is no veto (the racecraft rule).
+				if (chosenFinal < 0)
 					return chosen;
 			}
 			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
@@ -2247,8 +2248,7 @@ final class RaceAi {
 								slackChosenField = rolloutFieldCost[0];
 							}
 							if (slackChosenFinal >= 0
-									&& slackChosenFinal != Integer.MAX_VALUE
-									&& slackChosenField < ROLLOUT_FAILURE_COST) {
+									&& slackChosenFinal != Integer.MAX_VALUE) {
 								final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy,
 										playerNum, AI1_STAGED_HORIZON,
 										AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
@@ -2434,8 +2434,6 @@ final class RaceAi {
 				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
 						AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 				chosenField = rolloutFieldCost[0];
-				if (rivalsAhead == 3 && chosenField >= ROLLOUT_FAILURE_COST)
-					return chosen;
 			}
 			if (chosenFinal < 0)
 				return chosen;
@@ -3692,7 +3690,7 @@ final class RaceAi {
 			final boolean corrLeg, final boolean pairRisk, final boolean fastSlow) {
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-		if (game.crossesFinishLegally(pos[0], pos[1], cx, cy))
+		if (finishingMove(pos[0], pos[1], cx, cy))
 			return chosen;
 		final boolean audit = threadCheck || trueConfirm || fastSlow;
 		final int[] threadRounds = audit ? new int[2] : null;
@@ -4000,7 +3998,7 @@ final class RaceAi {
 					if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
 							|| game.isCrashingPlayer(nx, ny, playerNum)
 							|| !reach.isAlive(nx, ny, nvx, nvy)
-							|| game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+							|| finishingMove(pos[0], pos[1], nx, ny))
 						continue;
 					final int t = simOutcome(nx, ny, nvx, nvy, playerNum, rounds, simFinishVanish,
 							exactSelf, exactRivals, scorerRivals, scorerSelf, scorerCap, null);
@@ -4133,23 +4131,29 @@ final class RaceAi {
 				|| vx < -max || vx > max || vy < -max || vy > max)
 			return succMaskCompute(x, y, vx, vy);
 		if (smReach != reach) {
-			if (smTab == null)
-				smTab = new long[1 << 18];
-			java.util.Arrays.fill(smTab, -1L);
+			if (smTabGrid == null) {
+				smTabGrid = new long[1 << 18];
+				smTabNoGrid = new long[1 << 18];
+			}
+			java.util.Arrays.fill(smTabGrid, -1L);
+			java.util.Arrays.fill(smTabNoGrid, -1L);
 			smReach = reach;
 		}
+		// Round 291 (round 286): the legal plane depends on the grid world, which
+		// differs between a decider on the grid and one past CP1.
+		final long[] tab = game.aiGridLegal ? smTabGrid : smTabNoGrid;
 		final int span = 2 * max + 1;
 		final int vkey = (vx + max) * span + vy + max;
 		final int key = (x * (game.gameRows + 1) + y) * (span * span) + vkey;
 		final int slot = key * 0x9E3779B1 >>> 14;
-		final long entry = smTab[slot];
+		final long entry = tab[slot];
 		// round 184: one interleaved slot (key<<32 | 9-bit legal plane); the
 		// velocity-range plane is position-independent and read from the
 		// static table instead of being stored per state
 		if ((int) (entry >>> 32) == key)
 			return RANGE9[vkey] | (int) entry;
 		final int legal = succMaskLegal(x, y, vx, vy);
-		smTab[slot] = (long) key << 32 | legal;
+		tab[slot] = (long) key << 32 | legal;
 		return RANGE9[vkey] | legal;
 	}
 
@@ -4198,7 +4202,7 @@ final class RaceAi {
 	}
 
 	private Reachability smReach;
-	private long[] smTab;
+	private long[] smTabGrid, smTabNoGrid;
 
 	private int countRivalsWithinCheb(final int x, final int y, final int playerNum, final int cheb) {
 		int count = 0;
@@ -4445,8 +4449,9 @@ final class RaceAi {
 			final Direction d = order[k];
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-			// A crossing is already decided by the precedence rules above.
-			if (game.crossesFinishLegally(pos[0], pos[1], nx, ny))
+			// A finish is already decided by the precedence rules above; a crossing
+			// with a lap or a checkpoint still owed is an ordinary move (round 291).
+			if (finishingMove(pos[0], pos[1], nx, ny))
 				return best;
 			// Round 270/274: a live rollout ranks by place, then by the mover's
 			// projected total turns (its finishing round when it finishes).

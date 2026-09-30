@@ -103,7 +103,8 @@ VETO_NORMALIZED_SHA256 = {
     ("hungaroring", 40): '28f9e4300234155ad539b46c2e83cd17c0e37bf78c6f20d14ca1cd5f277603dd',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("interlagos", 47): 'f184b5eab5beb627e8df2caf28fff0a1a7c189d3ba9dfcce5740cc46b630951d',
+    # Round 291: re-frozen from measurement (the grid rule at the finish, finishing without the potential, crossings that do not finish, no field-cost veto).
+    ("interlagos", 47): '8bfd7e7b67d4df2336d1559bc79bfe2b1c0971a5ae3fd100d22282744bcc880f',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
     # Round 278: re-frozen from measurement (the chooser's pick stands).

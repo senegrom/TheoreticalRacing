@@ -1946,7 +1946,14 @@ public final class RaceGame {
 
 	/** AI terminal shortcuts must obey the same pre-finish wall rule. */
 	boolean crossesFinishLegally(final int x1, final int y1, final int x2, final int y2) {
-		return crossesFinish(x1, y1, x2, y2) && finishRunUpLegal(x1, y1, x2, y2);
+		return crossesFinish(x1, y1, x2, y2) && aiFinishRunUpLegal(x1, y1, x2, y2);
+	}
+
+	/** Round 291 (round 286): the run-up rule in the world the AI models. Past
+	 *  CP1 the referee also refuses a finish whose run-up touches the pocket;
+	 *  a lone car used to crash on its winning move on fractal1 and hybrid6. */
+	boolean aiFinishRunUpLegal(final int x1, final int y1, final int x2, final int y2) {
+		return finishRunUpLegal(x1, y1, x2, y2) && (aiGridLegal || !touchesPocket(x1, y1, x2, y2, true));
 	}
 
 	boolean raceTurnLimitReached() {
@@ -2464,6 +2471,12 @@ public final class RaceGame {
 				continue;
 			player.setVelocity(new int[]{vx, vy });
 			player.setNextGate(gate);
+			// Round 291: a car placed off the grid never stood on it, so the grid is
+			// no legal ground for it (the owner's rule; review, 2026-09-27).
+			// Set both ways: an undone placement redrawn onto the grid keeps no old flag.
+			final int[] lapState = player.lapState();
+			lapState[6] = startZoneA != null && startZoneA.contains(x, y) ? 0 : 1;
+			player.restoreLapState(lapState);
 			return new int[]{x, y };
 		}
 		return null;
