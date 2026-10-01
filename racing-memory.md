@@ -1,5 +1,68 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 296 promoted (2026-10-01): a landing no longer owes the gates it collects
+
+The third review's decision-changing AI findings, on master 87e1d50 (round 291
+promoted) via promote296.py (jar 47029c28, byte-identical to a local build):
+- A1: the scorer's one-move lookahead and the rollout proxies (greedy,
+  selfMove, rivalMove and the prediction twin) priced a landing with the gate
+  events owed BEFORE the move, so a move or a continuation that collected a
+  checkpoint or a lap read as owing it again -- a turn-back, or a whole lap.
+  The landing and its continuations are now priced in the frame after the
+  move, as bestCheckpointMove and the private lane always were.
+- A3: a final-lap move that touches CP2 and crosses the line in one move
+  finishes; the scan and the proxies take a finishing move first.
+- A4: the thin-ridge switch ranks its survivors by the rollout's place first
+  (the rank-first rule), and never on an unknown map time.
+- A5: the seal counts a human rival's accelerations past the AI speed cap.
+
+Measured as the gated arm a296correct against p296base (= the promoted 291):
+identity OK, CPU 1.08x. Random starts -0.248 +- 0.023 (50 tracks for, 20
+against, 14 tied; crashes 80:64), held-out seeds 11-20 -0.291 +- 0.023
+(52/15/17; 73:70); computed starts -0.225 +- 0.020 (47/17/20; 70:62),
+held-out -0.253 +- 0.023 (44/18/22; 99:71); scattered -0.019 +- 0.004
+(21/5/58; 15:15); two-car duels -0.055 +- 0.006 (10/1/73), its cars crash
+LESS there (218:273); lone check with the control, seeds 1-5, every seat:
+-0.171 +- 0.022 (44/16/24; crashes 36:36). The largest gain since round 260.
+The promoted jar races as the arm with every slot a candidate (7 of 7).
+
+Where the extra crashes come from (the review, confirmed by 297a below):
+a gate passage the precedences refuse in traffic (needle headway, or outside
+the robust set of the next gate) used to be priced owing the gate again, so
+no row consumer took it; now it is an ordinary move at its true distance and
+the scorer or the pace override may take it. Keeping that refusal binding
+(297a) costs +0.053 +- 0.013 places: the freed passages are part of the gain.
+The comments at the precedences say so now.
+
+Corpus (the box, one probe pass, loop, hand re-freeze from the probe records,
+then every pin, the goldens, headless smoke, query replay and lap progress as
+CI runs them: 25 of 25): 8 of 12 goldens (Le Mans s4 keeps its crashed car,
+seven finishers and 1194 turns; Interlagos s10 and Zandvoort s45 reorder;
+five more change route or a few turns), 9 of 25 pins. Recorded, not vetoed:
+Le Mans s2 (private slack) keeps the car it has lost since round 254;
+Interlagos s47 loses one (p2 on its 57th move); staged pace's Le Mans 3
+drops a second car (p7 on its 8th move, p5 on its 54th) and Le Mans 11 keeps
+its seventh. The browser's computed-start hairpin race is unchanged, warm and
+cold.
+
+On top of 296 (each arm against the promoted jar p296promo, 8 cars, random
+starts, seeds 1-10):
+- 297a, the refusal binding again: +0.053 +- 0.013 (12/26/46). Dead.
+- 297b (ridge ranking after the move), 297c (a finishing move before the
+  seal; no bundled course has CP2 within one move of the line) and 297d (the
+  live predictor priced after the move): identical races. Inert; not shipped.
+- 281 all (every live rival plays its scorer in the chooser's rollouts):
+  -0.157 +- 0.019 (66/16/2; crashes 57:55), CPU 1.32x -- the next candidate.
+  The old arm script no longer compiled (the debloat removed the parameter it
+  used); arm281_all2.py carries it in one depth-scoped field.
+- 281 near: -0.119 +- 0.020 (61/19/4; 57:54), CPU 1.12x.
+- 292b: -0.036 +- 0.013 (42/28/14; 50:57). 283 wide: -0.013 +- 0.017.
+- The 293+294+295 correctness bundle: identical races (84 tied).
+- Round 298, the owner's ideas 1, 2, 4 and 6, ported from the peer branch
+  work/racecraft-outcomes-opening-20260928 as racecraftNext flags: identity
+  INERT for all four on the standard races; opening +0.001 +- 0.011 (crashes
+  55:48); rank-time, crash-rank and start-ties running.
+
 ## Round 291 promoted (2026-09-30): the reviews' four correctness fixes
 
 Master aa7c8a1 + promote291_fixed.py (jar 55c2a177): 286 (every finish

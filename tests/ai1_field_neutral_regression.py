@@ -25,7 +25,8 @@ EXPECTED = {
     ("zigzag", 1): [65, 65, 65, 66, 66, 66, 66],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    ("cog", 1): [46, 47, 47, 47, 47, 48, 49],
+    # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
+    ("cog", 1): [46, 46, 46, 47, 47, 47, 48],
 }
 
 

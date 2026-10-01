@@ -43,7 +43,8 @@ FINISH_EXPECTED = {
     # Round 254: re-frozen from measurement (the danger guard in a faithful world).
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
-    ("lemans", 12): [66, 67, 68, 69, 71, 73, 75],
+    # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
+    ("lemans", 12): [66, 67, 68, 69, 70, 72, 73],
 }
 
 

@@ -73,12 +73,13 @@ def main() -> int:
         # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
         # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
         # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
+        # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
         # What the round-185 rescue bought is that p7 SURVIVES the ridge -- its
         # old line crashed three turns later. Since round 232 it is the car still
         # racing at the flag, auto-placed eighth; zero AI1 crashes below include
         # p7's survival, so the separate log scan for a p7 crash is retired
         # (review, 2026-09-29).
-        expected = {"AI1": (17, 4, 0), "AI2": (19, 4, 0)}
+        expected = {"AI1": (22, 4, 0), "AI2": (14, 4, 0)}
         if result != expected:
             raise SystemExit(
                 "Round-185 width-three ridge regression: "

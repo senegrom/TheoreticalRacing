@@ -39,7 +39,8 @@ EXPECTED = {
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    45: {"AI1": (16, 4, 0), "AI2": (20, 4, 0)},
+    # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
+    45: {"AI1": (13, 4, 0), "AI2": (23, 4, 0)},
 }
 
 

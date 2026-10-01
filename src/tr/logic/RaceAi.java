@@ -641,6 +641,10 @@ final class RaceAi {
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
+			// Round 296: a move that finishes the race is taken, CP2 touched on
+			// the way included -- the precedence below needs it collected first.
+			if (game.lapGates != null && lapAware && finishingMove(pos[0], pos[1], newX, newY))
+				return d;
 			if (game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
 				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
@@ -656,13 +660,17 @@ final class RaceAi {
 					return d;
 				}
 				// Stray or unshedable crossing: an ordinary legal move (cars
-				// spawn BEHIND the line -- excluding these walls them in).
+				// spawn BEHIND the line -- excluding these walls them in),
+				// priced after the move since round 296.
 			}
 			// Checkpoint touch precedence: the post-touch landing prices a
 			// full lap on the CURRENT gate map, so slow approaches would bob
 			// one cell before the line forever (the gate-0 stall, at the CPs).
 			// A touch with a continuing landing is progress -- take it (in
-			// traffic only with needle headway; see pure scan).
+			// traffic only with needle headway; see pure scan). Since round 296
+			// the exact potential prices a touch after the move: a touch refused
+			// here is an ordinary move at its true distance, no longer ruled out
+			// by a price that owed the gate again (the review, 2026-09-30).
 			if (lapAware && lapGate != 0 && (sm & bit) != 0
 					&& game.touchesGate(lapGate, pos[0], pos[1], newX, newY)
 					&& !game.isCrashingPlayer(newX, newY, playerNum)
@@ -675,7 +683,8 @@ final class RaceAi {
 					// west side: the touch at (17,67) v(-5,8) scored 105 against 41
 					// for the safe move and the precedence took it). In traffic the
 					// landing must be in the robust set of the next gate; else the
-					// scorer prices the touch and takes it a move later.
+					// scorer prices the touch (after the move since round 296, so
+					// it may take it now) or takes it a move later.
 					&& (!robustMode
 							|| reach.isRobust(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy))) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
@@ -690,7 +699,13 @@ final class RaceAi {
 			if (game.isCrashingPlayer(newX, newY, playerNum))
 				continue;
 			fallbackLegalMask |= bit;
-			final int ownTurns = ttf(newX, newY, newVx, newVy);
+			// Round 296: the landing and its continuations are priced in the
+			// frame after the move -- the gate events it collects are paid, not
+			// owed again (a continuation past an owed checkpoint read as owing it).
+			final boolean paidFrame = exactPot != null && game.lapGates != null;
+			final int moveEvents = paidFrame ? game.gateEventsOnMove(lapGate, pos[0], pos[1], newX, newY) : 0;
+			final int ownTurns = moveEvents == 0 ? ttf(newX, newY, newVx, newVy)
+					: exactPot.movesToFinish(exactRemaining - moveEvents, newX, newY, newVx, newVy);
 			if (ownTurns == Integer.MAX_VALUE)
 				continue;
 
@@ -700,8 +715,11 @@ final class RaceAi {
 			// follow-up landing on a simulated body.
 			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY,
 					twoRoundReference);
-			final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD,
-					worlds.world1Occupancy);
+			final double[] deepCounted = paidFrame && AI1_DEEP_LOOKAHEAD == 1
+					? searchCountedAfter(newX, newY, newVx, newVy, worlds.world1Occupancy,
+							gateAfter(lapGate, moveEvents), exactRemaining - moveEvents)
+					: searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD,
+							worlds.world1Occupancy);
 			final double deep = deepCounted[0];
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
@@ -1197,6 +1215,10 @@ final class RaceAi {
 								// any s8-alive target dominates a certain death.
 								Direction ridgeLoud = null;
 								int ridgeLoudTurns = Integer.MAX_VALUE;
+								// Round 296, rank first: the rollout's rivals-ahead count
+								// orders survivors before map time; an unknown map time
+								// never ranks (the champion never picks one).
+								int ridgeAhead = Integer.MAX_VALUE, ridgeLoudAhead = Integer.MAX_VALUE;
 								for (final Direction rd : DIRECTIONS) {
 									if (rd == chosen)
 										continue;
@@ -1213,14 +1235,19 @@ final class RaceAi {
 											|| !reach.isAlive(rx, ry, rvx, rvy))
 										continue;
 									final int[] cTr = { 0, 0 };
-									if (simOutcome(rx, ry, rvx, rvy, playerNum, AI1_DEEP_HORIZON,
+									final int rVerdict = simOutcome(rx, ry, rvx, rvy, playerNum, AI1_DEEP_HORIZON,
 											true, true, true, true, false, false,
-											AI1_DEEP_CERT_RIVALS, null, null, cTr) < 0)
+											AI1_DEEP_CERT_RIVALS, null, null, cTr);
+									if (rVerdict < 0)
 										continue;
+									final int rAhead = rVerdict / VERDICT_PLACE_STRIDE;
 									final int rTurns = ttf(rx, ry, rvx, rvy);
+									if (rTurns == Integer.MAX_VALUE)
+										continue;
 									if (cTr[0] >= AI1_RIDGE_THREAD) {
-										if (rTurns < ridgeLoudTurns) {
+										if (rAhead < ridgeLoudAhead || rAhead == ridgeLoudAhead && rTurns < ridgeLoudTurns) {
 											ridgeLoudTurns = rTurns;
+											ridgeLoudAhead = rAhead;
 											ridgeLoud = rd;
 										}
 										continue;
@@ -1230,10 +1257,12 @@ final class RaceAi {
 									// Round 185: on the width-three extension, price each
 									// threaded rollout round as one map turn; equal ranks prefer
 									// the less-threaded line, then the established momentum tie.
-									if (!ridgePlateau && rTurns < ridgeTurns
+									final boolean ridgeTimeBetter = !ridgePlateau && rTurns < ridgeTurns
 											|| ridgePlateau && (rRank < ridgeRank
 													|| rRank == ridgeRank && (cTr[0] < ridgeThread
-															|| cTr[0] == ridgeThread && rSpeed2 > ridgeSpeed2))) {
+															|| cTr[0] == ridgeThread && rSpeed2 > ridgeSpeed2));
+									if (rAhead < ridgeAhead || rAhead == ridgeAhead && ridgeTimeBetter) {
+										ridgeAhead = rAhead;
 										ridgeTurns = rTurns;
 										ridgeRank = rRank;
 										ridgeThread = cTr[0];
@@ -2570,6 +2599,8 @@ final class RaceAi {
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
+			if (finishesFor(idx, pos[0], pos[1], newX, newY))
+				return d; // round 296: CP2 on the way included
 			if (game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
 				// Round 224: the twin's precedence, in this car's own frame. A
 				// crossing ends the race only on the final lap with nothing owed;
@@ -2597,7 +2628,7 @@ final class RaceAi {
 			if (occupied.contains(newX, newY))
 				continue;
 			fallbackLegalMask |= bit;
-			final int turns = ttfFor(idx, newX, newY, newVx, newVy);
+			final int turns = ttfForAfter(idx, pos[0], pos[1], newX, newY, newVx, newVy); // round 296
 			if (turns < bestTurns) {
 				bestTurns = turns;
 				best = d;
@@ -2906,6 +2937,8 @@ final class RaceAi {
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
+			if (finishesFor(self, x, y, nx, ny))
+				return writeMove(out, nx, ny, nvx, nvy); // round 296: CP2 on the way included
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
 					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
@@ -2914,7 +2947,7 @@ final class RaceAi {
 				continue;
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			final int turns = ttfFor(self, nx, ny, nvx, nvy);
+			final int turns = ttfForAfter(self, x, y, nx, ny, nvx, nvy); // round 296
 			if (turns < bestT) {
 				bestT = turns;
 				bestX = nx;
@@ -2974,6 +3007,8 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
+			if (finishesFor(self, x, y, nx, ny))
+				return writeMove(out, nx, ny, nvx, nvy); // round 296: CP2 on the way included
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
 					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
@@ -2983,7 +3018,7 @@ final class RaceAi {
 			if (occupiedByOther(nx, ny, self, px, py, alive) || !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
-			final int turns = ttfFor(self, nx, ny, nvx, nvy);
+			final int turns = ttfForAfter(self, x, y, nx, ny, nvx, nvy); // round 296
 			if (tier > bestTier || tier == bestTier && turns < bestT) {
 				bestTier = tier;
 				bestT = turns;
@@ -3019,6 +3054,8 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
+			if (finishesFor(self, x, y, nx, ny))
+				return writeMove(out, nx, ny, nvx, nvy); // round 296: CP2 on the way included
 			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
 					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
@@ -3029,7 +3066,7 @@ final class RaceAi {
 				continue;
 			final int tier = safeSuccessorsOverState(nx, ny, nvx, nvy, self, px, py, alive);
 			final double trap = tier == 0 ? 50.0 : tier == 1 ? AI1_TRAP_L1 : tier == 2 ? AI1_TRAP_L2 : 0.0;
-			final double score = ttfFor(self, nx, ny, nvx, nvy) + trap;
+			final double score = ttfForAfter(self, x, y, nx, ny, nvx, nvy) + trap; // round 296
 			// Momentum tie-break (policy matrix "smom"): among score-equal
 			// candidates the real scorer HOLDS SPEED down the racing line
 			// (deep cost + momentum), so prefer the faster landing. This is
@@ -4563,10 +4600,13 @@ final class RaceAi {
 		final int[] rp = game.players[ri].getPosition();
 		final int[] rv = game.players[ri].getVelocity();
 		final int riNum = game.players[ri].getNumber();
+		// Round 296: the AI cap binds AI rivals only; a human may take any of
+		// the nine accelerations, as RaceAiTactics counts them.
+		final boolean capped = game.players[ri].isAi();
 		int n = 0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = rv[0] + d.dx, nvy = rv[1] + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if (capped && RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
 			final int nx = rp[0] + nvx, ny = rp[1] + nvy;
 			if (game.crossesFinishLegally(rp[0], rp[1], nx, ny))
@@ -4659,6 +4699,73 @@ final class RaceAi {
 			if (p.getNumber() == playerNum)
 				return game.lapGates != null ? p.getLap() > 0 || p.getNextGate() != 1 : !game.gridLegalFor(p);
 		return true;
+	}
+
+	/** Round 296: the next owed gate after {@code events} gate events from
+	 *  {@code gate} (1, 2, 0, 1, ...). */
+	private static int gateAfter(int gate, final int events) {
+		for (int e = 0; e < events; e++)
+			gate = gate == 1 ? 2 : gate == 2 ? 0 : 1;
+		return gate;
+	}
+
+	/** Round 296: ttfFor at the landing of a move from (x,y) with the gate
+	 *  events the move collects paid -- the landing owes them no more, as
+	 *  bestCheckpointMove and the private lane price it (the third review,
+	 *  2026-09-29: a landing past an owed checkpoint read as owing it again). */
+	private int ttfForAfter(final int idx, final int x, final int y, final int nx, final int ny,
+			final int nvx, final int nvy) {
+		if (exactPot == null || game.lapGates == null)
+			return ttfFor(idx, nx, ny, nvx, nvy);
+		final int events = game.gateEventsOnMove(frameGate[idx], x, y, nx, ny);
+		return events == 0 ? ttfFor(idx, nx, ny, nvx, nvy)
+				: exactPot.movesToFinish(frameRemaining[idx] - events, nx, ny, nvx, nvy);
+	}
+
+	/** Round 296: does this move finish player idx's race, a checkpoint touched
+	 *  on the way included? crossingCountsFor needs every checkpoint collected
+	 *  before the move. */
+	private boolean finishesFor(final int idx, final int x, final int y, final int nx, final int ny) {
+		return game.crossesFinishLegally(x, y, nx, ny) && (game.lapGates == null
+				|| game.gateEventsOnMove(frameGate[idx], x, y, nx, ny) >= frameRemaining[idx]);
+	}
+
+	/** Round 296: the one-move lookahead from a candidate landing in the frame
+	 *  AFTER the candidate's move (next gate, remaining events), each successor
+	 *  paying the gate events it collects. searchMinTurnsCountedSoft3 at one
+	 *  level, in that frame: the same prices, plateau count and crossing
+	 *  precedence (a finish, or a counted lap crossing). */
+	private double[] searchCountedAfter(final int x, final int y, final int vx, final int vy,
+			final CellOccupancy occupancy, final int gate, final int remaining) {
+		double best = Double.MAX_VALUE;
+		int countAtMin = 0;
+		final int sm = succMask(x, y, vx, vy);
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (game.crossesFinishLegally(x, y, nx, ny)) {
+				final int events = game.gateEventsOnMove(gate, x, y, nx, ny);
+				if (events >= remaining || remaining <= 1
+						|| gate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+					return new double[]{1, 9 };
+			}
+			if ((sm & 1 << d.ordinal()) == 0)
+				continue;
+			final double price = occupancy.contains(nx, ny) ? 3.0 : 0.0;
+			final int t = exactPot.movesToFinish(remaining - game.gateEventsOnMove(gate, x, y, nx, ny),
+					nx, ny, nvx, nvy);
+			if (t == Integer.MAX_VALUE)
+				continue;
+			final double total = 1.0 + price + t;
+			if (total < best) {
+				best = total;
+				countAtMin = 1;
+			} else if (total == best)
+				countAtMin++;
+		}
+		return new double[]{best, countAtMin };
 	}
 
 	/** Round 279 (round 272): does this move FINISH the race for the car whose
