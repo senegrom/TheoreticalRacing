@@ -5,7 +5,7 @@ on:
     paths:
       - 'src/**'
       - 'tests/**'
-      - 'tools/racecraft_corpus.py'
+      - 'tools/racecraft*.py'
       - 'run_tests.sh'
       - '.github/workflows/racecraft-next.yml'
   workflow_dispatch:
@@ -55,7 +55,7 @@ jobs:
           set -euo pipefail
           sh build_main.sh
           mkdir "$RUNNER_TEMP/racecraft-baseline"
-          git archive 955001104bbe315cf9b82a1cd2dfb447beddd211 | tar -x -C "$RUNNER_TEMP/racecraft-baseline"
+          git archive b54e9bb05f91c0011e8d5e82178d1d13f3c1b494 | tar -x -C "$RUNNER_TEMP/racecraft-baseline"
           (cd "$RUNNER_TEMP/racecraft-baseline" && sh build_main.sh)
       - name: Full-race controls and counterfactual capture/replay
         run: python3 tests/racecraft_next_cli.py --baseline-jar "$RUNNER_TEMP/racecraft-baseline/theoreticRacing.jar" --out "$RUNNER_TEMP/racecraft-next-controls"
@@ -92,3 +92,5 @@ jobs:
             python3 "$test"
           done
       - run: git diff --exit-code
+  browser:
+    uses: ./.github/workflows/browser.yml
