@@ -63,7 +63,7 @@ final class OpeningPlans {
         });
         // Admit a different acceleration early only among equally well-valued moves.
         if (sorted.size() > 2) {
-            final Direction first = sorted.getFirst();
+            final Direction first = sorted.get(0);
             int diverse = 1, separation = -1;
             for (int k = 1; k < sorted.size(); k++) {
                 final Direction d = sorted.get(k);
