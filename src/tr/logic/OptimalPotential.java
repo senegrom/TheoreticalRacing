@@ -85,16 +85,11 @@ final class OptimalPotential {
 	/**
 	 * Build the potential, or return null when the board is too large for the
 	 * byte budget (the Nordschleife's 89M states would need 1.6 GB, and it is
-	 * already within about a percent of optimal).
+	 * already within about a percent of optimal). The retained-distance limit
+	 * and the total construction limit are separate: production keeps the
+	 * historical distance-map eligibility while reserving additional, bounded
+	 * room for the pending FIFO; tests pass one limit twice.
 	 */
-	static OptimalPotential build(final RaceGame game, final int totalLaps, final long budgetBytes) {
-		return build(game, totalLaps, budgetBytes, budgetBytes);
-	}
-
-	/** The retained-distance limit and total construction limit are separate:
-	 * production keeps the historical distance-map eligibility while reserving
-	 * additional, bounded room for the pending FIFO. Tests may pass one shared
-	 * limit through the three-argument overload above. */
 	static OptimalPotential build(final RaceGame game, final int totalLaps,
 			final long distanceBudgetBytes, final long totalBudgetBytes) {
 		if (game.lapGates == null)
@@ -140,6 +135,9 @@ final class OptimalPotential {
 									final int pending = ORDER[(stages - remaining) % 3];
 									if (game.gateEventsOnMove(pending, x, y, nx, ny) != remaining)
 										continue;
+									// Round 291: past CP1 a finish must not touch the pocket.
+									if (remaining < stages && game.touchesPocket(x, y, nx, ny, true))
+										continue;
 									final int k = map.key(x, y, vx, vy, remaining);
 									if (dist[k] == NONE) {
 										dist[k] = 2; // one move, stored as moves + 1
@@ -171,10 +169,15 @@ final class OptimalPotential {
 				continue;
 			if (!game.isMoveLegalGeometryCached(x, y, nx, ny))
 				continue;
+			// Round 291, the owner's grid rule: a car owing every event (the first
+			// stage) may use the grid; at every later stage it has left it.
+			final boolean touches = game.touchesPocket(x, y, nx, ny, false);
 			for (int extra = 0; extra <= 3; extra++) {
 				final int rPred = rNow + extra;
 				if (rPred > stages)
 					break;
+				if (touches && rPred < stages)
+					continue;
 				final int pending = ORDER[(stages - rPred) % 3];
 				if (game.gateEventsOnMove(pending, x, y, nx, ny) != extra)
 					continue;
@@ -220,7 +223,7 @@ final class OptimalPotential {
 			final int events = game.gateEventsOnMove(pending, x, y, nx, ny);
 			final int after = remaining - events;
 			if (after == 0) {
-				if (game.finishRunUpLegal(x, y, nx, ny))
+				if (game.aiFinishRunUpLegal(x, y, nx, ny))
 					return d;
 				continue;
 			}

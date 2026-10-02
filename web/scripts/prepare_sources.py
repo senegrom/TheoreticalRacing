@@ -45,7 +45,7 @@ def prepare(out: Path) -> None:
     hashes = {}
     for source in sorted((ROOT / 'src/tr/logic').glob('*.java')):
         content = source.read_text(encoding='utf-8')
-        hashes[str(source.relative_to(ROOT))] = hashlib.sha256(source.read_bytes()).hexdigest()
+        hashes[source.relative_to(ROOT).as_posix()] = hashlib.sha256(source.read_bytes()).hexdigest()
         for old, new, count in rules.get(source.name, []):
             actual = content.count(old)
             if actual != count:
@@ -62,7 +62,7 @@ def prepare(out: Path) -> None:
             content = instrument_optimal(content)
         target = out / 'tr/logic' / source.name
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding='utf-8')
+        target.write_bytes(content.encode('utf-8'))  # LF on every platform, like the source
     for source in sorted((ROOT / 'web/java').rglob('*.java')):
         target = out / source.relative_to(ROOT / 'web/java')
         target.parent.mkdir(parents=True, exist_ok=True)

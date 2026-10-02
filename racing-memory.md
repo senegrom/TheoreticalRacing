@@ -1,5 +1,176 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Peer branch review repairs (2026-10-02, not promoted)
+
+Integrated master b54e9bb (rounds 291/296 and the current owner rules) into
+work/racecraft-outcomes-opening-20260928. Review repairs share projected
+progress classification at timeout, isolate experimental controls, remove the
+owner-rejected start-ties replay, and harden opening/corpus validation.
+The old round-298 screens are not evidence for these repaired variants.
+No fleet or lone-candidate gain is claimed; completed validation is recorded
+separately after execution. Master and the earlier PR are not modified.
+
+
+## The owner's computed-start rule (2026-10-02); round 299 in measurement
+
+The owner, on the start-ties arm: "players should pick in player order and
+take into account already placed cars (those slots are taken) and just play
+optimally ... First car picks best slot, second car picks best slot given
+first placement etc. The first may have advantages but that is already the
+case." CLAUDE.md and AGENTS.md now carry it as the computed-start rule.
+Round 298's start-ties (a replay among equally scored cells) is REJECTED
+whatever it measures -- it read -0.013 +- 0.009 on computed starts (22/17/45,
+crashes 47:49); never screen it again. The other 298 flags are noise:
+rank-time -0.010 +- 0.005 (14/8/62; 59:60), crash-rank +0.004 +- 0.004
+(7/11/66; 54:59), opening +0.001 +- 0.011. None is a candidate.
+
+An audit of the code against the rule (two lenses plus the documents, every
+finding verified three times; 14 upheld, 1 refuted) found two deviations:
+- The start score refused a first move that lands on an earlier car's cell.
+  Those cars move first, so the filter priced a state that never occurs. It
+  costs a cell at most one turn (staying put is never filtered), but it
+  reshuffles the tie set and pushes later cars back.
+- Where the exact full-race map is over budget (the Nordschleife at any lap
+  count; by the audit's arithmetic Le Mans from 6 laps, the Nurburgring from
+  7, Monaco from 9; or a small heap) the AIs took the legacy start: a seeded
+  random free cell, and without a seed (the desktop GUI, the browser's blank
+  default) the FIRST free cell in x-then-y order. The owner's call: use the
+  next best map, the exact distance to the first checkpoint, which the cars
+  then race by.
+Gaps for the promotion: README.md and web/README.md describe the filter and
+call the fallback random; no test pins the tie-break; the order tests compare
+choose() with itself; the unit oracle encodes the filter and has no lap or
+pocket case; nothing tests the over-budget path. One edge stays as it is: an
+AI with no free cell from which it can finish does not place (no slot can be
+best there).
+
+Round 299 (E:/tmp-claude/arm299_startrule.py, jar a299 43dabd4f), both parts
+candidate-gated: 299a scores a free cell by its exact single-player value from
+rest; 299b builds the start analysis from the first-checkpoint map when the
+exact map is over budget and places candidate cars by it (champion cars keep
+the legacy cell; the log header is unchanged). A local Nordschleife race with
+candidates 1, 3, 5 and 7 places them by the map and completes. Queued on the
+box against the round-296 champion: identity on the four standard races and
+nordschleife s3 (verify_pair_tracks.py, where a failed race is a mismatch),
+legacy and scatter identity (inert by construction), the Nordschleife alone on
+computed starts with seeds 21-60, computed starts 1-10 and 11-20, the lone
+check and the duels on computed starts.
+
+Running meanwhile: round 281 all's lone check and duels. Its screens so far:
+random starts -0.172 +- 0.020 (66/12/6; crashes 57:53), computed -0.131 +-
+0.020 (57/20/7; 43:53), scattered -0.006 +- 0.003 (10/3/71).
+
+## Round 296 promoted (2026-10-01): a landing no longer owes the gates it collects
+
+The third review's decision-changing AI findings, on master 87e1d50 (round 291
+promoted) via promote296.py (jar 47029c28, byte-identical to a local build):
+- A1: the scorer's one-move lookahead and the rollout proxies (greedy,
+  selfMove, rivalMove and the prediction twin) priced a landing with the gate
+  events owed BEFORE the move, so a move or a continuation that collected a
+  checkpoint or a lap read as owing it again -- a turn-back, or a whole lap.
+  The landing and its continuations are now priced in the frame after the
+  move, as bestCheckpointMove and the private lane always were.
+- A3: a final-lap move that touches CP2 and crosses the line in one move
+  finishes; the scan and the proxies take a finishing move first.
+- A4: the thin-ridge switch ranks its survivors by the rollout's place first
+  (the rank-first rule), and never on an unknown map time.
+- A5: the seal counts a human rival's accelerations past the AI speed cap.
+
+Measured as the gated arm a296correct against p296base (= the promoted 291):
+identity OK, CPU 1.08x. Random starts -0.248 +- 0.023 (50 tracks for, 20
+against, 14 tied; crashes 80:64), held-out seeds 11-20 -0.291 +- 0.023
+(52/15/17; 73:70); computed starts -0.225 +- 0.020 (47/17/20; 70:62),
+held-out -0.253 +- 0.023 (44/18/22; 99:71); scattered -0.019 +- 0.004
+(21/5/58; 15:15); two-car duels -0.055 +- 0.006 (10/1/73), its cars crash
+LESS there (218:273); lone check with the control, seeds 1-5, every seat:
+-0.171 +- 0.022 (44/16/24; crashes 36:36). The largest gain since round 260.
+The promoted jar races as the arm with every slot a candidate (7 of 7).
+
+Where the extra crashes come from (the review, confirmed by 297a below):
+a gate passage the precedences refuse in traffic (needle headway, or outside
+the robust set of the next gate) used to be priced owing the gate again, so
+no row consumer took it; now it is an ordinary move at its true distance and
+the scorer or the pace override may take it. Keeping that refusal binding
+(297a) costs +0.053 +- 0.013 places: the freed passages are part of the gain.
+The comments at the precedences say so now.
+
+Corpus (the box, one probe pass, loop, hand re-freeze from the probe records,
+then every pin, the goldens, headless smoke, query replay and lap progress as
+CI runs them: 25 of 25): 8 of 12 goldens (Le Mans s4 keeps its crashed car,
+seven finishers and 1194 turns; Interlagos s10 and Zandvoort s45 reorder;
+five more change route or a few turns), 9 of 25 pins. Recorded, not vetoed:
+Le Mans s2 (private slack) keeps the car it has lost since round 254;
+Interlagos s47 loses one (p2 on its 57th move); staged pace's Le Mans 3
+drops a second car (p7 on its 8th move, p5 on its 54th) and Le Mans 11 keeps
+its seventh. The browser's computed-start hairpin race is unchanged, warm and
+cold.
+
+On top of 296 (each arm against the promoted jar p296promo, 8 cars, random
+starts, seeds 1-10):
+- 297a, the refusal binding again: +0.053 +- 0.013 (12/26/46). Dead.
+- 297b (ridge ranking after the move), 297c (a finishing move before the
+  seal; no bundled course has CP2 within one move of the line) and 297d (the
+  live predictor priced after the move): identical races. Inert; not shipped.
+- 281 all (every live rival plays its scorer in the chooser's rollouts):
+  -0.157 +- 0.019 (66/16/2; crashes 57:55), CPU 1.32x -- the next candidate.
+  The old arm script no longer compiled (the debloat removed the parameter it
+  used); arm281_all2.py carries it in one depth-scoped field.
+- 281 near: -0.119 +- 0.020 (61/19/4; 57:54), CPU 1.12x.
+- 292b: -0.036 +- 0.013 (42/28/14; 50:57). 283 wide: -0.013 +- 0.017.
+- The 293+294+295 correctness bundle: identical races (84 tied).
+- Round 298, the owner's ideas 1, 2, 4 and 6, ported from the peer branch
+  work/racecraft-outcomes-opening-20260928 as racecraftNext flags: identity
+  INERT for all four on the standard races; opening +0.001 +- 0.011 (crashes
+  55:48); rank-time, crash-rank and start-ties: see the 2026-10-02 entry
+  (start-ties rejected by the owner).
+
+## Round 291 promoted (2026-09-30): the reviews' four correctness fixes
+
+Master aa7c8a1 + promote291_fixed.py (jar 55c2a177): 286 (every finish
+shortcut honours the grid rule at the finish; the exact potential is built
+with it), 287 (finishing without the exact potential: exactRemaining 0 made
+every S/F crossing a finish), 288 (a crossing that does not finish no longer
+skips the guards, the danger search or the chooser), 289 (no field-cost veto
+in the pace overrides), and the scatter placement fix (a car scattered off
+the grid never stood on it). Measured as the gated bundle a291bundle against
+m291base: identity INERT on the four standard races; random starts -0.002 +-
+0.011 (crashes 89:77), computed +0.008 +- 0.009 (84:74), scattered -0.070 +-
+0.013 (17:110); the promoted jar races as the bundle with every slot a
+candidate (PROMO291_IDENTITY OK, 7 of 7). Lone check, seeds 1-5, every seat:
+-0.002 +- 0.006 (17 tracks for, 10 against, 57 tied; crashes 38:35).
+Place-neutral where it is not a gain: a correctness fix the fleet clears.
+
+Corpus (the box, one probe pass, loop, then every pin as CI runs it): 1 of 12
+goldens (nurburgring s19: 1119 turns, H from 8th to 6th, no crash), 2 of 24
+pins (energy_pace nurburgring s1: the same seven finishers and no crash,
+three cars one or two moves slower; private_slack interlagos s47: its
+trajectory digest), headless smoke, query replay and lap progress unchanged;
+the computed-start hairpin digest (the browser's) unchanged, warm and cold.
+
+Where the other arms stand (each against its own pre-291 base; 296 against
+master 82f0466 + 291, which races as the promoted master):
+- 296, the third review's decision-changing AI findings (A1: the one-move
+  lookahead and the rollout proxies price a move with the gate events it
+  collects paid; A3: a final-lap move touching CP2 and crossing the line
+  finishes; A4: the ridge switch ranks the rollout's place first; A5: a
+  human's replies past the AI cap are escapes): identity OK, CPU 1.08x.
+  Random starts -0.248 +- 0.023 (50 tracks for, 20 against, 14 tied;
+  crashes 80:64), computed -0.225 +- 0.020 (47/17/20; crashes 70:62),
+  scattered -0.019 +- 0.004 (21/5/58; crashes 15:15) -- the largest gain
+  since round 260. Held-out seeds, duels and the lone check next.
+- 293 (the second review's correctness bundle): legacy +0.000, computed
+  -0.000, scattered +0.000, held-out -0.001 +- 0.001, duels +0.000, lone
+  +0.000 -- all 84 tracks tied in every slice but held-out (82): inert.
+- 294 (the single-player rule before the duel tactic): legacy and duels
+  +0.000, 84 tied. 295 (hostile tie-breaks): legacy +0.000, 84 tied.
+- 292b (the chooser judges only a pace landing it added): -0.036 +- 0.018
+  (43/34/7), CPU 0.95x. 283 wide: -0.049 +- 0.018 (47/33/4), CPU 1.35x.
+  283 defend: -0.004 +- 0.005. The lab's terminal flag: legacy -0.007 +-
+  0.003, scattered -0.000.
+- 281 near: duels +0.000 (84 tied); lone check -0.105 +- 0.020 (crashes
+  30:35). 281 all: as before.
+All of these re-screen on the new champion before they can ship.
+
 ## Branch research: outcome ranks, opening plans and counterfactual corpus (2026-09-28)
 
 Owner request: implement review ideas 1, 2, 4 and 6 on a branch; examine 3
@@ -85,7 +256,7 @@ From the review (base m281base = master 8495da2):
   84:74; 17/19/48). Place-neutral where it is not a gain: it clears the fleet
   as a correctness fix. The legacy odd half lost one Nordschleife race to the
   kernel's OOM killer (three Nordschleife JVMs at once); screen4's retry
-  re-raced it. promote291_fixed.py applies to master e221569 (jar
+  re-raced it. PROMOTED 2026-09-30 (see above). promote291_fixed.py applies to master e221569 (jar
   p291_on_e22 b46b7a45); its identity against the bundle (no slots == every
   slot a candidate) and the lone check are queued first. The scatter
   placement fix rides with the promotion. The queue's first fit starved
@@ -146,6 +317,125 @@ Earlier results that were still open:
 - Round 278's duel slice: +0.018 +- 0.003 against it (3 boards, 81 tied),
   crashes 196:222.
 
+## The owner's calls of 2026-09-29: the turn limit and the lone check
+
+- The race turn limit (750 x laps x cars turns) classifies every car still
+  racing at once, by progress: fewer gate events owed (laps, then
+  checkpoints), then fewer turns to the next gate on the reachability maps,
+  then the car that would move sooner. The cars used to retire in turn
+  order, the first to move taking the worst place, so a car a lap ahead
+  could be classified behind. The retirements are logged worst first, each
+  taking the worst place still open -- the log grammar and every validator
+  are unchanged -- and the car with the most progress is the survivor. No
+  fleet race reaches the limit: the goldens are identical. The AI's rollouts
+  still model a car's own timeout as its failure.
+- The lone-candidate check keeps its all-champion control grid (the owner,
+  the same day, reversing the first call; 53f8847 reverted). With every seat
+  raced its places are a permutation of 1..n, so for places the pairing
+  contributes exactly (n+1)/2 per track and seed -- but the all-champion race
+  is the only one in which a policy meets nothing but its own kind. A policy
+  that behaved differently there (one that cooperates when every other car
+  is the same AI, say) would show only in the control. Kept for safety.
+
+## The 2026-09-29 third review: what landed
+
+Five read-only reviewers (AI, maps, referee and desktop UI, browser, tooling)
+while the round 291-295 screens ran. Every fix below races identically: the
+12 goldens are unchanged, the Java suite, BrowserTests, parity (quick) and
+the three browser suites pass, and every queued arm and promote291 still
+apply.
+
+Measurement tooling:
+- fleet_grid re-hashed the ORIGINAL jar, profile, courses and its own
+  sources after every track, although since 4f9bf8a the JVMs race private
+  copies: a rebuilt jar (build_main.sh deletes it first) or a pulled tool
+  mid-run revoked every marker of a valid grid. It checks the copies and the
+  Java runtime now; the originals only at start or resume, through the
+  manifest. Consequence for the box: never update the tools under
+  /home/ubuntu/duelpromo while a grid runs -- a running runner still has the
+  old check.
+- A SIGTERM to run_screen.py or run_1vfield.py killed only the wrapper and
+  left fleet_grid racing with its lock held; they forward it now.
+- The lone check never compared the grids' race profiles (only build,
+  runtime, seeds, courses); a seat raced on another profile was scored.
+- A lapped course whose JVM reported no exact potential passed the
+  demoted-champion check; silence fails now (a course without laps says so).
+- run_screen hid head_to_head's refusal reason; default jobs used installed
+  memory and the first -Xmx (the JVM takes the last).
+- Pins that could not fail: the graduated s106 check compared a value with
+  itself, thin_ridge's p7 crash scan was implied by zero crashes, four
+  assert-only scripts passed under -O (now refuse it). label_invariance's
+  all-AI2 Coil s5 race was six_ahead_high_speed's; it now compares with that
+  pinned digest. private_slack's nine unread decision strings went.
+- run_1vfield's control grid, with every seat raced, contributes exactly
+  (n+1)/2 per track-seed: the reading is the candidate's mean place minus
+  that. The docstring said seat effects cancel; it says what happens now.
+  Dropping the control would save a ninth of the check -- the owner's call
+  (CLAUDE.md prescribes the pairing).
+
+Referee and desktop UI:
+- A drawn hairpin whose closing walls met at its mouth has no lap, and the
+  one-point containment test accepted it opening west or north (Path2D
+  counts left and top edges inside) and refused it opening east or south.
+  The rings must not touch now, closing walls included.
+- The queued-click barrier compared the windowing system's event clock with
+  the wall clock; X11's stops in a suspend, after which every click was
+  dropped. The window now closes input after each AI move or placement and
+  reopens it with a marker queued behind the waiting input -- no clock.
+  OK and Undo are gated too (a greyed Undo re-enabled by the AI's reply fired).
+- Every desktop message showed the error icon (OK_OPTION is ERROR_MESSAGE).
+- An exception in an AI decision left a desktop race in PLAY with nothing
+  scheduled; it stops the race with the reason now (headless and the browser
+  report it as before). A malformed candidateSlots in a batch run exits 2
+  with its message, like a single run.
+- The blue closing walls are drawn where the corridor's ring runs (through
+  its rounded midpoints and corners), not from rounded closure endpoints.
+- Kept: the turn-limit classification (cars still racing at the limit are
+  placed in turn order, not by progress: a car a lap ahead can be classified
+  behind) -- a rule, for the owner; the fleet shows no timeouts.
+
+Maps: the abandoned-temporary sweep runs when a preparation starts (a JVM
+whose maps all come from the cache wrote nothing, so never swept) and skips
+a file it cannot delete instead of stopping; the potential worker releases
+maps it attached after a cancel; a restart drops the event thread's point
+memo; the alive-set sweeps poll the cancel; "frontier budget" reads "heap
+too small" when the heap cut the frontier. Kept: the two IntQueue classes
+(growable and bounded) and the duplicated gate-seed scans (the browser's
+progress hooks count them).
+
+AI (identical races): the debug flags steered decisions (they forced the
+smoke check, whose verdict then fed the danger search: probe_debug.py could
+replay moves the race never made); they only print now. Gone: the per-rival
+cost vector (its last reader left in round 280), a scorer-self rollout run on
+every thread-pack fire for a debug print, the finish-denial snapshots (the
+nested confirms have their own rows since round 223), field costs requested
+and never read (the rollouts stop at the mover's finish again). Kept:
+moverNumber (arm 293 gates on it), the lookahead's levels > 0 branch (the
+horizon knob), finish denial's crossing tests (promote291 rewrites them;
+unreachable, remove after 291).
+
+Browser: parity shared one reach cache between the desktop and browser
+engines, so the browser's instrumented searches were never compared; each
+has its own empty cache. The jar is published as racing-<build>.jar and the
+worker names it (a page never pairs with another deploy's cached jar; an
+unbuilt worker refuses). The IndexedDB prune keeps or drops a course's files
+together, marks this race's maps used and drops the retired .derived files.
+The exact race map's stage shows while the daemon waits on it. Live regions
+are written only on change, a control disabled while focused gets focus back,
+a dead engine no longer warns on leaving, the live check polls the page's
+revision link, stamp_versions scans only page files, JDK 19+.
+
+Decision-changing findings, for arms (round 296):
+- A1: the one-move lookahead and the rollout proxies (greedy, selfMove,
+  rivalMove) price a successor with the gate events owed BEFORE the move;
+  bestCheckpointMove and the private lane subtract them. A continuation past
+  an owed checkpoint reads as owing it again.
+- A3: a final-lap move that touches CP2 and crosses the line in one move
+  escapes the scan (no bundled lap course has CP2 that close).
+- A4: the thin-ridge switch ranks surviving alternatives by map time, not by
+  the rollout's place -- the rank-first rule.
+- A5: the seal's rivalEscapes skips a human's accelerations past the AI cap.
+
 ## The 2026-09-28 second review: what landed
 
 The owner asked for the whole repo to be reviewed again. Six reviewers; every
@@ -193,10 +483,23 @@ browser/desktop parity byte-identical on 17 complete races). CI green through
   (round 294), the field-cost tie-breaks are reversed (round 295), and the
   cross-era exhibition and the three generators that rewrote bundled tracks
   in place are retired (e221569).
-Open: the AI findings are round 293 (above); a JS/jar protocol check (a
-returning browser can pair a cached jar with new pages for a few minutes
-after a deploy); the browser's preparation stage is one number shared by
-two threads (cosmetic).
+- The remaining findings (the owner: "fix the remaining issues"):
+  93734ab drops the three derived maps no decision read (the depth-1 roomy
+  map, its shed variant and the certified-speed map: ~4 B/state of a lap
+  race, three of six derive sweeps; the cache is now <key>.derived2), the
+  dead isRoomy recursion, multi-step opponent prediction and the hold
+  verdict memo (0 hits in 497 lookups) -- 12/12 goldens identical, every
+  queued arm still applies. 81f999d gives each browser build one engine
+  identity (jar and worker must match, or the page asks for a reload),
+  stamps tracks.json, makes builds byte-reproducible, and has the browsers
+  job test the artifact parity built instead of a rebuild. 638ceef: the
+  race-start velocity arrow. e446b80: nine duplicate pin races run once.
+  4f9bf8a: grids race from private input copies; memory-aware default jobs.
+  Kept on purpose: `!lapAware && onFinalLap` (redundant only while every
+  caller runs in a decision frame), the pins' constant contract checks
+  (re-freeze tripwires), StartPlacement.score (the smallest test seam),
+  board_at and head_to_head.read (tools and tests use them), the pre-v3
+  icon exports (old installs link them).
 
 ## The 2026-09-27 code review: what landed
 

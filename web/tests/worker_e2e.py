@@ -32,7 +32,7 @@ onmessage = ({data:m}) => {
 HARNESS = """<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Worker test</title></head><body>
 <button id="click">Responsive button</button>
 <script type="module">
-import {Engine} from './engine.js?v=4';
+import {Engine} from './engine.js?v=0';
 window.Engine=Engine; window.errors=[]; window.cpuStarted=false;
 window.engine=new Engine((_text,p)=>{if(p?.failure) errors.push(p.failure); if(p?.phase==='CPU stress') cpuStarted=true;});
 window.ticks=0; setInterval(()=>ticks++, 20);

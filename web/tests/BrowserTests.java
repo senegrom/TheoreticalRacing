@@ -91,14 +91,35 @@ public final class BrowserTests {
         testPlacementFailureRecovery();
         testStartingZoneDeltas();
         testOneAiMovePerStep();
-        testTimeoutUndo();
+        testTurnLimitByProgress();
         testReachCachePruned();
+        check(b.build().matches("[0-9a-f]{64}"), "the jar carries no engine build identity: " + b.build());
+        testExactMapBesideTheMaps();
         System.out.println("BrowserTests: previews, consent, original rules, one AI move per Step, undo, duplicate drawing points, coarse loops refused, drawn checkpoints by length and placement recovery OK");
+    }
+
+    /** Review, 2026-09-28: with computed starts the exact race map builds beside
+     *  the reachability maps; its stage must not mark theirs complete. */
+    private static void testExactMapBesideTheMaps() {
+        tr.browser.Progress.geometry();
+        tr.browser.Progress.plan(true, true, true);
+        tr.browser.Progress.begin("Scanning finish approaches", 4);
+        tr.browser.Progress.begin("Exact full-race map", 9);
+        check(tr.browser.Progress.stage() == 4, "the exact map jumped the checklist to " + tr.browser.Progress.stage());
+        tr.browser.Progress.begin("Resolving lap checkpoints", 6);
+        tr.browser.Progress.begin("Lap safety", 7);
+        tr.browser.Progress.begin("Computing braking maps", 5);
+        check(tr.browser.Progress.stage() == 8, "the lap-driving sweeps did not show as stage 8");
+        // Review, 2026-09-29: the daemon shows the stage where it waits on the map.
+        tr.browser.Progress.exactMap();
+        check(tr.browser.Progress.stage() == 9, "the exact map did not follow the lap maps");
     }
 
     /** Review, 2026-09-28: the browser's map caches never shrank. Pruning keeps
      *  this race's maps and the newest others within the budget, drops stale
-     *  temporary files and the retired generation's files. */
+     *  temporary files and the retired generation's files. Since 2026-09-29 a
+     *  course's files go together, ranked by the newest, this race's are marked
+     *  used, and the old .derived format goes. */
     private static void testReachCachePruned() throws Exception {
         final java.nio.file.Path root = java.nio.file.Files.createTempDirectory("prune");
         final java.nio.file.Path live = java.nio.file.Files.createDirectory(root.resolve("maps-v2"));
@@ -112,20 +133,28 @@ public final class BrowserTests {
         };
         java.nio.file.Files.write(root.resolve("reach-retired.bin"), new byte[100]);
         file.accept("reach-current.bin", 9_000_000L);          // oldest, but this race's
-        file.accept("reach-current.bin.derived", 9_000_000L);
+        file.accept("reach-current.bin.derived2", 9_000_000L);
+        file.accept("reach-current.bin.derived", 9_000_000L);  // the retired format
         file.accept("reach-new.bin", 1_000L);
         file.accept("reach-mid.bin", 5_000L);
+        file.accept("reach-mid.bin.edges", 9_500_000L);        // one course: kept with its .bin
         file.accept("reach-old.bin", 8_000L);
+        file.accept("reach-old.bin.derived2", 2_000L);         // ranks by its newest file...
         file.accept(".reach-new.bin.tmp.1.tmp", 7_200_000L);   // abandoned two hours ago
         file.accept(".reach-mid.bin.tmp.2.tmp", 60_000L);      // perhaps still being written
-        BrowserBridge.pruneReachCache(live, live.resolve("reach-current.bin").toString(), 400, now);
+        BrowserBridge.pruneReachCache(live, live.resolve("reach-current.bin").toString(), 600, now);
         final java.util.Set<String> left = new java.util.TreeSet<>();
         try (java.util.stream.Stream<java.nio.file.Path> s = java.nio.file.Files.list(live)) {
             s.forEach(p -> left.add(p.getFileName().toString()));
         }
-        check(left.equals(new java.util.TreeSet<>(java.util.List.of("reach-current.bin", "reach-current.bin.derived",
-                "reach-new.bin", "reach-mid.bin", ".reach-mid.bin.tmp.2.tmp"))), "pruned cache holds " + left);
+        // ...so the old course (newest 2 s) outranks the mid one (5 s): 200 + 100 +
+        // 200 bytes fit 600, the mid course's 200 more do not.
+        check(left.equals(new java.util.TreeSet<>(java.util.List.of("reach-current.bin", "reach-current.bin.derived2",
+                "reach-new.bin", "reach-old.bin", "reach-old.bin.derived2", ".reach-mid.bin.tmp.2.tmp"))),
+                "pruned cache holds " + left);
         check(!java.nio.file.Files.exists(root.resolve("reach-retired.bin")), "a retired generation's file survived");
+        check(java.nio.file.Files.getLastModifiedTime(live.resolve("reach-current.bin")).toMillis() == now,
+                "this race's maps were not marked as used");
     }
 
     /** The owner's drawn-track rule (2026-09-27): a closed loop drawn with too
@@ -182,6 +211,12 @@ public final class BrowserTests {
         final double[][] drawn = ((tr.gui.RaceUI) get(bridge, "scene")).checkpoints;
         check(drawn.length == 2 && drawn[0][1] == game.lapGates[1].getY1() && drawn[1][1] == game.lapGates[2].getY1(),
                 "the page draws the checkpoints off the referee's: " + java.util.Arrays.deepToString(drawn));
+        // The closing walls run where the corridor's ring does, through its
+        // rounded midpoints and corners (review, 2026-09-29).
+        final int[][] walls = ((tr.gui.RaceUI) get(bridge, "scene")).closures;
+        check(java.util.Arrays.deepEquals(walls, new int[][]{{8, 5, 7, 5}, {7, 5, 5, 5}, {5, 5, 5, 7}, {5, 7, 5, 8},
+                {16, 15, 15, 15}, {15, 15, 15, 16}}),
+                "the page draws the closing walls off the corridor: " + java.util.Arrays.deepToString(walls));
         int[] start = null;
         outer: for (int x = 0; x <= game.gameCols; x++) for (int y = 0; y <= game.gameRows; y++)
             if (game.startZoneA.contains(x, y) && game.trackA.contains(x, y)) { start = new int[]{x, y}; break outer; }
@@ -276,8 +311,8 @@ public final class BrowserTests {
         check(undone.contains("\"startZone\":[") && !undone.contains("\"shape\":"),
                 "restoring the start zone was omitted from the undo delta");
     }
-    /** The generated adapter only makes dialogs non-modal; commit/undo are the real engine. */
-    private static void testTimeoutUndo() throws Exception {
+    /** The generated adapter only makes dialogs non-modal; commit is the real engine. */
+    private static void testTurnLimitByProgress() throws Exception {
         final RaceGame game = new RaceGame(new java.util.Properties());
         game.gameCols = 80; game.gameRows = 20; game.track = new Track();
         game.track.addLeft(0, 1); game.track.addLeft(73, 1);
@@ -300,38 +335,37 @@ public final class BrowserTests {
         }
         final java.lang.reflect.Method commit = RaceGame.class.getDeclaredMethod("commitMove", int[].class, int[].class, int[].class);
         commit.setAccessible(true);
+        // The finished race writes its log: never beside the jar (the sealed site).
+        final java.nio.file.Path log = java.nio.file.Files.createTempFile("timeout", ".log");
+        game.setGameLogPath(log.toString());
+        // Declined crash consent must not add a committed action.
+        final String beforeDecline = get(game, "gameLog").toString();
+        commit.invoke(game, game.players[0].getPosition(), new int[]{0, -20}, new int[]{10, -10});
+        check(((java.util.Deque<?>) get(game, "moveHistory")).isEmpty()
+                && beforeDecline.equals(get(game, "gameLog").toString()), "declined crash recorded an Undo action");
+        // P2 has passed CP1 (x = 50); P1 and P3 still owe it.
+        game.players[1].setPosition(new int[]{55, 10});
+        game.players[1].setNextGate(2);
         game.setQueryTurnCounter(2249);
         for (int i = 0; i < 2; i++)
             commit.invoke(game, game.players[i].getPosition(), new int[]{0, 0}, game.players[i].getPosition().clone());
-        final String savedLog = get(game, "gameLog").toString();
-        final int[] savedLap = game.players[2].lapState();
-        final int savedHistory = game.players[2].getHistory().size();
-        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
-        check(game.turnCount() == 2252 && game.players[2].getFinishedPlace() == 3
-                && get(game, "gamestate") == GameState.PLAY, "timeout fixture did not leave an ongoing race");
-        check(get(game, "gameLog").toString().contains("TIMEOUT place=3"), "timeout was not committed");
-        game.clickedUndo();
-        check(game.turnCount() == 2251 && game.subgamestate == 2, "timeout undo consumed the preceding player's move");
-        check(savedLog.equals(get(game, "gameLog").toString()), "timeout undo did not restore the exact log");
-        check(game.players[2].getFinishedPlace() == 0 && (int) get(game, "finishedLast") == 0
-                && Arrays.equals(game.players[2].getPosition(), new int[]{30, 10})
-                && Arrays.equals(game.players[2].getVelocity(), new int[]{0, 0})
-                && Arrays.equals(game.players[2].lapState(), savedLap)
-                && game.players[2].getHistory().size() == savedHistory, "timeout undo did not restore all player state");
-        // Repeating the action must be deterministic, not consume an extra snapshot.
-        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
-        game.clickedUndo(); game.clickedUndo();
-        check(game.turnCount() == 2250 && game.subgamestate == 1, "successive undo lost the earlier action boundary");
-        // Declined crash consent still must not add a committed action.
         final int snapshots = ((java.util.Deque<?>) get(game, "moveHistory")).size();
-        final String beforeDecline = get(game, "gameLog").toString();
-        commit.invoke(game, game.players[1].getPosition(), new int[]{0, -20}, new int[]{20, -10});
-        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots
-                && beforeDecline.equals(get(game, "gameLog").toString()), "declined crash recorded an Undo action");
-        game.setAutoMode(true); game.setQueryTurnCounter(2251);
-        commit.invoke(game, game.players[1].getPosition(), new int[]{0, 0}, game.players[1].getPosition().clone());
-        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots, "auto timeout allocated Undo history");
-        System.out.println("Timeout Undo: mover, clock, classification, log, histories and lap state restored; consent preserved");
+        commit.invoke(game, game.players[2].getPosition(), new int[]{1, 0}, new int[]{31, 10});
+        // The owner's rule (2026-09-29): the limit classifies every car still racing
+        // at once, by progress -- P2 first although it moves last; P3 before P1, the
+        // tie (both owe CP1, no maps here) going to the car that would move sooner.
+        check(get(game, "gamestate") == GameState.FINISHED, "the turn limit left the race running");
+        check(game.players[1].getFinishedPlace() == 1 && game.players[2].getFinishedPlace() == 2
+                && game.players[0].getFinishedPlace() == 3, "the turn limit did not classify by progress: "
+                + game.players[0].getFinishedPlace() + " " + game.players[1].getFinishedPlace() + " "
+                + game.players[2].getFinishedPlace());
+        final String text = get(game, "gameLog").toString();
+        check(game.turnCount() == 2253 && text.contains("\n2252 p1 HUMAN NONE v(0,0)→(0,0) (10,10)→(10,10) TIMEOUT place=3\n")
+                && text.contains("\n2253 p3 HUMAN NONE v(0,0)→(0,0) (30,10)→(30,10) TIMEOUT place=2\n")
+                && text.contains("# results\n1. P2\n2. P3\n3. P1\n"), "the timeouts were not logged worst first:\n" + text);
+        check(((java.util.Deque<?>) get(game, "moveHistory")).size() == snapshots, "the race-ending timeout kept an Undo action");
+        java.nio.file.Files.deleteIfExists(log);
+        System.out.println("Turn limit: every car still racing classified by progress at once; consent preserved");
     }
 
     private static void set(final Object object, final String name, final Object value) throws Exception {

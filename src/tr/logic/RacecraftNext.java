@@ -6,7 +6,7 @@ import java.util.Properties;
 /** Independent candidate arms; settings and shipped defaults stay unchanged. */
 final class RacecraftNext {
     enum Feature {
-        CRASH_RANK("crash-rank"), RANK_TIME("rank-time"), OPENING("opening"), START_TIES("start-ties");
+        CRASH_RANK("crash-rank"), RANK_TIME("rank-time"), OPENING("opening");
         final String flag;
         Feature(final String flag) { this.flag = flag; }
     }
@@ -39,7 +39,7 @@ final class RacecraftNext {
 
     boolean enabled(final RaceGame game, final int player, final Feature feature) {
         return game.candidatePolicy(player) && features.contains(feature)
-                && (feature != Feature.OPENING || openingTrials > 0);
+                && (feature != Feature.OPENING || openingTrials > 0 && opening(game, player));
     }
     boolean driving(final RaceGame game, final int player) {
         return enabled(game, player, Feature.CRASH_RANK) || enabled(game, player, Feature.RANK_TIME)

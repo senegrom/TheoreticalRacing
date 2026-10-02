@@ -17,6 +17,10 @@ sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRNAMES, Oracle, ReplayBoard, reconstruct_board  # noqa: E402
 from tracks.oracle_roll import apply_move, race_finished, verify  # noqa: E402
 
+# These checks are asserts: under -O or PYTHONOPTIMIZE they would all pass.
+if not __debug__:
+    raise SystemExit("this regression checks with assert; run it without -O")
+
 
 def single_lap_checkpoint_contract(jar, directory):
     """Real one-lap checkpoint races must never enter five-field diagnostics."""

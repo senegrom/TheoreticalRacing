@@ -54,6 +54,7 @@ public final class CoreTests {
         testEmptyTrackUndo();
         testCoarseLoopBorders();
         testOpenLoopRefused();
+        testTurnLimitByProgress();
         testPolylineHelpers();
         testAiTurnRejectsManualDirection();
         tr.gui.GameUITests.run();
@@ -628,8 +629,8 @@ public final class CoreTests {
             lap.gateTurns = new int[][]{new int[8], new int[8], new int[8]};
             lap.robustReach = new BitSet[]{new BitSet(8), new BitSet(8), new BitSet(8)};
             lap.aliveStates = new BitSet(8); lap.aliveStates.set(1);
-            lap.roomy0 = new BitSet(8); lap.roomy1 = new BitSet(8);
-            lap.minShed2 = new byte[8]; lap.minShed2Roomy = new byte[8]; lap.certSq = new byte[8];
+            lap.roomy0 = new BitSet(8);
+            lap.minShed2 = new byte[8];
             lap.robustSeedFallback = true; lap.phantomAlive = 3;
             publishLap.invoke(lap, "memo-lap");
             final Reachability adopted = syntheticReachability(8);
@@ -677,8 +678,8 @@ public final class CoreTests {
         final Reachability r = new Reachability(new RaceGame(new java.util.Properties()));
         r.aliveW = 1; r.aliveH = 1; r.aliveVMAX = 0; r.aliveSpan = 1;
         r.turnsArr = new int[states]; r.aliveStates = new BitSet(states);
-        r.roomy0 = new BitSet(states); r.roomy1 = new BitSet(states);
-        r.minShed2 = new byte[states]; r.minShed2Roomy = new byte[states]; r.certSq = new byte[states];
+        r.roomy0 = new BitSet(states);
+        r.minShed2 = new byte[states];
         return r;
     }
 
@@ -724,13 +725,10 @@ public final class CoreTests {
         final int states = reach.aliveSpan * reach.aliveSpan;
         reach.aliveStates = new java.util.BitSet(states);
         reach.turnsArr = new int[states];
-        reach.certSq = new byte[states];
         check(!reach.isAlive(0, 0, Integer.MIN_VALUE, 0),
                 "minimum integer velocity escaped the reachability bound");
         check(reach.turnsToFinish(0, 0, Integer.MIN_VALUE, 0) == Integer.MAX_VALUE,
                 "minimum integer velocity reached the turns array");
-        check(reach.certBudget(0, 0, Integer.MIN_VALUE, 0) == 0,
-                "minimum integer velocity reached the certified-speed array");
         check(!reach.isAlive(0, 0, Integer.MAX_VALUE, 0),
                 "maximum integer velocity escaped the reachability bound");
     }
@@ -869,6 +867,24 @@ public final class CoreTests {
                 new int[]{6, 7})), "a short wiggle that never left its start was refused");
     }
 
+    /** The owner, 2026-09-29: at the race turn limit the cars still racing are
+     *  classified by progress -- fewer gate events owed, then nearer the next
+     *  gate (unknown last), then the car that would move sooner. */
+    private static void testTurnLimitByProgress() {
+        final Player a = new Player("A", 1, Color.RED, Player.Kind.AI2), b = new Player("B", 2, Color.RED, Player.Kind.AI2),
+                c = new Player("C", 3, Color.RED, Player.Kind.AI2), d = new Player("D", 4, Color.RED, Player.Kind.AI2),
+                e = new Player("E", 5, Color.RED, Player.Kind.AI2);
+        final List<RaceGame.Standing> standing = new ArrayList<>(List.of(
+                new RaceGame.Standing(a, 3, 20, 0),                 // owes CP1, 20 turns out, moves first
+                new RaceGame.Standing(b, 3, 5, 2),                  // owes CP1, 5 turns out
+                new RaceGame.Standing(c, 2, 40, 4),                 // past CP1: most progress, moves last
+                new RaceGame.Standing(d, 3, Integer.MAX_VALUE, 1),  // no map reading
+                new RaceGame.Standing(e, 3, 20, 3)));               // A's tie, moves later
+        standing.sort(RaceGame.BY_PROGRESS);
+        check(standing.stream().map(s -> s.player().getName()).toList().equals(List.of("C", "B", "A", "E", "D")),
+                "turn-limit standing not by progress: " + standing.stream().map(s -> s.player().getName()).toList());
+    }
+
     /** Review, 2026-09-27: a drawing whose outer border closes but whose inner
      *  border stops more than LAP_CLOSURE_MAX short is refused -- computeLapGates
      *  would disable laps and race it point to point to a line beside the grid. */
@@ -902,43 +918,57 @@ public final class CoreTests {
                 "two loops side by side were accepted: " + apart);
         check(RaceGame.openLoopProblem(java.util.List.of(new int[]{5, 5}, new int[]{40, 5}),
                 java.util.List.of(new int[]{5, 12}, new int[]{40, 12})) == null, "a point-to-point drawing was refused");
+        // Review, 2026-09-29: a hairpin whose closing walls meet at its mouth has
+        // no lap. One point on the other ring's edge counted as inside when the
+        // edge was a left or top one, so it passed opening west or north only.
+        final int[][] inner = {{10, 14}, {15, 14}, {20, 14}, {25, 14}, {30, 14}, {37, 14},
+                {37, 11}, {30, 11}, {25, 11}, {20, 11}, {15, 11}, {10, 11}};
+        final int[][] outerU = {{10, 16}, {15, 16}, {20, 16}, {25, 16}, {30, 16}, {40, 16},
+                {40, 9}, {30, 9}, {25, 9}, {20, 9}, {15, 9}, {10, 9}};
+        final String[] openings = {"west", "east", "north", "south"};
+        for (int o = 0; o < 4; o++) {
+            final int orientation = o;
+            final java.util.function.Function<int[][], java.util.List<int[]>> turn = points ->
+                    java.util.Arrays.stream(points).map(q -> switch (orientation) {
+                        case 0 -> new int[]{q[0], q[1]};
+                        case 1 -> new int[]{50 - q[0], q[1]};
+                        case 2 -> new int[]{q[1], q[0]};
+                        default -> new int[]{q[1], 50 - q[0]};
+                    }).toList();
+            final String hairpin = RaceGame.openLoopProblem(turn.apply(inner), turn.apply(outerU));
+            check(hairpin != null && hairpin.contains("must not touch"),
+                    "a hairpin opening " + openings[o] + " was taken for a loop: " + hairpin);
+        }
     }
 
-    /** Review, 2026-09-28: the derived cache is streamed both ways instead of
-     *  through whole-payload buffers, in the unchanged format -- both old
-     *  (one-shot) files and new ones read either way. */
+    /** Review, 2026-09-28: the derived cache is streamed both ways, and since
+     *  the unread maps went it holds roomy0 and minShed2 only (.derived2). */
     private static void testDerivedCacheStreams() {
         final int total = 1000;
         final java.util.Random random = new java.util.Random(7);
-        final java.util.BitSet r0 = new java.util.BitSet(total), r1 = new java.util.BitSet(total);
-        final byte[] shed = new byte[total], shedRoomy = new byte[total], cert = new byte[total];
+        final java.util.BitSet r0 = new java.util.BitSet(total);
+        final byte[] shed = new byte[total];
         for (int i = 0; i < total; i++) {
             if (random.nextInt(3) == 0) r0.set(i);
-            if (random.nextInt(5) == 0) r1.set(i);
             shed[i] = (byte) (random.nextInt(4) == 0 ? random.nextInt(256) : 255);
-            shedRoomy[i] = (byte) random.nextInt(256);
-            cert[i] = (byte) (i % 7 == 0 ? 255 : i);
         }
         try {
             final java.io.ByteArrayOutputStream streamed = new java.io.ByteArrayOutputStream();
-            Reachability.writeDerivedCache(streamed, new Reachability.Derived(r0, r1, shed, shedRoomy, cert));
-            final byte[] oneShot = oneShotDerived(total, r0, r1, shed, shedRoomy, cert);
-            for (final byte[] file : new byte[][]{streamed.toByteArray(), oneShot}) {
-                final Reachability.Derived d = Reachability.readDerivedCache(new java.io.ByteArrayInputStream(file), total);
-                check(d != null && d.roomy0().equals(r0) && d.roomy1().equals(r1)
-                        && java.util.Arrays.equals(d.minShed2(), shed) && java.util.Arrays.equals(d.minShed2Roomy(), shedRoomy)
-                        && java.util.Arrays.equals(d.certSq(), cert), "a derived cache did not read back");
-            }
-            // The streamed file's header and payload are the one-shot format's.
+            Reachability.writeDerivedCache(streamed, new Reachability.Derived(r0, shed));
             final byte[] file = streamed.toByteArray();
-            check(java.util.Arrays.equals(java.util.Arrays.copyOf(file, 16), java.util.Arrays.copyOf(oneShot, 16)),
-                    "the streamed header differs from the one-shot format");
+            final Reachability.Derived d = Reachability.readDerivedCache(new java.io.ByteArrayInputStream(file), total);
+            check(d != null && d.roomy0().equals(r0) && java.util.Arrays.equals(d.minShed2(), shed),
+                    "a derived cache did not read back");
             check(Reachability.readDerivedCache(new java.io.ByteArrayInputStream(file), total + 1) == null,
                     "a cache for another state count was accepted");
             final byte[] flipped = file.clone();
             flipped[12] ^= 1; // the checksum
             check(Reachability.readDerivedCache(new java.io.ByteArrayInputStream(flipped), total) == null,
                     "a checksum mismatch was accepted");
+            final byte[] oldFormat = file.clone();
+            oldFormat[3] ^= 0x7F; // another magic: the five-map .derived of before
+            check(Reachability.readDerivedCache(new java.io.ByteArrayInputStream(oldFormat), total) == null,
+                    "a file of another format was accepted");
             boolean truncatedRejected;
             try {
                 truncatedRejected = Reachability.readDerivedCache(new java.io.ByteArrayInputStream(
@@ -976,34 +1006,6 @@ public final class CoreTests {
         } catch (final java.io.IOException e) {
             throw new AssertionError(e);
         }
-    }
-
-    /** The pre-2026-09-28 writer: the whole payload, then one deflate call. */
-    private static byte[] oneShotDerived(final int total, final java.util.BitSet roomy0, final java.util.BitSet roomy1,
-            final byte[] shed, final byte[] shedRoomy, final byte[] cert) {
-        final long[] r0 = roomy0.toLongArray(), r1 = roomy1.toLongArray();
-        final int rawLen = 4 + 8 * r0.length + 4 + 8 * r1.length + 3 * total;
-        final byte[] raw = new byte[rawLen];
-        final java.nio.ByteBuffer buf = java.nio.ByteBuffer.wrap(raw);
-        buf.putInt(r0.length);
-        for (final long w : r0) buf.putLong(w);
-        buf.putInt(r1.length);
-        for (final long w : r1) buf.putLong(w);
-        buf.put(shed).put(shedRoomy).put(cert);
-        final java.util.zip.CRC32 c = new java.util.zip.CRC32();
-        c.update(raw, 0, rawLen);
-        final java.util.zip.Deflater def = new java.util.zip.Deflater(1);
-        def.setInput(raw);
-        def.finish();
-        final byte[] out = new byte[rawLen + 64];
-        int outLen = 0;
-        while (!def.finished() && outLen < out.length)
-            outLen += def.deflate(out, outLen, out.length - outLen);
-        def.end();
-        final byte[] file = new byte[16 + outLen];
-        java.nio.ByteBuffer.wrap(file).putInt(0x44524956).putInt(total).putInt(rawLen).putInt((int) c.getValue())
-                .put(out, 0, outLen);
-        return file;
     }
 
     private static void testPolylineHelpers() {
@@ -1115,23 +1117,7 @@ public final class CoreTests {
         game.clickedDirection(Direction.E);
         checkPoint(ai.getPosition(), 5, 6);
         checkPoint(ai.getVelocity(), 1, 0);
-        // Review, 2026-09-28: a human's click made while an AI computed -- stamped
-        // before the barrier its move set -- is dropped, not taken as a preview.
-        final Player human = new Player("H", 1, Color.RED, Player.Kind.HUMAN);
-        human.setPosition(p(5, 6));
-        game.players = new Player[]{human};
-        try {
-            final java.lang.reflect.Field barrier = RaceGame.class.getDeclaredField("aiInputBarrier");
-            barrier.setAccessible(true);
-            barrier.setLong(game, 1_000L);
-            final java.lang.reflect.Field preview = RaceGame.class.getDeclaredField("isShowingPrePath");
-            preview.setAccessible(true);
-            final int before = preview.getInt(game);
-            game.clickedDirection(Direction.E, 999L);
-            check(preview.getInt(game) == before, "a click queued behind an AI move was taken");
-        } catch (final ReflectiveOperationException error) {
-            throw new AssertionError("could not arrange the queued-click test", error);
-        }
+        // Input queued behind an AI move: GameUITests (the window's input gate).
     }
 
     private static void testSegmentIntersection() {

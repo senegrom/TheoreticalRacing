@@ -24,10 +24,12 @@ PROMOTED = {
     38: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
     106: (7, 0, [58, 59, 59, 59, 61, 61, 61]),
 }
+# Seed 106 was the round-115 coast control, pinned equal to the legacy
+# champion; re-freezes moved it, so EXPECTED alone pins it now (review,
+# 2026-09-29: the old alias compared it with itself).
 LEGACY_CHAMPION = {
     1: (7, 0, [58, 59, 60, 62, 62, 63, 63]),
     38: (7, 0, [58, 59, 61, 61, 62, 62, 63]),
-    106: PROMOTED[106],
 }
 EXPECTED = {kind: PROMOTED for kind in LABELS}
 
@@ -51,8 +53,6 @@ def main() -> int:
             raise SystemExit(f"Round-115 Pareto contract lost on seed {seed}: {result}, {legacy}")
         if sum(result[2]) >= sum(legacy[2]):
             raise SystemExit(f"Round-115 pace gain lost on seed {seed}: {result}, {legacy}")
-    if actual[LABELS[0]][106] != LEGACY_CHAMPION[106]:
-        raise SystemExit(f"Round-115 coast control changed: {actual}")
     print("AI1GraduatedFieldAccelRegression: OK (Coil s1/s38 promoted; s106 frozen)")
     return 0
 

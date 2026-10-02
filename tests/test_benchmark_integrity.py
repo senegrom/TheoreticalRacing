@@ -5,12 +5,13 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
 from unittest import mock
 
-from tracks import bench_ai, head_to_head, fleet_grid
+from tracks import bench_ai, forensics_common, head_to_head, fleet_grid
 from tracks.benchmark_io import comparison_profile, read_properties
 
 
@@ -273,12 +274,17 @@ class LoneCandidateReportTests(unittest.TestCase):
             (seat2 / 'example_s2.log').write_text(ordered_log('2', [1, 2]), encoding='utf-8')
             for grid, slots in ((control, []), (seat1, [1]), (seat2, [2])):
                 publish(grid, {'jar': 'build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
-                               'comparison': {'candidate_slots': slots}}, range(1, 3))
+                               'comparison': {'properties': 'profile', 'candidate_slots': slots}}, range(1, 3))
             text = run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
+            # Review, 2026-09-29: a seat raced with another profile is refused.
+            publish(seat2, {'jar': 'build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
+                            'comparison': {'properties': 'other profile', 'candidate_slots': [2]}}, range(1, 3))
+            with self.assertRaisesRegex(ValueError, 'profile'):
+                run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
             # Review, 2026-09-28: a seat raced by another build is refused, and
             # so is a grid whose track never completed.
             publish(seat2, {'jar': 'other build', 'tracks': {'example': 'x'}, 'seeds': [1, 2],
-                            'comparison': {'candidate_slots': [2]}}, range(1, 3))
+                            'comparison': {'properties': 'profile', 'candidate_slots': [2]}}, range(1, 3))
             with self.assertRaisesRegex(ValueError, 'another build'):
                 run_1vfield.report(control, {1: seat1, 2: seat2}, range(1, 3))
             (seat1 / 'example.complete.json').unlink()
@@ -301,6 +307,9 @@ class FleetGridGuardTests(unittest.TestCase):
         legacy = '[optimal] potential SKIPPED (over budget) in 0.0s (distance 1536 MiB, total 0 MiB)\n'
         self.assertEqual('capped', fleet_grid.potential_status('nordschleife', legacy))
         self.assertIsNone(fleet_grid.potential_status('hairpin', '[laps] too coarse -- laps disabled\n'))
+        # Review, 2026-09-29: a lapped course that reports nothing fails closed.
+        with self.assertRaisesRegex(ValueError, 'no exact potential'):
+            fleet_grid.potential_status('lemans', '[start] placements ready\n')
         for text in (legacy, capped.replace('over the distance cap', 'heap too small')):
             with self.assertRaises(ValueError):
                 fleet_grid.potential_status('lemans', text)
@@ -311,6 +320,14 @@ class FleetGridGuardTests(unittest.TestCase):
             fleet_grid.potential_status('lemans', capped.replace('over the distance cap', 'frontier budget'))
         self.assertNotIn('raise the heap', str(frontier.exception))
 
+    def test_the_default_cap_is_the_engines(self):
+        # The runner accepts "over the distance cap" only at the engine's own
+        # cap; a raised Java constant must move this one with it.
+        source = (Path(__file__).resolve().parents[1] / 'src/tr/logic/RaceGame.java').read_text(encoding='utf-8')
+        m = re.search(r'OPTIMAL_BUDGET_BYTES = (\d+)L << 20;', source)
+        self.assertIsNotNone(m)
+        self.assertEqual(int(m.group(1)), forensics_common.DEFAULT_DISTANCE_CAP_MIB)
+
     def test_runners_refuse_a_demoted_champion(self):
         skipped = '[optimal] potential SKIPPED (heap too small) in 0.0s (distance 1536 MiB, total 0 MiB)\n'
         with tempfile.TemporaryDirectory() as tmp, contextlib.redirect_stderr(io.StringIO()) as errors:
@@ -320,6 +337,38 @@ class FleetGridGuardTests(unittest.TestCase):
                 self.assertIsNone(bench_ai.run_track('lemans', seed=1))
                 self.assertIsNone(bench_ai.run_track_h2h('lemans', seed=1))
         self.assertIn('raced without it', errors.getvalue())
+
+    def test_the_default_jobs_fit_in_memory(self):
+        gib = 1 << 30
+        self.assertEqual(8 * gib, fleet_grid.heap_bytes(['-Xmx8g']))
+        self.assertEqual(512 << 20, fleet_grid.heap_bytes(['-Xms1g', '-Xmx512m']))
+        self.assertEqual(4 * gib, fleet_grid.heap_bytes(['-Xmx1g', '-Xmx4g']))  # the JVM takes the last
+        self.assertIsNone(fleet_grid.heap_bytes(['-Xms1g']))
+        self.assertEqual(3, fleet_grid.default_jobs(['-Xmx8g'], memory=32 * gib, cpus=16))
+        self.assertEqual(2, fleet_grid.default_jobs(['-Xmx8g'], memory=64 * gib, cpus=2))
+        self.assertEqual(1, fleet_grid.default_jobs(['-Xmx8g'], memory=4 * gib, cpus=8))
+        self.assertEqual(3, fleet_grid.default_jobs([], memory=32 * gib, cpus=8))
+
+    def test_races_run_from_private_copies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / 'tracks').mkdir()
+            (root / 'tracks' / 'a.track').write_text('a')
+            jar, props = root / 'race.jar', root / 'p.properties'
+            jar.write_bytes(b'jar')
+            props.write_text('nPlayers=8\n')
+            manifest = {'jar': fleet_grid.digest(jar), 'properties': fleet_grid.digest(props),
+                        'tracks': {'a': fleet_grid.digest(root / 'tracks' / 'a.track')}}
+            out = root / 'out'
+            out.mkdir()
+            run_jar, run_props = fleet_grid.snapshot_inputs(out, manifest, jar, props, ['a'])
+            self.assertNotEqual(jar, run_jar)
+            jar.write_bytes(b'rebuilt')  # the original changes; the copy raced does not
+            self.assertTrue(fleet_grid.snapshot_matches(manifest, run_jar, run_props, ['a']))
+            run_props.write_text('nPlayers=2\n')  # but a write into the copy is caught
+            self.assertFalse(fleet_grid.snapshot_matches(manifest, run_jar, run_props, ['a']))
+            with self.assertRaises(ValueError):  # an original already off the manifest
+                fleet_grid.snapshot_inputs(out, manifest, jar, props, ['a'])
 
     def test_a_marker_without_the_potential_is_not_resumable(self):
         with tempfile.TemporaryDirectory() as tmp:

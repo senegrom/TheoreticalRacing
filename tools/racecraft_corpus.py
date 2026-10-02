@@ -20,6 +20,8 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import racecraft_validation as validation
 DIRECTIONS = dict(zip(('NW', 'N', 'NE', 'W', 'NONE', 'E', 'SW', 'S', 'SE'),
                       ((-1,-1), (0,-1), (1,-1), (-1,0), (0,0), (1,0), (-1,1), (0,1), (1,1))))
 
@@ -56,7 +58,7 @@ def parse_capture(text: str) -> list[dict]:
         if not line.startswith('RACECRAFT_STATE '):
             continue
         fields = line[len('RACECRAFT_STATE '):].split('|')
-        if len(fields) != 6 or fields[1] not in DIRECTIONS:
+        if len(fields) != 7 or fields[1] not in DIRECTIONS:
             raise ValueError('malformed decision capture')
         h, _ = board(fields[0])
         key = hashlib.sha256((fields[0] + '|' + fields[1]).encode()).hexdigest()
@@ -67,7 +69,8 @@ def parse_capture(text: str) -> list[dict]:
                          scorer=None if fields[2] == 'null' else fields[2],
                          chooser=None if fields[3] == 'null' else fields[3],
                          opening=None if fields[4] == 'null' else fields[4],
-                         shortlist=fields[5].split(',') if fields[5] else [], turn=int(h[1])))
+                         shortlist=fields[5].split(',') if fields[5] else [], turn=int(h[1]),
+                         legalActions=validation.action_list(fields[6].split(',') if fields[6] else [])))
     return rows
 
 
@@ -109,51 +112,34 @@ def influence_diagnostic(snapshot: str, horizon: int = 3) -> dict:
                 edges=[[cars[i][0], cars[j][0]] for i in live for j in sorted(adjacency[i]) if i < j])
 
 
-def analyze(case: dict, answer: dict) -> dict:
-    if answer.get('schema') != 3 or answer.get('baseline') != case['actual']:
-        raise ValueError('counterfactual response does not match its captured decision')
-    if answer.get('rootIdentity') != board(case['snapshot'])[0][6]:
-        raise ValueError('counterfactual board identity mismatch')
-    trials = answer.get('trials', [])
-    actions = [t.get('action') for t in trials]
-    if not trials or len(set(actions)) != len(actions) or any(a not in DIRECTIONS for a in actions):
-        raise ValueError('invalid or duplicate action trials')
-    for trial in trials:
-        trace = trial.get('trace')
-        if not isinstance(trace, list) or not all(isinstance(s, str) for s in trace):
-            raise ValueError('missing referee trace')
-        checksum = hashlib.sha256('\n'.join(trace).encode()).hexdigest()
-        if checksum != trial.get('traceSha256'):
-            raise ValueError('trace checksum mismatch')
-    base = next((t for t in trials if t['action'] == case['actual']), None)
-    if base is None:
-        raise ValueError('missing control trial')
-    incomplete = [t['action'] for t in trials if not t.get('complete') or t.get('place', 0) < 1
-                  or t.get('status') == 'UNKNOWN']
+def analyze(case: dict, answer: dict, *, max_moves: int, original_race: str, roster: dict) -> dict:
+    base, complete = validation.validate_response(case, answer, max_moves)
+    if base['complete']:
+        validation.validate_control(case, base, original_race, roster)
     summary = dict(id=case['id'], actual=case['actual'],
                    influence=influence_diagnostic(case['snapshot']))
-    if incomplete:
-        return dict(summary, labelled=False, excluded='incomplete-counterfactuals', incomplete=incomplete)
+    if not complete:
+        return dict(summary, labelled=False, excluded='incomplete-counterfactuals',
+                    incomplete=[t['action'] for t in answer['trials'] if not t['complete']])
     best = base
-    for trial in trials:
-        if (trial['place'], trial['ownMoves']) < (best['place'], best['ownMoves']):
-            best = trial
-    gain = base['place'] - best['place']
-    time_gain = base['ownMoves'] - best['ownMoves']
-    if best is base:
-        reason = 'no-observed-regret'
-    elif not base['legal']:
-        reason = 'selected-illegal-action'
-    elif not case.get('shortlist'):
-        reason = 'pre-chooser-or-unobserved'
-    elif best['action'] not in case['shortlist']:
-        reason = 'shortlist-exclusion'
+    for trial in answer['trials']:
+        if (trial['place'], trial['ownMoves']) < (best['place'], best['ownMoves']): best = trial
+    if best is base: reason = 'no-observed-regret'
+    elif not base['legal']: reason = 'selected-illegal-action'
+    elif not case.get('shortlist'): reason = 'pre-chooser-or-unobserved'
+    elif best['action'] not in case['shortlist']: reason = 'shortlist-exclusion'
     elif best['action'] == case.get('chooser') and case['actual'] != case.get('chooser'):
         reason = 'downstream-replacement'
-    else:
-        reason = 'forecast-horizon-or-ranking'
-    return dict(summary, labelled=True, best=best['action'], placeGain=gain, ownMoveGain=time_gain,
-                baselinePlace=base['place'], bestPlace=best['place'], diagnosis=reason)
+    else: reason = 'forecast-horizon-or-ranking'
+    return dict(summary, labelled=True, best=best['action'], placeGain=base['place']-best['place'],
+                ownMoveGain=base['ownMoves']-best['ownMoves'], baselinePlace=base['place'],
+                bestPlace=best['place'], diagnosis=reason)
+
+
+def tooling_identity() -> dict:
+    paths = ('tools/racecraft_corpus.py', 'tools/racecraft_validation.py',
+             'tracks/benchmark_io.py', 'tracks/forensics_common.py')
+    return {path: digest(ROOT / path) for path in paths}
 
 
 def java_runtime(java: str, heap: str) -> tuple[str, str]:
@@ -218,18 +204,19 @@ def capture(args) -> None:
     states.write_text(''.join(json.dumps(c, sort_keys=True) + '\n' for c in cases), encoding='utf-8')
     if inputs != dict(jar=digest(jar), track=digest(track), profile=digest(profile)) or digest(source) != source_hash:
         raise ValueError('capture inputs changed during execution')
-    manifest = dict(schema=1, jar=str(jar), track=args.track, trackFile=str(track), seed=args.seed,
+    manifest = dict(schema=2, jar=str(jar), track=args.track, trackFile=str(track), seed=args.seed,
                     inputs=inputs, sourceProfileSha256=source_hash, java=java, javaVersion=version,
                     heap=args.heap, potential=status, statesSha256=digest(states), raceSha256=digest(out / 'race.log'),
-                    toolSha256=digest(Path(__file__)), cases=len(cases), seconds=elapsed)
+                    tooling=tooling_identity(), cases=len(cases), seconds=elapsed)
     atomic_json(out / 'manifest.json', manifest)
     print(f'Captured {len(cases)} complete decision states; no counterfactual gain has been measured.')
 
 
 def replay(args) -> None:
-    _, update_properties, potential_status = helpers()
+    configured_players, update_properties, potential_status = helpers()
     directory = args.capture.resolve()
     manifest = json.loads((directory / 'manifest.json').read_text(encoding='utf-8'))
+    if manifest.get('schema') != 2: raise ValueError('old corpus manifest: capture again with cf4')
     java, version = java_runtime(args.java, manifest['heap'])
     if version != manifest['javaVersion']:
         raise ValueError('replay Java runtime differs from capture')
@@ -239,7 +226,7 @@ def replay(args) -> None:
     def unchanged():
         if (manifest['inputs'] != dict(jar=digest(jar), track=digest(track), profile=digest(source))
                 or digest(states) != manifest['statesSha256'] or digest(directory / 'race.log') != manifest['raceSha256']
-                or digest(Path(__file__)) != manifest['toolSha256']):
+                or tooling_identity() != manifest['tooling']):
             raise ValueError('capture/replay input identity changed')
     unchanged()
     cases = [json.loads(line) for line in states.read_text(encoding='utf-8').splitlines()]
@@ -252,11 +239,13 @@ def replay(args) -> None:
     profile.write_bytes(source.read_bytes())
     update_properties(profile, {'racecraftCapture': 'false'})
     summaries = []
+    original_race = (directory / 'race.log').read_text(encoding='utf-8')
+    roster = configured_players(source)
     for index, case in enumerate(cases):
         unchanged()
         prefix = out / f'case-{index:04d}'
         query, answer = prefix.with_suffix('.in'), prefix.with_suffix('.json')
-        query.write_text(f"cf3,{args.max_moves},{case['actual']}|{case['snapshot']}\n", encoding='utf-8')
+        query.write_text(validation.query(case, args.max_moves) + '\n', encoding='utf-8')
         command = [java, manifest['heap'], '-Djava.awt.headless=true', '-jar', str(jar), '--auto', '--track', manifest['track'],
                    '--props', str(profile), '--seed', str(manifest['seed']), '--query-moves', str(query), str(answer)]
         result, elapsed = run_java(command, ROOT, prefix.with_suffix('.process.log'), args.timeout)
@@ -264,7 +253,7 @@ def replay(args) -> None:
         if potential != manifest['potential']:
             raise ValueError('replay map preparation differs from capture')
         response = json.loads(answer.read_text(encoding='utf-8'))
-        summary = analyze(case, response)
+        summary = analyze(case, response, max_moves=args.max_moves, original_race=original_race, roster=roster)
         summary['seconds'] = elapsed
         summaries.append(summary)
     unchanged()

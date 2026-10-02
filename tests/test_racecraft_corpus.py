@@ -69,7 +69,7 @@ def log_of(control):
         lines.append(f'{f[11]} p{actor+1} AI1 {f[1]} v({row[4]},{row[5]})→({vx},{vy}) '
                      f'({row[2]},{row[3]})→({x},{y}) {status}' + (f' place={f[7]}' if status != 'ok' else ''))
         row[2:6] = [x,y,vx,vy]
-    _, final = corpus.board(control['finalState'])
+    _, final = corpus.validation.snapshot(control['finalState'])
     lines.append('# results')
     lines.extend(f'{rank}. P{i+1}' for rank in (1,2) for i,row in enumerate(final) if row[6] == rank)
     return '\n'.join(lines)+'\n'

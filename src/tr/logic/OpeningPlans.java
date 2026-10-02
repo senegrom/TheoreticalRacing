@@ -1,7 +1,6 @@
 package tr.logic;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /** Bounded opening scheduler. The model supplies legal follow-ups in continuation
@@ -77,12 +76,4 @@ final class OpeningPlans {
         return List.copyOf(sorted);
     }
 
-    static Direction bestCrash(final Direction fallback, final Direction[] directions,
-            final RacecraftOutcome[] outcomes) {
-        if (directions.length != outcomes.length || directions.length == 0) return fallback;
-        if (Arrays.stream(outcomes).anyMatch(o -> o == null || !o.known() || !o.crashed())) return fallback;
-        int best = 0;
-        for (int i = 1; i < outcomes.length; i++) if (outcomes[i].betterThan(outcomes[best], true)) best = i;
-        return directions[best];
-    }
 }

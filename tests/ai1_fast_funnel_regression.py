@@ -39,7 +39,8 @@ EXPECTED = {
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    45: {"AI1": (16, 4, 0), "AI2": (20, 4, 0)},
+    # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
+    45: {"AI1": (13, 4, 0), "AI2": (23, 4, 0)},
 }
 
 
@@ -58,12 +59,12 @@ def main() -> int:
             if result is None:
                 raise SystemExit(f"mixed Le Mans seed-{seed} race failed or produced no log")
             for kind in ("AI1", "AI2"):
-                place_sum, finishers, crashes = result[kind]
-                if (place_sum, finishers, crashes) != EXPECTED[seed][kind]:
+                place_sum, cars, crashes = result[kind]
+                if (place_sum, cars, crashes) != EXPECTED[seed][kind]:
                     raise SystemExit(
                         "Round-128 fast-funnel regression: "
                         f"seed {seed} {kind} place_sum={place_sum}, "
-                        f"finishers={finishers}, crashes={crashes}, "
+                        f"cars={cars}, crashes={crashes}, "
                         f"expected {EXPECTED[seed][kind]}"
                     )
     print("AI1 fast finish-funnel pins hold (mixed Le Mans seeds 36 and 45, measured)")

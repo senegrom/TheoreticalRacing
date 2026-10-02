@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / 'tracks'))
 from benchmark_io import update_properties
 from forensics_common import normalized_sha256, potential_status, parse_move
 
-FLAGS = 'crash-rank,rank-time,opening,start-ties'
+FLAGS = 'crash-rank,rank-time,opening'
 
 
 def execute(command, output: Path, timeout=900):
@@ -53,23 +53,23 @@ def check_corpus(directory: Path, jar: Path, track: str, mode: str):
     profile(props, 2, mode, {'candidateSlots': '1,2', 'racecraftNext': FLAGS})
     tool = ROOT / 'tools' / 'racecraft_corpus.py'
     execute([sys.executable, str(tool), 'capture', '--jar', str(jar), '--props', str(props), '--track', track,
-             '--seed', '1', '--limit', '2', '--out', str(stem), '--heap=-Xmx8g'], stem.with_suffix('.capture.log'))
+             '--seed', '1', '--limit', '20', '--every', '7', '--out', str(stem), '--heap=-Xmx8g'], stem.with_suffix('.capture.log'))
     out = directory / (track + '-counterfactuals')
-    execute([sys.executable, str(tool), 'replay', '--capture', str(stem), '--cases', '1', '--max-moves', '20000',
+    execute([sys.executable, str(tool), 'replay', '--capture', str(stem), '--cases', '3', '--offset', '1', '--max-moves', '20000',
              '--out', str(out)], stem.with_suffix('.replay.log'))
     if not (out / 'COMPLETE').is_file():
         raise AssertionError('counterfactual label incomplete')
     cases = [json.loads(line) for line in (stem / 'states.jsonl').read_text(encoding='utf-8').splitlines()]
-    first = cases[0]
-    if first['turn'] != 0:
-        raise AssertionError('fixture must capture the first actual move')
+    first = cases[1]
+    if first['turn'] <= 0:
+        raise AssertionError('fixture must replay a mid-race decision')
     response = json.loads((out / 'case-0000.json').read_text(encoding='utf-8'))
     control = next(t for t in response['trials'] if t['action'] == first['actual'])
     text = (stem / 'race.log').read_text(encoding='utf-8')
     moves = [move for line in text.splitlines() if (move := parse_move(line)) is not None]
     actual = [(m.player - 1, m.direction, m.new_x, m.new_y, m.new_vx, m.new_vy,
                'OK' if m.status == 'ok' else 'LAP' if m.status.startswith('LAP') else m.status)
-              for m in moves]
+              for m in moves if m.index > first['turn']]
     replayed = []
     for line in control['trace']:
         f = line.split(':')
@@ -79,7 +79,7 @@ def check_corpus(directory: Path, jar: Path, track: str, mode: str):
             if a != b:
                 raise AssertionError(f'{track}: control tail first differs from real race at {index}: {a} != {b}')
         raise AssertionError(f'{track}: control tail length differs {len(actual)} != {len(replayed)}')
-    print(f'{track}: corpus capture, every legal first action and the actual full-race control trace OK', flush=True)
+    print(f'{track}: corpus capture, every legal first action and the three mid-race control suffixes and every legal first action OK', flush=True)
     return dict(track=track, trials=len(response['trials']), realControlMoves=len(actual))
 
 

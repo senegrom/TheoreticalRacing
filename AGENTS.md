@@ -71,6 +71,27 @@ cheaply, by the owner's design: until the deciding car has passed its first
 checkpoint it models every car on the track with the grid, afterwards on the
 track without it; a car still on the grid by then is not worth modelling.
 
+## Computed-start rule (decided by the owner, 2026-10-02)
+
+With computed starts (`aiStartPlacement=informed`: the desktop and browser
+default; headless runs ask for it) the cars take the grid in **roster order**,
+the order they then race in. Each car takes a best cell among those the cars
+before it have left free, and nothing else about those cars counts: they move
+first, so where they go is never priced. Best is the single-player optimum,
+the fewest moves to finish from rest on that cell: the exact full-race
+potential on lap races, the reachability map on point-to-point courses, and
+where the exact map is over budget (the Nordschleife) the next best map, the
+exact distance to the first checkpoint, which the cars then race by
+(`StartPlacement`). The first car's advantage is accepted. No car predicts,
+simulates or replays later placements or the race: a start-ties replay was
+rejected as too complicated. Equally good cells go to the seed's draw, or
+without a seed to the first cell in x-then-y order. A human takes any free
+cell on its turn; placement Undo takes back that cell and every AI cell after
+it, which then choose again. Changing what "best" means, or adding any
+lookahead, is a rule change and needs the owner. Round 299 brings the code to
+this rule; until it lands the score still refuses a first move onto an
+earlier car's cell, and an over-budget course still takes the legacy start.
+
 ## Measurement discipline
 
 - Any change that can alter a decision gets a fleet grid before it ships
@@ -85,7 +106,11 @@ track without it; a car still on the grid by then is not worth modelling.
   against n-1 champions, rotated through every seat and paired with the
   all-champion race on the same track, seed and seat. It answers whether the
   candidate gains places on the current champion as a lone entrant, which
-  the mirrored half-and-half screen does not (owner, 2026-09-23).
+  the mirrored half-and-half screen does not (owner, 2026-09-23). Keep the
+  all-champion race although, with every seat raced, it adds exactly (n+1)/2
+  to the place reading: it is the only race where a policy meets nothing but
+  its own kind, so a policy that behaves differently there (cooperating with
+  copies of itself, say) shows only in it (owner, 2026-09-29).
 - Build with `sh build_main.sh` (JDK 25, warnings are errors); run
   `sh run_tests.sh`, `python tests/golden_races.py` and every
   `tests/ai1_*_regression.py` before publishing.

@@ -9,13 +9,18 @@ python3 web/scripts/prepare_sources.py web/build/src
 find web/build/src -name '*.java' | sort > web/build/sources.txt
 mkdir -p web/build/classes
 javac --release 17 -encoding UTF-8 -Xlint:all -Werror -d web/build/classes @web/build/sources.txt
-jar --create --file web/dist/racing.jar -C web/build/classes .
+python3 web/scripts/engine_identity.py record web/build/src web/build/classes
+# A fixed entry date: two builds of one commit publish one jar.
+jar --create --date=2026-01-01T00:00:00Z --file web/dist/racing.jar -C web/build/classes .
 cp tracks/*.track web/dist/tracks/
 java -Djava.awt.headless=true -cp web/dist/racing.jar tr.logic.BrowserBridge catalogue > web/dist/tracks.json
 cp web/build/engine-sources.json web/dist/
-for f in index.html app.css app.js activity.js board.js engine.js runtime.html runtime.js manifest.webmanifest; do
+for f in index.html app.css app.js activity.js board.js engine.js runtime.js manifest.webmanifest; do
     cp "web/$f" web/dist/
 done
+ENGINE_ID=$(python3 web/scripts/engine_identity.py stamp web/build/classes web/dist/runtime.js)
+# The page loads the jar by this build's name (runtime.js); racing.jar stays for the tools.
+cp web/dist/racing.jar "web/dist/racing-$(printf '%.12s' "$ENGINE_ID").jar"
 cp LICENSE web/dist/LICENSE.txt
 printf '' > web/dist/.nojekyll
 python3 - <<'PY'

@@ -28,11 +28,6 @@ final class RacecraftReplay {
             this.identity = identity;
             this.cars = Arrays.stream(cars).map(int[]::clone).toArray(int[][]::new);
         }
-        Board withStart(final int self, final int x, final int y) {
-            final int[][] copy = Arrays.stream(cars).map(int[]::clone).toArray(int[][]::new);
-            copy[self][2] = x; copy[self][3] = y;
-            return new Board(turn, laps, 0, first, last, identity, copy);
-        }
         String encode() {
             final StringBuilder out = new StringBuilder("rc3,").append(turn).append(',').append(laps)
                     .append(',').append(slot).append(',').append(first).append(',').append(last)
@@ -106,7 +101,7 @@ final class RacecraftReplay {
 
     /** Geometry and behavior controls, not incidental audit/file paths. */
     static String identity(final RaceGame game) {
-        final StringBuilder s = new StringBuilder("racecraft-rc3-v1;").append(game.gameCols).append(',')
+        final StringBuilder s = new StringBuilder("racecraft-rc3-v2-progress-timeout;").append(game.gameCols).append(',')
                 .append(game.gameRows).append(';').append(game.totalLaps).append(';')
                 .append(game.researchFinishIdentity()).append(';')
                 .append(game.racecraftNext.signature());
@@ -173,7 +168,8 @@ final class RacecraftReplay {
         if (p.isFinished()) throw new IllegalStateException("retired mover");
         final int[] x = p.getPosition(), v = p.getVelocity();
         final int[] nv = {v[0] + d.dx, v[1] + d.dy}, nx = {x[0] + nv[0], x[1] + nv[1]};
-        final boolean timeout = game.raceTurnLimitReached();
+        if (game.raceTurnLimitReached()) throw new IllegalStateException("use atomic expire for timeout");
+        final boolean timeout = false;
         final RaceGame.MoveResult result = timeout ? null : game.evaluateMove(p, x, nx);
         int first = game.researchFinishedFirst(), last = game.researchFinishedLast();
         final String status = timeout ? "TIMEOUT" : result.finishes() ? "FINISH"
@@ -197,6 +193,45 @@ final class RacecraftReplay {
         return game.subgamestate + ":" + d + ":" + nx[0] + ":" + nx[1] + ":" + nv[0] + ":" + nv[1]
                 + ":" + status + ":" + p.getFinishedPlace() + ":" + p.getLap() + ":" + p.getNextGate()
                 + ":" + (p.hasLeftGrid() ? 1 : 0) + ":" + game.turnCount();
+    }
+
+    /** Atomic timeout event. Rank first, then log/retire worst-first exactly as the referee. */
+    static List<String> expire(final RaceGame game) {
+        if (!game.raceTurnLimitReached()) throw new IllegalStateException("race has not timed out");
+        final int[] order = RaceTimeout.order(game);
+        final List<String> trace = new ArrayList<>();
+        int last = game.researchFinishedLast();
+        final int survivors = game.players.length == 1 ? 0 : 1;
+        for (int k = order.length - 1; k >= survivors; k--) {
+            final int slot = order[k]; final Player p = game.players[slot];
+            final int[] x = p.getPosition(), v = p.getVelocity();
+            p.setFinishedPlace(game.players.length - last++);
+            game.setQueryTurnCounter(game.turnCount() + 1);
+            trace.add(slot + ":NONE:" + x[0] + ":" + x[1] + ":" + v[0] + ":" + v[1]
+                    + ":TIMEOUT:" + p.getFinishedPlace() + ":" + p.getLap() + ":" + p.getNextGate()
+                    + ":" + (p.hasLeftGrid() ? 1 : 0) + ":" + game.turnCount());
+            p.logPosition(x); p.setPosition(new int[]{Player.INIT_POS, Player.INIT_POS});
+            p.setVelocity(new int[]{0, 0});
+        }
+        game.researchClassification(game.researchFinishedFirst(), last);
+        classifyLast(game);
+        return trace;
+    }
+
+    static List<Direction> legalActions(final RaceGame game) {
+        final List<Direction> legal = new ArrayList<>();
+        if (game.raceTurnLimitReached()) return legal;
+        final Player p = game.players[game.subgamestate];
+        final int[] x = p.getPosition(), v = p.getVelocity();
+        for (final Direction d : Direction.values()) {
+            if (!RaceGame.aiVelocityOutOfRange(v[0] + d.dx, v[1] + d.dy)
+                    && game.evaluateMove(p, x, new int[]{x[0]+v[0]+d.dx, x[1]+v[1]+d.dy}).legal()) legal.add(d);
+        }
+        return List.copyOf(legal);
+    }
+
+    static String legalActionText(final RaceGame game) {
+        return String.join(",", legalActions(game).stream().map(Enum::name).toList());
     }
 
     private static boolean classifyLast(final RaceGame game) {
@@ -226,8 +261,19 @@ final class RacecraftReplay {
                 final int slot = game.subgamestate;
                 if (game.players[slot].isFinished()) throw new IllegalStateException("retired tail slot");
                 if (!game.players[slot].isAi()) throw new IllegalArgumentException("real-policy tails require AI-only rosters");
-                final Direction action = game.raceTurnLimitReached() ? Direction.NONE
-                        : firstAction && first != null ? first
+                if (game.raceTurnLimitReached()) {
+                    int live = 0;
+                    for (final Player p : game.players) if (!p.isFinished()) live++;
+                    final int events = live - (game.players.length == 1 ? 0 : 1);
+                    if (events > maxMoves - step) break; // never partially apply an atomic classification
+                    final List<String> expired = expire(game);
+                    for (final String row : expired) if (row.startsWith(self + ":")) {
+                        own++; focalStatus = RacecraftOutcome.Status.TIMED_OUT;
+                    }
+                    if (focalStatus == RacecraftOutcome.Status.RUNNING) focalStatus = RacecraftOutcome.Status.CLASSIFIED;
+                    trace.addAll(expired); complete = true; break;
+                }
+                final Direction action = firstAction && first != null ? first
                         : scorerOnly ? policy.researchScorer() : policy.computeAiMove();
                 if (action == null) return new Tail(false, 0, own, RacecraftOutcome.unknown(), snapshot(game), trace);
                 firstAction = false;
@@ -263,59 +309,38 @@ final class RacecraftReplay {
         }
     }
 
-    /** Only the final AI placer: no guessed future placements or hidden RNG. */
-    static int[] chooseStart(final RaceGame game, final Player player, final int[] stock, final int[][] ties) {
-        final int self = player.getNumber() - 1;
-        if (ties.length < 2 || game.subgamestate != game.players.length - 1 || self != game.subgamestate
-                || game.turnCount() != 0) return stock;
-        for (final Player p : game.players) {
-            if (!p.isAi() || p.isFinished() || p.getLap() != 0 || p.getVelocity()[0] != 0 || p.getVelocity()[1] != 0
-                    || p.getNumber() != player.getNumber() && p.getPosition()[0] == Player.INIT_POS) return stock;
-        }
-        final Board root = capture(game);
-        final int budget = 3 * game.players.length;
-        final Tail baseline = run(game, root.withStart(self, stock[0], stock[1]), self, null, budget, true);
-        if (!baseline.outcome().known()) return stock;
-        RacecraftOutcome best = baseline.outcome(); int[] selected = stock;
-        int trials = 1;
-        for (final int[] cell : ties) {
-            if (Arrays.equals(cell, stock)) continue;
-            if (trials++ >= 4) break;
-            final Tail trial = run(game, root.withStart(self, cell[0], cell[1]), self, null, budget, true);
-            if (trial.outcome().betterThan(best, false)) { best = trial.outcome(); selected = cell.clone(); }
-        }
-        return selected;
-    }
-
-    /** cf3,maxMoves,observedAction|rc3...; observed '-' is for constructed tests.
+    /** cf4,maxMoves,observedAction|rc3...; observed '-' is for constructed tests.
      * Always run every legal first action and the observed control to completion
      * or an explicitly marked work limit. Never treat a truncated tail as a label. */
     static String answer(final RaceGame game, final String line) {
         final int divider = line.indexOf('|');
-        if (divider < 0 || line.length() > 17000) throw new IllegalArgumentException("invalid cf3 request");
+        if (divider < 0 || line.length() > 17000) throw new IllegalArgumentException("invalid cf4 request");
         final String[] h = line.substring(0, divider).split(",", -1);
-        if (h.length != 3) throw new IllegalArgumentException("cf3 requires bound and observed action");
+        if (h.length != 3 || !h[0].equals("cf4")) throw new IllegalArgumentException("cf4 requires bound and observed action");
         final int bound = Integer.parseInt(h[1]);
-        if (bound < 1 || bound > 100000) throw new IllegalArgumentException("cf3 bound out of range");
+        if (bound < 1 || bound > 100000) throw new IllegalArgumentException("cf4 bound out of range");
         final Board root = parse(game, line.substring(divider + 1));
         final Direction actual;
         try (Scope ignored = new Scope(game, root)) { actual = new RaceAi(game).computeAiMove(); }
         if (!h[2].equals("-") && !h[2].equals(actual.name()))
             throw new IllegalArgumentException("observed action does not replay; reject this corpus case");
-        final StringBuilder json = new StringBuilder("{\"schema\":3,\"baseline\":\"").append(actual)
+        final List<Direction> legal;
+        try (Scope ignored = new Scope(game, root)) { legal = legalActions(game); }
+        final StringBuilder json = new StringBuilder("{\"schema\":4,\"requestSha256\":\"")
+                .append(sha(line)).append("\",\"maxMoves\":").append(bound)
+                .append(",\"legalActions\":[");
+        for (int k = 0; k < legal.size(); k++) {
+            if (k > 0) json.append(','); json.append('"').append(legal.get(k)).append('"');
+        }
+        json.append("],\"baseline\":\"").append(actual)
                 .append("\",\"rootIdentity\":\"").append(root.identity).append("\",\"trials\":[");
         boolean comma = false;
         for (final Direction d : Direction.values()) {
-            final boolean legal;
-            try (Scope ignored = new Scope(game, root)) {
-                final Player p = game.players[root.slot]; final int[] x = p.getPosition(), v = p.getVelocity();
-                legal = !game.raceTurnLimitReached() && !RaceGame.aiVelocityOutOfRange(v[0] + d.dx, v[1] + d.dy)
-                        && game.evaluateMove(p, x, new int[]{x[0] + v[0] + d.dx, x[1] + v[1] + d.dy}).legal();
-            }
-            if (!legal && d != actual) continue;
+            final boolean isLegal = legal.contains(d);
+            if (!isLegal && d != actual) continue;
             final Tail result = run(game, root, root.slot, d, bound, false);
             if (comma) json.append(','); comma = true;
-            json.append("{\"action\":\"").append(d).append("\",\"legal\":").append(legal)
+            json.append("{\"action\":\"").append(d).append("\",\"legal\":").append(isLegal)
                     .append(",\"complete\":").append(result.complete()).append(",\"place\":").append(result.place())
                     .append(",\"ownMoves\":").append(result.ownMoves()).append(",\"status\":\"")
                     .append(result.outcome().status()).append("\",\"traceSha256\":\"")

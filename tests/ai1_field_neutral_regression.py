@@ -15,7 +15,8 @@ import bench_ai  # noqa: E402
 LABELS = ("AI2",)
 
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
-# assertion logic and AI1/AI2 identity checks remain intact.
+# assertion logic remains intact. (Its AI1/AI2 identity checks retired on
+# 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
 # Every case below retains seven finishers and zero crashes.
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
@@ -24,7 +25,8 @@ EXPECTED = {
     ("zigzag", 1): [65, 65, 65, 66, 66, 66, 66],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    ("cog", 1): [46, 47, 47, 47, 47, 48, 49],
+    # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
+    ("cog", 1): [46, 46, 46, 47, 47, 47, 48],
 }
 
 

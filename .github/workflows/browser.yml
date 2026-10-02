@@ -52,6 +52,9 @@ jobs:
           path: web/build/parity/
           retention-days: 7
   browsers:
+    # The browsers test the artifact parity built and Pages publishes -- not a
+    # rebuild of their own (review, 2026-09-28).
+    needs: parity
     runs-on: ubuntu-latest
     timeout-minutes: 40
     strategy:
@@ -60,16 +63,13 @@ jobs:
         browser: [chromium, webkit]
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '25'
       - uses: actions/setup-python@v7
         with:
           python-version: '3.13'
-      - name: Install icon build dependencies
-        run: python3 -m pip install -r web/requirements-icons.txt
-      - run: sh web/build.sh
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-webapp
+          path: web/dist
       - name: Install test browser
         run: |
           python -m pip install playwright==1.57.0

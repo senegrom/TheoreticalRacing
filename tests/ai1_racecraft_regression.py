@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact last-rival blocks, including array wrap, retired slots and both AI labels.
+"""Exact last-rival blocks, including array wrap and retired slots.
 
 These are constructed tactical boards, not claimed naturally occurring races.
 The old 8db66b3 policy missed these blocks; its ordinary continuation lost the
@@ -15,6 +15,10 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRS, parse_v2_answer  # noqa: E402
+
+# These checks are asserts: under -O or PYTHONOPTIMIZE they would all pass.
+if not __debug__:
+    raise SystemExit("this regression checks with assert; run it without -O")
 
 # Both labels run one policy since round 222 and ai1_label_invariance_regression
 # checks it, so each case races once, under the champion label (2026-09-27).

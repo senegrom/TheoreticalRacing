@@ -24,7 +24,8 @@ PROOF_VETO = ("lemans", 87)
 # Round 228: measured again after removing the remaining narrow-lane
 # distance surcharge. Both labels retain seven finishers and no crashes.
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
-# assertion logic and AI1/AI2 identity checks remain intact.
+# assertion logic remains intact. (Its AI1/AI2 identity checks retired on
+# 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
 # Le Mans s87 now has six finishers and p6 crashes on its 36th move.
 # This self-play result is recorded, not vetoed by a field-crash metric;
 # promotion is decided by mirrored own-place performance (AGENTS.md).
@@ -46,12 +47,13 @@ PROOF_VETO = ("lemans", 87)
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 # Round 278: re-frozen from measurement (the chooser's pick stands).
-PROMOTED = (7, 0, [66, 67, 69, 70, 71, 73, 73])
+# Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
+PROMOTED = (7, 0, [66, 67, 68, 69, 70, 71, 73])
 # Round 278: re-frozen from measurement (the chooser's pick stands).
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 69), (6, 70), (7, 71), (2, 73), (8, 73)]
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 68), (6, 69), (7, 70), (8, 71), (2, 73)]
 PROMOTED_CRASHES = []
 # Round 278: re-frozen from measurement (the chooser's pick stands).
-PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 73, 5: 69, 6: 70, 7: 71, 8: 73}
+PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 72, 5: 68, 6: 69, 7: 70, 8: 71}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -70,56 +72,29 @@ RETENTION_CASES = {
     # Round 229: Le Mans s87 is back to seven finishers and no crash (measured).
     # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 72, 73, 73]),
+    PROOF_VETO: ((7, 0, [66, 67, 68, 70, 71, 73, 74]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
                  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
                  # Round 278: re-frozen from measurement (the chooser's pick stands).
-                 '47cd67695831379fba7605bbd14a2c325b2f453940714373134e27fad9827220'),
+                 'e61a0e194ca1fe5cc58b9bf3e8c7da3b022766ea4972ca796f2d7f52a9192442'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
     # live circuit's fleet crashes drop by two fifths and s29 above is whole again.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    ("lemans", 93): ((6, 1, [66, 67, 68, 70, 71, 72]),
+    ("lemans", 93): ((6, 1, [66, 67, 68, 69, 70, 71]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
-                     '2dd6ec84fecc08479cd591c181385c11ecfeb3ba15a293f5654ccafd79e3b0aa'),
+                     'dd6f756b48d191cb8c4fac10aa37d6a38b932677543bba657498c87685af2c09'),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
-    ("lemans", 14): ((7, 0, [66, 67, 69, 70, 71, 72, 74]),
+    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 71, 73]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
-                     'a3ef203a894a4b260c7252fa1c24ade57e5ddba5e47553f045d76e72582bbbfd'),
-    ("silverstone", 78): (
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        (7, 0, [81, 82, 83, 83, 84, 84, 85]),
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        "8d97653bf4ddf6acc14bd7f82630ab066152c34a2cf55550e39f79c71e9d0418",
-    ),
-    ("spa", 12): (
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        "6fc76ea464164874a89f5cbafbd0c456b5c4f6b46d806cb991c1b3f9c04c9a65",
-    ),
-    ("spa", 31): (
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        (6, 1, [78, 79, 80, 82, 82, 83]),
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        "23d049fe6fb2d6eb5b0cae93953a34fd333f5e3cf195e8b7db8125e1485849f8",
-    ),
-    ("spa", 40): (
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        (7, 0, [78, 79, 80, 80, 81, 82, 82]),
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        "4bc95498ca6310e6b1dfa7073d10140e481d1fff5562bc5a516f9bbc90627278",
-    ),
-    ("spa", 47): (
-        # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
-        (7, 0, [78, 80, 81, 81, 82, 82, 83]),
-        # Round 278: re-frozen from measurement (the chooser's pick stands).
-        # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
-        "a3149936e5c9f81971f69db992df88c50855d2e4e423ad67ed7c31f9a58cdab4",
-    ),
+                     '959e97a091c4741eba42997d2a062deaaa1e0547844eb203f11e9b94398fea2d'),
+    # Spa s12, s31, s40, s47 and Silverstone s78 raced here too: the same fixture
+    # geometry, profile and roster as ai1_six_ahead_high_speed_regression, which
+    # pins the same races by summary and digest -- so they race once, there
+    # (review, 2026-09-28).
 }
 
 
@@ -135,7 +110,7 @@ def main() -> int:
     ) as directory:
         bench_ai.configure_runtime(directory)
         import fixture_install
-        bench_ai.JAR = str(fixture_install.install(directory, ["lemans", "spa", "silverstone"]))  # frozen pre-2026-08-29 geometry
+        bench_ai.JAR = str(fixture_install.install(directory, ["lemans"]))  # frozen pre-2026-08-29 geometry
         bench_ai.set_nplayers(8)
         for kind in LABELS:
             bench_ai.set_all_to(kind)
@@ -229,7 +204,7 @@ def main() -> int:
         "AI1BoundedUncertainFieldRegression: OK "
         "(Le Mans s29 strict all-driver -4/finisher -3; "
         "eight-round target/vector proof, Le Mans s87 componentwise veto, "
-        "and seven outer retention trajectories pinned)"
+        "and three outer retention trajectories pinned)"
     )
     return 0
 

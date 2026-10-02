@@ -48,7 +48,9 @@ EXACT_MOVES = {
     # Round 260: re-frozen from measurement (the chooser).
     # Round 278: re-frozen from measurement (the chooser's pick stands); seven finishers again.
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes); p7 crashes, six finishers.
-    ("lemans", 3): [66, 67, 68, 70, 71, 72],
+    # Round 296: re-frozen from measurement (landings priced with the checkpoints they
+    # collect paid); p7 and p5 crash, five finishers.
+    ("lemans", 3): [66, 67, 68, 70, 71],
     # Round 234: same seven finishers, one move redistributed.
     ("silverstone", 15): [82, 83, 83, 84, 85, 85, 86],
 }
@@ -93,7 +95,10 @@ def main() -> int:
             # recorded, not vetoed (AGENTS.md).
             # Round 279 (four rule-conformance and correctness fixes): Le Mans 3
             # drops one again (p7 on turn 63) -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (6, 1), ("lemans", 11): (6, 1)}
+            # Round 296 (landings priced with the checkpoints they collect paid):
+            # Le Mans 3 drops a second car (p7 on its 8th move, p5 on its 54th) and
+            # Le Mans 11 keeps its seventh -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (5, 2)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

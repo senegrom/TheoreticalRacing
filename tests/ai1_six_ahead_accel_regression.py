@@ -13,13 +13,8 @@ import bench_ai  # noqa: E402
 LABELS = ("AI2",)
 
 PROMOTED = {
-    # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
-    # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
-    # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-    # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-    5: (7, 0, [58, 59, 59, 59, 60, 60, 60]),
-    # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
-    22: (7, 0, [58, 59, 59, 59, 60, 60, 61]),
+    # The s5 and s22 controls race in ai1_six_ahead_high_speed_regression, which
+    # pins the same races by summary and digest (review, 2026-09-28).
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     86: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
@@ -36,7 +31,7 @@ def main() -> int:
         bench_ai.set_nplayers(8)
         for kind in LABELS:
             bench_ai.set_all_to(kind)
-            for seed in (5, 22, 86):
+            for seed in (86,):
                 actual[kind][seed] = bench_ai.run_track("coil", timeout=1200, seed=seed)
     if actual != EXPECTED:
         raise SystemExit(f"Round-117 promoted regression: {actual}, expected {EXPECTED}")
@@ -46,7 +41,7 @@ def main() -> int:
         raise SystemExit(f"Round-117 Pareto contract lost: {result}, {LEGACY_CHAMPION_86}")
     if sum(result[2]) >= sum(LEGACY_CHAMPION_86[2]):
         raise SystemExit(f"Round-117 pace gain lost: {result}, {LEGACY_CHAMPION_86}")
-    print("AI1SixAheadAccelRegression: OK (Coil s86 promoted; s5/s22 controls pinned)")
+    print("AI1SixAheadAccelRegression: OK (Coil s86 promoted; its s5/s22 controls race in the high-speed pin)")
     return 0
 
 

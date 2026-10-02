@@ -3,7 +3,7 @@ package tr.logic;
 /** Immutable model-conditional forecast. Place is zero-based relative to
  * cars live at forecast entry. Unknown is never a predicted crash. */
 record RacecraftOutcome(Status status, int ahead, int ownMoves, int remaining) {
-    enum Status { UNKNOWN, RUNNING, FINISHED, CLASSIFIED, CRASHED }
+    enum Status { UNKNOWN, RUNNING, FINISHED, CLASSIFIED, TIMED_OUT, CRASHED }
 
     RacecraftOutcome {
         if (status == null || ahead < 0 || ownMoves < 0 || remaining < 0)
@@ -18,7 +18,7 @@ record RacecraftOutcome(Status status, int ahead, int ownMoves, int remaining) {
     boolean known() { return status != Status.UNKNOWN && remaining != Integer.MAX_VALUE; }
     boolean crashed() { return status == Status.CRASHED; }
     boolean resolved() {
-        return status == Status.FINISHED || status == Status.CLASSIFIED || crashed();
+        return status == Status.FINISHED || status == Status.CLASSIFIED || status == Status.TIMED_OUT || crashed();
     }
     boolean successful() { return resolved() && !crashed(); }
     long time() { return (long) ownMoves + remaining; }

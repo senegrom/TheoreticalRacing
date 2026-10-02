@@ -3,8 +3,9 @@
 
 These are constructed positions discovered with seed 20260911, not claims of
 naturally occurring race wins. Enumerate every physical rival reply, ask the
-actual policy for its follow-up, then check every final reply. Both AI labels,
-array-wrap orders and retired-slot rosters must carry out the promised win.
+actual policy for its follow-up, then check every final reply. Array-wrap orders
+and retired-slot rosters must carry out the promised win (one label: both run
+one policy, pinned by ai1_label_invariance_regression).
 """
 from pathlib import Path
 import shutil
@@ -15,6 +16,10 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from tracks.forensics_common import DIRS, parse_v2_answer  # noqa: E402
+
+# These checks are asserts: under -O or PYTHONOPTIMIZE they would all pass.
+if not __debug__:
+    raise SystemExit("this regression checks with assert; run it without -O")
 
 # Both labels run one policy since round 222 and ai1_label_invariance_regression
 # checks it, so each case races once, under the champion label (2026-09-27).

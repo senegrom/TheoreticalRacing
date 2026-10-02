@@ -31,10 +31,22 @@ public final class Progress {
         emit(pass, 0, 0);
     }
     public static void begin(final String phase, final int step) {
+        // With computed starts the exact race map builds BESIDE the reachability
+        // maps; its stage must not mark their unfinished stages complete. It
+        // shows as activity until those reach lap driving (review, 2026-09-28).
+        if (step == 9 && stage < 8) {
+            begin(phase);
+            return;
+        }
         // Safety sweeps run again over the different coherent multi-lap graph.
         stage = step == 5 && stage >= 6 ? 8 : step;
         begin(phase);
     }
+    /** The daemon builds or waits on the exact race map: its stage shows,
+     *  but it is not a build (OptimalPotential.build reports that). */
+    public static void exactMap() { begin("Exact full-race map", 9); }
+    /** The checklist position last reported. */
+    public static int stage() { return stage; }
     public static void alternatives() {
         stage = stages - 1;
         begin("Analysing starting alternatives for all AIs");

@@ -80,18 +80,7 @@ public final class Main {
 			return;
 		}
 		EventQueue.invokeLater(() -> {
-			final RaceGame game;
-			try {
-				game = new RaceGame(prop);
-			} catch (final IllegalArgumentException error) {
-				// A malformed setting (candidateSlots) died on the event thread with
-				// only a stack trace: nothing at all for a desktop launch.
-				System.err.println(error.getMessage());
-				if (!options.headless())
-					JOptionPane.showMessageDialog(null, error.getMessage(), RaceGame.NAME, JOptionPane.ERROR_MESSAGE);
-				System.exit(2);
-				return;
-			}
+			final RaceGame game = newGame(prop, options.headless());
 			game.setAutoMode(options.headless());
 			if (options.dumpReach() != null)
 				game.setDumpReachPath(options.dumpReach());
@@ -124,7 +113,7 @@ public final class Main {
 			EventQueue.invokeLater(() -> {
 				final Properties raceProp = new Properties();
 				raceProp.putAll(baseProp);
-				final RaceGame game = new RaceGame(raceProp);
+				final RaceGame game = newGame(raceProp, true);
 				game.setAutoMode(true);
 				game.setAutoRaceEndHook(done::countDown);
 				game.setStartSeed(thisSeed);
@@ -143,6 +132,22 @@ public final class Main {
 			s++;
 		}
 		System.exit(0);
+	}
+
+	/** A game over these settings. A malformed setting (candidateSlots) died on
+	 *  the event thread with only a stack trace: nothing at all for a desktop
+	 *  launch, exit 1 for a batch (reviews, 2026-09-28 and 2026-09-29). Now its
+	 *  message, a dialog on the desktop, and exit 2. */
+	private static RaceGame newGame(final Properties prop, final boolean headless) {
+		try {
+			return new RaceGame(prop);
+		} catch (final IllegalArgumentException error) {
+			System.err.println(error.getMessage());
+			if (!headless)
+				JOptionPane.showMessageDialog(null, error.getMessage(), RaceGame.NAME, JOptionPane.ERROR_MESSAGE);
+			System.exit(2);
+			throw error; // not reached
+		}
 	}
 
 	/** Insert _sN before the extension: races/x.log + 7 -> races/x_s7.log. */

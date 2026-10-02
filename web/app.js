@@ -1,6 +1,6 @@
-import {Engine} from './engine.js?v=6';
-import {Activity} from './activity.js?v=7';
-import {Board} from './board.js?v=6';
+import {Engine} from './engine.js?v=0';
+import {Activity, setText} from './activity.js?v=0';
+import {Board} from './board.js?v=0';
 
 const $ = id => document.getElementById(id);
 const names = ['North-west', 'North', 'North-east', 'West', 'No acceleration', 'East', 'South-west', 'South', 'South-east'];
@@ -65,7 +65,7 @@ function accept(next) {
   const old = state;
   state = next;
   window.removeEventListener('beforeunload', warnBeforeLeave);
-  if (next.phase !== 'FINISHED') window.addEventListener('beforeunload', warnBeforeLeave);
+  if (next.phase !== 'FINISHED' && !next.failure) window.addEventListener('beforeunload', warnBeforeLeave);
   // A failed engine is never called again (export and every action check
   // `failed`): stop its worker, as the other failure paths do, rather than
   // leave its threads running until the next race (review, 2026-09-28).
@@ -137,11 +137,27 @@ function renderWork() {
     activity.idle(label, detail);
   }
 }
+// A control disabled while it has focus hands focus to the page body, and a
+// keyboard user loses their place each time the engine works: give it back
+// once the control is enabled again, unless focus has moved on meanwhile
+// (review, 2026-09-29).
+let refocus = null;
+function setDisabled(element, disabled) {
+  if (disabled && !element.disabled && document.activeElement === element) refocus = element;
+  element.disabled = disabled;
+}
+function restoreFocus() {
+  if (!refocus) return;
+  if (document.activeElement && document.activeElement !== document.body) refocus = null;
+  else if (!refocus.disabled && !refocus.hidden && refocus.isConnected) { refocus.focus({preventScroll: true}); refocus = null; }
+}
 function render() {
   const s = state;
+  // A stopped engine has nothing left to lose by leaving (review, 2026-09-29).
+  if (failed) window.removeEventListener('beforeunload', warnBeforeLeave);
   const exportDisabled = !s || busy || failed || s.turn === 0;
-  $('export').disabled = exportDisabled;
-  $('more-export').disabled = exportDisabled;
+  setDisabled($('export'), exportDisabled);
+  setDisabled($('more-export'), exportDisabled);
   renderWork();
   document.querySelector('.decision').setAttribute('aria-busy', String(busy));
   if (!s) return;
@@ -155,26 +171,26 @@ function render() {
   $('grid-label').textContent = `${s.cols} × ${s.rows} grid`;
   $('decision-eyebrow').textContent = s.phase === 'FINISHED' ? 'Results' : 'At the wheel';
   $('driver').textContent = s.phase === 'FINISHED' ? 'Final classification' : s.phase === 'START' ? 'Draw your circuit' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border' : 'Right border') : driver?.name ?? 'Ready to race';
-  $('status').textContent = failed ? 'The engine stopped. Start a new race to recover.' : s.phase === 'FINISHED' ? 'Race complete. Save the log or start another race.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? (busy ? 'Pausing after the current AI move…' : 'AI paused. Choose Step or Resume AI.') : s.status;
+  setText($('status'), failed ? 'The engine stopped. Start a new race to recover.' : s.phase === 'FINISHED' ? 'Race complete. Save the log or start another race.' : !s.ready ? 'Building the original reachability maps…' : paused && s.phase === 'PLAY' && !human() ? (busy ? 'Pausing after the current AI move…' : 'AI paused. Choose Step or Resume AI.') : s.status);
   $('driver').title = $('driver').textContent;
   $('status').title = $('status').textContent;
   $('telemetry').textContent = s.phase === 'PLAY' && driver ? `Position ${driver.position.join(', ')}  ·  Velocity ${driver.velocity.join(', ')}` : s.phase === 'DRAWTRACK' ? `${(s.current === 0 ? s.left : s.right).length} border points` : '';
   $('placement').hidden = !['DRAWTRACK', 'PLACEPLAYERS'].includes(s.phase) || (s.phase === 'PLACEPLAYERS' && s.current >= s.players.length);
   $('place-x').max = s.cols; $('place-y').max = s.rows;
   const placingAi = s.phase === 'PLACEPLAYERS' && driver?.kind !== 'HUMAN';
-  $('place').disabled = busy || failed || placingAi;
+  setDisabled($('place'), busy || failed || placingAi);
   $('first-start').hidden = s.phase !== 'PLACEPLAYERS';
-  $('first-start').disabled = busy || failed || placingAi || !s.starts.length;
+  setDisabled($('first-start'), busy || failed || placingAi || !s.starts.length);
   const decision = document.querySelector('.decision');
   decision.classList.toggle('driving', s.phase === 'PLAY');
   decision.classList.toggle('finished', s.phase === 'FINISHED');
   $('finish-actions').hidden = s.phase !== 'FINISHED';
-  $('finish-export').disabled = exportDisabled;
-  $('finish-new').disabled = false;
+  setDisabled($('finish-export'), exportDisabled);
+  setDisabled($('finish-new'), false);
   $('moves').hidden = s.phase !== 'PLAY';
   for (const button of $('moves').children) {
     const index = Number(button.dataset.index), move = s.moves.find(m => m.index === index);
-    button.disabled = busy || failed || !human();
+    setDisabled(button, busy || failed || !human());
     button.dataset.legal = move ? String(move.legal) : '';
     button.setAttribute('aria-pressed', String(s.selected === index));
     button.setAttribute('aria-label', names[index] + (move ? `: to ${move.position.join(', ')}, ${move.legal ? move.finishes ? 'finish' : 'legal' : 'crash'}` : ''));
@@ -183,25 +199,26 @@ function render() {
   const chosen = s.moves.find(m => m.index === s.selected);
   $('move-detail').textContent = chosen ? `To (${chosen.position.join(', ')}) · velocity (${chosen.velocity.join(', ')}) · ${chosen.timeout ? 'race turn limit reached' : !chosen.legal ? 'crash' : chosen.finishes ? 'finish' : chosen.lap ? 'lap crossing' : 'legal move'}` : human() ? 'Select an acceleration, then confirm.' : 'Each move is decided by the original Java engine.';
   $('confirm').hidden = s.phase !== 'PLAY';
-  $('confirm').disabled = busy || failed || !human() || !chosen;
+  setDisabled($('confirm'), busy || failed || !human() || !chosen);
   $('confirm').classList.toggle('danger', Boolean(chosen && !chosen.legal));
   $('confirm').textContent = !human() && s.phase === 'PLAY' ? 'AI driving' : chosen && !chosen.legal ? 'Confirm crash…' : 'Confirm move';
   $('ok').hidden = !s.ok || s.phase === 'PLAY' || s.phase === 'FINISHED';
-  $('ok').disabled = busy || failed || (s.phase === 'PLACEPLAYERS' && !s.ready);
+  setDisabled($('ok'), busy || failed || (s.phase === 'PLACEPLAYERS' && !s.ready));
   $('ok').textContent = s.phase === 'START' ? 'Begin drawing' : s.phase === 'DRAWTRACK' ? (s.current === 0 ? 'Left border done →' : 'Complete track →') : 'Start race →';
   const compact = matchMedia('(max-width: 360px)').matches;
-  $('undo').disabled = busy || failed || !s.undo;
+  setDisabled($('undo'), busy || failed || !s.undo);
   const undoLong = s.phase === 'DRAWTRACK' ? 'Undo point' : s.phase === 'PLACEPLAYERS' ? 'Undo placement' : 'Undo turn';
   $('undo').textContent = compact ? 'Undo' : undoLong;
   $('undo').setAttribute('aria-label', undoLong);
-  $('pause').disabled = failed || s.phase !== 'PLAY';
+  setDisabled($('pause'), failed || s.phase !== 'PLAY');
   const pauseLong = paused ? 'Resume AI' : 'Pause AI';
   $('pause').textContent = compact ? (paused ? 'Resume' : 'Pause') : pauseLong;
   $('pause').setAttribute('aria-label', pauseLong);
   $('pause').title = paused && busy && operation === 'tick' ? 'Pauses after the current move completes' : pauseLong;
-  $('step').disabled = busy || failed || !s.ready || !paused || s.phase !== 'PLAY' || human();
+  setDisabled($('step'), busy || failed || !s.ready || !paused || s.phase !== 'PLAY' || human());
   $('step').setAttribute('aria-label', 'Step AI once');
   renderStandings(s);
+  restoreFocus();
 }
 function renderStandings(s) {
   if ($('standings').children.length !== s.players.length) $('standings').replaceChildren(...s.players.map(() => {
@@ -404,7 +421,7 @@ $('setup-form').addEventListener('submit', async e => {
 });
 async function init() {
   if (!/^https?:$/.test(location.protocol)) throw new Error('Serve this app over HTTP or HTTPS, not by opening index.html as a file.');
-  const response = await fetch(new URL('./tracks.json', import.meta.url));
+  const response = await fetch(new URL('./tracks.json?v=0', import.meta.url));
   if (!response.ok) throw new Error('Track catalogue is missing. Run web/build.sh and serve web/dist.');
   catalog = await response.json();
   $('track').replaceChildren(...catalog.map(t => new Option(t.name, t.id)), new Option('Draw a custom circuit', ''));

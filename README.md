@@ -63,7 +63,7 @@ AI measurement stays out of the fast CI tests because it is expensive. Build fir
 The campaign's primary instrument is the 8-car lap grid: every lap-capable track over a seed range, one JVM per track across a work queue.
 
 ```bash
-sh tracks/fleet_grid.sh                 # seeds 1-10, one job per core
+sh tracks/fleet_grid.sh                 # seeds 1-10, as many jobs as memory holds
 RACING_TRACKS=rand19,cog sh tracks/fleet_grid.sh 11-20 8
 ```
 

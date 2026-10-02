@@ -46,7 +46,7 @@ public final class PreparationSafetyTests {
             // the build stopped at its first check
         } finally { direct.clearPointContainmentCacheForCurrentThread(); }
         try {
-            OptimalPotential.build(direct, 1, 16L << 20);
+            OptimalPotential.build(direct, 1, 16L << 20, 16L << 20);
             throw new AssertionError("a cancelled exact-potential build completed");
         } catch (final java.util.concurrent.CancellationException expected) {
             // likewise
@@ -67,7 +67,7 @@ public final class PreparationSafetyTests {
         final RaceGame fresh = corridor();
         fresh.reach.computeDistMap();
         prepareReach(fresh);
-        check(fresh.reach.isAlive(1, 1, 1, 0) && OptimalPotential.build(fresh, 1, 16L << 20) != null,
+        check(fresh.reach.isAlive(1, 1, 1, 0) && OptimalPotential.build(fresh, 1, 16L << 20, 16L << 20) != null,
                 "a game after a cancelled one did not prepare");
         Reachability.clearReachMemoForTests();
         RaceGame.clearOptimalMemoForTests();
@@ -212,14 +212,14 @@ public final class PreparationSafetyTests {
         final RaceGame serial = corridor();
         serial.reach.computeDistMap();
         prepareReach(serial);
-        final OptimalPotential expected = OptimalPotential.build(serial, 1, 16L << 20);
+        final OptimalPotential expected = OptimalPotential.build(serial, 1, 16L << 20, 16L << 20);
         check(expected != null, "small exact map missing");
         for (int iteration = 0; iteration < 3; iteration++) {
             final RaceGame parallel = corridor();
             parallel.reach.computeDistMap();
             final AtomicReference<OptimalPotential> actual = new AtomicReference<>();
             together(() -> prepareReach(parallel), () -> {
-                try { actual.set(OptimalPotential.build(parallel, 1, 16L << 20)); }
+                try { actual.set(OptimalPotential.build(parallel, 1, 16L << 20, 16L << 20)); }
                 finally { parallel.clearPointContainmentCacheForCurrentThread(); }
             });
             check(actual.get() != null, "parallel exact map missing");

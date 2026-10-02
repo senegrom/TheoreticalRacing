@@ -3,10 +3,13 @@
 
     python3 web/scripts/stamp_versions.py web/dist
 
-The sources keep hand-numbered references (app.js?v=7); a number nobody
-bumps lets a returning browser pair a cached old module with a new one
-(review, 2026-09-27). Each reference NAME?v=... in a published .html, .js,
-.css or .webmanifest file becomes NAME?v=<first 12 hex of sha256(NAME)>.
+The sources carry the placeholder ?v=0 (a hand-bumped number let a returning
+browser pair a cached old module with a new one; review, 2026-09-27). Each
+reference NAME?v=... in a published .html, .js, .css or .webmanifest file
+becomes NAME?v=<first 12 hex of sha256(NAME)>. A .json file can be such a
+NAME (tracks.json, since 2026-09-28: a cached catalogue could name courses
+the new jar lacks) but is data, never scanned for references (review,
+2026-09-29).
 Files are stamped leaves first, so a module's hash covers the stamps of the
 modules it imports, and a change anywhere below reaches index.html.
 """
@@ -15,8 +18,9 @@ import re
 import sys
 from pathlib import Path
 
-REFERENCE = re.compile(r'([A-Za-z0-9_.-]+\.(?:js|css|html|webmanifest))\?v=[A-Za-z0-9]+')
-TEXT = ('.html', '.js', '.css', '.webmanifest')
+REFERENCE = re.compile(r'([A-Za-z0-9_.-]+\.(?:js|css|html|webmanifest|json))\?v=[A-Za-z0-9]+')
+SOURCES = ('.html', '.js', '.css', '.webmanifest')
+TEXT = SOURCES + ('.json',)
 
 
 def references(text):
@@ -34,7 +38,8 @@ def stamp(root):
         if state.get(name) == 'open':
             raise ValueError('cache-buster cycle: ' + ' -> '.join(chain + [name]))
         state[name] = 'open'
-        for ref in sorted(references(pages[name].read_text(encoding='utf-8'))):
+        text = pages[name].read_text(encoding='utf-8') if pages[name].suffix in SOURCES else ''
+        for ref in sorted(references(text)):
             if ref not in pages:
                 raise ValueError(f'{name} references {ref}, which is not published')
             visit(ref, chain + [name])
@@ -45,6 +50,8 @@ def stamp(root):
         visit(name, [])
     for name in order:
         path = pages[name]
+        if path.suffix not in SOURCES:
+            continue
         text = path.read_bytes().decode('utf-8')  # bytes: line endings stay as built
         stamped = REFERENCE.sub(
             lambda m: m.group(1) + '?v=' + hashlib.sha256(pages[m.group(1)].read_bytes()).hexdigest()[:12],

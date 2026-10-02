@@ -134,19 +134,11 @@ public final class RacecraftNextTests {
                 "candidate violated the solo boundary");
     }
 
-    private static void placement() throws Exception {
-        final RaceGame g = straight("start-ties", "3");
-        g.players = new Player[]{car(1, 5, 5, 0, 0), car(2, 5, 15, 0, 0),
-                car(3, Player.INIT_POS, Player.INIT_POS, 0, 0)};
-        g.subgamestate = 2;
-        final String before = RacecraftReplay.snapshot(g);
-        final int[] stock = {5, 10}; final int[][] ties = {{5, 8}, {5, 10}, {5, 12}};
-        final int[] result = RacecraftReplay.chooseStart(g, g.players[2], stock, ties);
-        check(Arrays.stream(ties).anyMatch(p -> Arrays.equals(p, result)), "placement left solo-optimal tie set");
-        check(before.equals(RacecraftReplay.snapshot(g)), "placement changed live players");
-        g.subgamestate = 1;
-        check(Arrays.equals(stock, RacecraftReplay.chooseStart(g, g.players[1], stock, ties)),
-                "placement guessed a later unplaced car");
+    private static void placement() {
+        final Properties p = new Properties(); p.setProperty("racecraftNext", "start-ties");
+        boolean rejected = false;
+        try { new RacecraftNext(p); } catch (final IllegalArgumentException expected) { rejected = true; }
+        check(rejected, "owner-rejected starting replay was re-enabled");
     }
 
     private static void replay() throws Exception {
@@ -185,7 +177,7 @@ public final class RacecraftNextTests {
             }
             check(RacecraftReplay.snapshot(referee).equals(tail.finalState()), "final referee classification/state differs");
         } finally { Files.deleteIfExists(log); }
-        final String corpus = RacecraftReplay.answer(g, "cf3,300,-|" + original);
+        final String corpus = RacecraftReplay.answer(g, "cf4,300,-|" + original);
         check(corpus.contains("\"complete\":true") && corpus.contains("\"traceSha256\""), "corpus did not include complete tails");
         check(original.equals(RacecraftReplay.snapshot(g)), "corpus leaked its board");
     }

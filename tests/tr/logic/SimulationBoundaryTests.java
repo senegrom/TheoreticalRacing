@@ -143,7 +143,7 @@ public final class SimulationBoundaryTests {
 
     private static int simulate(final RaceGame g, final int mover, final int rounds, final boolean pending,
             final int[] landing, final int[] velocity, final int[] tier, final long[] field,
-            final int[] threads, final long[] rival) throws Exception {
+            final int[] threads) throws Exception {
         final Method prepare = RaceAi.class.getDeclaredMethod("prepareDecisionFrame", int[].class, int[].class, int.class);
         prepare.setAccessible(true);
         final Player me = g.players[mover];
@@ -152,7 +152,7 @@ public final class SimulationBoundaryTests {
             if (!method.getName().equals("simulate")) continue;
             method.setAccessible(true);
             return (int) method.invoke(g.ai, landing[0], landing[1], velocity[0], velocity[1], me.getNumber(), rounds,
-                    true, true, true, false, false, false, 0, tier, field, threads, false, rival, pending);
+                    true, true, true, false, false, false, 0, tier, field, threads, pending);
         }
         throw new AssertionError("missing simulation entry point");
     }
@@ -174,9 +174,19 @@ public final class SimulationBoundaryTests {
                     g.players[finishing].setVelocity(new int[]{3, 0});
                 } else if (kind == 2) { gates(g); g.setQueryTurnCounter(2251); }
                 final int[] tier = {0}, threads = {0, 0};
-                final long[] field = {-9}, rivals = {-9, -9, -9};
+                final long[] field = {-9};
                 final Player me = g.players[mover];
-                final int value = simulate(g, mover, 3, false, me.getPosition(), me.getVelocity(), tier, field, threads, rivals);
+                final int value = simulate(g, mover, 3, false, me.getPosition(), me.getVelocity(), tier, field, threads);
+                final boolean progressTimeout = kind == 2;
+                if (progressTimeout) {
+                    // Every next-gate value is unknown on this fixture. Cyclic order starts
+                    // AFTER the installed mover, so that mover is third, not the survivor.
+                    check(value == 2 * RaceAi.VERDICT_PLACE_STRIDE && tier[0] == 3,
+                            "timeout did not use projected cyclic progress order");
+                    check(projectedClock(g) == g.turnCount() + 2L && field[0] == 0,
+                            "timeout invented a racing move or future field cost");
+                    continue;
+                }
                 // Round 274, rank first: a survivor classified behind a finisher is one
                 // place down, not a win -- the verdict carries the rival ahead.
                 check(value == (kind == 1 ? RaceAi.VERDICT_PLACE_STRIDE : 0) && tier[0] == 3,
@@ -184,7 +194,6 @@ public final class SimulationBoundaryTests {
                 check(threads[0] == 0 && threads[1] == 0, "a phantom survivor turn was audited");
                 check(projectedClock(g) == g.turnCount() + 2L, "rollout continued beyond two retirements");
                 check(field[0] == (kind == 1 ? 1_000_000 : 2_000_000), "retired rival costs were lost: mover=" + mover + " kind=" + kind + " field=" + field[0]);
-                check(rivals[mover] == -1, "mover acquired a rival cost");
                 check(!me.isFinished() && (int) get(g.ai, "simDepth") == 0, "projected result leaked into the live board");
             }
         }
@@ -192,27 +201,28 @@ public final class SimulationBoundaryTests {
         g.players = new Player[]{car(1, 10, 2, 0, -4), car(2, 30, 2, 0, -4), car(3, 45, 2, 0, -4)};
         g.players[2].setFinishedPlace(3);
         check(simulate(g, 0, 1, false, g.players[0].getPosition(), g.players[0].getVelocity(),
-                new int[1], null, null, null) == 0, "terminal event on last horizon ply was missed");
+                new int[1], null, null) == 0, "terminal event on last horizon ply was missed");
         check(projectedClock(g) == 1, "already classified rival moved again");
     }
 
     private static void testTerminalCandidateAndSolo() throws Exception {
         final RaceGame g = straight();
         g.players = new Player[]{car(1, 171, 10, 2, 0), car(2, 30, 2, 0, -4)};
-        final long[] rivals = new long[2], field = new long[1];
-        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, new int[1], field, null, rivals) == 0,
+        final long[] field = new long[1];
+        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, new int[1], field, null) == 0,
                 "finishing candidate was lost");
-        check(projectedClock(g) == 1 && rivals[1] == 0 && field[0] == 0,
+        check(projectedClock(g) == 1 && field[0] == 0,
                 "last rival was charged a phantom failure after our finish");
-        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, new int[1], null, null, rivals) == 0
-                && rivals[1] == 0, "rival-only output was left incomplete");
+        // The per-rival cost vector went with its last reader (review, 2026-09-29).
+        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, new int[1], null, null) == 0,
+                "a finishing candidate without a field cost was lost");
         gates(g); g.setQueryTurnCounter(1501);
-        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, null, null, null, null) == -1,
-                "candidate finish overrode mover-first timeout");
+        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, null, null, null) == 0,
+                "timeout did not classify the current cyclic-first car without moving");
         g.lapGates = null; g.setQueryTurnCounter(0);
         g.players = new Player[]{car(1, 10, 2, 0, -4)};
         check(simulate(g, 0, 2, false, g.players[0].getPosition(), g.players[0].getVelocity(),
-                null, null, null, null) == -1, "solo time trial was automatically classified as a survivor");
+                null, null, null) == -1, "solo time trial was automatically classified as a survivor");
     }
 
     private static Object get(final Object o, final String name) throws Exception {
