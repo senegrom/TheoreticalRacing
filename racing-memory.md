@@ -1,5 +1,54 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## The owner's computed-start rule (2026-10-02); round 299 in measurement
+
+The owner, on the start-ties arm: "players should pick in player order and
+take into account already placed cars (those slots are taken) and just play
+optimally ... First car picks best slot, second car picks best slot given
+first placement etc. The first may have advantages but that is already the
+case." CLAUDE.md and AGENTS.md now carry it as the computed-start rule.
+Round 298's start-ties (a replay among equally scored cells) is REJECTED
+whatever it measures -- it read -0.013 +- 0.009 on computed starts (22/17/45,
+crashes 47:49); never screen it again. The other 298 flags are noise:
+rank-time -0.010 +- 0.005 (14/8/62; 59:60), crash-rank +0.004 +- 0.004
+(7/11/66; 54:59), opening +0.001 +- 0.011. None is a candidate.
+
+An audit of the code against the rule (two lenses plus the documents, every
+finding verified three times; 14 upheld, 1 refuted) found two deviations:
+- The start score refused a first move that lands on an earlier car's cell.
+  Those cars move first, so the filter priced a state that never occurs. It
+  costs a cell at most one turn (staying put is never filtered), but it
+  reshuffles the tie set and pushes later cars back.
+- Where the exact full-race map is over budget (the Nordschleife at any lap
+  count; by the audit's arithmetic Le Mans from 6 laps, the Nurburgring from
+  7, Monaco from 9; or a small heap) the AIs took the legacy start: a seeded
+  random free cell, and without a seed (the desktop GUI, the browser's blank
+  default) the FIRST free cell in x-then-y order. The owner's call: use the
+  next best map, the exact distance to the first checkpoint, which the cars
+  then race by.
+Gaps for the promotion: README.md and web/README.md describe the filter and
+call the fallback random; no test pins the tie-break; the order tests compare
+choose() with itself; the unit oracle encodes the filter and has no lap or
+pocket case; nothing tests the over-budget path. One edge stays as it is: an
+AI with no free cell from which it can finish does not place (no slot can be
+best there).
+
+Round 299 (E:/tmp-claude/arm299_startrule.py, jar a299 43dabd4f), both parts
+candidate-gated: 299a scores a free cell by its exact single-player value from
+rest; 299b builds the start analysis from the first-checkpoint map when the
+exact map is over budget and places candidate cars by it (champion cars keep
+the legacy cell; the log header is unchanged). A local Nordschleife race with
+candidates 1, 3, 5 and 7 places them by the map and completes. Queued on the
+box against the round-296 champion: identity on the four standard races and
+nordschleife s3 (verify_pair_tracks.py, where a failed race is a mismatch),
+legacy and scatter identity (inert by construction), the Nordschleife alone on
+computed starts with seeds 21-60, computed starts 1-10 and 11-20, the lone
+check and the duels on computed starts.
+
+Running meanwhile: round 281 all's lone check and duels. Its screens so far:
+random starts -0.172 +- 0.020 (66/12/6; crashes 57:53), computed -0.131 +-
+0.020 (57/20/7; 43:53), scattered -0.006 +- 0.003 (10/3/71).
+
 ## Round 296 promoted (2026-10-01): a landing no longer owes the gates it collects
 
 The third review's decision-changing AI findings, on master 87e1d50 (round 291
@@ -61,7 +110,8 @@ starts, seeds 1-10):
 - Round 298, the owner's ideas 1, 2, 4 and 6, ported from the peer branch
   work/racecraft-outcomes-opening-20260928 as racecraftNext flags: identity
   INERT for all four on the standard races; opening +0.001 +- 0.011 (crashes
-  55:48); rank-time, crash-rank and start-ties running.
+  55:48); rank-time, crash-rank and start-ties: see the 2026-10-02 entry
+  (start-ties rejected by the owner).
 
 ## Round 291 promoted (2026-09-30): the reviews' four correctness fixes
 
