@@ -1,4 +1,4 @@
-name: Racecraft outcomes and opening validation
+name: Reviewed racecraft validation
 on:
   push:
     branches: [work/racecraft-outcomes-opening-20260928]

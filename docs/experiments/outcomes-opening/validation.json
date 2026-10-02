@@ -1,31 +1,29 @@
 {
-  "schema": 1,
-  "date": "2026-09-28",
-  "baseline": "955001104bbe315cf9b82a1cd2dfb447beddd211",
-  "tested_revision": "5b423ef91dd46871e8e87792a9f727c5a7b39db0",
-  "source_preserving_cleanup": "208fbdbf0070e462e16d288f7dec649391a4ff2e",
-  "workflow_run": 36475118355,
-  "workflow_url": "https://github.com/senegrom/TheoreticalRacing/actions/runs/36475118355",
+  "schema": 2,
+  "date": "2026-10-02",
+  "baseline": "b54e9bb05f91c0011e8d5e82178d1d13f3c1b494",
+  "tested_integration": "a7eb632df7202855141da8a529dcf2543cf97ae1",
+  "assembly_run": 37060609082,
   "completed_checks": [
-    "JDK 25: build_main.sh, run_tests.sh, Python unit tests, Python syntax, clean tracked working tree",
-    "JDK 26: build_main.sh, run_tests.sh, Python unit tests, Python syntax, clean tracked working tree",
-    "32 complete race controls against pinned master/default/no-slots/no-flags/audit/zero-opening/all-arms configurations",
-    "Hairpin and Circle end-to-end corpus capture and counterfactual replay: every legal first action completed; observed control trace matched the entire captured race",
-    "headless_smoke.py",
-    "query_replay_regression.py",
-    "lap_progress_regression.py",
-    "golden_races.py: all 12 existing golden races, expectations unchanged"
+    "JDK 25 build with warnings treated as errors",
+    "Full Java contract suite including RacecraftNextTests and RacecraftFixTests",
+    "108 Python unit tests including strict cf4 acceptance regressions",
+    "Live-referee timeout and mid-race prior-classification/checkpoint/grid-entitlement parity",
+    "Actual chooser crash-salvage witness, confirmed-action ordering, rotated opening plans and phase isolation",
+    "Staged and unstaged git diff --check"
   ],
   "pending_when_recorded": [
-    "Every existing ai1_*_regression.py champion pin"
+    "Read-only JDK 25 and 26 revalidation of the final branch",
+    "Complete-race controls and multiple mid-race cf4 continuations",
+    "Current golden corpus and every champion regression pin",
+    "Browser parity and Chromium/WebKit checks"
   ],
   "not_performed": [
     "Full mirrored fleet promotion battery",
     "Lone-candidate promotion battery",
-    "Held-out place-gain/CPU evaluation",
-    "Browser parity suite"
+    "Held-out place-gain/CPU evaluation"
   ],
   "full_fleet_performed": false,
   "promoted": false,
-  "note": "Only completed checks are listed as passed. Later CI status is authoritative. Cleanup removed temporary assembly scripts and the writable assembly workflow; tested source code was not changed. Item 3 is a shadow-only diagnostic, not a live selector. All new policy features are independently opt-in."
+  "note": "This supersedes the historical September 28 validation record. The integrated source passed the stated contracts; final cleanup removes only temporary assembly scripts/workflow and updates documentation/CI metadata. Later read-only CI status is authoritative. The owner-rejected start-ties experiment is removed, not re-screened. No performance improvement is claimed."
 }
