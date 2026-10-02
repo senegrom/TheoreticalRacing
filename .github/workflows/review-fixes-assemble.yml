@@ -1,0 +1,64 @@
+name: Assemble reviewed racecraft fixes
+on:
+  push:
+    branches: [work/racecraft-outcomes-opening-20260928]
+    paths: ['.review-fixes/**', '.github/workflows/review-fixes-assemble.yml']
+permissions:
+  contents: write
+concurrency:
+  group: reviewed-racecraft-assembly
+  cancel-in-progress: false
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Integrate pinned current master
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git merge --no-commit --no-ff b54e9bb05f91c0011e8d5e82178d1d13f3c1b494 || true
+          if test -f .review-fixes/apply.py; then python3 .review-fixes/apply.py; fi
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess, re
+          paths = subprocess.check_output(['git', 'diff', '--name-only', '--diff-filter=U'], text=True).splitlines()
+          for name in paths:
+              text = Path(name).read_text()
+              print('CONFLICT FILE', name)
+              for m in re.finditer(r'<<<<<<<.*?>>>>>>>[^\n]*', text, re.S): print(m.group())
+          if paths: raise SystemExit('Unresolved integration conflicts')
+          PY
+          git diff --check
+      - name: Build and targeted contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build_main.sh 2>&1 | tee /tmp/review-build.log
+          sh run_tests.sh 2>&1 | tee /tmp/review-java.log
+          python3 -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee /tmp/review-python.log
+      - name: Commit tested integration only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add src tests tools run_tests.sh racing-memory.md docs
+          if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
+            git commit -m 'Integrate current master and repair reviewed racecraft contracts'
+            git push origin HEAD:work/racecraft-outcomes-opening-20260928
+          fi
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: review-fix-logs
+          path: /tmp/review-*.log
+          retention-days: 7
