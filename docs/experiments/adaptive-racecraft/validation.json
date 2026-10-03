@@ -1,27 +1,39 @@
 {
-  "schema": 1,
+  "schema": 2,
   "date": "2026-10-03",
   "branch": "work/racecraft-outcomes-opening-20260928",
   "baseline": "1c50a5cb740c2deb9bd8bf8a588c8693e4335aae",
   "master_unchanged": "b54e9bb05f91c0011e8d5e82178d1d13f3c1b494",
   "tested_implementation": "97fa190ab722c05c3fb4487dd6b7aad494e087e6",
+  "final_tested_source": "e52502a007a057e370bd0431fc8084ade445b65d",
   "successful_assembly_run": 37117312951,
+  "read_only_validation_run": 37117991379,
   "completed_checks": [
-    "JDK 25 build with warnings treated as errors",
-    "Full Java contract suite, including RacecraftAdaptiveTests",
-    "108 Python unit tests",
+    "JDK 25 and 26 builds with warnings treated as errors",
+    "Full Java contract suites on both JDKs, including RacecraftAdaptiveTests and FollowupStateTests",
+    "113 Python unit tests, including five rc4 policy-memory acceptance regressions, on both JDK jobs",
     "32 complete races: disabled/default identity and combined-arm audit identity",
+    "20 additional complete races: independent-arm audit identity and combined zero-budget identity",
     "6 mid-race cf4 cases with every legal first action and exact full control suffixes",
-    "All 12 existing golden races, no expectation changes",
-    "Every tests/ai1_*_regression.py champion pin, no expectation changes",
-    "Unstaged and staged git diff --check"
+    "All 12 existing golden races, no expectation changes; also repeated on the final tested source",
+    "Every tests/ai1_*_regression.py champion pin, no expectation changes, on the implementation source",
+    "Browser-compatible Java build on the final tested source",
+    "Source-tree cleanliness and git diff --check"
   ],
+  "functional_control_races": 52,
+  "counterfactual_cases": 6,
+  "independent_arm_observations": {
+    "contexts": ["hairpin, 2 players, legacy starts, seed 3", "circle, 4 players, informed starts, seed 3"],
+    "all_four_arms_unchanged_race_traces_in_these_contexts": true,
+    "tactical_extension_triggers": {"hairpin": 2, "circle": 7},
+    "pending_plan_captures": 0,
+    "inherited_extra_admissions": 0,
+    "recovery_expansions": 0,
+    "interpretation": "Isolation/control checks, not a performance screen. Decision-changing adaptive/recovery and follow-up-selection mechanisms are separately pinned by constructed behavioural witnesses. These two race contexts do not establish a place gain or the frequency of retained plans in wider racing."
+  },
   "pending_when_recorded": [
-    "Final read-only JDK 25 and 26 validation",
-    "Additional FollowupStateTests for projected prefixes and Undo",
-    "Five additional Python policy-memory acceptance regressions",
-    "20 independent-arm and zero-budget complete-race controls",
-    "Browser build, native parity, Chromium and WebKit"
+    "Repeat champion-pin pass in the final read-only CI run; the same production source already passed the entire pin battery in the assembly run",
+    "Browser native parity, transport/watchdog checks, Chromium and WebKit"
   ],
   "not_performed": [
     "Mirrored full-fleet performance evaluation",
@@ -30,5 +42,5 @@
   ],
   "promoted": false,
   "performance_gain_claimed": false,
-  "note": "The actual implementation commit was pushed only after its build, contracts, complete-race/counterfactual controls, goldens and every champion pin passed. Final cleanup removes temporary assembly files and adds further tests/read-only CI; it does not change production decision logic. Later CI status is authoritative."
+  "note": "The implementation was pushed after build, contracts, full-race/counterfactual controls, all goldens and every champion pin passed. Cleanup and added tests did not change production decision logic. This last validation-record update is documentation only. Later CI status is authoritative. No master, start-placement, track, map or user.properties changes were made."
 }
