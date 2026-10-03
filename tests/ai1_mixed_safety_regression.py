@@ -50,7 +50,8 @@ def main() -> int:
             # 2026-09-27: one ordering. The reverse ordering was the same race
             # with the labels swapped (one policy since round 222); the label
             # invariance pin checks that once for every pin.
-            "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
+            # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+            "front": {"AI1": (16, 4, 0), "AI2": (20, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),

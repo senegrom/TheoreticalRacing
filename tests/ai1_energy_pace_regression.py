@@ -20,14 +20,17 @@ EXPECTED = {
  # Round 278: re-frozen from measurement (the chooser's pick stands).
  # Round 291: re-frozen from measurement (the grid rule at the finish, finishing without the potential, crossings that do not finish, no field-cost veto).
  # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
- ("nurburgring",1): (7, 0, [92, 93, 93, 94, 95, 96, 96]),
+ # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+ ("nurburgring",1): (7, 0, [91, 92, 92, 93, 93, 94, 95]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same
  # race by summary and digest (the labels race alike; review, 2026-09-28).
- ("spa",17): (7, 0, [78, 79, 80, 81, 82, 82, 83]),
+ # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+ ("spa",17): (7, 0, [78, 79, 80, 81, 81, 82, 84]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
- ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 144]),  # Round 260 (the chooser): whole again.
+ # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
+ ("zandvoort",44): (6, 1, [137, 138, 139, 141, 142, 143]),  # Round 281: loses a car again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

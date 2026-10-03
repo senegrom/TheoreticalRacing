@@ -3296,6 +3296,9 @@ final class RaceAi {
 	 *  rollouts (inside scorer/true rival computes) stay silent. */
 	volatile boolean				simTrace;
 	private int						simDepth;
+	/** Round 281: the rollout depth at which every live rival plays its real
+	 *  scorer -- the chooser's own rollout; -1 for none. */
+	private int allScorerRolloutDepth = -1;
 
 	/** Query-sim entry (round 103): verdict of the core rollout from the
 	 *  installed board, me already AT the queried landing. */
@@ -3466,8 +3469,13 @@ final class RaceAi {
 		// Round 59: slow-class fires roll the nearest rivals with their REAL
 		// scorer (recursion-guarded); the rest keep the smom proxy.
 		// Membership is fixed at rollout start: the nearest
-		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR.
-		if (scorerRivals) {
+		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR. Round 281: in the
+		// chooser's own rollout every live rival plays its scorer.
+		if (scorerRivals && simDepth == allScorerRolloutDepth) {
+			for (int i = 0; i < game.players.length; i++)
+				if (i != myIdx && alive[i])
+					scorerSet[i] = true;
+		} else if (scorerRivals) {
 			// Round 102: for TRUE-RIVAL confirms only, the membership radius
 			// scales with MY speed -- monza s80 commits at spd-inf 10 toward a
 			// braking car 11 cells downstream; a fixed Chebyshev-10 net can
@@ -4495,8 +4503,17 @@ final class RaceAi {
 			final int outerKeyDepth = placeKeyDepth;
 			placeKeyDepth = simDepth + 1;
 			placeKey = -1;
-			final int outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
-					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+			// Round 281: every live rival plays its scorer in this rollout, at any
+			// distance -- not only the three nearest within AI1_SCORER_NEAR, the rest
+			// by the smom proxy (-0.172 places on held-out seeds, CPU 1.32x).
+			final int outcome;
+			allScorerRolloutDepth = simDepth + 1;
+			try {
+				outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+						true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+			} finally {
+				allScorerRolloutDepth = -1;
+			}
 			final long key = placeKey;
 			placeKeyDepth = outerKeyDepth;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;

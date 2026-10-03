@@ -79,7 +79,8 @@ def main() -> int:
         # racing at the flag, auto-placed eighth; zero AI1 crashes below include
         # p7's survival, so the separate log scan for a p7 crash is retired
         # (review, 2026-09-29).
-        expected = {"AI1": (22, 4, 0), "AI2": (14, 4, 0)}
+        # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+        expected = {"AI1": (21, 4, 0), "AI2": (15, 4, 0)}
         if result != expected:
             raise SystemExit(
                 "Round-185 width-three ridge regression: "

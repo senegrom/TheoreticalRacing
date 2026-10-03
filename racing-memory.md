@@ -1,5 +1,47 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 281 promoted (2026-10-03): every live rival plays its scorer in the chooser's rollouts
+
+The round-256 chooser ranks the landings the score cannot separate by the
+faithful joint world, but that world played only the AI1_SCORER_MAXRIVALS (3)
+nearest rivals within Chebyshev AI1_SCORER_NEAR by their real scorer and every
+other car by the smom proxy. Now every live rival plays its scorer in the
+chooser's own rollout; rollouts nested inside it keep the normal scorer set
+(one depth-scoped field, allScorerRolloutDepth). Master b54e9bb +
+promote281all.py (jar 552c04c3, byte-identical to the box's build).
+
+Measured as the gated arm a281all296 against the round-296 champion: identity
+OK, CPU 1.32x (six 8-car races, 236 s -> 311 s). Random starts -0.157 +-
+0.019 (66/16/2; crashes 57:55), held-out seeds 11-20 -0.172 +- 0.020
+(66/12/6; 57:53); computed starts -0.131 +- 0.020 (57/20/7; 43:53);
+scattered -0.006 +- 0.003 (10/3/71; 12:13); two-car duels -0.027 +- 0.004
+(5/0/79; 218:220); lone check with the control, seeds 1-5, every seat:
+-0.149 +- 0.021 (68/14/2; crashes 27:24). The promoted jar races as the arm
+with every slot a candidate (7 of 7). 281 near (the three-rival cap kept,
+every rival within reach) is dominated on every slice: random -0.119,
+computed -0.101, scattered +0.000, lone -0.110 +- 0.018, duels identical
+(one rival is always within the cap).
+
+Corpus (probe records from the x86 box; the box loop re-froze 10 pins and the
+goldens, 9 pins were re-frozen by hand from the probe records and each edit
+reviewed against them; CI's frozen job then ran locally on x86: 29 of 29: smoke, query replay, lap progress, the goldens and every pin):
+11 of 12 goldens (Zandvoort s45 keeps all eight cars: the car that crashed now
+finishes; the rest reorder or lose a few turns), 16 of 25 pins. Crashes move
+between races and net to zero across the corpus -- recorded, not vetoed: back
+to seven finishers on Silverstone s1 (cross-model pace), Interlagos s47
+(private slack), Le Mans s3 (staged pace: both crashed cars finish) and Spa
+s31 (six-ahead); a car lost on Zandvoort s44 and s115 (the same opening-lap
+hairpin, the frozen pre-2026-08-29 geometry), Spa s1 and Monaco s35 (private
+slack), Le Mans s29 (bounded uncertain field) and Silverstone s78 (six-ahead,
+p8 on its 11th move). The equal-speed veto pin's round-126 safety contract
+(more finishers and fewer crashes than the legacy car) fails with the lost
+car; as in round 247 it reads the pace edge instead (840 finisher moves
+against the legacy car's 853). Label invariance holds: the all-AI1,
+alternating and all-AI2 fields race Coil s5 identically.
+
+The box moved to a Graviton instance (m8g.2xlarge, arm64; 2026-10-03):
+four x86 promotion-identity races re-raced there match byte for byte.
+
 ## The owner's computed-start rule (2026-10-02); round 299 in measurement
 
 The owner, on the start-ties arm: "players should pick in player order and
