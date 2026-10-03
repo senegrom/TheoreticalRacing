@@ -6,7 +6,8 @@ import java.util.Properties;
 /** Independent candidate arms; settings and shipped defaults stay unchanged. */
 final class RacecraftNext {
     enum Feature {
-        CRASH_RANK("crash-rank"), RANK_TIME("rank-time"), OPENING("opening");
+        CRASH_RANK("crash-rank"), RANK_TIME("rank-time"), OPENING("opening"), ADAPTIVE_ESCAPE("adaptive-escape"),
+        FOLLOWUP("followup"), RECOVERY("recovery"), TACTICAL_EXTENSION("tactical-extension");
         final String flag;
         Feature(final String flag) { this.flag = flag; }
     }
@@ -17,6 +18,7 @@ final class RacecraftNext {
     final int openingTrials;
     final int captureEvery;
     final int captureLimit;
+    final int adaptiveNodes, adaptiveCycles, recoveryTrials, tacticalExtraRounds;
 
     RacecraftNext(final Properties props) {
         features = EnumSet.noneOf(Feature.class);
@@ -31,6 +33,10 @@ final class RacecraftNext {
         if (!audit.equals("true") && !audit.equals("false"))
             throw new IllegalArgumentException("racecraftCapture must be true or false");
         capture = Boolean.parseBoolean(audit);
+        adaptiveNodes = bounded(props, "racecraftAdaptiveNodes", 2048, 0, 20000);
+        adaptiveCycles = bounded(props, "racecraftAdaptiveCycles", 2, 1, 3);
+        recoveryTrials = bounded(props, "racecraftRecoveryTrials", 9, 0, 9);
+        tacticalExtraRounds = bounded(props, "racecraftTacticalExtraRounds", 2, 0, 2);
         openingRounds = bounded(props, "racecraftOpeningRounds", 6, 2, 12);
         openingTrials = bounded(props, "racecraftOpeningTrials", 18, 0, 36);
         captureEvery = bounded(props, "racecraftCaptureEvery", 1, 1, 1000000);
@@ -39,14 +45,21 @@ final class RacecraftNext {
 
     boolean enabled(final RaceGame game, final int player, final Feature feature) {
         return game.candidatePolicy(player) && features.contains(feature)
-                && (feature != Feature.OPENING || openingTrials > 0 && opening(game, player));
+                && (feature != Feature.OPENING || openingTrials > 0 && opening(game, player))
+                && (feature != Feature.FOLLOWUP || features.contains(Feature.OPENING)
+                        && openingTrials > 0 && opening(game, player))
+                && (feature != Feature.ADAPTIVE_ESCAPE || adaptiveNodes > 0)
+                && (feature != Feature.RECOVERY || recoveryTrials > 0)
+                && (feature != Feature.TACTICAL_EXTENSION || tacticalExtraRounds > 0);
     }
     boolean driving(final RaceGame game, final int player) {
         return enabled(game, player, Feature.CRASH_RANK) || enabled(game, player, Feature.RANK_TIME)
                 || enabled(game, player, Feature.OPENING);
     }
 
-    String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials; }
+    boolean configured(final Feature feature) { return features.contains(feature); }
+    String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials
+            + ":" + adaptiveNodes + ":" + adaptiveCycles + ":" + recoveryTrials + ":" + tacticalExtraRounds; }
 
     boolean any(final RaceGame game, final int player) {
         for (final Feature feature : features) if (enabled(game, player, feature)) return true;

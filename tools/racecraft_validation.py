@@ -36,13 +36,17 @@ def snapshot(text: str):
     try:
         groups = text.split(';')
         header = groups[0].split(',')
-        if len(header) != 7 or header[0] != 'rc3' or not re.fullmatch(r'[0-9a-f]{64}', header[6]):
+        if not ((len(header) == 7 and header[0] == 'rc3') or (len(header) == 8 and header[0] == 'rc4')) or not re.fullmatch(r'[0-9a-f]{64}', header[6]):
             raise ValueError('invalid snapshot header')
         turn, laps, slot, first, last = map(int, header[1:6])
         rows = [list(map(int, group.split(','))) for group in groups[1:]]
     except (TypeError, ValueError) as error:
         raise ValueError('invalid snapshot encoding') from error
     n = len(rows)
+    if len(header) == 8:
+        plans = header[7].split('.')
+        if len(plans) != n or any(p != '-' and not re.fullmatch(r'(?:NW|N|NE|W|NONE|E|SW|S|SE)~[0-9a-f]{64}', p) for p in plans):
+            raise ValueError('invalid follow-up policy memory')
     if not 1 <= n <= 9 or any(len(row) != 14 for row in rows):
         raise ValueError('invalid snapshot roster')
     integer(turn); integer(laps, 1); integer(slot, 0, n - 1)

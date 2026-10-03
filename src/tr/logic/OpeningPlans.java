@@ -7,11 +7,14 @@ import java.util.List;
  * order from the actual projected second-move board, not a compass prefix. */
 final class OpeningPlans {
     private OpeningPlans() {}
-    record Trial(RacecraftOutcome outcome, List<Direction> followups) {
+    record Trial(RacecraftOutcome outcome, List<Direction> followups, String expectedKey) {
+        Trial(RacecraftOutcome outcome, List<Direction> followups) { this(outcome, followups, null); }
         Trial { followups = List.copyOf(followups); }
     }
     @FunctionalInterface interface Forecast { Trial run(Direction first, Direction second); }
-    record Selection(Direction move, int trials) {}
+    record Selection(Direction move, int trials, Direction followup, String expectedKey) {
+        Selection(Direction move, int trials) { this(move, trials, null, null); }
+    }
 
     static Selection choose(final Direction nominal, final Direction[] roots, final int budget,
             final boolean compareCrashes, final Forecast forecast) {
@@ -20,7 +23,8 @@ final class OpeningPlans {
         order.add(nominal);
         for (final Direction d : roots) if (!order.contains(d)) order.add(d);
         final List<Trial> baseline = new ArrayList<>();
-        Direction best = nominal;
+        Direction best = nominal, followup = null;
+        String expectedKey = null;
         RacecraftOutcome value = null;
         int used = 0;
         for (final Direction first : order) {
@@ -43,11 +47,12 @@ final class OpeningPlans {
                 final Trial result = forecast.run(order.get(k), followups.get(next)); used++;
                 if (result.outcome().betterThan(value, compareCrashes)) {
                     value = result.outcome(); best = order.get(k);
+                    followup = followups.get(next); expectedKey = result.expectedKey();
                 }
             }
             if (!any) break;
         }
-        return new Selection(best, used);
+        return new Selection(best, used, followup, expectedKey);
     }
 
     /** Distances are evaluated AFTER the legal second action. Ties use momentum,

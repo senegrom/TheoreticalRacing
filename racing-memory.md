@@ -1,5 +1,29 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+
+## Adaptive response research (2026-10-03, branch only)
+
+Owner request: implement adaptive escapes, inherited opening follow-ups,
+failure-triggered candidate expansion and endpoint-triggered extension.
+Base: 1c50a5c on work/racecraft-outcomes-opening-20260928; master remains
+b54e9bb. New opt-in racecraftNext flags: adaptive-escape, followup, recovery,
+tactical-extension. All require candidateSlots. Followup refines opening and
+requires that flag too. No start-placement changes, no yielding, no promotion.
+Adaptive certificates cover exactly two live cars, finite horizon, all physical
+rival accelerations, unchanged escape-count requirements and decreasing exact
+solo distance. Budget exhaustion and absent exact lap potentials abstain.
+Follow-up proposals are saved only when their first action is committed, expire
+on board/clock/rule mismatch or end of opening, and are candidates, never forced
+moves. Undo and rc4 snapshots preserve pending plans; cf4 request hashing also
+binds this optional policy state. UI path-pruning marks are not plan identity.
+Recovery admits every remaining physical legal action within its explicit trial
+budget only after all compared originals predict known crashes. Extended
+comparisons repeat every considered action at one common horizon (+1/+2 roster
+cycles), keeping the same opponent model. Neither feature treats unknown as a
+crash or a proof. Existing pace and danger guards remain downstream.
+Validation outcomes are recorded separately after execution. Earlier round-298
+screens do not evaluate these implementations. No fleet/lone-entrant gain claimed.
+
 ## Peer branch review repairs (2026-10-02, not promoted)
 
 Integrated master b54e9bb (rounds 291/296 and the current owner rules) into

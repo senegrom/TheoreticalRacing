@@ -25,6 +25,7 @@ import tr.gui.StartDialog;
  * @author CGH
  */
 public final class RaceGame {
+    FollowupPlans followups = new FollowupPlans();
 	private static final Direction[] DIRECTIONS = Direction.values();
 	final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
@@ -91,6 +92,7 @@ public final class RaceGame {
 	/** Complete pre-move state used to undo a human move and every AI reply
 	 *  that followed it. Auto-play does not allocate snapshots. */
 	private static final class MoveSnapshot {
+        final FollowupPlans followups;
 		final int		finishedFirst;
 		final int		finishedLast;
 		final int[]	finishedPlaces;
@@ -104,6 +106,7 @@ public final class RaceGame {
 		final int[][]	velocities;
 
 		MoveSnapshot(final RaceGame game) {
+            followups = game.followups.copy();
 			subgamestate = game.subgamestate;
 			startZoneGone = game.startZoneGone;
 			finishedFirst = game.finishedFirst;
@@ -126,6 +129,7 @@ public final class RaceGame {
 		}
 
 		void restore(final RaceGame game) {
+            game.followups = followups.copy();
 			game.subgamestate = subgamestate;
 			game.finishedFirst = finishedFirst;
 			game.finishedLast = finishedLast;
@@ -2008,6 +2012,8 @@ public final class RaceGame {
 		}
 		if (!autoMode)
 			moveHistory.push(new MoveSnapshot(this));
+        if (ai != null) ai.commitResearchPlan(d);
+        else followups.put(subgamestate, null);
 		// The gate credit belongs to a move that actually happens: the confirm
 		// above can still abandon this one, and the snapshot has to record the
 		// pre-move gate ledger so Undo can put it back.

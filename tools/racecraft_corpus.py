@@ -44,8 +44,9 @@ def board(snapshot: str) -> tuple[list[str], list[list[int]]]:
     groups = snapshot.split(';')
     h = groups[0].split(',')
     cars = [list(map(int, group.split(','))) for group in groups[1:]]
-    if len(h) != 7 or h[0] != 'rc3' or not 1 <= len(cars) <= 9 or any(len(c) != 14 for c in cars):
+    if not ((len(h) == 7 and h[0] == 'rc3') or (len(h) == 8 and h[0] == 'rc4')) or not 1 <= len(cars) <= 9 or any(len(c) != 14 for c in cars):
         raise ValueError('not a complete rc3 decision state')
+    validation.snapshot(snapshot)
     slot = int(h[3])
     if not 0 <= slot < len(cars) or cars[slot][6] != 0:
         raise ValueError('invalid rc3 mover')

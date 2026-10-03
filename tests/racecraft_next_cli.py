@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / 'tracks'))
 from benchmark_io import update_properties
 from forensics_common import normalized_sha256, potential_status, parse_move
 
-FLAGS = 'crash-rank,rank-time,opening'
+FLAGS = 'crash-rank,rank-time,opening,adaptive-escape,followup,recovery,tactical-extension'
 
 
 def execute(command, output: Path, timeout=900):

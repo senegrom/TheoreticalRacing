@@ -20,18 +20,24 @@ final class RacecraftReplay {
 
     static final class Board {
         final int turn, laps, slot, first, last;
-        final String identity;
+        final String identity, plans;
         final int[][] cars;
         Board(final int turn, final int laps, final int slot, final int first, final int last,
                 final String identity, final int[][] cars) {
+            this(turn, laps, slot, first, last, identity, cars, "-");
+        }
+        Board(final int turn, final int laps, final int slot, final int first, final int last,
+                final String identity, final int[][] cars, final String plans) {
+            this.plans = plans;
             this.turn = turn; this.laps = laps; this.slot = slot; this.first = first; this.last = last;
             this.identity = identity;
             this.cars = Arrays.stream(cars).map(int[]::clone).toArray(int[][]::new);
         }
         String encode() {
-            final StringBuilder out = new StringBuilder("rc3,").append(turn).append(',').append(laps)
+            final StringBuilder out = new StringBuilder(plans.equals("-") ? "rc3," : "rc4,").append(turn).append(',').append(laps)
                     .append(',').append(slot).append(',').append(first).append(',').append(last)
                     .append(',').append(identity);
+            if (!plans.equals("-")) out.append(',').append(plans);
             for (final int[] car : cars) {
                 out.append(';');
                 for (int j = 0; j < car.length; j++) { if (j > 0) out.append(','); out.append(car[j]); }
@@ -52,7 +58,7 @@ final class RacecraftReplay {
             System.arraycopy(p.lapState(), 0, row, 7, 7);
         }
         return new Board(game.turnCount(), game.totalLaps, game.subgamestate,
-                game.researchFinishedFirst(), game.researchFinishedLast(), identity(game), cars);
+                game.researchFinishedFirst(), game.researchFinishedLast(), identity(game), cars, game.followups.encode(cars.length));
     }
 
     static String snapshot(final RaceGame game) { return capture(game).encode(); }
@@ -60,7 +66,7 @@ final class RacecraftReplay {
     static Board parse(final RaceGame game, final String text) {
         if (text.length() > 16384) throw new IllegalArgumentException("rc3 too long");
         final String[] parts = text.split(";", -1), h = parts[0].split(",", -1);
-        if (parts.length != game.players.length + 1 || h.length != 7 || !h[0].equals("rc3"))
+        if (parts.length != game.players.length + 1 || !((h.length == 7 && h[0].equals("rc3")) || (h.length == 8 && h[0].equals("rc4"))))
             throw new IllegalArgumentException("invalid rc3 header/roster");
         final int turn = Integer.parseInt(h[1]), laps = Integer.parseInt(h[2]);
         final int slot = Integer.parseInt(h[3]), first = Integer.parseInt(h[4]), last = Integer.parseInt(h[5]);
@@ -96,7 +102,9 @@ final class RacecraftReplay {
         }
         if (completed != first + last || rows[slot][6] != 0)
             throw new IllegalArgumentException("incomplete rc3 classification");
-        return new Board(turn, laps, slot, first, last, h[6], rows);
+        final String plans = h.length == 8 ? h[7] : "-";
+        FollowupPlans.parse(plans, n);
+        return new Board(turn, laps, slot, first, last, h[6], rows, plans);
     }
 
     /** Geometry and behavior controls, not incidental audit/file paths. */
@@ -135,10 +143,12 @@ final class RacecraftReplay {
         final Player[] players;
         final int slot, turn, first, last;
         final boolean grid, replay;
+        final FollowupPlans followups;
         Scope(final RaceGame game, final Board board) {
             this.game = game; players = game.players; slot = game.subgamestate; turn = game.turnCount();
             first = game.researchFinishedFirst(); last = game.researchFinishedLast();
             grid = game.aiGridLegal; replay = game.racecraftReplay;
+            followups = game.followups;
             final Player[] detached = new Player[players.length];
             for (int i = 0; i < detached.length; i++) {
                 final Player original = players[i]; final int[] row = board.cars[i];
@@ -147,10 +157,12 @@ final class RacecraftReplay {
                 p.setFinishedPlace(row[6]); p.restoreLapState(Arrays.copyOfRange(row, 7, 14));
                 detached[i] = p;
             }
+            game.followups = FollowupPlans.parse(board.plans, detached.length);
             game.players = detached; game.subgamestate = board.slot; game.setQueryTurnCounter(board.turn);
             game.researchClassification(board.first, board.last); game.racecraftReplay = true;
         }
         @Override public void close() {
+            game.followups = followups;
             game.players = players; game.subgamestate = slot; game.setQueryTurnCounter(turn);
             game.researchClassification(first, last); game.aiGridLegal = grid; game.racecraftReplay = replay;
         }
@@ -273,11 +285,16 @@ final class RacecraftReplay {
                     if (focalStatus == RacecraftOutcome.Status.RUNNING) focalStatus = RacecraftOutcome.Status.CLASSIFIED;
                     trace.addAll(expired); complete = true; break;
                 }
-                final Direction action = firstAction && first != null ? first
+                // A forced first action must still preserve the policy's plan when
+                // it equals the actual proposal; a different action invalidates it.
+                final boolean remember = game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP);
+                final Direction proposed = firstAction && first != null && !remember ? first
                         : scorerOnly ? policy.researchScorer() : policy.computeAiMove();
+                final Direction action = firstAction && first != null ? first : proposed;
                 if (action == null) return new Tail(false, 0, own, RacecraftOutcome.unknown(), snapshot(game), trace);
                 firstAction = false;
                 if (slot == self) own++;
+                policy.commitResearchPlan(action);
                 final String transition = advance(game, action);
                 trace.add(transition);
                 if (slot == self && game.players[self].isFinished()) focalStatus = transition.contains(":FINISH:")

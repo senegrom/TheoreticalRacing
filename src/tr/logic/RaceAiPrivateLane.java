@@ -24,6 +24,7 @@ final class RaceAiPrivateLane {
 		private final RivalReach rectangles;
 		private final int exactNodeBudget;
 		private ExactRivalReach exact;
+        private AdaptiveEscape.Session adaptive;
 		private final int originX, originY, originLap, originGate;
 		/** Round 279 (round 273): the exact potential every ply is measured by. */
 		private final OptimalPotential pot;
@@ -74,6 +75,13 @@ final class RaceAiPrivateLane {
 			return privatePaceCertificate(candidate, reference(candidate, turns), exact, 0, horizon,
 					requiredEscapes, pot, gateUnits);
 		}
+
+        /** Extra proof only; callers retain their original candidate and rollout gates. */
+        boolean certifiesAdaptive(final int x, final int y, final int vx, final int vy,
+                final int cycles, final int escapes, final int budget) {
+            if (adaptive == null) adaptive = new AdaptiveEscape.Session(game, playerNum, budget);
+            return adaptive.certifies(x, y, vx, vy, cycles, escapes);
+        }
 
 		/** The candidate's own progress in the proof's currency. */
 		private int reference(final OwnState state, final int turns) {
