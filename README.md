@@ -121,13 +121,13 @@ Map preparation, in-process cache and browser-transport invariants are documente
 
 ## AI starting positions
 
-Interactive Java and browser races default to **computed AI starts**. A computer
-chooses on its placement turn, after all shared maps and the exact full-race
-potential (for checkpoint courses) are ready. It evaluates only free cells and
-uses current occupancy for the first move, then the solo map for continuation.
-This is an informed start score, not a proof of optimal play against moving
-rivals. Earlier human placements can overlap preparation; later players are not
-predicted, and the roster/turn order is unchanged.
+Interactive Java and browser races default to **computed AI starts**, by the
+owner's rule (CLAUDE.md): the cars take the grid in roster order, the order they
+then race in, and each computer takes a best free cell on its placement turn,
+after all shared maps and the exact full-race potential (for checkpoint courses)
+are ready. Best is the fewest moves to finish from rest on that cell, alone: the
+cars placed earlier only take their cells, since they move first, and later
+players are not predicted. Earlier human placements can overlap preparation.
 
 The setup offers **Legacy benchmark starts** to preserve old experiments.
 Headless benchmarking defaults to that historical policy, because racecraft is
@@ -136,8 +136,9 @@ properties file selects the other two modes:
 
 * `aiStartPlacement=informed` benchmarks computed starts (a seed breaks
   equal-score ties only). Where the exact full-race map is over its budget
-  (the Nordschleife) the AI takes a random start instead and the log header
-  says `start-placement legacy (exact full-race map over budget)`.
+  (the Nordschleife) the start is scored on the next best map, the distance
+  to the first checkpoint, and the log header says
+  `start-placement informed (first-checkpoint map: ...)`.
 * `aiStartPlacement=scatter` is a racecraft instrument: every AI starts at a
   seeded random alive, robust state anywhere on the course, at speed, owing
   the gate ahead of it, so traffic is measured from mid-race configurations.

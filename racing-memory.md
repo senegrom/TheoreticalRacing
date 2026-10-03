@@ -1,5 +1,47 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 299 promoted (2026-10-03): computed starts follow the owner's rule
+
+The owner's computed-start rule (2026-10-02, CLAUDE.md): the cars take the
+grid in roster order, and each takes a best cell among those the earlier cars
+left free -- nothing else about those cars counts, because they move first.
+Two deviations, both promoted (promote299.py on master 6589cc8, round 281; jar
+d582efa3, byte-identical to the box's build):
+- 299a: the start score refused a first move onto an earlier car's cell, a
+  state that never occurs in the race. A free cell now scores its exact
+  single-player value from rest, and StartPlacement keeps one value per cell
+  instead of a table of first-move alternatives.
+- 299b: where the exact full-race map is over budget (the Nordschleife; by the
+  audit's arithmetic Le Mans from 6 laps, the Nurburgring from 7, Monaco from
+  9, or a small heap) the AIs took the legacy start -- and without a seed the
+  first free cell. They now score the start on the next best map, the exact
+  distance to the first checkpoint, which they then race by (the owner's
+  call); the log header says `start-placement informed (first-checkpoint
+  map: ...)`.
+
+Measured as the gated arm a299 against the round-296 champion, computed
+starts (the rule changes nothing on random or scattered starts: identity
+INERT there by construction, checked): seeds 1-10 +0.014 +- 0.018 (38/36/10;
+crashes 55:48), held-out 11-20 -0.014 +- 0.020 (36/37/11; 68:65); lone check
+with the control, seeds 1-5, every seat: -0.015 +- 0.017 (39/28/17; 24:17);
+two-car duels +0.005 +- 0.002 (0/2/82; 241:227 -- Hungaroring +0.35 and
+Chicane +0.10 on 40 car-races each: the second car may now take the cell
+behind the first). The Nordschleife alone (299b): -0.05 on seeds 1-10, -0.55
+on 11-20 (20 races each) and -0.106 +- 0.174 on 21-60 (80 races): -0.17 over
+all 120, noisy but on the right side. A rule, not a tuning: it
+ships on a neutral fleet. Rebased on round 281: the arm with no slots races as
+the 281 champion and the promoted jar as the arm with every slot (7 of 7,
+computed starts, the Nordschleife included).
+
+Tests (the audit's gaps): the unit oracle is the exact solo value from rest,
+the rejected first-move filter only a witness that the fixture exercises it;
+the x-then-y and seeded tie-break is pinned (a replay among tied cells, the
+rejected start-ties, would fail); the over-budget path is tested on the
+two-lap Circle with the exact map capped (score = the first-checkpoint map at
+rest; the header); the browser startup tests check that each AI takes a best
+free cell. The browser's computed-start race is unchanged. One edge stays: an
+AI with no free cell from which it can finish does not place.
+
 ## Round 281 promoted (2026-10-03): every live rival plays its scorer in the chooser's rollouts
 
 The round-256 chooser ranks the landings the score cannot separate by the

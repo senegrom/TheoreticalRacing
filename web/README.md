@@ -274,38 +274,37 @@ exact original x-then-y cell order and checking occupancy on each snapshot.
 
 Starting-cell **selection** is now computed by default in interactive Java and
 browser games. Each AI waits for all shared maps (including the exact full-race
-potential on checkpoint courses AND the shared starting-alternative table),
-then scores the free cells against the live positions of cars already placed. Placement order and driving turn order remain
+potential on checkpoint courses AND the shared start table), then scores the
+cells still free: the cars already placed take their cells, and nothing else. Placement order and driving turn order remain
 the roster order: an AI cannot see a later player's future placement. Humans
 whose placement turn comes first can place while the maps are building. There
 is **no humans-first phase**. For example, AI / Human / AI / Human waits for
 analysis, places AI 1, waits for Human 2, places AI 3 using both earlier cells,
 and then lets Human 4 choose. No future positions are assumed or preselected.
 
-The preparation daemon analyses the geometry, gate transitions and exact solo
-continuation cost of every start/first-move alternative **once per race**. The
-result is an immutable table shared by all AIs. It does not read live players,
-so a human placing concurrently cannot contaminate it. Every viable alternative
-is retained, not just the empty-track winner: blocking the fastest first landing
-can make a slower one relevant. Each placement only filters occupied starts and
-landings and selects the best remaining score. Undo changes that filter, never
-prunes the base table permanently, and never launches another analysis build.
-Terminal finishes retain the original exemption from post-finish collisions.
+The preparation daemon values every start cell **once per race**: the cheapest
+legal first move from rest plus the exact solo continuation, through the
+geometry and gate transitions. The result is an immutable table shared by all
+AIs. It does not read live players, so a human placing concurrently cannot
+contaminate it. Each placement only refuses the cells already taken and selects
+the best remaining value; where the earlier cars will move never counts, since
+they move first (the owner's rule, 2026-10-02). Undo changes which cells are
+taken, never prunes the base table, and never launches another analysis build.
 
 This is an intentional starting-policy change, not just rescheduling. The driving
 AI, track geometry, physics and finish rules are unchanged. The score is the
-minimum finish time after a first move legal against current occupancy, followed
-by the exact solo route within the engine's velocity domain. It is not a proven
-multiplayer optimum: rivals can move before or after that first turn. Seeds break
-only equal-score ties, and each AI scores afresh after earlier placements.
+single-player optimum from the cell: the minimum finish time from rest by the
+exact solo route within the engine's velocity domain. It is not a multiplayer
+optimum, by the owner's design. Seeds break only equal-score ties, and each AI
+scores afresh after earlier placements.
 
 Legacy benchmark placement remains an explicit setup option and the default for
 headless benchmark runs. The aiStartPlacement=informed property enables computed
 starts in headless Java too; aiStartPlacement=legacy requests the historical
 first-free/seeded-random policy, and aiStartPlacement=scatter (headless only in
 practice) starts every AI mid-course at speed for racecraft measurement. A board
-whose exact full-race map is over budget falls back to random starts in every
-host and says so in the log. Existing golden fixtures are tested in explicit
+whose exact full-race map is over budget scores its starts on the next best map,
+the exact distance to the first checkpoint, in every host and says so in the log. Existing golden fixtures are tested in explicit
 legacy mode, unchanged, alongside new native/browser computed-start comparisons.
 
 Startup regressions independently block distance calculation, full-race potential

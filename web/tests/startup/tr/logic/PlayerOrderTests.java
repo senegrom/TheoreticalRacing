@@ -20,6 +20,13 @@ public final class PlayerOrderTests {
         }
         throw new AssertionError("No free start");
     }
+    /** The best score among the start cells still free for p. */
+    private static int bestFree(final RaceGame g, final Player p) {
+        int best = Integer.MAX_VALUE;
+        for (int x=0; x<=g.gameCols; x++) for (int y=0; y<=g.gameRows; y++)
+            if (g.startZoneA.contains(x,y)) best = Math.min(best, StartPlacement.score(g,p,x,y));
+        return best;
+    }
     private static void prefix(final RaceGame g) {
         for (int i=0; i<g.players.length; i++)
             check(placed(g.players[i]) == (i < g.subgamestate), "Placement skipped roster slot " + i);
@@ -86,8 +93,12 @@ public final class PlayerOrderTests {
             final int[][] positions=Arrays.stream(g.players).map(p->p.getPosition().clone()).toArray(int[][]::new);
             for (final Player p:g.players) p.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
             for (int i=0;i<g.players.length;i++) {
-                if (g.players[i].isAi()) check(Arrays.equals(positions[i],StartPlacement.choose(g,g.players[i],1L)),
-                        "Choice did not use exactly earlier committed placements");
+                if (g.players[i].isAi()) {
+                    check(Arrays.equals(positions[i],StartPlacement.choose(g,g.players[i],1L)),
+                            "Choice did not use exactly earlier committed placements");
+                    check(StartPlacement.score(g,g.players[i],positions[i][0],positions[i][1]) == bestFree(g,g.players[i]),
+                            "AI did not take a best free cell");
+                }
                 g.players[i].setPosition(positions[i]);
             }
             final int lastHuman=roster.lastIndexOf('H');
