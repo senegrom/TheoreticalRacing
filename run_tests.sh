@@ -26,7 +26,6 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RaceAiDuelSearchTests
 java -ea --add-modules jdk.jdi -cp test-bin tr.logic.LapMemoPublicationTests src/tr/logic/Reachability.java
 
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftNextTests
-
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftFixTests
-
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftAdaptiveTests
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.FollowupStateTests

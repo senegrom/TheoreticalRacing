@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "date": "2026-10-03",
+  "branch": "work/racecraft-outcomes-opening-20260928",
+  "baseline": "1c50a5cb740c2deb9bd8bf8a588c8693e4335aae",
+  "master_unchanged": "b54e9bb05f91c0011e8d5e82178d1d13f3c1b494",
+  "tested_implementation": "97fa190ab722c05c3fb4487dd6b7aad494e087e6",
+  "successful_assembly_run": 37117312951,
+  "completed_checks": [
+    "JDK 25 build with warnings treated as errors",
+    "Full Java contract suite, including RacecraftAdaptiveTests",
+    "108 Python unit tests",
+    "32 complete races: disabled/default identity and combined-arm audit identity",
+    "6 mid-race cf4 cases with every legal first action and exact full control suffixes",
+    "All 12 existing golden races, no expectation changes",
+    "Every tests/ai1_*_regression.py champion pin, no expectation changes",
+    "Unstaged and staged git diff --check"
+  ],
+  "pending_when_recorded": [
+    "Final read-only JDK 25 and 26 validation",
+    "Additional FollowupStateTests for projected prefixes and Undo",
+    "Five additional Python policy-memory acceptance regressions",
+    "20 independent-arm and zero-budget complete-race controls",
+    "Browser build, native parity, Chromium and WebKit"
+  ],
+  "not_performed": [
+    "Mirrored full-fleet performance evaluation",
+    "Held-out place gain and CPU comparison",
+    "Lone-candidate promotion battery"
+  ],
+  "promoted": false,
+  "performance_gain_claimed": false,
+  "note": "The actual implementation commit was pushed only after its build, contracts, complete-race/counterfactual controls, goldens and every champion pin passed. Final cleanup removes temporary assembly files and adds further tests/read-only CI; it does not change production decision logic. Later CI status is authoritative."
+}
