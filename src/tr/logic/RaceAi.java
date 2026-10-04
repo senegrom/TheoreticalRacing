@@ -1771,8 +1771,9 @@ final class RaceAi {
 			return chosen;
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-		if (finishingMove(pos[0], pos[1], cx, cy))
-			return chosen;
+		// Final lap, no gate owed: the scan has already returned any move that
+		// crosses the line legally, so neither the chosen landing nor a brake
+		// alternative below (a scanned row) finishes.
 		final int chosenSpeed2 = speedSquared(cvx, cvy);
 		if (chosenSpeed2 < AI1_FINISH_DENIAL_MIN_SPEED2
 				|| countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) == 0
@@ -1833,15 +1834,9 @@ final class RaceAi {
 				if ((brakeMask & 1 << d.ordinal()) == 0)
 					continue;
 				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-					continue;
 				final int speed2 = speedSquared(nvx, nvy);
-				if (chosenSpeed2 - speed2 < AI1_FINISH_DENIAL_MIN_BRAKE2)
-					continue;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				final int t = ttf(nx, ny, nvx, nvy);
-				if (finishingMove(pos[0], pos[1], nx, ny))
-					return d;
 				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
 						|| game.isCrashingPlayer(nx, ny, playerNum)
 						|| !reach.isAlive(nx, ny, nvx, nvy))

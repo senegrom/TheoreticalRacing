@@ -1,5 +1,17 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Finish denial's dead tests removed (2026-10-04, identical races)
+
+The review's item 7 ("remove after 291"). finishDenialOverride runs only on the
+mover's final lap with no gate owed, so the decision's scan has already returned
+any move that crosses the line legally: its two finishingMove tests (the chosen
+landing, and each brake alternative) are constant false, and the brake loop's
+range and speed-drop re-checks repeat what brakeMask already requires. Two
+independent analyses (one arguing, one trying to refute) agree; a comment at the
+site states the invariant. Races are identical: ten random-start races against the
+champion, Hairpin s68 (the override's specimen) first, plus the finish-denial pin
+and the query replay locally.
+
 ## Round 299 promoted (2026-10-03): computed starts follow the owner's rule
 
 The owner's computed-start rule (2026-10-02, CLAUDE.md): the cars take the
