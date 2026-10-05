@@ -52,7 +52,8 @@ def main() -> int:
             # invariance pin checks that once for every pin.
             # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
             # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p8, seventh home before, now crashes on its 55th move and seven finishers become six, so p1, still the car running at the end, moves up to seventh -- recorded, not vetoed, and pinned by its identity below.
-            "front": {"AI1": (15, 4, 0), "AI2": (21, 4, 1)},
+            # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
+            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 1)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),

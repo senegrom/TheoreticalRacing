@@ -105,7 +105,12 @@ def main() -> int:
             # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts);
             # Le Mans 3 keeps both cars it lost (p5 now finishes on its 71st move, p7 on
             # its 73rd), so it leaves this list and takes the (7, 0) default.
-            SAFETY = {("hungaroring", 4): (6, 1)}
+            # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout);
+            # Hungaroring 4, a car short since round 248, keeps every car (p7, lost on its
+            # 11th move before, is still running after 127 moves when p4 finishes seventh
+            # on its 128th), so it leaves this list and takes the (7, 0) default;
+            # Interlagos 3 drops one (p7 on its 56th move) -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("interlagos", 3): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

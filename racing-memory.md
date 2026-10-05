@@ -1,5 +1,38 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 300a promoted (2026-10-05): every live rival plays its scorer in every top-level rollout
+
+Round 281 let every live rival play its real scorer in the chooser's own
+rollout. Every other search a real decision starts -- the danger guard, the
+thread and pace checks -- still played only the AI1_SCORER_MAXRIVALS (3)
+nearest rivals within Chebyshev AI1_SCORER_NEAR by their scorer and the rest
+by the smom proxy. Now every rollout a top-level decision starts (simDepth 1)
+with scorer rivals plays every live rival by its scorer; nested rollouts and
+the true-rival confirms (unsuppressed full computes) keep their caps. Master
+ed7c636 + promote300a.py (jar 5eba9e05, byte-identical to the box's build).
+
+Measured as the gated arm a300a against the 281+299 champion: identity OK
+(fires on random starts, never on scattered ones), CPU 1.09x. Random starts
+-0.024 +- 0.007 (25/19/40; crashes 52:55), held-out seeds 11-20 -0.031 +-
+0.007 (24/11/49; 40:42); computed starts -0.029 +- 0.008 (25/11/48; 44:47);
+scattered and two-car duels identical races; lone check with the control,
+seeds 1-5, every seat: -0.018 +- 0.007 (19/11/54; 27:29). Rebased on 292b and
+confirmed against the 292b champion: random -0.038 +- 0.008 (29/18/37;
+50:50), computed -0.021 +- 0.006 (20/13/51; 38:38). The promoted jar races as
+the arm with every slot a candidate (seven random-start races and two
+computed-start ones, the Nordschleife included).
+300b, the same at every rollout depth: -0.039 +- 0.008 on 292b, no better than
+300a at 1.16x CPU. Dead; the nested rollouts do not need the whole field.
+
+Corpus (the box loop re-froze 5 pins and the goldens; 4 pins by hand from the
+probe records, each reviewed; CI's frozen job locally on x86: 29 of 29):
+4 of 12 goldens (routes only), 8 of 25 pins. Recorded, not vetoed: the car
+lost since round 281 on Zandvoort s115 finishes again, so the equal-speed
+veto pin reads round 126's safety contract again, as round 248 did; Monaco
+s35 (private slack) and Hungaroring s4 (staged pace) get their car back;
+Le Mans s87 (bounded uncertain field, p1 on its 55th move) and Interlagos s3
+(staged pace, p7 on its 56th) lose one. One fewer crash across the corpus.
+
 ## Round 292b promoted (2026-10-05): the chooser judges the pace landing it adds
 
 After the chooser, the round-34 pace swap takes poDir -- the roomy landing

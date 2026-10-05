@@ -3470,8 +3470,11 @@ final class RaceAi {
 		// scorer (recursion-guarded); the rest keep the smom proxy.
 		// Membership is fixed at rollout start: the nearest
 		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR. Round 281: in the
-		// chooser's own rollout every live rival plays its scorer.
-		if (scorerRivals && simDepth == allScorerRolloutDepth) {
+		// chooser's own rollout every live rival plays its scorer. Round 300a: in
+		// every rollout a real decision starts too -- the danger, thread and pace
+		// searches (-0.031 places on held-out seeds, -0.029 computed, CPU 1.09x);
+		// nested rollouts and the true-rival confirms keep the cap.
+		if (scorerRivals && (simDepth == allScorerRolloutDepth || simDepth == 1 && !trueRivals)) {
 			for (int i = 0; i < game.players.length; i++)
 				if (i != myIdx && alive[i])
 					scorerSet[i] = true;
