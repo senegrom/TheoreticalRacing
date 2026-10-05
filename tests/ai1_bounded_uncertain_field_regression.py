@@ -49,15 +49,19 @@ PROOF_VETO = ("lemans", 87)
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p2, seventh home before, now crashes on its 44th move -- recorded, not vetoed.
-PROMOTED = (6, 1, [66, 67, 68, 69, 70, 70])
+# Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p2, which crashed on its 44th move in round 281, finishes seventh in 73 moves again -- seven finishers and no crash.
+PROMOTED = (7, 0, [66, 67, 68, 70, 71, 71, 73])
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (6, 68), (7, 69), (5, 70), (8, 70)]
+# Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (7, 68), (5, 70), (6, 71), (8, 71), (2, 73)]
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-PROMOTED_CRASHES = [(2, 44)]
+# Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+PROMOTED_CRASHES = []
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-PROMOTED_ALL_MOVES = {1: 66, 2: 44, 3: 67, 4: 70, 5: 70, 6: 68, 7: 69, 8: 70}
+# Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 72, 5: 70, 6: 71, 7: 68, 8: 71}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -81,7 +85,8 @@ RETENTION_CASES = {
                  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
                  # Round 278: re-frozen from measurement (the chooser's pick stands).
                  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-                 '89662361276ad0d681fbf1b2680d59cd15a3727615c4de70baab64959fbbe224'),
+                 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+                 '81bd45b7f50943ae9a00578e26f521ccd84faff6ae47e233d08b8beb0fbfc89f'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
@@ -95,11 +100,13 @@ RETENTION_CASES = {
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 70, 72]),
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    ("lemans", 14): ((7, 0, [66, 67, 68, 70, 71, 71, 73]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
                      # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-                     'f53f8641f36af9d7e347de0df0fa8d1bb8ee2bd73d80e79c76fe65dd8be6dc74'),
+                     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+                     '3b615e8c86b5d8e78773f9414bd9aced256488438e87cfe73b250aaed5797968'),
     # Spa s12, s31, s40, s47 and Silverstone s78 raced here too: the same fixture
     # geometry, profile and roster as ai1_six_ahead_high_speed_regression, which
     # pins the same races by summary and digest -- so they race once, there

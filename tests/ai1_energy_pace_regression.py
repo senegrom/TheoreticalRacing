@@ -27,7 +27,8 @@ EXPECTED = {
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same
  # race by summary and digest (the labels race alike; review, 2026-09-28).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
- ("spa",17): (7, 0, [78, 79, 80, 81, 81, 82, 84]),
+ # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+ ("spa",17): (7, 0, [78, 79, 80, 81, 81, 81, 82]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
  ("zandvoort",44): (6, 1, [137, 138, 139, 141, 142, 143]),  # Round 281: loses a car again.

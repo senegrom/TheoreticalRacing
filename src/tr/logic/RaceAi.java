@@ -886,9 +886,10 @@ final class RaceAi {
 		// priced the gate at 20 cells: +0.001 places in packs (81 boards tied),
 		// +0.004 scattered, one synthetic course; the guarantee is worth that.
 		boolean chooserConsulted = false;
+		chooserJudgedPace = false;
 		if (best != null && !inScorerSim
 			&& nearestLiveRival(pos, playerNum) <= AI1_CHOOSER_MAXDIST) {
-			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
+			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore, poDir);
 			poScorerT = poTByDir[best.ordinal()];
 			chooserConsulted = true;
 		}
@@ -934,7 +935,11 @@ final class RaceAi {
 				poScorerT = fastT; // round 279: the pace comparison below reads the landing taken
 			}
 		}
-		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
+		// Round 292b: once the chooser has judged a pace landing it added, its pick
+		// stands (-0.023 places as a lone entrant against round 299, -0.026 on
+		// computed starts); a pace landing the window already held keeps the swap.
+		Direction chosen = (poDir != null && poBestT < poScorerT && !chooserJudgedPace)
+				? poDir : best;
 		// Round 75-77 (AI1): recover a strictly-faster line only when a
 		// conservative rival-occupancy proof leaves an empty-track-optimal escape
 		// private, then require the independent real-scorer rollout to agree. The
@@ -4465,9 +4470,11 @@ final class RaceAi {
 	 *  ranks them by what the whole field actually does next. Round 257
 	 *  measured the horizon (3 rounds -0.501, 6 -0.952, 9 -1.129, 12 -1.194
 	 *  places, saturating); round 259 found ranking by projected place and a
-	 *  wider vote both within noise of this. */
+	 *  wider vote both within noise of this. Round 292b: the pace landing the
+	 *  round-34 swap would take is rolled out too when the window left it out. */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
-			final Direction best, final double[] scoreByDir, final double bestScore) {
+			final Direction best, final double[] scoreByDir, final double bestScore,
+			final Direction pace) {
 		final Direction[] order = new Direction[DIRECTIONS.length];
 		int n = 0;
 		for (final Direction d : DIRECTIONS) {
@@ -4481,12 +4488,21 @@ final class RaceAi {
 			}
 			order[i] = d;
 		}
-		if (n < 2)
+		// Round 292b: the pace landing gets a rollout too, after the score's
+		// candidates, when the window left it out.
+		final int width = Math.min(n, AI1_CHOOSER_WIDTH);
+		boolean paceInSet = false;
+		for (int k = 0; k < width; k++)
+			paceInSet |= order[k] == pace;
+		final boolean addPace = pace != null && !paceInSet;
+		final Direction[] cands = java.util.Arrays.copyOf(order, width + (addPace ? 1 : 0));
+		if (addPace)
+			cands[width] = pace;
+		if (cands.length < 2)
 			return best;
 		Direction pick = null;
 		long pickVerdict = -1;
-		for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
-			final Direction d = order[k];
+		for (final Direction d : cands) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			// A finish is already decided by the precedence rules above; a crossing
@@ -4517,8 +4533,13 @@ final class RaceAi {
 				pickVerdict = verdict;
 			}
 		}
+		chooserJudgedPace = addPace;
 		return pick == null ? best : pick;
 	}
+
+	/** Round 292b: did the last chooser call roll out a pace landing it added
+	 *  itself? Then its pick stands against the round-34 pace swap. */
+	private boolean chooserJudgedPace;
 
 	/** Round 262: Chebyshev distance to the nearest live rival, or Integer.MAX_VALUE
 	 *  when every rival has finished. */

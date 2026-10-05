@@ -21,7 +21,8 @@ PROMOTED = {
     # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     1: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
-    38: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    38: (7, 0, [58, 59, 60, 60, 60, 60, 60]),
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     106: (7, 0, [58, 59, 59, 59, 60, 60, 60]),
 }

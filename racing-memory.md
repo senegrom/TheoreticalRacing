@@ -1,5 +1,36 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 292b promoted (2026-10-05): the chooser judges the pace landing it adds
+
+After the chooser, the round-34 pace swap takes poDir -- the roomy landing
+strictly fastest on the map -- whenever it beats the pick, and the chooser
+only rolls out landings within one turn of the best score, so it may never
+have judged poDir. Now poDir gets a rollout too, after the score's candidates,
+when the window left it out; once the chooser has judged a pace landing it
+added itself, its pick stands. A pace landing the window already held keeps
+the swap: letting the pick stand there was round 290 (+0.832). Master 02dbbfb
++ promote292b.py (jar 53d787e8, byte-identical to the box's build).
+
+Measured as the gated arm a292b299 against the 281+299 champion: identity OK.
+Random starts -0.036 +- 0.011 (46/24/14; crashes 53:53), held-out seeds 11-20
++0.001 +- 0.011 (30/34/20; 40:43); computed starts -0.026 +- 0.010 (35/21/28;
+41:41); scattered -0.003 +- 0.001 (8/0/76; 9:10); two-car duels -0.009 +-
+0.003 (3/2/79; crashes 197:218); lone check with the control, seeds 1-5,
+every seat: -0.023 +- 0.008 (31/22/31; 29:29). Against round 296 it had read
+-0.036 and -0.024 on random starts and -0.040 computed. The promoted jar races
+as the arm with every slot a candidate (seven random-start races and two
+computed-start ones, the Nordschleife included).
+
+Corpus (the box loop re-froze 9 pins and the goldens; 5 pins by hand from the
+probe records, each reviewed against them; CI's frozen job locally on x86: 29
+of 29): 7 of 12 goldens (routes only, the same finishers and crashes), 12 of
+25 pins. Crashes move between races and net to zero -- recorded, not vetoed:
+the car round 281 lost on Le Mans s29 (bounded uncertain field) and on Spa s1
+(private slack) finishes again; Hungaroring s12 (private slack, p2 on its 28th
+move) and the mixed-roster Le Mans s7 (p8 on its 55th move, round 260's
+manoeuvre one cell on) lose one. The mixed-safety pin pins that crash as
+rounds 234 and 260 did. Label invariance holds (Coil s5, all three rosters).
+
 ## Finish denial's dead tests removed (2026-10-04, identical races)
 
 The review's item 7 ("remove after 291"). finishDenialOverride runs only on the

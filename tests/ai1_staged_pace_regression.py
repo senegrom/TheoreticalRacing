@@ -52,7 +52,8 @@ EXACT_MOVES = {
     # collect paid); p7 and p5 crash, five finishers.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts);
     # p7 and p5, which crashed there, now finish -- seven finishers again.
-    ("lemans", 3): [66, 67, 68, 70, 71, 72, 73],
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     ("silverstone", 15): [82, 83, 83, 84, 84, 85, 85],

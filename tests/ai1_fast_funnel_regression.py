@@ -35,7 +35,8 @@ EXPECTED = {
     # Round 260 (the chooser): re-frozen from measurement.
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    36: {"AI1": (18, 4, 0), "AI2": (18, 4, 0)},
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    36: {"AI1": (21, 4, 0), "AI2": (15, 4, 0)},
     # Round 234: re-frozen from measurement. Eight cars share places 1-8,
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.
