@@ -28,7 +28,7 @@ jobs:
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          python3 .traffic-20261006/apply.py 2>&1 | tee /tmp/traffic-assembly.log
+          python3 .traffic-20261006/run.py 2>&1 | tee /tmp/traffic-assembly.log
           git diff --cached --check
       - name: Build and behavioural contracts
         shell: bash
@@ -63,7 +63,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Workflow baseline updates are made separately through the connector.
           git restore --source=HEAD --staged --worktree .github/workflows/racecraft-next.yml
           git diff --exit-code 82d259a217c23991cec7adc164c81f48e575c88c -- user.properties tracks/
           python3 - <<'PY'
