@@ -26,7 +26,8 @@ EXPECTED = {
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
-    ("cog", 1): [46, 46, 46, 47, 47, 47, 48],
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    ("cog", 1): [46, 46, 47, 47, 47, 48, 48],
 }
 
 

@@ -2,23 +2,26 @@ package tr.logic;
 
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
 
-/** Shared, occupancy-independent analysis of every starting cell and first move.
+/** The owner's computed-start rule (2026-10-02, CLAUDE.md): one shared,
+ * occupancy-independent value for every starting cell.
  *
- * All players place in roster order. At each AI's turn only current occupancy is
- * applied to this immutable table; no starting positions are preselected. Keep
- * slower alternatives too: an earlier car may block the fastest first landing.
- * The objective is a legal first move followed by the exact SOLO continuation,
- * not a multiplayer minimax guarantee or a prediction of unplaced rivals.
+ * All players place in roster order, the order they then race in. At each AI's
+ * turn the cells the earlier cars took are refused and nothing else about those
+ * cars counts: they move first. A free cell scores its exact single-player value
+ * from rest -- the cheapest legal first move plus the exact solo continuation --
+ * with no prediction of unplaced rivals and no preselected positions. Where the
+ * exact full-race map is over budget, the continuation is the next best map, the
+ * exact distance to the first checkpoint, which the cars then race by.
  */
 final class StartPlacement {
     private StartPlacement() {}
 
-    private record Alternative(int x, int y, int turns, boolean finishes) {}
-    private record Cell(int x, int y, List<Alternative> alternatives) {}
+    /** A start cell and its value from rest in turns; MAX_VALUE when no legal
+     *  first move continues. */
+    private record Cell(int x, int y, int turns) {}
 
     /** Owned by one RaceGame and safely published through reachability readiness.
      * No live Player, occupancy mask, selected cell or mutable map is retained. */
@@ -39,16 +42,10 @@ final class StartPlacement {
             return null;
         }
 
+        /** A taken cell is refused; a free one keeps its value from rest. */
         private int score(final RaceGame game, final Player player, final Cell cell) {
-            if (cell == null || game.isCrashingPlayer(cell.x(), cell.y(), player.getNumber()))
-                return Integer.MAX_VALUE;
-            for (final Alternative move : cell.alternatives()) {
-                // The referee exempts the landing AFTER a terminal finish from
-                // body collisions. Non-final lap crossings have no exemption.
-                if (move.finishes() || !game.isCrashingPlayer(move.x(), move.y(), player.getNumber()))
-                    return move.turns();
-            }
-            return Integer.MAX_VALUE;
+            return cell == null || game.isCrashingPlayer(cell.x(), cell.y(), player.getNumber())
+                    ? Integer.MAX_VALUE : cell.turns();
         }
     }
 
@@ -56,8 +53,7 @@ final class StartPlacement {
      * BEFORE ready=true. Evaluate a detached fresh car; humans may place while
      * this runs, so reading/modifying the live roster here would be incorrect. */
     static Analysis prepare(final RaceGame game) {
-        if (game.lapGates != null && game.preparedStartPotential() == null)
-            throw new IllegalStateException("Starting alternatives require the exact full-race map");
+        final OptimalPotential potential = game.preparedStartPotential();
         final Rectangle2D bounds = game.startZoneA.getBounds2D();
         final int xMin = Math.max(0, (int) Math.floor(bounds.getMinX()));
         final int xMax = Math.min(game.gameCols, (int) Math.ceil(bounds.getMaxX()));
@@ -67,21 +63,24 @@ final class StartPlacement {
         for (int x = xMin; x <= xMax; x++) {
             for (int y = yMin; y <= yMax; y++) {
                 if (!game.startZoneA.contains(x, y)) continue;
-                final List<Alternative> alternatives = new ArrayList<>();
+                int best = Integer.MAX_VALUE;
                 for (final Direction d : Direction.values()) {
                     final int nx = x + d.dx, ny = y + d.dy;
                     final RaceGame.MoveResult move = game.evaluateMove(0, 1, true, x, y, nx, ny, false);
                     if (!move.legal()) continue;
+                    // Over budget (potential null on a lap race), the turns to the
+                    // first checkpoint: a first move that collects it has none left.
                     final int rest = move.finishes() ? 0 : game.lapGates == null
                             ? game.reach.turnsToFinish(nx, ny, d.dx, d.dy)
-                            : game.preparedStartPotential().movesToFinish(
+                            : potential == null
+                            ? move.gateAfter() != 1 ? 0 : game.reach.turnsToGate(1, nx, ny, d.dx, d.dy)
+                            : potential.movesToFinish(
                                     OptimalPotential.remainingEvents(move.gateAfter(), move.lapAfter(), game.totalLaps),
                                     nx, ny, d.dx, d.dy);
                     if (rest != Integer.MAX_VALUE)
-                        alternatives.add(new Alternative(nx, ny, rest + 1, move.finishes()));
+                        best = Math.min(best, rest + 1);
                 }
-                alternatives.sort(Comparator.comparingInt(Alternative::turns));
-                cells.add(new Cell(x, y, List.copyOf(alternatives)));
+                cells.add(new Cell(x, y, best));
             }
         }
         return new Analysis(cells);
@@ -91,11 +90,9 @@ final class StartPlacement {
         if (!game.reach.isReady())
             throw new IllegalStateException("AI placement requires complete track maps");
         game.reach.ensureReachabilityReady();
-        if (game.lapGates != null && game.preparedStartPotential() == null)
-            throw new IllegalStateException("AI placement requires the exact full-race map");
         final Analysis analysis = game.preparedStartAnalysis();
         if (analysis == null)
-            throw new IllegalStateException("AI placement requires complete starting alternatives");
+            throw new IllegalStateException("AI placement requires the complete start analysis");
         if (player.isFinished() || player.getLap() != 0 || player.getNextGate() != 1
                 || player.getVelocity()[0] != 0 || player.getVelocity()[1] != 0)
             throw new IllegalStateException("Starting analysis requires a fresh stationary player");

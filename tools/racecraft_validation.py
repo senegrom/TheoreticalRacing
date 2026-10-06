@@ -36,7 +36,7 @@ def snapshot(text: str):
     try:
         groups = text.split(';')
         header = groups[0].split(',')
-        if not ((len(header) == 7 and header[0] == 'rc3') or (len(header) == 8 and header[0] == 'rc4')) or not re.fullmatch(r'[0-9a-f]{64}', header[6]):
+        if not ((len(header) == 7 and header[0] == 'rc3') or (len(header) == 8 and header[0] in ('rc4', 'rc5'))) or not re.fullmatch(r'[0-9a-f]{64}', header[6]):
             raise ValueError('invalid snapshot header')
         turn, laps, slot, first, last = map(int, header[1:6])
         rows = [list(map(int, group.split(','))) for group in groups[1:]]
@@ -45,7 +45,11 @@ def snapshot(text: str):
     n = len(rows)
     if len(header) == 8:
         plans = header[7].split('.')
-        if len(plans) != n or any(p != '-' and not re.fullmatch(r'(?:NW|N|NE|W|NONE|E|SW|S|SE)~[0-9a-f]{64}', p) for p in plans):
+        atom = r'(?:NW|N|NE|W|NONE|E|SW|S|SE)'
+        pattern = rf'(?:{atom}|M_{atom}(?:\+{atom}){{0,2}})~[0-9a-f]{{64}}'
+        if ('M_' in header[7]) != (header[0] == 'rc5'):
+            raise ValueError('noncanonical plan version')
+        if len(plans) != n or any(p != '-' and not re.fullmatch(pattern, p) for p in plans):
             raise ValueError('invalid follow-up policy memory')
     if not 1 <= n <= 9 or any(len(row) != 14 for row in rows):
         raise ValueError('invalid snapshot roster')

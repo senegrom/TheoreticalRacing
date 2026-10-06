@@ -29,3 +29,5 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftNextTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftFixTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.RacecraftAdaptiveTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.FollowupStateTests
+
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.TrafficRacecraftTests

@@ -79,6 +79,8 @@ def main() -> int:
         # racing at the flag, auto-placed eighth; zero AI1 crashes below include
         # p7's survival, so the separate log scan for a p7 crash is retired
         # (review, 2026-09-29).
+        # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+        # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
         expected = {"AI1": (22, 4, 0), "AI2": (14, 4, 0)}
         if result != expected:
             raise SystemExit(

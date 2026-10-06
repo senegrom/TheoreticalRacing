@@ -31,11 +31,13 @@ TARGET = ("rand3", 1)
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
 # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
-PROMOTED = (7, 0, [60, 61, 62, 62, 62, 62, 63])
-PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 62), (4, 62), (5, 62), (6, 62), (7, 63)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 62, 4: 62, 5: 62, 6: 62, 7: 63, 8: 62}
+# Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+# Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+PROMOTED = (7, 0, [60, 61, 61, 62, 62, 62, 64])
+PROMOTED_FINISHERS = [(1, 60), (3, 61), (4, 61), (5, 62), (6, 62), (8, 62), (2, 64)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 64, 3: 61, 4: 61, 5: 62, 6: 62, 7: 63, 8: 62}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-PROMOTED_SHA256 = '431a3ac38af0dbfabc6af0c74b388206f7eb3e75c82306b2c56ffc4c461b22a6'
+PROMOTED_SHA256 = '31731d98f03526b7f997a716d381fa900eeda7ee780481136da0b96e9a403c56'
 
 
 def main() -> int:

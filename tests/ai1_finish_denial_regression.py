@@ -5,7 +5,7 @@ Hairpin seed 68, eight cars: p8 arrives at the flag on a high-energy line a
 rival can close, and without the override it crashes at move 104 (its old
 frozen AI2 control: 6 finishers, one crash, p8 last). The finish-denial
 certificate switches it to a braking escape that survives both the deep
-scorer world and the faithful world, and it finishes sixth. Until the
+scorer world and the faithful world, and it finishes. Until the
 2026-09-04 promotion that arm was AI1-only and this pin froze the AI2 crash
 as a control. Both kinds now run one policy, so since 2026-09-27 the pin
 races the all-AI2 roster once; ai1_label_invariance_regression checks that
@@ -32,9 +32,11 @@ TARGET = ("hairpin", 68)
 # Round 274 (rank first): re-frozen from measurement. p8 now crosses the line
 # in 17 moves as the sixth finisher instead of being classified last, and p1
 # is the car classified behind; still seven finishers and no crash.
-RESCUED = (7, 0, [16, 16, 16, 17, 17, 17, 18])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (8, 17), (7, 18)]
-RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 17}
+# Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p8 is
+# home seventh of seven, in 18 moves; still seven finishers and no crash.
+RESCUED = (7, 0, [16, 16, 16, 17, 17, 18, 18])
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (7, 17), (6, 18), (8, 18)]
+RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 18, 7: 17, 8: 18}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
@@ -42,12 +44,16 @@ RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 17}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 260: the same turn and car, re-frozen from measurement.
 # Round 274: the same turn and car, re-frozen from measurement (rank first).
-RESCUED_DECISION = "104 p8 AI SW v(8,1)→(7,2) (50,7)→(57,9) ok"
+# Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); the
+# same turn and car: p8 now accelerates SE from (40,6) there, and its braking
+# SW comes at move 112.
+RESCUED_DECISION = "104 p8 AI SE v(7,0)→(8,1) (40,6)→(48,7) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 260: re-frozen from measurement (the chooser).
 # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-RESCUED_SHA256 = "8df5e48698cfa78f61e5ec61e78736ee92e0ab56db5f6e60ba31048469e0bc35"
+# Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+RESCUED_SHA256 = "b71867850cc67bd2466ad3037fd1282e2fd49b65cfd1cbc748e8b20255dbfd8b"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:
@@ -123,7 +129,7 @@ def main() -> int:
 
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68 p8 crash-to-sixth rescue)"
+        "(hairpin s68 p8 crash-to-finish rescue)"
     )
     return 0
 

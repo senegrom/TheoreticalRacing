@@ -22,7 +22,8 @@ EXPECTED = {
     # Round 248: re-frozen from measurement (the physical world model: occupancy with lap state, rollouts that stop with the last survivor, blockades replayed).
     # Round 260 (the chooser): Silverstone s1 loses a car here -- recorded,
     # not vetoed (AGENTS.md); the finisher moves below are the pin's subject.
-    "AI2": (6, 1, [82, 83, 83, 84, 84, 85]),
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p8 no longer crashes on its 11th move and p5 now finishes: six finishers become seven, p8 the car still running at the end.
+    "AI2": (7, 0, [82, 83, 83, 84, 84, 85, 85]),
 }
 
 
@@ -51,7 +52,8 @@ def main() -> int:
     # Round 229: 596 is the sum of the re-frozen finisher moves.
     # Round 247: 586 (the soft rollout at one level, not two). Round 248: 587.
     # Round 260: 501 is the sum of the six re-frozen finisher moves.
-    if move_sum != 501:
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); 586 is the sum of the seven finisher moves: round 260's six unchanged plus p5's 85.
+    if move_sum != 586:
         raise SystemExit(f"Round-95 promoted finisher moves lost: {results[LABELS[0]]}")
 
     print(

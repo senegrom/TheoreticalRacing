@@ -19,22 +19,28 @@ EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
-    6: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    6: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 278: re-frozen from measurement (the chooser's pick stands).
-    47: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
-    49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    47: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    49: (7, 0, [58, 59, 59, 60, 60, 60, 60]),
 }
 EXPECTED_SEED6_FINISHERS = [
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement; the seed-6 sum is unchanged at 417.
     # Round 274: re-frozen from measurement (rank first); the sum is 420 now.
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     (1, 58),
-    (2, 59),
-    (3, 60),
+    (3, 59),
+    (5, 59),
     (4, 60),
-    (5, 61),
+    (6, 60),
     (7, 61),
     (8, 61),
 ]
@@ -43,9 +49,11 @@ EXPECTED_DECISION = {
     # Round 233: re-frozen from measurement (the lane spread left the score).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: the same turn and car, re-frozen from measurement.
-    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (68,47)→(68,42) ok",
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
     47: "298 p2 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
-    49: "308 p4 {kind} SW v(0,-5)→(-1,-4) (68,42)→(67,38) ok",
+    49: "308 p4 {kind} W v(0,-5)→(-1,-5) (65,43)→(64,38) ok",
 }
 
 
@@ -91,12 +99,14 @@ def main() -> int:
     # Round 229: 418 is the re-frozen seed-6 sum (the soft caution stack left the score).
     # Round 247: 417 (the soft rollout at one level, not two).
     # Round 274: 420 (rank first), measured; still below the pre-frontier 426.
-    if any(move_sum != 420 or move_sum >= 426 for move_sum in move_sums.values()):
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    if any(move_sum != 418 or move_sum >= 426 for move_sum in move_sums.values()):
         raise SystemExit(f"Round-96 Coil seed-6 pace gain lost: {move_sums}")
 
     print(
         "AI1FinishFrontierRegression: OK "
-        "(Coil seed 6 at 420 moves; seeds 47/49 vetoes pinned)"
+        "(Coil seed 6 at 418 moves; seeds 47/49 vetoes pinned)"
     )
     return 0
 

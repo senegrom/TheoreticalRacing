@@ -50,9 +50,13 @@ EXACT_MOVES = {
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes); p7 crashes, six finishers.
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they
     # collect paid); p7 and p5 crash, five finishers.
-    ("lemans", 3): [66, 67, 68, 70, 71],
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts);
+    # p7 and p5, which crashed there, now finish -- seven finishers again.
+    # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
-    ("silverstone", 15): [82, 83, 83, 84, 85, 85, 86],
+    # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+    ("silverstone", 15): [82, 83, 83, 84, 84, 85, 85],
 }
 
 
@@ -98,7 +102,15 @@ def main() -> int:
             # Round 296 (landings priced with the checkpoints they collect paid):
             # Le Mans 3 drops a second car (p7 on its 8th move, p5 on its 54th) and
             # Le Mans 11 keeps its seventh -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("lemans", 3): (5, 2)}
+            # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts);
+            # Le Mans 3 keeps both cars it lost (p5 now finishes on its 71st move, p7 on
+            # its 73rd), so it leaves this list and takes the (7, 0) default.
+            # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout);
+            # Hungaroring 4, a car short since round 248, keeps every car (p7, lost on its
+            # 11th move before, is still running after 127 moves when p4 finishes seventh
+            # on its 128th), so it leaves this list and takes the (7, 0) default;
+            # Interlagos 3 drops one (p7 on its 56th move) -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("interlagos", 3): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

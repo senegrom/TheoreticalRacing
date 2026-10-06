@@ -2320,8 +2320,9 @@ public final class RaceGame {
 	private OptimalPotential startPotential;
 	private StartPlacement.Analysis startPlacementAnalysis;
 	/** Set by the preparation daemon when the exact full-race map is over budget:
-	 *  informed placement is impossible there, so the AI takes a random start cell
-	 *  instead of refusing to race. Published through reachability readiness. */
+	 *  computed starts then read the next best map, the exact distance to the
+	 *  first checkpoint (the owner, 2026-10-02), and the log header says so.
+	 *  Published through reachability readiness. */
 	private volatile boolean startPlacementFallback;
 
 	/** Interactive games compute their starts. Headless benchmarks keep the seeded
@@ -2359,19 +2360,17 @@ public final class RaceGame {
 	}
 
 	/** Runs once in the existing preparation daemon, before ready is published.
-	 * A board too large for the exact full-race map falls back to random starts
-	 * and says so in the log; it does not refuse to race. */
+	 * A board too large for the exact full-race map scores its starts on the next
+	 * best map, the exact distance to the first checkpoint, and says so in the log. */
 	void prepareOptimalStartMap() {
 		checkPreparation();
 		if (lapGates != null) {
-			final OptimalPotential prepared = optimalPotential();
-			if (prepared == null) {
+			startPotential = optimalPotential();
+			if (startPotential == null) {
 				startPlacementFallback = true;
 				if (autoMode)
-					System.out.println("[start] exact full-race map over budget; random placement");
-				return;
+					System.out.println("[start] exact full-race map over budget; starts by the first-checkpoint map");
 			}
-			startPotential = prepared;
 		}
 		if (startPlacementAnalysis == null) startPlacementAnalysis = StartPlacement.prepare(this);
 	}
@@ -2411,8 +2410,7 @@ public final class RaceGame {
 			// Score immediately before committing this car, against the live positions
 			// of every earlier placement. Never preselect the entire field.
 			final int[] pos = scatterStartPlacement() ? scatterStart(players[subgamestate])
-					: informedStartPlacement() && !startPlacementFallback
-					? StartPlacement.choose(this, players[subgamestate], startSeed)
+					: informedStartPlacement() ? StartPlacement.choose(this, players[subgamestate], startSeed)
 					: findStartPosition();
 			if (pos == null) {
 				final String message = players[subgamestate].getName() + " (AI) couldn't find a start position.";
@@ -2563,7 +2561,7 @@ public final class RaceGame {
 			gameLog.append("# start-placement scatter\n");
 		if (informedStartPlacement())
 			gameLog.append(startPlacementFallback
-					? "# start-placement legacy (exact full-race map over budget)\n"
+					? "# start-placement informed (first-checkpoint map: the exact full-race map is over budget)\n"
 					: "# start-placement informed\n");
 		gameLog.append("# Grid ").append(gameCols).append("x").append(gameRows).append("\n");
 		// Lap count alone does not identify checkpoint-based one-lap races.

@@ -17,7 +17,8 @@ CASES = [("silverstone", 93)]
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-PROMOTED = (7, 0, [81, 82, 82, 83, 83, 84, 85])
+# Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
+PROMOTED = (7, 0, [81, 82, 82, 83, 83, 84, 84])
 LEGACY_CHAMPION = (7, 0, [81, 82, 83, 84, 85, 86, 87])
 EXPECTED = {kind: {"silverstone:93": PROMOTED} for kind in LABELS}
 

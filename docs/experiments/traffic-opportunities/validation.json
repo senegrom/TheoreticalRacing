@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-06",
+  "integratedMaster": "82d259a217c23991cec7adc164c81f48e575c88c",
+  "sourceParent": "92dbd96b31d20f88f16c465685a1c5cf73210dea",
+  "workflowRun": "37535808108",
+  "passed": [
+    "JDK 25 build and Java contracts",
+    "Python unit suite",
+    "32 baseline/combined functional races",
+    "6 exact full-suffix counterfactual cases",
+    "30 independent traffic-arm functional races",
+    "12 unchanged goldens",
+    "Every champion pin",
+    "headless/query/lap regressions"
+  ],
+  "notPerformed": [
+    "Mirrored full fleet",
+    "Held-out place/CPU measurement",
+    "Lone-entrant promotion check",
+    "JDK 26 repeat",
+    "Browser repeat"
+  ],
+  "promoted": false
+}

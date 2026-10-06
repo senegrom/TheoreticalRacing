@@ -34,7 +34,7 @@ final class RacecraftReplay {
             this.cars = Arrays.stream(cars).map(int[]::clone).toArray(int[][]::new);
         }
         String encode() {
-            final StringBuilder out = new StringBuilder(plans.equals("-") ? "rc3," : "rc4,").append(turn).append(',').append(laps)
+            final StringBuilder out = new StringBuilder(plans.equals("-") ? "rc3," : plans.contains("M_") ? "rc5," : "rc4,").append(turn).append(',').append(laps)
                     .append(',').append(slot).append(',').append(first).append(',').append(last)
                     .append(',').append(identity);
             if (!plans.equals("-")) out.append(',').append(plans);
@@ -66,7 +66,7 @@ final class RacecraftReplay {
     static Board parse(final RaceGame game, final String text) {
         if (text.length() > 16384) throw new IllegalArgumentException("rc3 too long");
         final String[] parts = text.split(";", -1), h = parts[0].split(",", -1);
-        if (parts.length != game.players.length + 1 || !((h.length == 7 && h[0].equals("rc3")) || (h.length == 8 && h[0].equals("rc4"))))
+        if (parts.length != game.players.length + 1 || !((h.length == 7 && h[0].equals("rc3")) || (h.length == 8 && (h[0].equals("rc4") || h[0].equals("rc5")))))
             throw new IllegalArgumentException("invalid rc3 header/roster");
         final int turn = Integer.parseInt(h[1]), laps = Integer.parseInt(h[2]);
         final int slot = Integer.parseInt(h[3]), first = Integer.parseInt(h[4]), last = Integer.parseInt(h[5]);
@@ -104,6 +104,7 @@ final class RacecraftReplay {
             throw new IllegalArgumentException("incomplete rc3 classification");
         final String plans = h.length == 8 ? h[7] : "-";
         FollowupPlans.parse(plans, n);
+        if (plans.contains("M_") != h[0].equals("rc5")) throw new IllegalArgumentException("noncanonical plan version");
         return new Board(turn, laps, slot, first, last, h[6], rows, plans);
     }
 
@@ -138,7 +139,7 @@ final class RacecraftReplay {
     }
 
     /** Replaces only detached player objects, never mutating live histories. */
-    private static final class Scope implements AutoCloseable {
+    static final class Scope implements AutoCloseable {
         final RaceGame game;
         final Player[] players;
         final int slot, turn, first, last;
@@ -246,7 +247,7 @@ final class RacecraftReplay {
         return String.join(",", legalActions(game).stream().map(Enum::name).toList());
     }
 
-    private static boolean classifyLast(final RaceGame game) {
+    static boolean classifyLast(final RaceGame game) {
         Player survivor = null; int live = 0;
         for (final Player p : game.players) if (!p.isFinished()) { live++; survivor = p; }
         if (live == 0) return true;
@@ -287,7 +288,7 @@ final class RacecraftReplay {
                 }
                 // A forced first action must still preserve the policy's plan when
                 // it equals the actual proposal; a different action invalidates it.
-                final boolean remember = game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP);
+                final boolean remember = (game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP) || game.racecraftNext.configured(RacecraftNext.Feature.MANOEUVRE));
                 final Direction proposed = firstAction && first != null && !remember ? first
                         : scorerOnly ? policy.researchScorer() : policy.computeAiMove();
                 final Direction action = firstAction && first != null ? first : proposed;

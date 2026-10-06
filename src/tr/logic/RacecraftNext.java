@@ -7,7 +7,9 @@ import java.util.Properties;
 final class RacecraftNext {
     enum Feature {
         CRASH_RANK("crash-rank"), RANK_TIME("rank-time"), OPENING("opening"), ADAPTIVE_ESCAPE("adaptive-escape"),
-        FOLLOWUP("followup"), RECOVERY("recovery"), TACTICAL_EXTENSION("tactical-extension");
+        FOLLOWUP("followup"), RECOVERY("recovery"), TACTICAL_EXTENSION("tactical-extension"), DENIAL("denial"), MANOEUVRE("manoeuvre"),
+        CHECKPOINT_TRAFFIC("checkpoint-traffic"), DECISION_ENDPOINT("decision-endpoint"),
+        STAGED_ORDER("staged-order"), SHORT_TRANSITIONS("short-transitions");
         final String flag;
         Feature(final String flag) { this.flag = flag; }
     }
@@ -19,6 +21,7 @@ final class RacecraftNext {
     final int captureEvery;
     final int captureLimit;
     final int adaptiveNodes, adaptiveCycles, recoveryTrials, tacticalExtraRounds;
+    final int manoeuvreNodes, manoeuvreDepth;
 
     RacecraftNext(final Properties props) {
         features = EnumSet.noneOf(Feature.class);
@@ -33,6 +36,8 @@ final class RacecraftNext {
         if (!audit.equals("true") && !audit.equals("false"))
             throw new IllegalArgumentException("racecraftCapture must be true or false");
         capture = Boolean.parseBoolean(audit);
+        manoeuvreNodes = bounded(props, "racecraftManoeuvreNodes", 192, 0, 2048);
+        manoeuvreDepth = bounded(props, "racecraftManoeuvreDepth", 4, 2, 4);
         adaptiveNodes = bounded(props, "racecraftAdaptiveNodes", 2048, 0, 20000);
         adaptiveCycles = bounded(props, "racecraftAdaptiveCycles", 2, 1, 3);
         recoveryTrials = bounded(props, "racecraftRecoveryTrials", 9, 0, 9);
@@ -48,6 +53,7 @@ final class RacecraftNext {
                 && (feature != Feature.OPENING || openingTrials > 0 && opening(game, player))
                 && (feature != Feature.FOLLOWUP || features.contains(Feature.OPENING)
                         && openingTrials > 0 && opening(game, player))
+                && (feature != Feature.MANOEUVRE || manoeuvreNodes > 0)
                 && (feature != Feature.ADAPTIVE_ESCAPE || adaptiveNodes > 0)
                 && (feature != Feature.RECOVERY || recoveryTrials > 0)
                 && (feature != Feature.TACTICAL_EXTENSION || tacticalExtraRounds > 0);
@@ -59,7 +65,8 @@ final class RacecraftNext {
 
     boolean configured(final Feature feature) { return features.contains(feature); }
     String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials
-            + ":" + adaptiveNodes + ":" + adaptiveCycles + ":" + recoveryTrials + ":" + tacticalExtraRounds; }
+            + ":" + adaptiveNodes + ":" + adaptiveCycles + ":" + recoveryTrials + ":" + tacticalExtraRounds
+            + ":" + manoeuvreNodes + ":" + manoeuvreDepth; }
 
     boolean any(final RaceGame game, final int player) {
         for (final Feature feature : features) if (enabled(game, player, feature)) return true;

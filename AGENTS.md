@@ -88,9 +88,7 @@ rejected as too complicated. Equally good cells go to the seed's draw, or
 without a seed to the first cell in x-then-y order. A human takes any free
 cell on its turn; placement Undo takes back that cell and every AI cell after
 it, which then choose again. Changing what "best" means, or adding any
-lookahead, is a rule change and needs the owner. Round 299 brings the code to
-this rule; until it lands the score still refuses a first move onto an
-earlier car's cell, and an over-budget course still takes the legacy start.
+lookahead, is a rule change and needs the owner.
 
 ## Measurement discipline
 

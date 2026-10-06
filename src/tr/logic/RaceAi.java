@@ -255,15 +255,21 @@ final class RaceAi {
         final String legalActions = capture ? RacecraftReplay.legalActionText(game) : null;
         if (root) { auditScorer = null; auditChooser = null; auditOpening = null; auditShortlist = ""; }
         if (root) {
-            inheritedFollowup = null; pendingFollowup = null; pendingFirst = null; decisionRootKey = null;
-            if (game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.FOLLOWUP)) {
+            inheritedFollowup = null; inheritedTraffic = null; pendingFollowup = null; pendingFirst = null; decisionRootKey = null;
+            trafficDenials = trafficCheckpointTrials = trafficManoeuvreNodes = trafficManoeuvreForecasts = 0;
+            if (game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.FOLLOWUP)
+                    || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.MANOEUVRE)) {
                 decisionRootKey = FollowupPlans.key(game);
                 final FollowupPlans.Entry entry = game.followups.find(game);
-                inheritedFollowup = entry == null ? null : entry.action();
+                if (entry != null && entry.traffic() && game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.MANOEUVRE)) inheritedTraffic = entry;
+                if (entry != null && !entry.traffic() && game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.FOLLOWUP)) inheritedFollowup = entry.action();
             }
         }
         final Direction decision = optimalMoveAI1(pos, vel, playerNum);
         if (root && pendingFirst != decision) pendingFollowup = null;
+        if (capture) System.err.println("RACECRAFT_TRAFFIC p=" + playerNum + " denial=" + trafficDenials
+                + " checkpointTrials=" + trafficCheckpointTrials + " nodes=" + trafficManoeuvreNodes
+                + " forecasts=" + trafficManoeuvreForecasts);
         if (capture) {
             capturedDecisions++;
             System.err.println("RACECRAFT_STATE " + snapshot + "|" + decision
@@ -274,11 +280,12 @@ final class RaceAi {
 
     /** Called only once an action is committed. Hint/oracle queries are read-only. */
     void commitResearchPlan(final Direction action) {
-        if (!game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP)) return;
+        if (!game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP)
+                && !game.racecraftNext.configured(RacecraftNext.Feature.MANOEUVRE)) return;
         FollowupPlans.Entry entry = null;
         if (pendingFollowup != null && action == pendingFirst && decisionRootKey != null
                 && game.racecraftNext.enabled(game, game.players[game.subgamestate].getNumber(),
-                        RacecraftNext.Feature.FOLLOWUP)
+                        pendingFollowup.traffic() ? RacecraftNext.Feature.MANOEUVRE : RacecraftNext.Feature.FOLLOWUP)
                 && decisionRootKey.equals(FollowupPlans.key(game))) entry = pendingFollowup;
         game.followups.put(game.subgamestate, entry);
         decisionRootKey = null; pendingFollowup = null; pendingFirst = null;
@@ -929,9 +936,10 @@ final class RaceAi {
 		// priced the gate at 20 cells: +0.001 places in packs (81 boards tied),
 		// +0.004 scattered, one synthetic course; the guarantee is worth that.
 		boolean chooserConsulted = false;
+		chooserJudgedPace = false;
 		if (best != null && !inScorerSim
 			&& nearestLiveRival(pos, playerNum) <= AI1_CHOOSER_MAXDIST) {
-			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore);
+			best = jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore, poDir);
 			poScorerT = poTByDir[best.ordinal()];
 			chooserConsulted = true;
 		}
@@ -977,7 +985,11 @@ final class RaceAi {
 				poScorerT = fastT; // round 279: the pace comparison below reads the landing taken
 			}
 		}
-		Direction chosen = (poDir != null && poBestT < poScorerT) ? poDir : best;
+		// Round 292b: once the chooser has judged a pace landing it added, its pick
+		// stands (-0.023 places as a lone entrant against round 299, -0.026 on
+		// computed starts); a pace landing the window already held keeps the swap.
+		Direction chosen = (poDir != null && poBestT < poScorerT && !chooserJudgedPace)
+				? poDir : best;
 		// Round 75-77 (AI1): recover a strictly-faster line only when a
 		// conservative rival-occupancy proof leaves an empty-track-optimal escape
 		// private, then require the independent real-scorer rollout to agree. The
@@ -1814,8 +1826,9 @@ final class RaceAi {
 			return chosen;
 		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
 		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-		if (finishingMove(pos[0], pos[1], cx, cy))
-			return chosen;
+		// Final lap, no gate owed: the scan has already returned any move that
+		// crosses the line legally, so neither the chosen landing nor a brake
+		// alternative below (a scanned row) finishes.
 		final int chosenSpeed2 = speedSquared(cvx, cvy);
 		if (chosenSpeed2 < AI1_FINISH_DENIAL_MIN_SPEED2
 				|| countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) == 0
@@ -1876,15 +1889,9 @@ final class RaceAi {
 				if ((brakeMask & 1 << d.ordinal()) == 0)
 					continue;
 				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
-					continue;
 				final int speed2 = speedSquared(nvx, nvy);
-				if (chosenSpeed2 - speed2 < AI1_FINISH_DENIAL_MIN_BRAKE2)
-					continue;
 				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 				final int t = ttf(nx, ny, nvx, nvy);
-				if (finishingMove(pos[0], pos[1], nx, ny))
-					return d;
 				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
 						|| game.isCrashingPlayer(nx, ny, playerNum)
 						|| !reach.isAlive(nx, ny, nvx, nvy))
@@ -2441,6 +2448,7 @@ final class RaceAi {
 	private Direction stagedPaceOverride(final int[] pos, final int[] vel, final int playerNum,
 			final Direction chosen, final double[] scoreByDir, final double[] trapByDir,
 			final int[] turnsByDir) {
+        final boolean ranked = trafficFeature(playerNum, RacecraftNext.Feature.STAGED_ORDER);
 		final int chosenT = turnsByDir[chosen.ordinal()];
 		if (chosenT == Integer.MAX_VALUE || chosenT < AI1_STAGED_MIN_TURNS)
 			return chosen;
@@ -2484,6 +2492,7 @@ final class RaceAi {
 		int chosenFinal = Integer.MIN_VALUE;
 		long chosenField = Long.MAX_VALUE;
 		Direction best = null;
+        int bestFinal = -1;
 		double bestRestDelta = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
 			final int turns = turnsByDir[d.ordinal()];
@@ -2510,19 +2519,20 @@ final class RaceAi {
 			if (sealable(nx, ny, nvx, nvy, playerNum))
 				continue;
 			if (chosenFinal == Integer.MIN_VALUE) {
-				chosenFinal = scorerFieldOutcome(chosenX, chosenY, chosenVx, chosenVy, playerNum,
+				chosenFinal = stagedForecast(chosenX, chosenY, chosenVx, chosenVy, playerNum,
 						AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 				chosenField = rolloutFieldCost[0];
 			}
-			if (chosenFinal < 0)
+			if (chosenFinal < 0 || ranked && chosenFinal == Integer.MAX_VALUE)
 				return chosen;
 			// Round 279: the field's cost is no veto (the racecraft rule).
-			final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
+			final int candidateFinal = stagedForecast(nx, ny, nvx, nvy, playerNum,
 					AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS, null);
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal)
 				continue;
-			if (best == null || restDelta < bestRestDelta) {
+			if (best == null || (ranked ? TrafficOpportunities.stagedBetter(candidateFinal, restDelta, bestFinal, bestRestDelta) : restDelta < bestRestDelta)) {
 				best = d;
+                bestFinal = candidateFinal;
 				bestRestDelta = restDelta;
 			}
 		}
@@ -2763,6 +2773,11 @@ final class RaceAi {
 	private void simulateRoundPass(final int playerNum, final int[][] occupancy,
 			final int[][] simulatedVelocity, final CellOccupancy blockedOccupancy,
 			final int[][] nextPosition, final int[][] nextVelocity) {
+        if (trafficFeature(playerNum, RacecraftNext.Feature.SHORT_TRANSITIONS)) {
+            shortRoundPass(playerNum, occupancy, simulatedVelocity, blockedOccupancy, nextPosition, nextVelocity);
+            return;
+        }
+
 		for (int pass = 0; pass < 2; pass++) {
 			for (final Player p : game.players) {
 				final boolean later = p.getNumber() > playerNum;
@@ -3346,6 +3361,9 @@ final class RaceAi {
 	 *  rollouts (inside scorer/true rival computes) stay silent. */
 	volatile boolean				simTrace;
 	private int						simDepth;
+	/** Round 281: the rollout depth at which every live rival plays its real
+	 *  scorer -- the chooser's own rollout; -1 for none. */
+	private int allScorerRolloutDepth = -1;
     private RacecraftOutcome lastResearchOutcome;
     private boolean lastResearchRankTime;
     private int researchOpeningTrials;
@@ -3590,8 +3608,16 @@ final class RaceAi {
 		// Round 59: slow-class fires roll the nearest rivals with their REAL
 		// scorer (recursion-guarded); the rest keep the smom proxy.
 		// Membership is fixed at rollout start: the nearest
-		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR.
-		if (scorerRivals) {
+		// AI1_SCORER_MAXRIVALS within Chebyshev AI1_SCORER_NEAR. Round 281: in the
+		// chooser's own rollout every live rival plays its scorer. Round 300a: in
+		// every rollout a real decision starts too -- the danger, thread and pace
+		// searches (-0.031 places on held-out seeds, -0.029 computed, CPU 1.09x);
+		// nested rollouts and the true-rival confirms keep the cap.
+		if (scorerRivals && (simDepth == allScorerRolloutDepth || simDepth == 1 && !trueRivals)) {
+			for (int i = 0; i < game.players.length; i++)
+				if (i != myIdx && alive[i])
+					scorerSet[i] = true;
+		} else if (scorerRivals) {
 			// Round 102: for TRUE-RIVAL confirms only, the membership radius
 			// scales with MY speed -- monza s80 commits at spd-inf 10 toward a
 			// braking car 11 cells downstream; a fixed Chebyshev-10 net can
@@ -3631,12 +3657,13 @@ final class RaceAi {
 		// A solo time trial is the exception: its only car must still finish.
 		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
 		boolean raceOver = liveCount <= terminalLiveCount;
-		for (int round = 0; round < rounds && !raceOver; round++) {
+        final boolean decisionAligned = candidatePending && simDepth == decisionEndpointDepth;
+		for (int round = 0; round < rounds + (decisionAligned ? 1 : 0) && !raceOver; round++) {
 			endRound = round;
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
-			for (int i = from; i < game.players.length; i++) {
+			for (int i = from; i < (decisionAligned && round == rounds ? myIdx : game.players.length); i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
                 if (RaceTimeout.reached(game, workspace.turns)) {
@@ -4612,6 +4639,8 @@ final class RaceAi {
 	private Direction bestCheckpointMove(final int[] pos, final int[] vel,
 			final int playerNum, final int mask, final Direction fallback) {
 		Direction best = fallback;
+        final int[] values = trafficFeature(playerNum, RacecraftNext.Feature.CHECKPOINT_TRAFFIC) ? new int[9] : null;
+        if (values != null) java.util.Arrays.fill(values, Integer.MAX_VALUE);
 		int bestValue = Integer.MAX_VALUE;
 		final int nextGate = lapGate == 1 ? 2 : 0;
 		for (final Direction d : DIRECTIONS) {
@@ -4629,6 +4658,7 @@ final class RaceAi {
 				continue;
 			final int events = game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny);
 			final int value = exactPot.movesToFinish(exactRemaining - events, nx, ny, nvx, nvy);
+            if (values != null) values[d.ordinal()] = value;
 			if (value < bestValue) {
 				bestValue = value;
 				best = d;
@@ -4637,7 +4667,7 @@ final class RaceAi {
 		if (best != fallback && AI_DEBUG_DJS)
 			System.err.println("AIDBG CHECKPOINT-CHOICE p=" + playerNum + " gate=" + lapGate
 					+ " " + fallback + " -> " + best + " remaining=" + bestValue);
-		return best;
+        return values == null ? best : checkpointTrafficChoice(pos, vel, playerNum, best, values, bestValue);
 	}
 
 	/** Round 256: among the landings the score cannot separate -- every legal
@@ -4650,82 +4680,82 @@ final class RaceAi {
 	 *  ranks them by what the whole field actually does next. Round 257
 	 *  measured the horizon (3 rounds -0.501, 6 -0.952, 9 -1.129, 12 -1.194
 	 *  places, saturating); round 259 found ranking by projected place and a
-	 *  wider vote both within noise of this. */
-	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
-			final Direction best, final double[] scoreByDir, final double bestScore) {
+	 *  wider vote both within noise of this. Round 292b: the pace landing the
+	 *  round-34 swap would take is rolled out too when the window left it out. */
+    // Compatibility test/query seam. Production supplies its round-292b pace nominee.
+    private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
+            final Direction best, final double[] scoreByDir, final double bestScore) {
+        return jointChooser(pos, vel, playerNum, best, scoreByDir, bestScore, null);
+    }
+
+    private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
+            final Direction best, final double[] scoreByDir, final double bestScore, final Direction pace) {
         final boolean rankTime = nextEnabled(playerNum, RacecraftNext.Feature.RANK_TIME);
         final boolean real = simDepth == 0 && !inScorerSim;
         final boolean recovery = real && nextEnabled(playerNum, RacecraftNext.Feature.RECOVERY);
         final boolean extension = real && nextEnabled(playerNum, RacecraftNext.Feature.TACTICAL_EXTENSION);
+        final boolean denial = trafficFeature(playerNum, RacecraftNext.Feature.DENIAL);
+        final boolean aligned = trafficFeature(playerNum, RacecraftNext.Feature.DECISION_ENDPOINT);
+        final boolean manoeuvre = trafficFeature(playerNum, RacecraftNext.Feature.MANOEUVRE);
         final Direction inherited = real ? inheritedFollowup : null;
-        final boolean tactical = recovery || extension || inherited != null;
+        final boolean tactical = recovery || extension || inherited != null || denial || aligned;
         final java.util.Map<Direction, TacticalComparison.Evaluation> sampled = tactical
                 ? new java.util.LinkedHashMap<>() : null;
         final boolean crashRank = nextEnabled(playerNum, RacecraftNext.Feature.CRASH_RANK);
         final boolean opening = nextEnabled(playerNum, RacecraftNext.Feature.OPENING)
                 && RacecraftNext.opening(game, playerNum) && game.racecraftNext.openingTrials > 0;
-        final boolean audit = simDepth == 0 && !inScorerSim;
-        if (audit) auditScorer = best;
-		final Direction[] order = new Direction[DIRECTIONS.length];
-		int n = 0;
-		for (final Direction d : DIRECTIONS) {
-			final double s = scoreByDir[d.ordinal()];
-			if (s == Double.MAX_VALUE || s > bestScore + AI1_CHOOSER_WINDOW)
-				continue;
-			int i = n++;
-			while (i > 0 && scoreByDir[order[i - 1].ordinal()] > s) {
-				order[i] = order[i - 1];
-				i--;
-			}
-			order[i] = d;
-		}
-		if (n == 0 || n < 2 && !tactical)
-			return best;
-        if (audit) {
-            final StringBuilder row = new StringBuilder();
-            for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
-                if (k > 0) row.append(','); row.append(order[k]);
-            }
-            auditShortlist = row.toString();
+        if (real) auditScorer = best;
+        final Direction[] order = new Direction[DIRECTIONS.length];
+        int n = 0;
+        for (final Direction d : DIRECTIONS) {
+            final double s = scoreByDir[d.ordinal()];
+            if (s == Double.MAX_VALUE || s > bestScore + AI1_CHOOSER_WINDOW) continue;
+            int i = n++;
+            while (i > 0 && scoreByDir[order[i - 1].ordinal()] > s) { order[i] = order[i - 1]; i--; }
+            order[i] = d;
         }
+        final int width = Math.min(n, AI1_CHOOSER_WIDTH);
+        final java.util.List<Direction> cands = new java.util.ArrayList<>();
+        for (int k = 0; k < width; k++) cands.add(order[k]);
+        final boolean addPace = pace != null && !cands.contains(pace);
+        if (addPace) cands.add(pace);
+        if (denial) {
+            final Direction extra = TrafficOpportunities.nominate(game, best, AI1_CHOOSER_ROUNDS);
+            if (extra != null && !cands.contains(extra)) { cands.add(extra); trafficDenials++; }
+        }
+        if (cands.isEmpty() || cands.size() < 2 && !tactical && !manoeuvre) return best;
+        if (real) auditShortlist = String.join(",", cands.stream().map(Enum::name).toList());
         RacecraftOutcome bestCrash = null;
         Direction crashPick = null;
         boolean allCrash = true;
-		Direction pick = null;
-		long pickVerdict = -1;
-		for (int k = 0; k < n && k < AI1_CHOOSER_WIDTH; k++) {
-			final Direction d = order[k];
-			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-			// A finish is already decided by the precedence rules above; a crossing
-			// with a lap or a checkpoint still owed is an ordinary move (round 291).
-			if (finishingMove(pos[0], pos[1], nx, ny))
-				return best;
-			// Round 270/274: a live rollout ranks by place, then by the mover's
-			// projected total turns (its finishing round when it finishes).
-			final int outerKeyDepth = placeKeyDepth;
-			placeKeyDepth = simDepth + 1;
-			placeKey = -1;
-            final TacticalComparison.Evaluation evaluation = tactical
-                    ? tacticalForecast(pos, vel, playerNum, d, AI1_CHOOSER_ROUNDS) : null;
-            final int outcome = tactical ? evaluation.outcome().liveVerdict()
-                    : simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
-                            true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
-            if (tactical) sampled.put(d, evaluation);
-			final long key = placeKey;
-			placeKeyDepth = outerKeyDepth;
+        Direction pick = null;
+        long pickVerdict = -1;
+        for (final Direction d : cands) {
+            final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+            final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+            if (finishingMove(pos[0], pos[1], nx, ny)) return best;
+            final int outerKeyDepth = placeKeyDepth, outerScorerDepth = allScorerRolloutDepth;
+            final int outcome;
+            final long key;
+            placeKeyDepth = simDepth + 1;
+            placeKey = -1;
+            allScorerRolloutDepth = simDepth + 1;
+            try {
+                final TacticalComparison.Evaluation evaluation = tactical
+                        ? tacticalForecast(pos, vel, playerNum, d, AI1_CHOOSER_ROUNDS) : null;
+                outcome = tactical ? evaluation.outcome().liveVerdict()
+                        : simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+                                true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+                if (tactical) sampled.put(d, evaluation);
+                key = placeKey;
+            } finally { placeKeyDepth = outerKeyDepth; allScorerRolloutDepth = outerScorerDepth; }
             final RacecraftOutcome detail = lastResearchOutcome;
             if (detail == null || !detail.known() || !detail.crashed()) allCrash = false;
-            else if (bestCrash == null || detail.betterThan(bestCrash, true)) {
-                bestCrash = detail; crashPick = d;
-            }
-			final long verdict = rankTime && detail != null ? detail.liveVerdict()
+            else if (bestCrash == null || detail.betterThan(bestCrash, true)) { bestCrash = detail; crashPick = d; }
+            final long verdict = rankTime && detail != null ? detail.liveVerdict()
                     : outcome >= 0 && key >= 0 ? key : outcome;
-			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
-				pick = d;
-				pickVerdict = verdict;
-			}
-		}
+            if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) { pick = d; pickVerdict = verdict; }
+        }
         if (crashRank && allCrash && crashPick != null) pick = crashPick;
         Direction nominal = pick == null ? best : pick;
         if (tactical) {
@@ -4740,12 +4770,25 @@ final class RaceAi {
                         + " extension=" + selection.extensionRounds() + " inherited=" + selection.inheritedOffered()
                         + " recovery=" + selection.recoveryExpanded());
         }
-        if (audit) auditChooser = nominal;
-        final Direction planned = opening ? openingSearch(pos, vel, playerNum, nominal, order,
-                Math.min(n, AI1_CHOOSER_WIDTH)) : nominal;
-        if (audit) auditOpening = planned;
+        if (real) auditChooser = nominal;
+        Direction planned = opening ? openingSearch(pos, vel, playerNum, nominal, order, width) : nominal;
+        if (manoeuvre) {
+            final TrafficManoeuvres.Choice choice = TrafficManoeuvres.choose(game, planned, inheritedTraffic,
+                    game.racecraftNext.manoeuvreDepth, game.racecraftNext.manoeuvreNodes);
+            trafficManoeuvreNodes += choice.expanded(); trafficManoeuvreForecasts += choice.forecasts();
+            if (choice.continuation() != null) { pendingFirst = choice.action(); pendingFollowup = choice.continuation(); }
+            planned = choice.action();
+        }
+        if (real) auditOpening = planned;
+        // Preserve round 292b exactly: existing in-window pace swaps remain authoritative.
+        chooserJudgedPace = addPace;
         return planned;
-	}
+    }
+
+
+	/** Round 292b: did the last chooser call roll out a pace landing it added
+	 *  itself? Then its pick stands against the round-34 pace swap. */
+	private boolean chooserJudgedPace;
 
     private RacecraftOutcome researchForecast(final int[] pos, final int[] vel,
             final int player, final Direction first, final int rounds, final Direction second) {
@@ -4786,10 +4829,11 @@ final class RaceAi {
 
     private TacticalComparison.Evaluation tacticalForecast(final int[] pos, final int[] vel,
             final int player, final Direction action, final int rounds) {
-        final int demand = researchDemandDepth, probe = tacticalProbeDepth;
+        final int demand = researchDemandDepth, probe = tacticalProbeDepth, endpoint = decisionEndpointDepth;
         final boolean oldEndpoint = tacticalEndpoint;
         researchDemandDepth = tacticalProbeDepth = simDepth + 1;
         tacticalEndpoint = false;
+        decisionEndpointDepth = trafficFeature(player, RacecraftNext.Feature.DECISION_ENDPOINT) ? simDepth + 1 : -1;
         try {
             final int vx = vel[0] + action.dx, vy = vel[1] + action.dy;
             simOutcome(pos[0] + vx, pos[1] + vy, vx, vy, player, rounds,
@@ -4797,7 +4841,7 @@ final class RaceAi {
             return new TacticalComparison.Evaluation(lastResearchOutcome == null
                     ? RacecraftOutcome.unknown() : lastResearchOutcome, tacticalEndpoint);
         } finally {
-            researchDemandDepth = demand; tacticalProbeDepth = probe; tacticalEndpoint = oldEndpoint;
+            researchDemandDepth = demand; tacticalProbeDepth = probe; tacticalEndpoint = oldEndpoint; decisionEndpointDepth = endpoint;
         }
     }
 
@@ -5694,5 +5738,84 @@ final class RaceAi {
 		final BitSet roomy = reach.roomy0;
 		return roomy == null || roomy.get(reach.aliveIdx(x, y, vx, vy));
 	}
+
+
+    private int decisionEndpointDepth = -1;
+    private FollowupPlans.Entry inheritedTraffic;
+    private int trafficDenials, trafficCheckpointTrials, trafficManoeuvreNodes, trafficManoeuvreForecasts;
+
+    private boolean trafficFeature(final int player, final RacecraftNext.Feature feature) {
+        return simDepth == 0 && !inScorerSim && game.racecraftNext.enabled(game, player, feature)
+                && nearestLiveRival(game.players[player - 1].getPosition(), player) <= AI1_CHOOSER_MAXDIST;
+    }
+
+    /** The former staged comparison admitted by outcome but selected by a heuristic.
+     * Only this experiment requests detailed elapsed time for these forecasts. */
+    private int stagedForecast(final int x, final int y, final int vx, final int vy,
+            final int player, final int rounds, final int cap, final long[] field) {
+        if (!trafficFeature(player, RacecraftNext.Feature.STAGED_ORDER))
+            return scorerFieldOutcome(x, y, vx, vy, player, rounds, cap, field);
+        final int demand = researchDemandDepth;
+        researchDemandDepth = simDepth + 1;
+        try {
+            scorerFieldOutcome(x, y, vx, vy, player, rounds, cap, field);
+            return lastResearchOutcome == null ? Integer.MAX_VALUE : lastResearchOutcome.liveVerdict();
+        } finally { researchDemandDepth = demand; }
+    }
+
+    private Direction checkpointTrafficChoice(final int[] pos, final int[] vel, final int player,
+            final Direction incumbent, final int[] values, final int bestValue) {
+        if (!trafficFeature(player, RacecraftNext.Feature.CHECKPOINT_TRAFFIC)
+                || bestValue == Integer.MAX_VALUE) return incumbent;
+        final java.util.List<Direction> ties = new java.util.ArrayList<>(); ties.add(incumbent);
+        for (final Direction d : DIRECTIONS)
+            if (d != incumbent && values[d.ordinal()] == bestValue && ties.size() < 3) ties.add(d);
+        if (ties.size() == 1) return incumbent;
+        // Do not exchange a referee-terminal finish for an unresolved forecast.
+        for (final Direction d : ties) if (TrafficOpportunities.ownMove(game, player - 1, d).finishes()) return d;
+        Direction pick = incumbent;
+        RacecraftOutcome best = null;
+        for (final Direction d : ties) {
+            final RacecraftOutcome value = tacticalForecast(pos, vel, player, d, AI1_CHOOSER_ROUNDS).outcome();
+            trafficCheckpointTrials++;
+            if (best == null) { best = value; if (!best.known()) return incumbent; }
+            else if (value.betterThan(best, false)) { best = value; pick = d; }
+        }
+        return pick;
+    }
+
+    /** A one-cycle projection must vanish finishers at THEIR turn. An absent
+     * preferred move is not a crash: search the physical replies before retiring.
+     * An ordinary lap crossing and a legal map-dead landing remain on the board. */
+    private void shortRoundPass(final int playerNum, final int[][] occupancy,
+            final int[][] velocities, final CellOccupancy occupied,
+            final int[][] nextPosition, final int[][] nextVelocity) {
+        for (int offset = 1; offset < game.players.length; offset++) {
+            final int i = (playerNum - 1 + offset) % game.players.length;
+            final Player p = game.players[i];
+            if (p.isFinished() || occupancy[i] == null) continue;
+            final int[] x = occupancy[i], v = velocities[i];
+            occupied.remove(x[0], x[1]);
+            Direction action = pureMinTurnsMoveSim(i, x, v, occupied);
+            if (action == null) {
+                for (final Direction d : DIRECTIONS) {
+                    final int nx = x[0] + v[0] + d.dx, ny = x[1] + v[1] + d.dy;
+                    final RaceGame.MoveResult move = game.evaluateMove(p.getLap(), p.getNextGate(),
+                            x[0], x[1], nx, ny, occupied.contains(nx, ny));
+                    if (!move.legal()) continue;
+                    if (action == null) action = d;
+                    if (move.finishes()) { action = d; break; }
+                }
+            }
+            if (action == null) { occupancy[i] = null; velocities[i] = null; continue; }
+            final int vx = v[0] + action.dx, vy = v[1] + action.dy, nx = x[0] + vx, ny = x[1] + vy;
+            final RaceGame.MoveResult move = game.evaluateMove(p.getLap(), p.getNextGate(),
+                    x[0], x[1], nx, ny, occupied.contains(nx, ny));
+            if (!move.legal() || move.finishes()) { occupancy[i] = null; velocities[i] = null; continue; }
+            nextPosition[i][0] = nx; nextPosition[i][1] = ny;
+            nextVelocity[i][0] = vx; nextVelocity[i][1] = vy;
+            occupancy[i] = nextPosition[i]; velocities[i] = nextVelocity[i]; occupied.add(nx, ny);
+        }
+    }
 
 }

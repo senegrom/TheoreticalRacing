@@ -81,7 +81,13 @@ public final class StartupTests {
             final int[][] positions = Arrays.stream(game.players).map(p -> p.getPosition().clone()).toArray(int[][]::new);
             for (final Player player : game.players) player.setPosition(new int[]{Player.INIT_POS, Player.INIT_POS});
             for (int i = 0; i < count; i++) {
-                if (game.players[i].isAi()) check(Arrays.equals(positions[i], StartPlacement.choose(game, game.players[i], 1L)), "AI did not rescore current occupancy");
+                if (game.players[i].isAi()) {
+                    check(Arrays.equals(positions[i], StartPlacement.choose(game, game.players[i], 1L)), "AI did not rescore current occupancy");
+                    // The owner's rule: a best cell among those the earlier cars left free.
+                    int best = Integer.MAX_VALUE;
+                    for (final int[] cell : allCells) best = Math.min(best, StartPlacement.score(game, game.players[i], cell[0], cell[1]));
+                    check(StartPlacement.score(game, game.players[i], positions[i][0], positions[i][1]) == best, "AI did not take a best free cell");
+                }
                 game.players[i].setPosition(positions[i]);
             }
             check(Progress.OPTIMAL.get() == (count > 1 && game.lapGates != null ? 1 : 0), "Exact map repeated per AI");

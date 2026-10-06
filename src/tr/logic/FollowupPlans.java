@@ -5,45 +5,54 @@ import java.util.Arrays;
 /** A remembered action is only an additional candidate, never an instruction to
  * execute a stale plan. Memory changes on committed moves, not on queries. */
 final class FollowupPlans {
-    record Entry(Direction action, String expectedKey) {
+    record Entry(java.util.List<Direction> actions, String expectedKey, boolean traffic) {
         Entry {
-            if (action == null || expectedKey == null || !expectedKey.matches("[0-9a-f]{64}"))
-                throw new IllegalArgumentException("invalid follow-up");
+            actions = java.util.List.copyOf(actions);
+            if (actions.isEmpty() || actions.size() > (traffic ? 3 : 1) || expectedKey == null
+                    || !expectedKey.matches("[0-9a-f]{64}")) throw new IllegalArgumentException("invalid follow-up");
         }
+        Entry(final Direction action, final String expectedKey) { this(java.util.List.of(action), expectedKey, false); }
+        Direction action() { return actions.getFirst(); }
+        static Entry traffic(final java.util.List<Direction> actions, final String key) { return new Entry(actions,key,true); }
     }
     private final Entry[] entries = new Entry[9];
-
     Entry find(final RaceGame game) {
         final Entry entry = entries[game.subgamestate];
-        return entry != null && entry.expectedKey.equals(key(game)) ? entry : null;
+        return entry != null && entry.expectedKey().equals(key(game)) ? entry : null;
     }
     void put(final int slot, final Entry entry) { entries[slot] = entry; }
     FollowupPlans copy() {
-        final FollowupPlans copy = new FollowupPlans();
-        System.arraycopy(entries, 0, copy.entries, 0, entries.length); return copy;
+        final FollowupPlans result = new FollowupPlans();
+        System.arraycopy(entries,0,result.entries,0,entries.length); return result;
     }
     String encode(final int players) {
         boolean any = false;
-        for (int i = 0; i < players; i++) any |= entries[i] != null;
+        for (int i=0;i<players;i++) any |= entries[i]!=null;
         if (!any) return "-";
         final StringBuilder out = new StringBuilder();
-        for (int i = 0; i < players; i++) {
-            if (i > 0) out.append('.');
-            if (entries[i] == null) out.append('-');
-            else out.append(entries[i].action).append('~').append(entries[i].expectedKey);
+        for (int i=0;i<players;i++) {
+            if(i>0) out.append('.');
+            final Entry e=entries[i];
+            if(e==null) { out.append('-'); continue; }
+            if(e.traffic()) out.append("M_");
+            out.append(String.join("+",e.actions().stream().map(Enum::name).toList())).append('~').append(e.expectedKey());
         }
         return out.toString();
     }
     static FollowupPlans parse(final String text, final int players) {
-        final FollowupPlans result = new FollowupPlans();
-        if (text.equals("-")) return result;
-        final String[] parts = text.split("\\.", -1);
-        if (parts.length != players || players > 9) throw new IllegalArgumentException("follow-up roster mismatch");
-        for (int i = 0; i < parts.length; i++) {
-            if (parts[i].equals("-")) continue;
-            final String[] entry = parts[i].split("~", -1);
-            if (entry.length != 2) throw new IllegalArgumentException("invalid follow-up encoding");
-            result.entries[i] = new Entry(Direction.valueOf(entry[0]), entry[1]);
+        final FollowupPlans result=new FollowupPlans();
+        if(players<1||players>9) throw new IllegalArgumentException("follow-up roster mismatch");
+        if(text.equals("-")) return result;
+        final String[] parts=text.split("\\.",-1);
+        if(parts.length!=players) throw new IllegalArgumentException("follow-up roster mismatch");
+        for(int i=0;i<players;i++) {
+            if(parts[i].equals("-")) continue;
+            final String[] fields=parts[i].split("~",-1);
+            if(fields.length!=2) throw new IllegalArgumentException("invalid follow-up encoding");
+            final boolean traffic=fields[0].startsWith("M_");
+            final String spec=traffic?fields[0].substring(2):fields[0];
+            final java.util.List<Direction> actions=Arrays.stream(spec.split("\\+",-1)).map(Direction::valueOf).toList();
+            result.entries[i]=new Entry(actions,fields[1],traffic);
         }
         return result;
     }

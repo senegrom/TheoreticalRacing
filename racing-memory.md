@@ -1,5 +1,18 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Peer traffic-opportunity experiments (2026-10-06, not promoted)
+
+Integrated current master 82d259a, preserving 281/292b/299/300a and the owner rules.
+Independent candidate-only flags: denial, manoeuvre, checkpoint-traffic,
+decision-endpoint, staged-order, short-transitions. The multi-move graph nominates
+at most two trajectories; every proposal and the incumbent are reforecast under
+one common all-scorer continuation with exact referee transitions. Its schedule
+is only a proposal model. Bounded suffixes are committed/read/replayed/undone as
+policy state (rc5); hints do not consume them. Existing experiment flags remain.
+No map, user.properties, fleet track, default policy, or master modification.
+No performance or promotion evidence is claimed. Test results are recorded in
+docs/experiments/traffic-opportunities/validation.json only after execution.
+
 
 ## Adaptive response research (2026-10-03, branch only)
 
@@ -34,6 +47,166 @@ The old round-298 screens are not evidence for these repaired variants.
 No fleet or lone-candidate gain is claimed; completed validation is recorded
 separately after execution. Master and the earlier PR are not modified.
 
+
+## Round 300a promoted (2026-10-05): every live rival plays its scorer in every top-level rollout
+
+Round 281 let every live rival play its real scorer in the chooser's own
+rollout. Every other search a real decision starts -- the danger guard, the
+thread and pace checks -- still played only the AI1_SCORER_MAXRIVALS (3)
+nearest rivals within Chebyshev AI1_SCORER_NEAR by their scorer and the rest
+by the smom proxy. Now every rollout a top-level decision starts (simDepth 1)
+with scorer rivals plays every live rival by its scorer; nested rollouts and
+the true-rival confirms (unsuppressed full computes) keep their caps. Master
+ed7c636 + promote300a.py (jar 5eba9e05, byte-identical to the box's build).
+
+Measured as the gated arm a300a against the 281+299 champion: identity OK
+(fires on random starts, never on scattered ones), CPU 1.09x. Random starts
+-0.024 +- 0.007 (25/19/40; crashes 52:55), held-out seeds 11-20 -0.031 +-
+0.007 (24/11/49; 40:42); computed starts -0.029 +- 0.008 (25/11/48; 44:47);
+scattered and two-car duels identical races; lone check with the control,
+seeds 1-5, every seat: -0.018 +- 0.007 (19/11/54; 27:29). Rebased on 292b and
+confirmed against the 292b champion: random -0.038 +- 0.008 (29/18/37;
+50:50), computed -0.021 +- 0.006 (20/13/51; 38:38). The promoted jar races as
+the arm with every slot a candidate (seven random-start races and two
+computed-start ones, the Nordschleife included).
+300b, the same at every rollout depth: -0.039 +- 0.008 on 292b, no better than
+300a at 1.16x CPU. Dead; the nested rollouts do not need the whole field.
+
+Corpus (the box loop re-froze 5 pins and the goldens; 4 pins by hand from the
+probe records, each reviewed; CI's frozen job locally on x86: 29 of 29):
+4 of 12 goldens (routes only), 8 of 25 pins. Recorded, not vetoed: the car
+lost since round 281 on Zandvoort s115 finishes again, so the equal-speed
+veto pin reads round 126's safety contract again, as round 248 did; Monaco
+s35 (private slack) and Hungaroring s4 (staged pace) get their car back;
+Le Mans s87 (bounded uncertain field, p1 on its 55th move) and Interlagos s3
+(staged pace, p7 on its 56th) lose one. One fewer crash across the corpus.
+
+## Round 292b promoted (2026-10-05): the chooser judges the pace landing it adds
+
+After the chooser, the round-34 pace swap takes poDir -- the roomy landing
+strictly fastest on the map -- whenever it beats the pick, and the chooser
+only rolls out landings within one turn of the best score, so it may never
+have judged poDir. Now poDir gets a rollout too, after the score's candidates,
+when the window left it out; once the chooser has judged a pace landing it
+added itself, its pick stands. A pace landing the window already held keeps
+the swap: letting the pick stand there was round 290 (+0.832). Master 02dbbfb
++ promote292b.py (jar 53d787e8, byte-identical to the box's build).
+
+Measured as the gated arm a292b299 against the 281+299 champion: identity OK.
+Random starts -0.036 +- 0.011 (46/24/14; crashes 53:53), held-out seeds 11-20
++0.001 +- 0.011 (30/34/20; 40:43); computed starts -0.026 +- 0.010 (35/21/28;
+41:41); scattered -0.003 +- 0.001 (8/0/76; 9:10); two-car duels -0.009 +-
+0.003 (3/2/79; crashes 197:218); lone check with the control, seeds 1-5,
+every seat: -0.023 +- 0.008 (31/22/31; 29:29). Against round 296 it had read
+-0.036 and -0.024 on random starts and -0.040 computed. The promoted jar races
+as the arm with every slot a candidate (seven random-start races and two
+computed-start ones, the Nordschleife included).
+
+Corpus (the box loop re-froze 9 pins and the goldens; 5 pins by hand from the
+probe records, each reviewed against them; CI's frozen job locally on x86: 29
+of 29): 7 of 12 goldens (routes only, the same finishers and crashes), 12 of
+25 pins. Crashes move between races and net to zero -- recorded, not vetoed:
+the car round 281 lost on Le Mans s29 (bounded uncertain field) and on Spa s1
+(private slack) finishes again; Hungaroring s12 (private slack, p2 on its 28th
+move) and the mixed-roster Le Mans s7 (p8 on its 55th move, round 260's
+manoeuvre one cell on) lose one. The mixed-safety pin pins that crash as
+rounds 234 and 260 did. Label invariance holds (Coil s5, all three rosters).
+
+## Finish denial's dead tests removed (2026-10-04, identical races)
+
+The review's item 7 ("remove after 291"). finishDenialOverride runs only on the
+mover's final lap with no gate owed, so the decision's scan has already returned
+any move that crosses the line legally: its two finishingMove tests (the chosen
+landing, and each brake alternative) are constant false, and the brake loop's
+range and speed-drop re-checks repeat what brakeMask already requires. Two
+independent analyses (one arguing, one trying to refute) agree; a comment at the
+site states the invariant. Races are identical: ten random-start races against the
+champion, Hairpin s68 (the override's specimen) first, plus the finish-denial pin
+and the query replay locally.
+
+## Round 299 promoted (2026-10-03): computed starts follow the owner's rule
+
+The owner's computed-start rule (2026-10-02, CLAUDE.md): the cars take the
+grid in roster order, and each takes a best cell among those the earlier cars
+left free -- nothing else about those cars counts, because they move first.
+Two deviations, both promoted (promote299.py on master 6589cc8, round 281; jar
+d582efa3, byte-identical to the box's build):
+- 299a: the start score refused a first move onto an earlier car's cell, a
+  state that never occurs in the race. A free cell now scores its exact
+  single-player value from rest, and StartPlacement keeps one value per cell
+  instead of a table of first-move alternatives.
+- 299b: where the exact full-race map is over budget (the Nordschleife; by the
+  audit's arithmetic Le Mans from 6 laps, the Nurburgring from 7, Monaco from
+  9, or a small heap) the AIs took the legacy start -- and without a seed the
+  first free cell. They now score the start on the next best map, the exact
+  distance to the first checkpoint, which they then race by (the owner's
+  call); the log header says `start-placement informed (first-checkpoint
+  map: ...)`.
+
+Measured as the gated arm a299 against the round-296 champion, computed
+starts (the rule changes nothing on random or scattered starts: identity
+INERT there by construction, checked): seeds 1-10 +0.014 +- 0.018 (38/36/10;
+crashes 55:48), held-out 11-20 -0.014 +- 0.020 (36/37/11; 68:65); lone check
+with the control, seeds 1-5, every seat: -0.015 +- 0.017 (39/28/17; 24:17);
+two-car duels +0.005 +- 0.002 (0/2/82; 241:227 -- Hungaroring +0.35 and
+Chicane +0.10 on 40 car-races each: the second car may now take the cell
+behind the first). The Nordschleife alone (299b): -0.05 on seeds 1-10, -0.55
+on 11-20 (20 races each) and -0.106 +- 0.174 on 21-60 (80 races): -0.17 over
+all 120, noisy but on the right side. A rule, not a tuning: it
+ships on a neutral fleet. Rebased on round 281: the arm with no slots races as
+the 281 champion and the promoted jar as the arm with every slot (7 of 7,
+computed starts, the Nordschleife included).
+
+Tests (the audit's gaps): the unit oracle is the exact solo value from rest,
+the rejected first-move filter only a witness that the fixture exercises it;
+the x-then-y and seeded tie-break is pinned (a replay among tied cells, the
+rejected start-ties, would fail); the over-budget path is tested on the
+two-lap Circle with the exact map capped (score = the first-checkpoint map at
+rest; the header); the browser startup tests check that each AI takes a best
+free cell. The browser's computed-start race is unchanged. One edge stays: an
+AI with no free cell from which it can finish does not place.
+
+## Round 281 promoted (2026-10-03): every live rival plays its scorer in the chooser's rollouts
+
+The round-256 chooser ranks the landings the score cannot separate by the
+faithful joint world, but that world played only the AI1_SCORER_MAXRIVALS (3)
+nearest rivals within Chebyshev AI1_SCORER_NEAR by their real scorer and every
+other car by the smom proxy. Now every live rival plays its scorer in the
+chooser's own rollout; rollouts nested inside it keep the normal scorer set
+(one depth-scoped field, allScorerRolloutDepth). Master b54e9bb +
+promote281all.py (jar 552c04c3, byte-identical to the box's build).
+
+Measured as the gated arm a281all296 against the round-296 champion: identity
+OK, CPU 1.32x (six 8-car races, 236 s -> 311 s). Random starts -0.157 +-
+0.019 (66/16/2; crashes 57:55), held-out seeds 11-20 -0.172 +- 0.020
+(66/12/6; 57:53); computed starts -0.131 +- 0.020 (57/20/7; 43:53);
+scattered -0.006 +- 0.003 (10/3/71; 12:13); two-car duels -0.027 +- 0.004
+(5/0/79; 218:220); lone check with the control, seeds 1-5, every seat:
+-0.149 +- 0.021 (68/14/2; crashes 27:24). The promoted jar races as the arm
+with every slot a candidate (7 of 7). 281 near (the three-rival cap kept,
+every rival within reach) is dominated on every slice: random -0.119,
+computed -0.101, scattered +0.000, lone -0.110 +- 0.018, duels identical
+(one rival is always within the cap).
+
+Corpus (probe records from the x86 box; the box loop re-froze 10 pins and the
+goldens, 9 pins were re-frozen by hand from the probe records and each edit
+reviewed against them; CI's frozen job then ran locally on x86: 29 of 29: smoke, query replay, lap progress, the goldens and every pin):
+11 of 12 goldens (Zandvoort s45 keeps all eight cars: the car that crashed now
+finishes; the rest reorder or lose a few turns), 16 of 25 pins. Crashes move
+between races and net to zero across the corpus -- recorded, not vetoed: back
+to seven finishers on Silverstone s1 (cross-model pace), Interlagos s47
+(private slack), Le Mans s3 (staged pace: both crashed cars finish) and Spa
+s31 (six-ahead); a car lost on Zandvoort s44 and s115 (the same opening-lap
+hairpin, the frozen pre-2026-08-29 geometry), Spa s1 and Monaco s35 (private
+slack), Le Mans s29 (bounded uncertain field) and Silverstone s78 (six-ahead,
+p8 on its 11th move). The equal-speed veto pin's round-126 safety contract
+(more finishers and fewer crashes than the legacy car) fails with the lost
+car; as in round 247 it reads the pace edge instead (840 finisher moves
+against the legacy car's 853). Label invariance holds: the all-AI1,
+alternating and all-AI2 fields race Coil s5 identically.
+
+The box moved to a Graviton instance (m8g.2xlarge, arm64; 2026-10-03):
+four x86 promotion-identity races re-raced there match byte for byte.
 
 ## The owner's computed-start rule (2026-10-02); round 299 in measurement
 
@@ -194,46 +367,6 @@ master 82f0466 + 291, which races as the promoted master):
 - 281 near: duels +0.000 (84 tied); lone check -0.105 +- 0.020 (crashes
   30:35). 281 all: as before.
 All of these re-screen on the new champion before they can ship.
-
-## Branch research: outcome ranks, opening plans and counterfactual corpus (2026-09-28)
-
-Owner request: implement review ideas 1, 2, 4 and 6 on a branch; examine 3
-critically. Branch `work/racecraft-outcomes-opening-20260928`, pinned base
-`955001104bbe315cf9b82a1cd2dfb447beddd211`. No champion promotion. The
-independent queued master arms (291/293/294/295) are not silently imported.
-
-Implemented behind `candidateSlots` AND `racecraftNext` feature flags:
-`crash-rank` preserves retirement order only when every considered action
-forecasts a known crash; unknown is not a crash. `rank-time` carries own
-elapsed moves and remaining moves separately, compares confirmed rescue
-outcomes by place/time rather than speed, and keeps finish/survival tests
-explicit. `opening` searches bounded first/second action pairs in the first
-four roster rounds; the observed board is replanned next turn and downstream
-pace/guards retain authority. `start-ties` compares at most four solo-equal
-cells for the final AI placer, with every other placement already observed;
-it does not alter the later driving policy. New driving arms respect the
-canonical 20-cell solo gate. Default flags are empty.
-
-Item 3 is an offline, shadow-only interaction diagnostic, not a live subset
-selector or extra caution penalty: conservative pre/post-action envelopes,
-including possible indirect blockers via two-hop links. No pruning guarantee
-or opponent coalition is claimed. See the branch design for why breadth
-should remain the measured baseline until subset selection earns its cost.
-
-Item 6: explicit rc3 snapshots (including exact left-grid and classification
-ledgers), bounded cf3 complete referee tails for every legal first action,
-actual-action replay validation, input hashes and place-regret diagnoses.
-Unknown/incomplete tails are never training labels. Human-roster continuation
-models and learned policies are not invented. Existing V2 stays unchanged.
-
-The initial JDK 25 build, original Java/Python contracts and new crash-rank,
-finish-time, opening-budget, placement-isolation and actual-referee replay
-contracts passed in the tested integration d39701b. The first replay test
-caught and fixed a last-survivor counter mismatch rather than changing the
-expected referee behavior. Expanded CLI/default-identity and corpus checks
-are separate; their executed results belong in the experiment validation
-record. No new mirrored fleet, lone-candidate place gain or CPU speedup is
-claimed. Master, physics, maps, tracks, goldens and user.properties unchanged.
 
 ## Rounds 281-295 (in progress, 2026-09-28): the reviews' AI bugs and the racecraft arms
 

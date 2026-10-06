@@ -10,7 +10,8 @@ import java.util.Properties;
 import tr.gui.RaceUI;
 
 /** The owner's rules (CLAUDE.md): rank first, the single-player rule and the
- *  grid rule, plus the round-279 fixes that make the AI conform to them. */
+ *  grid rule, plus the round-279 fixes that make the AI conform to them. The
+ *  computed-start rule has its oracle in StartPlacementTests. */
 public final class OwnerRuleTests {
     private OwnerRuleTests() {}
 

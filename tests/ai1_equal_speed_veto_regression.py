@@ -21,7 +21,9 @@ CASES = [("zandvoort", 115)]
 # Round 254: re-frozen from measurement (the danger guard in a faithful world).
 # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
 # Round 278: re-frozen from measurement (the chooser's pick stands).
-PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 144])
+# Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p5 now crashes on its 19th move and seven finishers become six -- recorded, not vetoed.
+# Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout); p5, lost on its 19th move since round 281, now finishes sixth on its 143rd move and six finishers become seven, with no crash.
+PROMOTED = (7, 0, [137, 138, 139, 141, 142, 143, 144])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in LABELS}
 
@@ -42,10 +44,12 @@ def main() -> int:
                     track, timeout=1200, seed=seed)
     if actual != EXPECTED:
         raise SystemExit(f"Round-126 promoted regression: {actual}, expected {EXPECTED}")
-    # Round 247 lost the round-126 finisher/crash contract against the legacy
-    # champion (six finishers, one crash, like the legacy car) and pinned the
-    # pace edge instead; round 248's physical world model gives the race its
-    # seventh finisher back and the original contract holds again.
+    # Round 247 retired the round-126 finisher/crash contract against the legacy
+    # champion and pinned the pace edge instead; round 248's physical world model
+    # gave the race its seventh finisher back and the contract returned. Round 281
+    # lost that car again (six finishers and one crash, like the legacy car) and
+    # pinned the pace edge once more; round 300a gives the race its seventh
+    # finisher back and the original contract holds again.
     result = actual[LABELS[0]]["zandvoort:115"]
     if not (result[0] > LEGACY_CHAMPION[0] and result[1] < LEGACY_CHAMPION[1]):
         raise SystemExit(f"Round-126 safety contract lost: {result}, legacy {LEGACY_CHAMPION}")
