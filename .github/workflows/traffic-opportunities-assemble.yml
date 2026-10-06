@@ -1,0 +1,93 @@
+name: Assemble reviewed traffic experiments
+on:
+  push:
+    branches: [work/racecraft-outcomes-opening-20260928]
+    paths: ['.traffic-20261006/**', '.github/workflows/traffic-opportunities-assemble.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: traffic-assemble-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  assemble:
+    if: github.ref == 'refs/heads/work/racecraft-outcomes-opening-20260928'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Integrate pinned master and assemble source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          python3 .traffic-20261006/apply.py 2>&1 | tee /tmp/traffic-assembly.log
+          git diff --cached --check
+      - name: Build and behavioural contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build_main.sh 2>&1 | tee /tmp/traffic-build.log
+          sh run_tests.sh 2>&1 | tee /tmp/traffic-java.log
+          python3 -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee /tmp/traffic-python.log
+          python3 -m compileall -q tools tests
+      - name: Current-master identity and complete counterfactual controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/traffic-master"
+          git archive 82d259a217c23991cec7adc164c81f48e575c88c | tar -x -C "$RUNNER_TEMP/traffic-master"
+          (cd "$RUNNER_TEMP/traffic-master" && sh build_main.sh)
+          python3 tests/racecraft_next_cli.py --baseline-jar "$RUNNER_TEMP/traffic-master/theoreticRacing.jar" --out "$RUNNER_TEMP/traffic-baseline-controls" 2>&1 | tee /tmp/traffic-baseline.log
+          python3 tests/racecraft_traffic_cli.py --out "$RUNNER_TEMP/traffic-arm-controls" 2>&1 | tee /tmp/traffic-arms.log
+      - name: Every existing golden and champion pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/headless_smoke.py
+          python3 tests/query_replay_regression.py
+          python3 tests/lap_progress_regression.py
+          python3 tests/golden_races.py 2>&1 | tee /tmp/traffic-goldens.log
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python3 "$test"
+          done 2>&1 | tee /tmp/traffic-pins.log
+      - name: Commit tested source to research branch only
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Workflow baseline updates are made separately through the connector.
+          git restore --source=HEAD --staged --worktree .github/workflows/racecraft-next.yml
+          git diff --exit-code 82d259a217c23991cec7adc164c81f48e575c88c -- user.properties tracks/
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          result=dict(date='2026-10-06', integratedMaster='82d259a217c23991cec7adc164c81f48e575c88c',
+              sourceParent=os.environ['GITHUB_SHA'], workflowRun=os.environ['GITHUB_RUN_ID'],
+              passed=['JDK 25 build and Java contracts','Python unit suite','32 baseline/combined functional races',
+                      '6 exact full-suffix counterfactual cases','30 independent traffic-arm functional races',
+                      '12 unchanged goldens','Every champion pin','headless/query/lap regressions'],
+              notPerformed=['Mirrored full fleet','Held-out place/CPU measurement','Lone-entrant promotion check',
+                            'JDK 26 repeat','Browser repeat'],promoted=False)
+          Path('docs/experiments/traffic-opportunities/validation.json').write_text(json.dumps(result,indent=2)+'\n')
+          PY
+          git add src tests tools run_tests.sh racing-memory.md docs
+          git diff --cached --check
+          git commit -m 'Integrate current champion and add gated traffic opportunities, manoeuvres and forecast fixes'
+          git push origin HEAD:work/racecraft-outcomes-opening-20260928
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: traffic-opportunity-evidence
+          path: |
+            /tmp/traffic-*.log
+            ${{ runner.temp }}/traffic-baseline-controls
+            ${{ runner.temp }}/traffic-arm-controls
+          retention-days: 7
