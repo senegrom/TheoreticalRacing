@@ -20,5 +20,16 @@
     "JDK 26 repeat",
     "Browser repeat"
   ],
-  "promoted": false
+  "promoted": false,
+  "implementationCommit": "340ec72fc5dd11b73dbe6ee3b025745dcbe0a679",
+  "finalizationDate": "2026-10-07",
+  "finalizationSource": "9833cf65032b2b5f99ada2efee5dfb57dc48a055",
+  "finalizationRun": "37550380299",
+  "repeatValidationWorkflow": ".github/workflows/racecraft-next.yml",
+  "additionalValidationPending": [
+    "JDK 26 and browser repeats",
+    "Combined new traffic flags: full-race and complete-suffix corpus controls",
+    "Repeat independent adaptive and traffic controls"
+  ],
+  "note": "Read-only CI results are authoritative for repeats. Finalization changes no production driving code. Existing six corpus cases used the previous adaptive configuration; the newly added matrix explicitly enables all traffic flags too."
 }

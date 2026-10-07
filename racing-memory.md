@@ -1,5 +1,18 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Traffic branch finalization (2026-10-07, not promoted)
+
+Verified the interrupted implementation was committed as 340ec72 and its
+assembly run 37535808108 passed JDK 25 contracts, Python tests, 32 baseline
+controls, six full-suffix counterfactual cases, 30 independent traffic-arm
+races, all twelve goldens and every champion pin. Removed the temporary
+assembly inputs and self-writing workflow. Persistent read-only CI now pins
+current master 82d259a instead of the old 1c50a5c baseline, runs all six
+traffic arms independently, and adds a separate combined traffic/adaptive
+control plus full-suffix corpus matrix (including manoeuvre policy memory).
+JDK 26 and browser repeats are scheduled, not claimed passed here. No new
+driving changes, default-policy changes, fleet promotion, or place gain.
+
 ## Peer traffic-opportunity experiments (2026-10-06, not promoted)
 
 Integrated current master 82d259a, preserving 281/292b/299/300a and the owner rules.
