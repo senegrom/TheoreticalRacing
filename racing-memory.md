@@ -1,5 +1,37 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 301a' promoted (2026-10-07): the pace swap breaks only exact faithful ties
+
+The owner's rank-first rule names every pace override. After a consulted
+chooser, the round-34 pace swap took the map-fastest roomy landing poDir
+whenever it beat the pick on map time -- also when poDir was among the
+chooser's own candidates and its faithful world had ranked it strictly
+worse, place first. Now the pick stands there too; on an exact verdict tie
+the swap still breaks it by map time. The owner shipped it as a rank-first
+conformance fix on a neutral first reading (2026-10-06). Master 82d259a +
+promote301a2.py (jar bb83e6e4, byte-identical to the box's build).
+
+Found by mapping every override after the chooser (a workflow: 30 confirmed;
+E:/tmp-claude/review3/post_chooser_design.md). Measured as the gated arm
+a301a2 against the 300a champion: identity OK. Random starts +0.010 +- 0.017
+(33/38/13; crashes 42:40); scattered -0.013 +- 0.003 (17/7/60; 8:10);
+computed -0.017 +- 0.016 (29/36/19; 32:38); lone check -0.011 +- 0.020
+(31/37/16; 20:24) -- neutral everywhere but on scattered starts, where it
+gains. The promoted jar races as the arm with every slot a candidate (seven
+random-start races, two computed-start ones). The sibling 301a -- the pick
+stands against every in-window swap, ties included -- read +0.013 +- 0.018
+(35/41/8): dead.
+
+Corpus (the box loop re-froze 7 pins and the goldens; 9 pins by hand from the
+probe records, each reviewed; CI's frozen job locally on x86: 29 of 29): 8 of
+12 goldens (routes only), 14 of 25 pins. Crashes move between races, one
+fewer in all -- recorded, not vetoed: Le Mans s87 and s93 (bounded uncertain
+field), the mixed Le Mans s7, Hungaroring s12 (private slack) and Interlagos
+s3 (staged pace) get their car back; Hungaroring s144 (ESC true confirm: its
+round-107 crash-free contract now holds the measured 6/1, the classification
+unchanged), coil s106 (graduated field acceleration) and Hungaroring s4 and
+s10 (staged pace) lose one.
+
 ## Round 300a promoted (2026-10-05): every live rival plays its scorer in every top-level rollout
 
 Round 281 let every live rival play its real scorer in the chooser's own

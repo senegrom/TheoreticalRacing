@@ -27,7 +27,8 @@ EXPECTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    ("cog", 1): [46, 46, 47, 47, 47, 48, 48],
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+    ("cog", 1): [46, 46, 46, 47, 47, 48, 48],
 }
 
 

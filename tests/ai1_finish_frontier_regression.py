@@ -28,7 +28,8 @@ EXPECTED = {
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     47: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
-    49: (7, 0, [58, 59, 59, 60, 60, 60, 60]),
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+    49: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -51,9 +52,10 @@ EXPECTED_DECISION = {
     # Round 260: the same turn and car, re-frozen from measurement.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     6: "299 p3 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
     47: "298 p2 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
-    49: "308 p4 {kind} W v(0,-5)→(-1,-5) (65,43)→(64,38) ok",
+    49: "308 p4 {kind} NW v(0,-5)→(-1,-6) (65,48)→(64,42) ok",
 }
 
 

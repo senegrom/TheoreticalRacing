@@ -24,17 +24,19 @@ TARGET = ("spa", 83)
 # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-PROMOTED = (7, 0, [78, 79, 80, 82, 82, 83, 83])
+# Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+PROMOTED = (7, 0, [78, 79, 80, 81, 82, 83, 83])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
 PROMOTED_FINISHERS = [
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); seven finishers and no crash as before, but p5 (the car still running at the end before) now finishes fourth on its 81st move and p4 (fifth home before) is the car still running at the end, after 82 moves -- recorded, not vetoed.
     (6, 78),
     (7, 79),
     (8, 80),
+    (5, 81),
     (1, 82),
-    (4, 82),
     (2, 83),
     (3, 83),
 ]
@@ -42,13 +44,15 @@ LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-PROMOTED_ALL_MOVES = {1: 82, 2: 83, 3: 83, 4: 82, 5: 82, 6: 78, 7: 79, 8: 80}
+# Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+PROMOTED_ALL_MOVES = {1: 82, 2: 83, 3: 83, 4: 82, 5: 81, 6: 78, 7: 79, 8: 80}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-PROMOTED_SHA256 = "ba8392f6643861b4ec952ee11305dd613c1de483e3a9ef969865fc0094e1c0fd"
+# Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+PROMOTED_SHA256 = "5fc2ef3c702981dc570bd0575a6d332694f410237a0f35855a3de40504d01d56"
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
@@ -57,7 +61,8 @@ PROMOTED_DECISION = (
     # Round 278: the same turn and car, re-frozen from measurement.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); the same turn and car.
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); the same turn and car.
-    "201 p1 {kind} NW v(1,8)→(0,7) (101,135)→(101,142) ok"
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); the same turn and car.
+    "201 p1 {kind} NW v(0,8)→(-1,7) (101,135)→(100,142) ok"
 )
 
 # These cases cover every redistribution or slowdown exposed by the historical
@@ -73,69 +78,83 @@ VETO_CASES = {
         # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        (7, 0, [79, 80, 80, 81, 81, 82, 82]),
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        (7, 0, [79, 80, 80, 81, 81, 82, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        "90c18a0b85d451c7baa7209a1682cb98a7b17d6f91279baded9d1103dc8146cd",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "16cd9c492c5bdc02ea855a4b396f50a61cea94ddee5c2c730b6fb01febfaa755",
     ),
     ("spa", 57): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
         # Round 278: re-frozen from measurement (the chooser's pick stands).
-        (7, 0, [78, 79, 80, 81, 82, 82, 82]),
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-        "0ae240cfaa118ec70c8fcfe6ac5a48a6fda3b3e1387b8f1e9558f264b64a9143",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "513fd42e4a853eaacbb8e965e6ced40988cd116486af1eecc2e9fdd59d0fa0b8",
     ),
     ("spa", 12): (
         # Round 254: re-frozen from measurement (the danger guard in a faithful world).
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        (7, 0, [79, 80, 80, 82, 82, 83, 83]),
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        (7, 0, [78, 79, 81, 81, 82, 83, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-        "f0d8a527488c4b7827cb819e494eaeeee99a4adf46b8047aad734124b9a833b3",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "95d93419593ff733873a546139c28afdac02cc02bb0e2365ecbedda9eb0db5d5",
     ),
     ("spa", 31): (
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p4 no longer crashes on its 58th move and p3 now finishes seventh: six finishers become seven, p4 the car still running at the end.
-        (7, 0, [78, 79, 80, 81, 82, 83, 84]),
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); seven finishers as before and p4 still the car running at the end, but p3 now finishes sixth on its 83rd move.
+        (7, 0, [78, 79, 80, 81, 82, 83, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        "7ac682186ef42780e65d6a2cd81011ee8f8d03334107429367eedc8e37b74a02",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "4146a67262484d9054a470c0307cfa6cc75006d518ddb4940b8af8c7ac4d8b9f",
     ),
     ("spa", 40): (
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        (7, 0, [78, 79, 80, 81, 81, 82, 82]),
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        (7, 0, [78, 79, 80, 80, 81, 81, 82]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-        "7ca36b8df33dd6ead2a85115f53ac31c586c89c4c26d22b64b6dc86a1e93943a",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "091888b797279a2fd25b3d2acf02dee819628ba6848975324939bc797a48bc6b",
     ),
     ("spa", 47): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        (7, 0, [78, 80, 81, 81, 83, 84, 84]),
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        (7, 0, [78, 80, 81, 81, 81, 82, 82]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-        "1cf705800f7bce4f17add5f8dccbb2cf9a6b807e73b58e739fab81b2174c3b36",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "901d9848461610310449129c2818fc49d5f757ebb081056427106ee5f5847439",
     ),
     ("coil", 5): (
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
         (7, 0, [58, 59, 59, 59, 59, 60, 60]),
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-        "823f6d54273060f0ccccd8439b78dcc450f5d1d072bc5807180a84ccbd6d9f17",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "380accd4c7243a68c0e35f0ee260f8dc8fe6f5a2d54f6acc366f929a0e9ed0e6",
     ),
     ("coil", 22): (
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
         (7, 0, [58, 59, 59, 59, 60, 60, 60]),
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-        "a7999af960564627190f64958c283330a1245e8c84d6c67070c783919a0a4a4c",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+        "8282acbba76ca3f6a2ff503b13acc5045a397758b2db745ed0f593ccb45743f8",
     ),
     ("silverstone", 78): (
         # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -144,7 +163,8 @@ VETO_CASES = {
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p8 still crashes on its 11th move and six cars finish, but p6 finishes sixth again and p7 is now the car still running at the end -- recorded, not vetoed.
-        "c91669c0a441d0b9346b576a5993ff847ba41dee45e698a9cbf782737229b380",
+        # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p8 still crashes on its 11th move and six cars finish, but p7 finishes sixth again on its 84th move and p6 is now the car still running at the end, after 84 moves -- recorded, not vetoed.
+        "f8da4525550ace0cb8cb85aae589491f00d0c7e25e842b3ce80123ca41ffcb05",
     ),
 }
 

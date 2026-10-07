@@ -22,9 +22,11 @@ PROMOTED = {
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     1: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-    38: (7, 0, [58, 59, 60, 60, 60, 60, 60]),
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+    38: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    106: (7, 0, [58, 59, 59, 59, 60, 60, 60]),
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p7, seventh home in 60 moves before, now crashes on its 50th move and seven finishers become six, p4 (fifth home before) the car still running at the end -- recorded, not vetoed.
+    106: (6, 1, [58, 59, 59, 59, 59, 60]),
 }
 # Seed 106 was the round-115 coast control, pinned equal to the legacy
 # champion; re-freezes moved it, so EXPECTED alone pins it now (review,

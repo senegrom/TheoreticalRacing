@@ -53,7 +53,8 @@ def main() -> int:
             # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
             # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p8, seventh home before, now crashes on its 55th move and seven finishers become six, so p1, still the car running at the end, moves up to seventh -- recorded, not vetoed, and pinned by its identity below.
             # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
-            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 1)},
+            # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p8, which crashed on its 55th move in rounds 292b and 300a, now keeps its race and comes home seventh on its 72nd, so six finishers become seven again and p1, still the car running at the end, drops back to eighth -- crash-free again, and that is what is pinned below.
+            "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -81,8 +82,9 @@ def main() -> int:
             # 439 in both orderings -- the round-234 identity pin returns.
             # Round 278: crash-free again, and that is what is pinned.
             # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); one crash again, p8 into the wall at (20,137) on move 440, its 55th -- recorded, not vetoed, and the round-234 identity pin returns for p8.
+            # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); crash-free again -- p8 survives move 440, its 55th, and comes home seventh on move 555, its 72nd -- and that is what is pinned, as in rounds 247 and 278.
             crashed = [line for line in log_lines if " CRASH " in line]
-            if len(crashed) != 1 or " p8 " not in crashed[0] or "place=8" not in crashed[0]:
+            if crashed:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} crash set changed: {crashed}"
                 )

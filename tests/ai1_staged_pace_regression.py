@@ -110,7 +110,12 @@ def main() -> int:
             # 11th move before, is still running after 127 moves when p4 finishes seventh
             # on its 128th), so it leaves this list and takes the (7, 0) default;
             # Interlagos 3 drops one (p7 on its 56th move) -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("interlagos", 3): (6, 1)}
+            # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties);
+            # Interlagos 3 keeps every car again (p7, lost on its 56th move in round 300a, now
+            # finishes seventh on its 130th), so it leaves this list and takes the (7, 0) default;
+            # Hungaroring 4 drops one again (p4 on its 46th move), and Hungaroring 10, whole since
+            # round 260, drops one again (p5 on its 11th move) -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("hungaroring", 10): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

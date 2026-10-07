@@ -4505,6 +4505,7 @@ final class RaceAi {
 			return best;
 		Direction pick = null;
 		long pickVerdict = -1;
+		long paceVerdict = Long.MIN_VALUE;
 		for (final Direction d : cands) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
@@ -4531,17 +4532,23 @@ final class RaceAi {
 			final long key = placeKey;
 			placeKeyDepth = outerKeyDepth;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
+			if (d == pace)
+				paceVerdict = verdict;
 			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
 				pick = d;
 				pickVerdict = verdict;
 			}
 		}
-		chooserJudgedPace = addPace;
+		// Round 301a', the rank-first rule (the owner, 2026-10-06): a pace landing the
+		// window held and the faithful world ranked strictly worse than the pick is
+		// refused too; only an exact tie still goes to the swap's map time.
+		chooserJudgedPace = addPace || paceInSet && paceVerdict != pickVerdict;
 		return pick == null ? best : pick;
 	}
 
 	/** Round 292b: did the last chooser call roll out a pace landing it added
-	 *  itself? Then its pick stands against the round-34 pace swap. */
+	 *  itself, or (round 301a') rank one it already held strictly worse than its
+	 *  pick? Then the pick stands against the round-34 pace swap. */
 	private boolean chooserJudgedPace;
 
 	/** Round 262: Chebyshev distance to the nearest live rival, or Integer.MAX_VALUE

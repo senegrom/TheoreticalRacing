@@ -21,7 +21,8 @@ EXPECTED = {
  # Round 291: re-frozen from measurement (the grid rule at the finish, finishing without the potential, crossings that do not finish, no field-cost veto).
  # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
- ("nurburgring",1): (7, 0, [91, 92, 92, 93, 93, 94, 95]),
+ # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+ ("nurburgring",1): (7, 0, [91, 92, 93, 95, 96, 96, 97]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same
@@ -29,7 +30,7 @@ EXPECTED = {
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
  # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
  # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
- ("spa",17): (7, 0, [78, 79, 80, 81, 81, 83, 84]),
+ ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 84]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
  ("zandvoort",44): (6, 1, [137, 138, 139, 141, 142, 143]),  # Round 281: loses a car again.

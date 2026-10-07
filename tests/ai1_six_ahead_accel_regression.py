@@ -17,7 +17,8 @@ PROMOTED = {
     # pins the same races by summary and digest (review, 2026-09-28).
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-    86: (7, 0, [58, 59, 60, 60, 60, 60, 61]),
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
+    86: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in LABELS}

@@ -8,7 +8,15 @@ rivals at the certification cap. The round-104 cost ladder is blind to it
 because its cheap pre-check reads alive; round 107 runs true rivals
 directly at the ESC escalation, gated to the exact signature (two threaded
 slots, two snug slots, healthy final tier). Before round 107 this race
-crashed p2 at move 58; it must stay crash-free with a full field.
+crashed p2 at move 58; it had to stay crash-free with a full field.
+
+Round 301a' (the pace swap breaks only exact faithful ties): the race is
+no longer crash-free. p1, the car still running at the end before, now
+crashes on its 44th move (turn 345, in the pack at (62,116)), and p8,
+seventh home before, is the car still running at the end, so seven
+finishers become six. No car loses a place: the classification is
+unchanged, p1 eighth. Recorded, not vetoed (CLAUDE.md): the pin now holds
+the measured finishers and crashes.
 """
 
 from pathlib import Path
@@ -37,12 +45,16 @@ def main() -> int:
     # The last live car is placed by elimination without a FINISH log line, so a
     # crash-free 8-car race records 7 finishers.
     finishes, crashes, _ = result
-    if crashes != 0 or finishes != 7:
+    # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p1, the car
+    # still running at the end before, now crashes on its 44th move and seven finishers become six: p8,
+    # seventh home on its 116th move before, is now the car still running at the end after 114 moves.
+    # The classification is unchanged (p1 eighth) -- recorded, not vetoed.
+    if crashes != 1 or finishes != 6:
         raise SystemExit(
             "ESC true-confirm regression: hungaroring s144 finishes="
-            f"{finishes} crashes={crashes} (expected 7/0)"
+            f"{finishes} crashes={crashes} (expected 6/1)"
         )
-    print("ai1 ESC true-confirm pin OK: hungaroring s144 7/0")
+    print("ai1 ESC true-confirm pin OK: hungaroring s144 6/1")
     return 0
 
 
