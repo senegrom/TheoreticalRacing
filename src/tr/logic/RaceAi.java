@@ -949,14 +949,14 @@ final class RaceAi {
 			chosen = stagedPaceOverride(pos, vel, playerNum, chosen, scoreByDir, trapByDir, poTByDir);
 			chosen = guardedFieldPaceOverride(pos, vel, playerNum, chosen, trapByDir, poTByDir);
 		}
-		// Round 232: the last-resort kinematic confirm. Every guard leg above
+		// Round 232: the last-resort kinematic confirm. Every guard leg below
 		// certifies the chosen move with a world that ends BEFORE the car could
 		// stop -- the round-93 fast-fragile leg looks four rounds ahead and
 		// switches to a line that dies in seven; the round-197 'unstoppable, no
 		// headway' tier arms no leg at all. The audited self-play deaths are all
 		// one shape: a thin landing taken beside a rival 40-60 cells before a
-		// merge, closed three to eight rounds later. So after every leg has had
-		// its say, run ONE faithful joint search on the move about to be made,
+		// merge, closed three to eight rounds later. So before those legs run,
+		// check the pick the pace overrides leave with ONE faithful joint search,
 		// with the horizon round 205 gave the cheap world: the rounds this
 		// landing needs to stop. Survival-only, like every other guard -- the
 		// pick is kept unless it provably dies and an alternative survives.
@@ -975,8 +975,13 @@ final class RaceAi {
 					&& !finishingMove(pos[0], pos[1], kx, ky)
 					&& countRivalsWithinCheb(kx, ky, playerNum, AI1_KIN_CONFIRM_R) >= 1) {
 				final int kRounds = Math.min(AI1_KIN_HORIZON_CAP, Math.max(AI1_DJS_ROUNDS, kspd));
+				// Round 301c: the mover plays its own scorer here, as in the main danger
+				// search since round 254, not the selfMove proxy -- and in the deep-pack,
+				// corridor and fast-fragile searches below (-0.020 places on held-out
+				// seeds, -0.019 computed, -0.011 as a lone entrant against round 300a;
+				// CPU 1.01x).
 				final Direction kChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-						true, kRounds);
+						true, kRounds, AI1_SCORER_MAXRIVALS, true);
 				if (AI_DEBUG_DJS && kChoice != chosen)
 					System.err.println("AIDBG KINCONF p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
 							+ ") " + chosen + " -> " + kChoice + " r" + kRounds);
@@ -1383,10 +1388,10 @@ final class RaceAi {
 										}
 									}
 								}
-								if (deepChoice == chosen)
+								if (deepChoice == chosen) // round 301c: the mover by its own scorer
 									deepChoice = dangerJointSearch(pos, vel, playerNum, chosen, true, true,
 											true, true, AI1_DEEP_HORIZON, AI1_SCORER_MAXRIVALS,
-											false, false, true);
+											true, false, true);
 								chosen = deepChoice;
 								deepHandled = true;
 							} else {
@@ -1461,8 +1466,9 @@ final class RaceAi {
 												+ ") chosen=" + chosen + " ahead=" + aheadNear
 												+ " bodies=" + landingBodies
 												+ " -> certified scorer check");
+									// round 301c: the mover by its own scorer
 									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS, false, false,
+											true, AI1_DJS_ROUNDS, AI1_DEEP_CERT_RIVALS, true, false,
 											true);
 									deepHandled = true;
 								}
@@ -1506,8 +1512,9 @@ final class RaceAi {
 										System.err.println("AIDBG FAST-FRAGILE p=" + playerNum + " pos=("
 												+ pos[0] + "," + pos[1] + ") chosen=" + chosen
 												+ " tier=" + ft[0] + " -> scorer-rival r4");
+									// round 301c: the mover by its own scorer
 									chosen = dangerJointSearch(pos, vel, playerNum, chosen, true, true, true,
-											true, AI1_DJS_FAST_FRAGILE_ROUNDS);
+											true, AI1_DJS_FAST_FRAGILE_ROUNDS, AI1_SCORER_MAXRIVALS, true);
 								}
 								fastFragileHandled = true;
 							}

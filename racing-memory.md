@@ -1,5 +1,37 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 301c promoted (2026-10-07): the mover plays its own scorer in four more danger searches
+
+Round 254 gave the main danger search the faithful world -- the mover by its
+own scorer, the rivals by theirs -- and round 300a gave every top-level
+rollout with scorer rivals the whole field by scorer. Four of the danger
+searches with scorer rivals still played the mover by the selfMove proxy:
+the round-232 kinematic confirm, the deep-pack scorer search, the
+corridor/queue/alongside certified search and the round-93 fast-fragile leg.
+Now every danger search with scorer rivals plays the mover by its own
+scorer. The all-proxy worlds (the round-95 cross-model search among them)
+and the single-landing checks (finish sprint, ridge, slow smoke and squeeze,
+the cross-model certificate and equal-speed veto, the pace proofs) still
+roll it by the proxy. Master bf342b2 + promote301c.py (jar 5dd72ffe,
+byte-identical to the box's build).
+
+Measured as the gated arm a301c against the 300a champion: identity OK, CPU
+1.01x. Random starts -0.010 +- 0.005 (18/13/53; crashes 43:48), held-out
+seeds -0.020 +- 0.005 (22/5/57; 41:48), computed -0.019 +- 0.006 (20/7/57;
+30:36), lone check -0.011 +- 0.005 (10/9/65; 23:24); duels place-identical
+(crashes 180:198); scattered starts place-identical too (0/0/84; crashes
+8:8), though 4 of 840 races play differently. Rebased on 301a' (arm a301c2,
+identity OK) and confirmed against it: random -0.014 +- 0.004 (15/4/65;
+35:34), computed -0.019 +- 0.006 (16/6/62; 33:33). The promoted jar races as
+the arm with every slot a candidate (seven random-start races, three
+computed-start ones, Hungaroring s13 -- where the change acts -- in both).
+
+Corpus (CI's frozen job on the box, then locally on x86: 29 of 29): 1 of
+12 goldens (Hungaroring s13: B fifth instead of eighth, one turn shorter)
+and 1 of 25 pins, by hand from the probe record: the staged-pace pin's Le
+Mans s11, whole since round 296, loses p8 and p7 on their 40th and 41st
+moves -- recorded, not vetoed.
+
 ## Round 301a' promoted (2026-10-07): the pace swap breaks only exact faithful ties
 
 The owner's rank-first rule names every pace override. After a consulted

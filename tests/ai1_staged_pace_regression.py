@@ -115,7 +115,10 @@ def main() -> int:
             # finishes seventh on its 130th), so it leaves this list and takes the (7, 0) default;
             # Hungaroring 4 drops one again (p4 on its 46th move), and Hungaroring 10, whole since
             # round 260, drops one again (p5 on its 11th move) -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("hungaroring", 10): (6, 1)}
+            # Round 301c: re-frozen from measurement (the mover plays its own scorer in four more danger
+            # searches); Le Mans 11, whole since round 296, drops two (p8 on its 40th move, p7 on its
+            # 41st) -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("hungaroring", 10): (6, 1), ("lemans", 11): (5, 2)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

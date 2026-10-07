@@ -50,9 +50,9 @@
       "track": "hungaroring",
       "seed": 13,
       "players": 8,
-      "sha256": "93936be61f6ec8c30f17706a6360cd92324ce3b12b6134c9dcd7d40080c3649f",
+      "sha256": "35901d65e6390a8c44950199a073213700f14d53424a55187c7c71e20393fff9",
       "summary": {
-        "turns": 917,
+        "turns": 916,
         "finishes": 7,
         "crashes": 0,
         "results": [
@@ -60,10 +60,10 @@
           "E",
           "H",
           "A",
+          "B",
           "C",
           "F",
-          "G",
-          "B"
+          "G"
         ]
       }
     },
