@@ -1,0 +1,104 @@
+name: Repair traffic browser compatibility
+on:
+  push:
+    branches: [work/racecraft-outcomes-opening-20260928]
+    paths: ['.github/workflows/traffic-browser-compat.yml']
+permissions:
+  contents: write
+concurrency:
+  group: traffic-browser-compat-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/work/racecraft-outcomes-opening-20260928'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Use browser-compatible indexing for proven nonempty lists
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          replacements = {
+              'src/tr/logic/FollowupPlans.java': ('return actions.getFirst();', 'return actions.get(0);'),
+              'src/tr/logic/TrafficManoeuvres.java': ('new Choice(best.getFirst(), tail,', 'new Choice(best.get(0), tail,')
+          }
+          for name, (old, new) in replacements.items():
+              path = Path(name)
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit('Unexpected source; refusing patch: ' + name)
+              path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+      - name: JDK 25 build and all contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build_main.sh
+          sh run_tests.sh
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          git diff --check
+      - name: Browser build
+        run: |
+          python3 -m pip install -r web/requirements-icons.txt
+          sh web/build.sh
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '26'
+      - name: JDK 26 build and all contracts
+        run: |
+          sh build_main.sh
+          sh run_tests.sh
+      - name: Record tested compatibility repair and retire this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          memory = Path('racing-memory.md')
+          title, rest = memory.read_text(encoding='utf-8').split('\n', 1)
+          entry = '''
+
+          ## Traffic browser compatibility (2026-10-07, branch only)
+
+          The final browser build found two List.getFirst calls in FollowupPlans
+          and TrafficManoeuvres that the browser target does not provide. Both
+          lists are nonempty by construction. Use get(0), with identical driving
+          decisions. JDK 25/26 builds and full Java contracts, Python contracts and
+          the browser-compatible engine build passed before this repair was pushed.
+          No algorithm, default, owner rule, master, track, or map change. The new
+          combined traffic/corpus matrix is tracked separately from the earlier
+          adaptive-only corpus results. Full browser parity and fleet evaluation
+          are not implied by a successful browser compilation.
+          '''
+          memory.write_text(title + entry + rest, encoding='utf-8')
+          path = Path('docs/experiments/traffic-opportunities/validation.json')
+          record = json.loads(path.read_text(encoding='utf-8'))
+          record['browserCompatibility'] = {
+              'date': '2026-10-07', 'run': os.environ['GITHUB_RUN_ID'],
+              'sourceParent': os.environ['GITHUB_SHA'],
+              'change': 'Two getFirst calls replaced with get(0) on proven nonempty lists',
+              'passed': ['JDK 25 build and Java contracts', 'JDK 26 build and Java contracts', 'Python contracts', 'Browser engine build'],
+              'pending': ['Full browser native parity and Chromium/WebKit', 'Combined traffic-flag full-suffix corpus result']}
+          path.write_text(json.dumps(record, indent=2) + '\n', encoding='utf-8')
+          PY
+          git rm -- .github/workflows/traffic-browser-compat.yml
+          git add -- src/tr/logic/FollowupPlans.java src/tr/logic/TrafficManoeuvres.java racing-memory.md docs/experiments/traffic-opportunities/validation.json
+          git diff --cached --check
+          git fetch origin refs/heads/work/racecraft-outcomes-opening-20260928
+          test "$(git rev-parse FETCH_HEAD)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Fix browser-compatible traffic plan indexing; JDK 25 and 26 contracts passed'
+          git push origin HEAD:refs/heads/work/racecraft-outcomes-opening-20260928
