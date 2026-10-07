@@ -12,7 +12,7 @@ final class FollowupPlans {
                     || !expectedKey.matches("[0-9a-f]{64}")) throw new IllegalArgumentException("invalid follow-up");
         }
         Entry(final Direction action, final String expectedKey) { this(java.util.List.of(action), expectedKey, false); }
-        Direction action() { return actions.getFirst(); }
+        Direction action() { return actions.get(0); }
         static Entry traffic(final java.util.List<Direction> actions, final String key) { return new Entry(actions,key,true); }
     }
     private final Entry[] entries = new Entry[9];

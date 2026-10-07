@@ -178,6 +178,6 @@ final class TrafficManoeuvres {
         }
         final FollowupPlans.Entry tail = best.size() < 2 || value.nextKey() == null ? null
                 : FollowupPlans.Entry.traffic(best.subList(1, best.size()), value.nextKey());
-        return new Choice(best.getFirst(), tail, search.expanded(), forecasts);
+        return new Choice(best.get(0), tail, search.expanded(), forecasts);
     }
 }

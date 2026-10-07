@@ -1,5 +1,17 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Traffic browser compatibility (2026-10-07, branch only)
+
+The final browser build found two List.getFirst calls in FollowupPlans
+and TrafficManoeuvres that the browser target does not provide. Both
+lists are nonempty by construction. Use get(0), with identical driving
+decisions. JDK 25/26 builds and full Java contracts, Python contracts and
+the browser-compatible engine build passed before this repair was pushed.
+No algorithm, default, owner rule, master, track, or map change. The new
+combined traffic/corpus matrix is tracked separately from the earlier
+adaptive-only corpus results. Full browser parity and fleet evaluation
+are not implied by a successful browser compilation.
+
 ## Traffic branch finalization (2026-10-07, not promoted)
 
 Verified the interrupted implementation was committed as 340ec72 and its
