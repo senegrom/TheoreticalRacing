@@ -1,4 +1,4 @@
-name: Adaptive racecraft validation
+name: Traffic and adaptive racecraft validation
 on:
   push:
     branches: [work/racecraft-outcomes-opening-20260928]
@@ -49,18 +49,20 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Build branch and pre-experiment baseline independently
+      - name: Build branch and pinned current master independently
         shell: bash
         run: |
           set -euo pipefail
           sh build_main.sh
           mkdir "$RUNNER_TEMP/racecraft-baseline"
-          git archive 1c50a5cb740c2deb9bd8bf8a588c8693e4335aae | tar -x -C "$RUNNER_TEMP/racecraft-baseline"
+          git archive 82d259a217c23991cec7adc164c81f48e575c88c | tar -x -C "$RUNNER_TEMP/racecraft-baseline"
           (cd "$RUNNER_TEMP/racecraft-baseline" && sh build_main.sh)
       - name: Full-race controls and counterfactual capture/replay
         run: python3 tests/racecraft_next_cli.py --baseline-jar "$RUNNER_TEMP/racecraft-baseline/theoreticRacing.jar" --out "$RUNNER_TEMP/racecraft-next-controls"
-      - name: Independent experiments and zero-budget controls
+      - name: Independent adaptive experiments and zero-budget controls
         run: python3 tests/racecraft_adaptive_cli.py --out "$RUNNER_TEMP/adaptive-arm-controls"
+      - name: Independent traffic experiments and audit controls
+        run: python3 tests/racecraft_traffic_cli.py --out "$RUNNER_TEMP/traffic-arm-controls"
       - run: git diff --exit-code
       - uses: actions/upload-artifact@v7
         if: always()
@@ -69,7 +71,38 @@ jobs:
           path: |
             ${{ runner.temp }}/racecraft-next-controls
             ${{ runner.temp }}/adaptive-arm-controls
-          retention-days: 7
+            ${{ runner.temp }}/traffic-arm-controls
+          retention-days: 14
+  traffic-combined:
+    name: All traffic flags and full-suffix corpus
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build branch and pinned current master independently
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build_main.sh
+          mkdir "$RUNNER_TEMP/traffic-baseline"
+          git archive 82d259a217c23991cec7adc164c81f48e575c88c | tar -x -C "$RUNNER_TEMP/traffic-baseline"
+          (cd "$RUNNER_TEMP/traffic-baseline" && sh build_main.sh)
+      - name: Combined live controls and complete counterfactual continuations
+        run: python3 tests/racecraft_traffic_full_cli.py --baseline-jar "$RUNNER_TEMP/traffic-baseline/theoreticRacing.jar" --out "$RUNNER_TEMP/traffic-combined-controls"
+      - run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: traffic-combined-corpus-evidence
+          path: ${{ runner.temp }}/traffic-combined-controls
+          retention-days: 14
   regressions:
     name: Unchanged champion corpus
     runs-on: ubuntu-latest
