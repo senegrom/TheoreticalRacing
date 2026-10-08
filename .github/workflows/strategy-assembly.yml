@@ -40,15 +40,17 @@ jobs:
               old=subprocess.check_output(['git','show','6ec439ae29ca037b013451c368c3d23799e834e5:racing-memory.md'],text=True)
               research=old[old.index('\n## '):old.index('\n## Round 300a promoted')]
               title,rest=current.split('\n',1)
-              Path('racing-memory.md').write_text(title+'\n\n## Strategy foundation recovered (2026-10-08, branch only)\n\nPreserve the archived research implementations and the current 301a/301c champion.\nNo promotion or measured improvement is claimed.\n'+research+'\n'+rest)
+              Path('racing-memory.md').write_text(title+'\n'+research+'\n'+rest)
               subprocess.run(['git','add','racing-memory.md'],check=True)
           PY
+            python3 .strategies-20261008/resolve.py
             if test -n "$(git diff --name-only --diff-filter=U)"; then
               git diff --cc
               exit 1
             fi
           fi
-          if test -f .strategies-20261008/apply.py; then python3 .strategies-20261008/apply.py; fi
+          python3 .strategies-20261008/apply.py
+          python3 .strategies-20261008/fixups.py
           git diff --check
       - name: Build and contracts
         shell: bash
@@ -65,6 +67,6 @@ jobs:
           git diff --cached --check
           git diff --exit-code b907126230b0c5a71c91b62430fa32469e58b895 -- tracks/ user.properties
           if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
-            git commit -m 'Integrate current champion with isolated strategy research'
+            git commit -m 'Integrate current champion and add six isolated strategy experiments'
             git push origin HEAD:work/racecraft-strategies-20261008
           fi
