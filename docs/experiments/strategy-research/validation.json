@@ -21,12 +21,14 @@
     "Portfolio restoration and zero-budget/flag controls",
     "Browser-compatible engine build",
     "Headless smoke, query replay and lap-progress regression suites",
-    "Source-tree cleanliness in both contract jobs"
+    "All 12 current-champion golden races without changing expectations",
+    "32 baseline and recovered-experiment functional races against current master",
+    "Six complete counterfactual cases using recovered experiment flags, with every legal first action and exact entire control suffixes",
+    "Source-tree cleanliness in both contract jobs and recovered-controls job"
   ],
   "pendingWhenRecorded": [
-    "36 independent/combined strategy-arm functional races and six exact full-suffix counterfactual cases",
-    "32 recovered-experiment functional races and six exact full-suffix cases on current master",
-    "Current champion goldens and every champion pin",
+    "Separate 36 independent/combined NEW strategy-arm functional races and six exact full-suffix counterfactual cases",
+    "Every champion regression pin",
     "Browser native parity, transport/watchdog checks, Chromium and WebKit"
   ],
   "notPerformed": [
@@ -36,5 +38,5 @@
   ],
   "promoted": false,
   "performanceGainClaimed": false,
-  "note": "Implementation committed only after build and contracts passed. Final source cleanup removed temporary assembly scaffolding and added read-only validation and extra tests without changing production policy code. This record-only update does not change tested source. Later CI results are authoritative. Master, PR24, tracks, maps, computed-start policy and user.properties are untouched. No full-race pass is claimed before its job completes."
+  "note": "The completed 32-race/six-case run exercises the recovered flags, not the six new strategy flags. The separate new-strategy run is still pending in this record. Constructed Java tests do exercise all new mechanisms. Cleanup and these record-only commits do not change tested production source. Later CI results are authoritative. Master, PR24, tracks, maps, computed-start policy and user.properties are untouched."
 }
