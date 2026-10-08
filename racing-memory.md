@@ -1,5 +1,30 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 302 (2026-10-08): the pace overrides answering to the chooser's verdict -- dead
+
+Arm B of the post-chooser map (E:/tmp-claude/review3/post_chooser_design.md).
+Once the chooser had ranked a decision, three overrides could still replace
+its pick on their own scorer-world proofs: the round-75 private lane (main arm
+and slack frontier), the round-82 staged override and the round-106 field
+acceleration. Arm 302 (E:/tmp-claude/arm302_faithgate.py) let a candidate's
+override substitute its target only if the chooser's own 12-round faithful
+rollout ranked it strictly better, place first, than the landing it replaced
+(a target the chooser never rolled out was rolled out lazily); 302t
+(arm302t_tie.py) refused it only when ranked strictly worse, round 301a''s tie
+rule. Identity OK, CPU 0.96x. Against the 301c champion:
+
+| Arm | Random 1-10 | Held-out 11-20 | Computed | Scattered |
+|---|---|---|---|---|
+| 302 strict | +0.021 +- 0.010 (21/33/30) | +0.036 +- 0.010 (22/30/32) | +0.032 +- 0.010 (21/32/31) | -0.003 +- 0.001 (10/4/70) |
+| 302t ties | +0.017 +- 0.010 (22/32/30) | +0.039 +- 0.010 (20/31/33) | +0.033 +- 0.010 (19/32/33) | -0.003 +- 0.001 (10/4/70) |
+
+Both lose 0.02-0.04 places in packs, two to four standard errors on every
+slice, and the tie rule changes nothing: the loss is in the refusals the
+faithful world calls strictly worse. Where the chooser's 12-round forecast and
+an override's own proof disagree, the override is right -- round 235 priced
+these overrides at +0.039 switched off, and they keep earning it against the
+chooser's verdict too.
+
 ## Round 301c promoted (2026-10-07): the mover plays its own scorer in four more danger searches
 
 Round 254 gave the main danger search the faithful world -- the mover by its
