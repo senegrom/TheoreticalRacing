@@ -30,11 +30,12 @@ final class PlaceCertificates {
         final Map<Direction, Bound> results = new LinkedHashMap<>();
         if (root.live() < 2 || root.live() > 3 || ownDecisions < 1 || moveCap < 1 || root.timedOut(game))
             return new Result(results, 0, 0);
+        final boolean rootForced = extendForced && root.legal(game, false).size() == 1;
         for (final Direction action : root.legal(game, true)) {
             if (!solver.budget.take()) break;
             final StrategyState next = root.after(game, action);
             if (next == null) continue;
-            final Bound tail = solver.solve(next, ownDecisions - 1, moveCap - 1);
+            final Bound tail = solver.solve(next, ownDecisions - (rootForced ? 0 : 1), moveCap - 1);
             if (tail != null) results.put(action, new Bound(tail.place(), tail.ownMoves() + 1));
         }
         // Later incomplete alternatives cannot invalidate already completed proofs.
