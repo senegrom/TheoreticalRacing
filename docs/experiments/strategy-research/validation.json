@@ -1,0 +1,36 @@
+{
+  "schema": 1,
+  "date": "2026-10-08",
+  "branch": "work/racecraft-strategies-20261008",
+  "championBase": "b907126230b0c5a71c91b62430fa32469e58b895",
+  "recoveredResearch": "6ec439ae29ca037b013451c368c3d23799e834e5",
+  "implementationCommit": "0d90e63acf63c2ee7e67e8080782136456f7a1a9",
+  "successfulAssemblyRun": 37855639511,
+  "passed": [
+    "JDK 25 build with warnings treated as errors",
+    "Full Java contract suite, including all eight StrategyResearchTests witness groups",
+    "123 Python unit tests",
+    "Same-first-action suffix generation and committed-memory witness",
+    "Executable response masks for every physical reply, production selection, repeated-query identity and cf4 replay with pending rc6 memory",
+    "Three-car absolute-place witnesses, including prior finishers and retirements",
+    "Seven-own-move forced-line victory with physical-move and node caps",
+    "Ordered blockade possible/impossible witnesses with reversed rival order",
+    "Portfolio restoration and zero-budget/flag controls"
+  ],
+  "pendingWhenRecorded": [
+    "JDK 26 repeat",
+    "Additional StrategyTransitionTests for checkpoint/grid and timeout parity",
+    "36 independent/combined strategy-arm functional races and six exact full-suffix counterfactual cases",
+    "32 recovered-experiment functional races and six exact full-suffix cases on current master",
+    "Current champion goldens and every champion pin",
+    "Browser build, native parity, Chromium and WebKit"
+  ],
+  "notPerformed": [
+    "Mirrored fleet performance evaluation",
+    "Held-out place improvement and CPU comparison",
+    "Lone-entrant promotion battery"
+  ],
+  "promoted": false,
+  "performanceGainClaimed": false,
+  "note": "Implementation committed only after build and contracts passed. Cleanup removes temporary assembly scaffolding and adds read-only validation and extra tests, without changing production policy code. Later CI results are authoritative. Master and PR24 are untouched."
+}

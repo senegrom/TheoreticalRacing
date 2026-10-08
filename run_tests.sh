@@ -33,3 +33,4 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.logic.FollowupStateTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.TrafficRacecraftTests
 
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.StrategyResearchTests
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.StrategyTransitionTests

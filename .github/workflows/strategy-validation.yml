@@ -1,0 +1,118 @@
+name: Strategy research validation
+on:
+  push:
+    branches: [work/racecraft-strategies-20261008]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/racecraft*.py'
+      - 'run_tests.sh'
+      - '.github/workflows/strategy-validation.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: strategy-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    name: Contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - run: sh build_main.sh
+      - run: sh run_tests.sh
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: python3 -m compileall -q tools tests
+      - run: git diff --exit-code
+  strategy-controls:
+    name: Six strategy arms and complete counterfactuals
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build independent branch and pinned champion
+        run: |
+          sh build_main.sh
+          mkdir "$RUNNER_TEMP/champion"
+          git archive b907126230b0c5a71c91b62430fa32469e58b895 | tar -x -C "$RUNNER_TEMP/champion"
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+      - run: python3 tests/racecraft_strategies_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/strategy-controls"
+      - run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: strategy-full-race-evidence
+          path: ${{ runner.temp }}/strategy-controls
+          retention-days: 7
+  recovered-controls:
+    name: Recovered experiments on current champion
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: |
+          sh build_main.sh
+          mkdir "$RUNNER_TEMP/champion"
+          git archive b907126230b0c5a71c91b62430fa32469e58b895 | tar -x -C "$RUNNER_TEMP/champion"
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+      - run: python3 tests/racecraft_next_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/recovered-controls"
+      - run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: recovered-full-race-evidence
+          path: ${{ runner.temp }}/recovered-controls
+          retention-days: 7
+  regressions:
+    name: Current champion goldens and pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: sh build_main.sh
+      - run: python3 tests/headless_smoke.py
+      - run: python3 tests/query_replay_regression.py
+      - run: python3 tests/lap_progress_regression.py
+      - run: python3 tests/golden_races.py
+      - name: All champion regression pins
+        run: |
+          set -eu
+          for test in tests/ai1_*_regression.py; do
+            echo "==> $test"
+            python3 "$test"
+          done
+      - run: git diff --exit-code
+  browser:
+    uses: ./.github/workflows/browser.yml
