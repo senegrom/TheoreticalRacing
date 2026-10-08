@@ -15,3 +15,18 @@ s=s.replace('if (freePly) forcedNodes++;',
                 if (finish != null && finish.finishes()) return new Bound(state.board.first + 1, 1);
             }''')
 p.write_text(s)
+p=Path('tests/tr/logic/StrategyResearchTests.java');s=p.read_text()
+s=s.replace('g.trackA=new Area(strip);g.startZoneA=new Area();g.finishLine=',
+'''g.trackA=new Area(strip);g.startZoneA=new Area();
+        set(g,"legalRaster",null);set(g,"subRaster",null);
+        g.finishLine=''')
+s=s.replace('"thin oblique lane is not physically forced"','"thin oblique lane is not physically forced: "+root.legal(g,false)')
+s=s.replace('g.ai.commitResearchPlan(a);\n            check(!g.followups.encode(2).equals("-"),',
+'''final String request="cf4,300,"+a+"|"+before;
+            final String answer=RacecraftReplay.answer(g,request);
+            check(answer.contains(RacecraftReplay.sha(request)) && before.equals(RacecraftReplay.snapshot(g)),
+                    "response-memory replay lost request binding or mutated live state");
+            g.ai.computeAiMove();
+            g.ai.commitResearchPlan(a);
+            check(!g.followups.encode(2).equals("-"),''')
+p.write_text(s)
