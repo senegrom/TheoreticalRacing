@@ -1,29 +1,33 @@
 {
-  "schema": 1,
+  "schema": 2,
   "date": "2026-10-08",
   "branch": "work/racecraft-strategies-20261008",
   "championBase": "b907126230b0c5a71c91b62430fa32469e58b895",
   "recoveredResearch": "6ec439ae29ca037b013451c368c3d23799e834e5",
   "implementationCommit": "0d90e63acf63c2ee7e67e8080782136456f7a1a9",
+  "validatedSource": "db240a8559fefc121e8bf29bde12baf45dba9b91",
   "successfulAssemblyRun": 37855639511,
+  "readOnlyValidationRun": 37856085406,
   "passed": [
-    "JDK 25 build with warnings treated as errors",
-    "Full Java contract suite, including all eight StrategyResearchTests witness groups",
-    "123 Python unit tests",
+    "JDK 25 and JDK 26 builds with warnings treated as errors",
+    "Full Java contract suites on both JDKs, including all eight StrategyResearchTests witness groups",
+    "123 Python unit tests on both JDK jobs",
+    "Additional StrategyTransitionTests: ordered checkpoints, grid departure, prior classifications and projected progress-based timeouts",
     "Same-first-action suffix generation and committed-memory witness",
     "Executable response masks for every physical reply, production selection, repeated-query identity and cf4 replay with pending rc6 memory",
     "Three-car absolute-place witnesses, including prior finishers and retirements",
     "Seven-own-move forced-line victory with physical-move and node caps",
     "Ordered blockade possible/impossible witnesses with reversed rival order",
-    "Portfolio restoration and zero-budget/flag controls"
+    "Portfolio restoration and zero-budget/flag controls",
+    "Browser-compatible engine build",
+    "Headless smoke, query replay and lap-progress regression suites",
+    "Source-tree cleanliness in both contract jobs"
   ],
   "pendingWhenRecorded": [
-    "JDK 26 repeat",
-    "Additional StrategyTransitionTests for checkpoint/grid and timeout parity",
     "36 independent/combined strategy-arm functional races and six exact full-suffix counterfactual cases",
     "32 recovered-experiment functional races and six exact full-suffix cases on current master",
     "Current champion goldens and every champion pin",
-    "Browser build, native parity, Chromium and WebKit"
+    "Browser native parity, transport/watchdog checks, Chromium and WebKit"
   ],
   "notPerformed": [
     "Mirrored fleet performance evaluation",
@@ -32,5 +36,5 @@
   ],
   "promoted": false,
   "performanceGainClaimed": false,
-  "note": "Implementation committed only after build and contracts passed. Cleanup removes temporary assembly scaffolding and adds read-only validation and extra tests, without changing production policy code. Later CI results are authoritative. Master and PR24 are untouched."
+  "note": "Implementation committed only after build and contracts passed. Final source cleanup removed temporary assembly scaffolding and added read-only validation and extra tests without changing production policy code. This record-only update does not change tested source. Later CI results are authoritative. Master, PR24, tracks, maps, computed-start policy and user.properties are untouched. No full-race pass is claimed before its job completes."
 }
