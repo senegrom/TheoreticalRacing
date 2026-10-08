@@ -132,6 +132,7 @@ final class MoveQueries {
 	}
 
 	static String answer(final RaceGame game, final String line) {
+        if (line.startsWith("cf4,")) return RacecraftReplay.answer(game, line);
 		final Header header = restoreBoard(game, line);
 		if (header.simulation()) {
 			final int[] audit = new int[3];

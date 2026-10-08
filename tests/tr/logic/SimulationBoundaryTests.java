@@ -177,6 +177,16 @@ public final class SimulationBoundaryTests {
                 final long[] field = {-9};
                 final Player me = g.players[mover];
                 final int value = simulate(g, mover, 3, false, me.getPosition(), me.getVelocity(), tier, field, threads);
+                final boolean progressTimeout = kind == 2;
+                if (progressTimeout) {
+                    // Every next-gate value is unknown on this fixture. Cyclic order starts
+                    // AFTER the installed mover, so that mover is third, not the survivor.
+                    check(value == 2 * RaceAi.VERDICT_PLACE_STRIDE && tier[0] == 3,
+                            "timeout did not use projected cyclic progress order");
+                    check(projectedClock(g) == g.turnCount() + 2L && field[0] == 0,
+                            "timeout invented a racing move or future field cost");
+                    continue;
+                }
                 // Round 274, rank first: a survivor classified behind a finisher is one
                 // place down, not a win -- the verdict carries the rival ahead.
                 check(value == (kind == 1 ? RaceAi.VERDICT_PLACE_STRIDE : 0) && tier[0] == 3,
@@ -207,8 +217,8 @@ public final class SimulationBoundaryTests {
         check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, new int[1], null, null) == 0,
                 "a finishing candidate without a field cost was lost");
         gates(g); g.setQueryTurnCounter(1501);
-        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, null, null, null) == -1,
-                "candidate finish overrode mover-first timeout");
+        check(simulate(g, 0, 4, true, new int[]{174, 10}, new int[]{3, 0}, null, null, null) == 0,
+                "timeout did not classify the current cyclic-first car without moving");
         g.lapGates = null; g.setQueryTurnCounter(0);
         g.players = new Player[]{car(1, 10, 2, 0, -4)};
         check(simulate(g, 0, 2, false, g.players[0].getPosition(), g.players[0].getVelocity(),

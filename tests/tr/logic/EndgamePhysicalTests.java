@@ -54,8 +54,8 @@ public final class EndgamePhysicalTests {
                 "an immediate finish overrode timeout precedence");
         game.setQueryTurnCounter(limit);
         reset(ai);
-        check((boolean) rivalNode.invoke(ai, 61, 7, 11, 0, 60, 13, 12, 0, 19),
-                "rival timeout must precede its otherwise finishing acceleration");
+        check(!(boolean) rivalNode.invoke(ai, 61, 7, 11, 0, 60, 13, 12, 0, 19),
+                "progress-blind deep solver fabricated a timeout win");
         game.setQueryTurnCounter(Integer.MAX_VALUE);
         reset(ai);
         check(!(boolean) ownNode.invoke(ai, 61, 7, 11, 0, 60, 13, 0, 0, 18),

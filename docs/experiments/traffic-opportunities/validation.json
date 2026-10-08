@@ -1,0 +1,62 @@
+{
+  "schema": 2,
+  "date": "2026-10-07",
+  "branch": "work/racecraft-outcomes-opening-20260928",
+  "integratedMaster": "82d259a217c23991cec7adc164c81f48e575c88c",
+  "implementationCommit": "340ec72fc5dd11b73dbe6ee3b025745dcbe0a679",
+  "browserCompatibleSource": "8f6a856c24d17876fc3de653a334a561604d4ff2",
+  "assembly": {
+    "sourceParent": "92dbd96b31d20f88f16c465685a1c5cf73210dea",
+    "run": 37535808108,
+    "passed": [
+      "JDK 25 build and Java contracts",
+      "Python unit suite",
+      "32 baseline/adaptive functional races",
+      "6 exact full-suffix counterfactual cases with adaptive flags",
+      "30 independent traffic-arm functional races",
+      "All 12 current-master goldens unchanged",
+      "Every champion pin unchanged",
+      "Headless, query and lap regressions"
+    ]
+  },
+  "expandedValidation": {
+    "source": "9833cf65032b2b5f99ada2efee5dfb57dc48a055",
+    "run": 37550380612,
+    "completedFunctionalRaces": 114,
+    "completedCounterfactualCases": 12,
+    "passed": [
+      "JDK 25 and 26 builds, full Java contracts and Python unit suites",
+      "32 baseline/adaptive functional controls and 6 complete-suffix corpus cases",
+      "20 independent adaptive-arm and zero-budget controls",
+      "30 independent traffic-arm and audit controls",
+      "32 additional combined traffic/adaptive controls with ALL flags enabled and 6 additional complete-suffix corpus cases",
+      "All 12 current-master golden races repeated without expectation changes",
+      "Headless, query and lap regressions repeated"
+    ],
+    "pendingWhenRecorded": ["Repeat champion-pin job still running; the entire pin battery already passed in the assembly run"],
+    "knownFailure": "Browser compilation failed on two List.getFirst calls. Fixed and compiled successfully in the separate repair run below. This original CI run retains its historical failed job."
+  },
+  "browserCompatibility": {
+    "date": "2026-10-07",
+    "run": 37550575085,
+    "sourceParent": "4845d71b28b42d9d9565aef068af8fcbd840c8b1",
+    "resultCommit": "8f6a856c24d17876fc3de653a334a561604d4ff2",
+    "change": "Two getFirst calls replaced with get(0) on lists guaranteed nonempty by construction; no driving algorithm changes",
+    "passed": [
+      "JDK 25 build and full Java contracts",
+      "JDK 26 build and full Java contracts",
+      "Python contracts",
+      "Browser engine build"
+    ],
+    "notRepeated": ["Full browser native parity, transport/watchdog and Chromium/WebKit suites on corrected source"]
+  },
+  "notPerformed": [
+    "Mirrored full-fleet performance evaluation",
+    "Held-out place/CPU measurement",
+    "Lone-entrant promotion check"
+  ],
+  "promoted": false,
+  "performanceGainClaimed": false,
+  "repeatValidationWorkflow": ".github/workflows/racecraft-next.yml",
+  "note": "Full-race/corpus results above were measured before the behaviour-equivalent two-line browser compatibility repair; native contracts were repeated after it. The six traffic flags are explicitly included in the additional all-flags corpus matrix. All temporary assembly and repair workflows have been removed. The only remaining workflow is read-only validation. No master, owner-rule, map, fleet-track or user.properties change. This record update changes documentation only; later CI status is authoritative."
+}

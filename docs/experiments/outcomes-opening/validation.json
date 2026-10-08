@@ -1,0 +1,51 @@
+{
+  "schema": 3,
+  "date": "2026-10-02",
+  "baseline": "b54e9bb05f91c0011e8d5e82178d1d13f3c1b494",
+  "tested_integration": "a7eb632df7202855141da8a529dcf2543cf97ae1",
+  "latest_source_revision": "1523b4a40e1d4669bc7737000881a1c566a4d166",
+  "latest_validation_run": 37061388308,
+  "completed_runs": [
+    {
+      "run": 37060609082,
+      "revision": "a7eb632df7202855141da8a529dcf2543cf97ae1",
+      "passed": [
+        "JDK 25 build with warnings treated as errors",
+        "Full Java contract suite, including actual crash-choice, timeout, rotated opening, confirmation and mid-race referee witnesses",
+        "108 Python unit tests, including strict cf4 acceptance regressions",
+        "Staged and unstaged git diff --check"
+      ]
+    },
+    {
+      "run": 37060883725,
+      "revision": "a0140dd1af3687671eeaa7b5a165a81a9f34d7a6",
+      "passed": [
+        "JDK 25 and JDK 26 builds, full Java contract suites, Python unit tests, Python syntax and clean tracked working tree",
+        "32 complete control/candidate races against current pinned master and disabled/audit/zero-opening configurations",
+        "Six mid-race cf4 corpus cases: every legal first-action continuation completed and every control suffix/final classification matched the original race",
+        "All 12 current golden races without expectation changes",
+        "headless_smoke.py, query_replay_regression.py and lap_progress_regression.py"
+      ],
+      "resolved_failure": "Browser compilation rejected List.getFirst in OpeningPlans; 1523b4a replaces it with equivalent get(0) inside the existing nonempty-list guard. No decision semantics changed."
+    }
+  ],
+  "latest_run_completed_checks": [
+    "JDK 25 and JDK 26 builds and full Java contract suites",
+    "JDK 25 Python unit tests, syntax and clean tracked working tree",
+    "Browser build (web/build.sh), including the repaired scheduler"
+  ],
+  "pending_when_recorded": [
+    "Remaining latest-run Python/cleanup steps",
+    "Repeat complete-race and mid-race corpus checks after the behavior-neutral browser fix",
+    "Repeat golden corpus and every champion regression pin",
+    "Browser parity, transport tests and Chromium/WebKit checks"
+  ],
+  "not_performed": [
+    "Full mirrored fleet promotion battery",
+    "Lone-candidate promotion battery",
+    "Held-out place-gain/CPU evaluation"
+  ],
+  "full_fleet_performed": false,
+  "promoted": false,
+  "note": "Only observed completed checks are recorded as passed. Later CI is authoritative. Temporary assembly scripts/workflow are removed. StartPlacement is unchanged from the integrated master; owner-rejected start-ties is removed. The older PR branch and master are not modified. No performance improvement is claimed."
+}

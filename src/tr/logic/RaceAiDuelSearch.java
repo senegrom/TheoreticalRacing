@@ -109,7 +109,7 @@ final class RaceAiDuelSearch {
             final long turn, final int ownMovesLeft, final Budget budget) {
         if (!budget.take()) return UNKNOWN;
         if (timedOut(game, turn))
-            return 1;
+            return timeoutWin(game, mine, rival, false) ? 1 : UNKNOWN;
         int worst = 1;
         for (final Direction reply : DIRECTIONS) {
             final RaceGame.MoveResult result = move(game, rival, mine, reply);
@@ -134,7 +134,7 @@ final class RaceAiDuelSearch {
             final long turn, final int ownMovesLeft, final Budget budget) {
         if (!budget.take()) return UNKNOWN;
         if (timedOut(game, turn))
-            return UNKNOWN;
+            return timeoutWin(game, mine, rival, true) ? 1 : UNKNOWN;
         int best = UNKNOWN;
         for (final Direction d : DIRECTIONS) {
             if (!inPlanningDomain(mine, d))
@@ -149,6 +149,13 @@ final class RaceAiDuelSearch {
             }
         }
         return best;
+    }
+
+    private static boolean timeoutWin(final RaceGame game, final State mine, final State rival,
+            final boolean ourTurn) {
+        return RaceTimeout.progress(game, mine.lap, mine.gate, mine.x, mine.y, mine.vx, mine.vy, ourTurn ? 0 : 1)
+                .compareTo(RaceTimeout.progress(game, rival.lap, rival.gate, rival.x, rival.y,
+                        rival.vx, rival.vy, ourTurn ? 1 : 0)) < 0;
     }
 
     private static boolean inPlanningDomain(final State state, final Direction d) {
@@ -167,6 +174,6 @@ final class RaceAiDuelSearch {
      * A long keeps projected arithmetic safe at the query protocol's int limit.
      */
     private static boolean timedOut(final RaceGame game, final long turn) {
-        return game.lapGates != null && turn > (long) game.totalLaps * 750 * game.players.length;
+        return RaceTimeout.reached(game, turn);
     }
 }

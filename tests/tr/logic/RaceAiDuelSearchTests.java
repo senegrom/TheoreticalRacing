@@ -165,8 +165,9 @@ public final class RaceAiDuelSearchTests {
         check(atBoundary != null && winsAfter(g,g.players[0],g.players[1],atBoundary,limit-2,2),
                 "legal move at the exact turn boundary was rejected");
         g.setQueryTurnCounter(limit-1);
-        check(RaceAiDuelSearch.winWithinTwoMoves(g,1) == null,
-                "promised a second move after our own timeout");
+        final Direction progressWin=RaceAiDuelSearch.winWithinTwoMoves(g,1);
+        check(progressWin != null && winsAfter(g,g.players[0],g.players[1],progressWin,limit-1,2),
+                "lost a progress-classified win without promising another move");
         g.setQueryTurnCounter(limit);
         final Direction last = RaceAiTactics.winNow(g,1);
         check(last != null && winsAfter(g,g.players[0],g.players[1],last,limit,2),
@@ -272,13 +273,15 @@ public final class RaceAiDuelSearchTests {
      */
     private static boolean winsAfter(final RaceGame g, final Player me, final Player rival,
             final Direction d, final long turn, final int ownMoves) {
-        if (timeout(g,turn) || RaceGame.aiVelocityOutOfRange(
+        if (timeout(g,turn)) return timeoutProgressWin(g,me,rival,true);
+        if (RaceGame.aiVelocityOutOfRange(
                 me.getVelocity()[0]+d.dx,me.getVelocity()[1]+d.dy))
             return false;
         final RaceGame.MoveResult ours = move(g,me,rival,d);
         if (!ours.legal()) return false;
-        if (ours.finishes() || timeout(g,turn+1)) return true;
+        if (ours.finishes()) return true;
         final Player after = advance(me,d,ours);
+        if (timeout(g,turn+1)) return timeoutProgressWin(g,after,rival,false);
         for (final Direction reply : DIRECTIONS) {
             final RaceGame.MoveResult theirs = move(g,rival,after,reply);
             if (theirs.finishes()) return false;
@@ -295,6 +298,11 @@ public final class RaceAiDuelSearchTests {
             if (!answered) return false;
         }
         return true;
+    }
+
+    private static boolean timeoutProgressWin(final RaceGame g, final Player me, final Player rival,
+            final boolean ownTurn) {
+        return RaceTimeout.progress(g,me,ownTurn?0:1).compareTo(RaceTimeout.progress(g,rival,ownTurn?1:0))<0;
     }
 
     private static boolean timeout(final RaceGame g, final long turn) {

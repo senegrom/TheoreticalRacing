@@ -25,6 +25,7 @@ import tr.gui.StartDialog;
  * @author CGH
  */
 public final class RaceGame {
+    FollowupPlans followups = new FollowupPlans();
 	private static final Direction[] DIRECTIONS = Direction.values();
 	final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
@@ -91,6 +92,7 @@ public final class RaceGame {
 	/** Complete pre-move state used to undo a human move and every AI reply
 	 *  that followed it. Auto-play does not allocate snapshots. */
 	private static final class MoveSnapshot {
+        final FollowupPlans followups;
 		final int		finishedFirst;
 		final int		finishedLast;
 		final int[]	finishedPlaces;
@@ -104,6 +106,7 @@ public final class RaceGame {
 		final int[][]	velocities;
 
 		MoveSnapshot(final RaceGame game) {
+            followups = game.followups.copy();
 			subgamestate = game.subgamestate;
 			startZoneGone = game.startZoneGone;
 			finishedFirst = game.finishedFirst;
@@ -126,6 +129,7 @@ public final class RaceGame {
 		}
 
 		void restore(final RaceGame game) {
+            game.followups = followups.copy();
 			game.subgamestate = subgamestate;
 			game.finishedFirst = finishedFirst;
 			game.finishedLast = finishedLast;
@@ -167,6 +171,7 @@ public final class RaceGame {
 		}
 
 		candidateSlots = parseCandidateSlots(prop.getProperty("candidateSlots"), maxPlayers);
+        racecraftNext = new RacecraftNext(prop);
 		gameFrame = new GameUI(NAME + " " + VERSION, maxPlayers);
 	}
 
@@ -175,6 +180,16 @@ public final class RaceGame {
 	 *  no candidate anywhere. The head-to-head instrument races each seed twice
 	 *  with the assignment mirrored, so grid advantage cancels. */
 	private final boolean[] candidateSlots;
+    final RacecraftNext racecraftNext;
+    boolean racecraftReplay;
+
+    int researchFinishedFirst() { return finishedFirst; }
+    int researchFinishedLast() { return finishedLast; }
+    void researchClassification(final int first, final int last) {
+        finishedFirst = first; finishedLast = last;
+    }
+    String researchFinishIdentity() { return finishFwdX + "," + finishFwdY + ":" + lapIdentity(); }
+
 
 	static boolean[] parseCandidateSlots(final String spec, final int maxPlayers) {
 		final boolean[] slots = new boolean[maxPlayers + 1];
@@ -1957,7 +1972,7 @@ public final class RaceGame {
 	}
 
 	boolean raceTurnLimitReached() {
-		return lapGates != null && turnCounter > (long) totalLaps * 750 * players.length;
+		return RaceTimeout.reached(this, turnCounter);
 	}
 
 	int turnCount() {
@@ -1997,6 +2012,8 @@ public final class RaceGame {
 		}
 		if (!autoMode)
 			moveHistory.push(new MoveSnapshot(this));
+        if (ai != null) ai.commitResearchPlan(d);
+        else followups.put(subgamestate, null);
 		// The gate credit belongs to a move that actually happens: the confirm
 		// above can still abandon this one, and the snapshot has to record the
 		// pre-move gate ledger so Undo can put it back.
@@ -2053,8 +2070,8 @@ public final class RaceGame {
 
 	/** Most progress first: fewer events owed (laps, then checkpoints), then
 	 *  nearer the next one, then the car that would move sooner. */
-	static final java.util.Comparator<Standing> BY_PROGRESS = java.util.Comparator
-			.comparingInt(Standing::owed).thenComparingInt(Standing::toGate).thenComparingInt(Standing::order);
+	static final java.util.Comparator<Standing> BY_PROGRESS = (a, b) -> new RaceTimeout.Progress(a.owed(), a.toGate(), a.order())
+                    .compareTo(new RaceTimeout.Progress(b.owed(), b.toGate(), b.order()));
 
 	/** The race turn limit ends the race for every car still racing at once,
 	 *  classified by progress (the owner, 2026-09-29). They used to retire in
@@ -2069,8 +2086,8 @@ public final class RaceGame {
 			final Player p = players[(subgamestate + k) % players.length];
 			if (p.isFinished())
 				continue;
-			standing.add(new Standing(p, OptimalPotential.remainingEvents(p.getNextGate(), p.getLap(), totalLaps),
-					turnsToGateOrUnknown(p), k));
+			final RaceTimeout.Progress progress = RaceTimeout.progress(this, p, k);
+            standing.add(new Standing(p, progress.owed(), progress.toGate(), progress.order()));
 		}
 		standing.sort(BY_PROGRESS);
 		final StringBuilder ranked = new StringBuilder();
@@ -2089,17 +2106,6 @@ public final class RaceGame {
 		checkFinished();
 	}
 
-	/** Turns to the car's next gate on the reachability maps, or unknown. */
-	private int turnsToGateOrUnknown(final Player p) {
-		if (!reach.isReady())
-			return Integer.MAX_VALUE;
-		final int[] pos = p.getPosition(), vel = p.getVelocity();
-		try {
-			return reach.turnsToGate(p.getNextGate(), pos[0], pos[1], vel[0], vel[1]);
-		} catch (final RuntimeException noMaps) { // a failed preparation: the order decides
-			return Integer.MAX_VALUE;
-		}
-	}
 
 	private static Direction directionOf(final int[] velBefore, final int[] velAfter) {
 		final int dx = velAfter[0] - velBefore[0];

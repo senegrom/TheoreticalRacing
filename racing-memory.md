@@ -1,5 +1,90 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Executable strategy research (2026-10-08, branch only)
+
+Six independent arms: suffix-manoeuvres, response-strategy, place-certificates,
+forced-sequence, continuation-policies, ordered-blockade. Recover the earlier
+research foundation while preserving current master b907126 and the 301a/301c
+promotions. All extra policy changes require explicit candidate slots and flags.
+Responses carry finite clock-keyed trees; suffixes remain fresh proposals; three-car
+bounds nominate, never equate unknown with loss; forced search counts physical
+alternatives; ordered blockade clears only exhaustive impossibility. No promotion
+or performance gain claimed. Executed validation is recorded separately.
+
+## Traffic browser compatibility (2026-10-07, branch only)
+
+The final browser build found two List.getFirst calls in FollowupPlans
+and TrafficManoeuvres that the browser target does not provide. Both
+lists are nonempty by construction. Use get(0), with identical driving
+decisions. JDK 25/26 builds and full Java contracts, Python contracts and
+the browser-compatible engine build passed before this repair was pushed.
+No algorithm, default, owner rule, master, track, or map change. The new
+combined traffic/corpus matrix is tracked separately from the earlier
+adaptive-only corpus results. Full browser parity and fleet evaluation
+are not implied by a successful browser compilation.
+
+## Traffic branch finalization (2026-10-07, not promoted)
+
+Verified the interrupted implementation was committed as 340ec72 and its
+assembly run 37535808108 passed JDK 25 contracts, Python tests, 32 baseline
+controls, six full-suffix counterfactual cases, 30 independent traffic-arm
+races, all twelve goldens and every champion pin. Removed the temporary
+assembly inputs and self-writing workflow. Persistent read-only CI now pins
+current master 82d259a instead of the old 1c50a5c baseline, runs all six
+traffic arms independently, and adds a separate combined traffic/adaptive
+control plus full-suffix corpus matrix (including manoeuvre policy memory).
+JDK 26 and browser repeats are scheduled, not claimed passed here. No new
+driving changes, default-policy changes, fleet promotion, or place gain.
+
+## Peer traffic-opportunity experiments (2026-10-06, not promoted)
+
+Integrated current master 82d259a, preserving 281/292b/299/300a and the owner rules.
+Independent candidate-only flags: denial, manoeuvre, checkpoint-traffic,
+decision-endpoint, staged-order, short-transitions. The multi-move graph nominates
+at most two trajectories; every proposal and the incumbent are reforecast under
+one common all-scorer continuation with exact referee transitions. Its schedule
+is only a proposal model. Bounded suffixes are committed/read/replayed/undone as
+policy state (rc5); hints do not consume them. Existing experiment flags remain.
+No map, user.properties, fleet track, default policy, or master modification.
+No performance or promotion evidence is claimed. Test results are recorded in
+docs/experiments/traffic-opportunities/validation.json only after execution.
+
+
+## Adaptive response research (2026-10-03, branch only)
+
+Owner request: implement adaptive escapes, inherited opening follow-ups,
+failure-triggered candidate expansion and endpoint-triggered extension.
+Base: 1c50a5c on work/racecraft-outcomes-opening-20260928; master remains
+b54e9bb. New opt-in racecraftNext flags: adaptive-escape, followup, recovery,
+tactical-extension. All require candidateSlots. Followup refines opening and
+requires that flag too. No start-placement changes, no yielding, no promotion.
+Adaptive certificates cover exactly two live cars, finite horizon, all physical
+rival accelerations, unchanged escape-count requirements and decreasing exact
+solo distance. Budget exhaustion and absent exact lap potentials abstain.
+Follow-up proposals are saved only when their first action is committed, expire
+on board/clock/rule mismatch or end of opening, and are candidates, never forced
+moves. Undo and rc4 snapshots preserve pending plans; cf4 request hashing also
+binds this optional policy state. UI path-pruning marks are not plan identity.
+Recovery admits every remaining physical legal action within its explicit trial
+budget only after all compared originals predict known crashes. Extended
+comparisons repeat every considered action at one common horizon (+1/+2 roster
+cycles), keeping the same opponent model. Neither feature treats unknown as a
+crash or a proof. Existing pace and danger guards remain downstream.
+Validation outcomes are recorded separately after execution. Earlier round-298
+screens do not evaluate these implementations. No fleet/lone-entrant gain claimed.
+
+## Peer branch review repairs (2026-10-02, not promoted)
+
+Integrated master b54e9bb (rounds 291/296 and the current owner rules) into
+work/racecraft-outcomes-opening-20260928. Review repairs share projected
+progress classification at timeout, isolate experimental controls, remove the
+owner-rejected start-ties replay, and harden opening/corpus validation.
+The old round-298 screens are not evidence for these repaired variants.
+No fleet or lone-candidate gain is claimed; completed validation is recorded
+separately after execution. Master and the earlier PR are not modified.
+
+
+
 ## Round 302 (2026-10-08): the pace overrides answering to the chooser's verdict -- dead
 
 Arm B of the post-chooser map (E:/tmp-claude/review3/post_chooser_design.md).

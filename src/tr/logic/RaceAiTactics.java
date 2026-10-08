@@ -77,6 +77,9 @@ final class RaceAiTactics {
                 return d;
         }
 
+        // At the limit the rival is classified by progress, not forced to move.
+        // The deeper solver evaluates the candidate's projected progress instead.
+        if (RaceTimeout.reached(game, (long) game.turnCount() + 1)) return null;
         int escapeX = 0, escapeY = 0, escapes = 0;
         for (final Direction d : DIRECTIONS) {
             final int x = rp[0] + rv[0] + d.dx, y = rp[1] + rv[1] + d.dy;
