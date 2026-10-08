@@ -63,6 +63,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git restore --source=HEAD --staged --worktree .github/workflows/racecraft-next.yml
           git add src tests tools docs run_tests.sh racing-memory.md
           git diff --cached --check
           git diff --exit-code b907126230b0c5a71c91b62430fa32469e58b895 -- tracks/ user.properties
