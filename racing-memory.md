@@ -1,5 +1,32 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 303 (2026-10-08 to 10): the chooser lab's ideas re-tested on today's champion
+
+The owner asked to try every idea of the round-263 chooser lab again
+(2026-10-08). Each was ported onto master e7af034 (round 301c) as a
+candidate-gated arm, reviewed, identity-checked on the box and screened
+against the champion: mirrored, 8 cars, seeds 1-10 unless stated. Scripts:
+E:/tmp-claude/arm285_aware.py and E:/tmp-claude/labport*/. Not re-run: the two
+legacy controls (they insert the pre-chooser ranker) and prefix (a
+byte-identical CPU saving).
+
+| Idea | What the candidate does | CPU | Random starts | Further slices |
+|---|---|---|---|---|
+| aware | The mover's own and the most-interacting rival's FIRST forecast move use their full policy (chooser, overrides, guards); every call beneath them is suppressed, the lab's bound | 2.65x | -0.166 +- 0.021 (61/15/8; crashes 42:50) | held-out -0.150 +- 0.019 (61/17/6; 31:45); computed -0.138 +- 0.018 (58/19/7; 39:42); lone check -0.142 +- 0.018 (63/12/9; 13:14); scattered and duels running |
+| setup | Each shortlisted landing is also forecast with one deliberate alternative second action and valued by its best plan (lab rule) | 1.43x | -0.078 +- 0.020 (50/26/8; 47:53) | held-out -0.087 +- 0.020 (54/27/3; 43:56); computed -0.068 +- 0.018 (50/24/10; 38:42); tie control, strict plan wins only: -0.033 +- 0.015 (38/33/13; 40:37); lone, scattered and duels running |
+| contingent | Two reply worlds for the most-interacting rival; a switch only on dominance in both | 1.83x | -0.026 +- 0.012 (42/24/18; 28:28) | -- |
+| terminal | Resolved forecasts ranked by referee place, then own moves | 0.97x | -0.000 +- 0.001 (3/2/79) | inert: the rank-first verdict already does it |
+| assist | The lab's model proposes one extra landing outside the shortlist | 1.40x | +0.113 +- 0.016 (17/59/8; 40:39) | the winner's curse: its winning extras are 0.67 map turns slower and needle-heavy |
+| student | A model distilled from today's chooser (84 races, 149k decisions) replaces aware's nested chooser | 2.57x | +0.405 +- 0.026 (8/73/3; 74:97) | agrees with the teacher's best 87.6% of the time against 97.9% for keeping the score's landing |
+
+Aware carries the lab's -0.184 almost whole to a champion forty rounds
+stronger, and holds on fresh seeds, on computed starts and as a lone entrant;
+whether 2.65x the CPU is a price worth paying is the owner's call. Setup's gain
+replicates; about 40% of it survives when only strict plan wins may switch,
+and the rest comes from exact plan ties handing the pick to the score's order,
+mostly in the opening pack. Contingent is too small for its cost, terminal is
+subsumed, assist and student lose.
+
 ## Round 302 (2026-10-08): the pace overrides answering to the chooser's verdict -- dead
 
 Arm B of the post-chooser map (E:/tmp-claude/review3/post_chooser_design.md).
