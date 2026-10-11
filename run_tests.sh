@@ -36,3 +36,5 @@ java -ea -Djava.awt.headless=true -cp test-bin tr.logic.StrategyResearchTests
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.StrategyTransitionTests
 
 java -ea -Djava.awt.headless=true -cp test-bin tr.logic.CreativeRacecraftTests
+
+java -ea -Djava.awt.headless=true -cp test-bin tr.logic.CreativeMemoryTests

@@ -336,7 +336,7 @@ final class RacecraftReplay {
      * or an explicitly marked work limit. Never treat a truncated tail as a label. */
     static String answer(final RaceGame game, final String line) {
         final int divider = line.indexOf('|');
-        if (divider < 0 || line.length() > 17000) throw new IllegalArgumentException("invalid cf4 request");
+        if (divider < 0 || line.length() > 280000) throw new IllegalArgumentException("invalid cf4 request");
         final String[] h = line.substring(0, divider).split(",", -1);
         if (h.length != 3 || !h[0].equals("cf4")) throw new IllegalArgumentException("cf4 requires bound and observed action");
         final int bound = Integer.parseInt(h[1]);

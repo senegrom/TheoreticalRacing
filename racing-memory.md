@@ -1,5 +1,12 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Creative replay compatibility (2026-10-11, branch only)
+
+The capture parser now accepts validated rc6 response tables and the cf4
+request boundary matches the bounded full snapshot size. Creative-only pending
+suffixes and oversized-but-valid response-memory replays gain explicit tests.
+No driving decision, saved settings, tracks or master policy change.
+
 ## Creative racecraft branch (2026-10-11, not promoted)
 
 Opt-in endpoint-preserving feints, complete-layer ambush proposals, poisoned gaps
