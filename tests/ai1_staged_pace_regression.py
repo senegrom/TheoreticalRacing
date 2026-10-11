@@ -53,10 +53,13 @@ EXACT_MOVES = {
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts);
     # p7 and p5, which crashed there, now finish -- seven finishers again.
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 71],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    ("silverstone", 15): [82, 83, 83, 84, 84, 85, 85],
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
+    # the same seven finishers in a new order (p4 now wins on its 82nd move), one move fewer.
+    ("silverstone", 15): [82, 83, 83, 84, 84, 84, 85],
 }
 
 
@@ -118,7 +121,14 @@ def main() -> int:
             # Round 301c: re-frozen from measurement (the mover plays its own scorer in four more danger
             # searches); Le Mans 11, whole since round 296, drops two (p8 on its 40th move, p7 on its
             # 41st) -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("hungaroring", 10): (6, 1), ("lemans", 11): (5, 2)}
+            # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
+            # Le Mans 11 keeps both cars it lost in round 301c (p7 now finishes sixth on its 71st move,
+            # p8 seventh on its 72nd) and Hungaroring 10 keeps its car again (p5, lost on its 11th move
+            # since round 301a', now finishes seventh on its 128th), so both leave this list and take
+            # the (7, 0) default; Silverstone 18, whole in every round since this pin began (round 83),
+            # drops one (p8 on its 75th move), and Hungaroring 4 still drops one, now p2 on its 12th
+            # move -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("silverstone", 18): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

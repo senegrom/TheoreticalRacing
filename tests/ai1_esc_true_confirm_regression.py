@@ -17,6 +17,16 @@ seventh home before, is the car still running at the end, so seven
 finishers become six. No car loses a place: the classification is
 unchanged, p1 eighth. Recorded, not vetoed (CLAUDE.md): the pin now holds
 the measured finishers and crashes.
+
+Round 303 (aware forecasts, the chooser lab's aware promoted): the race is
+crash-free again. It first plays differently on p1's 16th move (turn 121);
+p1, which crashed on its 44th move in rounds 301a' and 301c (turn 345, in
+the pack at (62,116)), now comes through that pack and home seventh on its
+117th move (turn 912), so six finishers become seven again. p8, still the
+car running at the end, now after 116 moves, drops from seventh to eighth:
+p1 takes the place p8 loses, the reverse of the order before round 301a'
+(p8 seventh home on its 116th move, p1 eighth). The pin holds the measured
+finishers and crashes, the round-107 7/0 again.
 """
 
 from pathlib import Path
@@ -49,12 +59,16 @@ def main() -> int:
     # still running at the end before, now crashes on its 44th move and seven finishers become six: p8,
     # seventh home on its 116th move before, is now the car still running at the end after 114 moves.
     # The classification is unchanged (p1 eighth) -- recorded, not vetoed.
-    if crashes != 1 or finishes != 6:
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p1, which
+    # crashed on its 44th move in rounds 301a' and 301c, now keeps its race and comes home seventh on its
+    # 117th, so six finishers become seven again: p8, still the car running at the end, now after 116
+    # moves, drops from seventh to eighth -- crash-free again, and that is what is pinned below.
+    if crashes != 0 or finishes != 7:
         raise SystemExit(
             "ESC true-confirm regression: hungaroring s144 finishes="
-            f"{finishes} crashes={crashes} (expected 6/1)"
+            f"{finishes} crashes={crashes} (expected 7/0)"
         )
-    print("ai1 ESC true-confirm pin OK: hungaroring s144 6/1")
+    print("ai1 ESC true-confirm pin OK: hungaroring s144 7/0")
     return 0
 
 

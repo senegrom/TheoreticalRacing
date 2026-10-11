@@ -36,7 +36,8 @@ MAX_FINISH_MOVE_SUM = 891
 FINISH_EXPECTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("bigoval", 7): [20, 20, 21, 22, 22, 22, 22],
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+    ("bigoval", 7): [20, 20, 21, 21, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).

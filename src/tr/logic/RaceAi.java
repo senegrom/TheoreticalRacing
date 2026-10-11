@@ -3124,6 +3124,9 @@ final class RaceAi {
 		final int n = game.players.length;
 		final int ss = game.subgamestate;
 		final boolean previousScorerSim = inScorerSim;
+		final boolean upgrade = awareUpgrade;
+		awareUpgrade = false;
+		final int outerAwarePolicyDepth = awarePolicyDepth;
 		// Round 222: the rival's compute assigns ITS lap frame at entry --
 		// gate, lap-awareness, robust flag, remaining events. Put the mover's
 		// back afterwards, or the rest of this decision is priced on the
@@ -3161,10 +3164,13 @@ final class RaceAi {
 				player.restoreLapState(new int[]{rollout.laps[j], rollout.gates[j], 0, 0, 0, 0});
 			}
 			game.subgamestate = i;
-			inScorerSim = suppress;
+			inScorerSim = suppress || awarePolicyDepth > 0;
+			if (upgrade)
+				awarePolicyDepth++;
 			direction = computeAiMove();
 		} finally {
 			inScorerSim = previousScorerSim;
+			awarePolicyDepth = outerAwarePolicyDepth;
 			lapGate = outerLapGate;
 			lapAware = outerLapAware;
 			robustMode = outerRobustMode;
@@ -3402,6 +3408,13 @@ final class RaceAi {
 	 *  projected total turns as time -- its finishing round rather than 0 -- for
 	 *  the rollout started at simDepth == placeKeyDepth. */
 	private static final long PLACE_KEY_STRIDE = VERDICT_PLACE_STRIDE;
+	/** Round 285: the forecast depth whose mover and relevant rival make their
+	 *  first move with the full policy; -1 for none. */
+	private int awareDepth = -1, awareRival = -1;
+	/** Lab port: set by awareMoveOverState for exactly one scorerMoveOverState
+	 *  call; every policy call beneath that upgraded move runs suppressed. */
+	private boolean awareUpgrade;
+	private int awarePolicyDepth;
 	private long placeKey = -1;
 	private int placeKeyDepth = -1;
 
@@ -3511,6 +3524,12 @@ final class RaceAi {
 				scorerSet[nearest] = true;
 			}
 		}
+		// Round 285: in an aware forecast the mover's and the relevant rival's first
+		// moves use the full policy.
+		final boolean awareRollout = simDepth == awareDepth;
+		boolean awareSelfDone = !awareRollout;
+		boolean awareRivalDone = !awareRollout || awareRival < 0;
+		final int awareRivalIdx = awareRival;
 		final boolean trace = simTrace && simDepth == 1;
 		if (trace) {
 			final StringBuilder sb = new StringBuilder("SIMTRACE start me=i").append(myIdx)
@@ -3562,7 +3581,13 @@ final class RaceAi {
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
 				boolean moved;
-				if (i == myIdx)
+				if (!awareSelfDone && i == myIdx) {
+					awareSelfDone = true;
+					moved = awareMoveOverState(i, px, py, vx, vy, alive, move, workspace);
+				} else if (!awareRivalDone && i == awareRivalIdx) {
+					awareRivalDone = true;
+					moved = awareMoveOverState(i, px, py, vx, vy, alive, move, workspace);
+				} else if (i == myIdx)
 					moved = scorerSelf
 							? scorerMoveOverState(i, px, py, vx, vy, alive, move, workspace)
 							: exactSelf
@@ -4525,6 +4550,16 @@ final class RaceAi {
 			final int outerKeyDepth = placeKeyDepth;
 			placeKeyDepth = simDepth + 1;
 			placeKey = -1;
+			// Round 303 (the chooser lab's aware, promoted): in a top-level chooser's forecast
+			// the mover's own first continuation and the most-interacting rival's first move
+			// play their full policy (-0.150 places on held-out seeds, -0.142 as a lone
+			// entrant against round 301c; CPU 2.65x, accepted by the owner).
+			final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
+			if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0) {
+				awareDepth = simDepth + 1;
+				awareRival = relevantRival(playerNum, pos, nx, ny, nvx, nvy);
+			} else
+				awareDepth = -1;
 			// Round 281: every live rival plays its scorer in this rollout, at any
 			// distance -- not only the three nearest within AI1_SCORER_NEAR, the rest
 			// by the smom proxy (-0.172 places on held-out seeds, CPU 1.32x).
@@ -4538,6 +4573,8 @@ final class RaceAi {
 			}
 			final long key = placeKey;
 			placeKeyDepth = outerKeyDepth;
+			awareDepth = outerAwareDepth;
+			awareRival = outerAwareRival;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
 			if (d == pace)
 				paceVerdict = verdict;
@@ -4557,6 +4594,51 @@ final class RaceAi {
 	 *  itself, or (round 301a') rank one it already held strictly worse than its
 	 *  pick? Then the pick stands against the round-34 pace swap. */
 	private boolean chooserJudgedPace;
+
+	/** Round 285 (lab port): one upgraded forecast move -- the car's full,
+	 *  unsuppressed policy, its own chooser included. The nested decision
+	 *  writes the pace flag the OUTER chooser owns; put it back. */
+	private boolean awareMoveOverState(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final boolean[] alive, final int[] out,
+			final RolloutWorkspace rollout) {
+		final boolean outerJudgedPace = chooserJudgedPace;
+		awareUpgrade = true;
+		try {
+			return scorerMoveOverState(i, px, py, vx, vy, alive, out, rollout, false);
+		} finally {
+			awareUpgrade = false;
+			chooserJudgedPace = outerJudgedPace;
+		}
+	}
+
+	/** Round 285: the rival with the strongest two-cycle interaction with the
+	 *  mover once it lands on (nx, ny) at (nvx, nvy) -- the lab's relevant car. */
+	private int relevantRival(final int playerNum, final int[] pos, final int nx, final int ny,
+			final int nvx, final int nvy) {
+		final int n = game.players.length;
+		final int[] x = new int[n], y = new int[n], vx = new int[n], vy = new int[n];
+		final int[] lap = new int[n], gate = new int[n];
+		final boolean[] alive = new boolean[n];
+		int focal = -1;
+		for (int i = 0; i < n; i++) {
+			final Player p = game.players[i];
+			final int[] q = p.getPosition(), w = p.getVelocity();
+			x[i] = q[0]; y[i] = q[1]; vx[i] = w[0]; vy[i] = w[1];
+			lap[i] = p.getLap();
+			gate[i] = game.lapGates == null ? 0 : p.getNextGate();
+			alive[i] = !p.isFinished();
+			if (p.getNumber() == playerNum)
+				focal = i;
+		}
+		if (focal < 0)
+			return -1;
+		final RaceGame.MoveResult landed = game.evaluateMove(lap[focal], gate[focal], pos[0], pos[1],
+				nx, ny, false);
+		x[focal] = nx; y[focal] = ny; vx[focal] = nvx; vy[focal] = nvy;
+		lap[focal] = landed.lapAfter();
+		gate[focal] = game.lapGates == null ? 0 : landed.gateAfter();
+		return ChooserTraffic.relevant(game, x, y, vx, vy, lap, gate, alive, focal);
+	}
 
 	/** Round 262: Chebyshev distance to the nearest live rival, or Integer.MAX_VALUE
 	 *  when every rival has finished. */

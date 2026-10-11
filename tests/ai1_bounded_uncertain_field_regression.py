@@ -51,12 +51,14 @@ PROOF_VETO = ("lemans", 87)
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p2, seventh home before, now crashes on its 44th move -- recorded, not vetoed.
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p2, which crashed on its 44th move in round 281, finishes seventh in 73 moves again -- seven finishers and no crash.
 # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
-PROMOTED = (7, 0, [66, 67, 68, 69, 70, 72, 73])
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+PROMOTED = (7, 0, [66, 67, 68, 69, 70, 71, 73])
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
 # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 68), (7, 69), (8, 70), (2, 72), (4, 73)]
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 68), (6, 69), (7, 70), (8, 71), (2, 73)]
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
 PROMOTED_CRASHES = []
@@ -64,7 +66,8 @@ PROMOTED_CRASHES = []
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
 # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
-PROMOTED_ALL_MOVES = {1: 66, 2: 72, 3: 67, 4: 73, 5: 68, 6: 72, 7: 69, 8: 70}
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 72, 5: 68, 6: 69, 7: 70, 8: 71}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -85,7 +88,8 @@ RETENTION_CASES = {
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout); p1, sixth home in 73 moves before, now crashes on its 55th move -- six finishers, recorded, not vetoed.
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p1, which crashed on its 55th move in round 300a, finishes fifth in 71 moves -- seven finishers and no crash again.
-    PROOF_VETO: ((7, 0, [66, 67, 68, 69, 71, 72, 73]),
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p3, seventh home in 73 moves before, now crashes on its 66th move -- six finishers, recorded, not vetoed (AGENTS.md).
+    PROOF_VETO: ((6, 1, [66, 67, 68, 69, 70, 72]),
                  # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
                  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
                  # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -93,7 +97,8 @@ RETENTION_CASES = {
                  # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
                  # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
                  # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-                 'b72ab273074392850d983ee3668805c9026ffd36be98f0634a19102faab6a9e4'),
+                 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+                 '0cca1c3a592dd72be3aebdc5766b6d622bf1e79c9f1f588f986321ee3ec189d3'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
@@ -102,26 +107,30 @@ RETENTION_CASES = {
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p6, which crashed on its 40th move in round 300a, finishes seventh in 73 moves -- seven finishers and no crash again, as before round 278.
-    ("lemans", 93): ((7, 0, [66, 67, 68, 69, 70, 71, 73]),
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p6, seventh home in 73 moves before, crashes on its 40th move again, on round 300a's turn and cell -- six finishers, recorded, not vetoed (AGENTS.md).
+    ("lemans", 93): ((6, 1, [66, 67, 68, 69, 70, 71]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
                      # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
                      # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-                     '74a6005fb7380c4d92bda20a7197e7fb2bcfb13618e028fb173cf8580e802677'),
+                     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+                     '5129e78809f7bff3c70bcb8e6eb3a41e6016fdc7314a8b20b273a182279978e0'),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 72, 73]),
+    # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 71, 73]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
                      # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
                      # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
                      # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
                      # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-                     '21e838b924e0e6236ff06c14a2b10a927f1e061ba998c0a99c5f118082735a7a'),
+                     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+                     '5615d313bced447054071637ca8856f5c1a35955f5450c7257cbb465f944ad2d'),
     # Spa s12, s31, s40, s47 and Silverstone s78 raced here too: the same fixture
     # geometry, profile and roster as ai1_six_ahead_high_speed_regression, which
     # pins the same races by summary and digest -- so they race once, there

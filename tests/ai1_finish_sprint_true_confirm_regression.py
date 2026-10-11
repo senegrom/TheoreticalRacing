@@ -34,11 +34,12 @@ TARGET = ("rand3", 1)
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-PROMOTED = (7, 0, [60, 61, 61, 62, 63, 63, 64])
-PROMOTED_FINISHERS = [(1, 60), (3, 61), (4, 61), (5, 62), (6, 63), (7, 63), (8, 64)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 64, 3: 61, 4: 61, 5: 62, 6: 63, 7: 63, 8: 64}
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+PROMOTED = (7, 0, [60, 61, 61, 62, 62, 63, 63])
+PROMOTED_FINISHERS = [(1, 60), (3, 61), (4, 61), (5, 62), (6, 62), (7, 63), (8, 63)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 63, 3: 61, 4: 61, 5: 62, 6: 62, 7: 63, 8: 63}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
-PROMOTED_SHA256 = '42d4b01aa7c78c36e540cb5f21e35a23bd2d3d9625152c304641862028a00673'
+PROMOTED_SHA256 = 'ca1140cea08ea247555c9a8fab6e1f08eca9a7d09fb97680f160142b64d43fc2'
 
 
 def main() -> int:

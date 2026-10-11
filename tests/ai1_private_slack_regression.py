@@ -44,10 +44,11 @@ HUNGARORING_SEED = 12
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p2 crashes again, now on its 28th move (six finishers) -- recorded, not vetoed.
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); a car that crashed there now finishes (p2, lost on its 28th move since round 292b, is seventh on its 129th move).
-HUNGARORING_PROMOTED = (7, 0, [121, 122, 123, 124, 125, 127, 129])
-HUNGARORING_PROMOTED_FINISHERS = [(3, 121), (4, 122), (5, 123), (6, 124), (7, 125), (1, 127), (2, 129)]
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+HUNGARORING_PROMOTED = (7, 0, [121, 122, 123, 124, 125, 127, 128])
+HUNGARORING_PROMOTED_FINISHERS = [(3, 121), (4, 122), (6, 123), (7, 124), (8, 125), (1, 127), (2, 128)]
 HUNGARORING_ALL_MOVES = {
-    "AI2": {1: 127, 2: 129, 3: 121, 4: 122, 5: 123, 6: 124, 7: 125, 8: 128},
+    "AI2": {1: 127, 2: 128, 3: 121, 4: 122, 5: 127, 6: 123, 7: 124, 8: 125},
 }
 HUNGARORING_NORMALIZED_SHA256 = (
     # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
@@ -59,7 +60,7 @@ HUNGARORING_NORMALIZED_SHA256 = (
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    '18424d8d7ca1512507cdb20689e4b3a197f37c1fa66fec0280c393a10fdc9d69'
+    '996d27d497e5cb2c8d3281cf5fb0ad56ab3018894143b09571a4a19db1c640f7'
 )
 
 # Each case pins one false-positive class from the broader score-slack screens:
@@ -78,10 +79,10 @@ VETO_CASES = {
     # its 57th move); six cases re-frozen from measurement -- recorded, not vetoed
     # (AGENTS.md).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); Spa s1 loses a car (p7 now crashes on its 28th move) -- recorded, not vetoed.
-    ("lemans", 2): (7, 0, [66, 67, 68, 69, 70, 72, 72]),
+    ("lemans", 2): (7, 0, [66, 67, 68, 69, 70, 70, 71]),
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); a car that crashed there now finishes (p7, lost on its 28th move since round 281, is sixth on its 82nd move).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("spa", 1): (7, 0, [78, 79, 80, 82, 83, 83, 84]),
+    ("spa", 1): (7, 0, [78, 79, 80, 81, 81, 82, 82]),
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247 (the soft rollout at one level, not two): every case below
     # re-frozen from measurement. Hungaroring s40 is whole again; Zandvoort
@@ -91,13 +92,13 @@ VETO_CASES = {
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("hungaroring", 40): (7, 0, [121, 122, 123, 124, 125, 126, 128]),
+    ("hungaroring", 40): (7, 0, [121, 122, 123, 124, 125, 126, 127]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); a car that crashed there now finishes (p2, lost on its 57th move since round 296, is second on its 125th move).
     ("interlagos", 47): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    ("monza", 30): (7, 0, [77, 78, 79, 79, 79, 80, 80]),
+    ("monza", 30): (7, 0, [77, 78, 79, 79, 79, 79, 80]),
     # Round 224 moved this race: still seven finishers and no crash, but the
     # car that misses out changes (car 7 finished before, car 1 finishes now)
     # and the last five finishers each take a few moves longer.
@@ -105,14 +106,14 @@ VETO_CASES = {
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p8 now crashes on its 18th move -- recorded, not vetoed.
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout); a car that crashed there now finishes (p6, lost on its 18th move since round 292b, is seventh on its 120th move).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("monaco", 35): (7, 0, [113, 114, 116, 117, 118, 119, 120]),
+    ("monaco", 35): (7, 0, [113, 114, 115, 116, 118, 119, 120]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     ("zandvoort", 34): (7, 0, [137, 138, 139, 140, 141, 142, 143]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    ("monza", 145): (7, 0, [78, 79, 79, 79, 79, 80, 80]),
+    ("monza", 145): (7, 0, [78, 79, 79, 79, 79, 79, 79]),
     ("serpentine", 38): (7, 0, [103, 103, 103, 103, 103, 103, 103]),
 }
 VETO_NORMALIZED_SHA256 = {
@@ -123,12 +124,12 @@ VETO_NORMALIZED_SHA256 = {
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("lemans", 2): '246ed85041f8379549d8ba6a145b77d03796598473ada0a99020ae369f4b816d',
+    ("lemans", 2): '3df5be01cffa7951e7cfe2d92d90273d3426b10cd8d2236063f0f8e85e0783d2',
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("spa", 1): '5fd591940175cf3c7965d2bcf2c3cb552f2c69215c3600b06871e70d45786f40',
+    ("spa", 1): 'a9f16e2423f57a267700c8705c69a4b7290ddc69ef436d64c53ce678a1c1c1cd',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -138,7 +139,7 @@ VETO_NORMALIZED_SHA256 = {
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("hungaroring", 40): '8dbd95b20b2839a312fb7ea4a9ad3e1638ba12308ddd20d3fb327a0a58df6bb4',
+    ("hungaroring", 40): '02dacc8e39fad573460e654051a09cbd71d5213400e73e32cd1c4ac68aee3c23',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 291: re-frozen from measurement (the grid rule at the finish, finishing without the potential, crossings that do not finish, no field-cost veto).
@@ -146,14 +147,14 @@ VETO_NORMALIZED_SHA256 = {
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("interlagos", 47): '46e1595ee157a19b197ee8f75b3dd94bd3cdcdb3afb7b35d9c1ca05c63426853',
+    ("interlagos", 47): 'db844a1bd8b4b37d639cc6481a69b34f47242ebfc25d4d788582fa56c747db2f',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-    ("monza", 30): '565dba4fe1cc47170dd4a3bd64acbf2642bd1197a6e3395fb16b7ffee4a7b4b5',
+    ("monza", 30): 'd3c96831d74dbaf5f31512a7272d47b51422a35f7d657a24bb3d6e16219d66cd',
     # Round 224, the one case that changes its result: still seven finishers,
     # but car 1 finishes seventh where car 7 used to, and the race is nine
     # moves longer. The fleet cleared the change on 1460 races either side
@@ -164,16 +165,16 @@ VETO_NORMALIZED_SHA256 = {
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); the crash on the 18th move is now p6's, and p8, lost there since round 281, finishes sixth -- recorded, not vetoed.
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("monaco", 35): '9da245fe419a2a677a95e57c08548db03a60a86339ca9c7d1a684c64b185ce4d',
+    ("monaco", 35): '8d712356ef172a038c81867fcd44ccdc74011276fb37f95325f09b26822e300c',
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-    ("zandvoort", 34): 'ebfa06d877d49af07e4000e17a27d2d5630f656b82845d5cf6a56bdc308b4989',
+    ("zandvoort", 34): 'cb775152e6523ecd0501e1f973751a6a1f17a1890bf18cf7c6d6f32365068a85',
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
-    ("monza", 145): '65c5dd39978e1231ffb9def09b94c8373cf03877f9e242e3e7a1da8e3e4159a8',
+    ("monza", 145): '95a3335a4e882cdfd1f13ab4294497379026b7baaecf2911a9061900f331e252',
     # Reject p3's wall-overlap finish at turn 819: its last two approach moves
     # and p6's nearby response move, but the full field's outcome counters do not.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).

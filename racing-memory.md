@@ -1,5 +1,39 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 303 promoted (2026-10-11): aware forecasts
+
+The chooser lab's aware, now every car's. In every forecast a top-level
+chooser rolls out, the mover's own first continuation and the first move of
+the rival that interacts most with it (the lab's two-cycle ChooserTraffic
+graph, on the board after the candidate landing) are played by their full
+policy -- chooser, pace swap, overrides and guards -- instead of the
+suppressed scorer; every policy call beneath such a move runs suppressed (the
+lab's one-level bound). Master 807d3d2 + E:/tmp-claude/review3/promote303aw.py
+(jar 693d4db5, byte-identical to the box's build; new class ChooserTraffic).
+
+Against the 301c champion (arm a303aw): random -0.166 +- 0.021 (61/15/8;
+crashes 42:50), held-out -0.150 +- 0.019 (61/17/6; 31:45), computed -0.138 +-
+0.018 (58/19/7; 39:42), scattered -0.012 +- 0.003 (21/4/59; 11:15), duels
+-0.029 +- 0.005 (15/7/62; 224:485), lone check -0.142 +- 0.018 (63/12/9;
+13:14): a gain on every slice, and its cars crash less. CPU 2.65x, accepted
+by the owner (2026-10-11). The promoted jar races as the arm with every slot a
+candidate (seven random-start and three computed-start races). The cheap
+variant whose nested decision keeps the score's landing instead of rolling
+its chooser out lost +0.026 +- 0.011 (30/30/24): the gain needs those
+rollouts.
+
+Corpus (CI's frozen job on the box; the hand re-frozen tree verified there:
+29 of 29): 11 of 12 goldens and 18 of 25 pins -- the box loop re-froze the
+rest of the trajectory pins, 9 by hand from the probe records, each reviewed.
+Crashes move between races, two fewer in all, recorded, not vetoed: Le Mans
+s87 and s93 (bounded uncertain field), Interlagos s29 (energy pace) and
+Silverstone s18 (staged pace, whole since round 83) lose a car; Zandvoort s44
+(energy pace), Hungaroring s144 (ESC true confirm, back to its round-107 7/0),
+the graduated field's s106, Le Mans s11 (both cars) and Hungaroring s10
+(staged pace) get theirs back. The label-invariance pin needed only its
+reference: the all-AI1, alternating and all-AI2 Coil s5 races still share one
+digest. The browser build compiles ChooserTraffic.
+
 ## Round 303 (2026-10-08 to 10): the chooser lab's ideas re-tested on today's champion
 
 The owner asked to try every idea of the round-263 chooser lab again
@@ -12,16 +46,17 @@ byte-identical CPU saving).
 
 | Idea | What the candidate does | CPU | Random starts | Further slices |
 |---|---|---|---|---|
-| aware | The mover's own and the most-interacting rival's FIRST forecast move use their full policy (chooser, overrides, guards); every call beneath them is suppressed, the lab's bound | 2.65x | -0.166 +- 0.021 (61/15/8; crashes 42:50) | held-out -0.150 +- 0.019 (61/17/6; 31:45); computed -0.138 +- 0.018 (58/19/7; 39:42); lone check -0.142 +- 0.018 (63/12/9; 13:14); scattered and duels running |
-| setup | Each shortlisted landing is also forecast with one deliberate alternative second action and valued by its best plan (lab rule) | 1.43x | -0.078 +- 0.020 (50/26/8; 47:53) | held-out -0.087 +- 0.020 (54/27/3; 43:56); computed -0.068 +- 0.018 (50/24/10; 38:42); tie control, strict plan wins only: -0.033 +- 0.015 (38/33/13; 40:37); lone, scattered and duels running |
+| aware | The mover's own and the most-interacting rival's FIRST forecast move use their full policy (chooser, overrides, guards); every call beneath them is suppressed, the lab's bound | 2.65x | -0.166 +- 0.021 (61/15/8; crashes 42:50) | held-out -0.150 +- 0.019 (61/17/6; 31:45); computed -0.138 +- 0.018 (58/19/7; 39:42); lone check -0.142 +- 0.018 (63/12/9; 13:14); scattered -0.012 +- 0.003 (21/4/59; 11:15); duels -0.029 +- 0.005 (15/7/62; 224:485) |
+| setup | Each shortlisted landing is also forecast with one deliberate alternative second action and valued by its best plan (lab rule) | 1.43x | -0.078 +- 0.020 (50/26/8; 47:53) | held-out -0.087 +- 0.020 (54/27/3; 43:56); computed -0.068 +- 0.018 (50/24/10; 38:42); tie control, strict plan wins only: -0.033 +- 0.015 (38/33/13; 40:37); lone check -0.087 +- 0.017 (52/25/7; 14:14); scattered +0.004 +- 0.004 (14/24/46; 14:8); duels -0.003 +- 0.008 (13/12/59; 303:396) |
+| aware, keep-score | Aware, but the upgraded move's own chooser keeps the score's landing without rolling anything out | 1.39x | +0.026 +- 0.011 (30/30/24; 25:37) | the gain needs the nested chooser's rollouts |
 | contingent | Two reply worlds for the most-interacting rival; a switch only on dominance in both | 1.83x | -0.026 +- 0.012 (42/24/18; 28:28) | -- |
 | terminal | Resolved forecasts ranked by referee place, then own moves | 0.97x | -0.000 +- 0.001 (3/2/79) | inert: the rank-first verdict already does it |
 | assist | The lab's model proposes one extra landing outside the shortlist | 1.40x | +0.113 +- 0.016 (17/59/8; 40:39) | the winner's curse: its winning extras are 0.67 map turns slower and needle-heavy |
 | student | A model distilled from today's chooser (84 races, 149k decisions) replaces aware's nested chooser | 2.57x | +0.405 +- 0.026 (8/73/3; 74:97) | agrees with the teacher's best 87.6% of the time against 97.9% for keeping the score's landing |
 
 Aware carries the lab's -0.184 almost whole to a champion forty rounds
-stronger, and holds on fresh seeds, on computed starts and as a lone entrant;
-whether 2.65x the CPU is a price worth paying is the owner's call. Setup's gain
+stronger, and holds on every slice; the owner accepted its 2.65x CPU
+(2026-10-11) and it is promoted above. Setup's gain
 replicates; about 40% of it survives when only strict plan wins may switch,
 and the rest comes from exact plan ties handing the pick to the score's order,
 mostly in the opening pack. Contingent is too small for its cost, terminal is
