@@ -12,7 +12,8 @@ final class RacecraftNext {
         STAGED_ORDER("staged-order"), SHORT_TRANSITIONS("short-transitions"), SUFFIX_MANOEUVRES("suffix-manoeuvres"),
         RESPONSE_STRATEGY("response-strategy"), PLACE_CERTIFICATES("place-certificates"),
         FORCED_SEQUENCE("forced-sequence"), CONTINUATION_POLICIES("continuation-policies"),
-        ORDERED_BLOCKADE("ordered-blockade");
+        ORDERED_BLOCKADE("ordered-blockade"), PACE_FEINTS("pace-feints"), AMBUSH("ambush"),
+        TRAFFIC_JUDO("traffic-judo"), SELFISH_SEARCH("selfish-search"), TWO_JUDGE("two-judge");
         final String flag;
         Feature(final String flag) { this.flag = flag; }
     }
@@ -26,6 +27,7 @@ final class RacecraftNext {
     final int adaptiveNodes, adaptiveCycles, recoveryTrials, tacticalExtraRounds;
     final int manoeuvreNodes, manoeuvreDepth;
     final int strategyNodes, forcedMoveCap;
+    final int creativeNodes, creativeTrials, selfishPlies;
 
     RacecraftNext(final Properties props) {
         features = EnumSet.noneOf(Feature.class);
@@ -40,6 +42,9 @@ final class RacecraftNext {
         if (!audit.equals("true") && !audit.equals("false"))
             throw new IllegalArgumentException("racecraftCapture must be true or false");
         capture = Boolean.parseBoolean(audit);
+        creativeNodes = bounded(props, "racecraftCreativeNodes", 2048, 0, 20000);
+        creativeTrials = bounded(props, "racecraftCreativeTrials", 6, 0, 12);
+        selfishPlies = bounded(props, "racecraftSelfishPlies", 6, 2, 9);
         strategyNodes = bounded(props, "racecraftStrategyNodes", 12000, 0, 40000);
         forcedMoveCap = bounded(props, "racecraftForcedMoveCap", 16, 4, 24);
         manoeuvreNodes = bounded(props, "racecraftManoeuvreNodes", 192, 0, 2048);
@@ -56,7 +61,9 @@ final class RacecraftNext {
 
     boolean enabled(final RaceGame game, final int player, final Feature feature) {
         return game.candidatePolicy(player) && configured(feature)
-                && (feature.ordinal() < Feature.SUFFIX_MANOEUVRES.ordinal() || strategyNodes > 0)
+                && (feature.ordinal() < Feature.SUFFIX_MANOEUVRES.ordinal()
+                        || feature.ordinal() > Feature.ORDERED_BLOCKADE.ordinal() || strategyNodes > 0)
+                && (!creative(feature) || creativeNodes > 0 && creativeTrials > 0)
                 && (feature != Feature.SUFFIX_MANOEUVRES || manoeuvreNodes > 0)
                 && (feature != Feature.OPENING || openingTrials > 0 && opening(game, player))
                 && (feature != Feature.FOLLOWUP || features.contains(Feature.OPENING)
@@ -76,7 +83,17 @@ final class RacecraftNext {
                     && strategyNodes > 0; }
     String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials
             + ":" + adaptiveNodes + ":" + adaptiveCycles + ":" + recoveryTrials + ":" + tacticalExtraRounds
-            + ":" + manoeuvreNodes + ":" + manoeuvreDepth + ":" + strategyNodes + ":" + forcedMoveCap; }
+            + ":" + manoeuvreNodes + ":" + manoeuvreDepth + ":" + strategyNodes + ":" + forcedMoveCap
+            + ":" + creativeNodes + ":" + creativeTrials + ":" + selfishPlies; }
+
+    static boolean creative(final Feature feature) { return feature.ordinal() >= Feature.PACE_FEINTS.ordinal(); }
+    boolean creativeConfigured() {
+        for (final Feature feature : features) if (creative(feature)) return true;
+        return false;
+    }
+    boolean creativeEnabled(final RaceGame game, final int player) {
+        return game.candidatePolicy(player) && creativeConfigured() && creativeNodes > 0 && creativeTrials > 0;
+    }
 
     boolean any(final RaceGame game, final int player) {
         for (final Feature feature : features) if (enabled(game, player, feature)) return true;

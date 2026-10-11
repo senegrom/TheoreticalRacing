@@ -12,6 +12,7 @@ import java.util.BitSet;
  */
 final class RaceAi {
 	private final RaceGame game;
+    private boolean creativeModel;
     private Direction inheritedFollowup, pendingFirst;
     private final java.util.Map<Direction, ResponseStrategies.Tree> responseProofs = new java.util.EnumMap<>(Direction.class);
     private StrategyState.Budget responseBudget, blockadeBudget;
@@ -250,7 +251,7 @@ final class RaceAi {
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
 		final int playerNum = p.getNumber();
-        final boolean root = simDepth == 0 && !inScorerSim;
+        final boolean root = simDepth == 0 && !inScorerSim && !creativeModel;
         final boolean capture = root && !game.racecraftReplay && game.racecraftNext.capture
                 && capturedDecisions < game.racecraftNext.captureLimit
                 && game.turnCount() % game.racecraftNext.captureEvery == 0;
@@ -265,11 +266,13 @@ final class RaceAi {
             if (game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.FOLLOWUP)
                     || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.MANOEUVRE)
                     || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.CONTINUATION_POLICIES)
-                    || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.RESPONSE_STRATEGY)) {
+                    || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.RESPONSE_STRATEGY)
+                    || game.racecraftNext.creativeEnabled(game, playerNum)) {
                 decisionRootKey = FollowupPlans.key(game);
                 final FollowupPlans.Entry entry = game.followups.find(game);
                 if (entry != null && entry.traffic() && (game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.MANOEUVRE)
-                        || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.CONTINUATION_POLICIES))) inheritedTraffic = entry;
+                        || game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.CONTINUATION_POLICIES)
+                        || game.racecraftNext.creativeEnabled(game, playerNum))) inheritedTraffic = entry;
                 if (entry != null && !entry.traffic() && !entry.response() && game.racecraftNext.enabled(game, playerNum, RacecraftNext.Feature.FOLLOWUP)) inheritedFollowup = entry.action();
             }
         }
@@ -296,7 +299,8 @@ final class RaceAi {
         if (!game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP)
                 && !game.racecraftNext.configured(RacecraftNext.Feature.MANOEUVRE)
                 && !game.racecraftNext.configured(RacecraftNext.Feature.RESPONSE_STRATEGY)
-                && !game.racecraftNext.configured(RacecraftNext.Feature.CONTINUATION_POLICIES)) return;
+                && !game.racecraftNext.configured(RacecraftNext.Feature.CONTINUATION_POLICIES)
+                && !game.racecraftNext.creativeConfigured()) return;
         FollowupPlans.Entry entry = null;
         if (pendingFollowup != null && action == pendingFirst && decisionRootKey != null
                 && pendingPlanEnabled(pendingFollowup, game.players[game.subgamestate].getNumber())
@@ -3254,7 +3258,7 @@ final class RaceAi {
 				player.restoreLapState(new int[]{rollout.laps[j], rollout.gates[j], 0, 0, 0, 0});
 			}
 			game.subgamestate = i;
-			inScorerSim = suppress;
+			inScorerSim = suppress || creativeModel;
 			direction = computeAiMove();
 		} finally {
 			inScorerSim = previousScorerSim;
@@ -3410,7 +3414,21 @@ final class RaceAi {
     private Direction auditScorer, auditChooser, auditOpening;
     private String auditShortlist = "";
 
-    /** Isolated cheap continuation policy used by the placement experiment. */
+    // Isolated continuation-policy query seams.
+    /** Complete top-level champion decision, with lower-level calls suppressed.
+     * No experimental feature may recursively invoke this model. */
+    Direction researchFullFirst() {
+        final boolean old = creativeModel, oldScorer = inScorerSim;
+        creativeModel = true; inScorerSim = false;
+        try { return computeAiMove(); }
+        finally { creativeModel = old; inScorerSim = oldScorer; }
+    }
+
+    private boolean creativeRoot(final int player) {
+        return !creativeModel && simDepth == 0 && !inScorerSim && game.racecraftNext.creativeEnabled(game, player)
+                && nearestLiveRival(game.players[player - 1].getPosition(), player) <= AI1_CHOOSER_MAXDIST;
+    }
+
     Direction researchScorer() {
         final boolean old = inScorerSim;
         inScorerSim = true;
@@ -3419,7 +3437,7 @@ final class RaceAi {
     }
 
     private boolean nextEnabled(final int player, final RacecraftNext.Feature feature) {
-        return game.racecraftNext.enabled(game, player, feature);
+        return !creativeModel && game.racecraftNext.enabled(game, player, feature);
     }
 
     private void recordResearch(final RolloutWorkspace w, final RacecraftOutcome.Status status,
@@ -4763,7 +4781,7 @@ final class RaceAi {
             final Direction extra = TrafficOpportunities.nominate(game, best, AI1_CHOOSER_ROUNDS);
             if (extra != null && !cands.contains(extra)) { cands.add(extra); trafficDenials++; }
         }
-        if (cands.isEmpty() || cands.size() < 2 && !tactical && !manoeuvre) return best;
+        if (cands.isEmpty() || cands.size() < 2 && !tactical && !manoeuvre && !creativeRoot(playerNum)) return best;
         if (real) auditShortlist = String.join(",", cands.stream().map(Enum::name).toList());
         RacecraftOutcome bestCrash = null;
         Direction crashPick = null;
@@ -4820,6 +4838,19 @@ final class RaceAi {
             trafficManoeuvreNodes += choice.expanded(); trafficManoeuvreForecasts += choice.forecasts();
             if (choice.continuation() != null) { pendingFirst = choice.action(); pendingFollowup = choice.continuation(); }
             planned = choice.action();
+        }
+        if (real && creativeRoot(playerNum)) {
+            final java.util.List<Direction> incumbentPlan = new java.util.ArrayList<>();
+            incumbentPlan.add(planned);
+            if (pendingFirst == planned && pendingFollowup != null && !pendingFollowup.response())
+                incumbentPlan.addAll(pendingFollowup.actions());
+            final CreativeTactics.Choice choice = CreativeTactics.choose(game, incumbentPlan, inheritedTraffic);
+            if (choice.accepted()) {
+                pendingFirst = choice.action(); pendingFollowup = choice.tail(); planned = choice.action();
+            }
+            if (game.racecraftNext.capture && !game.racecraftReplay)
+                System.err.println("RACECRAFT_CREATIVE p=" + playerNum + " proposals=" + choice.proposals()
+                        + " forecasts=" + choice.forecasts() + " accepted=" + choice.accepted() + " checked=" + choice.checked());
         }
         if (real) auditOpening = planned;
         // Preserve current master 301a: only exact faithful ties permit the map-time swap.
@@ -5798,7 +5829,7 @@ final class RaceAi {
     private int trafficDenials, trafficCheckpointTrials, trafficManoeuvreNodes, trafficManoeuvreForecasts;
 
     private boolean trafficFeature(final int player, final RacecraftNext.Feature feature) {
-        return simDepth == 0 && !inScorerSim && game.racecraftNext.enabled(game, player, feature)
+        return !creativeModel && simDepth == 0 && !inScorerSim && game.racecraftNext.enabled(game, player, feature)
                 && nearestLiveRival(game.players[player - 1].getPosition(), player) <= AI1_CHOOSER_MAXDIST;
     }
 
@@ -5875,7 +5906,7 @@ final class RaceAi {
     private boolean pendingPlanEnabled(final FollowupPlans.Entry entry, final int player) {
         if (entry.response()) return nextEnabled(player, RacecraftNext.Feature.RESPONSE_STRATEGY);
         if (entry.traffic()) return nextEnabled(player, RacecraftNext.Feature.MANOEUVRE)
-                || nextEnabled(player, RacecraftNext.Feature.CONTINUATION_POLICIES);
+                || nextEnabled(player, RacecraftNext.Feature.CONTINUATION_POLICIES) || creativeRoot(player);
         return nextEnabled(player, RacecraftNext.Feature.FOLLOWUP);
     }
 

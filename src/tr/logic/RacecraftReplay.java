@@ -291,7 +291,8 @@ final class RacecraftReplay {
                 // it equals the actual proposal; a different action invalidates it.
                 final boolean remember = (game.racecraftNext.configured(RacecraftNext.Feature.FOLLOWUP) || (game.racecraftNext.configured(RacecraftNext.Feature.MANOEUVRE)
                     || game.racecraftNext.configured(RacecraftNext.Feature.RESPONSE_STRATEGY)
-                    || game.racecraftNext.configured(RacecraftNext.Feature.CONTINUATION_POLICIES)));
+                    || game.racecraftNext.configured(RacecraftNext.Feature.CONTINUATION_POLICIES)
+                    || game.racecraftNext.creativeConfigured()));
                 final Direction proposed = firstAction && first != null && !remember ? first
                         : scorerOnly ? policy.researchScorer() : policy.computeAiMove();
                 final Direction action = firstAction && first != null ? first : proposed;
