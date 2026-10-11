@@ -1,0 +1,117 @@
+name: Creative memory compatibility repair
+on:
+  push:
+    branches: [work/racecraft-strategies-20261008]
+    paths: ['.github/workflows/creative-memory-repair.yml']
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/work/racecraft-strategies-20261008'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Align snapshot boundaries and add regression witnesses
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('tools/racecraft_corpus.py');s=p.read_text()
+          assert s.count("h[0] in ('rc4', 'rc5')")==1
+          s=s.replace("h[0] in ('rc4', 'rc5')", "h[0] in ('rc4', 'rc5', 'rc6')")
+          p.write_text(s)
+          p=Path('src/tr/logic/RacecraftReplay.java');s=p.read_text()
+          assert s.count('line.length() > 17000')==1
+          s=s.replace('line.length() > 17000', 'line.length() > 280000')
+          p.write_text(s)
+          Path('tests/test_creative_memory_capture.py').write_text('''from pathlib import Path
+          import sys
+          import unittest
+          sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'tools'))
+          import racecraft_corpus as corpus
+          from test_racecraft_corpus import snapshot
+
+          def response_snapshot(count=1, mask=1):
+              old=snapshot();header,rows=old.split(';',1)
+              nodes='!'.join(f'{i:064x}_{mask}_1_1' for i in range(count))
+              return 'rc6'+header[3:]+',R_'+nodes+'~'+'a'*64+'.-;'+rows
+
+          class CreativeMemoryCaptureTests(unittest.TestCase):
+              def test_capture_response_memory(self):
+                  state=response_snapshot()
+                  parsed=corpus.parse_capture('RACECRAFT_STATE '+state+'|E|E|E|null|E,N|E,N')
+                  self.assertEqual(parsed[0]['snapshot'],state)
+                  self.assertEqual(corpus.influence_diagnostic(state)['horizon'],3)
+              def test_large_memory_remains_bounded(self):
+                  state=response_snapshot(256)
+                  self.assertGreater(len(state),17000)
+                  self.assertEqual(corpus.board(state)[0][0],'rc6')
+              def test_validation_is_not_weakened(self):
+                  with self.assertRaises(ValueError):corpus.board(response_snapshot(mask=0))
+                  with self.assertRaises(ValueError):corpus.board(response_snapshot().replace('rc6,','rc7,',1))
+          ''')
+          Path('tests/tr/logic/CreativeMemoryTests.java').write_text('''package tr.logic;
+          import java.lang.reflect.Field;
+          import java.lang.reflect.Method;
+          import java.util.ArrayList;
+          import java.util.List;
+          /** Commit-only creative suffixes and large existing response tables. */
+          public final class CreativeMemoryTests {
+              private CreativeMemoryTests() {}
+              private static RaceGame fixture() throws Exception {
+                  final Method method=RacecraftNextTests.class.getDeclaredMethod("straight",String.class,String.class);
+                  method.setAccessible(true);return (RaceGame)method.invoke(null,"pace-feints","1,2,3");
+              }
+              private static void set(final Object object,final String name,final Object value) throws Exception {
+                  final Field f=object.getClass().getDeclaredField(name);f.setAccessible(true);f.set(object,value);
+              }
+              private static void check(final boolean ok,final String message){if(!ok)throw new AssertionError(message);}
+              public static void main(final String[] args) throws Exception {
+                  final RaceGame game=fixture();
+                  final FollowupPlans.Entry tail=FollowupPlans.Entry.traffic(List.of(Direction.N,Direction.E),"a".repeat(64));
+                  set(game.ai,"pendingFirst",Direction.E);set(game.ai,"pendingFollowup",tail);
+                  set(game.ai,"decisionRootKey",FollowupPlans.key(game));
+                  game.ai.commitResearchPlan(Direction.E);
+                  check(game.followups.encode(3).contains("M_N+E~"),"creative-only flag did not commit its suffix");
+                  final String before=RacecraftReplay.snapshot(game);
+                  game.ai.computeAiMove();game.ai.computeAiMove();
+                  check(before.equals(RacecraftReplay.snapshot(game)),"query consumed committed creative memory");
+                  final RaceGame large=fixture();
+                  final String original=RacecraftReplay.snapshot(large);final int divider=original.indexOf(';');
+                  final List<String> nodes=new ArrayList<>();
+                  for(int i=0;i<256;i++)nodes.add(String.format("%064x_1_1_1",i));
+                  final String state="rc6"+original.substring(3,divider)+",R_"+String.join("!",nodes)+"~"+"a".repeat(64)+".-.-"+original.substring(divider);
+                  check(state.length()>17000,"large response fixture too small");
+                  final String request="cf4,1000,-|"+state;
+                  final String response=MoveQueries.answer(large,request);
+                  check(response.contains(RacecraftReplay.sha(request)),"large request was not bound to its response");
+                  check(original.equals(RacecraftReplay.snapshot(large)),"large replay mutated real policy memory");
+                  System.out.println("CreativeMemoryTests: creative commit-only suffixes and full-size response-memory captures/replay OK");
+              }
+          }
+          ''')
+          p=Path('run_tests.sh');s=p.read_text();s+='\njava -ea -Djava.awt.headless=true -cp test-bin tr.logic.CreativeMemoryTests\n';p.write_text(s)
+          p=Path('racing-memory.md');s=p.read_text();title,rest=s.split('\n',1)
+          p.write_text(title+'\n\n## Creative replay compatibility (2026-10-11, branch only)\n\nThe capture parser now accepts validated rc6 response tables and the cf4\nrequest boundary matches the bounded full snapshot size. Creative-only pending\nsuffixes and oversized-but-valid response-memory replays gain explicit tests.\nNo driving decision, saved settings, tracks or master policy change.\n'+rest)
+          PY
+          git diff --check
+      - name: Test repair
+        run: |
+          sh build_main.sh
+          sh run_tests.sh
+          python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Commit source repairs to this branch only
+        run: |
+          set -eu
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/tr/logic/RacecraftReplay.java tools/racecraft_corpus.py tests/test_creative_memory_capture.py tests/tr/logic/CreativeMemoryTests.java run_tests.sh racing-memory.md
+          git diff --cached --check
+          git commit -m 'Bind creative replay to complete response memory and pin suffix commit semantics'
+          git push origin HEAD:work/racecraft-strategies-20261008
