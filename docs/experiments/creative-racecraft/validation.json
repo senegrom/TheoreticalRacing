@@ -1,30 +1,54 @@
 {
-  "schema": 1,
+  "schema": 2,
   "date": "2026-10-11",
   "branch": "work/racecraft-strategies-20261008",
   "championBase": "807d3d24b1d60d004e36c2410c5ef4725bf553e3",
   "implementationCommit": "fd190714d4e606602fa7eaab4592445f631bac09",
-  "assemblyRun": 38142970143,
-  "passed": [
-    "JDK 25 build with warnings treated as errors",
-    "Full Java contracts including all eight creative mechanism test groups",
-    "123 existing Python unit tests",
-    "Endpoint-preserving acceleration pulses and complete-layer ambush witnesses",
-    "Inverse-kinematic interceptions, legal gap release and actor-specific terminal ordering",
-    "Known-result matched judging, bounded full-first calls and query restoration",
-    "Actual two-action breeder mutation and complete control parity with the real-policy tail"
+  "drivingAndBreederRevision": "b9687fa5954343df91146e72d90047465dbf6660",
+  "memoryCompatibilityCommit": "11284a0ed6d8098d3ff374e902e0e607eb01356e",
+  "runs": {
+    "initialAssembly": 38142970143,
+    "fullValidation": 38143550789,
+    "memoryCompatibility": 38143788023
+  },
+  "passedBeforeMemoryCompatibility": [
+    "JDK 25 and 26 builds and full Java contract suites",
+    "Python unit suite including fifteen new breeder protocol tests",
+    "All twelve current-master golden races without changed expectations",
+    "Headless, query and lap-progress regressions",
+    "32 recovered-experiment functional races and six complete counterfactual cases",
+    "36 earlier-strategy functional races and six complete counterfactual cases",
+    "Browser engine build"
+  ],
+  "passedAfterMemoryCompatibility": [
+    "JDK 25 build and full Java contract suite",
+    "Python unit suite with three additional response-memory capture tests",
+    "Creative-only flags commit suffixes; repeated queries do not consume them",
+    "Full-size 256-node response memory survives capture and cf4 replay with complete request binding"
+  ],
+  "mechanismsCovered": [
+    "Endpoint-equivalent legal acceleration pulses including velocity, progress and grid state",
+    "Complete-layer mandatory cells and fail-closed incomplete graph layers",
+    "Verified inverse-kinematic pace-neutral interception paths",
+    "Legal gap release and bounded detached full-policy reply queries",
+    "Self-interested terminal vectors and non-focal tie handling",
+    "Fresh matched second-judge comparisons; unknown results cannot justify a swap",
+    "Reactive forecast restoration and at most two full-first calls per checking rollout",
+    "Actual two-action breeder mutation and exact complete control parity with production-policy tails",
+    "Breeder request, endpoint, continuation, classification and incomplete-label rejection contracts"
   ],
   "pendingWhenRecorded": [
-    "New breeder Python protocol tests",
-    "JDK 26 repeat",
-    "53 creative-arm functional races and six complete counterfactual cases",
+    "53 new creative-arm functional races and six complete counterfactual cases",
     "Two end-to-end bounded breeding runs",
-    "Recovered and earlier strategy race controls",
-    "Current-master goldens and all regression pins",
-    "Browser build, parity and Chromium/WebKit tests"
+    "Remaining current-master regression pins",
+    "Complete browser parity, Chromium and WebKit tests"
   ],
-  "notPerformed": ["Mirrored fleet performance promotion grid", "Held-out benefit and CPU comparison", "Lone-entrant promotion evaluation"],
+  "notPerformed": [
+    "Mirrored fleet performance promotion grid",
+    "Held-out benefit and CPU comparison",
+    "Lone-entrant promotion evaluation"
+  ],
   "promoted": false,
   "performanceGainClaimed": false,
-  "note": "Java implementation was committed only after build and full contracts passed. This record precedes the separate end-to-end Python and race validation; CI outcomes are authoritative. Master and PR24 are unchanged."
+  "note": "The compatibility repair only widens the existing bounded response-memory input path and adds tests; driving code is unchanged. Full-validation race and browser jobs test b9687fa; the separate compatibility run tests 11284a0. Later CI outcomes are authoritative. Temporary source-writing workflows have been removed. Master and PR24 are unchanged."
 }
