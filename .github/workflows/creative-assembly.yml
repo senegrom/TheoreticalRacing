@@ -46,10 +46,18 @@ jobs:
           PY
           fi
           python3 .creative-20261011/apply.py
+          python3 .creative-20261011/repair.txt
           git diff --check
-      - name: Build and full contracts
+      - name: Build and targeted mechanisms
         run: |
           sh build_main.sh
+          mkdir -p test-bin
+          find src tests -name '*.java' | sort > /tmp/creative-sources
+          javac -Xlint:all -Werror -encoding UTF-8 -d test-bin @/tmp/creative-sources
+          export RACING_REACH_CACHE=$(mktemp -d)
+          java -ea -Djava.awt.headless=true -cp test-bin tr.logic.CreativeRacecraftTests
+      - name: Full contracts
+        run: |
           sh run_tests.sh
           python3 -m unittest discover -s tests -p 'test_*.py'
       - name: Commit tested source to research branch only

@@ -1,0 +1,17 @@
+from pathlib import Path
+p=Path('src/tr/logic/RaceAi.java')
+s=p.read_text().replace('/** Isolated cheap continuation policy used by the placement experiment. */','// Isolated continuation-policy query seams.')
+p.write_text(s)
+p=Path('src/tr/logic/TacticBreeder.java');s=p.read_text()
+old=r'+ ",\"maxMoves\":" + bound + ",\"prefix\":" + directions(prefix)'
+new=r'+ ",\"seeds\":" + (prefix.isEmpty() ? BreederSeeds.json(game, root, trial.ownActions()) : "[]")'+'\n                '+old
+assert s.count(old)==1
+s=s.replace(old,new);p.write_text(s)
+p=Path('tests/tr/logic/CreativeRacecraftTests.java');s=p.read_text()
+s=s.replace('pulses(); inverseAndMandatory(); judo(); incentives(); twoJudges(); forecasts(); breeder(); controls();', '''int failed = 0;
+        for (final String name : new String[]{"pulses", "inverseAndMandatory", "judo", "incentives", "twoJudges", "forecasts", "breeder", "controls"}) {
+            try { CreativeRacecraftTests.class.getDeclaredMethod(name).invoke(null); System.out.println("Creative witness " + name + ": OK"); }
+            catch (final java.lang.reflect.InvocationTargetException e) { failed++; e.getCause().printStackTrace(); }
+        }
+        check(failed == 0, "creative witness failures: " + failed);''')
+p.write_text(s)
