@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "date": "2026-10-11",
+  "branch": "work/racecraft-strategies-20261008",
+  "championBase": "807d3d24b1d60d004e36c2410c5ef4725bf553e3",
+  "implementationCommit": "fd190714d4e606602fa7eaab4592445f631bac09",
+  "assemblyRun": 38142970143,
+  "passed": [
+    "JDK 25 build with warnings treated as errors",
+    "Full Java contracts including all eight creative mechanism test groups",
+    "123 existing Python unit tests",
+    "Endpoint-preserving acceleration pulses and complete-layer ambush witnesses",
+    "Inverse-kinematic interceptions, legal gap release and actor-specific terminal ordering",
+    "Known-result matched judging, bounded full-first calls and query restoration",
+    "Actual two-action breeder mutation and complete control parity with the real-policy tail"
+  ],
+  "pendingWhenRecorded": [
+    "New breeder Python protocol tests",
+    "JDK 26 repeat",
+    "53 creative-arm functional races and six complete counterfactual cases",
+    "Two end-to-end bounded breeding runs",
+    "Recovered and earlier strategy race controls",
+    "Current-master goldens and all regression pins",
+    "Browser build, parity and Chromium/WebKit tests"
+  ],
+  "notPerformed": ["Mirrored fleet performance promotion grid", "Held-out benefit and CPU comparison", "Lone-entrant promotion evaluation"],
+  "promoted": false,
+  "performanceGainClaimed": false,
+  "note": "Java implementation was committed only after build and full contracts passed. This record precedes the separate end-to-end Python and race validation; CI outcomes are authoritative. Master and PR24 are unchanged."
+}
