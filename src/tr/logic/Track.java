@@ -8,8 +8,8 @@ import java.util.LinkedList;
  * @author CGH
  */
 public final class Track {
-	private final LinkedList<int[]>	lhs	= new LinkedList<>();
-	private final LinkedList<int[]>	rhs	= new LinkedList<>();
+	private final LinkedList<int[]>	lhs	= new BorderPoints();
+	private final LinkedList<int[]>	rhs	= new BorderPoints();
 
 	public void addLeft(final int x, final int y) {
 		lhs.add(new int[]{x, y });

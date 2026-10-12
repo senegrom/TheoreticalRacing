@@ -1,5 +1,41 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Speed (2026-10-12): five exact optimisations, the champion at 0.18x its CPU
+
+The owner accepted aware's 2.65x CPU and asked whether the agents could be
+made faster. A Java Flight Recorder profile on the box (8-car races,
+Hungaroring s13 and Monaco s9; /home/ubuntu/prof303) put the time in a few
+geometric primitives and the mobility search: Line2D.linesIntersect 40-43% self,
+the finish-crossing test 25-38% inclusive, move-legality geometry 9-23%, the
+grid pocket's Area.contains up to 16% on pocket-heavy courses, fmRec 23-28%,
+and in aware's forecasts the upgraded moves 60% and the relevant-rival graph
+6-9%. Five patches (E:/tmp-claude/perf/), each written by one engineer and
+adversarially reviewed as exact, none changing a decision:
+
+| Patch | What it does | CPU, random starts (12 races) |
+|---|---|---|
+| perf_pocket | per-cell pocket-containment tables | 0.53x |
+| perf_aisearch | the mobility search skips crossing questions it cannot need; repeated simulated moves and orders come from tables | 0.56x |
+| perf_aware | suppressed forecast decisions memoised (keyed on everything they read), the relevant-rival graph built once per chooser call | 0.61x |
+| perf_legality | a spatial index over border segments and a per-cell geometry memo for move legality | 0.84x |
+| perf_crossing | per-cell tables of the finish and gate crossing tests' own negative answers | 0.99x |
+| all five | -- | 0.18x random, 0.20x computed, 0.49x scattered, 0.46x duels |
+
+Every race of every patch and of the stack is byte-identical to the champion's
+(tools on the box: perf_identity.py; 12 random-start races across pocket, long
+border, Nordschleife and point-to-point courses, 4 computed, 2 scattered, 3
+duels), and perf_aware's check mode (-Dai.perf.check=true recomputes every memo
+hit) found no disagreement. CI's frozen job passes on the box with the
+optimised jar (29 of 29, in a third of the time); the Java suite and the browser build pass locally.
+Aware's champion now costs about half the CPU the pre-aware champion did. The
+profile over-attributed time to the finish test: perf_crossing alone saves
+little but is exact and stays in the verified stack.
+
+Also measured against round 301c on the way: self-only aware (only the
+mover's own continuation upgraded) -0.147 +- 0.020 (63/16/5) at 2.08x -- the
+rival upgrade adds little, as round 284 found -- and setup at width 3 -0.055 +-
+0.022 (44/29/11), no better than width 2.
+
 ## Round 303 promoted (2026-10-11): aware forecasts
 
 The chooser lab's aware, now every car's. In every forecast a top-level

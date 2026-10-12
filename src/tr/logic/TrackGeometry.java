@@ -217,29 +217,41 @@ final class TrackGeometry {
 		final double lengthSquared = dx * dx + dy * dy;
 		if (lengthSquared == 0 || until <= 0)
 			return false;
+		// perf_legality: a hit before until <= 1 lies on the move itself, so the
+		// border's grid answers exactly (BorderPoints.Grid).
+		if (until <= 1 && path instanceof BorderPoints border) {
+			final BorderPoints.Grid grid = border.grid();
+			if (grid.covers(x1, y1, x2, y2))
+				return grid.crossesPathBefore(x1, y1, x2, y2, dx, dy, lengthSquared, until);
+		}
 		int[] previous = null;
 		for (final int[] point : path) {
-			if (previous != null) {
-				final double bx = (double) point[0] - previous[0];
-				final double by = (double) point[1] - previous[1];
-				final double qx = (double) previous[0] - x1, qy = (double) previous[1] - y1;
-				final double denominator = dx * by - dy * bx;
-				if (denominator != 0) {
-					final double t = (qx * by - qy * bx) / denominator;
-					final double u = (qx * dy - qy * dx) / denominator;
-					if (t > 0 && t < until && u >= 0 && u <= 1)
-						return true;
-				} else if (qx * dy - qy * dx == 0) {
-					final double a = (qx * dx + qy * dy) / lengthSquared;
-					final double b = ((point[0] - (double) x1) * dx
-							+ (point[1] - (double) y1) * dy) / lengthSquared;
-					if (Math.max(0, Math.min(a, b)) < Math.min(until, Math.max(a, b)))
-						return true;
-				}
-			}
+			if (previous != null && hitBefore(previous, point, x1, y1, dx, dy, lengthSquared, until))
+				return true;
 			previous = point;
 		}
 		return false;
+	}
+
+	/** One border segment of {@link #segmentCrossesPathBefore}: the scan's test,
+	 *  its arithmetic unchanged. */
+	static boolean hitBefore(final int[] previous, final int[] point, final int x1, final int y1,
+			final double dx, final double dy, final double lengthSquared, final double until) {
+		final double bx = (double) point[0] - previous[0];
+		final double by = (double) point[1] - previous[1];
+		final double qx = (double) previous[0] - x1, qy = (double) previous[1] - y1;
+		final double denominator = dx * by - dy * bx;
+		if (denominator != 0) {
+			final double t = (qx * by - qy * bx) / denominator;
+			final double u = (qx * dy - qy * dx) / denominator;
+			return t > 0 && t < until && u >= 0 && u <= 1;
+		}
+		if (qx * dy - qy * dx != 0)
+			return false;
+		final double a = (qx * dx + qy * dy) / lengthSquared;
+		final double b = ((point[0] - (double) x1) * dx
+				+ (point[1] - (double) y1) * dy) / lengthSquared;
+		return Math.max(0, Math.min(a, b)) < Math.min(until, Math.max(a, b));
 	}
 
 	/** The point at {@code fraction} of a polyline's length (its last point
@@ -283,6 +295,12 @@ final class TrackGeometry {
 	}
 
 	static boolean segmentCrossesPath(final int[] from, final int[] to, final List<int[]> path) {
+		// perf_legality: the border's grid answers exactly (BorderPoints.Grid).
+		if (path instanceof BorderPoints border) {
+			final BorderPoints.Grid grid = border.grid();
+			if (grid.covers(from[0], from[1], to[0], to[1]))
+				return grid.crossesPath(from, to);
+		}
 		int[] prev = null;
 		for (final int[] cur : path) {
 			if (prev != null && checkIntersect(prev, cur, from, to, (byte) 3))

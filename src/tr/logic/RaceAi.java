@@ -238,7 +238,16 @@ final class RaceAi {
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
 		final int playerNum = p.getNumber();
-		return optimalMoveAI1(pos, vel, playerNum);
+		if (simDepth != 0)
+			return optimalMoveAI1(pos, vel, playerNum);
+		// perf_aware: a top-level decision owns the suppressed-move memo, empty at its start.
+		suppressedMoves.clear();
+		suppressedMovesOwned = true;
+		try {
+			return optimalMoveAI1(pos, vel, playerNum);
+		} finally {
+			suppressedMovesOwned = false;
+		}
 	}
 
 	/**
@@ -251,11 +260,12 @@ final class RaceAi {
 		final int idx = playerNum - 1;
 		final boolean scanLapAware = frameLapAware[idx];
 		final int scanGate = frameGate[idx];
-		Direction best = null;
-		int bestTurns = Integer.MAX_VALUE;
-		int fallbackLegalMask = 0;
-		int fallbackIllegalMask = 0;
 		final int sm = succMask(x, y, vx, vy);
+		// perf_aisearch (exact): the one-pass scan returned at the first precedence
+		// in Direction order and otherwise kept, among the legal landings free of
+		// live bodies, the first with the fewest turns. Every test is free of side
+		// effects, so the precedences run first and the pace compare then walks the
+		// landings in their stable turns order (ttfOrder): the same landing.
 		for (final Direction d : DIRECTIONS) {
 			final int bit = 1 << d.ordinal();
 			final int newVx = vx + d.dx;
@@ -264,7 +274,9 @@ final class RaceAi {
 				continue;
 			final int newX = x + newVx;
 			final int newY = y + newVy;
-			if (game.crossesFinishLegally(x, y, newX, newY)) {
+			// perf_aisearch (exact): the precedence below needs !scanLapAware or
+			// scanGate == 0, so only that frame asks for the crossing.
+			if ((!scanLapAware || scanGate == 0) && game.crossesFinishLegally(x, y, newX, newY)) {
 				// Multi-lap: a non-final crossing keeps its precedence only when
 				// survivable (legal edge, no body, alive landing beyond the line)
 				// AND shedable -- the map prices every crossing at turns=1
@@ -300,25 +312,32 @@ final class RaceAi {
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + scanGate + " chosen=" + d);
 				return d;
 			}
-			if ((sm & bit) == 0) {
-				fallbackIllegalMask |= bit;
-				continue;
-			}
-			if (game.isCrashingPlayer(newX, newY, playerNum))
-				continue;
-			fallbackLegalMask |= bit;
-			final int turns = ttfFor(idx, newX, newY, newVx, newVy);
-			if (turns < bestTurns) {
-				bestTurns = turns;
-				best = d;
-			}
 		}
-		if (best != null) {
+		final long order = ttfOrder(idx, x, y, vx, vy);
+		for (int i = 0; i < DIRECTIONS.length; i++) {
+			final int ordinal = (int) (order >>> 4 * i) & 0xF;
+			if (ordinal == 0xF)
+				break;
+			final Direction d = DIRECTIONS[ordinal];
+			if ((sm & 1 << ordinal) == 0 || game.isCrashingPlayer(x + vx + d.dx, y + vy + d.dy, playerNum))
+				continue;
 			if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 				System.err.println("AIDBG scan1 p=" + playerNum + " pos=(" + x + "," + y
-						+ ") vel=(" + vx + "," + vy + ") chosen=" + best + " t=" + bestTurns
+						+ ") vel=(" + vx + "," + vy + ") chosen=" + d + " t="
+						+ ttfFor(idx, x + vx + d.dx, y + vy + d.dy, vx + d.dx, vy + d.dy)
 						+ " gate=" + lapGate);
-			return best;
+			return d;
+		}
+		int fallbackLegalMask = 0;
+		int fallbackIllegalMask = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int bit = 1 << d.ordinal();
+			if ((sm & bit << 16) == 0)
+				continue;
+			if ((sm & bit) == 0)
+				fallbackIllegalMask |= bit;
+			else if (!game.isCrashingPlayer(x + vx + d.dx, y + vy + d.dy, playerNum))
+				fallbackLegalMask |= bit;
 		}
 		if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 			System.err.println("AIDBG scan1-FB p=" + playerNum + " pos=(" + x + "," + y
@@ -326,6 +345,101 @@ final class RaceAi {
 					+ " illegal=" + fallbackIllegalMask + " gate=" + lapGate);
 		return scoreMinTurnsFallback(x, y, vx, vy,
 				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
+	}
+
+	/** perf_aisearch: an order with no entry -- nine 0xF nibbles (packOrder). */
+	private static final long ORDER_NONE = (1L << 36) - 1;
+	/** perf_aisearch: log2 of the ttfOrder table's slots. */
+	private static final int TTF_ORDER_BITS = 14;
+	/** perf_aisearch: the ttfOrder table (direct-mapped, each entry its whole key
+	 *  and its order) and what it was filled against beyond its keys. */
+	private long[] ttfOrderKeys, ttfOrderVals;
+	private OptimalPotential ttfOrderPot;
+	private int[] ttfOrderTurns;
+	private int[][] ttfOrderGates;
+	private int ttfOrderCols = -1, ttfOrderRows = -1, ttfOrderAliveW = -1, ttfOrderAliveH = -1,
+			ttfOrderVmax = -1;
+	private final int[] ttfOrderTurnsScratch = new int[DIRECTIONS.length];
+	private final int[] ttfOrderOrdinalScratch = new int[DIRECTIONS.length];
+
+	/** perf_aisearch: the accelerations of (x, y, vx, vy) whose velocity is in the
+	 *  AI range and whose landing has a finite ttfFor in player {@code idx}'s
+	 *  frame, sorted stably by that value (equal values keep Direction order) and
+	 *  packed by packOrder. ttfFor reads the frame -- events owed, next gate,
+	 *  lap-awareness, all in the key -- and fixed race products: the exact
+	 *  potential and the finish and gate maps. The table checks their identities
+	 *  and the board and map dimensions and empties itself when one changes; an
+	 *  entry keeps its whole key, so a hit returns what the scan computes. */
+	private long ttfOrder(final int idx, final int x, final int y, final int vx, final int vy) {
+		final int max = RaceGame.AI_MAX_SPEED;
+		final int remaining = frameRemaining[idx], gate = frameGate[idx];
+		if (x < 0 || y < 0 || x > game.gameCols || y > game.gameRows
+				|| game.gameCols > 4095 || game.gameRows > 4095
+				|| vx < -max || vx > max || vy < -max || vy > max
+				|| remaining < 0 || remaining > 255 || gate < 0 || gate > 2)
+			return ttfOrderCompute(idx, x, y, vx, vy);
+		final Reachability r = reach;
+		if (ttfOrderKeys == null || ttfOrderPot != exactPot || ttfOrderTurns != r.turnsArr
+				|| ttfOrderGates != r.gateTurns || ttfOrderCols != game.gameCols
+				|| ttfOrderRows != game.gameRows || ttfOrderAliveW != r.aliveW
+				|| ttfOrderAliveH != r.aliveH || ttfOrderVmax != r.aliveVMAX) {
+			if (ttfOrderKeys == null) {
+				ttfOrderKeys = new long[1 << TTF_ORDER_BITS];
+				ttfOrderVals = new long[1 << TTF_ORDER_BITS];
+			}
+			java.util.Arrays.fill(ttfOrderKeys, -1L);
+			ttfOrderPot = exactPot;
+			ttfOrderTurns = r.turnsArr;
+			ttfOrderGates = r.gateTurns;
+			ttfOrderCols = game.gameCols;
+			ttfOrderRows = game.gameRows;
+			ttfOrderAliveW = r.aliveW;
+			ttfOrderAliveH = r.aliveH;
+			ttfOrderVmax = r.aliveVMAX;
+		}
+		final int span = 2 * max + 1;
+		final long state = ((long) x * (game.gameRows + 1) + y) * (span * span) + (vx + max) * span + vy + max;
+		final long key = ((state << 8 | remaining) << 2 | gate) << 1 | (frameLapAware[idx] ? 1 : 0);
+		final int slot = (int) (key * 0x9E3779B97F4A7C15L >>> 64 - TTF_ORDER_BITS);
+		if (ttfOrderKeys[slot] == key)
+			return ttfOrderVals[slot];
+		final long order = ttfOrderCompute(idx, x, y, vx, vy);
+		ttfOrderKeys[slot] = key;
+		ttfOrderVals[slot] = order;
+		return order;
+	}
+
+	/** perf_aisearch: ttfOrder computed (an insertion sort that moves an entry
+	 *  only past strictly larger turns, so equal turns keep Direction order). */
+	private long ttfOrderCompute(final int idx, final int x, final int y, final int vx, final int vy) {
+		final int[] turnsBy = ttfOrderTurnsScratch, ordinals = ttfOrderOrdinalScratch;
+		int n = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			final int turns = ttfFor(idx, x + nvx, y + nvy, nvx, nvy);
+			if (turns == Integer.MAX_VALUE)
+				continue;
+			int i = n++;
+			while (i > 0 && turnsBy[i - 1] > turns) {
+				turnsBy[i] = turnsBy[i - 1];
+				ordinals[i] = ordinals[i - 1];
+				i--;
+			}
+			turnsBy[i] = turns;
+			ordinals[i] = d.ordinal();
+		}
+		return packOrder(ordinals, n);
+	}
+
+	/** perf_aisearch: Direction ordinals {@code ordinals[0..n)}, one per nibble from
+	 *  the lowest, every unused nibble 0xF. */
+	private static long packOrder(final int[] ordinals, final int n) {
+		long order = ORDER_NONE;
+		for (int i = 0; i < n; i++)
+			order = order & ~(0xFL << 4 * i) | (long) ordinals[i] << 4 * i;
+		return order;
 	}
 
 	/** Score-only terminal tier shared by the live, smart, and simulated
@@ -645,7 +759,8 @@ final class RaceAi {
 			// the way included -- the precedence below needs it collected first.
 			if (game.lapGates != null && lapAware && finishingMove(pos[0], pos[1], newX, newY))
 				return d;
-			if (game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
+			// perf_aisearch (exact): the precedence below needs !lapAware or lapGate == 0.
+			if ((!lapAware || lapGate == 0) && game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
 				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
 				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
@@ -2608,7 +2723,10 @@ final class RaceAi {
 			final int newY = pos[1] + newVy;
 			if (finishesFor(idx, pos[0], pos[1], newX, newY))
 				return d; // round 296: CP2 on the way included
-			if (game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
+			// perf_aisearch (exact): the precedence below needs !frameLapAware[idx] or
+			// frameGate[idx] == 0, so only that frame asks for the crossing.
+			if ((!frameLapAware[idx] || frameGate[idx] == 0)
+					&& game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
 				// Round 224: the twin's precedence, in this car's own frame. A
 				// crossing ends the race only on the final lap with nothing owed;
 				// a lap-scoring one must be survivable (legal edge, no simulated
@@ -2645,6 +2763,112 @@ final class RaceAi {
 			return best;
 		return scoreMinTurnsFallback(pos[0], pos[1], vel[0], vel[1],
 				fallbackLegalMask, 0, null);
+	}
+
+	/** perf_aisearch: simMove's code when pureMinTurnsMoveSim finds no move. */
+	private static final int SIM_MOVE_NONE = 9;
+	/** perf_aisearch: simMove's flag for a move whose succMask bit is set. */
+	private static final int SIM_MOVE_LEGAL = 16;
+	/** perf_aisearch: log2 of the simMove table's slots. */
+	private static final int SIM_MOVE_BITS = 16;
+	/** perf_aisearch: the simMove table (direct-mapped, entry = key << 5 | code) and
+	 *  what it was filled against beyond its keys. */
+	private long[] simMoveTab;
+	private int[] simMoveTurns;
+	private BitSet simMoveAlive;
+	private int[][] simMoveGates;
+	private byte[] simMoveShed;
+	private int[][] simMoveDist;
+	private OptimalPotential simMovePot;
+	private int simMoveAliveW = -1, simMoveAliveH = -1, simMoveVmax = -1;
+	private java.awt.geom.Line2D[] simMoveLapGates;
+	private java.awt.geom.Line2D simMoveFinish, simMoveGate0, simMoveGate1, simMoveGate2;
+
+	/** perf_aisearch: pureMinTurnsMoveSim's move for simulated car {@code idx} as a
+	 *  code -- the direction's ordinal, SIM_MOVE_NONE when there is none -- plus
+	 *  SIM_MOVE_LEGAL when that move's succMask bit is set, memoised. The scan reads
+	 *  the state; the car's lap frame (next gate, events owed, lap-awareness);
+	 *  {@code occupied} at its in-range landing cells and nowhere else; the AI's
+	 *  grid world; the reachability maps, the distance map, the exact potential,
+	 *  the lap gates and the finish line, whose identities (and the map dimensions)
+	 *  simMoveTable checks; and the borders, fixed for the game as succMask and the
+	 *  edge caches already take them. The key packs every varying input and an
+	 *  entry keeps its whole key, so a hit returns what the scan computes. */
+	private int simMove(final int idx, final int[] pos, final int[] vel, final CellOccupancy occupied) {
+		final int x = pos[0], y = pos[1], vx = vel[0], vy = vel[1];
+		final int gate = frameGate[idx], remaining = frameRemaining[idx];
+		final int max = RaceGame.AI_MAX_SPEED;
+		if (x < 0 || y < 0 || x > 511 || y > 511 || vx < -max || vx > max || vy < -max || vy > max
+				|| gate < 0 || gate > 2 || remaining < 0 || remaining > 255
+				|| game.lapGates != null && game.lapGates.length != 3)
+			return simMoveCompute(idx, pos, vel, occupied);
+		int landings = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (!RaceGame.aiVelocityOutOfRange(nvx, nvy) && occupied.contains(x + nvx, y + nvy))
+				landings |= 1 << d.ordinal();
+		}
+		long key = x;
+		key = key << 9 | y;
+		key = key << 5 | (vx + max);
+		key = key << 5 | (vy + max);
+		key = key << 2 | gate;
+		key = key << 8 | remaining;
+		key = key << 1 | (frameLapAware[idx] ? 1 : 0);
+		key = key << 9 | landings;
+		key = key << 1 | (game.aiGridLegal ? 1 : 0);
+		final long[] table = simMoveTable();
+		final int slot = (int) (key * 0x9E3779B97F4A7C15L >>> 64 - SIM_MOVE_BITS);
+		final long entry = table[slot];
+		if (entry >>> 5 == key)
+			return (int) entry & 0x1F;
+		final int code = simMoveCompute(idx, pos, vel, occupied);
+		table[slot] = key << 5 | code;
+		return code;
+	}
+
+	/** perf_aisearch: simMove computed -- the scan's move and its succMask bit. */
+	private int simMoveCompute(final int idx, final int[] pos, final int[] vel,
+			final CellOccupancy occupied) {
+		final Direction direction = pureMinTurnsMoveSim(idx, pos, vel, occupied);
+		if (direction == null)
+			return SIM_MOVE_NONE;
+		return (succMask(pos[0], pos[1], vel[0], vel[1]) & 1 << direction.ordinal()) != 0
+				? direction.ordinal() | SIM_MOVE_LEGAL : direction.ordinal();
+	}
+
+	/** perf_aisearch: the simMove table, emptied whenever a map, the potential, a map
+	 *  dimension, the lap gates or the finish line it was filled against is replaced
+	 *  (hand-built test games reassign gates and lines; a race never does). */
+	private long[] simMoveTable() {
+		final Reachability r = reach;
+		final java.awt.geom.Line2D[] gates = game.lapGates;
+		if (simMoveTab == null || simMoveTurns != r.turnsArr || simMoveAlive != r.aliveStates
+				|| simMoveGates != r.gateTurns || simMoveShed != r.minShed2
+				|| simMoveDist != r.distToFinish || simMovePot != exactPot
+				|| simMoveAliveW != r.aliveW || simMoveAliveH != r.aliveH || simMoveVmax != r.aliveVMAX
+				|| simMoveLapGates != gates || simMoveFinish != game.finishLine
+				|| gates != null && (simMoveGate0 != gates[0] || simMoveGate1 != gates[1]
+						|| simMoveGate2 != gates[2])) {
+			if (simMoveTab == null)
+				simMoveTab = new long[1 << SIM_MOVE_BITS];
+			java.util.Arrays.fill(simMoveTab, -1L);
+			simMoveTurns = r.turnsArr;
+			simMoveAlive = r.aliveStates;
+			simMoveGates = r.gateTurns;
+			simMoveShed = r.minShed2;
+			simMoveDist = r.distToFinish;
+			simMovePot = exactPot;
+			simMoveAliveW = r.aliveW;
+			simMoveAliveH = r.aliveH;
+			simMoveVmax = r.aliveVMAX;
+			simMoveLapGates = gates;
+			simMoveFinish = game.finishLine;
+			simMoveGate0 = gates == null ? null : gates[0];
+			simMoveGate1 = gates == null ? null : gates[1];
+			simMoveGate2 = gates == null ? null : gates[2];
+		}
+		return simMoveTab;
 	}
 
 	/** Reusable two-round opponent projection. The reference arrays and every
@@ -2729,14 +2953,16 @@ final class RaceAi {
 				final int[] current = occupancy[idx];
 				blockedOccupancy.remove(current[0], current[1]);
 				final int[] velocity = simulatedVelocity[idx];
-				final Direction direction = pureMinTurnsMoveSim(idx, current, velocity, blockedOccupancy);
+				// perf_aisearch (exact): the move and its succMask bit -- velocity in range
+				// and aiMoveLegal, the very tests made here -- memoised (simMove).
+				final int code = simMove(idx, current, velocity, blockedOccupancy);
 				int nx = current[0];
 				int ny = current[1];
-				if (direction != null) {
+				if (code != SIM_MOVE_NONE) {
+					final Direction direction = DIRECTIONS[code & 0xF];
 					final int nvx = velocity[0] + direction.dx;
 					final int nvy = velocity[1] + direction.dy;
-					if (!RaceGame.aiVelocityOutOfRange(nvx, nvy)
-							&& game.aiMoveLegal(current[0], current[1], current[0] + nvx, current[1] + nvy)
+					if ((code & SIM_MOVE_LEGAL) != 0
 							&& !blockedOccupancy.contains(current[0] + nvx, current[1] + nvy)) {
 						nx = current[0] + nvx;
 						ny = current[1] + nvy;
@@ -2804,7 +3030,10 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			// perf_aisearch (exact): the same AND, the frame and landing tests first
+			// (lap-aware with a checkpoint owed no crossing counts).
+			if ((!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+					&& game.crossesFinishLegally(x, y, nx, ny))
 				return new double[]{1, 9 };
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -2844,7 +3073,10 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			// perf_aisearch (exact): the same AND, the frame and landing tests first
+			// (lap-aware with a checkpoint owed no crossing counts).
+			if ((!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+					&& game.crossesFinishLegally(x, y, nx, ny))
 				return 9;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -2979,7 +3211,8 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+			// perf_aisearch (exact): the same AND, crossingCountsFor first.
+			if (crossingCountsFor(self, nx, ny, nvx, nvy) && game.crossesFinishLegally(x, y, nx, ny)
 					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return 3;
@@ -3016,7 +3249,8 @@ final class RaceAi {
 			final int nx = x + nvx, ny = y + nvy;
 			if (finishesFor(self, x, y, nx, ny))
 				return writeMove(out, nx, ny, nvx, nvy); // round 296: CP2 on the way included
-			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+			// perf_aisearch (exact): the same AND, crossingCountsFor first.
+			if (crossingCountsFor(self, nx, ny, nvx, nvy) && game.crossesFinishLegally(x, y, nx, ny)
 					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
@@ -3063,7 +3297,8 @@ final class RaceAi {
 			final int nx = x + nvx, ny = y + nvy;
 			if (finishesFor(self, x, y, nx, ny))
 				return writeMove(out, nx, ny, nvx, nvy); // round 296: CP2 on the way included
-			if (game.crossesFinishLegally(x, y, nx, ny) && crossingCountsFor(self, nx, ny, nvx, nvy)
+			// perf_aisearch (exact): the same AND, crossingCountsFor first.
+			if (crossingCountsFor(self, nx, ny, nvx, nvy) && game.crossesFinishLegally(x, y, nx, ny)
 					&& (!frameLapAware[self] || game.aiMoveLegal(x, y, nx, ny)
 							&& !occupiedByOther(nx, ny, self, px, py, alive)))
 				return writeMove(out, nx, ny, nvx, nvy);
@@ -3127,6 +3362,15 @@ final class RaceAi {
 		final boolean upgrade = awareUpgrade;
 		awareUpgrade = false;
 		final int outerAwarePolicyDepth = awarePolicyDepth;
+		// perf_aware (exact): a suppressed decision is a function of the board installed below
+		// and the decider's grid world (RaceAiMoveMemo), so a board this top-level decision
+		// already met replays its move. Only suppressed decisions qualify: never an upgraded
+		// (aware) move, never an unsuppressed true rival.
+		final boolean memoized = !upgrade && (suppress || awarePolicyDepth > 0) && suppressedMovesOn();
+		final int known = memoized ? suppressedMoves.find(i, rollout.turns, game.aiGridLegal, px, py,
+				vx, vy, alive, rollout.laps, rollout.gates) : RaceAiMoveMemo.MISS;
+		if (known != RaceAiMoveMemo.MISS && !PERF_CHECK)
+			return replayScorerMove(i, px, py, vx, vy, out, RaceAiMoveMemo.move(known));
 		// Round 222: the rival's compute assigns ITS lap frame at entry --
 		// gate, lap-awareness, robust flag, remaining events. Put the mover's
 		// back afterwards, or the rest of this decision is priced on the
@@ -3189,6 +3433,8 @@ final class RaceAi {
 			}
 			game.subgamestate = ss;
 		}
+		if (memoized)
+			recordSuppressedMove(i, rollout.turns, known, direction);
 		if (direction == null)
 			return false;
 		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
@@ -3196,6 +3442,32 @@ final class RaceAi {
 		// or a genuine crash. The solo map is neither a referee nor a policy veto:
 		// this car may win before it ever needs another move.
 		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
+	}
+
+	/** perf_aware: scorerMoveOverState's tail for a replayed decision. */
+	private static boolean replayScorerMove(final int i, final int[] px, final int[] py,
+			final int[] vx, final int[] vy, final int[] out, final Direction direction) {
+		if (direction == null)
+			return false;
+		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
+		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
+	}
+
+	/** perf_aware: store a computed suppressed decision, or (self-check) compare a
+	 *  recomputed hit with its stored move. */
+	private void recordSuppressedMove(final int i, final int turns, final int known,
+			final Direction direction) {
+		if (known == RaceAiMoveMemo.MISS)
+			suppressedMoves.store(direction);
+		else if (RaceAiMoveMemo.move(known) != direction)
+			System.err.println("PERF-AWARE MEMO MISMATCH slot=" + i + " turns=" + turns + " memo="
+					+ RaceAiMoveMemo.move(known) + " computed=" + direction);
+	}
+
+	/** perf_aware: the memo stays off wherever a suppressed decision prints (the debug
+	 *  flags) and in the query sim trace, so their output is unchanged. */
+	private boolean suppressedMovesOn() {
+		return !simTrace && AI_DEBUG_PLAYER < 0 && !AI_DEBUG_DJS && !AI_DEBUG_COMP;
 	}
 
 	/** A proxy may find no preferred/map-alive move even though physical moves
@@ -3357,6 +3629,10 @@ final class RaceAi {
 		final boolean outerAware = lapAware, outerRobust = robustMode;
 		final int[] outerGates = frameGate, outerRemainingByPlayer = frameRemaining;
 		final boolean[] outerAwareByPlayer = frameLapAware;
+		// perf_aware: a rollout outside a top-level decision (a query, a direct call) owns an
+		// empty memo of its own.
+		if (simDepth == 0 && !suppressedMovesOwned)
+			suppressedMoves.clear();
 		simDepth++;
 		try {
 			final RolloutWorkspace workspace = rolloutWorkspace();
@@ -3411,6 +3687,16 @@ final class RaceAi {
 	/** Round 285: the forecast depth whose mover and relevant rival make their
 	 *  first move with the full policy; -1 for none. */
 	private int awareDepth = -1, awareRival = -1;
+	/** perf_aware (exact): the moves of suppressed decisions met in this top-level decision
+	 *  (or standalone rollout), and whether a top-level decision owns that memo now. */
+	private final RaceAiMoveMemo suppressedMoves = new RaceAiMoveMemo();
+	private boolean suppressedMovesOwned;
+	/** perf_aware (exact): the relevant-rival fronts of one top-level chooser call. */
+	private final ChooserTraffic.FrontCache trafficFronts = new ChooserTraffic.FrontCache();
+	/** perf_aware self-check, -Dai.perf.check=true: recompute every memo hit and the
+	 *  original relevant-rival graph, race on the recomputed values and print any
+	 *  difference to stderr. Off by default. */
+	private static final boolean PERF_CHECK = Boolean.getBoolean("ai.perf.check");
 	/** Lab port: set by awareMoveOverState for exactly one scorerMoveOverState
 	 *  call; every policy call beneath that upgraded move runs suppressed. */
 	private boolean awareUpgrade;
@@ -4377,7 +4663,10 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			// perf_aisearch (exact): the same AND, the frame and landing tests first
+			// (lap-aware with a checkpoint owed no crossing counts).
+			if ((!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+					&& game.crossesFinishLegally(x, y, nx, ny))
 				return 9;
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -4406,16 +4695,21 @@ final class RaceAi {
 	 */
 	private int countRoomySuccessors(final int x, final int y, final int vx, final int vy) {
 		int count = 0;
+		// perf_aisearch (exact): the velocity range and aiMoveLegal from succMask.
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx;
 			final int nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx;
 			final int ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			// perf_aisearch (exact): the same AND, the frame and landing tests first
+			// (lap-aware with a checkpoint owed no crossing counts).
+			if ((!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+					&& game.crossesFinishLegally(x, y, nx, ny))
 				return 9;
-			if (!game.aiMoveLegal(x, y, nx, ny))
+			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
 			if (reach.isAlive(nx, ny, nvx, nvy) && isRoomy(nx, ny, nvx, nvy))
 				count++;
@@ -4535,6 +4829,9 @@ final class RaceAi {
 			cands[width] = pace;
 		if (cands.length < 2)
 			return best;
+		// perf_aware: the relevant-rival fronts serve this call's landings only.
+		if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0)
+			trafficFronts.clear();
 		Direction pick = null;
 		long pickVerdict = -1;
 		long paceVerdict = Long.MIN_VALUE;
@@ -4637,7 +4934,17 @@ final class RaceAi {
 		x[focal] = nx; y[focal] = ny; vx[focal] = nvx; vy[focal] = nvy;
 		lap[focal] = landed.lapAfter();
 		gate[focal] = game.lapGates == null ? 0 : landed.gateAfter();
-		return ChooserTraffic.relevant(game, x, y, vx, vy, lap, gate, alive, focal);
+		final int fast = ChooserTraffic.relevant(game, trafficFronts, x, y, vx, vy, lap, gate, alive,
+				focal);
+		if (PERF_CHECK) {
+			final int original = ChooserTraffic.relevant(game, x, y, vx, vy, lap, gate, alive, focal);
+			if (original != fast) {
+				System.err.println("PERF-AWARE TRAFFIC MISMATCH p=" + playerNum + " landing=(" + nx + ","
+						+ ny + ") fronts=" + fast + " graph=" + original);
+				return original;
+			}
+		}
+		return fast;
 	}
 
 	/** Round 262: Chebyshev distance to the nearest live rival, or Integer.MAX_VALUE
@@ -4804,19 +5111,21 @@ final class RaceAi {
 	private int currentFreeContinuingSuccessors(final int x, final int y, final int vx, final int vy,
 			final int playerNum, final int gate, final int cap) {
 		int n = 0;
+		// perf_aisearch (exact): the velocity range and aiMoveLegal from succMask.
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (!game.aiMoveLegal(x, y, nx, ny)
+			if ((sm & 1 << d.ordinal()) == 0
 					|| game.isCrashingPlayer(nx, ny, playerNum)
 					|| !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
 			if (gate >= 0 && lapAware
 					&& reach.turnsToGate(gate, nx, ny, nvx, nvy) == Integer.MAX_VALUE
-					&& !(gate == 0 && game.crossesFinishLegally(x, y, nx, ny)
-							&& reach.turnsToGate(1, nx, ny, nvx, nvy) != Integer.MAX_VALUE))
+					&& !(gate == 0 && reach.turnsToGate(1, nx, ny, nvx, nvy) != Integer.MAX_VALUE
+							&& game.crossesFinishLegally(x, y, nx, ny))) // perf_aisearch: map test first
 				continue;
 			if (++n >= cap)
 				return n;
@@ -4858,7 +5167,10 @@ final class RaceAi {
 	 *  on the way included? crossingCountsFor needs every checkpoint collected
 	 *  before the move. */
 	private boolean finishesFor(final int idx, final int x, final int y, final int nx, final int ny) {
-		return game.crossesFinishLegally(x, y, nx, ny) && (game.lapGates == null
+		// perf_aisearch (exact): a move collects at most three gate events (CP1, CP2,
+		// the line), so with more owed it finishes nothing and the crossing is not asked.
+		return (game.lapGates == null || frameRemaining[idx] <= 3)
+				&& game.crossesFinishLegally(x, y, nx, ny) && (game.lapGates == null
 				|| game.gateEventsOnMove(frameGate[idx], x, y, nx, ny) >= frameRemaining[idx]);
 	}
 
@@ -4877,7 +5189,9 @@ final class RaceAi {
 			if ((sm & 1 << 16 + d.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny)) {
+			// perf_aisearch (exact): a move collects at most three gate events, so the
+			// precedence below needs remaining <= 3 or gate == 0.
+			if ((remaining <= 3 || gate == 0) && game.crossesFinishLegally(x, y, nx, ny)) {
 				final int events = game.gateEventsOnMove(gate, x, y, nx, ny);
 				if (events >= remaining || remaining <= 1
 						|| gate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
@@ -4904,7 +5218,10 @@ final class RaceAi {
 	 *  frame is active? In lap mode a crossing with a lap or a checkpoint still
 	 *  owed is an ordinary move and must pass the ordinary landing checks. */
 	private boolean finishingMove(final int x, final int y, final int nx, final int ny) {
-		return game.crossesFinishLegally(x, y, nx, ny) && (game.lapGates == null
+		// perf_aisearch (exact): a move collects at most three gate events (CP1, CP2,
+		// the line), so with more owed it finishes nothing and the crossing is not asked.
+		return (game.lapGates == null || exactRemaining <= 3)
+				&& game.crossesFinishLegally(x, y, nx, ny) && (game.lapGates == null
 				|| game.gateEventsOnMove(lapGate, x, y, nx, ny) >= exactRemaining);
 	}
 
@@ -5129,14 +5446,19 @@ final class RaceAi {
 	 *  Kuhn). A finishing escape is never sealable. */
 	private boolean sealable(final int x, final int y, final int vx, final int vy, final int playerNum) {
 		int escapeCount = 0;
+		// perf_aisearch (exact): the velocity range and aiMoveLegal from succMask.
+		final int sm = succMask(x, y, vx, vy);
 		for (final Direction direction : DIRECTIONS) {
 			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
-			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+			if ((sm & 1 << 16 + direction.ordinal()) == 0)
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy)))
+			// perf_aisearch (exact): the same AND, the frame and landing tests first
+			// (lap-aware with a checkpoint owed no crossing counts).
+			if ((!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+					&& game.crossesFinishLegally(x, y, nx, ny))
 				return false;
-			if (!game.aiMoveLegal(x, y, nx, ny))
+			if ((sm & 1 << direction.ordinal()) == 0)
 				continue;
 			if (!reach.isAlive(nx, ny, nvx, nvy))
 				continue;
@@ -5213,6 +5535,14 @@ final class RaceAi {
 		final long[] b = search.blocked[ply - 1];
 		final int bc = search.blockedCount[ply - 1];
 		final long[] direct = search.blockedBits[ply - 1];
+		// perf_aisearch (exact): a crossing counts here when it is legal and
+		// (!lapAware || lapGate == 0 && shedable landing) -- never lap-aware with a
+		// checkpoint owed -- so only !lapAware or lapGate == 0 asks for one, and
+		// the side-effect-free tests run cheapest first.
+		final boolean crossFrame = !lapAware || lapGate == 0;
+		// perf_aisearch (exact): reach.isAlive at every in-range landing from one
+		// probe of the state's alive plane (aliveMask).
+		final int aliveSucc = aliveMask(x, y, vx, vy);
 		if (ply == search.depth) {
 			int cnt = 0;
 			for (final Direction d : DIRECTIONS) {
@@ -5220,32 +5550,32 @@ final class RaceAi {
 				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 					continue;
 				final int nx = x + nvx, ny = y + nvy;
-				if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))) {
-					cnt++;
-					continue;
-				}
-				if (blockedContains(b, bc, direct, search.gridW, search.gridH, nx, ny))
-					continue;
-				if (reach.isAlive(nx, ny, nvx, nvy))
+				// Counted: a crossing that counts, or a free alive landing -- one OR,
+				// the free alive landing asked first.
+				if ((aliveSucc & 1 << d.ordinal()) != 0
+						&& !blockedContains(b, bc, direct, search.gridW, search.gridH, nx, ny)
+						|| crossFrame && (!lapAware || reach.shedableLanding(nx, ny, nvx, nvy))
+								&& game.crossesFinishLegally(x, y, nx, ny))
 					cnt++;
 			}
 			final double result = cnt / 9.0;
 			fmMemoPut(memoKey, search.epoch, result);
 			return result;
 		}
+		// Every value lies in [0, 1]: the node is 1.0 when a crossing counts or a
+		// continuation reaches 1.0, else the best continuation, whatever the order
+		// of the scan. The continuations are searched first; the crossings are
+		// asked only when none of them reached 1.0. (The memo holds exact values
+		// under unique keys, so the order changes only what it caches.)
 		double best = 0.0;
 		for (final Direction d : DIRECTIONS) {
 			final int nvx = vx + d.dx, nvy = vy + d.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
-			final int nx = x + nvx, ny = y + nvy;
-			if (game.crossesFinishLegally(x, y, nx, ny) && (!lapAware || lapGate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))) {
-				fmMemoPut(memoKey, search.epoch, 1.0);
-				return 1.0;
-			}
-			if (blockedContains(b, bc, direct, search.gridW, search.gridH, nx, ny))
+			if ((aliveSucc & 1 << d.ordinal()) == 0)
 				continue;
-			if (!reach.isAlive(nx, ny, nvx, nvy))
+			final int nx = x + nvx, ny = y + nvy;
+			if (blockedContains(b, bc, direct, search.gridW, search.gridH, nx, ny))
 				continue;
 			final double v = fmRec(nx, ny, nvx, nvy, search, ply + 1);
 			if (v > best) {
@@ -5256,8 +5586,72 @@ final class RaceAi {
 				}
 			}
 		}
+		if (crossFrame)
+			for (final Direction d : DIRECTIONS) {
+				final int nvx = vx + d.dx, nvy = vy + d.dy;
+				if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+					continue;
+				final int nx = x + nvx, ny = y + nvy;
+				if ((!lapAware || reach.shedableLanding(nx, ny, nvx, nvy))
+						&& game.crossesFinishLegally(x, y, nx, ny)) {
+					fmMemoPut(memoKey, search.epoch, 1.0);
+					return 1.0;
+				}
+			}
 		fmMemoPut(memoKey, search.epoch, best);
 		return best;
+	}
+
+	/** perf_aisearch: log2 of the aliveMask table's slots. */
+	private static final int ALIVE_MASK_BITS = 18;
+	/** perf_aisearch: the aliveMask table (direct-mapped, entry = key << 32 | mask)
+	 *  and the alive map and dimensions it was filled against. */
+	private long[] aliveMaskTab;
+	private BitSet aliveMaskAlive;
+	private int aliveMaskW = -1, aliveMaskH = -1, aliveMaskVmax = -1, aliveMaskSpan = -1;
+
+	/** perf_aisearch: bit d set when Direction d's velocity from (vx, vy) is in the
+	 *  AI range and reach.isAlive holds at its landing -- what fmRec reads for every
+	 *  successor. A function of the state, the alive map and its dimensions alone,
+	 *  kept per state under its alive index (unique on the map's domain, stored
+	 *  whole); the table empties itself when the map or a dimension changes. */
+	private int aliveMask(final int x, final int y, final int vx, final int vy) {
+		final Reachability r = reach;
+		if (r.aliveStates == null || x < 0 || y < 0 || x >= r.aliveW || y >= r.aliveH
+				|| r.velocityOutOfRange(vx, vy) || r.aliveSpan != 2 * r.aliveVMAX + 1)
+			return aliveMaskCompute(x, y, vx, vy);
+		final int key = r.aliveIdx(x, y, vx, vy);
+		if (key < 0)
+			return aliveMaskCompute(x, y, vx, vy);
+		if (aliveMaskTab == null || aliveMaskAlive != r.aliveStates || aliveMaskW != r.aliveW
+				|| aliveMaskH != r.aliveH || aliveMaskVmax != r.aliveVMAX || aliveMaskSpan != r.aliveSpan) {
+			if (aliveMaskTab == null)
+				aliveMaskTab = new long[1 << ALIVE_MASK_BITS];
+			java.util.Arrays.fill(aliveMaskTab, -1L);
+			aliveMaskAlive = r.aliveStates;
+			aliveMaskW = r.aliveW;
+			aliveMaskH = r.aliveH;
+			aliveMaskVmax = r.aliveVMAX;
+			aliveMaskSpan = r.aliveSpan;
+		}
+		final int slot = key * 0x9E3779B1 >>> 32 - ALIVE_MASK_BITS;
+		final long entry = aliveMaskTab[slot];
+		if ((int) (entry >>> 32) == key)
+			return (int) entry;
+		final int mask = aliveMaskCompute(x, y, vx, vy);
+		aliveMaskTab[slot] = (long) key << 32 | mask;
+		return mask;
+	}
+
+	/** perf_aisearch: aliveMask computed. */
+	private int aliveMaskCompute(final int x, final int y, final int vx, final int vy) {
+		int mask = 0;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if (!RaceGame.aiVelocityOutOfRange(nvx, nvy) && reach.isAlive(x + nvx, y + nvy, nvx, nvy))
+				mask |= 1 << d.ordinal();
+		}
+		return mask;
 	}
 
 	/** One immutable opponent projection plus a transposition epoch shared by
@@ -5435,9 +5829,85 @@ final class RaceAi {
 	 *  linear scan). Returns the new count, or -1 when no step exists. */
 	private int greedyStepBlockTop3(final int x, final int y, final int vx, final int vy,
 			final boolean avoidOcc, final long[] block, final int blockCount, final int[] out) {
-		int t1 = Integer.MAX_VALUE, t2 = Integer.MAX_VALUE, t3 = Integer.MAX_VALUE;
-		int x1 = 0, y1 = 0, vx1 = 0, vy1 = 0;
-		int x2 = 0, y2 = 0, x3 = 0, y3 = 0;
+		// perf_aisearch (exact): the scan kept, among the moves whose velocity is in
+		// reach's range and whose landing is on the map, has finite turns and holds
+		// no live body, the three with the fewest turns by strict < (equal turns in
+		// Direction order). That is the stable turns order of those moves without
+		// the body test (greedyOrder, a function of the state and the turns map)
+		// with the occupied landings dropped, cut at three: the same cells in the
+		// same order, the same first move.
+		final long order = greedyOrder(x, y, vx, vy);
+		int count = blockCount, taken = 0;
+		for (int i = 0; i < DIRECTIONS.length && taken < 3; i++) {
+			final int ordinal = (int) (order >>> 4 * i) & 0xF;
+			if (ordinal == 0xF)
+				break;
+			final Direction direction = DIRECTIONS[ordinal];
+			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
+			final int nx = x + nvx, ny = y + nvy;
+			if (avoidOcc && cellOccupiedByLive(nx, ny, x, y))
+				continue;
+			if (taken++ == 0)
+				writeMove(out, nx, ny, nvx, nvy);
+			block[count++] = ((long) nx << 32) | (ny & 0xffffffffL);
+		}
+		return taken == 0 ? -1 : count;
+	}
+
+	/** perf_aisearch: log2 of the greedyOrder table's slots. */
+	private static final int GREEDY_ORDER_BITS = 16;
+	/** perf_aisearch: greedyOrder keys (alive indexes) stay below this; an empty
+	 *  entry's key bits equal it. */
+	private static final int GREEDY_ORDER_KEY_LIMIT = (1 << 28) - 1;
+	/** perf_aisearch: the greedyOrder table (direct-mapped, entry = key << 36 |
+	 *  order) and the map and dimensions it was filled against. */
+	private long[] greedyOrderTab;
+	private int[] greedyOrderTurns;
+	private int greedyOrderAliveW = -1, greedyOrderAliveH = -1, greedyOrderVmax = -1,
+			greedyOrderSpan = -1;
+	private final int[] greedyOrderTurnsScratch = new int[DIRECTIONS.length];
+	private final int[] greedyOrderOrdinalScratch = new int[DIRECTIONS.length];
+
+	/** perf_aisearch: the moves of (x, y, vx, vy) whose velocity is in reach's
+	 *  range and whose landing is on the map with finite turns, sorted stably by
+	 *  those turns (equal turns keep Direction order) and packed by packOrder. A
+	 *  function of the state, the turns map and the map's dimensions alone, kept
+	 *  per state under its alive index (unique on the map's domain, checked
+	 *  whole); the table empties itself when the map or a dimension changes. */
+	private long greedyOrder(final int x, final int y, final int vx, final int vy) {
+		final Reachability r = reach;
+		if (x < 0 || y < 0 || x >= r.aliveW || y >= r.aliveH || r.velocityOutOfRange(vx, vy)
+				|| r.aliveSpan != 2 * r.aliveVMAX + 1)
+			return greedyOrderCompute(x, y, vx, vy);
+		final int key = r.aliveIdx(x, y, vx, vy);
+		if (key < 0 || key >= GREEDY_ORDER_KEY_LIMIT)
+			return greedyOrderCompute(x, y, vx, vy);
+		if (greedyOrderTab == null || greedyOrderTurns != r.turnsArr || greedyOrderAliveW != r.aliveW
+				|| greedyOrderAliveH != r.aliveH || greedyOrderVmax != r.aliveVMAX
+				|| greedyOrderSpan != r.aliveSpan) {
+			if (greedyOrderTab == null)
+				greedyOrderTab = new long[1 << GREEDY_ORDER_BITS];
+			java.util.Arrays.fill(greedyOrderTab, -1L);
+			greedyOrderTurns = r.turnsArr;
+			greedyOrderAliveW = r.aliveW;
+			greedyOrderAliveH = r.aliveH;
+			greedyOrderVmax = r.aliveVMAX;
+			greedyOrderSpan = r.aliveSpan;
+		}
+		final int slot = key * 0x9E3779B1 >>> 32 - GREEDY_ORDER_BITS;
+		final long entry = greedyOrderTab[slot];
+		if ((int) (entry >>> 36) == key)
+			return entry & ORDER_NONE;
+		final long order = greedyOrderCompute(x, y, vx, vy);
+		greedyOrderTab[slot] = (long) key << 36 | order;
+		return order;
+	}
+
+	/** perf_aisearch: greedyOrder computed -- the original scan's first three tests,
+	 *  then an insertion sort that moves an entry only past strictly larger turns. */
+	private long greedyOrderCompute(final int x, final int y, final int vx, final int vy) {
+		final int[] turnsBy = greedyOrderTurnsScratch, ordinals = greedyOrderOrdinalScratch;
+		int n = 0;
 		for (final Direction direction : DIRECTIONS) {
 			final int nvx = vx + direction.dx, nvy = vy + direction.dy;
 			if (reach.velocityOutOfRange(nvx, nvy))
@@ -5445,45 +5915,19 @@ final class RaceAi {
 			final int nx = x + nvx, ny = y + nvy;
 			if (nx < 0 || ny < 0 || nx >= reach.aliveW || ny >= reach.aliveH)
 				continue;
-			if (avoidOcc && cellOccupiedByLive(nx, ny, x, y))
-				continue;
 			final int turns = reach.turnsArr[reach.aliveIdx(nx, ny, nvx, nvy)];
 			if (turns == Integer.MAX_VALUE)
 				continue;
-			if (turns < t1) {
-				t3 = t2;
-				x3 = x2;
-				y3 = y2;
-				t2 = t1;
-				x2 = x1;
-				y2 = y1;
-				t1 = turns;
-				x1 = nx;
-				y1 = ny;
-				vx1 = nvx;
-				vy1 = nvy;
-			} else if (turns < t2) {
-				t3 = t2;
-				x3 = x2;
-				y3 = y2;
-				t2 = turns;
-				x2 = nx;
-				y2 = ny;
-			} else if (turns < t3) {
-				t3 = turns;
-				x3 = nx;
-				y3 = ny;
+			int i = n++;
+			while (i > 0 && turnsBy[i - 1] > turns) {
+				turnsBy[i] = turnsBy[i - 1];
+				ordinals[i] = ordinals[i - 1];
+				i--;
 			}
+			turnsBy[i] = turns;
+			ordinals[i] = direction.ordinal();
 		}
-		if (t1 == Integer.MAX_VALUE)
-			return -1;
-		int count = blockCount;
-		block[count++] = ((long) x1 << 32) | (y1 & 0xffffffffL);
-		if (t2 != Integer.MAX_VALUE)
-			block[count++] = ((long) x2 << 32) | (y2 & 0xffffffffL);
-		if (t3 != Integer.MAX_VALUE)
-			block[count++] = ((long) x3 << 32) | (y3 & 0xffffffffL);
-		return writeMove(out, x1, y1, vx1, vy1) ? count : -1;
+		return packOrder(ordinals, n);
 	}
 
 	/** True iff the ALIVE state (x,y,vx,vy) has at least two one-step
