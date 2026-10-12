@@ -1,5 +1,44 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 304 (2026-10-12): setup on the aware champion -- dead
+
+Round 303's setup gained -0.078 on the 301c champion. Here it is ported onto the aware
+champion (master fdf25c4), as a candidate-gated arm.
+- Port: E:/tmp-claude/labport_lp/lp_setup_aw.py, the lab rule at width 2. It was
+  reviewed correct twice. Jar c4cd9845.
+- What the candidate does: each shortlisted landing is also forecast with one
+  alternative second action, forced in place of aware's upgraded self move. The
+  landing is valued by its best plan.
+- Checks:
+  - Identity is OK against the champion's jar.
+  - The every-slot check mode found no memo disagreement.
+  - CPU is 1.06x.
+
+Against the champion, mirrored, 8 cars:
+
+| Slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| random 1-10 | +0.057 +- 0.019 | 33/46/5 | 58:52 |
+| held-out 11-20 | +0.049 +- 0.017 | 35/41/8 | 45:51 |
+| computed 1-10 | +0.066 +- 0.016 | 28/43/13 | 59:48 |
+
+Setup loses by three to four standard errors on every slice.
+
+Why, in my judgement:
+- Aware already forecasts the car's real next move.
+- A plan the car never commits to now only bends the pick away from that forecast.
+- On the cruder 301c forecasts, the alternative plan was a correction.
+
+Per track:
+- Fractal3 is the one exception on every slice, at -1.1 to -2.0 places.
+- Hybrid3, fractal23 and fractal24 lose most on every slice.
+
+Not run:
+- The lone check, scattered starts and duels.
+- The strict-wins tie control (lp_setup_tiecontrol.py).
+
+Setup is closed on this champion.
+
 ## Speed (2026-10-12): five exact optimisations, the champion at 0.18x its CPU
 
 The owner accepted aware's 2.65x CPU and asked whether the agents could be
