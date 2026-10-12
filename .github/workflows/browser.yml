@@ -56,7 +56,9 @@ jobs:
     # rebuild of their own (review, 2026-09-28).
     needs: parity
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # Two whole AI races in the browser JVM, each allowed 30 minutes since round
+    # 303's aware forecasts (2026-10-11).
+    timeout-minutes: 75
     strategy:
       fail-fast: false
       matrix:
