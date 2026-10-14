@@ -1,5 +1,134 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 305 (2026-10-12 to 14, in progress): aware plays more of the car's own continuation
+
+Round 303's aware plays two moves of each top-level forecast by their full policy:
+- the mover's first continuation move;
+- the most-interacting rival's first move.
+
+Everything beneath those moves runs suppressed. Round 303 found the mover's half was nearly
+all of the gain.
+
+This round gives a candidate car its first k continuation moves by its full policy. The rival
+keeps one.
+- Arm: E:/tmp-claude/arm305_awself.py, with AW305_SELF=k.
+- Every arm is identity OK against the champion's jar (p8dc73ed).
+- Check mode is clean for every arm: the speed memo agrees with recomputation.
+
+Against the champion, mirrored, 8 cars, random starts, seeds 1-10:
+
+| k | Place C-H | Tracks C/H/tied | Crashes C:H | CPU |
+|---|---|---|---|---|
+| 2 | -0.074 +- 0.017 | 52/22/10 | 52:74 | 1.19x |
+| 3 | -0.101 +- 0.018 | 50/24/10 | 53:78 | 1.35x |
+| 4 | -0.126 +- 0.018 | 57/19/8 | 49:68 | 1.55x |
+| 5 | -0.151 +- 0.019 | 59/19/6 | 60:69 | 1.66x |
+| 6 | -0.130 +- 0.019 | 52/23/9 | 47:77 | 1.80x |
+| 8 | -0.121 +- 0.019 | 54/23/7 | 56:74 | 1.95x |
+| 11 | -0.129 +- 0.019 | 59/21/4 | 56:74 | 2.34x |
+
+At k = 11 the mover plays every move of the 12-round forecast by its full policy.
+- Up to the fourth or fifth move, each move adds about 0.025 places.
+- Beyond that the reading holds near -0.13.
+- The candidate crashes less at every depth.
+
+Further slices for k = 2:
+- Held-out 11-20: -0.084 +- 0.016 (56/20/8; crashes 47:52).
+- Computed: -0.038 +- 0.014 (38/33/13; crashes 62:60).
+- Lone check: the candidate's mean place is 4.448, against 4.500 for the champion in the same
+  seats (48/20/16; crashes 27:28).
+
+The depth-2 scattered and duel screens are parked in queue/hold.
+
+CPU: today's champion costs about 0.48x of round 301c's. So even k = 5 costs about 0.8x of
+round 301c's champion, well under the 2.65x of round 301c that the owner accepted for aware.
+
+Next:
+- k = 4 and k = 5 on held-out seeds and computed starts.
+- Then the full battery for the chosen depth.
+- The CPU call stays the owner's.
+
+## Round 306 (2026-10-12 to 14): the post-chooser stack priced leg by leg on the aware champion
+
+Rounds 234-235 priced the override and guard stack on the round-233/234 champions. That was
+before the chooser (260), the every-rival scorer rollouts (281, 300a) and aware (303). Arm 306
+(E:/tmp-claude/arm306_lesion.py, LESION=legs) switches legs off for candidate cars.
+
+Against the champion, mirrored, 8 cars, random starts, seeds 1-10:
+
+| Leg off for the candidate | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| the whole post-chooser stack | +0.074 +- 0.021 | 32/49/3 | 88:57 |
+| the round-34 pace swap | +0.121 +- 0.022 | 33/47/4 | 56:52 |
+| the danger-joint-search family | -0.028 +- 0.009 | 31/18/35 | 67:45 |
+| the three pace overrides (75/77, 82, 106) | -0.002 +- 0.010 | 30/30/24 | 53:52 |
+| the round-232 kinematic confirm | +0.002 +- 0.002 | 4/6/74 | 57:49 |
+| the finish sprint and finish denial | +0.001 +- 0.002 | 3/3/78 | 52:52 |
+
+The stack-off arm switches off every leg in rows 2-6: the swap, the danger family, the three
+pace overrides, the confirm, the sprint and finish denial. The queue box is a score term
+(arm306_lesion's qbox leg) and stays on in that arm.
+
+What each leg is worth:
+- **The pace swap is the stack's value.** On exact faithful ties it takes the map-faster
+  landing, and that is worth 0.12 places.
+- **The danger-joint-search family now costs 0.028 places**, about three standard errors.
+  - Its survival-only switches replace picks that the chooser's faithful rollouts have already
+    judged.
+  - Without it the cars crash more (67 against 45) yet finish better. The rule prices that.
+  - Its held-out and computed replications are queued. It will be measured again against
+    whatever depth round 305 promotes.
+- **The pace overrides are now neutral.** They earned +0.039 in round 235.
+- **The confirm and the finish legs barely fire.** Their identity checks came back INERT on the
+  standard races.
+
+Still pending:
+- The queue box (a score term).
+- The switch-margin arms, E:/tmp-claude/arm306m_margin.py. The chooser would leave the score's
+  top landing only for a place, or for more than 1 or 2 turns.
+
+## The peer branch's racecraft strategies, triaged and screened (2026-10-12 to 14)
+
+The owner asked for another agent's suggestions to be looked at: branch
+work/racecraft-strategies-20261008 (b165689).
+- It has 24 opt-in racecraftNext flags on the round-301c champion (base 807d3d2). Their
+  write-ups are under docs/experiments/ on the branch: creative racecraft, strategy research,
+  traffic opportunities, adaptive racecraft, outcomes/opening.
+- With all flags off, its jar (rs1008) races exactly like round 301c's.
+
+Triage (E:/tmp-claude/review3/flag_triage.py): each flag ran with every slot a candidate, on 12
+eight-car races (legacy and informed) and 3 duels.
+
+Fourteen flags never changed a race:
+- adaptive escape, tactical extension, denial;
+- checkpoint traffic, decision endpoint, staged order, short transitions;
+- response strategies, place certificates, forced sequence, ordered blockade;
+- pace feints, ambush, selfish search.
+
+Five flags rarely changed one (1-2 races of 15):
+- crash-rank, rank-time, opening, follow-up;
+- traffic judo, which costs 2.68x CPU.
+
+The five that change most races were screened against the branch's own flags-off cars
+(mirrored, 8 cars, random starts, seeds 1-10):
+
+| Flag | Place C-H | Tracks C/H/tied | Crashes C:H | CPU |
+|---|---|---|---|---|
+| suffix manoeuvres | -0.055 +- 0.014 | 46/27/11 | 37:39 | 2.47x |
+| two-judge | -0.026 +- 0.015 | 37/34/13 | 43:39 | 2.59x |
+| manoeuvre | -0.007 +- 0.016 | 38/30/16 | 43:37 | 2.02x |
+| continuation policies | +0.008 +- 0.008 | 19/31/34 | 33:33 | 1.10x |
+| recovery | +0.013 +- 0.005 | 8/18/58 | 54:32 | 1.06x |
+
+What the screens say:
+- **Suffix manoeuvres gains on the round-301c base.** It makes multi-move plans, commits the
+  first move, and re-offers the rest at the next exactly matching state.
+- **Manoeuvre alone, without the suffix memory, does not gain.**
+- **Suffix manoeuvres is being ported onto today's champion** (workflow wf_a16461d2-8db). Round
+  304 showed a 301c gain need not survive aware.
+- **Two-judge is close to what aware already does.**
+- **Recovery loses, and its cars crash more.**
+
 ## Round 304 (2026-10-12): setup on the aware champion -- dead
 
 Round 303's setup gained -0.078 on the 301c champion. Here it is ported onto the aware
@@ -35,7 +164,17 @@ Per track:
 
 Not run:
 - The lone check, scattered starts and duels.
-- The strict-wins tie control (lp_setup_tiecontrol.py).
+
+Fractal3, looked at afterwards (2026-10-12):
+- In the half where setup sits in the even slots, all four setup cars finish ahead of all four
+  champions.
+- In the other half the finishing order is exactly the slot order.
+- Both halves race identically for the first 30 rounds. After that, the setup cars pass, and
+  hold places, in a nose-to-tail procession where champions only follow.
+
+The strict-wins tie control was then run on aware (LP_SETUP_STRICT=1 lp_setup_aw.py +
+lp_setup_tiecontrol.py, jar 976d3216). Here a plan may change the pick only when it is strictly
+better. It read -0.013 +- 0.010 (33/23/28; crashes 50:54), and fractal3 is not among its gains.
 
 Setup is closed on this champion.
 
