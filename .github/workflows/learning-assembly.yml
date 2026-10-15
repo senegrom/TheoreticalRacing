@@ -23,7 +23,7 @@ jobs:
           distribution: temurin
           java-version: '25'
       - name: Strengthen learning state and behavioural checks
-        run: python3 .learning-20261015/polish.py
+        run: python3 .learning-20261015/polish-run.py
       - name: Build and full contracts
         run: |
           set -eu
