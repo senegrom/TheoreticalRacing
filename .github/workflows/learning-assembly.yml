@@ -13,7 +13,7 @@ jobs:
   assemble:
     if: github.ref == 'refs/heads/work/racecraft-strategies-20261008'
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
         with:
@@ -22,34 +22,21 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Integrate current champion and independent learning arms
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          if ! git merge-base --is-ancestor 71fdb12363f021ccc1036f8276041897cdbb0504 HEAD; then
-            git merge --no-commit --no-ff 71fdb12363f021ccc1036f8276041897cdbb0504 || true
-          fi
-          python3 .learning-20261015/resolve.py
-          test -z "$(git diff --name-only --diff-filter=U)"
-          python3 .learning-20261015/apply.py
-          python3 .learning-20261015/finish.py
-          git diff --check
-      - name: Build and contracts
+      - name: Strengthen learning state and behavioural checks
+        run: python3 .learning-20261015/polish.py
+      - name: Build and full contracts
         run: |
           set -eu
           sh build_main.sh
           sh run_tests.sh
           python3 -m unittest discover -s tests -p 'test_*.py'
-      - name: Commit tested implementation to research branch only
+      - name: Publish tested repairs to this research branch only
         run: |
           set -eu
-          git add src tests tools docs run_tests.sh racing-memory.md
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src tests tools docs racing-memory.md
           git diff --cached --check
           git diff --exit-code 71fdb12363f021ccc1036f8276041897cdbb0504 -- tracks/ user.properties
-          git restore --staged .github/workflows
-          if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
-            git commit -m 'Integrate aware champion and six isolated learning racecraft experiments'
-            git push origin HEAD:work/racecraft-strategies-20261008
-          fi
+          git commit -m 'Strengthen learning-state replay and positive repair and event witnesses'
+          git push origin HEAD:work/racecraft-strategies-20261008
