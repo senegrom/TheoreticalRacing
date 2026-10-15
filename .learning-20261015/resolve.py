@@ -38,4 +38,7 @@ for name in conflicts:
     if not n or '<<<<<<<' in text: raise RuntimeError('Unresolved '+name)
     Path(name).write_text(text)
     subprocess.run(['git','add',name], check=True)
+p=Path('.learning-20261015/apply.py');s=p.read_text()
+s=s.replace("s=one(s,'|| game.racecraftNext.creativeEnabled(game, player);','|| game.racecraftNext.creativeEnabled(game, player) || game.racecraftNext.learningForecastEnabled(game, player);')", "s=one(s,'|| creativeRoot(player);','|| creativeRoot(player) || learningRoot(player);')")
+p.write_text(s)
 print('Reviewed integration conflicts resolved; current aware and memo policies retained')
