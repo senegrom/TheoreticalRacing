@@ -18,7 +18,7 @@ def main():
     args=parser.parse_args()
     out=args.out.resolve();out.mkdir(parents=True,exist_ok=False)
     jar=(base.ROOT/'theoreticRacing.jar').resolve()
-    inputs={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (base.ROOT/'user.properties',base.ROOT/'tracks/lap_bench.properties')}
+    inputs={str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in (base.ROOT/'user.properties',base.ROOT/'tracks/lap_bench.properties') if p.exists()}
     count=0;records=[]
     for track,n,mode in [('hairpin',2,'legacy'),('circle',4,'informed')]:
         label=f'{track}-{n}-{mode}'

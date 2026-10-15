@@ -1,5 +1,15 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Learning compatibility checks (2026-10-15, branch only)
+
+JDK 25 and 26 full contracts pass on a3aff4d. Full-race runner initially
+stopped before any race because a clean checkout has no user.properties;
+it now hashes only caller files that exist, as the older runner does.
+The legacy breeder accepts the same complete rc7 request limit as cf4
+and the league. Added a nine-slot, 512-record-per-slot structural
+snapshot round-trip and complete breeder witness with proof policy off.
+No racing-policy change or performance claim in this compatibility repair.
+
 ## Learning implementation validation (2026-10-15, branch only)
 
 Integrated source dfa9856 passed the JDK 25 build, complete Java contracts and

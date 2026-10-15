@@ -132,8 +132,27 @@ public final class LearningRacecraftTests {
         boolean rejected=false;try { OpponentLeague.Profile.parse("g_0_21_4"); } catch(final IllegalArgumentException e) { rejected=true; }
         check(rejected,"invalid rival genome accepted");
     }
+    private static void requestBounds() throws Exception {
+        final RaceGame game=fixture("");
+        game.players=new Player[9];
+        final java.util.Map<String,ProofNumberSearch.Answer> records=new java.util.TreeMap<>();
+        for(int i=0;i<512;i++) records.put(String.format("%064x",i),new ProofNumberSearch.Answer(Direction.E,2));
+        // Structural parser fixture only: these records are NOT certified
+        // by a search and proof-number is OFF for every actor.
+        for(int i=0;i<9;i++) {
+            game.players[i]=new Player("P"+(i+1),i+1,java.awt.Color.BLUE,Player.Kind.AI1);
+            pose(game.players[i],69,2+2*i,4,0,0);
+            game.learningMemory.proof(i,new ProofNumberSearch.Plan(1,50,records));
+        }
+        final String root=RacecraftReplay.snapshot(game);
+        check(root.length()>280000,"large-state fixture does not cross legacy request bound");
+        check(root.equals(RacecraftReplay.parse(game,root).encode()),"maximum-slot learning state failed parsing");
+        final String answer=TacticBreeder.answer(game,"breed1,30,-|"+root);
+        check(answer.contains("\"complete\":true"),"legacy breeder rejected complete bounded learning state");
+        check(root.equals(RacecraftReplay.snapshot(game)),"large-state breeder altered live policy memory");
+    }
     public static void main(final String[] args) throws Exception {
-        repair();selfRepair();memory();investment();event();proof();league();
+        repair();selfRepair();memory();investment();event();proof();league();requestBounds();
         System.out.println("LearningRacecraftTests: repair, memory, investment, event, proof and league witnesses OK");
     }
 }

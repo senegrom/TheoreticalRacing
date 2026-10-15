@@ -71,7 +71,7 @@ final class TacticBreeder {
     }
     static String answer(final RaceGame game, final String request) {
         final int divider = request.indexOf('|');
-        if (divider < 0 || request.length() > 280000) throw new IllegalArgumentException("invalid breed1 request");
+        if (divider < 0 || request.length() > 1060000) throw new IllegalArgumentException("invalid breed1 request");
         final String[] header = request.substring(0, divider).split(",", -1);
         if (header.length != 3 || !header[0].equals("breed1")) throw new IllegalArgumentException("invalid breed1 header");
         final int bound = Integer.parseInt(header[1]);
