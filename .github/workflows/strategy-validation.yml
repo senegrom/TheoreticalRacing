@@ -18,7 +18,7 @@ jobs:
   contracts:
     name: Contracts JDK ${{ matrix.java }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -36,64 +36,41 @@ jobs:
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
       - run: python3 -m compileall -q tools tests
       - run: git diff --exit-code
-  creative-controls:
-    name: Creative tactics and legal-prefix breeder
+  learning-controls:
+    name: Learning arms, stateful replay and opponent league
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Build branch and current aware champion independently
+        run: |
+          sh build_main.sh
+          mkdir "$RUNNER_TEMP/champion"
+          git archive 71fdb12363f021ccc1036f8276041897cdbb0504 | tar -x -C "$RUNNER_TEMP/champion"
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+      - run: python3 tests/racecraft_learning_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/learning-controls"
+      - run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: learning-full-race-evidence
+          path: ${{ runner.temp }}/learning-controls
+          retention-days: 7
+  previous-controls:
+    name: Earlier ${{ matrix.suite }} experiments on aware champion
     runs-on: ubuntu-latest
     timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '25'
-      - name: Build branch and current champion independently
-        run: |
-          sh build_main.sh
-          mkdir "$RUNNER_TEMP/champion"
-          git archive 807d3d24b1d60d004e36c2410c5ef4725bf553e3 | tar -x -C "$RUNNER_TEMP/champion"
-          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
-      - run: python3 tests/racecraft_creative_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/creative-controls"
-      - run: git diff --exit-code
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: creative-full-race-and-breeder-evidence
-          path: ${{ runner.temp }}/creative-controls
-          retention-days: 7
-  strategy-controls:
-    name: Six strategy arms and complete counterfactuals
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '25'
-      - name: Build independent branch and pinned champion
-        run: |
-          sh build_main.sh
-          mkdir "$RUNNER_TEMP/champion"
-          git archive 807d3d24b1d60d004e36c2410c5ef4725bf553e3 | tar -x -C "$RUNNER_TEMP/champion"
-          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
-      - run: python3 tests/racecraft_strategies_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/strategy-controls"
-      - run: git diff --exit-code
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: strategy-full-race-evidence
-          path: ${{ runner.temp }}/strategy-controls
-          retention-days: 7
-  recovered-controls:
-    name: Recovered experiments on current champion
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [next, strategies, creative]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -106,18 +83,18 @@ jobs:
       - run: |
           sh build_main.sh
           mkdir "$RUNNER_TEMP/champion"
-          git archive 807d3d24b1d60d004e36c2410c5ef4725bf553e3 | tar -x -C "$RUNNER_TEMP/champion"
+          git archive 71fdb12363f021ccc1036f8276041897cdbb0504 | tar -x -C "$RUNNER_TEMP/champion"
           (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
-      - run: python3 tests/racecraft_next_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/recovered-controls"
+      - run: python3 tests/racecraft_${{ matrix.suite }}_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/previous-controls"
       - run: git diff --exit-code
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: recovered-full-race-evidence
-          path: ${{ runner.temp }}/recovered-controls
+          name: previous-${{ matrix.suite }}-evidence
+          path: ${{ runner.temp }}/previous-controls
           retention-days: 7
   regressions:
-    name: Current champion goldens and pins
+    name: Current aware champion goldens and pins
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
