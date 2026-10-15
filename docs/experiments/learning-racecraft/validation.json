@@ -1,32 +1,41 @@
 {
-  "schema": 1,
+  "schema": 2,
   "date": "2026-10-15",
   "branch": "work/racecraft-strategies-20261008",
   "championBase": "71fdb12363f021ccc1036f8276041897cdbb0504",
   "implementationCommit": "dfa98565e091849b9f664ad5b53a3550dd699d25",
   "refinedImplementationCommit": "9569410d3dc96aa17c5a6af12ca4685cdd5a441b",
-  "successfulAssemblyRuns": [38821446526, 38822377507],
+  "compatibilityCommit": "eca87493daca31558fe70f2554eeccdff2f577e8",
+  "testedHead": "01751728f6af2a487dfc3752684c123af3d07c8f",
+  "successfulAssemblyRuns": [38821446526, 38822377507, 38823146784],
+  "fullValidationRun": 38822742563,
+  "correctedLearningValidationRun": 38823525916,
   "passed": [
-    "JDK 25 build with warnings treated as errors",
-    "Complete Java contract suite on the integrated aware champion",
-    "Python unit suite including learning-state and opponent-league protocol tests",
+    "JDK 25 and 26 builds and full Java contract suites, repeated after final compatibility repair",
+    "Full Python unit suite, repeated on both JDK jobs",
     "Predicted rival crash repaired with all continuations rerun",
     "Predicted own crash repaired and rewind bounded to the failing actor",
     "Four-action committed corner archive, later-lap retrieval and forecast execution",
     "Read-only queries, detached forecast restoration, Undo, rc7 and proof-table round trips",
     "One-move-debt interception excluded by the old zero-debt generator",
-    "An event upgrade actually activates once at a later commitment",
+    "An event upgrade activates once at a later commitment",
     "Proof-number bounded refutation, completed win, budget abstention and independent strategy verification",
-    "Deterministic complete league endpoint with request binding"
+    "Deterministic complete league endpoint with request binding",
+    "Nine-slot 512-record-per-slot structural learning snapshot round trip and complete breeder continuation, proof policy disabled",
+    "All 12 current-aware-master golden races without changing expectations",
+    "Headless smoke, query replay and lap progress regressions",
+    "Earlier next, strategy and creative complete-race and counterfactual suites on current aware champion",
+    "Browser engine build, native parity, transport, watchdog and JavaScript checks"
   ],
   "pendingWhenRecorded": [
-    "JDK 26 repeat",
-    "46 learning-arm/default/control/audit full races",
-    "Six full-suffix counterfactual cases with learning state",
+    "46 learning-arm/default/control/audit full races in corrected runner",
+    "Six full-suffix counterfactual cases with learning state in corrected runner",
     "End-to-end cross-play and counterpolicy evolution runner",
-    "Earlier experimental control suites on the current aware champion",
-    "Current-master golden races and all champion pins",
-    "Browser build, native parity, Chromium and WebKit"
+    "Remaining champion regression pins",
+    "Final Chromium and WebKit real-race checks"
+  ],
+  "resolvedFailures": [
+    "The first learning CLI run stopped before racing because it hashed an absent untracked user.properties. The runner now hashes caller files only when they exist. No policy change was needed."
   ],
   "notPerformed": [
     "Fleet performance promotion battery",
@@ -36,5 +45,5 @@
   ],
   "promoted": false,
   "performanceGainClaimed": false,
-  "note": "All policy changes remain opt-in. learning-control separates the common detached comparison from individual feature effects. The offline league begins with current champion and bounded variants, not arbitrary historical binaries. Cleanup removes temporary write-capable assembly scaffolding; validation is read-only. Later CI results supersede pending entries."
+  "note": "All five driving experiments remain opt-in; the sixth addition is an offline league. learning-control separates common detached comparison effects from each feature. Full regression/browser compatibility results were obtained on a3aff4d; later changes are a test-runner fix and the larger legacy breeder request bound, with unchanged driving code and repeated JDK contracts. The league supports current champion and bounded variants, not arbitrary historical binaries. All remaining workflows are read-only. Later CI results supersede pending entries."
 }
