@@ -22,7 +22,7 @@ jobs:
         with:
           distribution: temurin
           java-version: '25'
-      - name: Audit current-master integration
+      - name: Integrate current champion and independent learning arms
         shell: bash
         run: |
           set -euo pipefail
@@ -31,13 +31,10 @@ jobs:
           if ! git merge-base --is-ancestor 71fdb12363f021ccc1036f8276041897cdbb0504 HEAD; then
             git merge --no-commit --no-ff 71fdb12363f021ccc1036f8276041897cdbb0504 || true
           fi
-          if test -f .learning-20261015/resolve.py; then python3 .learning-20261015/resolve.py; fi
-          if test -n "$(git diff --name-only --diff-filter=U)"; then
-            git diff --cc
-            exit 1
-          fi
-          if ! test -f .learning-20261015/apply.py; then echo 'Integration audited; implementation not staged'; exit 1; fi
+          python3 .learning-20261015/resolve.py
+          test -z "$(git diff --name-only --diff-filter=U)"
           python3 .learning-20261015/apply.py
+          python3 .learning-20261015/finish.py
           git diff --check
       - name: Build and contracts
         run: |
