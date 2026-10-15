@@ -1,5 +1,12 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Learning implementation validation (2026-10-15, branch only)
+
+Integrated source dfa9856 passed the JDK 25 build, complete Java contracts and
+Python suite. Added explicit unknown-comparison fallback, consistent bounded
+rc7 state limits, self-doom and positive event-upgrade witnesses, and the
+complete-race/league CLI. No fleet improvement or promotion claimed.
+
 ## Learning racecraft research (2026-10-15, branch only)
 
 Current aware champion and exact speed optimisations retained. New independently gated

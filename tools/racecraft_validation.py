@@ -32,7 +32,7 @@ def integer(value, minimum=0, maximum=2_147_483_647):
 
 
 def snapshot(text: str):
-    if not isinstance(text, str) or len(text) > 262144:
+    if not isinstance(text, str) or len(text) > 1048576:
         raise ValueError('missing or oversized snapshot')
     try:
         groups = text.split(';')

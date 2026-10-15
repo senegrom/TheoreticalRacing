@@ -70,7 +70,7 @@ final class RacecraftReplay {
     static String snapshot(final RaceGame game) { return capture(game).encode(); }
 
     static Board parse(final RaceGame game, final String text) {
-        if (text.length() > 262144) throw new IllegalArgumentException("rc3 too long");
+        if (text.length() > 1048576) throw new IllegalArgumentException("rc3 too long");
         final String[] parts = text.split(";", -1), h = parts[0].split(",", -1);
         if (parts.length != game.players.length + 1 || !((h.length == 7 && h[0].equals("rc3")) || (h.length == 8 && (h[0].equals("rc4") || h[0].equals("rc5") || h[0].equals("rc6"))) || (h.length == 9 && h[0].equals("rc7"))))
             throw new IllegalArgumentException("invalid rc3 header/roster");
@@ -348,7 +348,7 @@ final class RacecraftReplay {
      * or an explicitly marked work limit. Never treat a truncated tail as a label. */
     static String answer(final RaceGame game, final String line) {
         final int divider = line.indexOf('|');
-        if (divider < 0 || line.length() > 280000) throw new IllegalArgumentException("invalid cf4 request");
+        if (divider < 0 || line.length() > 1060000) throw new IllegalArgumentException("invalid cf4 request");
         final String[] h = line.substring(0, divider).split(",", -1);
         if (h.length != 3 || !h[0].equals("cf4")) throw new IllegalArgumentException("cf4 requires bound and observed action");
         final int bound = Integer.parseInt(h[1]);

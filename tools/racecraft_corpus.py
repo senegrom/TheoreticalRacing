@@ -138,7 +138,7 @@ def analyze(case: dict, answer: dict, *, max_moves: int, original_race: str, ros
 
 
 def tooling_identity() -> dict:
-    paths = ('tools/racecraft_corpus.py', 'tools/racecraft_validation.py',
+    paths = ('tools/racecraft_corpus.py', 'tools/racecraft_validation.py', 'tools/racecraft_learning_memory.py',
              'tracks/benchmark_io.py', 'tracks/forensics_common.py')
     return {path: digest(ROOT / path) for path in paths}
 

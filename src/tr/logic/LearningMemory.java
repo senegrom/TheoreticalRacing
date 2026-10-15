@@ -132,7 +132,7 @@ final class LearningMemory {
         return list.isEmpty()?"-":String.join("/",list.stream().map(Segment::encode).toList());
     }
     static LearningMemory parse(final String text,final int n) {
-        if(n<1||n>SLOTS||text.length()>200000) throw new IllegalArgumentException("learning memory limit");
+        if(n<1||n>SLOTS||text.length()>524288) throw new IllegalArgumentException("learning memory limit");
         final LearningMemory out=new LearningMemory(); if(text.equals("-")) return out;
         final String[] slots=text.split("\\.",-1);
         if(slots.length!=n) throw new IllegalArgumentException("learning memory roster mismatch");
@@ -140,7 +140,10 @@ final class LearningMemory {
             final String[] f=slots[i].split("@",-1);
             if(f.length!=3) throw new IllegalArgumentException("learning memory shape");
             readSegments(f[0],out.archive.get(i),CAPACITY,false);readSegments(f[1],out.recent.get(i),WINDOW,true);
-            if(!f[2].equals("-")) out.proofs[i]=ProofNumberSearch.Plan.parse(f[2]);
+            if(!f[2].equals("-")) {
+                out.proofs[i]=ProofNumberSearch.Plan.parse(f[2]);
+                if(out.proofs[i].place()>n) throw new IllegalArgumentException("proof rank outside roster");
+            }
         }
         if(!out.encode(n).equals(text)) throw new IllegalArgumentException("noncanonical learning memory");
         return out;

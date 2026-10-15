@@ -5203,7 +5203,7 @@ final class RaceAi {
                 final int nvx=vel[0]+d.dx,nvy=vel[1]+d.dy;
                 return relevantRival(playerNum,pos,pos[0]+nvx,pos[1]+nvy,nvx,nvy);
             });
-            if(learned.forecasts()>0) {
+            if(learned.valid()) {
                 planned=learned.action();
                 if(learned.tail()!=null) { pendingFirst=planned;pendingFollowup=learned.tail(); }
                 if(game.racecraftNext.capture&&!game.racecraftReplay)
@@ -5213,7 +5213,7 @@ final class RaceAi {
         }
         if (real) auditOpening = planned;
         // Preserve current master 301a: only exact faithful ties permit the map-time swap.
-        chooserJudgedPace = learned != null && learned.forecasts() > 0
+        chooserJudgedPace = learned != null && learned.valid()
                 ? addPace || paceInSet && !learned.paceTied() : addPace || paceInSet && paceVerdict != pickVerdict;
         return planned;
     }

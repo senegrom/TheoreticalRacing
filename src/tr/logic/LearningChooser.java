@@ -12,7 +12,7 @@ import java.util.function.ToIntFunction;
 final class LearningChooser {
     private LearningChooser() {}
     record Choice(Direction action,FollowupPlans.Entry tail,boolean accepted,boolean paceTied,
-            int forecasts,int fullCalls,int repairs,int events,int memories,int proposals) {}
+            int forecasts,int fullCalls,int repairs,int events,int memories,int proposals,boolean valid) {}
     static boolean better(final RacecraftOutcome a,final RacecraftOutcome b) {
         return a!=null&&a.known()&&(b==null||!b.known()||a.ahead()<b.ahead()
                 ||a.ahead()==b.ahead()&&a.time()<b.time());
@@ -25,7 +25,7 @@ final class LearningChooser {
         final RacecraftNext config=game.racecraftNext;
         final int player=game.players[game.subgamestate].getNumber();
         if(incumbent==null||!config.learningEnabled(game,player))
-            return new Choice(incumbent,null,false,false,0,0,0,0,0,0);
+            return new Choice(incumbent,null,false,false,0,0,0,0,0,0,false);
         final RacecraftReplay.Board root=RacecraftReplay.capture(game);
         final Set<List<Direction>> paths=new LinkedHashSet<>();
         paths.add(List.of(incumbent));
@@ -60,10 +60,10 @@ final class LearningChooser {
                 }
             }
         }
-        if(best==null||!best.outcome().known()) return new Choice(incumbent,null,false,false,calls,full,refined,upgrades,memories,proposals);
+        if(best==null||!best.outcome().known()) return new Choice(incumbent,null,false,false,calls,full,refined,upgrades,memories,proposals,false);
         final Direction action=chosen.get(0);
         final FollowupPlans.Entry tail=!explicit||best.nextKey()==null||best.prefix().size()<2?null
                 :FollowupPlans.Entry.traffic(best.prefix().subList(1,best.prefix().size()),best.nextKey());
-        return new Choice(action,tail,action!=incumbent||tail!=null,tied(paceOutcome,best.outcome()),calls,full,refined,upgrades,memories,proposals);
+        return new Choice(action,tail,action!=incumbent||tail!=null,tied(paceOutcome,best.outcome()),calls,full,refined,upgrades,memories,proposals,true);
     }
 }

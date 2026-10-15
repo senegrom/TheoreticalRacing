@@ -39,6 +39,20 @@ public final class LearningRacecraftTests {
         check("old".equals(LearningForecast.refine(history,Set.of("crash"),1)),"rewind did not reach preceding decision of failed car");
         check(LearningForecast.refine(history,Set.of("crash"),0)==null,"rewind exceeded configured depth");
     }
+    private static void selfRepair() throws Exception {
+        final RaceGame game=fixture("forecast-repair");game.players=java.util.Arrays.copyOf(game.players,2);
+        pose(game.players[0],20,8,0,0,0);pose(game.players[1],26,8,0,0,0);
+        final LearningForecast.Policy weak=(g,strong)->g.subgamestate==1?Direction.NONE:
+                strong&&g.players[0].getPosition()[0]>21?Direction.N:Direction.E;
+        final RacecraftReplay.Board root=RacecraftReplay.capture(game);
+        final LearningForecast.Result old=LearningForecast.run(game,root,List.of(Direction.E),3,-1,
+                new LearningForecast.Settings(0,0,0,false),weak);
+        final LearningForecast.Result fixed=LearningForecast.run(game,root,List.of(Direction.E),3,-1,
+                new LearningForecast.Settings(1,0,0,false),weak);
+        check(old.outcome().crashed()&&fixed.outcome().status()==RacecraftOutcome.Status.RUNNING,
+                "own cheap doom was not repaired at the failed decision");
+        check(fixed.repairs()==1,"self repair budget not observed");
+    }
     private static void memory() throws Exception {
         final RaceGame game=fixture("corner-memory");
         pose(game.players[0],25,8,3,0,0);pose(game.players[1],60,14,0,0,0);pose(game.players[2],50,16,0,0,0);
@@ -83,11 +97,11 @@ public final class LearningRacecraftTests {
     }
     private static void event() throws Exception {
         final RaceGame game=fixture("event-aware");game.players=java.util.Arrays.copyOf(game.players,2);
-        pose(game.players[0],20,8,0,0,0);pose(game.players[1],22,8,-1,0,0);
+        pose(game.players[0],20,8,0,0,0);pose(game.players[1],22,8,0,0,0);
         check(LearningForecast.commitment(game,StrategyState.capture(game)),"contested commitment trigger absent");
         final LearningForecast.Result forecast=LearningForecast.run(game,RacecraftReplay.capture(game),List.of(Direction.N),3,1,
                 new LearningForecast.Settings(0,0,1,false),(g,strong)->Direction.N);
-        check(forecast.eventCalls()<=1,"event upgrade budget overrun");
+        check(forecast.eventCalls()==1,"event upgrade failed to fire once at the later commitment");
     }
     private static void proof() throws Exception {
         final RaceGame game=fixture("proof-number");game.players=java.util.Arrays.copyOf(game.players,2);
@@ -119,7 +133,7 @@ public final class LearningRacecraftTests {
         check(rejected,"invalid rival genome accepted");
     }
     public static void main(final String[] args) throws Exception {
-        repair();memory();investment();event();proof();league();
+        repair();selfRepair();memory();investment();event();proof();league();
         System.out.println("LearningRacecraftTests: repair, memory, investment, event, proof and league witnesses OK");
     }
 }

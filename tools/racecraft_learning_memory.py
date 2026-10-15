@@ -43,7 +43,7 @@ def proof(text: str,n: int):
     return len(keys)
 
 def validate(text: str,n: int) -> dict:
-    if type(text) is not str or not 1<=n<=9 or len(text)>200000: raise ValueError('learning memory bound')
+    if type(text) is not str or not 1<=n<=9 or len(text)>524288: raise ValueError('learning memory bound')
     if text=='-': return dict(segments=0,observations=0,proofStates=0)
     slots=text.split('.')
     if len(slots)!=n: raise ValueError('learning memory roster')

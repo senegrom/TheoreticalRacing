@@ -59,12 +59,12 @@ final class OpponentLeague {
     }
     static String answer(final RaceGame game,final String request) {
         final int split=request.indexOf('|');
-        if(split<0||request.length()>270000) throw new IllegalArgumentException("invalid league request");
+        if(split<0||request.length()>1060000) throw new IllegalArgumentException("invalid league request");
         final String[] h=request.substring(0,split).split(",",-1);
         if(h.length!=3||!h[0].equals("league1")) throw new IllegalArgumentException("league header");
         final int bound=Integer.parseInt(h[1]);if(bound<1||bound>100000) throw new IllegalArgumentException("league work bound");
         final String[] names=h[2].split("/",-1);
-        if(names.length!=game.players.length) throw new IllegalArgumentException("league roster");
+        if(names.length<2||names.length!=game.players.length) throw new IllegalArgumentException("league roster");
         final Profile[] profiles=new Profile[names.length];
         for(int i=0;i<profiles.length;i++) profiles[i]=Profile.parse(names[i]);
         final RacecraftReplay.Board root=RacecraftReplay.parse(game,request.substring(split+1));
