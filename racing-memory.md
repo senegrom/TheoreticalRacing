@@ -1,5 +1,87 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 309 (2026-10-15): phantom wins -- why deeper aware lost duels, and the fix
+
+Round 305's depth 5 gained -0.14 to -0.15 in 8-car fields but lost in duels:
++0.048 +- 0.006 (4/15/65).
+- Every depth loses some in duels: depth 2 +0.011 +- 0.003, depth 3 +0.020 +- 0.006.
+- The losses are concentrated: fractal3 +1.000 (every race), lobe3 +0.95, rand17 +0.65, lobe6
+  +0.45, nurburgring +0.35.
+
+The owner asked why before any promotion. The forensics run on the box, in
+/home/ubuntu/duel_diff_tool. The scripts are in E:/tmp-claude/review3: duel_diff.py,
+trace_decision.py, trace_all.sh, debug_chooser.py (-Dai.debug.chooser) and force_move.py
+(-Dai.force=turn:DIR).
+
+**Decision diff.** Every logged decision of the depth-5 car is rebuilt on the exact board, through
+the --query-moves oracle, and today's champion is asked what it would do there.
+- The oracle reproduces 100% of the logged moves.
+- The champion agrees at 247 of 252 decisions on fractal3, and at 250 of 260 on lobe3.
+
+**Every divergent decision was decided by a forecast artefact**, never by a real one-turn
+difference. There are two kinds.
+
+1. **Phantom wins.**
+   - The forecast's rival crashes. That rival is its suppressed scorer after one upgraded move.
+   - The mover is left as last survivor, and the rollout classifies it as the winner at that
+     round: verdict 7-10, against about 100 for any racing line.
+   - On lobe3 the depth-5 car chased seven of these, the real rival never crashed, and it lost.
+   - Depth makes it worse: the mover's own five moves are played smartly against a rival model
+     that is weak after one move, so the forecast "forces" crashes only that model falls for.
+   - In 8-car fields a forecast rival crash does not end the race, so these artefacts barely
+     move the verdict there. That is why only duels suffered.
+2. **Phantom self-dooms.**
+   - The mover's cheap continuation dead-ends on a line the real car survives.
+   - Today's champion has these at fractal3 (18,54) and (107,62) on every lap, so it brakes.
+   - Depth 5 has a few of its own.
+
+**Counterfactuals.** Forcing the depth-5 car to take the champion's move at one of those decisions
+(the start, the first brake at (18,54), the first brake at (107,62)) did not flip fractal3: it
+still lost every time. Those duels are knife-edge; lap times differ by about one move.
+
+**The fix is arm 309** (E:/tmp-claude/arm309_nophantom.py, candidate-gated).
+- In the chooser's own rollout (simDepth == placeKeyDepth), a rival's failure that would leave
+  the mover as last survivor no longer ends the race.
+- The mover races on alone and is ranked by its own finish round or projected time.
+- A forecast crash of the rival's model is a possibility, not a fact. Proven forced crashes stay
+  with the duel proof, which acts on proven wins before the chooser runs.
+
+Against the champion (p8dc73ed):
+
+| Arm | Duels (2 cars, random, seeds 1-20) | 8-car random 1-10 | CPU |
+|---|---|---|---|
+| depth 1 + no phantom wins (a309np1) | -0.028 +- 0.005 (8/2/74; crashes 384:178) | +0.000 (84 tied; identity INERT) | 1.01x |
+| depth 5 + no phantom wins (a309np5) | -0.028 +- 0.005 (11/4/69; crashes 393:158) | -0.151 +- 0.019 (59/19/6; 60:69) | 1.66x |
+| depth 5 + duel gate (a305s5g: depth 1 with two live cars) | +0.000 (84 tied, byte-identical) | -0.151, all 1680 races byte-identical to depth 5 | 1.67x |
+| depth 5 + rival depth 5 (a305sym5) | +0.020 +- 0.006 (crashes 281:462) | -0.142 +- 0.018 (57/22/5; 38:68) | 2.03x |
+
+What the table shows:
+- No phantom wins turns depth 5's duel loss into a gain.
+- It is a duel gain on today's champion too: hybrid1 is now won in every race, Monza -0.70,
+  lobe4 -0.35.
+- Its cars crash more in duels (393 against 158) but finish better. The rule prices that.
+- In 8-car fields it changes a few endgames on 5 of 168 track-halves, and the place summary is
+  unchanged.
+- The duel gate works too, but it is a patch. The phantom-win fix is the skill.
+
+Queued: a309np5's held-out, computed, scattered and lone-check screens. Promotion waits for the
+owner.
+
+## Rounds 307-308 (2026-10-14 to 15): danger off and rival fidelity, on depth 5
+
+Both rounds are arms on top of depth 5 (promote305.py K=5), measured against the depth-5 jar
+p305s5.
+- **Danger-joint-search family off (a307dng):**
+  - random -0.021 +- 0.009 (33/23/28; crashes 92:76);
+  - held-out -0.026 +- 0.009 (29/21/34; crashes 86:71).
+  - On the depth-1 champion it read -0.028 random, -0.042 held-out and -0.027 computed
+    (27/16/41; crashes 58:42).
+  - It replicates on every slice measured: the danger guard now costs places.
+- **More rival fidelity (arm308_awrival.py):**
+  - the relevant rival's first 2 moves: -0.009 +- 0.011 (CPU 1.09x);
+  - its first 3 moves: +0.007 +- 0.012 (CPU 1.10x).
+  - Both are washes. The every-rival arm (CPU 1.67x) is still running.
+
 ## Round 305 (2026-10-12 to 14, in progress): aware plays more of the car's own continuation
 
 Round 303's aware plays two moves of each top-level forecast by their full policy:
@@ -32,21 +114,29 @@ At k = 11 the mover plays every move of the 12-round forecast by its full policy
 - Beyond that the reading holds near -0.13.
 - The candidate crashes less at every depth.
 
-Further slices for k = 2:
-- Held-out 11-20: -0.084 +- 0.016 (56/20/8; crashes 47:52).
-- Computed: -0.038 +- 0.014 (38/33/13; crashes 62:60).
-- Lone check: the candidate's mean place is 4.448, against 4.500 for the champion in the same
-  seats (48/20/16; crashes 27:28).
+Further slices:
 
-The depth-2 scattered and duel screens are parked in queue/hold.
+| k | Held-out 11-20 | Computed | Scattered | Lone check (vs 4.500) | Duels |
+|---|---|---|---|---|---|
+| 2 | -0.084 +- 0.016 | -0.038 +- 0.014 | -0.005 +- 0.002 | 4.448 (48/20/16) | +0.011 +- 0.003 |
+| 3 | -0.115 +- 0.018 | -0.080 +- 0.016 | -- | -- | +0.020 +- 0.006 |
+| 4 | -0.142 +- 0.019 | -0.114 +- 0.017 | -- | -- | -- |
+| 5 | -0.125 +- 0.019 | -0.149 +- 0.018 | -0.010 +- 0.003 | 4.395 (55/17/12) | +0.048 +- 0.006 |
+
+Choosing between k = 4 and k = 5 on the three 8-car slices:
+- k = 5 averages -0.142, against -0.127 for k = 4.
+- The owner approved promoting k = 5 at 1.66x CPU.
+- The duel loss then stopped the promotion ("don't promote for now"). Round 309 above explains
+  and fixes it.
 
 CPU: today's champion costs about 0.48x of round 301c's. So even k = 5 costs about 0.8x of
-round 301c's champion, well under the 2.65x of round 301c that the owner accepted for aware.
+round 301c's champion, well under the 2.65x that the owner accepted for aware.
 
-Next:
-- k = 4 and k = 5 on held-out seeds and computed starts.
-- Then the full battery for the chosen depth.
-- The CPU call stays the owner's.
+Promotion preparation is done for plain k = 5. It would be redone for whichever version ships.
+- Script: E:/tmp-claude/review3/promote305.py <root> <K>.
+- Jar p305s5 dcdfc366. Promotion identity OK in both start modes.
+- The box corpus job ran: smoke, query replay, lap progress and goldens OK, 13 pins passing, 12
+  needing a hand re-freeze. Its results were pulled to E:/tmp-claude/review3/du305/r305pull.tgz.
 
 ## Round 306 (2026-10-12 to 14): the post-chooser stack priced leg by leg on the aware champion
 
@@ -82,10 +172,14 @@ What each leg is worth:
 - **The confirm and the finish legs barely fire.** Their identity checks came back INERT on the
   standard races.
 
-Still pending:
-- The queue box (a score term).
-- The switch-margin arms, E:/tmp-claude/arm306m_margin.py. The chooser would leave the score's
-  top landing only for a place, or for more than 1 or 2 turns.
+Also measured:
+- **The queue box off:** -0.000 +- 0.011 (31/26/27). Neutral.
+- **The switch margins** (E:/tmp-claude/arm306m_margin.py): the chooser leaves the score's top
+  landing only for a place, or for more than 1 or 2 turns.
+  - Margin 1: +1.054 +- 0.034. Margin 2: +1.738 +- 0.042. Both lose on all 84 tracks.
+  - The chooser's one- and two-turn distinctions are each real, and together worth about a place.
+
+The strict-wins setup control on aware (-0.013) is under round 304.
 
 ## The peer branch's racecraft strategies, triaged and screened (2026-10-12 to 14)
 
@@ -124,8 +218,12 @@ What the screens say:
 - **Suffix manoeuvres gains on the round-301c base.** It makes multi-move plans, commits the
   first move, and re-offers the rest at the next exactly matching state.
 - **Manoeuvre alone, without the suffix memory, does not gain.**
-- **Suffix manoeuvres is being ported onto today's champion** (workflow wf_a16461d2-8db). Round
-  304 showed a 301c gain need not survive aware.
+- **Suffix manoeuvres was ported onto today's champion, and it does not survive aware.**
+  - The port: E:/tmp-claude/labport_suffix/lp_suffix.py (workflow wf_a16461d2-8db). Three
+    adversarial reviews found it correct.
+  - On the branch's base it races identically to the branch jar in all 12 faithfulness races.
+  - Against today's champion it reads +0.004 +- 0.016 (33/40/11), at CPU 2.12x.
+  - Like setup in round 304, its gain was something aware already does.
 - **Two-judge is close to what aware already does.**
 - **Recovery loses, and its cars crash more.**
 
