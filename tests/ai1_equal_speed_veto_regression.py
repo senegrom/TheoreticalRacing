@@ -23,7 +23,8 @@ CASES = [("zandvoort", 115)]
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p5 now crashes on its 19th move and seven finishers become six -- recorded, not vetoed.
 # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout); p5, lost on its 19th move since round 281, now finishes sixth on its 143rd move and six finishers become seven, with no crash.
-PROMOTED = (7, 0, [137, 138, 139, 141, 142, 143, 144])
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+PROMOTED = (7, 0, [137, 138, 139, 140, 142, 143, 144])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in LABELS}
 

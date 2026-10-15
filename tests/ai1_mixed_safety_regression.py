@@ -12,7 +12,8 @@ import bench_ai  # noqa: E402
 
 # Round 94's Gear seed 1 in the front ordering (slots 1-4 AI1, 5-8 AI2),
 # measured 2026-09-27: the first four grid slots finish first to fourth.
-GEAR_FRONT_MEASURED = {"AI1": (10, 4, 0), "AI2": (26, 4, 0)}
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); seven finishers and no crash as before, but p3, third home on its 42nd move before, is now the car still running at the end, after 43 moves, so the first four grid slots no longer finish first to fourth: p4 moves up to third, still on its 42nd move, and p5 to p8 come home fourth to seventh in grid order, p7 (the car still running at the end before) sixth on its 43rd -- recorded, not vetoed (AGENTS.md).
+GEAR_FRONT_MEASURED = {"AI1": (14, 4, 0), "AI2": (22, 4, 0)}
 
 
 def main() -> int:

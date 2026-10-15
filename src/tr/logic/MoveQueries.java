@@ -133,6 +133,7 @@ final class MoveQueries {
 
 	static String answer(final RaceGame game, final String line) {
         if (line.startsWith("breed1,")) return TacticBreeder.answer(game, line);
+        if (line.startsWith("league1,")) return OpponentLeague.answer(game,line);
         if (line.startsWith("cf4,")) return RacecraftReplay.answer(game, line);
 		final Header header = restoreBoard(game, line);
 		if (header.simulation()) {

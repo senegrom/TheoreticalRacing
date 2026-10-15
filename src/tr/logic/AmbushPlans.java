@@ -43,6 +43,11 @@ final class AmbushPlans {
     }
     static List<List<Direction>> intercept(final RaceGame game, final CreativePaths.Own initial,
             final Target target, final StrategyState.Budget budget) {
+        return intercept(game,initial,target,budget,0);
+    }
+    static List<List<Direction>> intercept(final RaceGame game, final CreativePaths.Own initial,
+            final Target target, final StrategyState.Budget budget, final int allowance) {
+        if(allowance<0||allowance>1) throw new IllegalArgumentException("investment allowance");
         final List<List<Direction>> result = new ArrayList<>();
         final int k = target.ownPly(), startDistance = CreativePaths.distance(game, initial);
         if (k < 1 || k > 3 || startDistance == Integer.MAX_VALUE) return List.of();
@@ -53,7 +58,7 @@ final class AmbushPlans {
                 for (int dy = -radius; dy <= radius && result.size() < 2; dy++) {
                     if (Math.max(Math.abs(dx), Math.abs(dy)) != radius) continue;
                     backward(game, initial, target.x(), target.y(), initial.vx() + dx, initial.vy() + dy,
-                            k, new ArrayList<>(), startDistance, result, budget);
+                            k, new ArrayList<>(), startDistance + allowance, result, budget);
                     if (budget.left() == 0) return List.copyOf(result);
                 }
         return List.copyOf(result);

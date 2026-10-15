@@ -5,7 +5,7 @@ Hairpin seed 68, eight cars: p8 arrives at the flag on a high-energy line a
 rival can close, and without the override it crashes at move 104 (its old
 frozen AI2 control: 6 finishers, one crash, p8 last). The finish-denial
 certificate switches it to a braking escape that survives both the deep
-scorer world and the faithful world, and it finishes. Until the
+scorer world and the faithful world, and it does not crash. Until the
 2026-09-04 promotion that arm was AI1-only and this pin froze the AI2 crash
 as a control. Both kinds now run one policy, so since 2026-09-27 the pin
 races the all-AI2 roster once; ai1_label_invariance_regression checks that
@@ -36,9 +36,14 @@ TARGET = ("hairpin", 68)
 # home seventh of seven, in 18 moves; still seven finishers and no crash.
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p8 is
 # home sixth of seven, in 17 moves, and p5 seventh, in 18; still seven finishers and no crash.
-RESCUED = (7, 0, [16, 16, 16, 17, 17, 17, 18])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (6, 17), (7, 17), (8, 17), (5, 18)]
-RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 17}
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); the race
+# first plays differently at move 5 (p5's first), and p8 is no longer home: it is the car still running
+# at the end, after 17 moves and one move from the line at (70,21), when p7 finishes seventh at move
+# 135, so it is classified eighth instead of sixth, as in round 260. p1, the car still running at the
+# end before, is home sixth in 18 moves; still seven finishers and no crash.
+RESCUED = (7, 0, [16, 16, 16, 17, 17, 18, 18])
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (1, 18), (7, 18)]
+RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 17}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
@@ -52,14 +57,18 @@ RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 17}
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); the
 # same turn and car: p8 now steers S from (53,8) there, after braking SW at
 # move 88, and brakes SW again at moves 112 and 120.
-RESCUED_DECISION = "104 p8 AI S v(6,1)→(6,2) (53,8)→(59,10) ok"
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); the
+# same turn and car: p8 now steers S from (41,6) there, which it reached at move 80 before and at
+# move 96 now, and brakes SW at moves 120 and 128.
+RESCUED_DECISION = "104 p8 AI S v(7,0)→(7,1) (41,6)→(48,7) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 260: re-frozen from measurement (the chooser).
 # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
-RESCUED_SHA256 = "b90f294ee4c8ed101ec0cca2d3106feda3b770d85c7a797f8e6fdb6e2ab2b3f6"
+# Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+RESCUED_SHA256 = "f0a2bc12fc72a570b05eae50491ec9a819da929af4cd85d475049706eb3e6006"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:
@@ -135,7 +144,7 @@ def main() -> int:
 
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68 p8 crash-to-finish rescue)"
+        "(hairpin s68 p8 crash-free rescue)"
     )
     return 0
 

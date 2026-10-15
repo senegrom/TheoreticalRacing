@@ -13,7 +13,9 @@ final class RacecraftNext {
         RESPONSE_STRATEGY("response-strategy"), PLACE_CERTIFICATES("place-certificates"),
         FORCED_SEQUENCE("forced-sequence"), CONTINUATION_POLICIES("continuation-policies"),
         ORDERED_BLOCKADE("ordered-blockade"), PACE_FEINTS("pace-feints"), AMBUSH("ambush"),
-        TRAFFIC_JUDO("traffic-judo"), SELFISH_SEARCH("selfish-search"), TWO_JUDGE("two-judge");
+        TRAFFIC_JUDO("traffic-judo"), SELFISH_SEARCH("selfish-search"), TWO_JUDGE("two-judge"), FORECAST_REPAIR("forecast-repair"), CORNER_MEMORY("corner-memory"),
+        TIME_INVESTMENT("time-investment"), EVENT_AWARE("event-aware"), PROOF_NUMBER("proof-number"),
+        LEARNING_CONTROL("learning-control");
         final String flag;
         Feature(final String flag) { this.flag = flag; }
     }
@@ -28,6 +30,7 @@ final class RacecraftNext {
     final int manoeuvreNodes, manoeuvreDepth;
     final int strategyNodes, forcedMoveCap;
     final int creativeNodes, creativeTrials, selfishPlies;
+    final int learningNodes, learningTrials, repairAttempts, repairRewind, eventUpgrades, proofMoves;
 
     RacecraftNext(final Properties props) {
         features = EnumSet.noneOf(Feature.class);
@@ -42,6 +45,12 @@ final class RacecraftNext {
         if (!audit.equals("true") && !audit.equals("false"))
             throw new IllegalArgumentException("racecraftCapture must be true or false");
         capture = Boolean.parseBoolean(audit);
+        learningNodes = bounded(props,"racecraftLearningNodes",12000,0,40000);
+        learningTrials = bounded(props,"racecraftLearningTrials",16,0,32);
+        repairAttempts = bounded(props,"racecraftRepairAttempts",3,0,6);
+        repairRewind = bounded(props,"racecraftRepairRewind",2,0,2);
+        eventUpgrades = bounded(props,"racecraftEventUpgrades",1,0,4);
+        proofMoves = bounded(props,"racecraftProofMoves",7,5,12);
         creativeNodes = bounded(props, "racecraftCreativeNodes", 2048, 0, 20000);
         creativeTrials = bounded(props, "racecraftCreativeTrials", 6, 0, 12);
         selfishPlies = bounded(props, "racecraftSelfishPlies", 6, 2, 9);
@@ -64,6 +73,7 @@ final class RacecraftNext {
                 && (feature.ordinal() < Feature.SUFFIX_MANOEUVRES.ordinal()
                         || feature.ordinal() > Feature.ORDERED_BLOCKADE.ordinal() || strategyNodes > 0)
                 && (!creative(feature) || creativeNodes > 0 && creativeTrials > 0)
+                && (!learning(feature) || learningNodes > 0 && learningTrials > 0)
                 && (feature != Feature.SUFFIX_MANOEUVRES || manoeuvreNodes > 0)
                 && (feature != Feature.OPENING || openingTrials > 0 && opening(game, player))
                 && (feature != Feature.FOLLOWUP || features.contains(Feature.OPENING)
@@ -84,15 +94,26 @@ final class RacecraftNext {
     String signature() { return features.toString() + ":" + openingRounds + ":" + openingTrials
             + ":" + adaptiveNodes + ":" + adaptiveCycles + ":" + recoveryTrials + ":" + tacticalExtraRounds
             + ":" + manoeuvreNodes + ":" + manoeuvreDepth + ":" + strategyNodes + ":" + forcedMoveCap
-            + ":" + creativeNodes + ":" + creativeTrials + ":" + selfishPlies; }
+            + ":" + creativeNodes + ":" + creativeTrials + ":" + selfishPlies
+            + ":" + learningNodes + ":" + learningTrials + ":" + repairAttempts + ":" + repairRewind + ":" + eventUpgrades + ":" + proofMoves; }
 
-    static boolean creative(final Feature feature) { return feature.ordinal() >= Feature.PACE_FEINTS.ordinal(); }
+    static boolean creative(final Feature feature) { return feature.ordinal() >= Feature.PACE_FEINTS.ordinal() && feature.ordinal() <= Feature.TWO_JUDGE.ordinal(); }
     boolean creativeConfigured() {
         for (final Feature feature : features) if (creative(feature)) return true;
         return false;
     }
     boolean creativeEnabled(final RaceGame game, final int player) {
         return game.candidatePolicy(player) && creativeConfigured() && creativeNodes > 0 && creativeTrials > 0;
+    }
+
+    static boolean learning(final Feature feature) { return feature.ordinal() >= Feature.FORECAST_REPAIR.ordinal(); }
+    boolean learningConfigured() { for (final Feature f : features) if (learning(f)) return true; return false; }
+    boolean learningEnabled(final RaceGame game, final int player) {
+        return game.candidatePolicy(player) && learningConfigured() && learningNodes > 0 && learningTrials > 0;
+    }
+    boolean learningForecastEnabled(final RaceGame game, final int player) {
+        for (final Feature f : features) if (learning(f) && f != Feature.PROOF_NUMBER && enabled(game,player,f)) return true;
+        return false;
     }
 
     boolean any(final RaceGame game, final int player) {

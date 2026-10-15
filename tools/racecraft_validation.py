@@ -7,6 +7,7 @@ entire control suffix of the captured real race, including terminal places.
 from __future__ import annotations
 
 import hashlib
+import racecraft_learning_memory
 import re
 import sys
 from pathlib import Path
@@ -36,18 +37,18 @@ def snapshot(text: str):
     try:
         groups = text.split(';')
         header = groups[0].split(',')
-        if not ((len(header) == 7 and header[0] == 'rc3') or (len(header) == 8 and header[0] in ('rc4', 'rc5', 'rc6'))) or not re.fullmatch(r'[0-9a-f]{64}', header[6]):
+        if not ((len(header) == 7 and header[0] == 'rc3') or (len(header) == 8 and header[0] in ('rc4', 'rc5', 'rc6')) or (len(header) == 9 and header[0] == 'rc7')) or not re.fullmatch(r'[0-9a-f]{64}', header[6]):
             raise ValueError('invalid snapshot header')
         turn, laps, slot, first, last = map(int, header[1:6])
         rows = [list(map(int, group.split(','))) for group in groups[1:]]
     except (TypeError, ValueError) as error:
         raise ValueError('invalid snapshot encoding') from error
     n = len(rows)
-    if len(header) == 8:
-        plans = header[7].split('.')
+    if len(header) >= 8:
+        plans = ['-'] * len(rows) if len(header) == 9 and header[7] == '-' else header[7].split('.')
         atom = r'(?:NW|N|NE|W|NONE|E|SW|S|SE)'
         pattern = rf'(?:{atom}|M_{atom}(?:\+{atom}){{0,2}})~[0-9a-f]{{64}}'
-        version = 'rc6' if 'R_' in header[7] else 'rc5' if 'M_' in header[7] else 'rc4'
+        version = 'rc7' if len(header) == 9 else 'rc6' if 'R_' in header[7] else 'rc5' if 'M_' in header[7] else 'rc4'
         if header[0] != version or len(plans) != n:
             raise ValueError('noncanonical plan version or roster')
         for plan in plans:
@@ -71,6 +72,9 @@ def snapshot(text: str):
                     raise ValueError('noncanonical response node')
                 keys.append(f[0])
             if keys != sorted(set(keys)): raise ValueError('duplicate or unordered response keys')
+    if len(header) == 9:
+        racecraft_learning_memory.validate(header[8], n)
+        if header[8] == '-': raise ValueError('noncanonical empty rc7 memory')
     if not 1 <= n <= 9 or any(len(row) != 14 for row in rows):
         raise ValueError('invalid snapshot roster')
     integer(turn); integer(laps, 1); integer(slot, 0, n - 1)

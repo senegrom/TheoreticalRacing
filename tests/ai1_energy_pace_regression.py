@@ -22,18 +22,22 @@ EXPECTED = {
  # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
  # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
- ("nurburgring",1): (7, 0, [91, 92, 93, 95, 96, 96, 97]),
+ # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+ ("nurburgring",1): (7, 0, [91, 92, 92, 94, 95, 95, 95]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
- ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),
+ # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p7 now crashes on its 56th move -- recorded, not vetoed (AGENTS.md).
+ ("interlagos",29): (6, 1, [124, 125, 126, 127, 128, 129]),  # Round 303: loses a car.
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same
  # race by summary and digest (the labels race alike; review, 2026-09-28).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
  # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
  # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
- ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 84]),
+ # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
+ ("spa",17): (7, 0, [78, 80, 82, 82, 83, 83, 84]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
- ("zandvoort",44): (6, 1, [137, 138, 139, 141, 142, 143]),  # Round 281: loses a car again.
+ # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p6 no longer crashes on its 19th move and finishes third on its 139th -- recorded, not vetoed (AGENTS.md).
+ ("zandvoort",44): (7, 0, [137, 138, 139, 140, 142, 143, 144]),  # Round 303: whole again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

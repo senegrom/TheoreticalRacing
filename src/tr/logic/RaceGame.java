@@ -26,6 +26,7 @@ import tr.gui.StartDialog;
  */
 public final class RaceGame {
     FollowupPlans followups = new FollowupPlans();
+    LearningMemory learningMemory = new LearningMemory();
 	private static final Direction[] DIRECTIONS = Direction.values();
 	final static int			defCols				= 86;
 	private final static Color[]		defPlayerColors		= new Color[]{Color.BLUE, Color.RED, Color.GREEN, Color.YELLOW, Color.CYAN,
@@ -93,6 +94,7 @@ public final class RaceGame {
 	 *  that followed it. Auto-play does not allocate snapshots. */
 	private static final class MoveSnapshot {
         final FollowupPlans followups;
+        final LearningMemory learningMemory;
 		final int		finishedFirst;
 		final int		finishedLast;
 		final int[]	finishedPlaces;
@@ -107,6 +109,7 @@ public final class RaceGame {
 
 		MoveSnapshot(final RaceGame game) {
             followups = game.followups.copy();
+            learningMemory = game.learningMemory.copy();
 			subgamestate = game.subgamestate;
 			startZoneGone = game.startZoneGone;
 			finishedFirst = game.finishedFirst;
@@ -130,6 +133,7 @@ public final class RaceGame {
 
 		void restore(final RaceGame game) {
             game.followups = followups.copy();
+            game.learningMemory = learningMemory.copy();
 			game.subgamestate = subgamestate;
 			game.finishedFirst = finishedFirst;
 			game.finishedLast = finishedLast;
@@ -568,6 +572,9 @@ public final class RaceGame {
 
 	void clearPointContainmentCacheForCurrentThread() {
 		pointContainmentCaches.remove();
+		final PocketCells cells = pocketCells; // perf_pocket: the corridor memo too
+		if (cells != null)
+			cells.clearMemoForCurrentThread();
 	}
 
 	private void buildSubRaster(final byte[] unit, final int unitW) {
@@ -747,6 +754,26 @@ public final class RaceGame {
 	 * A move that does not reach the line is judged in full.
 	 */
 	boolean finishRunUpLegal(final int x1, final int y1, final int x2, final int y2) {
+		// Perf: a pure function of the built geometry, memoized per in-range edge
+		// while that geometry is still the game's.
+		final CrossingCells c = crossingCells;
+		final int cell = c == null ? -1 : c.cell(x1, y1, x2, y2);
+		if (cell < 0 || c.gates != lapGates || c.cross != (lapGates != null ? lapCrossGate : finishLine)
+				|| c.track != track || c.trackA != trackA || c.startZoneA != startZoneA)
+			return finishRunUpLegalUncached(x1, y1, x2, y2);
+		final int edge = (cell * CrossingCells.SPAN + x2 - x1 + AI_MAX_SPEED) * CrossingCells.SPAN
+				+ y2 - y1 + AI_MAX_SPEED;
+		final int slot = CrossingCells.runUpSlot(edge);
+		final int entry = c.runUp[slot];
+		if (entry != 0 && entry >>> 2 == edge)
+			return (entry & 3) == 2;
+		final boolean legal = finishRunUpLegalUncached(x1, y1, x2, y2);
+		c.runUp[slot] = edge << 2 | (legal ? 2 : 1);
+		return legal;
+	}
+
+	/** The run-up rule itself (finishRunUpLegal memoizes it). */
+	private boolean finishRunUpLegalUncached(final int x1, final int y1, final int x2, final int y2) {
 		final double u = finishCrossingFraction(x1, y1, x2, y2);
 		if (u >= 1.0)
 			return isMoveLegalGeometry(x1, y1, x2, y2);
@@ -792,6 +819,23 @@ public final class RaceGame {
 	 * across an inside corner of the corridor).
 	 */
 	boolean isMoveLegalGeometry(final int x1, final int y1, final int x2, final int y2) {
+		// perf_legality: the rollouts' referee (evaluateMove) asks the same edges
+		// again and again; the predicate is pure, so this game keeps its verdicts.
+		final GeometryMemo memo = geometryMemo;
+		final int cell = memo == null ? -1 : memo.cell(this, x1, y1, x2, y2);
+		if (cell < 0)
+			return isMoveLegalGeometryExact(x1, y1, x2, y2);
+		final int edge = GeometryMemo.edge(x2 - x1, y2 - y1);
+		final int known = memo.get(cell, edge);
+		if (known != GeometryMemo.UNKNOWN)
+			return known == GeometryMemo.LEGAL;
+		final boolean legal = isMoveLegalGeometryExact(x1, y1, x2, y2);
+		memo.put(cell, edge, legal);
+		return legal;
+	}
+
+	/** The exact predicate {@link #isMoveLegalGeometry} memoizes. */
+	private boolean isMoveLegalGeometryExact(final int x1, final int y1, final int x2, final int y2) {
 		if (fastLegal(x1, y1, x2, y2) || fastLegalSub(x1, y1, x2, y2))
 			return true;
 		if (!containsTrackOrStart(x2, y2))
@@ -815,6 +859,82 @@ public final class RaceGame {
 		// edges in a 3-wide gate clip the flanking stubs, emptying the maps
 		// and blocking real cars alike (monaco alive=1390 of 400k).
 		return !TrackGeometry.segmentCrossesPath(from, to, track.getLeft()) && !TrackGeometry.segmentCrossesPath(from, to, track.getRight());
+	}
+
+	/** perf_legality: this game's verdicts of the exact predicate, from the
+	 *  geometry build on; null before it (a hand-built game always computes). */
+	private GeometryMemo geometryMemo;
+
+	/** perf_legality: two bits per edge from an in-board cell with at most
+	 *  AI_MAX_SPEED per axis, one page per origin cell, allocated on first use.
+	 *  Never persisted and never shared between games: every verdict in it is
+	 *  one this game's predicate returned, and it answers only while the inputs
+	 *  the predicate reads are the very objects it was built for -- the areas,
+	 *  both rasters, the track and the sizes of its borders. Concurrent writers
+	 *  can only erase a verdict, never invent one: a word is rewritten from a
+	 *  read of itself, whose fields are all unknown or exact. */
+	static final class GeometryMemo {
+		static final int UNKNOWN = 0;
+		static final int ILLEGAL = 1;
+		static final int LEGAL = 2;
+		private static final int SPAN = 2 * AI_MAX_SPEED + 1;
+		private static final int PAGE_WORDS = (SPAN * SPAN + 15) >>> 4;
+		private final Area trackA, startZoneA;
+		private final Track track;
+		private final byte[] unit, sub;
+		private final int leftSize, rightSize, width, height;
+		private final int[][] pages;
+
+		GeometryMemo(final RaceGame game) {
+			trackA = game.trackA;
+			startZoneA = game.startZoneA;
+			track = game.track;
+			unit = game.legalRaster;
+			sub = game.subRaster;
+			leftSize = track.getLeft().size();
+			rightSize = track.getRight().size();
+			width = game.gameCols + 1;
+			height = game.gameRows + 1;
+			pages = new int[width * height][];
+		}
+
+		/** The page of this edge, or -1: outside the memo, or the game's
+		 *  geometry is no longer the one memoized. */
+		int cell(final RaceGame game, final int x1, final int y1, final int x2, final int y2) {
+			final int dx = x2 - x1, dy = y2 - y1;
+			if (x1 < 0 || y1 < 0 || x1 >= width || y1 >= height
+					|| dx < -AI_MAX_SPEED || dx > AI_MAX_SPEED || dy < -AI_MAX_SPEED || dy > AI_MAX_SPEED
+					|| game.trackA != trackA || game.startZoneA != startZoneA || game.track != track
+					|| game.legalRaster != unit || game.subRaster != sub
+					|| track.getLeft().size() != leftSize || track.getRight().size() != rightSize)
+				return -1;
+			return x1 * height + y1;
+		}
+
+		static int edge(final int dx, final int dy) {
+			return (dx + AI_MAX_SPEED) * SPAN + dy + AI_MAX_SPEED;
+		}
+
+		int get(final int cell, final int edge) {
+			final int[] page = pages[cell];
+			return page == null ? UNKNOWN : page[edge >>> 4] >>> ((edge & 15) << 1) & 3;
+		}
+
+		void put(final int cell, final int edge, final boolean legal) {
+			int[] page = pages[cell];
+			if (page == null) {
+				synchronized (this) {
+					page = pages[cell];
+					if (page == null) {
+						page = new int[PAGE_WORDS];
+						pages[cell] = page;
+					}
+				}
+			}
+			final int shift = (edge & 15) << 1;
+			final int word = edge >>> 4;
+			page[word] = page[word] & ~(3 << shift) | (legal ? LEGAL : ILLEGAL) << shift;
+		}
 	}
 
 	/** Every board the size sanitiser admits (500 x 500 cells, speed 12): 157M
@@ -876,8 +996,46 @@ public final class RaceGame {
 		return pocketBounds;
 	}
 
+	/** perf_pocket: exact subcell verdicts for {@link #inPocket}, for the
+	 *  (startZoneA, trackA) pair they were built from; built on the first
+	 *  pocket probe and again whenever either field holds another Area. */
+	private volatile PocketCells pocketCells;
+	private final Object pocketCellsLock = new Object();
+
+	private PocketCells pocketCells(final Area zone, final Area corridor) {
+		PocketCells cells = pocketCells;
+		if (cells != null && cells.zone == zone && cells.track == corridor)
+			return cells;
+		synchronized (pocketCellsLock) {
+			cells = pocketCells;
+			if (cells == null || cells.zone != zone || cells.track != corridor) {
+				cells = PocketCells.build(zone, corridor);
+				pocketCells = cells;
+			}
+			return cells;
+		}
+	}
+
+	/** startZoneA.contains(x, y) && !trackA.contains(x, y), the same verdict for
+	 *  every point (perf_pocket): proven subcells answer from the table, the
+	 *  rest run the exact tests, the corridor's memoised per thread. */
 	private boolean inPocket(final double x, final double y) {
-		return startZoneA.contains(x, y) && !trackA.contains(x, y);
+		final Area zone = startZoneA, corridor = trackA;
+		if (zone == null || corridor == null)
+			return zone.contains(x, y) && !corridor.contains(x, y);
+		final PocketCells cells = pocketCells(zone, corridor);
+		switch (cells.state(x, y)) {
+			case PocketCells.OUT:
+				return false;
+			case PocketCells.IN:
+				return true;
+			case PocketCells.ZONE_IN:
+				return !cells.trackContains(x, y);
+			case PocketCells.TRACK_OUT:
+				return zone.contains(x, y);
+			default:
+				return zone.contains(x, y) && !cells.trackContains(x, y);
+		}
 	}
 
 	/** Does this move's path touch the pocket? The legality scan's probes: both
@@ -919,7 +1077,7 @@ public final class RaceGame {
 				return true;
 			if (cached == DenseEdgeLegalCache.ILLEGAL)
 				return false;
-			final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
+			final boolean legal = isMoveLegalGeometryExact(x1, y1, x2, y2);
 			dense.put(denseIndex, legal);
 			return legal;
 		}
@@ -930,7 +1088,7 @@ public final class RaceGame {
 		final byte cached = fallback.get(key);
 		if (cached != 0)
 			return cached == EdgeLegalCache.TRUE;
-		final boolean legal = isMoveLegalGeometry(x1, y1, x2, y2);
+		final boolean legal = isMoveLegalGeometryExact(x1, y1, x2, y2);
 		fallback.put(key, legal);
 		return legal;
 	}
@@ -1361,6 +1519,7 @@ public final class RaceGame {
 	void releasePreparedMaps() {
 		reach.releaseMaps();
 		denseEdgeLegalCache = null;
+		crossingCells = null;
 		synchronized (this) {
 			edgeLegalCache = null;
 		}
@@ -1541,11 +1700,166 @@ public final class RaceGame {
 
 	final Reachability reach = new Reachability(this);
 
+	/** Perf (exact): can a crossing test answer true for ANY move from a cell?
+	 *  One byte per board cell and test: UNKNOWN, CLEAR -- the test's own
+	 *  predicate is false for every one of the (2 * AI_MAX_SPEED + 1)^2 moves
+	 *  from that cell -- or ANY. A byte is filled by evaluating the predicate on
+	 *  all of those moves with the very int arguments a query passes, so CLEAR
+	 *  proves the negative of every such query: no bounding box and no rounding
+	 *  argument (a nearly collinear move far beyond a non-integer gate can touch
+	 *  it in floating point, and must keep doing so). Most cells have no gate
+	 *  within one move, so most crossing queries cost one L1-resident byte
+	 *  instead of a finish-plane cache miss or the Line2D arithmetic; the rest
+	 *  run exactly as before. An instance describes the geometry objects it
+	 *  records and is consulted only while they are still the game's (tests
+	 *  assign gates and lines directly). Bytes and the packed run-up ints are
+	 *  written racily, but every writer stores the same verdict, neither tears,
+	 *  and a reader that sees UNKNOWN (or another edge) recomputes. */
+	static final class CrossingCells {
+		static final byte UNKNOWN = 0;
+		static final byte CLEAR = 1;
+		static final byte ANY = 2;
+		static final int SPAN = 2 * AI_MAX_SPEED + 1;
+		private static final int RUN_UP_BITS = 16;
+		final int w;
+		final int h;
+		/** What the summaries describe: lapGates (null point to point) and its
+		 *  elements, the crossing line with its forward direction, the walls. */
+		final Line2D[] gates;
+		final Line2D[] gateLines;
+		final Line2D cross;
+		final double fwdX;
+		final double fwdY;
+		final Track track;
+		final Area trackA;
+		final Area startZoneA;
+		/** crossesFinishUncached, per start cell. */
+		final byte[] finish;
+		/** Per lap gate: Line2D.linesIntersect (touchesGate), and
+		 *  gateTouchAfter from after = 0 (gateEventsOnMove). */
+		final byte[][] touch;
+		final byte[][] after;
+		/** finishRunUpLegal per edge: edge << 2 | (legal ? 2 : 1), 0 empty. */
+		final int[] runUp = new int[1 << RUN_UP_BITS];
+
+		private CrossingCells(final RaceGame g, final int w, final int h) {
+			this.w = w;
+			this.h = h;
+			gates = g.lapGates;
+			gateLines = gates == null ? null : gates.clone();
+			cross = gates != null ? g.lapCrossGate : g.finishLine;
+			fwdX = gates != null ? g.lapFwdX : g.finishFwdX;
+			fwdY = gates != null ? g.lapFwdY : g.finishFwdY;
+			track = g.track;
+			trackA = g.trackA;
+			startZoneA = g.startZoneA;
+			finish = new byte[w * h];
+			touch = gates == null ? null : new byte[gates.length][w * h];
+			after = gates == null ? null : new byte[gates.length][w * h];
+		}
+
+		/** Null for a board whose edges do not fit an int index: every test
+		 *  then runs as before. */
+		static CrossingCells create(final RaceGame g) {
+			final long w = g.gameCols + 1L, h = g.gameRows + 1L;
+			if (w <= 0 || h <= 0 || w * h * SPAN * SPAN >= 1L << 28)
+				return null;
+			return new CrossingCells(g, (int) w, (int) h);
+		}
+
+		/** The start cell of a move inside the summarised speed range, or -1.
+		 *  With 0 <= x1 < w an int difference in range is the true one. */
+		int cell(final int x1, final int y1, final int x2, final int y2) {
+			final int dx = x2 - x1, dy = y2 - y1;
+			if (x1 < 0 || y1 < 0 || x1 >= w || y1 >= h || dx < -AI_MAX_SPEED || dx > AI_MAX_SPEED
+					|| dy < -AI_MAX_SPEED || dy > AI_MAX_SPEED)
+				return -1;
+			return x1 * h + y1;
+		}
+
+		static int runUpSlot(final int edge) {
+			return (int) (edge * 0x9E3779B97F4A7C15L >>> 64 - RUN_UP_BITS);
+		}
+	}
+
+	/** This game's crossing summaries (buildTrackGeometry), or null. */
+	private CrossingCells crossingCells;
+
+	/** Is crossesFinishUncached false for every summarised move from (x1,y1)?
+	 *  Only while the summary describes the live line and direction. */
+	private boolean finishCellClear(final int x1, final int y1, final int x2, final int y2) {
+		final CrossingCells c = crossingCells;
+		if (c == null)
+			return false;
+		final int cell = c.cell(x1, y1, x2, y2);
+		if (cell < 0 || (lapGates != null
+				? c.gates == null || c.cross != lapCrossGate || c.fwdX != lapFwdX || c.fwdY != lapFwdY
+				: c.gates != null || c.cross != finishLine || c.fwdX != finishFwdX || c.fwdY != finishFwdY))
+			return false;
+		byte state = c.finish[cell];
+		if (state == CrossingCells.UNKNOWN) {
+			state = scanFinishCell(x1, y1);
+			c.finish[cell] = state;
+		}
+		return state == CrossingCells.CLEAR;
+	}
+
+	private byte scanFinishCell(final int x1, final int y1) {
+		for (int dx = -AI_MAX_SPEED; dx <= AI_MAX_SPEED; dx++)
+			for (int dy = -AI_MAX_SPEED; dy <= AI_MAX_SPEED; dy++)
+				if (crossesFinishUncached(x1, y1, x1 + dx, y1 + dy))
+					return CrossingCells.ANY;
+		return CrossingCells.CLEAR;
+	}
+
+	/** Does every summarised move from (x1,y1) miss lap gate {@code gate} --
+	 *  under Line2D.linesIntersect (touch) or under gateTouchAfter from
+	 *  after = 0, hence from every after >= 0 (otherwise)? Only while the
+	 *  summary describes the live gate; any other call runs the old code. */
+	private boolean gateCellClear(final boolean touch, final int gate, final int x1, final int y1,
+			final int x2, final int y2) {
+		final CrossingCells c = crossingCells;
+		final Line2D[] live = lapGates;
+		if (c == null || c.gateLines == null || live == null || gate < 0 || gate >= live.length
+				|| gate >= c.gateLines.length)
+			return false;
+		final Line2D line = live[gate];
+		final int cell = c.cell(x1, y1, x2, y2);
+		if (line == null || line != c.gateLines[gate] || cell < 0)
+			return false;
+		final byte[] states = touch ? c.touch[gate] : c.after[gate];
+		byte state = states[cell];
+		if (state == CrossingCells.UNKNOWN) {
+			state = touch ? scanTouchCell(line, x1, y1) : scanAfterCell(line, x1, y1);
+			states[cell] = state;
+		}
+		return state == CrossingCells.CLEAR;
+	}
+
+	private static byte scanTouchCell(final Line2D line, final int x1, final int y1) {
+		for (int dx = -AI_MAX_SPEED; dx <= AI_MAX_SPEED; dx++)
+			for (int dy = -AI_MAX_SPEED; dy <= AI_MAX_SPEED; dy++)
+				if (Line2D.linesIntersect(line.getX1(), line.getY1(), line.getX2(), line.getY2(),
+						x1, y1, x1 + dx, y1 + dy))
+					return CrossingCells.ANY;
+		return CrossingCells.CLEAR;
+	}
+
+	private static byte scanAfterCell(final Line2D line, final int x1, final int y1) {
+		for (int dx = -AI_MAX_SPEED; dx <= AI_MAX_SPEED; dx++)
+			for (int dy = -AI_MAX_SPEED; dy <= AI_MAX_SPEED; dy++)
+				if (!Double.isNaN(TrackGeometry.gateTouchAfter(line, x1, y1, x1 + dx, y1 + dy, 0)))
+					return CrossingCells.ANY;
+		return CrossingCells.CLEAR;
+	}
+
 	/** Hot integer edge path used by every solver. Finish intersection is a pure
 	 * geometry predicate for a loaded course, so memoize it by the same dense
 	 * edge index as legality. This removes repeated Line2D intersection work in
 	 * AI rollouts without changing which crossings count. */
 	boolean crossesFinish(final int x1, final int y1, final int x2, final int y2) {
+		if (finishCellClear(x1, y1, x2, y2))
+			return false; // perf: crossesFinishUncached is false for this move
 		final DenseEdgeLegalCache dense = denseEdgeLegalCache;
 		final int index = dense == null ? -1 : dense.index(x1, y1, x2, y2);
 		if (index >= 0) {
@@ -1908,12 +2222,16 @@ public final class RaceGame {
 		int events = 0;
 		double after = 0;
 		if (pending == 1) {
+			if (gateCellClear(false, 1, x, y, nx, ny))
+				return events; // perf: gateTouchAfter is NaN for this move
 			after = TrackGeometry.gateTouchAfter(lapGates[1], x, y, nx, ny, after);
 			if (Double.isNaN(after)) return events;
 			pending = 2;
 			events++;
 		}
 		if (pending == 2) {
+			if (gateCellClear(false, 2, x, y, nx, ny))
+				return events; // perf: NaN from after = 0, so from this after >= 0 too
 			after = TrackGeometry.gateTouchAfter(lapGates[2], x, y, nx, ny, after);
 			if (Double.isNaN(after)) return events;
 			pending = 0;
@@ -2119,7 +2437,7 @@ public final class RaceGame {
 	/** Direction-free touch test against one lap gate segment. */
 	boolean touchesGate(final int gate, final int x1, final int y1,
 			final int x2, final int y2) {
-		return lapGates != null
+		return lapGates != null && !gateCellClear(true, gate, x1, y1, x2, y2) // perf
 				&& Line2D.linesIntersect(lapGates[gate].getX1(), lapGates[gate].getY1(),
 						lapGates[gate].getX2(), lapGates[gate].getY2(), x1, y1, x2, y2);
 	}
@@ -2640,6 +2958,8 @@ public final class RaceGame {
 				: DenseEdgeLegalCache.shared(denseKey, gameCols + 1, gameRows + 1,
 						DENSE_EDGE_MAX_ENTRIES, 128L << 20);
 		buildLegalRaster();
+		crossingCells = CrossingCells.create(this); // perf: per-cell crossing summaries
+		geometryMemo = new GeometryMemo(this); // perf_legality: after every input it checks
 		rui.finishTrack(trackA);
 		if (optimalStart != null) {
 			// The exact search needs the geometry and the gates, not the AI's
@@ -2932,9 +3252,11 @@ public final class RaceGame {
 	/** True iff a player other than playerNumber is at (x,y). */
 	boolean isCrashingPlayer(final int x, final int y, final int playerNumber) {
 		for (final Player player : players) {
-			if (player.getNumber() == playerNumber || player.isFinished())
-				continue;
-			if (player.getPosition()[0] == x && player.getPosition()[1] == y)
+			// perf_legality: the cell first, which rules out nearly every car; the
+			// same side-effect-free reads, so the same verdict.
+			final int[] position = player.getPosition();
+			if (position[0] == x && position[1] == y && player.getNumber() != playerNumber
+					&& !player.isFinished())
 				return true;
 		}
 		return false;
