@@ -1,0 +1,58 @@
+name: Assemble learning racecraft
+on:
+  push:
+    branches: [work/racecraft-strategies-20261008]
+    paths: ['.learning-20261015/**', '.github/workflows/learning-assembly.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: learning-assembly-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  assemble:
+    if: github.ref == 'refs/heads/work/racecraft-strategies-20261008'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - name: Audit current-master integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git merge-base --is-ancestor 71fdb12363f021ccc1036f8276041897cdbb0504 HEAD; then
+            git merge --no-commit --no-ff 71fdb12363f021ccc1036f8276041897cdbb0504 || true
+          fi
+          if test -f .learning-20261015/resolve.py; then python3 .learning-20261015/resolve.py; fi
+          if test -n "$(git diff --name-only --diff-filter=U)"; then
+            git diff --cc
+            exit 1
+          fi
+          if ! test -f .learning-20261015/apply.py; then echo 'Integration audited; implementation not staged'; exit 1; fi
+          python3 .learning-20261015/apply.py
+          git diff --check
+      - name: Build and contracts
+        run: |
+          set -eu
+          sh build_main.sh
+          sh run_tests.sh
+          python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Commit tested implementation to research branch only
+        run: |
+          set -eu
+          git add src tests tools docs run_tests.sh racing-memory.md
+          git diff --cached --check
+          git diff --exit-code 71fdb12363f021ccc1036f8276041897cdbb0504 -- tracks/ user.properties
+          git restore --staged .github/workflows
+          if ! git diff --cached --quiet || test -f .git/MERGE_HEAD; then
+            git commit -m 'Integrate aware champion and six isolated learning racecraft experiments'
+            git push origin HEAD:work/racecraft-strategies-20261008
+          fi
