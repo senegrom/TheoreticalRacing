@@ -1,0 +1,58 @@
+name: Learning racecraft validation
+on:
+  push:
+    branches: [work/racecraft-strategies-20261008]
+    paths: ['.github/workflows/learning-validation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: learning-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  contracts:
+    name: Learning contracts JDK ${{ matrix.java }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['25', '26']
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.java }}
+      - run: sh build_main.sh
+      - run: sh run_tests.sh
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: git diff --exit-code
+  complete-races:
+    name: Learning arms, full-suffix replay and league evolution
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - run: |
+          sh build_main.sh
+          mkdir "$RUNNER_TEMP/champion"
+          git archive 71fdb12363f021ccc1036f8276041897cdbb0504 | tar -x -C "$RUNNER_TEMP/champion"
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+      - run: python3 tests/racecraft_learning_cli.py --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/learning-controls"
+      - run: git diff --exit-code
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: learning-full-race-evidence
+          path: ${{ runner.temp }}/learning-controls
+          retention-days: 7
