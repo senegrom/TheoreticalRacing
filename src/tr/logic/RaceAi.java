@@ -508,6 +508,7 @@ final class RaceAi {
 	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent in every race mode (round 279), no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
+	private final static int		AI1_AWARE_SELF_MOVES	= 5;	// round 305: the mover's forecast continuation moves played by its full policy
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
@@ -3811,9 +3812,10 @@ final class RaceAi {
 			}
 		}
 		// Round 285: in an aware forecast the mover's and the relevant rival's first
-		// moves use the full policy.
+		// moves use the full policy. Round 305: the mover's first AI1_AWARE_SELF_MOVES
+		// continuation moves do; the rival keeps one.
 		final boolean awareRollout = simDepth == awareDepth;
-		boolean awareSelfDone = !awareRollout;
+		int awareSelfLeft = awareRollout ? AI1_AWARE_SELF_MOVES : 0;
 		boolean awareRivalDone = !awareRollout || awareRival < 0;
 		final int awareRivalIdx = awareRival;
 		final boolean trace = simTrace && simDepth == 1;
@@ -3867,8 +3869,8 @@ final class RaceAi {
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
 				boolean moved;
-				if (!awareSelfDone && i == myIdx) {
-					awareSelfDone = true;
+				if (awareSelfLeft > 0 && i == myIdx) {
+					awareSelfLeft--;
 					moved = awareMoveOverState(i, px, py, vx, vy, alive, move, workspace);
 				} else if (!awareRivalDone && i == awareRivalIdx) {
 					awareRivalDone = true;
@@ -3938,7 +3940,12 @@ final class RaceAi {
 					liveCount--;
 					if (outFieldCost != null)
 						failedRivalCost += ROLLOUT_FAILURE_COST;
-					if (liveCount <= terminalLiveCount) {
+					// Round 309: in the chooser's own rollout a rival's crash is no win. The forecast's
+					// rival is a model and its crash a possibility, not a fact (the duel proof keeps the
+					// proven ones); a forecast that ended the race there made the chooser chase phantom
+					// wins in duels. The mover races on alone and is ranked by its own time: duels
+					// -0.028 +- 0.005 places against round 303's champion, 8-car fields as round 305 alone.
+					if (liveCount <= terminalLiveCount && simDepth != placeKeyDepth) {
 						raceOver = true;
 						break;
 					}
@@ -4850,7 +4857,8 @@ final class RaceAi {
 			// Round 303 (the chooser lab's aware, promoted): in a top-level chooser's forecast
 			// the mover's own first continuation and the most-interacting rival's first move
 			// play their full policy (-0.150 places on held-out seeds, -0.142 as a lone
-			// entrant against round 301c; CPU 2.65x, accepted by the owner).
+			// entrant against round 301c; CPU 2.65x, accepted by the owner). Round 305: the
+			// mover's first AI1_AWARE_SELF_MOVES continuation moves (see simOutcomeCore).
 			final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
 			if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0) {
 				awareDepth = simDepth + 1;

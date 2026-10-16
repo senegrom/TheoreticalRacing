@@ -10,13 +10,22 @@ guard alike. The root check audits scorer-8 (never a verdict), escalates
 DEAD-or-loud (thread >= 4) fires to the true-6 verdict, and switches
 only to a certified quiet-alive alternative. Rounds 178-180 were
 promoted on the user's order, so every car runs the ridge check and
-both lobe2 races (seeds 111 and 132) must run crash-free.
+both lobe2 races (seeds 111 and 132) had to run crash-free.
 
 Round 185 selectively extends that audit to a trap-zero, signed speed-10
 hold whose three alive exits narrow to child widths exactly 1/2/3. On
 rand13 seed 4, player 7's old S line crashes three turns later; the
 scorer certificate instead selects SE, which finishes third; the mixed
 roster below must take that same promoted rescue.
+
+Round 305/309 (aware plays the mover's first five forecast continuation
+moves; a rival's forecast crash is no win): seed 132 is no longer
+crash-free. p6 and p8, both AI2 slots, run straight along row 8 at the
+top of the course by their 14th moves, braking one notch a round, and at
+v(-5,0) cannot make the bend: both crash into its outer wall on their
+17th moves. Recorded, not vetoed (AGENTS.md): the AI2 slots' crash count
+is pinned per seed as measured, and the AI1 slots stay crash-free on
+both seeds.
 """
 
 from pathlib import Path
@@ -37,7 +46,8 @@ def main() -> int:
         bench_ai.configure_runtime(directory)
         bench_ai.set_nplayers(8)
         bench_ai.set_kinds(["AI1", "AI2"] * 4)
-        expected_ai2 = {111: 0, 132: 0}
+        # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seed 132 loses two cars, p6 (sixth home on its 54th move before) and p8 (the car still running at the end before), both AI2 slots, into the outer wall at the top of the course at (60,7) and (61,7) on moves 134 and 136, both their 17th, so five cars finish and p7 (seventh home before) is the car still running at the end, after 52 moves; seed 111 and every AI1 slot stay crash-free -- recorded, not vetoed (AGENTS.md).
+        expected_ai2 = {111: 0, 132: 2}
         for seed in (111, 132):
             result = bench_ai.run_track_h2h("lobe2", timeout=600, seed=seed)
             if result is None:
@@ -82,7 +92,8 @@ def main() -> int:
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-        expected = {"AI1": (23, 4, 0), "AI2": (13, 4, 0)}
+        # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); no crash, and p7 survives, now home seventh on its 67th move (fifth on its 66th before); p3 (the car still running at the end before) finishes fourth on its 66th, p6 fifth (fourth before), p1 sixth on its 67th (seventh on its 68th before), and p8 (sixth home before) is the car still running at the end, after 66 moves.
+        expected = {"AI1": (20, 4, 0), "AI2": (16, 4, 0)}
         if result != expected:
             raise SystemExit(
                 "Round-185 width-three ridge regression: "

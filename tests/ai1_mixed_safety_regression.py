@@ -55,7 +55,8 @@ def main() -> int:
             # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); p8, seventh home before, now crashes on its 55th move and seven finishers become six, so p1, still the car running at the end, moves up to seventh -- recorded, not vetoed, and pinned by its identity below.
             # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
             # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p8, which crashed on its 55th move in rounds 292b and 300a, now keeps its race and comes home seventh on its 72nd, so six finishers become seven again and p1, still the car running at the end, drops back to eighth -- crash-free again, and that is what is pinned below.
-            "front": {"AI1": (14, 4, 0), "AI2": (22, 4, 0)},
+            # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p1, the car still running at the end before, now crashes on its 16th move, and p8, seventh home on its 72nd before, is the car still running at the end, after 70 moves -- six finishers; p1 stays eighth and p8 seventh, so the place sums are unchanged and only the crash count moves. Recorded, not vetoed (AGENTS.md), and pinned by its identity below.
+            "front": {"AI1": (14, 4, 1), "AI2": (22, 4, 0)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -84,8 +85,9 @@ def main() -> int:
             # Round 278: crash-free again, and that is what is pinned.
             # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds); one crash again, p8 into the wall at (20,137) on move 440, its 55th -- recorded, not vetoed, and the round-234 identity pin returns for p8.
             # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); crash-free again -- p8 survives move 440, its 55th, and comes home seventh on move 555, its 72nd -- and that is what is pinned, as in rounds 247 and 278.
+            # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); one crash again, p1 into the wall at (37,1) on move 121, its 16th, at the top of the course -- recorded, not vetoed, and the round-234 identity pin returns for p1.
             crashed = [line for line in log_lines if " CRASH " in line]
-            if crashed:
+            if len(crashed) != 1 or " p1 " not in crashed[0] or "place=8" not in crashed[0]:
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} crash set changed: {crashed}"
                 )

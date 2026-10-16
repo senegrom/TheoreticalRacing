@@ -54,12 +54,15 @@ EXACT_MOVES = {
     # p7 and p5, which crashed there, now finish -- seven finishers again.
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-    ("lemans", 3): [66, 67, 68, 69, 70, 71, 71],
+    # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
+    ("lemans", 3): [66, 67, 68, 69, 70, 70, 71],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
     # the same seven finishers in a new order (p4 now wins on its 82nd move), one move fewer.
-    ("silverstone", 15): [82, 83, 83, 84, 84, 84, 85],
+    # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win);
+    # the same seven finishers in a new order (p1 now wins on its 82nd move), one move more.
+    ("silverstone", 15): [82, 83, 83, 84, 84, 85, 85],
 }
 
 
@@ -128,7 +131,12 @@ def main() -> int:
             # the (7, 0) default; Silverstone 18, whole in every round since this pin began (round 83),
             # drops one (p8 on its 75th move), and Hungaroring 4 still drops one, now p2 on its 12th
             # move -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("silverstone", 18): (6, 1)}
+            # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast
+            # continuation moves; a rival's forecast crash is no win); Silverstone 18 keeps its car
+            # again (p8, lost on its 75th move in round 303, is still running after 84 moves when p7
+            # finishes seventh on its 85th), so it leaves this list and takes the (7, 0) default, and
+            # Hungaroring 4 still drops one, now p3 on its 32nd move -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

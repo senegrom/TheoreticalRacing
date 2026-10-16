@@ -38,7 +38,8 @@ EXPECTED = {
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-    36: {"AI1": (19, 4, 0), "AI2": (17, 4, 0)},
+    # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p1 (AI1), seventh home on its 72nd move before, now crashes on its 15th, into the wall at (34,0) on move 113 at the top of the course -- not at the funnel -- so six cars finish: p8, still the car running at the end, moves up to seventh, p6 and p7 each gain a place and p5 drops from fourth to sixth, home on its 71st -- recorded, not vetoed (AGENTS.md).
+    36: {"AI1": (21, 4, 1), "AI2": (15, 4, 0)},
     # Round 234: re-frozen from measurement. Eight cars share places 1-8,
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.

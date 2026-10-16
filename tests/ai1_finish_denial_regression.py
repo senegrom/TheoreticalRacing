@@ -41,9 +41,15 @@ TARGET = ("hairpin", 68)
 # at the end, after 17 moves and one move from the line at (70,21), when p7 finishes seventh at move
 # 135, so it is classified eighth instead of sixth, as in round 260. p1, the car still running at the
 # end before, is home sixth in 18 moves; still seven finishers and no crash.
+# Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation
+# moves; a rival's forecast crash is no win); the race first plays differently at move 1 (p1's first: it
+# now holds still on the grid, NONE), and p8 is home again: seventh, at move 136, in 18 moves. p1 is now
+# the car still running at the end, after 18 moves and one move from the line at (70,21), so it is
+# classified eighth instead of sixth; p7 is home sixth instead of seventh, in 18 moves as before. The
+# same summary: still seven finishers and no crash.
 RESCUED = (7, 0, [16, 16, 16, 17, 17, 18, 18])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (1, 18), (7, 18)]
-RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 17}
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (5, 17), (6, 17), (7, 18), (8, 18)]
+RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 18}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
@@ -60,7 +66,12 @@ RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 17, 6: 17, 7: 18, 8: 17}
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); the
 # same turn and car: p8 now steers S from (41,6) there, which it reached at move 80 before and at
 # move 96 now, and brakes SW at moves 120 and 128.
-RESCUED_DECISION = "104 p8 AI S v(7,0)→(7,1) (41,6)→(48,7) ok"
+# Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation
+# moves; a rival's forecast crash is no win); the same turn and car: p8 now brakes SW there, v(7,0) to
+# (6,1), from (44,6), which it reaches at move 96 (three cells further on than (41,6)), as the original
+# rescue braked W, v(7,0) to (6,0); it accelerates SE at move 112, brakes SW at moves 120, 128 and 133
+# and finishes at move 136.
+RESCUED_DECISION = "104 p8 AI SW v(7,0)→(6,1) (44,6)→(50,7) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 260: re-frozen from measurement (the chooser).
@@ -68,7 +79,8 @@ RESCUED_DECISION = "104 p8 AI S v(7,0)→(7,1) (41,6)→(48,7) ok"
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-RESCUED_SHA256 = "f0a2bc12fc72a570b05eae50491ec9a819da929af4cd85d475049706eb3e6006"
+# Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
+RESCUED_SHA256 = "a8b6ff7459c84ab61f0edb4222a3f91e722d3559c6786b50bdf527d50293d23f"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

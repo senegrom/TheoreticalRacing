@@ -1,5 +1,75 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Rounds 305 and 309 promoted (2026-10-16): aware plays the car's first five moves, and a forecast crash is no win
+
+The owner approved shipping the two together (2026-10-15).
+- **Round 305 at depth 5.** In every forecast a top-level chooser rolls out, the mover's first
+  five continuation moves are played by its full policy; round 303 played one. The
+  most-interacting rival keeps one.
+- **Round 309.** In the chooser's own rollout, a rival's crash that would leave the mover as last
+  survivor no longer ends the race as the mover's win. The mover races on alone and is ranked by
+  its own finish round or projected time. Proven forced crashes stay with the duel proof.
+
+Master 71fdb12 + E:/tmp-claude/review3/promote305.py (K=5) + promote309.py: jar edb787db,
+byte-identical to the box's build p305np. The promoted jar races as the arm a309np5 with every
+slot a candidate: seven random-start races, three computed-start ones, and six duels (hybrid1,
+monza, lobe4, lemans, lobe3, fractal3).
+
+The arm a309np5 against the round-303 champion with the speed stack (p8dc73ed), mirrored, 8 cars
+unless stated:
+
+| Slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| random 1-10 | -0.151 +- 0.019 | 59/19/6 | 60:69 |
+| held-out 11-20 | -0.125 +- 0.019 | 59/15/10 | 47:68 |
+| computed 1-10 | -0.148 +- 0.018 | 60/15/9 | 54:66 |
+| scattered 1-10 | -0.010 +- 0.003 | 21/6/57 | 9:10 |
+| duels (2 cars, random 1-20) | -0.028 +- 0.005 | 11/4/69 | 393:158 |
+| lone check (seeds 1-5, every seat) | -0.105 +- 0.017 (4.395 against 4.500) | 55/17/12 | 29:28 |
+
+What the battery shows:
+- In 8-car fields the promotion is depth 5's own reading to a hundredth or two (round 305: held-out
+  -0.125, computed -0.149, scattered -0.010, lone check 4.395 with 55/17/12).
+- In duels, depth 5's +0.048 loss is gone; the duels gain instead.
+- Its cars crash less in every mirrored 8-car slice; the lone check is even (29 against 28). In
+  duels they crash more (393 against 158) and still finish better. The rule prices that.
+- CPU is 1.66x the champion's (six 8-car races), about 0.8x of what round 301c's champion cost.
+  The browser's whole-race budget (30 minutes since fdf25c4) still covers it.
+
+Corpus (CI's frozen job on the box; the hand re-frozen tree verified there: 29 of 29, and CI's
+Python unit tests pass on the full tree):
+- 11 of 12 goldens moved. Zandvoort s45 loses car F (six finishers, 985 turns against 1105),
+  recorded, not vetoed; the other ten finish in a new order or a few turns sooner. Only Hairpin
+  s1, the 2-car golden the browser races, is unchanged.
+- 17 of 25 pins moved: the box loop re-froze 5 and 12 were re-frozen by hand from the probe
+  records, each independently reviewed (workflow wf_53a21790-eb0; one docstring fixed after
+  review). The label-invariance pin needed only its reference, which lives in the six-ahead pin:
+  the all-AI1 and alternating Coil s5 races share one digest again.
+- Crashes move between races and net to zero, recorded, not vetoed:
+  - lost: Le Mans s36 (fast funnel, p1 on its 15th move) and Le Mans s7 (mixed safety, p1 on
+    its 16th), at the same place at the top of the course; lobe2 s132 (thin ridge, p6 and p8 on
+    their 17th), the first crash in a pinned lobe2 race since round 178; the golden Zandvoort s45;
+  - regained: Le Mans s87 and s93 (bounded uncertain field), Interlagos s29 (energy pace),
+    Silverstone s18 (staged pace) and Silverstone s78 (a six-ahead veto race);
+  - Hungaroring s4 (staged pace) still loses one car, a different one.
+- The round-95 cross-model pace pin records a small loss on its race: Silverstone s1's seven
+  finishers take 588 moves between them, two more than before.
+- Two pinned decisions now come from a neighbouring state: Spa s83 at turn 201 (two cells on,
+  one notch faster) and Coil s49 at turn 308 (one cell over). Each is the same car taking the
+  same acceleration. Both are re-anchored at the same turn and car, as every round since 276 has
+  done.
+- The browser parity race (Hairpin s1, 2 cars, computed starts; web/tests/informed_races.json)
+  keeps its digest ec48301e.
+- The Java suite and the local browser build pass.
+
+Also from this period:
+- **Round 308's every-rival arm** (every live rival's first forecast move by its full policy, on
+  depth 5): -0.020 +- 0.015 (41/34/9; crashes 63:85) against depth 5, at 1.67x depth 5's CPU.
+  Dead. Rival fidelity is closed: two moves -0.009, three +0.007, every rival -0.020.
+- **Round 310** (running): the danger-joint-search family off on the promoted champion (arm
+  a310dng, identity OK). Off on depth 1 it read -0.028 random, -0.042 held-out and -0.027
+  computed; on depth 5, -0.021 and -0.026.
+
 ## Round 309 (2026-10-15): phantom wins -- why deeper aware lost duels, and the fix
 
 Round 305's depth 5 gained -0.14 to -0.15 in 8-car fields but lost in duels:
@@ -82,7 +152,7 @@ p305s5.
   - its first 3 moves: +0.007 +- 0.012 (CPU 1.10x).
   - Both are washes. The every-rival arm (CPU 1.67x) is still running.
 
-## Round 305 (2026-10-12 to 14, in progress): aware plays more of the car's own continuation
+## Round 305 (2026-10-12 to 14; promoted with round 309, above): aware plays more of the car's own continuation
 
 Round 303's aware plays two moves of each top-level forecast by their full policy:
 - the mover's first continuation move;

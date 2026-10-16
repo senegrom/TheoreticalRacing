@@ -23,7 +23,8 @@ EXPECTED = {
     # Round 260 (the chooser): Silverstone s1 loses a car here -- recorded,
     # not vetoed (AGENTS.md); the finisher moves below are the pin's subject.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p8 no longer crashes on its 11th move and p5 now finishes: six finishers become seven, p8 the car still running at the end.
-    "AI2": (7, 0, [82, 83, 83, 84, 84, 85, 85]),
+    # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seven finishers and no crash as before; the third and fifth finishers are each one move slower (see the move sum below).
+    "AI2": (7, 0, [82, 83, 84, 84, 85, 85, 85]),
 }
 
 
@@ -53,7 +54,8 @@ def main() -> int:
     # Round 247: 586 (the soft rollout at one level, not two). Round 248: 587.
     # Round 260: 501 is the sum of the six re-frozen finisher moves.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); 586 is the sum of the seven finisher moves: round 260's six unchanged plus p5's 85.
-    if move_sum != 586:
+    # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); 588 is the sum of the seven finisher moves, two more than before: p1 now wins on its 82nd move (second on its 83rd before), but p2 (the winner before, on its 82nd) is second on its 83rd, p3 third on its 84th (83rd before) and p4 fifth on its 85th (fourth on its 84th before); p5 is fourth on its 84th (fifth before), p6 and p7 sixth and seventh on their 85th as before, and p8 is still the car running at the end, after 84 moves -- recorded, not vetoed (AGENTS.md).
+    if move_sum != 588:
         raise SystemExit(f"Round-95 promoted finisher moves lost: {results[LABELS[0]]}")
 
     print(
