@@ -173,9 +173,11 @@ def main():
                 }""")
                 page.locator('#ok').click()
                 # A whole AI race in the browser JVM: round 303's aware forecasts cost
-                # several times the CPU (accepted by the owner, 2026-10-11) and WebKit
-                # runs the engine slowest, so the finish gets 30 minutes (was 10).
-                page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=1_800_000)
+                # several times the CPU (accepted by the owner, 2026-10-11), so the
+                # finish got 30 minutes (was 10). Rounds 305/309 (accepted 2026-10-15)
+                # took this duel from about 15 to 25-30+ minutes on CI's runners, so it
+                # gets 60.
+                page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=3_600_000)
                 layouts = page.evaluate('raceLayouts')
                 assert len(layouts) >= 10, 'insufficient actual AI turns to check layout'
                 # The entry frame may precede the initial race resize observer.
@@ -207,7 +209,7 @@ def main():
                 assert page.locator('#standings .result').all_text_contents() == ['On grid', 'On grid']
                 page.screenshot(path=str(out / 'computed-starts.png'), full_page=True)
                 page.locator('#ok').click()
-                page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=1_800_000)
+                page.wait_for_function('document.body.dataset.phase === "FINISHED"', timeout=3_600_000)
                 with page.expect_download() as computed_download:
                     click_export(page)
                 computed_log = out / 'hairpin-informed-s1-2p.log'

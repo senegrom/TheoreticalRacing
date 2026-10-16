@@ -57,8 +57,8 @@ jobs:
     needs: parity
     runs-on: ubuntu-latest
     # Two whole AI races in the browser JVM, each allowed 30 minutes since round
-    # 303's aware forecasts (2026-10-11).
-    timeout-minutes: 75
+    # 303's aware forecasts (2026-10-11) and 60 since rounds 305/309 (2026-10-16).
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
