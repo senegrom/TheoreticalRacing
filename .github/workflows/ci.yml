@@ -88,7 +88,9 @@ jobs:
     needs: [java, frozen-ai2, tooling, browser]
     if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The live-site check races the browser test's two whole AI races again, each
+    # allowed 60 minutes since rounds 305/309 (as the browser job).
+    timeout-minutes: 150
     permissions:
       contents: read
       pages: write
