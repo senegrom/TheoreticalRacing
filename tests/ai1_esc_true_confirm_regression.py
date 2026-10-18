@@ -27,6 +27,10 @@ car running at the end, now after 116 moves, drops from seventh to eighth:
 p1 takes the place p8 loses, the reverse of the order before round 301a'
 (p8 seventh home on its 116th move, p1 eighth). The pin holds the measured
 finishers and crashes, the round-107 7/0 again.
+
+Round 310: the round-107 ESC-route true-rival confirm went with the
+danger-joint-search family; the pinned outcome is unchanged under the
+promoted champion (measured), so the pin now guards that outcome.
 """
 
 from pathlib import Path

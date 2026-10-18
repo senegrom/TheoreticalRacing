@@ -9,6 +9,15 @@ cap is the only shipped world that sees it, so the leg re-verdicts
 acceleration into the top speed band with scorer-8 alone. Seeds 6 and 35
 carry the commitment in different slots (p7 and p6); both races must now
 run crash-free under the alternating mixed field.
+
+Round 310: the deep-pack route that carried these commitments to the
+round-133 vmax check (and its fallback route) went with the
+danger-joint-search family -- the leg is reached only through the
+round-232 kinematic confirm now, which arms only on courses with
+checkpoints (game.lapGates != null). serpentine2 races with checkpoints
+disabled, so nothing in these two races reaches the leg any more; the
+pinned outcome is unchanged under the promoted champion (measured), so the
+pin now guards that outcome.
 """
 
 from pathlib import Path

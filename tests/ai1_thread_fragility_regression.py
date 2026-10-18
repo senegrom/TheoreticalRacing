@@ -10,6 +10,10 @@ alive-but-fully-threaded verdicts in pack traffic and switches to an alive,
 non-threaded alternative (here W, the oracle-proven survivor). Before Round
 98 this race crashed p1; it must stay crash-free with a full field of
 finishers.
+
+Round 310: the round-98 thread-fragility audit went with the
+danger-joint-search family; the pinned outcome is unchanged under the
+promoted champion (measured), so the pin now guards that outcome.
 """
 
 from pathlib import Path

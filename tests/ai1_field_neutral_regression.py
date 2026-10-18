@@ -29,7 +29,8 @@ EXPECTED = {
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-    ("cog", 1): [46, 46, 47, 47, 47, 48, 48],
+    # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
+    ("cog", 1): [46, 46, 47, 47, 47, 47, 48],
 }
 
 

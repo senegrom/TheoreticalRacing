@@ -43,8 +43,7 @@ public final class CoreTests {
         testCellOccupancyReuse();
         testTrackDistanceOrdering();
         testRaceAiStateIsolation();
-        testExactRidgePlateauHold();
-        testExactAxialVmaxHold();
+        // Round 310: the ridge-hold predicate tests went with the ridge check.
         testReachabilityFailurePropagation();
         testReachabilityVelocityBounds();
         testReachabilityCacheIO();
@@ -70,32 +69,6 @@ public final class CoreTests {
         for (int i = 0; i < values.length; i++)
             check(Direction.fromIndex(i) == values[i], "direction index round-trip failed at " + i);
         check("-".equals(Direction.NONE.label()), "NONE label should be '-' ");
-    }
-
-    private static void testExactRidgePlateauHold() {
-        check(!RaceAi.isExactRidgePlateauHold(11, 10, 10, 10),
-                "braking 11->10 must not count as a speed-10 hold");
-        check(RaceAi.isExactRidgePlateauHold(10, 10, 9, 10),
-                "unchanged y=10 must count as a speed-10 hold");
-        check(RaceAi.isExactRidgePlateauHold(-10, 0, -10, 1),
-                "signed target ridge hold was rejected");
-    }
-
-    private static void testExactAxialVmaxHold() {
-        check(RaceAi.isExactAxialVmaxHold(11, 0, 11, 0),
-                "positive-x axial speed-11 hold was rejected");
-        check(RaceAi.isExactAxialVmaxHold(-11, 1, -11, 0),
-                "signed axial speed-11 landing was rejected");
-        check(RaceAi.isExactAxialVmaxHold(0, -11, 0, -11),
-                "negative-y axial speed-11 hold was rejected");
-        check(!RaceAi.isExactAxialVmaxHold(10, 0, 11, 0),
-                "acceleration into speed 11 must not count as a hold");
-        check(!RaceAi.isExactAxialVmaxHold(11, 0, 11, 1),
-                "non-axial speed-11 landing must not count");
-        check(!RaceAi.isExactAxialVmaxHold(11, 0, 10, 0),
-                "braking from speed 11 must not count as a hold");
-        check(!RaceAi.isExactAxialVmaxHold(-11, 0, 11, 0),
-                "signed component reversal must not count as a hold");
     }
 
     private static void testPlayerKinds() {

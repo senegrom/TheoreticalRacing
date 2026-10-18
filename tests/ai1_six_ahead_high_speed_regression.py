@@ -27,7 +27,8 @@ TARGET = ("spa", 83)
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-PROMOTED = (7, 0, [78, 79, 80, 82, 82, 83, 83])
+# Round 310: re-frozen from measurement (the danger-joint-search family deleted); p2 now crashes on its 27th move, at turn 210 ((106,132)→(107,139)), nine turns after the pinned turn-201 decision on the same stretch, and seven finishers become six -- recorded, not vetoed (AGENTS.md).
+PROMOTED = (6, 1, [78, 79, 80, 82, 82, 83])
 LEGACY = (7, 0, [79, 80, 81, 84, 84, 86, 88])
 PROMOTED_FINISHERS = [
     # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -36,12 +37,12 @@ PROMOTED_FINISHERS = [
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); seven finishers and no crash as before, but p5 (the car still running at the end before) now finishes fourth on its 81st move and p4 (fifth home before) is the car still running at the end, after 82 moves -- recorded, not vetoed.
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); seven finishers and no crash as before, but p4 (the car still running at the end before) now finishes fifth on its 82nd move and p8 (third home before, on its 80th move) is the car still running at the end, after 82 moves; p1 and p2 now finish third and fourth on their 81st and 82nd moves, p3 sixth and p5 (fourth before) seventh, both on their 83rd -- recorded, not vetoed.
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seven finishers and no crash as before, but p8 (the car still running at the end before, after 82 moves) now finishes third on its 80th move and p5 (seventh home before, on its 83rd) is the car still running at the end, after 82 moves; p1 now finishes fourth on its 82nd (third on its 81st before), p2 fifth on its 82nd (fourth before), p3 sixth on its 83rd as before and p4 (fifth before, on its 82nd) seventh on its 83rd -- recorded, not vetoed (AGENTS.md).
+    # Round 310: re-frozen from measurement (the danger-joint-search family deleted); p2 (fifth home before, on its 82nd move) now crashes on its 27th, so six cars finish: p3 fifth on its 82nd (sixth on its 83rd before) and p4 sixth on its 83rd (seventh before); p6, p7, p8 and p1 finish as before and p5 is still the car running at the end, after 82 moves -- recorded, not vetoed (AGENTS.md).
     (6, 78),
     (7, 79),
     (8, 80),
     (1, 82),
-    (2, 82),
-    (3, 83),
+    (3, 82),
     (4, 83),
 ]
 LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
@@ -51,7 +52,8 @@ LEGACY_ALL_MOVES = {1: 88, 2: 87, 3: 79, 4: 80, 5: 81, 6: 84, 7: 84, 8: 86}
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-PROMOTED_ALL_MOVES = {1: 82, 2: 82, 3: 83, 4: 83, 5: 82, 6: 78, 7: 79, 8: 80}
+# Round 310: re-frozen from measurement (the danger-joint-search family deleted); p2's 27 moves end in its crash and p3 is one move faster (83 -> 82).
+PROMOTED_ALL_MOVES = {1: 82, 2: 27, 3: 82, 4: 83, 5: 82, 6: 78, 7: 79, 8: 80}
 # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
 # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
 # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -60,7 +62,8 @@ PROMOTED_ALL_MOVES = {1: 82, 2: 82, 3: 83, 4: 83, 5: 82, 6: 78, 7: 79, 8: 80}
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-PROMOTED_SHA256 = "506634b1ff4d1080d496539142a0cfc9d5f4f0dbe6b7b20c37624311cae9e8a7"
+# Round 310: re-frozen from measurement (the danger-joint-search family deleted); identical to the round-305/309 race through turn 169, the first change is p2's 22nd move at turn 170.
+PROMOTED_SHA256 = "7a15f96b87a31583378b6ddeb347b83cc369812566a5c7547898cdd87553fa3e"
 PROMOTED_DECISION = (
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
     # Round 233: re-frozen from measurement (the lane spread left the score).
@@ -96,7 +99,8 @@ VETO_CASES = {
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); the same classification as before, a different trajectory: every car finishes in the same place on the same own move and p1 is still the car running at the end, after 83 moves.
-        "2d82d09a2084ec008c10ab6ee2d811ac5ded441acd6cd2331523039155cfe73f",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); the same classification as before, a different trajectory: every car finishes in the same place on the same own move and p1 is still the car running at the end, after 83 moves.
+        "7848d1e1d6424a7a3ba52624826689f011d9155c156c5cf6b16fb2396fd0527c",
     ),
     ("spa", 57): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
@@ -104,14 +108,16 @@ VETO_CASES = {
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seven finishers and no crash as before, but p3 (fourth home before, on its 81st move) now finishes seventh on its 84th, p2 fourth on its 81st (fifth on its 82nd before) and p4 fifth on its 81st (seventh on its 83rd before); p6, p8, p1 and p7 finish as before and p5 is still the car running at the end, after 83 moves (82 before) -- recorded, not vetoed (AGENTS.md).
-        (7, 0, [78, 79, 81, 81, 81, 82, 84]),
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); seven finishers and no crash as before, but p4 now finishes fourth on its 81st move (fifth on its 81st before), p2 fifth on its 82nd (fourth on its 81st before), p3 sixth on its 82nd (seventh on its 84th before) and p7 seventh on its 82nd (sixth before); p6, p8 and p1 finish as before and p5 is still the car running at the end, after 82 moves (83 before) -- recorded, not vetoed (AGENTS.md).
+        (7, 0, [78, 79, 81, 81, 82, 82, 82]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-        "91dabcd50cfba8b92d9513c1521c1da833c8fff4aa7fcc2b6140d83aa2d12d42",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
+        "0a1dd572e7b7c7510d7185a0e11300ec82db46feda6bf2be5a1be68b43b7f546",
     ),
     ("spa", 12): (
         # Round 254: re-frozen from measurement (the danger guard in a faithful world).
@@ -119,14 +125,16 @@ VETO_CASES = {
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-        (7, 0, [78, 79, 80, 81, 82, 82, 83]),
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); seven finishers and no crash as before, but p1 (the car still running at the end before, after 83 moves) now finishes fifth on its 82nd move and p4 (seventh home before, on its 83rd) is the car still running at the end, after 82 moves; p3 and p5 now finish sixth and seventh, both on their 82nd (fifth and sixth before); p6, p7, p8 and p2 finish as before -- recorded, not vetoed (AGENTS.md).
+        (7, 0, [78, 79, 80, 81, 82, 82, 82]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); the same summary, a different classification: p1 (fourth home before, on its 81st move) is now the car still running at the end, after 83 moves, and p5 (that car before, after 82) finishes sixth on its 82nd; p2 now finishes fourth on its 81st, p3 fifth on its 82nd and p4 seventh on its 83rd (fifth, seventh and sixth before) -- recorded, not vetoed (AGENTS.md).
-        "4f2d07f6ae38afdc1eccdf01a85d5ebbfd0484fee2d22fed7b8bff6a46b05ab5",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
+        "eda278d0242bd491fba670ace7268edc3bb8348dbdb4accc132d7e6bb83eb3a8",
     ),
     ("spa", 31): (
         # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -134,13 +142,15 @@ VETO_CASES = {
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); seven finishers as before and p4 still the car running at the end, but p3 now finishes sixth on its 83rd move.
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); seven finishers and no crash as before, but p4 (the car still running at the end before) now finishes sixth on its 82nd move and p5 (seventh home before) is the car still running at the end, after 83 moves; p3 now finishes fifth on its 82nd move and p8 (third before) seventh on its 83rd -- recorded, not vetoed.
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seven finishers and no crash as before, but p5 (the car still running at the end before, after 83 moves) now finishes fourth on its 81st move and p4 (sixth home before, on its 82nd) is the car still running at the end, after 82 moves; p8 (seventh before, on its 83rd) now finishes third on its 80th, and p1, p2 and p3 (third, fourth and fifth before) fifth, sixth and seventh on their 82nd, 83rd and 83rd -- recorded, not vetoed (AGENTS.md).
-        (7, 0, [78, 79, 80, 81, 82, 83, 83]),
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); seven finishers and no crash as before, but p1 now finishes fourth on its 81st move (fifth on its 82nd before), p2 fifth on its 82nd (sixth on its 83rd before) and p5 (fourth before, on its 81st) sixth on its 82nd; p6, p7, p8 and p3 finish as before and p4 is still the car running at the end, after 82 moves -- recorded, not vetoed (AGENTS.md).
+        (7, 0, [78, 79, 80, 81, 82, 82, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-        "27c54930bd35e8b98270ad0f9fa71b02ed5148ff4021b39b422568783706e7ef",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
+        "c4bc04726147bdefd26851c629cd6600c026bd5e5f4f02ad30feb05d4de74334",
     ),
     ("spa", 40): (
         # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -154,7 +164,8 @@ VETO_CASES = {
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); the same classification as before, a different trajectory: every car finishes in the same place on the same own move and p8 is still the car running at the end, after 81 moves.
-        "83ef2e3b264af101c26bde531f91e0bfaf0d968072aa7a7b79813a65ae5cf91f",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); the same classification as before, a different trajectory: every car finishes in the same place on the same own move and p8 is still the car running at the end, after 81 moves.
+        "e5725e082e5e8529c2ed96963d32b0097b946e9d94f1eb6a3b321e5f79854128",
     ),
     ("spa", 47): (
         # Round 276: re-frozen from measurement (the grid is legal until a car leaves it).
@@ -162,14 +173,16 @@ VETO_CASES = {
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seven finishers and no crash as before, but p6 (the car still running at the end before, after 83 moves) now finishes second on its 80th move and p4 (fifth home before, on its 82nd) is the car still running at the end, after 82 moves; p8 still wins, one move later, on its 79th; p1, p2 and p3 (second, third and fourth before) now finish third, fourth and seventh on their 81st, 82nd and 83rd, p5 fifth and p7 sixth, both on their 82nd (sixth on its 82nd and seventh on its 83rd before) -- recorded, not vetoed (AGENTS.md).
-        (7, 0, [79, 80, 81, 82, 82, 82, 83]),
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); seven finishers and no crash as before, but p6 (second home before, on its 80th move) is now the car still running at the end, after 82 moves, and p4 (that car before, after 82) finishes seventh on its 83rd; p1 now finishes second on its 81st (third before), p7 (sixth before, on its 82nd) third on its 81st and p3 sixth on its 83rd (seventh before); p8, p2 and p5 finish as before -- recorded, not vetoed (AGENTS.md).
+        (7, 0, [79, 81, 81, 82, 82, 83, 83]),
         # Round 278: re-frozen from measurement (the chooser's pick stands).
         # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
         # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-        "0f305aff1f86a25dd476ce0df3f80ebe4861734efb418d9b0eb273f38203ee5c",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
+        "b5688c190c488f24e30422fa557c4d05874fb7d04beb26c06d7d746609f99430",
     ),
     ("coil", 5): (
         # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
@@ -203,7 +216,8 @@ VETO_CASES = {
         # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p8 still crashes on its 11th move and six cars finish, but p7 finishes sixth again on its 84th move and p6 is now the car still running at the end, after 84 moves -- recorded, not vetoed.
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); the same classification as before, a different trajectory: p8 still crashes on its 11th move, p7 still finishes sixth on its 84th and p6 is still the car running at the end, after 84 moves -- recorded, not vetoed.
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-        "e04b4c010284b8b1380657913d3c029bd073a4afdc046b6d800537712b3436f5",
+        # Round 310: re-frozen from measurement (the danger-joint-search family deleted); the same summary, a different classification: p5 (the car still running at the end before, after 85 moves) now finishes fifth on its 84th, p6 sixth on its 84th (fifth before) and p7 seventh on its 85th (sixth on its 84th before), and p8 (seventh home before, on its 85th) is the car still running at the end, after 84 moves; p1 to p4 finish as before -- recorded, not vetoed (AGENTS.md).
+        "62f12337cbbb5bcb89929d133268fc49614537c7883cc6294b52971cabc66ade",
     ),
 }
 

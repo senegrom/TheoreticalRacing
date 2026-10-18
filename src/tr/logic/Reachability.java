@@ -1050,7 +1050,8 @@ final class Reachability {
 	 *  track cells at distance-to-finish d -- a narrowing corridor is a
 	 *  STATIC property of the distance map, visible without any rollout
 	 *  (the deep-horizon commitment class: both members hold speed into a
-	 *  monotonically narrowing ring sequence). */
+	 *  monotonically narrowing ring sequence). Round 310: the funnel signal is
+	 *  gone; minRingWidthAhead serves the field-acceleration override. */
 	private int[] ringWidth;
 
 	private void buildRingWidths(final int w, final int h) {
@@ -1087,29 +1088,6 @@ final class Reachability {
 				min = ringWidth[rd];
 		}
 		return min;
-	}
-
-	/** Longest consecutive run of rings with width <= {@code width} within the
-	 *  next {@code span} rings ahead of (x,y). A short narrow GATE (lemans
-	 *  chicane, 1-3 rings) is passable at speed; a SUSTAINED narrow corridor
-	 *  (the zandvoort funnels) is where overcommitment kills. */
-	int narrowRunAhead(final int x, final int y, final int span, final int width) {
-		final int d = distAt(x, y);
-		if (d == Integer.MAX_VALUE || ringWidth == null)
-			return 0;
-		int run = 0, best = 0;
-		for (int k = 1; k <= span; k++) {
-			final int rd = d - k;
-			if (rd < 3)
-				break;
-			if (rd < ringWidth.length && ringWidth[rd] > 0 && ringWidth[rd] <= width) {
-				run++;
-				if (run > best)
-					best = run;
-			} else
-				run = 0;
-		}
-		return best;
 	}
 
 	/** Dump the turnsToFinish reachability map for the loaded track: a little-

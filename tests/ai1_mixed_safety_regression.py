@@ -13,7 +13,8 @@ import bench_ai  # noqa: E402
 # Round 94's Gear seed 1 in the front ordering (slots 1-4 AI1, 5-8 AI2),
 # measured 2026-09-27: the first four grid slots finish first to fourth.
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); seven finishers and no crash as before, but p3, third home on its 42nd move before, is now the car still running at the end, after 43 moves, so the first four grid slots no longer finish first to fourth: p4 moves up to third, still on its 42nd move, and p5 to p8 come home fourth to seventh in grid order, p7 (the car still running at the end before) sixth on its 43rd -- recorded, not vetoed (AGENTS.md).
-GEAR_FRONT_MEASURED = {"AI1": (14, 4, 0), "AI2": (22, 4, 0)}
+# Round 310: re-frozen from measurement (the danger-joint-search family deleted); seven finishers and no crash as before, and the first four grid slots finish first to fourth again, as measured on 2026-09-27: p3, the car still running at the end before, now comes home third on its 42nd move, p4 fourth, still on its 42nd, and p5, fourth home on its 42nd before, is now the car still running at the end, after 43 moves; p6 comes home fifth as before, a move sooner, on its 42nd, and p7 and p8 sixth and seventh on their 43rd as before -- recorded, not vetoed (AGENTS.md).
+GEAR_FRONT_MEASURED = {"AI1": (10, 4, 0), "AI2": (26, 4, 0)}
 
 
 def main() -> int:
@@ -56,6 +57,7 @@ def main() -> int:
             # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
             # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p8, which crashed on its 55th move in rounds 292b and 300a, now keeps its race and comes home seventh on its 72nd, so six finishers become seven again and p1, still the car running at the end, drops back to eighth -- crash-free again, and that is what is pinned below.
             # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p1, the car still running at the end before, now crashes on its 16th move, and p8, seventh home on its 72nd before, is the car still running at the end, after 70 moves -- six finishers; p1 stays eighth and p8 seventh, so the place sums are unchanged and only the crash count moves. Recorded, not vetoed (AGENTS.md), and pinned by its identity below.
+            # Round 310 (the danger-joint-search family deleted, round 93's four-round recheck above with it): measured, nothing re-frozen -- the race takes other lines from move 383 on, but p1 still crashes into the wall at (37,1) on move 121, its 16th, the same six cars come home on the same moves and p8 is still the car running at the end, after 70 moves, so these totals and the crash identity below stand.
             "front": {"AI1": (14, 4, 1), "AI2": (22, 4, 0)},
         }
         orderings = (

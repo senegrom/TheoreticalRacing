@@ -25,6 +25,7 @@ CASES = [("zandvoort", 115)]
 # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout); p5, lost on its 19th move since round 281, now finishes sixth on its 143rd move and six finishers become seven, with no crash.
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
+# Round 310: the round-126 equal-speed veto went with the danger-joint-search family; the pinned outcome is unchanged under the promoted champion (measured), so the pin now guards that outcome.
 PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 143])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in LABELS}

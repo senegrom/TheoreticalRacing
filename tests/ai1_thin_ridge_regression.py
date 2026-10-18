@@ -26,6 +26,10 @@ v(-5,0) cannot make the bend: both crash into its outer wall on their
 17th moves. Recorded, not vetoed (AGENTS.md): the AI2 slots' crash count
 is pinned per seed as measured, and the AI1 slots stay crash-free on
 both seeds.
+
+Round 310: the round-178/185 thin-ridge hold check went with the
+danger-joint-search family; the pinned outcome is unchanged under the
+promoted champion (measured), so the pin now guards that outcome.
 """
 
 from pathlib import Path

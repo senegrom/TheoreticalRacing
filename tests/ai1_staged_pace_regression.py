@@ -55,7 +55,9 @@ EXACT_MOVES = {
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-    ("lemans", 3): [66, 67, 68, 69, 70, 70, 71],
+    # Round 310: re-frozen from measurement (the danger-joint-search family deleted);
+    # the same seven finishers in the same order, p6 and p7 each home one move later (on their 71st and 72nd).
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
@@ -136,7 +138,12 @@ def main() -> int:
             # again (p8, lost on its 75th move in round 303, is still running after 84 moves when p7
             # finishes seventh on its 85th), so it leaves this list and takes the (7, 0) default, and
             # Hungaroring 4 still drops one, now p3 on its 32nd move -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1)}
+            # Round 310: re-frozen from measurement (the danger-joint-search family deleted);
+            # Hungaroring 25, whole since round 260, drops one (p6 on its 10th move, into the wall at
+            # (102,159) in the first corner; p4, seventh home on its 128th before, is the car still
+            # running at the end, after 126 moves), and Hungaroring 4 still drops one, now p2 on its
+            # 44th move -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 4): (6, 1), ("hungaroring", 25): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

@@ -14,8 +14,17 @@ asserted zero crashes rather than eight finishers.
 Round 229 (the soft caution stack left the score, -0.82 places
 head-to-head): the funnel commitment is taken again and seed 36's AI1 car
 dies there; seed 45 stays crash-free. Recorded, not vetoed (AGENTS.md):
-the pin now holds the measured (place sum, finishers, crashes) per seed
+the pin now holds the measured (place sum, cars, crashes) per seed
 and label.
+
+Round 310 (the danger-joint-search family deleted, -0.021 places
+head-to-head on random starts): the round-128 confirm leg this pin was
+written for is gone with the rest of the family, so nothing here exercises
+it any more. The pin keeps the measured (place sum, cars, crashes) per
+seed and label, re-frozen from measurement, so a further change in those
+totals still fails: seed 36's crash moves from p1 (AI1) to p8 (AI2), at
+the same wall cell at the top of the course; seed 45 stays crash-free with
+the same totals, although its race plays differently from move 206 on.
 """
 
 from pathlib import Path
@@ -39,7 +48,8 @@ EXPECTED = {
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p1 (AI1), seventh home on its 72nd move before, now crashes on its 15th, into the wall at (34,0) on move 113 at the top of the course -- not at the funnel -- so six cars finish: p8, still the car running at the end, moves up to seventh, p6 and p7 each gain a place and p5 drops from fourth to sixth, home on its 71st -- recorded, not vetoed (AGENTS.md).
-    36: {"AI1": (21, 4, 1), "AI2": (15, 4, 0)},
+    # Round 310: re-frozen from measurement (the danger-joint-search family deleted); the round-128 funnel leg went with it; p1 (AI1), which crashed on its 15th move in rounds 305/309, keeps its race and is the car still running at the end, after 71 moves, so it is placed seventh; p8 (AI2), the car still running at the end before, now crashes on its 14th, into the wall at (34,0) on move 112 with the very move that killed p1 before (W at v(3,-4) from (32,4)), at the top of the course -- not at the funnel -- and is placed eighth; p5 comes home fourth on its 69th (sixth on its 71st before), and p6 and p7 each drop a place, fifth on its 70th and sixth on its 71st -- recorded, not vetoed (AGENTS.md).
+    36: {"AI1": (19, 4, 0), "AI2": (17, 4, 1)},
     # Round 234: re-frozen from measurement. Eight cars share places 1-8,
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.

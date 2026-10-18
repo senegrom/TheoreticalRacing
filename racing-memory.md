@@ -1,5 +1,175 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 310 promoted (2026-10-18): the danger-joint-search family deleted
+
+The danger joint search was the champion's oldest safety layer. From round 40 on, after the score
+and the chooser had picked a landing, a block at the end of optimalMoveAI1 re-checked the pick in a
+cheap joint world and could replace it. Its legs: the ridge holds (rounds 178/185), the deep pack,
+corridor, queue and alongside checks, fast-fragile (round 93), the round-95 cross-model retention,
+the pair (114) and smoke checks, the thread audit (98), the true-confirm and ESC passes (99-107), the
+equal-speed veto (126), the funnel (128) and the squeeze check (174). Round 306 found the family
+costing places on the aware champion (-0.028 off); round 307 replicated that on depth 5. Arm 310
+(E:/tmp-claude/arm306_lesion.py, LESION=danger; jar a310dng) skips the whole block for a candidate.
+
+Against the 305+309 champion (p305np edb787db), mirrored, 8 cars unless stated:
+
+| Slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| random 1-10 | -0.021 +- 0.009 | 33/23/28 | 92:76 |
+| held-out 11-20 | -0.026 +- 0.009 | 29/21/34 | 84:71 |
+| computed 1-10 | -0.009 +- 0.009 | 27/21/36 | 95:70 |
+| scattered 1-10 | +0.001 +- 0.001 | 0/1/83 | 14:9 |
+| duels (2 cars, random 1-20) | -0.002 +- 0.001 | 2/0/82 | 276:235 |
+| lone check (seeds 1-5, every seat) | -0.026 +- 0.008 (4.474 against 4.500) | 32/13/39 | 47:33 |
+
+- No slice reads against it. Its cars crash more in every slice; the racecraft rule prices that
+  and never vetoes it. The family's replacements cost more places than the crashes they prevented.
+- CPU 0.82x of the champion (six 8-car races): the family was a sixth of the CPU.
+
+The promotion (E:/tmp-claude/review3/promote310.py) deletes the block and everything only it
+reached:
+- the ridge helpers (ridgeSuccAlive, ridgeWidthThreePlateau, isExactRidgePlateauHold,
+  isExactAxialVmaxHold, with the two CoreTests unit tests of the predicates);
+- dangerJointSearch's 9- and 10-argument overloads, the 15-argument simOutcome overload,
+  RolloutWorkspace.finalTier, Reachability.narrowRunAhead and 18 constants.
+- The round-232 kinematic confirm is now dangerJointSearch's only caller. Its constant flags are
+  folded (threadCheck, trueConfirm, pairRisk and fastSlow false, corrLeg true); legFastV, legHoldV,
+  legHold11, the dies-path loop and the target walk are kept token for token.
+- RaceAi.java: +64 -944 lines. Three reviewers (behaviour identity, completeness, build and tests)
+  passed it; the completeness review's stale-comment notes are folded in (bytecode unchanged).
+
+The promoted jar races as the arm with every slot a candidate: seven random-start races, three
+computed-start ones and six duels.
+
+Corpus (CI's frozen job on the box; the hand re-frozen tree verified there: 29 of 29, and
+CI's Python unit tests (92) and compileall pass on the full tree):
+- 7 of 12 goldens moved, none gaining or losing a crash. Hungaroring s13, Le Mans s4, Monaco s9 and
+  Zandvoort s45 finish one to three turns sooner (three of them in a new order); Monaco s16,
+  Nurburgring s19 and Interlagos s10 race differently to the same finish. Zandvoort s45 still loses
+  car F. Hairpin s1, the 2-car golden the browser races, is unchanged at 33 turns.
+- 10 of 25 pins moved. The box loop re-froze three (energy pace, field neutral, early-round trap);
+  seven were re-frozen by hand from the probe records, each independently reviewed (workflow
+  wf_8d66e3bc-066; four docstring corrections after review):
+  - six-ahead high speed: Spa s83's p2 crashes on its 27th move, nine turns after the pinned
+    turn-201 decision, which is unchanged; seven veto-case digests re-frozen; Coil s5, the
+    label-invariance reference, is byte-identical;
+  - private slack: Zandvoort s34 loses p6 on its 33rd move, and p1 becomes the car still running;
+  - bounded uncertain field: Le Mans s93 loses two cars -- p8 on its 12th move at the top bend's
+    inside wall, and p1 on its 8th, forced: its one landing off the wall held p8;
+  - staged pace: Hungaroring s25 (all AI1) loses p6 in the first bend on its 10th move;
+    Hungaroring s4's one crash moved to another car;
+  - fast funnel: Le Mans s36's crash moves from p1 (AI1, 15th move) to p8 (AI2, 14th move), the same
+    move into the same wall cell at the top of the course;
+  - mixed safety: Gear s1's AI1 slots take the top four places (10 against 26, its pre-303 split);
+  - cross-model pace: Silverstone s1's seven finishers take 582 moves, six fewer than 588.
+  Five pins written for deleted legs (thin ridge, thread fragility, ESC true confirm, vmax deep, the
+  equal-speed veto) still pass unchanged; each now notes that it guards the outcome, not the leg.
+- The headless smoke's 8xAI1 Chicane s1 race -- seven finishers and no crash since round 67 -- now
+  loses p8 on its 13th move at (51,12); six finish and G is still running at the end. Re-pinned
+  from measurement.
+- Crashes are recorded, not vetoed. Gained: Spa s83, Zandvoort s34, Le Mans s93 (two), Hungaroring
+  s25, Chicane s1; Le Mans s36 trades one for one.
+- The browser parity race (Hairpin s1, 2 cars, computed starts) keeps its digest ec48301e. The Java
+  suite and the local browser build pass.
+
+Open for the owner: the rank-first rule in CLAUDE.md and AGENTS.md still lists "the danger and
+thread searches"; the thread search is gone and the danger search runs only as the kinematic
+confirm's engine.
+
+Also from this period:
+- **Round 313** (running): round 306's lesion study on the round-310 champion
+  (E:/tmp-claude/arm313_lesion.py): the kinematic confirm off (the danger search's last caller),
+  the three pace overrides off, and everything left after the swap off together.
+- **Round 314** (being built): exact chooser ties broken by a depth-1 re-roll -- see the learning
+  arms below.
+- **Speed round 2** (identity checks running): three exact patches on the round-310 tree.
+
+## Rounds 311-312 and the peer branch's learning arms (2026-10-16 to 18)
+
+**Round 311: a wider chooser shortlist at the deciding car's decision -- dead.** The chooser rolls
+out at most 3 landings within 1.0 turn of the best score. Round 259 found a wider vote within
+noise, but on a champion without aware forecasts; since round 305 every rolled-out landing gets
+five upgraded own moves, so the chooser's verdict might now beat the score over a wider shortlist.
+Arm 311 (E:/tmp-claude/arm311_shortlist.py) widens it only at a candidate's own top-level decision
+(nested choosers keep 3 and 1.0). Against the 305+309 champion, 8 cars, random starts, seeds 1-10:
+
+| Arm | Place C-H | Tracks C/H/tied | Crashes C:H | CPU |
+|---|---|---|---|---|
+| width 4 | +0.001 +- 0.009 | 20/29/35 | 64:73 | 1.06x |
+| width 4, window 2.0 turns | +0.044 +- 0.014 | 22/39/23 | 69:81 | 1.24x |
+
+A fourth landing changes nothing; landings up to two turns worse by the score lose places. The
+score's order still carries information the forecasts do not replace.
+
+**The learning arms.** The other agent pushed six learning experiments to
+work/racecraft-strategies-20261008 (4671caf, on master 71fdb12; write-up
+docs/experiments/learning-racecraft/). Five are racecraftNext flags -- forecast-repair,
+corner-memory, time-investment, event-aware, proof-number -- plus learning-control, the attribution
+control. Every arm runs AFTER the champion's chooser: LearningChooser re-decides among the
+champion's pick, its shortlist and the pace landing with its own detached forecast
+(LearningForecast: the mover's first continuation move and one rival's first move by the full
+policy, the rest by the suppressed scorer, twelve own moves, exact referee transitions, ranked by
+place then own moves + remaining distance; ties keep the incumbent). Rounds 305 and 309 were ported
+onto the branch (E:/tmp-claude/lrn/port305np_lrn.py; jar lrn305np 74f018f3), which races exactly as
+the champion with no flag (15 races).
+
+Triage (12 eight-car races and 3 duels, every slot a candidate): proof-number never changes a
+race; every other arm changes all 15, at 3.77x CPU (learning-control), 3.91x (time-investment),
+4.00x (event-aware), 4.27x (forecast-repair), 9.35x (corner-memory), 11.22x (all five).
+
+Against the 305+309 champion:
+
+| Arm, slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| learning-control, duels random 1-20 | -0.046 +- 0.006 | 8/3/73 | 160:406 |
+| forecast-repair, duels | -0.047 +- 0.005 | 8/3/73 | 155:420 |
+| event-aware, duels | -0.047 +- 0.005 | 8/4/72 | 171:616 |
+| time-investment, duels | -0.046 +- 0.006 | 8/3/73 | 160:406 |
+| learning-control, duels held-out 21-40 | -0.048 +- 0.005 | 8/1/75 | 152:414 |
+| learning-control, duels computed 1-20 | -0.037 +- 0.005 | 6/3/75 | 151:409 |
+| learning-control, 8 cars random 1-10 | +0.083 +- 0.018 | 27/46/11 | 102:53 |
+
+- The gain is the detached comparison itself; the features add nothing (time-investment races
+  exactly as learning-control).
+- It is duel-only: in 8-car fields learning-control loses 0.08 places. In duels it costs 2.12x the
+  champion's CPU (seven duels; the browser's Hairpin s1 golden races identically).
+- The duel gain sits on fractal3 and hybrid1 (every race), Hungaroring and Monza (-0.8) and
+  dspiral2. A decision diff (duel_diff.py; the oracle reproduces every logged learning move) finds
+  the champion would choose differently at only 2-6 decisions per race, the same spots every lap.
+  At 7 of 10 traced boards the champion's own chooser verdicts were exact ties, broken by the
+  score order.
+
+**What the learning forecast does differently** (decision-level ablation: E:/tmp-claude/lrn/
+lrn_ablate.py on the learning jar, lrn_ablate_probe.py). On the 37 duel boards where the champion
+moves differently from the logged learning-control car (fractal3, hybrid1, Hungaroring, Monza,
+dspiral2; seed 1, both halves), each ablated forecast was asked again:
+
+| Ablation | Still the learning move | Back to the champion's |
+|---|---|---|
+| none | 37 | 0 |
+| the target rival's first move by its scorer | 34 | 3 |
+| the mover's first continuation move by its scorer | 19 | 14 |
+| the mover's first five continuation moves by its full policy | 8 | 26 |
+| the champion's pace judgement | 29 | 8 |
+
+The rival model is not the mechanism. The learning forecast plays the mover's continuation weaker
+(one full-policy move, then the scorer), and on the champion's exact ties that weaker continuation
+separates landings the depth-5 forecast rates equal.
+
+**Round 312: depth 1 again when only two cars are live -- dead.** Arm 312
+(E:/tmp-claude/arm312_dueldepth.py, jar a312dd f16b9da4) gives a candidate's forecast one upgraded
+own move whenever only two cars are live (8-car identity races: unchanged).
+
+| Slice (duels) | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| random 1-20 | +0.018 +- 0.005 | 3/5/76 | 158:227 |
+| held-out 21-40 | +0.017 +- 0.005 | 4/4/76 | 155:236 |
+| computed 1-20 | +0.015 +- 0.005 | 2/3/79 | 121:219 |
+
+CPU 0.86x in duels. Depth 5 is right for duels too: depth 1 loses every race on fractal3 and
+hybrid1 -- the two tracks where learning-control wins every race. So depth 1 is the worse judge
+overall; round 314 tries it only as the tie-break.
+
 ## Rounds 305 and 309 promoted (2026-10-16): aware plays the car's first five moves, and a forecast crash is no win
 
 The owner approved shipping the two together (2026-10-15).
