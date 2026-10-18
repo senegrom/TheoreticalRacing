@@ -244,6 +244,8 @@ final class RaceAi {
 		suppressedMoves.clear();
 		suppressedMovesOwned = true;
 		try {
+			// perf (upmemo): and the race-scoped upgraded memo's generations and world.
+			maintainUpgradedMemo();
 			return optimalMoveAI1(pos, vel, playerNum);
 		} finally {
 			suppressedMovesOwned = false;
@@ -690,20 +692,24 @@ final class RaceAi {
 		// thresholds crashed 1 h2h game). Pinches keep full caution.
 		int poBestT = Integer.MAX_VALUE, poScorerT = Integer.MAX_VALUE;
 		Direction poDir = null;
-		final int[][] predictedCells = predictedOpponentCells(playerNum);
-		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
-		// moved through/off its predicted cell by the time I could occupy it --
-		// blocking those cells causes phantom detours. Null out transiting
-		// opponents' predictions; only slow/parked rivals stay blocked.
-		for (final Player p : game.players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pv = p.getVelocity();
-			if (speedSquared(pv[0], pv[1]) >= AI1_VACATE_SPEED2)
-				predictedCells[p.getNumber() - 1] = null;
-		}
-		predictionWorkspace.occupancy.rebuild(predictedCells);
-		final CellOccupancy predictedOccupancy = predictionWorkspace.occupancy;
+		// perf_lean (exact): a suppressed decision (inScorerSim: a scorer car in a rollout, or any
+		// decision beneath an upgraded move) runs none of the legs after the candidate loop. Of
+		// the per-landing caution terms -- the opponent prediction (predictedOccupancyNow), the
+		// safe-successor counts, the trap ladder with its needle surcharge, the corner-entry
+		// brake -- it reads only what reaches queueBox, and of the round-34 pace scan only a
+		// landing faster than the score's pick. A lean decision computes just those: queueBox
+		// lazily, the prediction built at its first need, and the pace landing after the loop;
+		// every value it uses is the eager one. The debug flags, the query sim trace and
+		// -Dai.perf.noLean keep the eager decision; -Dai.perf.check races on the eager values
+		// and compares the lean ones (PERF-AWARE LEAN MISMATCH).
+		final boolean lean = inScorerSim && suppressedMovesOn() && !PERF_NO_LEAN;
+		final boolean leanSkip = lean && !PERF_CHECK;
+		CellOccupancy predictedOccupancy = leanSkip ? null
+				: predictedOccupancyNow(playerNum, predictionWorkspace());
+		CellOccupancy leanCheckOccupancy = null;
+		final int stalledRivals = lean ? stalledLiveRivals(playerNum) : 0;
+		if (PERF_LEAN_STATS && lean)
+			LEAN_STATS.incrementAndGet(LEAN_DECISIONS);
 		// Exact nested-scorer fast path. With the mover absent, record the
 		// reference first-round landings once. If a candidate landing is not one
 		// of those cells, adding it as a blocker cannot change the first mover;
@@ -827,83 +833,138 @@ final class RaceAi {
 			// the AI to the foresight-free bestLegal/fallback pick).
 			final double costToFinish = deep == Double.MAX_VALUE ? ownTurns + 20.0 : deep;
 
-			// Optimism-floored safe-successor count: the sim removing phantom
-			// stale bodies ADDS safe successors (pace), while its model-dependent
-			// pessimism (a mispredicted fast leader) can only LOWER the timed
-			// count -- so max() with the frozen count keeps the optimism and
-			// discards the pessimism, never more cautious than the crash-free
-			// frozen standard.
-			final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy,
-					playerNum, predictedOccupancy),
-					countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, worlds.world1Occupancy));
-			double trapPenalty = d2SafeCount == 0 ? 50.0
-					: d2SafeCount == 1 ? AI1_TRAP_L1
-							: d2SafeCount == 2 ? AI1_TRAP_L2
-									: 0.0;
-			// round 61 (AI1): rival-conditional trap relief. The ladder prices a
-			// 1-2-wide certified thread as if a rival could claim the escape,
-			// but with NO live rival within AI1_TRAP_SOLO_R of the landing the
-			// thread is provably uncontestable for its consumption window and
-			// the map's reach-certification suffices (monaco (116,46): every
-			// car conceded 1 ttf to trap=2.0 on a SOLO thread the deep search
-			// itself preferred). 0-safe stays 50 -- entering a dead fan is bad
-			// even alone.
-			if (trapPenalty > 0.0 && d2SafeCount > 0 && !rivalWithinCheb(newX, newY, playerNum, AI1_TRAP_SOLO_R))
-				trapPenalty = 0.0;
-			// Needle headway surcharge (round 197): an UNSTOPPABLE landing
-			// without two body-free alive continuations under CURRENT
-			// occupancy is one leader-stall from death -- the d2SafeCount
-			// world-step credits rivals with vacating, which a stall wave
-			// falsifies. Queues form at gates AND at narrow turns (rand2's
-			// westward pocket), so the law is traffic-gated, not gate-gated.
-			// Price it above every free approach so a stoppable entry wins.
-			if (game.lapGates != null && lapAware && trapPenalty < 50.0
-					&& !needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate))
-				trapPenalty = Math.max(trapPenalty, AI1_NEEDLE_TRAP);
-			trapByDir[d.ordinal()] = trapPenalty;
+			// perf_lean: the speed is hoisted out of the eager block below (the same expression);
+			// a lean decision keeps the three terms at these values, queueBox set lazily after it.
 			final double speed = Math.hypot(newVx, newVy);
-			// Pack-gated knife-edge corner-entry brake: price roomy-successor
-			// scarcity when a pack is packed at a corner entry (>= 2 rivals
-			// within squared distance 36 and <= 1 roomy escape) -- fires where
-			// the converging-opponent surcharge reads false. The pack gate
-			// spares the lone fast knife-edge that is the racing line on tight
-			// circuits, so only genuine corner-entry traffic jams brake.
-			double cornerEntry = 0.0;
-			if (speed > AI1_BRAKE_SPEED) {
-				final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy);
-				if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, AI1_PACK_R2) >= 2)
-					cornerEntry = (speed - AI1_BRAKE_SPEED) * (roomySucc == 0 ? 3.0 : 1.5);
-			}
-			// v5.1 queue-compression corner guard (zandvoort forensic, AI1
-			// only): the corner-entry brake above is opponent-BLIND in its
-			// escape count, the brake proofs ignore transiting (|v| >= 3)
-			// rivals, and the round-sims behind d2SafeCount and the ply-2
-			// price assume a hairpin queue keeps flowing -- so a fast coast
-			// whose timed margin is already thin (d2SafeCount <= 2) while
-			// >= 2 STALLED rivals sit within squared distance 36 at-or-ahead
-			// of the landing (compression, not a chase) is one round from
-			// being boxed: on zandvoort both alive continuations of
-			// (43,66)v(-4,3) were bodily occupied by the compressed queue
-			// when the victim arrived, after the coast had beaten the
-			// covered brake by 0.278. Price the coast like the survivable
-			// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
-			double queueBox = 0.0;
-			if (speed > AI1_BRAKE_SPEED && cornerEntry == 0.0) {
-				if (d2SafeCount <= 2 && countStalledRivalsAhead(newX, newY, playerNum) >= 2)
-					queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
-				else {
-					// v3 long-range trigger: the near trigger needs d2SafeCount
-					// to collapse, but at speed 5+ the zandvoort pinch killed
-					// from 10-20 cells out -- by the time the local box shows,
-					// stopping is impossible (the victims were in forced-move
-					// territory two moves before death; 3rd kill in 3 rounds).
-					// Fire when >= 2 STALLED rivals sit ahead INSIDE my
-					// stopping distance ~ (s^2 - 2.5^2) / 2 cells (shedding
-					// ~1/round from s down to the stalled threshold 2.5).
-					final double stopCells = (speed * speed - 6.25) / 2.0;
-					if (stopCells > 0 && countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2)
-						queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
+			double trapPenalty = 0.0, cornerEntry = 0.0, queueBox = 0.0;
+			if (!leanSkip) {
+				// Optimism-floored safe-successor count: the sim removing phantom
+				// stale bodies ADDS safe successors (pace), while its model-dependent
+				// pessimism (a mispredicted fast leader) can only LOWER the timed
+				// count -- so max() with the frozen count keeps the optimism and
+				// discards the pessimism, never more cautious than the crash-free
+				// frozen standard.
+				final int d2SafeCount = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy,
+						playerNum, predictedOccupancy),
+						countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy, worlds.world1Occupancy));
+				trapPenalty = d2SafeCount == 0 ? 50.0
+						: d2SafeCount == 1 ? AI1_TRAP_L1
+								: d2SafeCount == 2 ? AI1_TRAP_L2
+										: 0.0;
+				// round 61 (AI1): rival-conditional trap relief. The ladder prices a
+				// 1-2-wide certified thread as if a rival could claim the escape,
+				// but with NO live rival within AI1_TRAP_SOLO_R of the landing the
+				// thread is provably uncontestable for its consumption window and
+				// the map's reach-certification suffices (monaco (116,46): every
+				// car conceded 1 ttf to trap=2.0 on a SOLO thread the deep search
+				// itself preferred). 0-safe stays 50 -- entering a dead fan is bad
+				// even alone.
+				if (trapPenalty > 0.0 && d2SafeCount > 0 && !rivalWithinCheb(newX, newY, playerNum, AI1_TRAP_SOLO_R))
+					trapPenalty = 0.0;
+				// Needle headway surcharge (round 197): an UNSTOPPABLE landing
+				// without two body-free alive continuations under CURRENT
+				// occupancy is one leader-stall from death -- the d2SafeCount
+				// world-step credits rivals with vacating, which a stall wave
+				// falsifies. Queues form at gates AND at narrow turns (rand2's
+				// westward pocket), so the law is traffic-gated, not gate-gated.
+				// Price it above every free approach so a stoppable entry wins.
+				if (game.lapGates != null && lapAware && trapPenalty < 50.0
+						&& !needleHeadway(newX, newY, newVx, newVy, playerNum, lapGate))
+					trapPenalty = Math.max(trapPenalty, AI1_NEEDLE_TRAP);
+				trapByDir[d.ordinal()] = trapPenalty;
+				// Pack-gated knife-edge corner-entry brake: price roomy-successor
+				// scarcity when a pack is packed at a corner entry (>= 2 rivals
+				// within squared distance 36 and <= 1 roomy escape) -- fires where
+				// the converging-opponent surcharge reads false. The pack gate
+				// spares the lone fast knife-edge that is the racing line on tight
+				// circuits, so only genuine corner-entry traffic jams brake.
+				if (speed > AI1_BRAKE_SPEED) {
+					final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy);
+					if (roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, AI1_PACK_R2) >= 2)
+						cornerEntry = (speed - AI1_BRAKE_SPEED) * (roomySucc == 0 ? 3.0 : 1.5);
 				}
+				// v5.1 queue-compression corner guard (zandvoort forensic, AI1
+				// only): the corner-entry brake above is opponent-BLIND in its
+				// escape count, the brake proofs ignore transiting (|v| >= 3)
+				// rivals, and the round-sims behind d2SafeCount and the ply-2
+				// price assume a hairpin queue keeps flowing -- so a fast coast
+				// whose timed margin is already thin (d2SafeCount <= 2) while
+				// >= 2 STALLED rivals sit within squared distance 36 at-or-ahead
+				// of the landing (compression, not a chase) is one round from
+				// being boxed: on zandvoort both alive continuations of
+				// (43,66)v(-4,3) were bodily occupied by the compressed queue
+				// when the victim arrived, after the coast had beaten the
+				// covered brake by 0.278. Price the coast like the survivable
+				// knife-edge corner entry ((speed-4) * 1.5) so the brake wins.
+				if (speed > AI1_BRAKE_SPEED && cornerEntry == 0.0) {
+					if (d2SafeCount <= 2 && countStalledRivalsAhead(newX, newY, playerNum) >= 2)
+						queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
+					else {
+						// v3 long-range trigger: the near trigger needs d2SafeCount
+						// to collapse, but at speed 5+ the zandvoort pinch killed
+						// from 10-20 cells out -- by the time the local box shows,
+						// stopping is impossible (the victims were in forced-move
+						// territory two moves before death; 3rd kill in 3 rounds).
+						// Fire when >= 2 STALLED rivals sit ahead INSIDE my
+						// stopping distance ~ (s^2 - 2.5^2) / 2 cells (shedding
+						// ~1/round from s down to the stalled threshold 2.5).
+						final double stopCells = (speed * speed - 6.25) / 2.0;
+						if (stopCells > 0 && countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2)
+							queueBox = (speed - AI1_BRAKE_SPEED) * 1.5;
+					}
+				}
+			}
+			// perf_lean (exact): queueBox, lazily and the same value. The eager form is
+			// (speed - 4) * 1.5 iff speed > 4, cornerEntry == 0.0 and (two stalled rivals ahead
+			// with d2SafeCount <= 2, or two stalled rivals within my stopping distance); for
+			// speed > 4, cornerEntry is 0.0 iff !(roomySucc <= 1 && pack >= 2), as speed - 4 is
+			// then positive. The same pure predicates, cheapest first: both stalled counts are
+			// bounded by the live stalled rivals counted once per decision, and d2SafeCount (the
+			// prediction built at its first need) is asked only for the near trigger.
+			if (lean) {
+				double leanBox = 0.0;
+				if (speed > AI1_BRAKE_SPEED && stalledRivals >= 2) {
+					final double stopCells = (speed * speed - 6.25) / 2.0;
+					boolean box = stopCells > 0
+							&& countStalledRivalsWithin(newX, newY, stopCells, playerNum) >= 2;
+					if (!box && countStalledRivalsAhead(newX, newY, playerNum) >= 2) {
+						// Check mode builds its own rows: the eager prediction stays untouched.
+						final CellOccupancy prediction;
+						if (leanSkip) {
+							if (predictedOccupancy == null) {
+								predictedOccupancy = predictedOccupancyNow(playerNum, predictionWorkspace());
+								if (PERF_LEAN_STATS)
+									LEAN_STATS.incrementAndGet(LEAN_PREDICTIONS);
+							}
+							prediction = predictedOccupancy;
+						} else {
+							if (leanCheckOccupancy == null) {
+								leanCheckOccupancy = predictedOccupancyNow(playerNum,
+										leanCheckPredictionWorkspace());
+								if (PERF_LEAN_STATS)
+									LEAN_STATS.incrementAndGet(LEAN_PREDICTIONS);
+							}
+							prediction = leanCheckOccupancy;
+						}
+						if (PERF_LEAN_STATS)
+							LEAN_STATS.incrementAndGet(LEAN_D2);
+						box = Math.max(countFutureSafeSuccessors(newX, newY, newVx, newVy,
+								playerNum, prediction),
+								countFutureSafeSuccessorsTimed(newX, newY, newVx, newVy,
+										worlds.world1Occupancy)) <= 2;
+					}
+					if (box) {
+						final int roomySucc = countRoomySuccessors(newX, newY, newVx, newVy);
+						if (!(roomySucc <= 1 && countNearbyOpponents(newX, newY, playerNum, AI1_PACK_R2) >= 2))
+							leanBox = (speed - AI1_BRAKE_SPEED) * 1.5;
+					}
+				}
+				if (leanSkip)
+					queueBox = leanBox;
+				else if (Double.compare(leanBox, queueBox) != 0)
+					System.err.println("PERF-AWARE LEAN MISMATCH queueBox p=" + playerNum + " pos=("
+							+ pos[0] + "," + pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ") d=" + d
+							+ " eager=" + queueBox + " lean=" + leanBox);
 			}
 			// AI2.9 intentionally has no soft conflict term; the hard live-body check remains.
 			// Round 233: the round-201 lane spread no longer prices a landing. It
@@ -957,7 +1018,7 @@ final class RaceAi {
 						+ " rob=" + robustness);
 			poTByDir[d.ordinal()] = poT;
 			scoreByDir[d.ordinal()] = score;
-			if (poT < poBestT) {
+			if (!leanSkip && poT < poBestT) {
 				if (paceMobility == null)
 					paceMobility = mobilitySearch(playerNum, true, AI1_MOBILITY_DEPTH);
 				final double poRoom = futureMobility(newX, newY, newVx, newVy, paceMobility);
@@ -985,6 +1046,62 @@ final class RaceAi {
 		// exact remaining distance -- exactly as it drives alone. Round 261
 		// priced the gate at 20 cells: +0.001 places in packs (81 boards tied),
 		// +0.004 scattered, one synthetic course; the guarantee is worth that.
+		// perf_lean (exact), ahead of the chooser's code below: a lean decision's round-34 pace
+		// landing. The eager scan in the loop keeps, among the landings that pass the room
+		// test, the first in Direction order with the fewest map turns, and a suppressed
+		// decision takes it only below poScorerT (the swap after the chooser, which it never
+		// consults). So test only the landings below poScorerT, in ascending (turns, ordinal)
+		// order, and stop at the first that passes: the same landing, or none. The projection
+		// is built at the first test, from the board the loop left unchanged.
+		if (lean) {
+			Direction leanDir = null;
+			int leanT = Integer.MAX_VALUE;
+			MobilitySearch leanMobility = null;
+			for (int tested = 0;;) {
+				int pick = -1, pickT = poScorerT;
+				for (int o = 0; o < DIRECTIONS.length; o++)
+					if ((tested & 1 << o) == 0 && poTByDir[o] < pickT) {
+						pick = o;
+						pickT = poTByDir[o];
+					}
+				if (pick < 0)
+					break;
+				tested |= 1 << pick;
+				final Direction d = DIRECTIONS[pick];
+				final int newVx = vel[0] + d.dx, newVy = vel[1] + d.dy;
+				final int newX = pos[0] + newVx, newY = pos[1] + newVy;
+				if (leanMobility == null) {
+					leanMobility = mobilitySearch(playerNum, true, AI1_MOBILITY_DEPTH);
+					if (PERF_LEAN_STATS)
+						LEAN_STATS.incrementAndGet(LEAN_PACE_DECISIONS);
+				}
+				if (PERF_LEAN_STATS)
+					LEAN_STATS.incrementAndGet(LEAN_PACE_TESTS);
+				final double poRoom = futureMobility(newX, newY, newVx, newVy, leanMobility);
+				final int poSpd = Math.max(Math.abs(newVx), Math.abs(newVy));
+				if (poRoom >= AI1_PO_ROOM_HI || (poRoom >= AI1_PO_ROOM_MID && poSpd <= AI1_PO_SPD_MAX)
+						|| (sealRivals <= AI1_SPARSE_RIVALS && poRoom >= AI1_PACE_FLOOR
+							&& !sealable(newX, newY, newVx, newVy, playerNum))) {
+					leanDir = d;
+					leanT = pickT;
+					break;
+				}
+			}
+			if (PERF_LEAN_STATS && leanDir != null)
+				LEAN_STATS.incrementAndGet(LEAN_PACE_SWAPS);
+			if (leanSkip) {
+				poDir = leanDir;
+				poBestT = leanT;
+			} else {
+				// Check mode: the eager scan's poDir stands; compare the landings they take.
+				final Direction eager = poDir != null && poBestT < poScorerT ? poDir : best;
+				final Direction shadow = leanDir != null && leanT < poScorerT ? leanDir : best;
+				if (eager != shadow)
+					System.err.println("PERF-AWARE LEAN MISMATCH pace p=" + playerNum + " pos=(" + pos[0]
+							+ "," + pos[1] + ") eager=" + eager + " lean=" + shadow);
+			}
+		}
+		// The round-256 chooser, described above the perf_lean walk:
 		boolean chooserConsulted = false;
 		chooserJudgedPace = false;
 		if (best != null && !inScorerSim
@@ -2470,17 +2587,96 @@ final class RaceAi {
 		return count;
 	}
 
+	/** perf_lean (exact) switches: -Dai.perf.noLean=true keeps the eager suppressed decision
+	 *  everywhere (a same-jar CPU control); -Dai.perf.leanStats=true prints the lean counters at
+	 *  exit (PERF-STATS LEAN): lean decisions, those that tested a pace landing, landings tested,
+	 *  pace landings found, lazy predictions, lazy d2 counts. No decision reads the counters. */
+	private static final boolean PERF_NO_LEAN = Boolean.getBoolean("ai.perf.noLean");
+	private static final boolean PERF_LEAN_STATS = Boolean.getBoolean("ai.perf.leanStats");
+	private static final int LEAN_DECISIONS = 0, LEAN_PACE_DECISIONS = 1, LEAN_PACE_TESTS = 2,
+			LEAN_PACE_SWAPS = 3, LEAN_PREDICTIONS = 4, LEAN_D2 = 5;
+	private static final java.util.concurrent.atomic.AtomicLongArray LEAN_STATS = leanStats();
+
+	private static java.util.concurrent.atomic.AtomicLongArray leanStats() {
+		if (!PERF_LEAN_STATS)
+			return null;
+		final java.util.concurrent.atomic.AtomicLongArray stats =
+				new java.util.concurrent.atomic.AtomicLongArray(LEAN_D2 + 1);
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> System.err.println(
+				"PERF-STATS LEAN decisions=" + stats.get(LEAN_DECISIONS)
+				+ " paceDecisions=" + stats.get(LEAN_PACE_DECISIONS)
+				+ " paceTests=" + stats.get(LEAN_PACE_TESTS)
+				+ " paceSwaps=" + stats.get(LEAN_PACE_SWAPS)
+				+ " predictions=" + stats.get(LEAN_PREDICTIONS)
+				+ " d2=" + stats.get(LEAN_D2))));
+		return stats;
+	}
+
+	/** perf_lean: check mode's own prediction rows, so its lazy shadow never touches the rows
+	 *  the eager decision reads. Allocated only when check mode meets a lean decision. */
+	private PredictionWorkspace leanCheckPrediction;
+
+	/** The decision's prediction rows, sized to the roster (allocated inside
+	 *  predictedOpponentCells until perf_lean gave that method its workspace). */
+	private PredictionWorkspace predictionWorkspace() {
+		if (predictionWorkspace == null || predictionWorkspace.result.length != game.players.length)
+			predictionWorkspace = new PredictionWorkspace(game.players.length,
+					game.gameCols + 1, game.gameRows + 1);
+		return predictionWorkspace;
+	}
+
+	private PredictionWorkspace leanCheckPredictionWorkspace() {
+		if (leanCheckPrediction == null || leanCheckPrediction.result.length != game.players.length)
+			leanCheckPrediction = new PredictionWorkspace(game.players.length,
+					game.gameCols + 1, game.gameRows + 1);
+		return leanCheckPrediction;
+	}
+
+	/** The round-34 frozen opponent step as an occupancy, built into {@code workspace}: each
+	 *  live rival's pure min-turns cell, transiting rivals nulled. optimalMoveAI1 ran this at
+	 *  every decision's entry; since perf_lean an eager decision still does and a lean one
+	 *  only when its queueBox asks for d2SafeCount. */
+	private CellOccupancy predictedOccupancyNow(final int playerNum, final PredictionWorkspace workspace) {
+		final int[][] predictedCells = predictedOpponentCells(playerNum, workspace);
+		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
+		// moved through/off its predicted cell by the time I could occupy it --
+		// blocking those cells causes phantom detours. Null out transiting
+		// opponents' predictions; only slow/parked rivals stay blocked.
+		for (final Player p : game.players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pv = p.getVelocity();
+			if (speedSquared(pv[0], pv[1]) >= AI1_VACATE_SPEED2)
+				predictedCells[p.getNumber() - 1] = null;
+		}
+		workspace.occupancy.rebuild(predictedCells);
+		return workspace.occupancy;
+	}
+
+	/** perf_lean: live rivals stalled at |v| <= 2.5 (STALLED_RIVAL_SPEED2) -- the filters of
+	 *  countStalledRivalsAhead and countStalledRivalsWithin without their position tests, so
+	 *  it bounds both counts. Keep the three in step. */
+	private int stalledLiveRivals(final int playerNum) {
+		int count = 0;
+		for (final Player p : game.players) {
+			if (p.getNumber() == playerNum || p.isFinished())
+				continue;
+			final int[] pv = p.getVelocity();
+			if (speedSquared(pv[0], pv[1]) <= STALLED_RIVAL_SPEED2)
+				count++;
+		}
+		return count;
+	}
+
 	/**
 	 * Project each live opponent one move with the pure min-turns policy:
 	 * {@code result[opponentIdx]} is its next cell, or null when it has none.
 	 * One move since round 247 (a one-level lookahead); the multi-step
-	 * generality had no caller (review, 2026-09-28).
+	 * generality had no caller (review, 2026-09-28). The rows are
+	 * {@code workspace}'s: the decision's, or perf_lean check mode's own.
 	 */
-	private int[][] predictedOpponentCells(final int myPlayerNum) {
-		if (predictionWorkspace == null || predictionWorkspace.result.length != game.players.length)
-			predictionWorkspace = new PredictionWorkspace(game.players.length,
-					game.gameCols + 1, game.gameRows + 1);
-		java.util.Arrays.fill(predictionWorkspace.result, null);
+	private int[][] predictedOpponentCells(final int myPlayerNum, final PredictionWorkspace workspace) {
+		java.util.Arrays.fill(workspace.result, null);
 		for (final Player player : game.players) {
 			if (player.getNumber() == myPlayerNum || player.isFinished())
 				continue;
@@ -2493,12 +2689,12 @@ final class RaceAi {
 			final int nvy = pvy + direction.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
-			final int[] cell = predictionWorkspace.cells[player.getNumber() - 1];
+			final int[] cell = workspace.cells[player.getNumber() - 1];
 			cell[0] = px + nvx;
 			cell[1] = py + nvy;
-			predictionWorkspace.result[player.getNumber() - 1] = cell;
+			workspace.result[player.getNumber() - 1] = cell;
 		}
-		return predictionWorkspace.result;
+		return workspace.result;
 	}
 
 
@@ -2753,6 +2949,32 @@ final class RaceAi {
 				vx, vy, alive, rollout.laps, rollout.gates) : RaceAiMoveMemo.MISS;
 		if (known != RaceAiMoveMemo.MISS && !PERF_CHECK)
 			return replayScorerMove(i, px, py, vx, vy, out, RaceAiMoveMemo.move(known));
+		// perf (upmemo, exact): an upgraded move this race already made on this board, in
+		// this race world, replays too -- from the new generation, or from the old one and
+		// refreshed into the new (upgradedMemoOn). The gate asserts the one context every
+		// upgraded move has; it excludes the suppressed memo (memoized needs !upgrade).
+		final boolean upMemo = upgrade && suppressedMovesOwned && upgradedMemoOn() && !suppress
+				&& !previousScorerSim && simDepth == 1 && trueConfirmDepth == 0
+				&& outerAwarePolicyDepth == 0 && !inFinishDenialConfirm && placeKeyDepth == 1
+				&& awareDepth == 1;
+		int upKnown = RaceAiMoveMemo.MISS;
+		boolean upFromOld = false;
+		if (upMemo) {
+			upKnown = upgradedNew.find(i, rollout.turns, game.aiGridLegal, px, py, vx, vy, alive,
+					rollout.laps, rollout.gates);
+			if (upKnown == RaceAiMoveMemo.MISS) {
+				upKnown = upgradedOld.find(i, rollout.turns, game.aiGridLegal, px, py, vx, vy, alive,
+						rollout.laps, rollout.gates);
+				upFromOld = upKnown != RaceAiMoveMemo.MISS;
+			}
+			if (PERF_UPMEMO_STATS)
+				countUpgradedLookup(i == ss, upKnown, upFromOld);
+			if (upKnown != RaceAiMoveMemo.MISS && !PERF_CHECK) {
+				if (upFromOld)
+					storeUpgraded(RaceAiMoveMemo.move(upKnown));
+				return replayScorerMove(i, px, py, vx, vy, out, RaceAiMoveMemo.move(upKnown));
+			}
+		}
 		// Round 222: the rival's compute assigns ITS lap frame at entry --
 		// gate, lap-awareness, robust flag, remaining events. Put the mover's
 		// back afterwards, or the rest of this decision is priced on the
@@ -2817,6 +3039,8 @@ final class RaceAi {
 		}
 		if (memoized)
 			recordSuppressedMove(i, rollout.turns, known, direction);
+		if (upMemo)
+			recordUpgradedMove(i, rollout.turns, upKnown, upFromOld, direction);
 		if (direction == null)
 			return false;
 		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
@@ -2850,6 +3074,268 @@ final class RaceAi {
 	 *  flags) and in the query sim trace, so their output is unchanged. */
 	private boolean suppressedMovesOn() {
 		return !simTrace && AI_DEBUG_PLAYER < 0 && !AI_DEBUG_DJS && !AI_DEBUG_COMP;
+	}
+
+	/** perf (upmemo, exact): may scorerMoveOverState replay upgraded moves from the
+	 *  race-scoped memo? An upgraded move is made only by awareMoveOverState in a top-level
+	 *  chooser's rollout (awareDepth 1), so always in one context: simDepth 1, inScorerSim
+	 *  false, no true or finish-denial confirm, placeKeyDepth 1, and every decision beneath
+	 *  it suppressed (awarePolicyDepth 0 -> 1). scorerMoveOverState asserts all of it, and
+	 *  that a top-level decision owns the memo (maintainUpgradedMemo ran), so any other
+	 *  context bypasses it. There the move is a function of the suppressed memo's key --
+	 *  the installed board, the mover's slot, the turn counter and the decider's grid
+	 *  world -- and of the race world, which maintainUpgradedMemo validates. Budgets are
+	 *  per call, there is no clock and no RNG, and what a replay skips is rewritten before
+	 *  it is read (placeKey, chooserJudgedPace, the workspaces), compared only at deeper
+	 *  rollouts (allScorerRolloutDepth, awareDepth) or a pure cache. Off with the kill
+	 *  switch, wherever a suppressed decision prints, and under the finish-denial debug
+	 *  lines, which an upgraded decision prints (it runs unsuppressed). An arm that makes
+	 *  nested behaviour depend on the top-level decider must turn it off. */
+	private boolean upgradedMemoOn() {
+		return !PERF_NO_UPMEMO && suppressedMovesOn() && !AI_DEBUG_FINISH_DENIAL;
+	}
+
+	/** perf (upmemo): first in every top-level decision. Both generations are emptied
+	 *  when the turn counter has not advanced since the last one (Undo, a restart, a
+	 *  query, a test) or when the race world changed; otherwise they rotate once every
+	 *  players.length turns, so a car's next decision and its rivals' in between still
+	 *  find the entries of its last one. */
+	private void maintainUpgradedMemo() {
+		if (PERF_NO_UPMEMO)
+			return;
+		final int t = game.turnCount();
+		// Every decision records the world, so a clear records it too; prepareDecisionFrame
+		// asks for the potential next anyway.
+		final boolean changed = upgradedWorld.sync(game, reach, game.optimalPotential());
+		if (t <= upgradedLastTurn || changed) {
+			upgradedNew.clear();
+			upgradedOld.clear();
+			upgradedGenTurn = t;
+			if (PERF_UPMEMO_STATS)
+				countUpmemo(UPMEMO_CLEARS);
+		} else if (t - upgradedGenTurn >= game.players.length) {
+			final RaceAiMoveMemo spare = upgradedOld;
+			spare.clear();
+			upgradedOld = upgradedNew;
+			upgradedNew = spare;
+			upgradedGenTurn = t;
+			if (PERF_UPMEMO_STATS)
+				countUpmemo(UPMEMO_ROTATIONS);
+		}
+		upgradedLastTurn = t;
+	}
+
+	/** perf (upmemo): store a computed upgraded move in the new generation when its lookup
+	 *  missed or found it only in the old one, and (self-check) compare a recomputed hit.
+	 *  Nothing beneath the move touched upgradedNew since its lookup (every decision there
+	 *  is suppressed), so the key it left pending is still the move's. */
+	private void recordUpgradedMove(final int i, final int turns, final int known, final boolean fromOld,
+			final Direction direction) {
+		if (known == RaceAiMoveMemo.MISS || fromOld)
+			storeUpgraded(direction);
+		if (known != RaceAiMoveMemo.MISS && RaceAiMoveMemo.move(known) != direction)
+			System.err.println("PERF-AWARE UPMEMO MISMATCH upgraded slot=" + i + " turns=" + turns
+					+ " gen=" + (fromOld ? "old" : "new") + " memo=" + RaceAiMoveMemo.move(known)
+					+ " computed=" + direction);
+	}
+
+	/** perf (upmemo): commit the key upgradedNew's last lookup left pending. */
+	private void storeUpgraded(final Direction move) {
+		if (!PERF_UPMEMO_STATS) {
+			upgradedNew.store(move);
+			return;
+		}
+		final int before = upgradedNew.size();
+		upgradedNew.store(move);
+		countUpmemo(upgradedNew.size() > before ? UPMEMO_STORES : UPMEMO_CAPPED);
+	}
+
+	private static void countUpgradedLookup(final boolean self, final int known, final boolean fromOld) {
+		countUpmemo(UPMEMO_LOOKUPS);
+		if (self)
+			countUpmemo(UPMEMO_SELF_LOOKUPS);
+		if (known == RaceAiMoveMemo.MISS)
+			return;
+		countUpmemo(fromOld ? UPMEMO_HITS_OLD : UPMEMO_HITS_NEW);
+		countUpmemo(self ? UPMEMO_SELF_HITS : UPMEMO_RIVAL_HITS);
+	}
+
+	private static void countUpmemo(final int counter) {
+		if (UPMEMO_COUNTS != null)
+			UPMEMO_COUNTS.incrementAndGet(counter);
+	}
+
+	/** perf (upmemo) stats: the counters, and the shutdown hook that prints them. */
+	private static java.util.concurrent.atomic.AtomicLongArray upmemoCounters() {
+		final java.util.concurrent.atomic.AtomicLongArray counts =
+				new java.util.concurrent.atomic.AtomicLongArray(UPMEMO_STAT_NAMES.length);
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			final StringBuilder line = new StringBuilder("PERF-STATS UPMEMO");
+			for (int k = 0; k < UPMEMO_STAT_NAMES.length; k++)
+				line.append(' ').append(UPMEMO_STAT_NAMES[k]).append('=').append(counts.get(k));
+			System.err.println(line);
+		}, "perf-stats-upmemo"));
+		return counts;
+	}
+
+	/** perf (upmemo C3, exact): endgameSolve's result for this root as a RaceAiMoveMemo
+	 *  code, or MISS (always MISS with the kill switch). Past endgameSolve's guards the
+	 *  search reads only the two cars' states, the mover's ttf (exactRemaining on the exact
+	 *  potential, else the finish map: lapAware is false there), the turn counter (only
+	 *  through endgameTimedOut), the car count, the grid world (crossing and move
+	 *  legality), and the maps and course; egMemo and egNodes are its own, and nothing in
+	 *  it prints. The key holds the root's part, egResultWorld the rest -- checked at every
+	 *  lookup, so direct calls (tests) are safe too. Top-level, upgraded and true-confirm
+	 *  decisions compute the same function and share entries. */
+	private int egResultFind(final int playerNum, final int ri, final int[] pos, final int[] vel,
+			final int[] rp, final int[] rv) {
+		egResultSlot = -1;
+		if (PERF_NO_UPMEMO)
+			return RaceAiMoveMemo.MISS;
+		if (egResultKeys == null) {
+			egResultKeys = new int[EG_RESULT_SLOTS * EG_RESULT_INTS];
+			egResultCodes = new byte[EG_RESULT_SLOTS];
+		}
+		if (egResultWorld.sync(game, reach, exactPot))
+			java.util.Arrays.fill(egResultCodes, (byte) 0);
+		final int[] key = egResultProbe;
+		key[0] = playerNum;
+		key[1] = ri;
+		key[2] = game.players.length;
+		key[3] = game.turnCount();
+		key[4] = game.aiGridLegal ? 1 : 0;
+		key[5] = exactPot == null ? -1 : exactRemaining;
+		key[6] = pos[0];
+		key[7] = pos[1];
+		key[8] = vel[0];
+		key[9] = vel[1];
+		key[10] = rp[0];
+		key[11] = rp[1];
+		key[12] = rv[0];
+		key[13] = rv[1];
+		long h = 0xCBF29CE484222325L;
+		for (final int k : key) {
+			h ^= k;
+			h *= 0x100000001B3L;
+		}
+		h ^= h >>> 33;
+		h *= 0xFF51AFD7ED558CCDL;
+		h ^= h >>> 33;
+		final int slot = (int) h & EG_RESULT_SLOTS - 1;
+		egResultSlot = slot;
+		if (PERF_UPMEMO_STATS)
+			countUpmemo(UPMEMO_EG_LOOKUPS);
+		if (egResultCodes[slot] == 0)
+			return RaceAiMoveMemo.MISS;
+		for (int k = 0, at = slot * EG_RESULT_INTS; k < EG_RESULT_INTS; k++, at++)
+			if (egResultKeys[at] != key[k])
+				return RaceAiMoveMemo.MISS;
+		if (PERF_UPMEMO_STATS)
+			countUpmemo(UPMEMO_EG_HITS);
+		return egResultCodes[slot] - 2;
+	}
+
+	/** perf (upmemo C3): store a searched result in the slot of the root egResultFind just
+	 *  probed when it missed (a colliding root is overwritten), and (self-check) compare a
+	 *  recomputed hit. */
+	private void egResultRecord(final int known, final int playerNum, final Direction solved) {
+		if (egResultSlot < 0)
+			return;
+		if (known == RaceAiMoveMemo.MISS) {
+			System.arraycopy(egResultProbe, 0, egResultKeys, egResultSlot * EG_RESULT_INTS, EG_RESULT_INTS);
+			egResultCodes[egResultSlot] = (byte) (RaceAiMoveMemo.code(solved) + 2);
+			if (PERF_UPMEMO_STATS)
+				countUpmemo(UPMEMO_EG_STORES);
+		} else if (RaceAiMoveMemo.move(known) != solved)
+			System.err.println("PERF-AWARE UPMEMO MISMATCH endgame p=" + playerNum + " turns="
+					+ game.turnCount() + " memo=" + RaceAiMoveMemo.move(known) + " computed=" + solved);
+	}
+
+	/** perf (upmemo): the race world a race-scoped memo's entries were computed in -- what an
+	 *  upgraded decision or an endgame search reads beyond its key: the reachability maps
+	 *  and their dimensions, the exact potential, the course (with the finish crossing's
+	 *  line and forward direction by value) and the roster (the Player objects, whose kind
+	 *  and number are final). Compared by identity or value; sync records the current world
+	 *  and says whether it differs from the one recorded last. */
+	private static final class WorldStamp {
+		private final java.lang.ref.WeakReference<?>[] refs = new java.lang.ref.WeakReference<?>[13];
+		private final boolean[] nulls = new boolean[13];
+		private final int[] values = new int[7];
+		private final long[] crossing = new long[6];
+		private Object[] gates = new Object[0];
+		private Object[] roster = new Object[0];
+		private boolean recorded;
+		private boolean differs;
+
+		boolean sync(final RaceGame game, final Reachability reach, final Object potential) {
+			differs = !recorded;
+			recorded = true;
+			ref(0, potential);
+			ref(1, reach.turnsArr);
+			ref(2, reach.aliveStates);
+			ref(3, reach.gateTurns);
+			ref(4, reach.minShed2);
+			ref(5, reach.distToFinish);
+			ref(6, reach.robustReach);
+			ref(7, reach.roomy0);
+			ref(8, game.lapGates);
+			ref(9, game.finishLine);
+			ref(10, game.trackA);
+			ref(11, game.startZoneA);
+			ref(12, game.players);
+			value(0, reach.aliveW);
+			value(1, reach.aliveH);
+			value(2, reach.aliveVMAX);
+			value(3, reach.aliveSpan);
+			value(4, game.totalLaps);
+			value(5, game.gameCols);
+			value(6, game.gameRows);
+			final double[] line = game.crossingIdentity();
+			for (int k = 0; k < crossing.length; k++) {
+				final long bits = Double.doubleToRawLongBits(line[k]);
+				if (crossing[k] != bits) {
+					crossing[k] = bits;
+					differs = true;
+				}
+			}
+			gates = elements(gates, game.lapGates);
+			roster = elements(roster, game.players);
+			return differs;
+		}
+
+		/** Weakly held, so a stamp does not pin maps a restart released: a cleared referent
+		 *  is never == a live object, so it reads as a change and only clears the memos. */
+		private void ref(final int k, final Object now) {
+			final java.lang.ref.WeakReference<?> was = refs[k];
+			if (now == null ? !nulls[k] : was == null || was.get() != now) {
+				refs[k] = now == null ? null : new java.lang.ref.WeakReference<Object>(now);
+				nulls[k] = now == null;
+				differs = true;
+			}
+		}
+
+		private void value(final int k, final int now) {
+			if (values[k] != now) {
+				values[k] = now;
+				differs = true;
+			}
+		}
+
+		/** An array's elements against the recorded ones (null holds none). */
+		private Object[] elements(final Object[] was, final Object[] now) {
+			final int n = now == null ? 0 : now.length;
+			Object[] kept = was;
+			if (kept.length != n) {
+				kept = new Object[n];
+				differs = true;
+			}
+			for (int k = 0; k < n; k++)
+				if (kept[k] != now[k]) {
+					kept[k] = now[k];
+					differs = true;
+				}
+			return kept;
+		}
 	}
 
 	/** A proxy may find no preferred/map-alive move even though physical moves
@@ -3064,6 +3550,43 @@ final class RaceAi {
 	 *  (or standalone rollout), and whether a top-level decision owns that memo now. */
 	private final RaceAiMoveMemo suppressedMoves = new RaceAiMoveMemo();
 	private boolean suppressedMovesOwned;
+	/** perf (upmemo, exact): the moves of upgraded (aware) forecast decisions, kept for the
+	 *  whole race in two generations (upgradedMemoOn, maintainUpgradedMemo): a car's next
+	 *  decision meets its forecast's boards again when the field followed that forecast, and
+	 *  a rival's decision meets the board another car's forecast gave it. Each holds at
+	 *  most 1 << 12 entries and 1 << 18 key ints (eight-car keys are 60 ints: 245,760 at the
+	 *  entry cap); a full generation stops storing, which only recomputes. */
+	private RaceAiMoveMemo upgradedNew = new RaceAiMoveMemo(1 << 12, 1 << 18),
+			upgradedOld = new RaceAiMoveMemo(1 << 12, 1 << 18);
+	/** perf (upmemo): the turn the new generation began, the turn of the last top-level
+	 *  decision, and the race world both generations were computed in. */
+	private int upgradedGenTurn, upgradedLastTurn = -1;
+	private final WorldStamp upgradedWorld = new WorldStamp();
+	/** perf (upmemo): -Dai.perf.noUpMemo=true keeps both race-scoped memos off, which is the
+	 *  round-310 path, for a CPU comparison within one jar. */
+	private static final boolean PERF_NO_UPMEMO = Boolean.getBoolean("ai.perf.noUpMemo");
+	/** perf (upmemo C3, exact): endgameSolve's searched results by root (egResultFind),
+	 *  direct-mapped: EG_RESULT_SLOTS slots of EG_RESULT_INTS key ints and a code byte, the
+	 *  RaceAiMoveMemo move code plus 2 (0 is an empty slot); a colliding root overwrites,
+	 *  which only recomputes. egResultSlot is the slot of the last lookup. */
+	private static final int EG_RESULT_SLOTS = 1 << 10, EG_RESULT_INTS = 14;
+	private int[] egResultKeys;
+	private byte[] egResultCodes;
+	private final int[] egResultProbe = new int[EG_RESULT_INTS];
+	private int egResultSlot = -1;
+	private final WorldStamp egResultWorld = new WorldStamp();
+	/** perf (upmemo) stats, -Dai.perf.upmemoStats=true: counters over the whole JVM, printed
+	 *  to stderr as one PERF-STATS UPMEMO line by a shutdown hook. No decision reads them. */
+	private static final boolean PERF_UPMEMO_STATS = Boolean.getBoolean("ai.perf.upmemoStats");
+	private static final String[] UPMEMO_STAT_NAMES = {"lookups", "selfLookups", "hitsNew", "hitsOld",
+			"selfHits", "rivalHits", "stores", "capped", "clears", "rotations", "egLookups", "egHits",
+			"egStores"};
+	private static final int UPMEMO_LOOKUPS = 0, UPMEMO_SELF_LOOKUPS = 1, UPMEMO_HITS_NEW = 2,
+			UPMEMO_HITS_OLD = 3, UPMEMO_SELF_HITS = 4, UPMEMO_RIVAL_HITS = 5, UPMEMO_STORES = 6,
+			UPMEMO_CAPPED = 7, UPMEMO_CLEARS = 8, UPMEMO_ROTATIONS = 9, UPMEMO_EG_LOOKUPS = 10,
+			UPMEMO_EG_HITS = 11, UPMEMO_EG_STORES = 12;
+	private static final java.util.concurrent.atomic.AtomicLongArray UPMEMO_COUNTS =
+			PERF_UPMEMO_STATS ? upmemoCounters() : null;
 	/** perf_aware (exact): the relevant-rival fronts of one top-level chooser call. */
 	private final ChooserTraffic.FrontCache trafficFronts = new ChooserTraffic.FrontCache();
 	/** perf_aware self-check, -Dai.perf.check=true: recompute every memo hit and the
@@ -4426,6 +4949,215 @@ final class RaceAi {
 	private java.util.HashMap<EndgameState, Boolean> egMemo;
 	private int									egNodes;
 
+	/** Speed round 2, patch endgame (exact): the solver's memo as a primitive table
+	 *  (E2) and each car state's crossing, legality and alive verdicts as lazily
+	 *  filled bit masks (R4). Both live for one solve: the memo object a solve
+	 *  starts with is the generation token (egSync opens a new generation whenever
+	 *  egMemo holds another object), so no entry outlives a solve, a query or a
+	 *  test's reset of egMemo. A memo key outside the packed domain stays in
+	 *  egMemo; a car state outside the mask domain asks the game directly. Within
+	 *  a solve the table answers every lookup as egMemo would (each key is stored
+	 *  at most once, nothing is dropped, the packing is injective), and a mask bit
+	 *  is the predicate's value on its edge: aiGridLegal is in the mask key and
+	 *  nothing in the search writes it or the geometry and maps. Memory: E2 grows
+	 *  to at most 2^17 slots (2 MiB; at most AI1_EG_NODES + 1 stores per solve at
+	 *  load <= 1/2) and is reused; R4 is a fixed 2^14 slots (320 KiB).
+	 *  -Dai.perf.noEndgameTable=true sends every node to egMemo and the direct
+	 *  calls. Under PERF_CHECK egMemo and the direct calls stay the authority: the
+	 *  table and the masks are compared at every lookup and a difference prints a
+	 *  PERF-AWARE ENDGAME MISMATCH line. */
+	private static final boolean PERF_NO_EG_TABLE = Boolean.getBoolean("ai.perf.noEndgameTable");
+	/** The egMemo object the current generation belongs to (a sentinel before the first). */
+	private Object egOwner = new Object();
+	/** The current generation, >= 1 once a node has run: a zero stamp is an empty slot. */
+	private int egGeneration;
+	/** E2: open addressing with linear probing. Slot s holds the key (egKeyA[s], egKeyB[s])
+	 *  while egStamp[s] >>> 1 is the current generation; the stamp's bit 0 is the
+	 *  verdict. egSize counts this generation's entries; egMask is the capacity - 1. */
+	private long[] egKeyA;
+	private int[] egKeyB, egStamp;
+	private int egSize, egMask;
+	/** R4: 2^EGM_BITS direct-mapped slots, each a car state's key, its mask word and the
+	 *  generation that wrote it. A mask word holds, per predicate (offset EGM_CROSS,
+	 *  EGM_LEGAL or EGM_ALIVE), nine known bits and, nine bits above them, nine
+	 *  verdict bits; bit = the move's Direction ordinal. */
+	private static final int EGM_BITS = 14, EGM_CROSS = 0, EGM_LEGAL = 18, EGM_ALIVE = 36;
+	private long[] egmKey, egmVal;
+	private int[] egmStamp;
+
+	/** Opens a new generation when egMemo holds another object than the last node
+	 *  saw: every search allocates a fresh one, tests assign their own. */
+	private void egSync() {
+		if (egMemo == egOwner)
+			return;
+		if (egmKey == null && !PERF_NO_EG_TABLE) {
+			final long[] keys = new long[1 << EGM_BITS], words = new long[1 << EGM_BITS];
+			final int[] stamps = new int[1 << EGM_BITS];
+			egmKey = keys;
+			egmVal = words;
+			egmStamp = stamps;
+		}
+		egOwner = egMemo;
+		egSize = 0;
+		if (++egGeneration >= 1 << 30) {	// the E2 stamp is generation << 1 | verdict
+			egGeneration = 1;
+			if (egStamp != null)
+				java.util.Arrays.fill(egStamp, 0);
+			if (egmStamp != null)
+				java.util.Arrays.fill(egmStamp, 0);
+		}
+	}
+
+	/** E2's domain, a function of the key alone: cells 0..4095, my velocity within
+	 *  +-12 (the AI cap), the rival's within 16 bits, depth 0..31. */
+	private static boolean egInTable(final int mx, final int my, final int mvx, final int mvy,
+			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
+		return !PERF_NO_EG_TABLE && (mx | my | rx | ry) >>> 12 == 0 && depth >>> 5 == 0
+				&& mvx >= -12 && mvx <= 12 && mvy >= -12 && mvy <= 12
+				&& (rvx + 32768 | rvy + 32768) >>> 16 == 0;
+	}
+
+	/** E2 key, first word (with egPackB injective on egInTable's domain). */
+	private static long egPackA(final int mx, final int my, final int mvx, final int mvy,
+			final int rx, final int ry, final int depth, final boolean rivalTurn) {
+		return mx | (long) my << 12 | (long) rx << 24 | (long) ry << 36 | (long) (mvx + 12) << 48
+				| (long) (mvy + 12) << 53 | (long) depth << 58 | (rivalTurn ? Long.MIN_VALUE : 0L);
+	}
+
+	/** E2 key, second word: the rival's velocity as two 16-bit fields. */
+	private static int egPackB(final int rvx, final int rvy) {
+		return (rvx & 0xFFFF) << 16 | (rvy & 0xFFFF);
+	}
+
+	/** E2 hash: the splitmix64 finalizer of keyA ^ keyB * golden ratio. */
+	private static int egHash(final long a, final int b) {
+		long h = a ^ (b & 0xFFFFFFFFL) * 0x9E3779B97F4A7C15L;
+		h = (h ^ h >>> 30) * 0xBF58476D1CE4E5B9L;
+		h = (h ^ h >>> 27) * 0x94D049BB133111EBL;
+		return (int) (h ^ h >>> 31);
+	}
+
+	/** E2 lookup: 1 or 0 for a stored win or loss, -1 for an absent key. */
+	private int egFind(final long a, final int b) {
+		if (egKeyA == null)
+			return -1;
+		for (int s = egHash(a, b) & egMask;; s = s + 1 & egMask) {
+			final int stamp = egStamp[s];
+			if (stamp >>> 1 != egGeneration)
+				return -1;		// an empty slot ends the probe: nothing is removed
+			if (egKeyA[s] == a && egKeyB[s] == b)
+				return stamp & 1;
+		}
+	}
+
+	/** E2 store. It probes afresh (the recursion since the lookup may have grown the
+	 *  table) and doubles the table before the load would pass one half. */
+	private void egPut(final long a, final int b, final boolean win) {
+		if (egKeyA == null)
+			egRehash(1 << 12);
+		else if ((egSize + 1) * 2 > egKeyA.length)
+			egRehash(egKeyA.length << 1);
+		final int stamp = egGeneration << 1 | (win ? 1 : 0);
+		int s = egHash(a, b) & egMask;
+		for (; egStamp[s] >>> 1 == egGeneration; s = s + 1 & egMask)
+			if (egKeyA[s] == a && egKeyB[s] == b) {
+				egStamp[s] = stamp;		// a stored key takes the new verdict, as a map's put does
+				return;
+			}
+		egKeyA[s] = a;
+		egKeyB[s] = b;
+		egStamp[s] = stamp;
+		egSize++;
+	}
+
+	/** E2: new arrays of the given capacity holding this generation's entries. */
+	private void egRehash(final int capacity) {
+		final long[] keysA = new long[capacity];
+		final int[] keysB = new int[capacity], stamps = new int[capacity];
+		final int mask = capacity - 1;
+		if (egKeyA != null)
+			for (int i = 0; i < egKeyA.length; i++)
+				if (egStamp[i] >>> 1 == egGeneration) {
+					int s = egHash(egKeyA[i], egKeyB[i]) & mask;
+					while (stamps[s] != 0)
+						s = s + 1 & mask;
+					keysA[s] = egKeyA[i];
+					keysB[s] = egKeyB[i];
+					stamps[s] = egStamp[i];
+				}
+		egKeyA = keysA;
+		egKeyB = keysB;
+		egStamp = stamps;
+		egMask = mask;
+	}
+
+	/** R4 key of a car state, with the grid flag the legality verdicts read; -1
+	 *  outside the packed domain (cells 0..65535, velocities -1024..1023). */
+	private long egmKeyOf(final int x, final int y, final int vx, final int vy) {
+		if (PERF_NO_EG_TABLE || (x | y) >>> 16 != 0 || (vx + 1024 | vy + 1024) >>> 11 != 0)
+			return -1L;
+		return x | (long) y << 16 | (long) (vx + 1024) << 32 | (long) (vy + 1024) << 43
+				| (game.aiGridLegal ? 1L << 54 : 0L);
+	}
+
+	/** R4 slot of a key, -1 for none. */
+	private static int egmSlot(final long key) {
+		return key < 0 ? -1 : (int) (key * 0x9E3779B97F4A7C15L >>> 64 - EGM_BITS);
+	}
+
+	/** The mask word the slot holds for key in this generation, else 0: nothing known. */
+	private long egmLoad(final int slot, final long key) {
+		return slot >= 0 && egmStamp[slot] == egGeneration && egmKey[slot] == key ? egmVal[slot] : 0L;
+	}
+
+	/** R4: the mask word with predicate kind known for move b of the car state at
+	 *  (x, y) whose move lands on (nx, ny) with velocity (nvx, nvy). Asks the game,
+	 *  records the verdict and rewrites the slot (a state another node parked there
+	 *  meanwhile only loses its bits). Called for an unknown bit, and under
+	 *  PERF_CHECK for every bit: a known verdict that differs from the game's is
+	 *  reported and replaced by the game's. */
+	private long egmAsk(final long mask, final int kind, final int b, final int slot, final long key,
+			final int x, final int y, final int nx, final int ny, final int nvx, final int nvy) {
+		final boolean direct = kind == EGM_CROSS ? game.crossesFinishLegally(x, y, nx, ny)
+				: kind == EGM_LEGAL ? game.aiMoveLegal(x, y, nx, ny) : reach.isAlive(nx, ny, nvx, nvy);
+		final long known = 1L << kind + b, verdict = known << 9;
+		if ((mask & known) != 0) {
+			final boolean cached = (mask & verdict) != 0;
+			if (cached == direct)
+				return mask;
+			egmReport(kind, x, y, nx, ny, cached, direct);
+		}
+		final long next = direct ? mask | known | verdict : (mask | known) & ~verdict;
+		if (slot >= 0) {
+			egmKey[slot] = key;
+			egmVal[slot] = next;
+			egmStamp[slot] = egGeneration;
+		}
+		return next;
+	}
+
+	/** PERF_CHECK: a mask bit that differs from the game's verdict. */
+	private static void egmReport(final int kind, final int x, final int y, final int nx, final int ny,
+			final boolean cached, final boolean direct) {
+		System.err.println("PERF-AWARE ENDGAME MISMATCH mask edge=(" + x + "," + y + ")->(" + nx + "," + ny
+				+ ") kind=" + (kind == EGM_CROSS ? "cross" : kind == EGM_LEGAL ? "legal" : "alive")
+				+ " cached=" + cached + " direct=" + direct);
+	}
+
+	/** PERF_CHECK: the table must answer a packed key as egMemo does. */
+	private void egCheckMemo(final EndgameState key, final Boolean map, final long a, final int b) {
+		final int table = egFind(a, b), want = map == null ? -1 : map ? 1 : 0;
+		if (table != want)
+			System.err.println("PERF-AWARE ENDGAME MISMATCH memo key=(" + key.mx() + "," + key.my() + ","
+					+ key.mvx() + "," + key.mvy() + "," + key.rx() + "," + key.ry() + "," + key.rvx() + ","
+					+ key.rvy() + "," + key.depth() + "," + (key.rivalTurn() ? "rival" : "my") + ") table="
+					+ egVerdictName(table) + " map=" + egVerdictName(want));
+	}
+
+	private static String egVerdictName(final int verdict) {
+		return verdict < 0 ? "none" : verdict == 1 ? "true" : "false";
+	}
+
 	/** Lever 5 (round 43, shared champion): 1v1 exact endgame solver. When the sole
 	 *  live rival and I are both within {@link #AI1_EG_ETA} turns of the
 	 *  finish, run a boolean paranoid minimax over the joint state (strict
@@ -4446,6 +5178,21 @@ final class RaceAi {
 		final int rT = ttfFor(ri, rp[0], rp[1], rv[0], rv[1]);
 		if (myT > AI1_EG_ETA || rT > AI1_EG_ETA)
 			return null;
+		// perf (upmemo C3, exact): past the guards the search is a function of the root and
+		// the race world, so a root met again -- mostly the top-level solve an upgraded
+		// forecast move already made -- replays its result (egResultFind).
+		final int egKnown = egResultFind(playerNum, ri, pos, vel, rp, rv);
+		if (egKnown != RaceAiMoveMemo.MISS && !PERF_CHECK)
+			return RaceAiMoveMemo.move(egKnown);
+		final Direction solved = endgameSearch(pos, vel, rp, rv);
+		egResultRecord(egKnown, playerNum, solved);
+		return solved;
+	}
+
+	/** endgameSolve's search past its guards (split out unchanged for upmemo C3): a fresh
+	 *  memo and node count, the mover's moves in Direction order, the fastest proven win;
+	 *  null when none is proven or the node budget blows. */
+	private Direction endgameSearch(final int[] pos, final int[] vel, final int[] rp, final int[] rv) {
 		egMemo = new java.util.HashMap<>();
 		egNodes = 0;
 		Direction best = null;
@@ -4478,7 +5225,12 @@ final class RaceAi {
 
 	/** Rival ply: TRUE iff my win survives EVERY legal rival reply (worst
 	 *  case; suicidal blocking lines included -- only geometry and my body
-	 *  restrict it). A boxed rival crashes: my win iff my state is alive. */
+	 *  restrict it). A boxed rival crashes: my win iff my state is alive.
+	 *  Speed round 2 (exact): the memo is the E2 table for a key in its domain
+	 *  (egMemo otherwise), and the rival state's crossing and legality verdicts
+	 *  come from its R4 mask, each asked of the game where this loop asks it, at
+	 *  most once per solve while its slot keeps the state; the tests and breaks
+	 *  keep their order. */
 	private boolean egRival(final int mx, final int my, final int mvx, final int mvy,
 			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
 		egNodes++;
@@ -4488,10 +5240,26 @@ final class RaceAi {
 			return true;
 		if (depth <= 0)
 			return false;		// horizon: no guarantee
-		final EndgameState key = new EndgameState(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
-		final Boolean memo = egMemo.get(key);
-		if (memo != null)
-			return memo;
+		egSync();
+		final boolean inTable = egInTable(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth);
+		final long keyA = inTable ? egPackA(mx, my, mvx, mvy, rx, ry, depth, true) : 0L;
+		final int keyB = inTable ? egPackB(rvx, rvy) : 0;
+		EndgameState key = null;
+		if (!inTable || PERF_CHECK) {
+			key = new EndgameState(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, true);
+			final Boolean memo = egMemo.get(key);
+			if (inTable)
+				egCheckMemo(key, memo, keyA, keyB);
+			if (memo != null)
+				return memo;
+		} else {
+			final int memo = egFind(keyA, keyB);
+			if (memo >= 0)
+				return memo == 1;
+		}
+		final long stateKey = egmKeyOf(rx, ry, rvx, rvy);
+		final int slot = egmSlot(stateKey);
+		long mask = egmLoad(slot, stateKey);
 		boolean anyMove = false;
 		boolean win = true;
 		for (final Direction d : DIRECTIONS) {
@@ -4501,13 +5269,17 @@ final class RaceAi {
 			}
 			// Opponents are constrained by physics, never by our search cap.
 			final int nvx = rvx + d.dx, nvy = rvy + d.dy;
-			final int nx = rx + nvx, ny = ry + nvy;
-			if (game.crossesFinishLegally(rx, ry, nx, ny)) {
+			final int nx = rx + nvx, ny = ry + nvy, b = d.ordinal();
+			if (PERF_CHECK || (mask & 1L << EGM_CROSS + b) == 0)
+				mask = egmAsk(mask, EGM_CROSS, b, slot, stateKey, rx, ry, nx, ny, nvx, nvy);
+			if ((mask & 1L << EGM_CROSS + 9 + b) != 0) {
 				win = false;	// rival crosses first
 				anyMove = true;
 				break;
 			}
-			if (!game.aiMoveLegal(rx, ry, nx, ny))
+			if (PERF_CHECK || (mask & 1L << EGM_LEGAL + b) == 0)
+				mask = egmAsk(mask, EGM_LEGAL, b, slot, stateKey, rx, ry, nx, ny, nvx, nvy);
+			if ((mask & 1L << EGM_LEGAL + 9 + b) == 0)
 				continue;
 			if (nx == mx && ny == my)
 				continue;
@@ -4519,21 +5291,41 @@ final class RaceAi {
 		}
 		if (!anyMove)
 			win = reach.isAlive(mx, my, mvx, mvy);
-		egMemo.put(key, win);
+		if (key != null)
+			egMemo.put(key, win);
+		if (inTable)
+			egPut(keyA, keyB, win);
 		return win;
 	}
 
 	/** My ply: TRUE iff some alive (or finishing) move of mine keeps the
-	 *  guaranteed win alive. */
+	 *  guaranteed win alive. Speed round 2 (exact): the memo as in egRival; my
+	 *  state's R4 mask answers the crossing, legality and alive-landing tests. */
 	private boolean egMy(final int mx, final int my, final int mvx, final int mvy,
 			final int rx, final int ry, final int rvx, final int rvy, final int depth) {
 		egNodes++;
 		if (endgameTimedOut(depth) || depth <= 0)
 			return false;
-		final EndgameState key = new EndgameState(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
-		final Boolean memo = egMemo.get(key);
-		if (memo != null)
-			return memo;
+		egSync();
+		final boolean inTable = egInTable(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth);
+		final long keyA = inTable ? egPackA(mx, my, mvx, mvy, rx, ry, depth, false) : 0L;
+		final int keyB = inTable ? egPackB(rvx, rvy) : 0;
+		EndgameState key = null;
+		if (!inTable || PERF_CHECK) {
+			key = new EndgameState(mx, my, mvx, mvy, rx, ry, rvx, rvy, depth, false);
+			final Boolean memo = egMemo.get(key);
+			if (inTable)
+				egCheckMemo(key, memo, keyA, keyB);
+			if (memo != null)
+				return memo;
+		} else {
+			final int memo = egFind(keyA, keyB);
+			if (memo >= 0)
+				return memo == 1;
+		}
+		final long stateKey = egmKeyOf(mx, my, mvx, mvy);
+		final int slot = egmSlot(stateKey);
+		long mask = egmLoad(slot, stateKey);
 		boolean win = false;
 		for (final Direction d : DIRECTIONS) {
 			if (egNodes > AI1_EG_NODES)
@@ -4541,23 +5333,32 @@ final class RaceAi {
 			final int nvx = mvx + d.dx, nvy = mvy + d.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
 				continue;
-			final int nx = mx + nvx, ny = my + nvy;
-			if (game.crossesFinishLegally(mx, my, nx, ny)) {
+			final int nx = mx + nvx, ny = my + nvy, b = d.ordinal();
+			if (PERF_CHECK || (mask & 1L << EGM_CROSS + b) == 0)
+				mask = egmAsk(mask, EGM_CROSS, b, slot, stateKey, mx, my, nx, ny, nvx, nvy);
+			if ((mask & 1L << EGM_CROSS + 9 + b) != 0) {
 				win = true;
 				break;
 			}
-			if (!game.aiMoveLegal(mx, my, nx, ny))
+			if (PERF_CHECK || (mask & 1L << EGM_LEGAL + b) == 0)
+				mask = egmAsk(mask, EGM_LEGAL, b, slot, stateKey, mx, my, nx, ny, nvx, nvy);
+			if ((mask & 1L << EGM_LEGAL + 9 + b) == 0)
 				continue;
 			if (nx == rx && ny == ry)
 				continue;
-			if (!reach.isAlive(nx, ny, nvx, nvy))
+			if (PERF_CHECK || (mask & 1L << EGM_ALIVE + b) == 0)
+				mask = egmAsk(mask, EGM_ALIVE, b, slot, stateKey, mx, my, nx, ny, nvx, nvy);
+			if ((mask & 1L << EGM_ALIVE + 9 + b) == 0)
 				continue;
 			if (egRival(nx, ny, nvx, nvy, rx, ry, rvx, rvy, depth - 1)) {
 				win = true;
 				break;
 			}
 		}
-		egMemo.put(key, win);
+		if (key != null)
+			egMemo.put(key, win);
+		if (inTable)
+			egPut(keyA, keyB, win);
 		return win;
 	}
 

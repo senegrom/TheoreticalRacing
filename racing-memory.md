@@ -1,5 +1,48 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Speed round 2 (2026-10-18): three exact optimisations, the champion at 0.45x its CPU
+
+The round-310 champion still spent most of its CPU in two places: suppressed (scorer) decisions
+computing terms nothing reads there, and the upgraded (aware) moves of the chooser's forecasts.
+Five lenses designed candidates from JFR profiles (E:/tmp-claude/perf2/prof305), each refuted by
+an adversarial reviewer (speed2_design_result.json); a planner merged them into three patches on
+the round-310 tree (E:/tmp-claude/perf2/speed2_stage1_plan.md), written in parallel and reviewed
+for exactness:
+
+- **Lean suppressed decisions** (E:/tmp-claude/perf2/sp2_lean.py). In a suppressed decision the
+  opponent prediction, the trap ladder and the needle surcharge are skipped: nothing reads them
+  there. The queue box and the round-34 pace landing are computed lazily, in an order that
+  provably yields the same pick (ties and Direction order included).
+- **Endgame primitives** (sp2_endgame.py). The endgame solver's memo is an exact primitive
+  transposition table instead of a fresh HashMap per solve, and each car state's crossing,
+  legality and alive verdicts are cached per solve.
+- **Upgraded-move memo** (sp2_upmemo.py). A race-scoped exact memo of upgraded moves, in two
+  generations, keyed by the whole board; plus a memo of endgame results. Its world stamp holds the
+  maps weakly, so a desktop restart's released maps are not pinned (memory review).
+
+Every patch has a check mode (-Dai.perf.check=true): each shortcut also computes the original,
+races on it, and prints a PERF-AWARE line on any difference.
+
+Against the round-310 champion (p310), base and perf alternating, every race byte-identical:
+
+| Patch | 8 cars random (12) | computed (4) | scattered (2) | duels (5) |
+|---|---|---|---|---|
+| lean | 0.50x | 0.51x | 0.74x | 0.94x |
+| endgame | 1.00x | 1.01x | 0.96x | 0.98x |
+| upgraded-move memo | 0.87x | 0.88x | 0.92x | 0.95x |
+| all three | 0.45x | 0.46x | 0.69x | 0.84x |
+
+- Check mode: zero mismatches for every patch and the stack (two 8-car races and three duels each).
+- The upgraded-move memo hits 32-40% of lookups in 8-car races and about a third in duels.
+- On the box a duel is mostly start-up and map building (Hairpin s1 races in 3.5 s, 2.3 s with
+  the stack), so the endgame patch shows little there; the browser JVM, where the AI dominates the
+  race, is where it should pay.
+- The Java suite and the local browser build (javac --release 17 -Werror) pass.
+
+Left for a stage 2, ranked (speed2_stage1_plan.md): branch-and-bound on the chooser's landings,
+memoised transitions in the duel proofs, the dense edge plane in the referee's legality, the
+fmRec room cut, touchesPocket per edge, carrying the suppressed memo across decisions.
+
 ## Round 310 promoted (2026-10-18): the danger-joint-search family deleted
 
 The danger joint search was the champion's oldest safety layer. From round 40 on, after the score

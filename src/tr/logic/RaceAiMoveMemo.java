@@ -13,13 +13,19 @@ package tr.logic;
  *
  *  Keys are compared in full; the hash only finds them. RaceAi clears the memo before
  *  every top-level decision and every standalone rollout. A full memo stops storing,
- *  which only recomputes. */
+ *  which only recomputes.
+ *
+ *  perf (upmemo): RaceAi also keeps two smaller instances for the moves of upgraded
+ *  (aware) forecast decisions over a whole race -- the same key, in one fixed context
+ *  and a validated race world (RaceAi.upgradedMemoOn). */
 final class RaceAiMoveMemo {
 	static final int MISS = -2;
 	private static final int NO_MOVE = -1;
-	private static final int MAX_POOL_INTS = 1 << 21;
-	private static final int MAX_ENTRIES = 1 << 16;
 	private static final Direction[] DIRECTIONS = Direction.values();
+	/** The caps: a memo holding maxEntries keys, or whose next key would take its pool
+	 *  past maxPoolInts ints, stops storing. */
+	private final int maxPoolInts;
+	private final int maxEntries;
 	private int[] pool = new int[1 << 12];
 	private int top;
 	private int[] offsets = new int[1 << 8];
@@ -33,6 +39,26 @@ final class RaceAiMoveMemo {
 	private long pendingStamp = -1;
 	private long pendingHash;
 	private int pendingLength;
+
+	/** The suppressed-move memo: 1 << 16 entries, 1 << 21 pool ints. */
+	RaceAiMoveMemo() {
+		this(1 << 16, 1 << 21);
+	}
+
+	RaceAiMoveMemo(final int maxEntries, final int maxPoolInts) {
+		this.maxEntries = maxEntries;
+		this.maxPoolInts = maxPoolInts;
+	}
+
+	/** The entries stored since the last clear. */
+	int size() {
+		return count;
+	}
+
+	/** The stored code of a decision: its direction's ordinal, or NO_MOVE for none. */
+	static int code(final Direction move) {
+		return move == null ? NO_MOVE : move.ordinal();
+	}
 
 	void clear() {
 		stamp++;
@@ -72,7 +98,7 @@ final class RaceAiMoveMemo {
 		if (pendingStamp != stamp)
 			return;
 		stamp++;
-		if (count >= MAX_ENTRIES)
+		if (count >= maxEntries)
 			return;
 		final long hash = pendingHash;
 		final int length = pendingLength;
@@ -101,10 +127,10 @@ final class RaceAiMoveMemo {
 			final int[] gates) {
 		final int n = px.length;
 		final int length = 4 + 7 * n;
-		if (length > MAX_POOL_INTS - top)
+		if (length > maxPoolInts - top)
 			return -1;
 		if (top + length > pool.length)
-			pool = java.util.Arrays.copyOf(pool, Math.min(MAX_POOL_INTS, Math.max(2 * pool.length, top + length)));
+			pool = java.util.Arrays.copyOf(pool, Math.min(maxPoolInts, Math.max(2 * pool.length, top + length)));
 		int at = top;
 		pool[at++] = mover;
 		pool[at++] = n;
