@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "date": "2026-10-19",
+  "branch": "work/racecraft-improvements-20261019",
+  "promoted": false,
+  "baseline_commit": "e3cd7d2d4e12ef75e4a8df7c2d6b09769d047409",
+  "executed_local": {
+    "jdk": "OpenJDK 21.0.12.1",
+    "java_warnings_as_errors": "passed",
+    "existing_java_suite": "passed",
+    "final_decision_research_contracts": "passed, including accepted-and-executed contingent witness",
+    "python_unit_tests": {
+      "tests": 102,
+      "result": "passed"
+    },
+    "browser_java17_compilation": "passed",
+    "cross_build_cli_smoke": {
+      "schema": 1,
+      "promoted": false,
+      "jar": "8e0ea5a75fa7b41f3036811dc0fa34a063f5432bd4498672d40745f44c23c269",
+      "cross_build_identity": true,
+      "checks": [
+        "legacy-off",
+        "legacy-no-slots",
+        "legacy-zero",
+        "informed-off",
+        "informed-no-slots",
+        "informed-zero",
+        "scatter-off",
+        "scatter-no-slots",
+        "scatter-zero",
+        "response-cycle-audit-identity",
+        "duel-ties-audit-identity",
+        "contingent-audit-identity",
+        "paired-shadow-audit-identity",
+        "paired-value-audit-identity",
+        "response-cycle-duel-ties-contingent-audit-identity",
+        "complete-referee-control-label-train",
+        "trained-paired-shadow",
+        "trained-paired-value"
+      ],
+      "pipeline": {
+        "candidate_tails": 5,
+        "controls": 2,
+        "exact_controls": 2,
+        "pairs": 2
+      },
+      "model_validation": {
+        "out_of_domain_pairs": 1,
+        "time_training_pairs": 1,
+        "training_pairs": 1,
+        "validation_pairs": 1
+      }
+    },
+    "four_car_mirrored_smoke": {
+      "track": "hairpin",
+      "seed": 1,
+      "result": "passed"
+    },
+    "four_car_reverse_entry_smoke": {
+      "track": "hairpin",
+      "seed": 1,
+      "all_seats": true,
+      "result": "passed"
+    }
+  },
+  "limitations": [
+    "The full golden suite exceeded local heap/container memory on Le Mans; the first three golden cases passed. Full golden/pin validation belongs to the branch workflow.",
+    "The two-pair model is a pipeline smoke test, not a calibrated model or evidence of a competitive gain.",
+    "No full promotion fleet or distributed round-314 campaign completion is asserted."
+  ]
+}

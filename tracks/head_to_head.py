@@ -22,9 +22,11 @@ import statistics
 import sys
 
 if __package__:
+    from .racecraft_metrics import MatchedMetrics, sensitivity
     from .benchmark_io import read_race
     from .fleet_grid import completed, directory_lock, json_text, seed_range
 else:
+    from racecraft_metrics import MatchedMetrics, sensitivity
     from benchmark_io import read_race
     from fleet_grid import completed, directory_lock, json_text, seed_range
 
@@ -139,8 +141,8 @@ def main(argv=None) -> int:
     cand_wins = champ_wins = cand_crash = champ_crash = 0
     per_track = collections.defaultdict(lambda: [[], []])
     paired = []
-    same_place_time = []  # same seat across mirrored runs, both actually finished
-    place_changes = collections.Counter()
+    matched = MatchedMetrics()
+    track_units = collections.defaultdict(list)
     for (track, seed), runs in sorted(races.items()):
         diff = []
         for places, slots, crashed, moves, outcomes in runs:
@@ -157,14 +159,13 @@ def main(argv=None) -> int:
             diff.append(statistics.mean(c) - statistics.mean(h))
         if len(runs) >= 2:
             paired.append(statistics.mean(diff))
+            track_units[track].append(statistics.mean(diff))
             left, right = runs[:2]
             for number in left[0]:
                 candidate = left if number in left[1] else right
                 champion = right if number in left[1] else left
-                delta = candidate[0][number] - champion[0][number]
-                place_changes['gain' if delta < 0 else 'loss' if delta > 0 else 'tie'] += 1
-                if delta == 0 and candidate[4].get(number) == champion[4].get(number) == 'FINISH':
-                    same_place_time.append(candidate[3][number] - champion[3][number])
+                matched.add(candidate[0], champion[0], candidate[3], champion[3],
+                            candidate[4], champion[4], number)
     n = len(cand)
     tie = (len(next(iter(races.values()))[0][0]) + 1) / 2
     print("%d candidate car-races, %d champion car-races over %d races" % (n, len(champ), sum(len(r) for r in races.values())))
@@ -182,11 +183,8 @@ def main(argv=None) -> int:
         # -- the unit run_1vfield reports (review, 2026-09-27).
         print("per candidate car %+.3f places (standard error %.3f), the unit of the lone-candidate check"
               % (m / 2, se / 2))
-    print('same-seat place comparisons: gains %d, losses %d, ties %d' % (place_changes['gain'], place_changes['loss'], place_changes['tie']))
-    if same_place_time:
-        print('equal-place, both FINISH: %d paired own-time comparisons, candidate minus champion %+.3f moves (negative favours candidate)' % (len(same_place_time), statistics.mean(same_place_time)))
-    else:
-        print('equal-place, both FINISH: no comparable own-time pairs')
+    print('\n'.join(matched.lines()))
+    print('\n'.join(sensitivity(track_units)))
     rows = sorted(((statistics.mean(c) - statistics.mean(h), t, len(c)) for t, (c, h) in per_track.items() if c and h))
     # Split by sign: under 16 courses the two lists used to share tracks.
     print("\ntracks where the candidate gains most (mean place difference, candidate car-races):")

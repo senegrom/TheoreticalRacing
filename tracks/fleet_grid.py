@@ -22,10 +22,10 @@ import threading
 
 if __package__:
     from .forensics_common import NO_LOOP_LINE, parse_move, potential_status
-    from .benchmark_io import comparison_profile
+    from .benchmark_io import comparison_profile, read_properties
 else:
     from forensics_common import NO_LOOP_LINE, parse_move, potential_status
-    from benchmark_io import comparison_profile
+    from benchmark_io import comparison_profile, read_properties
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -306,6 +306,8 @@ def revoke_publication(out, tracks):
 
 
 def manifest_for(jar, props, java, heap, tracks, lo, hi):
+    if read_properties(props).get("racecraftModel", "").strip():
+        raise ValueError("Embed racecraftModel.* coefficients before a fleet run; use --props with run_screen.py or run_1vfield.py")
     return {
         'schema': 2, 'runner': digest(Path(__file__)),
         'comparison': comparison_profile(props),

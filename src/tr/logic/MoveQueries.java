@@ -85,6 +85,7 @@ final class MoveQueries {
 			player.restoreLapState(new int[]{c.lap(), c.gate(), 0, 0, 0, 0, leftGrid ? 1 : 0});
 			player.getHistory().clear();
 		}
+		game.research.plans = DecisionResearch.Plans.empty();
 		game.subgamestate = mover;
 		game.setQueryTurnCounter(turns);
 		return new Header(mover, complete, turns, simulation, rounds, world, cap);
@@ -132,6 +133,7 @@ final class MoveQueries {
 	}
 
 	static String answer(final RaceGame game, final String line) {
+        if (line.equals("snapshot3") || line.startsWith("tail3|")) return ResearchQueries.answer(game, line);
 		final Header header = restoreBoard(game, line);
 		if (header.simulation()) {
 			final int[] audit = new int[3];

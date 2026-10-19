@@ -15,6 +15,10 @@ final class RaceAi {
 	private final RaceGame game;
 	private final Reachability reach;
 	private final RaceAiPrivateLane privateLane;
+	DecisionResearch.Proposal researchProposal;
+	DecisionResearch.Sample researchSample;
+	private int researchCycleDepth = -1;
+	private int researchAwareMoves = AI1_AWARE_SELF_MOVES;
 	/** Cached because the compiler-generated values() method clones on every call. */
 	private static final Direction[] DIRECTIONS = Direction.values();
 	/** Scratch storage is instance-owned: one RaceAi drives one single-threaded game. */
@@ -246,6 +250,8 @@ final class RaceAi {
 		final int playerNum = p.getNumber();
 		if (simDepth != 0)
 			return optimalMoveAI1(pos, vel, playerNum);
+		researchProposal = null;
+		researchSample = null;
 		// perf_aware: a top-level decision owns the suppressed-move memo, empty at its start.
 		suppressedMoves.clear();
 		suppressedMovesOwned = true;
@@ -687,6 +693,19 @@ final class RaceAi {
 					System.err.println("AIDBG EG p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
 							+ ") vel=(" + vel[0] + "," + vel[1] + ") WIN via " + eg);
 				return eg;
+			}
+		}
+		if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0) {
+			final Direction response = game.research.response(game);
+			if (response != null) {
+				// All actual finishing crossings precede a stored conditional response.
+				for (final Direction d : DIRECTIONS) {
+					final int vx = vel[0] + d.dx, vy = vel[1] + d.dy;
+					if (!RaceGame.aiVelocityOutOfRange(vx, vy) && game.evaluateMove(
+							game.players[game.subgamestate], pos, new int[]{pos[0] + vx, pos[1] + vy}).finishes())
+						return d;
+				}
+				return response;
 			}
 		}
 		// paceOverride (round 34, PROMOTED): AI2.9 was NOT pace-optimal -- pure
@@ -3739,7 +3758,7 @@ final class RaceAi {
 		// moves use the full policy. Round 305: the mover's first AI1_AWARE_SELF_MOVES
 		// continuation moves do; the rival keeps one.
 		final boolean awareRollout = simDepth == awareDepth;
-		int awareSelfLeft = awareRollout ? AI1_AWARE_SELF_MOVES : 0;
+		int awareSelfLeft = awareRollout ? researchAwareMoves : 0;
 		boolean awareRivalDone = !awareRollout || awareRival < 0;
 		final int awareRivalIdx = awareRival;
 		final boolean trace = simTrace && simDepth == 1;
@@ -3756,12 +3775,15 @@ final class RaceAi {
 		// A solo time trial is the exception: its only car must still finish.
 		final int terminalLiveCount = game.players.length == 1 ? 0 : 1;
 		boolean raceOver = liveCount <= terminalLiveCount;
-		for (int round = 0; round < rounds && !raceOver; round++) {
-			endRound = round;
+		final boolean responseCycle = simDepth == researchCycleDepth;
+		for (int round = 0; round < rounds + (responseCycle ? 1 : 0) && !raceOver; round++) {
+			endRound = Math.min(round, rounds - 1);
 			// First simulated round: only players after me in this real round's
 			// move order still move before my next slot.
 			final int from = round == 0 ? game.subgamestate + 1 : 0;
-			for (int i = from; i < game.players.length; i++) {
+			// The extra partial round contains only the replies BEFORE our next turn.
+			final int until = responseCycle && round == rounds ? myIdx : game.players.length;
+			for (int i = from; i < until; i++) {
 				if (!alive[i] || i == myIdx && round == 0)
 					continue;
 				usePlayerFrame(i);
@@ -4530,7 +4552,12 @@ final class RaceAi {
 		// passes the live incumbent's verdict STRICTLY is not rolled, or its rollout stops, and
 		// counts as dead. Check mode rolls every landing and plays that loop beside this one
 		// (bnbPick, bnbPickVerdict, bnbPaceVerdict), comparing the two after it.
-		final OptimalPotential boundPot = bnbPotential(playerNum);
+		final boolean researchTop = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0
+				&& game.research.enabled(game, playerNum);
+		final long[] researchVerdicts = researchTop ? new long[DIRECTIONS.length] : null;
+		if (researchTop) java.util.Arrays.fill(researchVerdicts, -2L);
+		// Changed comparison models are not entitled to the champion's pruning bound.
+		final OptimalPotential boundPot = researchTop ? null : bnbPotential(playerNum);
 		final boolean boundTop = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0;
 		Direction bnbPick = null;
 		long bnbPickVerdict = -1, bnbPaceVerdict = Long.MIN_VALUE;
@@ -4578,6 +4605,8 @@ final class RaceAi {
 			// entrant against round 301c; CPU 2.65x, accepted by the owner). Round 305: the
 			// mover's first AI1_AWARE_SELF_MOVES continuation moves (see simOutcomeCore).
 			final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
+			final int outerCycle = researchCycleDepth;
+			if (researchTop && game.research.has("response-cycle")) researchCycleDepth = simDepth + 1;
 			if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0) {
 				awareDepth = simDepth + 1;
 				awareRival = relevantRival(playerNum, pos, nx, ny, nvx, nvy);
@@ -4598,6 +4627,7 @@ final class RaceAi {
 						true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
 			} finally {
 				allScorerRolloutDepth = -1;
+				researchCycleDepth = outerCycle;
 				bnbPot = null;
 				bnbCutoff = Long.MAX_VALUE;
 			}
@@ -4606,6 +4636,7 @@ final class RaceAi {
 			awareDepth = outerAwareDepth;
 			awareRival = outerAwareRival;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
+			if (researchTop) researchVerdicts[d.ordinal()] = verdict;
 			// perf_bnb: the pruned loop's verdict (dead where the rollout passed the cutoff;
 			// outside check mode it stopped there and is dead already), with the stats and
 			// check mode's verification of every bound against the verdict.
@@ -4640,7 +4671,46 @@ final class RaceAi {
 		// window held and the faithful world ranked strictly worse than the pick is
 		// refused too; only an exact tie still goes to the swap's map time.
 		chooserJudgedPace = addPace || paceInSet && paceVerdict != pickVerdict;
+		if (researchTop && pick != null && pickVerdict >= 0) {
+			final boolean previouslyJudged = chooserJudgedPace;
+			final DecisionResearch.Choice refined = game.research.choose(game, this, pick, cands, researchVerdicts, pace);
+			chooserJudgedPace = previouslyJudged;
+			// Do not let the later map-only swap undo a strict secondary judgement.
+			if (refined.rejectPace()) chooserJudgedPace = true;
+			pick = refined.action();
+		}
 		return pick == null ? best : pick;
+	}
+
+	long researchForecast(final Direction action, final int ownDepth) {
+		final Player p = game.players[game.subgamestate];
+		final int[] pos = p.getPosition(), vel = p.getVelocity();
+		final int vx = vel[0] + action.dx, vy = vel[1] + action.dy;
+		final int nx = pos[0] + vx, ny = pos[1] + vy;
+		final int kd = placeKeyDepth, ad = awareDepth, ar = awareRival,
+				am = researchAwareMoves, cd = researchCycleDepth, all = allScorerRolloutDepth;
+		final long pk = placeKey, bc = bnbCutoff;
+		final OptimalPotential bp = bnbPot;
+		try {
+			placeKeyDepth = simDepth + 1; placeKey = -1;
+			awareDepth = simDepth + 1; researchAwareMoves = ownDepth;
+			awareRival = relevantRival(p.getNumber(), pos, nx, ny, vx, vy);
+			allScorerRolloutDepth = simDepth + 1; bnbPot = null; bnbCutoff = Long.MAX_VALUE;
+			researchCycleDepth = game.research.has("response-cycle") ? simDepth + 1 : -1;
+			final int outcome = simOutcome(nx, ny, vx, vy, p.getNumber(), AI1_CHOOSER_ROUNDS,
+					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+			return outcome >= 0 && placeKey >= 0 ? placeKey : outcome;
+		} finally {
+			placeKeyDepth = kd; placeKey = pk; awareDepth = ad; awareRival = ar;
+			researchAwareMoves = am; researchCycleDepth = cd; allScorerRolloutDepth = all;
+			bnbPot = bp; bnbCutoff = bc;
+		}
+	}
+
+	Direction researchScorer() {
+		final boolean saved = inScorerSim;
+		try { inScorerSim = true; return computeAiMove(); }
+		finally { inScorerSim = saved; }
 	}
 
 	/** Round 292b: did the last chooser call roll out a pace landing it added

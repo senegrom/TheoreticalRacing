@@ -70,6 +70,7 @@ public final class RaceGame {
 	private final ArrayDeque<MoveSnapshot>	moveHistory	= new ArrayDeque<>();
 	Player[]			players;
 	private final Properties	prop;
+	final DecisionResearch research;
 	private RaceUI				rui;
 	private float[][]			startZone;
 	Area				startZoneA;
@@ -102,8 +103,10 @@ public final class RaceGame {
 		final int		subgamestate;
 		final int		turnCounter;
 		final int[][]	velocities;
+		final DecisionResearch.Plans researchPlans;
 
 		MoveSnapshot(final RaceGame game) {
+			researchPlans = game.research.plans;
 			subgamestate = game.subgamestate;
 			startZoneGone = game.startZoneGone;
 			finishedFirst = game.finishedFirst;
@@ -126,6 +129,7 @@ public final class RaceGame {
 		}
 
 		void restore(final RaceGame game) {
+			game.research.plans = researchPlans;
 			game.subgamestate = subgamestate;
 			game.finishedFirst = finishedFirst;
 			game.finishedLast = finishedLast;
@@ -167,6 +171,7 @@ public final class RaceGame {
 		}
 
 		candidateSlots = parseCandidateSlots(prop.getProperty("candidateSlots"), maxPlayers);
+		research = new DecisionResearch(prop);
 		gameFrame = new GameUI(NAME + " " + VERSION, maxPlayers);
 	}
 
@@ -2278,6 +2283,12 @@ public final class RaceGame {
 		return turnCounter;
 	}
 
+	int researchFinishedFirst() { return finishedFirst; }
+	int researchFinishedLast() { return finishedLast; }
+	void researchLedger(final int first, final int last) {
+		finishedFirst = first; finishedLast = last;
+	}
+
 	void setQueryTurnCounter(final int turns) {
 		if (turns < 0)
 			throw new IllegalArgumentException("Query turn count must be non-negative");
@@ -2311,6 +2322,7 @@ public final class RaceGame {
 		}
 		if (!autoMode)
 			moveHistory.push(new MoveSnapshot(this));
+		research.commit(this, ai, d);
 		// The gate credit belongs to a move that actually happens: the confirm
 		// above can still abandon this one, and the snapshot has to record the
 		// pre-move gate ledger so Undo can put it back.
@@ -2860,6 +2872,8 @@ public final class RaceGame {
 	}
 
 	private void initGameLog() {
+		research.plans = DecisionResearch.Plans.empty();
+		research.captures = 0;
 		gameLog.setLength(0);
 		turnCounter = 0;
 		gameLog.append("# Theoretical Racing ").append(VERSION).append(" — game log\n");

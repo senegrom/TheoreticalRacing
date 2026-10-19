@@ -1,5 +1,35 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Decision-aligned research branch (2026-10-19; unpromoted)
+
+The owner asked to implement the review on `work/racecraft-improvements-20261019`.
+The branch adds independent candidate-only flags `response-cycle`, `duel-ties`,
+`contingent`, `paired-shadow` and `paired-value`; none is a new default. It also
+adds explicit grid/plan/clock/classification snapshots and complete referee tails,
+a paired capture/label/train pipeline, four-car screen support, reverse-entry
+seat rotations, equal-place actual-finisher time diagnostics and leave-best-
+track/family-out sensitivity. Details and bounds: `docs/experiments/decision-racecraft/README.md`.
+
+Response-cycle completes the preceding rivals' last response without an extra
+own action. Duel-ties compares exact primary ties at own aware depth one, with
+strict secondary judgements retained against a later pace swap. Conditional
+second actions must actually execute through the same commit-only response
+mechanism; both nominal/strong worlds must not worsen and one must improve.
+Whole-state response tables survive Undo and snapshots, not hints. Learned
+values act only on exact chooser ties, with executable/profile/domain guards;
+shadow cannot change decisions. Complete tails must match their captured control
+race before they can teach. No model coefficients are installed by default.
+
+Executed local validation includes warnings-as-errors Java compilation, the
+existing Java suite plus new contract tests, Python reporting/training tests,
+Java-17 browser-source compilation, and an end-to-end two-track capture in
+which both ordinary full continuations exactly matched their generating race
+suffixes and five candidate tails produced two action pairs. Training that tiny
+sample exercised the pipeline; its one held-out pair was outside the learned
+feature domain, NOT validation of prediction quality. Detailed executed tests
+are recorded in the companion validation file. Full promotion fleet evidence
+is not supplied, and no measured racecraft gain or promotion is claimed.
+
 ## Rounds 313-315 and PR #24 incorporated (2026-10-18 to 19)
 
 **Round 313: what is left of the post-chooser stack, priced on the round-310 champion** (E:/tmp-claude/arm313_lesion.py,
