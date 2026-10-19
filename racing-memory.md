@@ -1,5 +1,49 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 314 promoted (2026-10-19): exact chooser ties broken by a depth-1 re-roll in duels
+
+At a top-level decision with exactly two live cars, when the champion's forecast (five own continuation moves by the
+full policy since round 305) rates two or more shortlisted landings exactly equal, those landings are forecast again
+with only the mover's FIRST continuation move by its full policy (AI1_TIE_SELF_MOVES = 1), and the best of those
+verdicts wins; a further tie goes to the first in score order. Everything else -- the rank-first verdict, round 309's
+rule, the pace judgement -- is unchanged; the re-roll runs with the move memos frozen and without branch-and-bound.
+
+Where the idea came from: the peer branch's learning-control re-ranker wins duels (-0.046) with a forecast that plays
+only one own move by the full policy; a decision trace found the champion's verdicts exactly tied at 7 of 10 boards
+where they differ, and an ablation showed the shallow own continuation is what separates them. Used as the whole
+judge, depth 1 loses (round 312); used only on exact ties, it gains.
+
+The arm (E:/tmp-claude/arm314_tiebreak.py; on today's tree arm314s2_tiebreak.py -- all three race identically)
+against the champion:
+
+| Slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| duels, random 1-20 | -0.014 +- 0.003 | 4/1/79 | 238:307 |
+| duels, held-out 21-40 | -0.015 +- 0.003 | 4/2/78 | 239:313 |
+| duels, computed 1-20 | -0.012 +- 0.003 | 1/0/83 | 190:267 |
+| 8 cars, random 1-10 | +0.000 +- 0.000 | 0/0/84 | 90:90 |
+| 8 cars, scattered 1-10 | +0.000 +- 0.000 | 0/0/84 | 13:13 |
+| 4 cars, random 1-20 | +0.000 +- 0.000 | 0/0/84 | 30:30 |
+| lone check (seeds 1-5, every seat) | +0.000 (4.500 against 4.500) | 0/0/84 | 44:44 |
+
+- The gain sits on Hungaroring (every race) and rand13; the candidate also crashes less in duels.
+- Outside duels it never changed a race: two live cars with an exact tie do not arise in the larger fields measured.
+- Always on (any number of live cars) it lost in 8-car fields: +0.049 +- 0.017, and +0.063 with its pace variant.
+- Round 322 (E:/tmp-claude/arm322_tbdepth.py) tried deeper re-rolls: depth 2 -0.013 +- 0.003 on the same courses,
+  depth 3 -0.001 +- 0.004. Depth 1 is promoted.
+- CPU 1.04x in duels.
+
+The promotion (E:/tmp-claude/review3/promote314.py K=1; jar p314k1) races as the arm with every slot a candidate:
+seven random-start and three computed-start 8-car races and eight duels (PROMO314 identity). Corpus on the box:
+nothing moved -- 12 of 12 goldens identical, all 25 pins pass without a re-freeze, headless smoke, query replay and
+lap progress pass, the browser golden (Hairpin s1, 2 cars) still runs 33 turns and the browser parity duel keeps its
+digest ec48301e. The Java suite and the local browser build pass.
+
+Rerun on top (the owner, 2026-10-19): the live PR #24 arms (316 projected place, 317 duel-anytime, 319 duel-cache,
+321 selective) are rebuilt on this champion and screened against it in duels; their 4-car and 8-car screens on the
+round-310 base stay valid, since round 314 changes nothing there. On that base, projected place's duel variant read
+-0.068 +- 0.007 in duels (16/2/66).
+
 ## Rounds 313-315 and PR #24 incorporated (2026-10-18 to 19)
 
 **Round 313: what is left of the post-chooser stack, priced on the round-310 champion** (E:/tmp-claude/arm313_lesion.py,

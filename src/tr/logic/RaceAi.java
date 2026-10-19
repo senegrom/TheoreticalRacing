@@ -515,6 +515,7 @@ final class RaceAi {
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_AWARE_SELF_MOVES	= 5;	// round 305: the mover's forecast continuation moves played by its full policy
+	private final static int		AI1_TIE_SELF_MOVES	= 1;	// round 314: the mover's forecast continuation moves played by its full policy when the chooser re-rolls an exact tie with two live cars (round 303's depth)
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
@@ -2976,7 +2977,7 @@ final class RaceAi {
 			if (PERF_UPMEMO_STATS)
 				countUpgradedLookup(i == ss, upKnown, upFromOld);
 			if (upKnown != RaceAiMoveMemo.MISS && !PERF_CHECK) {
-				if (upFromOld)
+				if (upFromOld && !movesMemoFrozen) // round 314: no refresh during a tie re-roll
 					storeUpgraded(RaceAiMoveMemo.move(upKnown));
 				return replayScorerMove(i, px, py, vx, vy, out, RaceAiMoveMemo.move(upKnown));
 			}
@@ -3069,9 +3070,10 @@ final class RaceAi {
 	 *  recomputed hit with its stored move. */
 	private void recordSuppressedMove(final int i, final int turns, final int known,
 			final Direction direction) {
-		if (known == RaceAiMoveMemo.MISS)
-			suppressedMoves.store(direction);
-		else if (RaceAiMoveMemo.move(known) != direction)
+		if (known == RaceAiMoveMemo.MISS) {
+			if (!movesMemoFrozen) // round 314: a tie re-roll stores nothing
+				suppressedMoves.store(direction);
+		} else if (RaceAiMoveMemo.move(known) != direction)
 			System.err.println("PERF-AWARE MEMO MISMATCH slot=" + i + " turns=" + turns + " memo="
 					+ RaceAiMoveMemo.move(known) + " computed=" + direction);
 	}
@@ -3096,7 +3098,9 @@ final class RaceAi {
 	 *  rollouts (allScorerRolloutDepth, awareDepth) or a pure cache. Off with the kill
 	 *  switch, wherever a suppressed decision prints, and under the finish-denial debug
 	 *  lines, which an upgraded decision prints (it runs unsuppressed). An arm that makes
-	 *  nested behaviour depend on the top-level decider must turn it off. */
+	 *  nested behaviour depend on the top-level decider must turn it off. Round 314's tie
+	 *  re-roll does not: it runs only at simDepth 0, an upgraded move does not depend on
+	 *  the forecast's depth, and it serves both memos without storing (movesMemoFrozen). */
 	private boolean upgradedMemoOn() {
 		return !PERF_NO_UPMEMO && suppressedMovesOn() && !AI_DEBUG_FINISH_DENIAL;
 	}
@@ -3137,7 +3141,7 @@ final class RaceAi {
 	 *  is suppressed), so the key it left pending is still the move's. */
 	private void recordUpgradedMove(final int i, final int turns, final int known, final boolean fromOld,
 			final Direction direction) {
-		if (known == RaceAiMoveMemo.MISS || fromOld)
+		if ((known == RaceAiMoveMemo.MISS || fromOld) && !movesMemoFrozen) // round 314: nor in a tie re-roll
 			storeUpgraded(direction);
 		if (known != RaceAiMoveMemo.MISS && RaceAiMoveMemo.move(known) != direction)
 			System.err.println("PERF-AWARE UPMEMO MISMATCH upgraded slot=" + i + " turns=" + turns
@@ -3552,6 +3556,14 @@ final class RaceAi {
 	/** Round 285: the forecast depth whose mover and relevant rival make their
 	 *  first move with the full policy; -1 for none. */
 	private int awareDepth = -1, awareRival = -1;
+	/** Round 314: the mover's continuation moves an aware forecast plays by its full
+	 *  policy -- AI1_AWARE_SELF_MOVES, or AI1_TIE_SELF_MOVES while the chooser's tie
+	 *  re-roll runs (tieRerollVerdict). */
+	private int awareSelfMoves = AI1_AWARE_SELF_MOVES;
+	/** Round 314: while a tie re-roll runs, the suppressed and the upgraded move memos
+	 *  serve their stored moves but store none (nor refresh old entries), so both are left
+	 *  exactly as the chooser's own rollouts left them. */
+	private boolean movesMemoFrozen;
 	/** perf_aware (exact): the moves of suppressed decisions met in this top-level decision
 	 *  (or standalone rollout), and whether a top-level decision owns that memo now. */
 	private final RaceAiMoveMemo suppressedMoves = new RaceAiMoveMemo();
@@ -3737,9 +3749,10 @@ final class RaceAi {
 		}
 		// Round 285: in an aware forecast the mover's and the relevant rival's first
 		// moves use the full policy. Round 305: the mover's first AI1_AWARE_SELF_MOVES
-		// continuation moves do; the rival keeps one.
+		// continuation moves do; the rival keeps one. Round 314: AI1_TIE_SELF_MOVES of
+		// them in the chooser's tie re-roll (awareSelfMoves).
 		final boolean awareRollout = simDepth == awareDepth;
-		int awareSelfLeft = awareRollout ? AI1_AWARE_SELF_MOVES : 0;
+		int awareSelfLeft = awareRollout ? awareSelfMoves : 0;
 		boolean awareRivalDone = !awareRollout || awareRival < 0;
 		final int awareRivalIdx = awareRival;
 		final boolean trace = simTrace && simDepth == 1;
@@ -4491,7 +4504,11 @@ final class RaceAi {
 	 *  measured the horizon (3 rounds -0.501, 6 -0.952, 9 -1.129, 12 -1.194
 	 *  places, saturating); round 259 found ranking by projected place and a
 	 *  wider vote both within noise of this. Round 292b: the pace landing the
-	 *  round-34 swap would take is rolled out too when the window left it out. */
+	 *  round-34 swap would take is rolled out too when the window left it out.
+	 *  Round 314: at a top-level decision with exactly two live cars, the landings
+	 *  that share the best live verdict exactly are forecast again with
+	 *  AI1_TIE_SELF_MOVES own moves by the full policy (tieRerollVerdict); the best
+	 *  verdict wins, and a further tie goes to the earliest in score order. */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore,
 			final Direction pace) {
@@ -4536,7 +4553,14 @@ final class RaceAi {
 		long bnbPickVerdict = -1, bnbPaceVerdict = Long.MIN_VALUE;
 		if (PERF_BNB_STATS)
 			bnbCount(boundPot != null ? BNB_CALLS : BNB_OFF, 1L);
-		for (final Direction d : cands) {
+		// Round 314: at a top-level decision with two live cars, keep each landing's verdict
+		// and forecast rival for the tie re-roll below.
+		final boolean tieBreak = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0
+				&& liveRivalsRemaining(playerNum) == 1;
+		final long[] verdictByCand = tieBreak ? new long[cands.length] : null;
+		final int[] rivalByCand = tieBreak ? new int[cands.length] : null;
+		for (int k = 0; k < cands.length; k++) {
+			final Direction d = cands[k];
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			// A finish is already decided by the precedence rules above; a crossing
@@ -4564,6 +4588,8 @@ final class RaceAi {
 				if (boundSkip && !PERF_CHECK) {
 					if (d == pace)
 						paceVerdict = -1;
+					if (tieBreak) // round 314: dead, so never tied with the pick
+						verdictByCand[k] = -1;
 					continue;
 				}
 			}
@@ -4583,6 +4609,8 @@ final class RaceAi {
 				awareRival = relevantRival(playerNum, pos, nx, ny, nvx, nvy);
 			} else
 				awareDepth = -1;
+			if (tieBreak)
+				rivalByCand[k] = awareRival;
 			// Round 281: every live rival plays its scorer in this rollout, at any
 			// distance -- not only the three nearest within AI1_SCORER_NEAR, the rest
 			// by the smom proxy (-0.172 places on held-out seeds, CPU 1.32x).
@@ -4606,6 +4634,8 @@ final class RaceAi {
 			awareDepth = outerAwareDepth;
 			awareRival = outerAwareRival;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
+			if (tieBreak)
+				verdictByCand[k] = verdict;
 			// perf_bnb: the pruned loop's verdict (dead where the rollout passed the cutoff;
 			// outside check mode it stopped there and is dead already), with the stats and
 			// check mode's verification of every bound against the verdict.
@@ -4636,11 +4666,92 @@ final class RaceAi {
 						+ " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ") pick="
 						+ pick + " bnb=" + bnbPick + " judged=" + judged + " bnbJudged=" + bnbJudged);
 		}
+		// Round 314: a robustness tie-break when only two cars are live. When two or more landings
+		// share the best live verdict exactly, re-roll exactly those with AI1_TIE_SELF_MOVES own moves
+		// by the full policy and take the one that forecast ranks best, place first; a tie there too
+		// goes to the first of them in score order. Dead ties are not re-rolled. Every tied landing has
+		// the pick's verdict, so pickVerdict -- and with it the pace judgement below, unchanged -- is
+		// the loop's. perf_bnb pruned no tied landing: a pruned landing's full verdict is dead or
+		// strictly above its cutoff, a live incumbent's verdict, which pickVerdict can only equal or
+		// undercut. Against the round-310 champion it read in duels -0.014 +- 0.003 places on random
+		// starts, -0.015 +- 0.003 held-out and -0.012 +- 0.003 computed, and +0.000 in eight-car fields
+		// (84 of 84 boards tied), on scattered starts and in four-car fields; +0.000 +- 0.000 (84/84
+		// tracks tied) as a lone entrant. With any number of live cars it lost (+0.049 +- 0.017 in
+		// eight-car fields): the shallow judge is good only for the ties of a two-car race.
+		if (tieBreak && pickVerdict >= 0) {
+			int tied = 0;
+			for (int k = 0; k < cands.length; k++)
+				if (verdictByCand[k] == pickVerdict)
+					tied++;
+			if (tied >= 2) {
+				final long loopKey = placeKey;
+				Direction tiePick = null;
+				long tiePickVerdict = -1;
+				for (int k = 0; k < cands.length; k++) {
+					if (verdictByCand[k] != pickVerdict)
+						continue;
+					final Direction d = cands[k];
+					final long verdict = tieRerollVerdict(pos, vel, playerNum, d, rivalByCand[k]);
+					if (tiePick == null || verdict >= 0 && (tiePickVerdict < 0 || verdict < tiePickVerdict)) {
+						tiePick = d;
+						tiePickVerdict = verdict;
+					}
+				}
+				placeKey = loopKey;
+				pick = tiePick;
+			}
+		}
 		// Round 301a', the rank-first rule (the owner, 2026-10-06): a pace landing the
 		// window held and the faithful world ranked strictly worse than the pick is
 		// refused too; only an exact tie still goes to the swap's map time.
 		chooserJudgedPace = addPace || paceInSet && paceVerdict != pickVerdict;
 		return pick == null ? best : pick;
+	}
+
+	/** Round 314: the chooser's forecast of one tied landing again, with AI1_TIE_SELF_MOVES own
+	 *  moves by the full policy instead of AI1_AWARE_SELF_MOVES. Otherwise the same forecast:
+	 *  AI1_CHOOSER_ROUNDS rounds, every live rival by its scorer, the relevant rival the chooser
+	 *  recorded for this landing playing its first move by its full policy, round 309's rule
+	 *  (simDepth == placeKeyDepth) and the rank-first verdict. Both move memos serve the moves
+	 *  they hold and store none: an upgraded move does not depend on the forecast's depth
+	 *  (awareSelfMoves is read only by this depth's own rollout), so the memos stay exact and
+	 *  later decisions meet them as the chooser's own rollouts left them. The caller puts
+	 *  placeKey back. The forecast runs in full: it carries no branch-and-bound cutoff
+	 *  (perf_bnb). */
+	private long tieRerollVerdict(final int[] pos, final int[] vel, final int playerNum,
+			final Direction d, final int rival) {
+		final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+		final int nx = pos[0] + nvx, ny = pos[1] + nvy;
+		final int outerKeyDepth = placeKeyDepth;
+		final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
+		final int outerSelfMoves = awareSelfMoves;
+		final boolean outerFrozen = movesMemoFrozen;
+		placeKeyDepth = simDepth + 1;
+		placeKey = -1;
+		awareDepth = simDepth + 1;
+		awareRival = rival;
+		awareSelfMoves = AI1_TIE_SELF_MOVES;
+		movesMemoFrozen = true;
+		allScorerRolloutDepth = simDepth + 1;
+		// perf_bnb: no bound. simOutcomeCore takes bnbPot at simDepth == placeKeyDepth; the main
+		// loop's finally already left the no-bound values, which are set again here so that no
+		// cutoff of the main loop's (a verdict of the deeper forecast) can reach this one.
+		bnbPot = null;
+		bnbCutoff = Long.MAX_VALUE;
+		final int outcome;
+		try {
+			outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
+		} finally {
+			allScorerRolloutDepth = -1;
+			movesMemoFrozen = outerFrozen;
+			awareSelfMoves = outerSelfMoves;
+			awareRival = outerAwareRival;
+			awareDepth = outerAwareDepth;
+			placeKeyDepth = outerKeyDepth;
+		}
+		final long key = placeKey;
+		return outcome >= 0 && key >= 0 ? key : outcome;
 	}
 
 	/** Round 292b: did the last chooser call roll out a pace landing it added
@@ -4678,7 +4789,9 @@ final class RaceAi {
 	 *  -Dai.perf.bnbStats=true prints PERF-STATS BNB at exit (in check mode the cuts and
 	 *  stops it counts are the ones the pruned loop would make). Under PERF_CHECK every
 	 *  landing is rolled in full: every bound is checked against the verdict it bounds and
-	 *  the pruned loop's pick against the real one (PERF-AWARE BNB MISMATCH). */
+	 *  the pruned loop's pick against the real one (PERF-AWARE BNB MISMATCH). Round 314's
+	 *  tie re-roll reads the tied landings' full verdicts (a skipped landing is recorded
+	 *  dead) and runs its own forecasts without a bound. */
 	private static final boolean PERF_NO_BNB = Boolean.getBoolean("ai.perf.noBnb");
 	private static final boolean PERF_BNB_STATS = Boolean.getBoolean("ai.perf.bnbStats");
 	private static final String[] BNB_STAT_NAMES = {"calls", "off", "offGrid", "landings", "eligible",
