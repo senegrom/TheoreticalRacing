@@ -1,5 +1,83 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Rounds 313-315 and PR #24 incorporated (2026-10-18 to 19)
+
+**Round 313: what is left of the post-chooser stack, priced on the round-310 champion** (E:/tmp-claude/arm313_lesion.py,
+round 306's lesion study without the deleted danger leg). Against the round-310 champion, 8 cars, random starts, seeds 1-10:
+
+| Off for the candidate | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| the round-232 kinematic confirm | -0.006 +- 0.004 | 14/12/58 | 108:94 |
+| the three pace overrides | +0.003 +- 0.008 | 25/31/28 | 94:98 |
+| pace overrides, confirm, sprint, denial and queue box together | +0.016 +- 0.012 | 22/41/21 | 104:102 |
+
+Every remaining leg is neutral, together too; none is deleted. The round-34 pace swap (round 306: +0.121 when off) stays the
+stack's value.
+
+**Round 314: exact chooser ties broken by a depth-1 re-roll** (E:/tmp-claude/arm314_tiebreak.py; on today's tree
+arm314s2_tiebreak.py, jar a314s2). When the champion's depth-5 forecast rates two or more shortlisted landings exactly
+equal, they are forecast again at aware depth 1 and the best depth-1 verdict wins; a further tie keeps today's pick.
+
+| Variant / slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| two live cars only, duels random 1-20 | -0.014 +- 0.003 | 4/1/79 | 238:307 |
+| two live cars only, duels held-out 21-40 | -0.015 +- 0.003 | 4/2/78 | 239:313 |
+| two live cars only, duels computed 1-20 | -0.012 +- 0.003 | 1/0/83 | 190:267 |
+| two live cars only, 8 cars scattered 1-10 | +0.000 +- 0.000 | 0/0/84 | 13:13 |
+| always, 8 cars random 1-10 | +0.049 +- 0.017 | 32/43/9 | 83:78 |
+| always, with the pace judgement, 8 cars random 1-10 | +0.063 +- 0.017 | 28/47/9 | 80:68 |
+
+- The duel gain replicates across start modes; most of it is one course (Hungaroring -0.9 to -1.0, every race) plus rand13.
+- Switched on in traffic it loses: the depth-1 judge is only good for ties in duels. Duel CPU 1.04x.
+- The arm on today's tree races byte-identically to the round-310-tree arm with candidates, and as the champion without.
+- 8-car random, lone check and 4-car screens of the duel variant are running.
+
+**Round 315: learning-control's order on the champion's own forecasts -- dead** (E:/tmp-claude/arm315_lexi.py): in duels,
+rank every landing by its depth-1 verdict first and the depth-5 verdict second. +0.008 +- 0.004 and +0.003 +- 0.004 (two pace
+variants); it loses every race on fractal3 or hybrid1 -- the very courses learning-control wins. Learning-control's duel edge
+is its own forecast engine, not the order of the keys.
+
+**A 4-car slice.** The owner chose to take PR #24's comparison workflow's one missing slice onto the box: mirrored 4-car fields
+(random starts, seeds 1-20; a tie reads 2.500). The GitHub promotion battery itself stays retired (de0bef7).
+/home/ubuntu/tools-4p is the screen tools with run_screen.py's player count opened to 4.
+
+**PR #24 incorporated.** PR #24 (work/racecraft-review-20260926, eight commits on round 279) proposed six candidate-gated
+experiments, a decision audit and a research plan, and was never screened. The owner asked for all six to be screened. Each was
+assessed against master (workflow wf_616ed186-550), ported to master 17829f5 as a candidate-gated arm and adversarially
+reviewed (wf_e93feb45-2be). The box screens each in duels, 4-car and 8-car fields as it can act there:
+
+| PR flag | Arm, script | Jar | What it does on today's tree |
+|---|---|---|---|
+| crossing | 318, pr24port/r318r320/arm318_crossing.py | a318cross | the referee judges each shortlisted landing; round 291 (component 288) already does this, so it may never fire |
+| duel-anytime | 317, arm317_anytime.py | a317any | the duel proof keeps a completed certificate when a later root move exhausts the 20k budget |
+| duel-cache | 319, pr24port/r319/arm319_duelcache.py | a319cache | a per-attempt joint-state result memo in the duel proof; hits cost no node, so it buys budget |
+| projected-place | 316, arm316_projplace.py (duel, all) | a316pp1, a316pp0 | unresolved forecast ends ranked by rivals projected to finish ahead, then own time |
+| diverse | 320, pr24port/r318r320/arm320_diverse.py | a320div | one kinematically distinct extra landing within one more score unit |
+| selective | 321, pr24port/r321/arm321_selective.py | a321sel | on a chooser tie, re-roll pick and alternative with the contesting rival's real first decision |
+
+Corrections the ports make to the PR's code: projected place counts a rival actually finishing ahead above any projection
+(the rank-first rule, literally) and gives no place for a rival's forecast crash (round 309); both it and selective act only at
+the candidate's own top-level decision, so no champion model of a candidate changes; selective tells an unreached rival reply
+(unknown) from a mover crash (dead). The scripts are under E:/tmp-claude (scratch); the PR's own code is kept by the archive tag.
+
+Not ported: the decision audit (racecraftReviewAudit, audit.py). It was written for round 279's pipeline (its danger, thread and
+true-confirm stages are gone); review3/debug_chooser.py and the trace tools cover it.
+
+The PR's research plan, kept here because the branch is deleted:
+1. **Contingent second action.** Reuse work/contingent-prefix-prepared-20260921's machinery (d3f699c, docs/contingent-prefix.md).
+   Capture the nominal and the stronger first reply of the same contesting rival; in each resulting world search the baseline
+   second action plus a few alternatives; switch only on a strict improvement in one world and no worsening in the other.
+   Reuse exact prefixes only when every car, ledger, clock, geometry, grid rule, policy and horizon match; replay the
+   original budget charges so a speed-only cache cannot enlarge the search; measure returned first actions.
+2. **A learned joint-rollout endpoint value.** Labels from complete referee tails with pinned policies (own place and own
+   move count, losing actions and crashes included); full-state samples bound to jar, track, seed and seat; a small residual
+   model on top of the exact solo value with separate place and time outputs compared lexicographically; splits by track family
+   and whole race; shadow prediction error and decision disagreement first, then a gated on-policy arm; fall back to the
+   chooser out of domain; never override physical legality or certified wins.
+
+PR #24 was closed unmerged and its branch deleted; the tag archive/20261019-cleanup/racecraft-review-20260926 keeps it.
+Results follow as the screens finish.
+
 ## Speed round 2, stage 2 (2026-10-19): branch-and-bound on the chooser's landings, duel-proof transitions tabled
 
 Two more exact optimisations on master 4f8f7b4, designed, implemented and adversarially reviewed in workflow
