@@ -1,0 +1,46 @@
+name: Racecraft branch validation
+
+on:
+  push:
+    branches: [work/racecraft-improvements-20261019]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - run: git archive --format=zip --output=racecraft-source.zip HEAD
+      - uses: actions/upload-artifact@v7
+        with:
+          name: racecraft-source
+          path: racecraft-source.zip
+          retention-days: 3
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - run: sh run_tests.sh
+      - run: sh build_main.sh
+      - run: python -m unittest discover -s tests -p 'test_*.py'
+      - run: python tests/golden_races.py
+      - name: Champion regression pins
+        run: |
+          for test in tests/ai1_*_regression.py; do
+            python "$test" || exit 1
+          done
