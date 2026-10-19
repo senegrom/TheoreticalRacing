@@ -3,30 +3,28 @@ name: Racecraft branch validation
 on:
   push:
     branches: [work/racecraft-improvements-20261019]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'tools/**'
+      - 'tracks/**'
+      - 'docs/experiments/decision-racecraft/**'
+      - 'run_tests.sh'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  source:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - run: git archive --format=zip --output=racecraft-source.zip HEAD
-      - uses: actions/upload-artifact@v7
-        with:
-          name: racecraft-source
-          path: racecraft-source.zip
-          retention-days: 3
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
+    env:
+      JAVA_TOOL_OPTIONS: -Xmx5g
     steps:
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-java@v6
         with:
@@ -38,9 +36,20 @@ jobs:
       - run: sh run_tests.sh
       - run: sh build_main.sh
       - run: python -m unittest discover -s tests -p 'test_*.py'
+      - name: Independent baseline and new experimental contracts
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/champion" e3cd7d2d4e12ef75e4a8df7c2d6b09769d047409
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+          python tests/decision_research_cli.py --jar "$PWD/theoreticRacing.jar" --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/research-smoke"
       - run: python tests/golden_races.py
       - name: Champion regression pins
         run: |
           for test in tests/ai1_*_regression.py; do
             python "$test" || exit 1
           done
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: racecraft-branch-evidence
+          path: ${{ runner.temp }}/research-smoke/validation.json
+          retention-days: 7

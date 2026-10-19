@@ -1,0 +1,117 @@
+name: Apply verified racecraft implementation
+
+on:
+  push:
+    branches: [work/racecraft-improvements-20261019]
+    paths:
+      - '.github/racecraft-transport/**'
+      - '.github/workflows/racecraft-apply-once.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  apply:
+    if: github.repository == 'senegrom/TheoreticalRacing' && github.ref == 'refs/heads/work/racecraft-improvements-20261019'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      JAVA_TOOL_OPTIONS: -Xmx5g
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Verify the exact reviewed patch and stage its source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64, hashlib, lzma, pathlib, subprocess
+          parts = pathlib.Path('.github/racecraft-transport')
+          encoded = ''.join((parts / ('part%d' % n)).read_text(encoding='ascii') for n in range(1, 7))
+          patch = lzma.decompress(base64.b64decode(encoded, validate=True))
+          assert hashlib.sha256(patch).hexdigest() == '7f0a11d04df6ff8ef8b1c36820d7ae6815c28bb047d02d39852796f739443c31', 'patch digest mismatch'
+          p = pathlib.Path('/tmp/racecraft-verified.patch')
+          p.write_bytes(patch)
+          subprocess.run(['git', 'apply', '--check', str(p)], check=True)
+          subprocess.run(['git', 'apply', '--index', str(p)], check=True)
+          expected = set('''docs/experiments/decision-racecraft/README.md
+          docs/experiments/decision-racecraft/validation.json
+          docs/experiments/duel-lookahead/run_1vfield.py
+          docs/experiments/duel-lookahead/run_screen.py
+          racing-memory.md
+          run_tests.sh
+          src/tr/logic/ContingentPlans.java
+          src/tr/logic/DecisionResearch.java
+          src/tr/logic/MoveQueries.java
+          src/tr/logic/PairedValueModel.java
+          src/tr/logic/RaceAi.java
+          src/tr/logic/RaceGame.java
+          src/tr/logic/ResearchBoard.java
+          src/tr/logic/ResearchQueries.java
+          tests/decision_research_cli.py
+          tests/test_decision_research.py
+          tests/tr/logic/DecisionResearchTests.java
+          tools/racecraft_pairs.py
+          tracks/fleet_grid.py
+          tracks/head_to_head.py
+          tracks/racecraft_metrics.py'''.splitlines())
+          changed = set(subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines())
+          assert changed == expected, (changed - expected, expected - changed)
+          subprocess.run(['git', 'diff', '--cached', '--check'], check=True)
+          PY
+      - name: JDK 25 Java contracts and warnings-as-errors build
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh run_tests.sh 2>&1 | tee "$RUNNER_TEMP/racecraft-java.log"
+          sh build_main.sh 2>&1 | tee "$RUNNER_TEMP/racecraft-build.log"
+      - name: Python unit contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_*.py' 2>&1 | tee "$RUNNER_TEMP/racecraft-python.log"
+      - name: Browser-compatible Java 17 compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python web/scripts/prepare_sources.py "$RUNNER_TEMP/browser-sources"
+          mkdir -p "$RUNNER_TEMP/browser-classes"
+          find "$RUNNER_TEMP/browser-sources" -name '*.java' | sort > "$RUNNER_TEMP/browser-sources.txt"
+          javac --release 17 -Xlint:all -Werror -encoding UTF-8 -d "$RUNNER_TEMP/browser-classes" @"$RUNNER_TEMP/browser-sources.txt"
+      - name: Cross-build controls and complete referee learning pipeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add --detach "$RUNNER_TEMP/champion" e3cd7d2d4e12ef75e4a8df7c2d6b09769d047409
+          (cd "$RUNNER_TEMP/champion" && sh build_main.sh)
+          python tests/decision_research_cli.py --jar "$PWD/theoreticRacing.jar" --baseline-jar "$RUNNER_TEMP/champion/theoreticRacing.jar" --out "$RUNNER_TEMP/research-smoke" 2>&1 | tee "$RUNNER_TEMP/racecraft-cli.log"
+      - name: Publish source only to the requested branch without overwriting a newer head
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='work/racecraft-improvements-20261019'
+          remote=$(git ls-remote origin "refs/heads/$branch" | cut -f1)
+          test "$remote" = "$GITHUB_SHA"
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'Implement opt-in racecraft research, complete replay, paired learning and evaluation'
+          git push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD | tee "$RUNNER_TEMP/racecraft-implementation-commit.txt"
+      - name: Retain executed validation evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: racecraft-implementation-validation
+          path: |
+            ${{ runner.temp }}/racecraft-*.log
+            ${{ runner.temp }}/racecraft-implementation-commit.txt
+            ${{ runner.temp }}/research-smoke/validation.json
+          retention-days: 7
