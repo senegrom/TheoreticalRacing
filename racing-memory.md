@@ -1,5 +1,44 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Speed round 2, stage 2 (2026-10-19): branch-and-bound on the chooser's landings, duel-proof transitions tabled
+
+Two more exact optimisations on master 4f8f7b4, designed, implemented and adversarially reviewed in workflow
+wf_92d55c32-621:
+
+- **Branch-and-bound on the top-level chooser's landings** (E:/tmp-claude/perf3/sp3_bnb.py). A live verdict of the
+  chooser's own rollout is rf * S + time (rf the rivals finished, which only grows; crashes never end this rollout
+  since round 309). The exact potential obeys the rollout's referee for the mover, so after the mover's move in
+  round r every continuation is dead or at least rf * S + r + P. A landing whose bound is STRICTLY greater than the
+  best live verdict so far is skipped before its rollout or stopped inside it. Ties survive (round 314's tie-break
+  needs them) and chooserJudgedPace stays exact. The gate: lap courses with the exact potential, a live rival, the
+  starting-grid rule (grid not legal, or no pocket), and the corridor on the potential's board -- the bound review
+  found that a drawn loop's rounded closure corner can carry the corridor off the board, where the potential has
+  no states; no fleet course comes near it.
+- **The duel proof's transitions tabled** (sp3_duelproof.py). Each car state's nine transitions are computed once
+  per search and reused: about 3.4x fewer referee evaluations. The node budget and the visiting order are
+  unchanged.
+
+Against the champion (p4f8f7b4), base and perf alternating, every race byte-identical:
+
+| Patch | 8 cars random (12) | computed (4) | scattered (2) | duels (5) |
+|---|---|---|---|---|
+| branch-and-bound | 0.88x | 0.91x | 0.88x | 0.97x |
+| duel-proof transitions | 1.00x | 1.00x | 1.00x | 0.97x |
+| both | 0.88x | 0.90x | 0.86x | 0.89x |
+
+- Check mode (each shortcut also computes the original and races on it): zero mismatches.
+- Branch-and-bound skips about 29% of the eligible landings before their rollout and stops another 9% inside it.
+- With stage 1 the champion now runs at about 0.40x of round 310's CPU in 8-car races.
+- The Java suite and the local browser build (javac --release 17 -Werror) pass.
+
+**PR #24** (work/racecraft-review-20260926, six gated experiments on round 279, never screened) was assessed against
+today's champion (workflow wf_616ed186-550): `crossing` was fixed by round 291 (component 288) and its branches cannot
+fire; `selective` is superseded by aware (303/305) and closed by round 308; `diverse` is round 311's priced band
+(+0.044); `duel-cache` is a budget extension worth at most a third of round 241's -0.006. Two are worth porting:
+`projected-place` (arm 316: rank unresolved forecast ends by the rivals projected to finish ahead, then own time --
+untested in duels) and `duel-anytime` (arm 317: keep a completed duel certificate when a later sibling exhausts the
+budget -- a small fix, never negative). The decision audit is not ported; our debug tools cover it.
+
 ## Speed round 2 (2026-10-18): three exact optimisations, the champion at 0.45x its CPU
 
 The round-310 champion still spent most of its CPU in two places: suppressed (scorer) decisions

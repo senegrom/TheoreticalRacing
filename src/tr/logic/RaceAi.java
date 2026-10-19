@@ -193,6 +193,12 @@ final class RaceAi {
 		final boolean[] scorerSet;
 		final int[] move = new int[4];
 		final ScorerWorkspace scorer;
+		/** perf_bnb: written by a chooser's own rollout under a bound (simOutcomeCore), read
+		 *  by jointChooser right after it: the highest lower bound on the rollout's verdict
+		 *  met (-1 for none), and the mover's moves made and aware moves left when the bound
+		 *  first passed the cutoff (-1: never). */
+		long bnbBound;
+		int bnbStopMoves, bnbStopAware;
 
 		RolloutWorkspace(final int players) {
 			laps = new int[players];
@@ -3614,6 +3620,18 @@ final class RaceAi {
 		final boolean[] scorerSet = workspace.scorerSet;
 		final int[] move = workspace.move;
 		workspace.turns = game.turnCount();
+		// perf_bnb (exact): the bound jointChooser hands its own rollout (bnbPotential); any
+		// other rollout runs without one. boundBase is the mover's moves made (rounds played)
+		// plus its exact distance, boundMoves its moves made.
+		OptimalPotential boundPot = simDepth == placeKeyDepth ? bnbPot : null;
+		final long boundCut = bnbCutoff;
+		long boundBase = 0L;
+		int boundMoves = 0;
+		if (boundPot != null) {
+			workspace.bnbBound = -1L;
+			workspace.bnbStopMoves = -1;
+			workspace.bnbStopAware = 0;
+		}
 		java.util.Arrays.fill(scorerSet, false);
 		if (outFieldCost != null)
 			outFieldCost[0] = 0L;
@@ -3668,6 +3686,15 @@ final class RaceAi {
 		py[myIdx] = myY;
 		vx[myIdx] = myVx;
 		vy[myIdx] = myVy;
+		// perf_bnb: the base at the landing, in the frame after the candidate's move: no move
+		// made, P0 to go. A landing the potential cannot price gets no bound.
+		if (boundPot != null) {
+			final int startP = boundPot.movesToFinish(frameRemaining[myIdx], myX, myY, myVx, myVy);
+			if (startP == Integer.MAX_VALUE)
+				boundPot = null;
+			else
+				workspace.bnbBound = boundBase = startP;
+		}
 		// Round 59: slow-class fires roll the nearest rivals with their REAL
 		// scorer (recursion-guarded); the rest keep the smom proxy.
 		// Membership is fixed at rollout start: the nearest
@@ -3828,6 +3855,10 @@ final class RaceAi {
 						raceOver = true;
 						break;
 					}
+					// perf_bnb: a rival's finish that leaves the race on adds a stride.
+					if (boundPot != null && i != myIdx && bnbStop(workspace, rivalsFinished, boundBase,
+							boundCut, boundMoves, awareSelfLeft))
+						return -1;
 					continue;
 				}
 				if (!moved || timedOut || !transition.legal()) {
@@ -3855,6 +3886,16 @@ final class RaceAi {
 				py[i] = move[1];
 				vx[i] = move[2];
 				vy[i] = move[3];
+				// perf_bnb: after the mover's move in this round, rf * S + round + P; where P has
+				// no value the base keeps its last value (the mover can then never finish).
+				if (boundPot != null && i == myIdx) {
+					boundMoves++;
+					final int boundP = boundPot.movesToFinish(frameRemaining[i], px[i], py[i], vx[i], vy[i]);
+					if (boundP != Integer.MAX_VALUE)
+						boundBase = (long) round + boundP;
+					if (bnbStop(workspace, rivalsFinished, boundBase, boundCut, boundMoves, awareSelfLeft))
+						return -1;
+				}
 			}
 		}
 		if (raceOver) {
@@ -4485,6 +4526,16 @@ final class RaceAi {
 		Direction pick = null;
 		long pickVerdict = -1;
 		long paceVerdict = Long.MIN_VALUE;
+		// perf_bnb (exact, tie-preserving; bnbPotential): a later landing whose lower bound
+		// passes the live incumbent's verdict STRICTLY is not rolled, or its rollout stops, and
+		// counts as dead. Check mode rolls every landing and plays that loop beside this one
+		// (bnbPick, bnbPickVerdict, bnbPaceVerdict), comparing the two after it.
+		final OptimalPotential boundPot = bnbPotential(playerNum);
+		final boolean boundTop = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0;
+		Direction bnbPick = null;
+		long bnbPickVerdict = -1, bnbPaceVerdict = Long.MIN_VALUE;
+		if (PERF_BNB_STATS)
+			bnbCount(boundPot != null ? BNB_CALLS : BNB_OFF, 1L);
 		for (final Direction d : cands) {
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
@@ -4492,6 +4543,30 @@ final class RaceAi {
 			// with a lap or a checkpoint still owed is an ordinary move (round 291).
 			if (finishingMove(pos[0], pos[1], nx, ny))
 				return best;
+			// perf_bnb: the cutoff is the live incumbent's verdict (the pruned loop's: outside
+			// check mode the real one); P0, the landing's exact distance in the frame after its
+			// move, bounds its verdict from below before any rollout.
+			long boundCut = Long.MAX_VALUE;
+			int boundP0 = Integer.MAX_VALUE;
+			boolean boundSkip = false;
+			if (boundPot != null) {
+				final Direction incumbent = PERF_CHECK ? bnbPick : pick;
+				final long incumbentVerdict = PERF_CHECK ? bnbPickVerdict : pickVerdict;
+				if (incumbent != null && incumbentVerdict >= 0)
+					boundCut = incumbentVerdict;
+				if (boundCut != Long.MAX_VALUE || PERF_CHECK) {
+					boundP0 = boundPot.movesToFinish(exactRemaining
+							- game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny), nx, ny, nvx, nvy);
+					boundSkip = boundP0 != Integer.MAX_VALUE && boundP0 > boundCut;
+				}
+				if (PERF_BNB_STATS)
+					bnbLandingStats(boundTop, boundCut != Long.MAX_VALUE, boundSkip);
+				if (boundSkip && !PERF_CHECK) {
+					if (d == pace)
+						paceVerdict = -1;
+					continue;
+				}
+			}
 			// Round 270/274: a live rollout ranks by place, then by the mover's
 			// projected total turns (its finishing round when it finishes).
 			final int outerKeyDepth = placeKeyDepth;
@@ -4513,23 +4588,53 @@ final class RaceAi {
 			// by the smom proxy (-0.172 places on held-out seeds, CPU 1.32x).
 			final int outcome;
 			allScorerRolloutDepth = simDepth + 1;
+			// perf_bnb: the rollout carries the bound under a live incumbent (check mode: always,
+			// to verify it); simOutcomeCore takes it at entry.
+			final boolean boundRolled = boundPot != null && (boundCut != Long.MAX_VALUE || PERF_CHECK);
+			bnbPot = boundRolled ? boundPot : null;
+			bnbCutoff = boundCut;
 			try {
 				outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
 						true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
 			} finally {
 				allScorerRolloutDepth = -1;
+				bnbPot = null;
+				bnbCutoff = Long.MAX_VALUE;
 			}
 			final long key = placeKey;
 			placeKeyDepth = outerKeyDepth;
 			awareDepth = outerAwareDepth;
 			awareRival = outerAwareRival;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
+			// perf_bnb: the pruned loop's verdict (dead where the rollout passed the cutoff;
+			// outside check mode it stopped there and is dead already), with the stats and
+			// check mode's verification of every bound against the verdict.
+			final long bnbVerdict = boundRolled
+					? bnbAfterRollout(playerNum, d, verdict, boundCut, boundP0, boundSkip, boundTop)
+					: verdict;
 			if (d == pace)
 				paceVerdict = verdict;
 			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
 				pick = d;
 				pickVerdict = verdict;
 			}
+			if (PERF_CHECK && boundPot != null) {
+				if (d == pace)
+					bnbPaceVerdict = bnbVerdict;
+				if (bnbPick == null || bnbVerdict >= 0 && (bnbPickVerdict < 0 || bnbVerdict < bnbPickVerdict)) {
+					bnbPick = d;
+					bnbPickVerdict = bnbVerdict;
+				}
+			}
+		}
+		// perf_bnb, check mode: the pruned loop must make the same pick and pace verdict.
+		if (PERF_CHECK && boundPot != null) {
+			final boolean judged = addPace || paceInSet && paceVerdict != pickVerdict;
+			final boolean bnbJudged = addPace || paceInSet && bnbPaceVerdict != bnbPickVerdict;
+			if (bnbPick != pick || bnbJudged != judged)
+				System.err.println("PERF-AWARE BNB MISMATCH pick p=" + playerNum + " depth=" + simDepth
+						+ " pos=(" + pos[0] + "," + pos[1] + ") vel=(" + vel[0] + "," + vel[1] + ") pick="
+						+ pick + " bnb=" + bnbPick + " judged=" + judged + " bnbJudged=" + bnbJudged);
 		}
 		// Round 301a', the rank-first rule (the owner, 2026-10-06): a pace landing the
 		// window held and the faithful world ranked strictly worse than the pick is
@@ -4542,6 +4647,208 @@ final class RaceAi {
 	 *  itself, or (round 301a') rank one it already held strictly worse than its
 	 *  pick? Then the pick stands against the round-34 pace swap. */
 	private boolean chooserJudgedPace;
+
+	/** perf_bnb (exact, tie-preserving): branch-and-bound on the chooser's landings. A live
+	 *  verdict of the chooser's own rollout is rf * S + time (S = PLACE_KEY_STRIDE, rf the
+	 *  rivals finished, which only grows): the mover's finishing round; the round a rival's
+	 *  finish left it alone, with that rival in rf; or rounds - 1 plus its exact distance at
+	 *  the horizon (crashes never end this rollout). The exact potential obeys the rollout's
+	 *  referee for the mover: every legal mover move is an edge or a seed of its backward
+	 *  search -- the same edge legality and gate events in the frame's remaining events, every
+	 *  velocity within AI_MAX_SPEED (each decision returns a direction in range, so the
+	 *  physical fallback never moves the mover), every landing in the corridor and the
+	 *  corridor on the potential's board (the gate's corridorOnBoard: a drawn loop's rounded
+	 *  closure corner can leave it, and then the gate is off), and the grid rule: aiGridLegal
+	 *  false forbids every pocket touch, and a course
+	 *  without a pocket has none to touch. So the distance P falls by at most one per move,
+	 *  never returns from no value to a value, and a finish needs P = 1 first: after the
+	 *  mover's move in round r (before its first, r = 0 and P0 at the landing), every
+	 *  continuation is dead or at least rf * S + r + P, and a later rival finish adds a
+	 *  stride, more than any time part. A landing whose bound is STRICTLY greater than the
+	 *  live incumbent's verdict can neither take the pick nor tie it (the incumbent's verdict
+	 *  only falls), and its pace verdict differs from the final pick's either way; so it is
+	 *  not rolled, or its rollout stops, and counts as dead: pick, pickVerdict and
+	 *  chooserJudgedPace are the full loop's, every landing tied with the incumbent or the
+	 *  final pick is rolled in full, and so is the first. A skipped rollout's effects are
+	 *  restored, rebuilt before they are read, or pure caches (only hit rates change).
+	 *  Gated to the potential's domain: a lap course with the potential built, aiGridLegal
+	 *  false or no pocket, and a live rival (the rollout cannot start with the race over).
+	 *  Off wherever a skipped decision would print (suppressedMovesOn, finish-denial debug).
+	 *  -Dai.perf.noBnb=true rolls every landing (the round-310 loop, a same-jar CPU control);
+	 *  -Dai.perf.bnbStats=true prints PERF-STATS BNB at exit (in check mode the cuts and
+	 *  stops it counts are the ones the pruned loop would make). Under PERF_CHECK every
+	 *  landing is rolled in full: every bound is checked against the verdict it bounds and
+	 *  the pruned loop's pick against the real one (PERF-AWARE BNB MISMATCH). */
+	private static final boolean PERF_NO_BNB = Boolean.getBoolean("ai.perf.noBnb");
+	private static final boolean PERF_BNB_STATS = Boolean.getBoolean("ai.perf.bnbStats");
+	private static final String[] BNB_STAT_NAMES = {"calls", "off", "offGrid", "landings", "eligible",
+			"cut0", "stops", "movesSaved", "topEligible", "topCut0", "topStops", "topAwareSaved",
+			"offBoard"};
+	private static final int BNB_CALLS = 0, BNB_OFF = 1, BNB_OFF_GRID = 2, BNB_LANDINGS = 3,
+			BNB_ELIGIBLE = 4, BNB_CUT0 = 5, BNB_STOPS = 6, BNB_MOVES_SAVED = 7, BNB_TOP_ELIGIBLE = 8,
+			BNB_TOP_CUT0 = 9, BNB_TOP_STOPS = 10, BNB_TOP_AWARE_SAVED = 11, BNB_OFF_BOARD = 12;
+	private static final java.util.concurrent.atomic.AtomicLongArray BNB_COUNTS =
+			PERF_BNB_STATS ? bnbCounters() : null;
+	/** perf_bnb: the bound jointChooser hands its next rollout, taken by simOutcomeCore at
+	 *  entry when simDepth == placeKeyDepth (only a chooser's own rollout runs there): the
+	 *  potential (null: no bound) and the live incumbent's verdict (Long.MAX_VALUE: none). */
+	private OptimalPotential bnbPot;
+	private long bnbCutoff = Long.MAX_VALUE;
+	/** perf_bnb: coursePocketless's verdict and the areas it was computed from. */
+	private java.awt.geom.Area bnbPocketZone, bnbPocketTrack;
+	private boolean bnbPocketKnown, bnbPocketless;
+
+	/** perf_bnb: the exact potential when it bounds this chooser call's verdicts from below
+	 *  (see PERF_NO_BNB), else null. */
+	private OptimalPotential bnbPotential(final int playerNum) {
+		if (PERF_NO_BNB || exactPot == null || game.lapGates == null || !suppressedMovesOn()
+				|| AI_DEBUG_FINISH_DENIAL)
+			return null;
+		boolean liveRival = false;
+		for (final Player p : game.players)
+			if (p.getNumber() != playerNum && !p.isFinished())
+				liveRival = true;
+		if (!liveRival)
+			return null;
+		if (game.aiGridLegal && !coursePocketless()) {
+			if (PERF_BNB_STATS)
+				bnbCount(BNB_OFF_GRID, 1L);
+			return null;
+		}
+		// The potential has states only on [0, gameCols] x [0, gameRows]. A lap corridor also
+		// closes through its rounded closure corners (RaceGame.extendClosure, lapClosedSide),
+		// which no grid check bounds: a drawn loop by the board's edge can hold landings off
+		// it, where P has no state and no edge and is no lower bound.
+		if (!corridorOnBoard()) {
+			if (PERF_BNB_STATS)
+				bnbCount(BNB_OFF_BOARD, 1L);
+			return null;
+		}
+		return exactPot;
+	}
+
+	/** perf_bnb: corridorOnBoard's verdict and the areas it was computed from. */
+	private java.awt.geom.Area bnbBoardTrack, bnbBoardZone;
+	private boolean bnbBoardKnown, bnbBoardOn;
+
+	/** perf_bnb: do the corridor and the start zone lie on the potential's board, so that every
+	 *  legal landing is one of its states? Computed once per pair of areas, like
+	 *  coursePocketless. */
+	private boolean corridorOnBoard() {
+		final java.awt.geom.Area track = game.trackA, zone = game.startZoneA;
+		if (!bnbBoardKnown || track != bnbBoardTrack || zone != bnbBoardZone) {
+			bnbBoardOn = track != null && areaOnBoard(track) && (zone == null || areaOnBoard(zone));
+			bnbBoardTrack = track;
+			bnbBoardZone = zone;
+			bnbBoardKnown = true;
+		}
+		return bnbBoardOn;
+	}
+
+	private boolean areaOnBoard(final java.awt.geom.Area area) {
+		final java.awt.geom.Rectangle2D b = area.getBounds2D();
+		return b.getMinX() > -1 && b.getMinY() > -1
+				&& b.getMaxX() < game.gameCols + 1 && b.getMaxY() < game.gameRows + 1;
+	}
+
+	/** perf_bnb: does the course have no pocket -- RaceGame.pocketBounds() null, so that
+	 *  touchesPocket is false for every move? The same test on the same areas: no start zone
+	 *  or corridor, or the start zone minus the corridor empty. Computed once per pair of
+	 *  areas (the geometry build assigns new ones; nothing changes one in place). */
+	private boolean coursePocketless() {
+		final java.awt.geom.Area zone = game.startZoneA, track = game.trackA;
+		if (!bnbPocketKnown || zone != bnbPocketZone || track != bnbPocketTrack) {
+			boolean empty = true;
+			if (zone != null && track != null) {
+				final java.awt.geom.Area pocket = new java.awt.geom.Area(zone);
+				pocket.subtract(track);
+				empty = pocket.isEmpty();
+			}
+			bnbPocketZone = zone;
+			bnbPocketTrack = track;
+			bnbPocketless = empty;
+			bnbPocketKnown = true;
+		}
+		return bnbPocketless;
+	}
+
+	/** perf_bnb: record the rollout's bound rf * S + base; true when it passes the cutoff and
+	 *  the rollout stops. Check mode never stops: it records where the pruned loop would. */
+	private static boolean bnbStop(final RolloutWorkspace w, final int rivalsFinished, final long base,
+			final long cut, final int moves, final int awareLeft) {
+		final long bound = rivalsFinished * PLACE_KEY_STRIDE + base;
+		if (bound > w.bnbBound)
+			w.bnbBound = bound;
+		if (bound <= cut)
+			return false;
+		if (w.bnbStopMoves < 0) {
+			w.bnbStopMoves = moves;
+			w.bnbStopAware = awareLeft;
+		}
+		return !PERF_CHECK;
+	}
+
+	/** perf_bnb: after a rollout that carried the bound -- the stats, and in check mode the
+	 *  bound's verification; returns the pruned loop's verdict (dead where the bound passed
+	 *  the cutoff, before the rollout or during it). */
+	private long bnbAfterRollout(final int playerNum, final Direction d, final long verdict,
+			final long cut, final int p0, final boolean skipped, final boolean top) {
+		final RolloutWorkspace w = rolloutsByDepth[simDepth + 1];
+		final boolean stopped = !skipped && w.bnbStopMoves >= 0;
+		if (PERF_BNB_STATS && stopped) {
+			bnbCount(BNB_STOPS, 1L);
+			bnbCount(BNB_MOVES_SAVED, AI1_CHOOSER_ROUNDS - 1 - w.bnbStopMoves);
+			if (top) {
+				bnbCount(BNB_TOP_STOPS, 1L);
+				bnbCount(BNB_TOP_AWARE_SAVED, w.bnbStopAware);
+			}
+		}
+		if (!PERF_CHECK)
+			return verdict;
+		final long bound = Math.max(p0 == Integer.MAX_VALUE ? -1L : p0, w.bnbBound);
+		if (verdict >= 0 && verdict < bound)
+			System.err.println("PERF-AWARE BNB MISMATCH bound p=" + playerNum + " depth=" + simDepth
+					+ " d=" + d + " verdict=" + verdict + " bound=" + bound + " cutoff="
+					+ (cut == Long.MAX_VALUE ? "none" : String.valueOf(cut)));
+		return skipped || stopped ? -1L : verdict;
+	}
+
+	/** perf_bnb stats: a landing of a call under the bound; whether an incumbent's verdict
+	 *  cut it off and whether it was cut before its rollout. */
+	private static void bnbLandingStats(final boolean top, final boolean eligible, final boolean cut0) {
+		bnbCount(BNB_LANDINGS, 1L);
+		if (eligible) {
+			bnbCount(BNB_ELIGIBLE, 1L);
+			if (top)
+				bnbCount(BNB_TOP_ELIGIBLE, 1L);
+		}
+		if (cut0) {
+			bnbCount(BNB_CUT0, 1L);
+			bnbCount(BNB_MOVES_SAVED, AI1_CHOOSER_ROUNDS - 1);
+			if (top) {
+				bnbCount(BNB_TOP_CUT0, 1L);
+				bnbCount(BNB_TOP_AWARE_SAVED, AI1_AWARE_SELF_MOVES);
+			}
+		}
+	}
+
+	private static void bnbCount(final int counter, final long amount) {
+		if (BNB_COUNTS != null)
+			BNB_COUNTS.addAndGet(counter, amount);
+	}
+
+	/** perf_bnb stats: the counters, and the shutdown hook that prints them. */
+	private static java.util.concurrent.atomic.AtomicLongArray bnbCounters() {
+		final java.util.concurrent.atomic.AtomicLongArray counts =
+				new java.util.concurrent.atomic.AtomicLongArray(BNB_STAT_NAMES.length);
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			final StringBuilder line = new StringBuilder("PERF-STATS BNB");
+			for (int k = 0; k < BNB_STAT_NAMES.length; k++)
+				line.append(' ').append(BNB_STAT_NAMES[k]).append('=').append(counts.get(k));
+			System.err.println(line);
+		}, "perf-stats-bnb"));
+		return counts;
+	}
 
 	/** Round 285 (lab port): one upgraded forecast move -- the car's full,
 	 *  unsuppressed policy, its own chooser included. The nested decision

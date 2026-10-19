@@ -21,6 +21,18 @@ final class RaceAiTactics {
      * Preserve the promoted two-move tactic in the champion's existing paths;
      * nested scorer boards do not project the clock for a new three-move proof. */
     static Direction winNow(final RaceGame game, final int playerNumber, final boolean realDecision) {
+        // perf duelproof (exact): the same tactic with each car state's moves asked of the
+        // referee once per call (RaceAiDuelSearch.winNowTabled);
+        // -Dai.perf.noDuelProof=true runs the original below.
+        if (!RaceAiDuelSearch.PERF_NO_DUEL_PROOF)
+            return RaceAiDuelSearch.winNowTabled(game, playerNumber, realDecision);
+        return winNowOriginal(game, playerNumber, realDecision);
+    }
+
+    /** The tactic before perf duelproof, verbatim: the kill switch's path, check mode's
+     *  reference, and the tabled path's answer where its codes cannot hold a transition. */
+    static Direction winNowOriginal(final RaceGame game, final int playerNumber,
+            final boolean realDecision) {
         final Direction immediate = immediateWin(game, playerNumber);
         if (immediate != null)
             return immediate;
@@ -47,7 +59,8 @@ final class RaceAiTactics {
         return RaceAiDuelSearch.winWithinTwoMoves(game, playerNumber);
     }
 
-    private static Direction immediateWin(final RaceGame game, final int playerNumber) {
+    // Package-private for perf duelproof's check mode (RaceAiDuelSearch.tabledImmediateWin).
+    static Direction immediateWin(final RaceGame game, final int playerNumber) {
         if (game.raceTurnLimitReached())
             return null;
         Player me = null, rival = null;
