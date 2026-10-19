@@ -4,6 +4,13 @@
 Defaults are a bounded regression screen, NOT the full promotion battery.
 Each grid and comparison uses the repository's existing provenance validation.
 Use --tracks ALL --seeds 1-10 for a full track/seed slice in every start mode.
+
+--props names the base profile (default tracks/lap_bench.properties); its keys,
+an arm's flags for instance, go into both cohorts' profiles, and nPlayers,
+aiStartPlacement and candidateSlots are set here. Profiles are written as
+canonical properties (racecraft_metrics.profile_text): the JVM reads the same
+map as from the old verbatim profiles, but an output folder started with the
+older tools refuses to resume -- use a fresh one.
 """
 from __future__ import annotations
 
@@ -15,6 +22,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tracks'))
+from racecraft_metrics import profile_text  # noqa: E402
 from fleet_grid import run_grid_process  # noqa: E402
 
 DEFAULT_TRACKS = ['hairpin', 'chicane', 'bigoval', 'circle', 'gear', 'monaco', 'silverstone', 'zigzag']
@@ -34,11 +42,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--jar', type=Path, default=ROOT/'theoreticRacing.jar')
+    parser.add_argument('--props', type=Path, default=ROOT/'tracks/lap_bench.properties',
+                        help='base profile; its keys go into both cohorts')
     parser.add_argument('--seeds', default='1-2')
     parser.add_argument('--jobs', type=int, default=1)
     # The Nordschleife's maps need 8 GiB; at 2 GiB a full slice never completed.
     parser.add_argument('--heap', default='-Xmx8g')
-    parser.add_argument('--players', nargs='+', type=int, choices=(2, 8), default=[2, 8])
+    parser.add_argument('--players', nargs='+', type=int, choices=(2, 4, 8), default=[2, 8])
     parser.add_argument('--modes', nargs='+', choices=('legacy', 'informed', 'scatter'),
                         default=['legacy', 'informed', 'scatter'])
     parser.add_argument('--tracks', nargs='+', default=DEFAULT_TRACKS)
@@ -50,10 +60,6 @@ def main(argv: list[str] | None = None) -> int:
         parser.error('Build the candidate JAR before running the screen')
     if 'ALL' in args.tracks and args.tracks != ['ALL']:
         parser.error('Use --tracks ALL by itself')
-    base = (ROOT/'tracks/lap_bench.properties').read_text(encoding='utf-8')
-    overrides = {'nPlayers', 'candidateSlots', 'aiStartPlacement'}
-    base = '\n'.join(line for line in base.splitlines()
-                     if line.partition('=')[0].strip() not in overrides)+'\n'
     out.mkdir(parents=True, exist_ok=True)
     try:
         for players in dict.fromkeys(args.players):
@@ -63,8 +69,8 @@ def main(argv: list[str] | None = None) -> int:
                     name = f'{players}p-{mode}-{label}'
                     props = out/f'{name}.properties'
                     slots = ','.join(map(str, range(parity, players+1, 2)))
-                    write_once(props, base+f'nPlayers={players}\naiStartPlacement={mode}\n'
-                               f'candidateSlots={slots}\n')
+                    write_once(props, profile_text(args.props, {'nPlayers': str(players),
+                               'aiStartPlacement': mode, 'candidateSlots': slots}))
                     grid = out/name
                     env = dict(os.environ, RACING_JAR=str(jar), RACING_PROPS=str(props),
                                RACING_HEAP=args.heap,

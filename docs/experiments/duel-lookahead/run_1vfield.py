@@ -15,8 +15,28 @@ raced, the control's places in one track-seed are a permutation of 1..n, so
 its mean is (n+1)/2 exactly: the pairing fixes the reading's zero, and the
 control otherwise contributes only the descriptive crash count.
 
+Below the reading the report describes the same seats (racecraft_metrics.py):
+place gains, losses and ties against the control's car in that seat, terminal
+fates, own finishing time where places are equal and both cars finished, and
+the reading without the candidate's strongest track and family, with the
+least and the most favourable leave-one-out. Description only.
+
+--props names the base profile (default tracks/lap_bench.properties). Its keys,
+an arm's flags for instance, go into every race profile; nPlayers,
+aiStartPlacement and candidateSlots are set here. Profiles are written as
+canonical properties (racecraft_metrics.profile_text): the JVM reads the same
+map as from the old verbatim profiles, but an output folder started with the
+older tools refuses to resume -- use a fresh one.
+
+--reverse races the opposite entry, run only by the owner's decision: ONE old
+champion car among n-1 candidates, rotated through every seat, each race
+paired with the all-candidate race of the same track, seed and seat. Negative
+then means the old champion gains places as a lone entrant in the new field.
+Its files carry a -reverse suffix.
+
     run_1vfield.py --jar ARM.jar --out DIR [--seeds 1-5] [--jobs 3]
                    [--heap=-Xmx8g] [--players 8] [--mode legacy] [--tracks ALL]
+                   [--props PROFILE] [--reverse]
 """
 from __future__ import annotations
 
@@ -33,6 +53,7 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tracks'))
+from racecraft_metrics import MatchedMetrics, profile_text, sensitivity  # noqa: E402
 from benchmark_io import read_race  # noqa: E402
 from fleet_grid import completed, json_text, run_grid_process, seed_range  # noqa: E402
 
@@ -69,7 +90,9 @@ def validated_grid(grid: Path, seeds: range) -> dict:
     return shared
 
 
-def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
+def report(control: Path, seats: dict[int, Path], seeds: range, reverse: bool = False) -> str:
+    """The paired reading; with ``reverse`` the entrant in each seat is the
+    old champion and the control is the all-candidate race."""
     # The pairing means something only between races of one build, runtime and
     # course set: every seat grid must match the control (review, 2026-09-28).
     common = validated_grid(control, seeds)
@@ -79,17 +102,27 @@ def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
     tracks = sorted(common['tracks'])
     units, per_track = [], collections.defaultdict(list)
     cand_places, cand_crash, champ_crash = [], 0, 0
+    matched = MatchedMetrics()
     for track in tracks:
         for seed in seeds:
             base = read_race(control / f'{track}_s{seed}.log')
-            if base.slots:
+            roster = set(base.players)
+            if not reverse and base.slots:
                 raise ValueError(f'control race has candidates: {track} s{seed}')
+            if reverse and base.slots != roster:
+                raise ValueError(f'reverse control race is not all candidates: {track} s{seed}')
+            # The control's mean place is (n+1)/2 only with every seat raced once.
+            if set(seats) != roster:
+                raise ValueError(f'entrant check requires every seat exactly once: {track} s{seed}')
             diffs = []
             for seat, grid in seats.items():
                 race = read_race(grid / f'{track}_s{seed}.log')
-                if race.slots != {seat}:
+                if race.players != base.players or race.profile != base.profile:
+                    raise ValueError(f'seat {seat} race roster or geometry differs from the control: {track} s{seed}')
+                if race.slots != (roster - {seat} if reverse else {seat}):
                     raise ValueError(f'seat {seat} race has candidates {sorted(race.slots)}: {track} s{seed}')
                 diffs.append(race.places[seat] - base.places[seat])
+                matched.add(race.places, base.places, race.moves, base.moves, race.outcomes, base.outcomes, seat)
                 cand_places.append(race.places[seat])
                 cand_crash += seat in race.crashed
                 champ_crash += seat in base.crashed
@@ -116,6 +149,20 @@ def report(control: Path, seats: dict[int, Path], seeds: range) -> str:
     lines += ['    %-14s %+.3f' % (t, d) for d, t in [r for r in rows if r[0] > 0][-8:]]
     lines.append('\n%d tracks favour the candidate, %d the champion, %d tied'
                  % (sum(d < 0 for d, _ in rows), sum(d > 0 for d, _ in rows), sum(d == 0 for d, _ in rows)))
+    entrant, resident = ('old champion entrant', 'candidate resident') if reverse else ('candidate', 'champion')
+    if reverse:
+        lines = [line.replace('lone candidate', 'old champion entrant')
+                 .replace('champion in the same seat', 'candidate resident in the same seat')
+                 .replace('candidate minus champion place', 'old champion minus candidate place')
+                 .replace('negative favours the candidate', 'negative means the old champion exploits the new field')
+                 .replace("one candidate car's shift", "one old champion entrant's shift")
+                 .replace('tracks favour the candidate', 'tracks favour the old champion entrant')
+                 .replace('the champion,', 'the candidate resident,')
+                 for line in lines]
+        lines.insert(0, 'REVERSE ENTRY: one old champion against n-1 candidates; all-candidate paired control.')
+    # Appended after the reading's own lines, already in the entrant's labels.
+    lines += matched.lines(entrant, resident)
+    lines += sensitivity(per_track, entrant)
     return '\n'.join(lines) + '\n'
 
 
@@ -123,6 +170,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--out', required=True, type=Path)
     parser.add_argument('--jar', required=True, type=Path)
+    parser.add_argument('--props', type=Path, default=ROOT / 'tracks/lap_bench.properties',
+                        help='base profile; its keys go into every race profile')
+    parser.add_argument('--reverse', action='store_true',
+                        help='one old champion among n-1 candidates, paired with the all-candidate race')
     parser.add_argument('--seeds', default='1-5')
     parser.add_argument('--jobs', type=int, default=1)
     parser.add_argument('--heap', default='-Xmx8g')
@@ -135,26 +186,29 @@ def main(argv: list[str] | None = None) -> int:
     jar, out = args.jar.resolve(), args.out.resolve()
     if not jar.is_file():
         parser.error('Build the candidate JAR first')
-    base = (ROOT / 'tracks/lap_bench.properties').read_text(encoding='utf-8')
-    overrides = {'nPlayers', 'candidateSlots', 'aiStartPlacement'}
-    base = '\n'.join(line for line in base.splitlines()
-                     if line.partition('=')[0].strip() not in overrides) + '\n'
-    base += f'nPlayers={args.players}\naiStartPlacement={args.mode}\n'
-    name = f'{args.players}p-{args.mode}'
+    if 'ALL' in args.tracks and args.tracks != ['ALL']:
+        parser.error('Use --tracks ALL by itself')
+    roster = set(range(1, args.players + 1))
+    name = f'{args.players}p-{args.mode}' + ('-reverse' if args.reverse else '')
+
+    def profile(slots):
+        return profile_text(args.props, {'nPlayers': str(args.players), 'aiStartPlacement': args.mode,
+                                         'candidateSlots': ','.join(map(str, sorted(slots)))})
     out.mkdir(parents=True, exist_ok=True)
     try:
         props = out / f'{name}-control.properties'
-        write_once(props, base)
+        # An empty candidateSlots races exactly as an absent one (RaceGame).
+        write_once(props, profile(roster if args.reverse else set()))
         control = out / f'{name}-control'
         run_grid(args, jar, props, control)
         seats = {}
         for seat in range(1, args.players + 1):
             props = out / f'{name}-seat{seat}.properties'
-            write_once(props, base + f'candidateSlots={seat}\n')
+            write_once(props, profile(roster - {seat} if args.reverse else {seat}))
             seats[seat] = out / f'{name}-seat{seat}'
             run_grid(args, jar, props, seats[seat])
         lo, hi = seed_range(args.seeds)
-        text = report(control, seats, range(lo, hi + 1))
+        text = report(control, seats, range(lo, hi + 1), args.reverse)
         (out / f'{name}-1vfield.txt').write_text(text, encoding='utf-8')
         print(text, end='', flush=True)
     except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as error:

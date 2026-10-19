@@ -7,6 +7,13 @@ Every grid must have a schema-2 fleet manifest and validated completion markers.
 Assignments must be complementary, configurations/builds identical apart from
 candidateSlots, and every expected log present. Old unmanifested logs cannot
 serve as promotion evidence; rerun them in fresh fleet output directories.
+
+Below the per-car line it describes the same races (racecraft_metrics.py):
+each seat's place with the candidate against the same seat with the champion
+in the mirrored race, both cohorts' terminal fates, own finishing time where
+places are equal and both cars finished, and the reading without the
+candidate's strongest track and family, with the least and the most
+favourable leave-one-out. Description only; the reading stays the statistic.
 """
 from __future__ import annotations
 
@@ -22,9 +29,11 @@ import statistics
 import sys
 
 if __package__:
+    from .racecraft_metrics import MatchedMetrics, sensitivity
     from .benchmark_io import read_race
     from .fleet_grid import completed, directory_lock, json_text, seed_range
 else:
+    from racecraft_metrics import MatchedMetrics, sensitivity
     from benchmark_io import read_race
     from fleet_grid import completed, directory_lock, json_text, seed_range
 
@@ -120,7 +129,7 @@ def paired_races(directories):
                 if (a.slots & b.slots or a.slots | b.slots != roster
                         or len(a.slots) != len(b.slots)):
                     raise ValueError('candidate assignments must be complementary balanced cohorts')
-                races[identity] = [(r.places, r.slots, r.crashed) for r in (a, b)]
+                races[identity] = [(r.places, r.slots, r.crashed, r.moves, r.outcomes) for r in (a, b)]
     if not races:
         raise ValueError('no complete mixed-field pairs')
     return races
@@ -139,9 +148,11 @@ def main(argv=None) -> int:
     cand_wins = champ_wins = cand_crash = champ_crash = 0
     per_track = collections.defaultdict(lambda: [[], []])
     paired = []
+    matched = MatchedMetrics()
+    track_units = collections.defaultdict(list)
     for (track, seed), runs in sorted(races.items()):
         diff = []
-        for places, slots, crashed in runs:
+        for places, slots, crashed, moves, outcomes in runs:
             c = [p for n, p in places.items() if n in slots]
             h = [p for n, p in places.items() if n not in slots]
             cand += c
@@ -155,6 +166,15 @@ def main(argv=None) -> int:
             diff.append(statistics.mean(c) - statistics.mean(h))
         if len(runs) >= 2:
             paired.append(statistics.mean(diff))
+            track_units[track].append(statistics.mean(diff))
+            # Each seat once: its car in the run where it is a candidate against
+            # the same seat in the mirrored run, where it is a champion.
+            left, right = runs[:2]
+            for number in left[0]:
+                candidate = left if number in left[1] else right
+                champion = right if number in left[1] else left
+                matched.add(candidate[0], champion[0], candidate[3], champion[3],
+                            candidate[4], champion[4], number)
     n = len(cand)
     tie = (len(next(iter(races.values()))[0][0]) + 1) / 2
     print("%d candidate car-races, %d champion car-races over %d races" % (n, len(champ), sum(len(r) for r in races.values())))
@@ -172,6 +192,8 @@ def main(argv=None) -> int:
         # -- the unit run_1vfield reports (review, 2026-09-27).
         print("per candidate car %+.3f places (standard error %.3f), the unit of the lone-candidate check"
               % (m / 2, se / 2))
+    for line in matched.lines() + sensitivity(track_units):
+        print(line)
     rows = sorted(((statistics.mean(c) - statistics.mean(h), t, len(c)) for t, (c, h) in per_track.items() if c and h))
     # Split by sign: under 16 courses the two lists used to share tracks.
     print("\ntracks where the candidate gains most (mean place difference, candidate car-races):")
