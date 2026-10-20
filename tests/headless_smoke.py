@@ -132,12 +132,12 @@ def main() -> int:
         if result.returncode != 0:
             raise SystemExit(f"headless race failed ({result.returncode})\n{result.stdout}\n{result.stderr}")
         log = (work / "race.log").read_text(encoding="utf-8")
-        # Round 310: re-frozen from measurement (the danger-joint-search family
-        # deleted); H (p8) now crashes on its 13th move (turn 104, (46,12)->(51,12)),
-        # so six cars finish where seven finished crash-free before, and G (p7) is
-        # the car still running at the end -- recorded, not vetoed (AGENTS.md).
+        # Round 316: re-frozen from measurement (the chooser ranks its forecasts by
+        # projected place, then time); seven cars finish crash-free again -- H (p8),
+        # which round 310 crashed on its 13th move (turn 104, (46,12)->(51,12)),
+        # finishes sixth -- and D (p4) is the car still running at the end.
         crashed = [line.split()[1] for line in log.splitlines() if " CRASH " in line]
-        if "# results" not in log or log.count(" FINISH ") != 6 or crashed != ["p8"]:
+        if "# results" not in log or log.count(" FINISH ") != 7 or crashed != []:
             raise SystemExit("headless race did not produce the expected complete chicane result")
 
         invalid_props = work / "human.properties"

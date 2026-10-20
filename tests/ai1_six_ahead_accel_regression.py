@@ -20,7 +20,8 @@ PROMOTED = {
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-    86: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
+    86: (7, 0, [58, 59, 59, 59, 60, 60, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in LABELS}

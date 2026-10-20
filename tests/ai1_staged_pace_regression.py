@@ -64,7 +64,10 @@ EXACT_MOVES = {
     # the same seven finishers in a new order (p4 now wins on its 82nd move), one move fewer.
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win);
     # the same seven finishers in a new order (p1 now wins on its 82nd move), one move more.
-    ("silverstone", 15): [82, 83, 83, 84, 84, 85, 85],
+    # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time);
+    # the same seven finishers in a new order (p2 now wins on its 83rd move; p1, the winner before on its
+    # 82nd, finishes seventh on its 86th), four moves more; p8 is still the car running at the end.
+    ("silverstone", 15): [83, 83, 84, 84, 85, 85, 86],
 }
 
 
@@ -143,7 +146,14 @@ def main() -> int:
             # (102,159) in the first corner; p4, seventh home on its 128th before, is the car still
             # running at the end, after 126 moves), and Hungaroring 4 still drops one, now p2 on its
             # 44th move -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("hungaroring", 25): (6, 1)}
+            # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place,
+            # then time); Hungaroring 4, a car short since round 301a', keeps every car (p2, lost on its
+            # 44th move in round 310, is still running after 128 moves when p1 finishes seventh on its
+            # 129th), so it leaves this list and takes the (7, 0) default, and Hungaroring 25 still drops
+            # one, now p4 on its 6th move (at turn 44, (95,147)->(97,149), on the run to the first
+            # corner; p6, lost on its 10th move in round 310, is the car still running at the end, after
+            # 126 moves, and the six finishers finish as before) -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 25): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

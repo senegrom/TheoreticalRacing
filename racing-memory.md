@@ -1,5 +1,75 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 316 promoted (2026-10-20): the chooser ranks its forecasts by projected place
+
+At its own top-level chooser decision, every car now ranks each landing's forecast by PROJECTED PLACE: first the
+rivals that finished ahead of it in the forecast (as before), then the rivals projected to finish ahead of it -- each
+live rival's finishing round projected from its exact remaining distance after its last forecast move, the mover's
+from its own -- and only then its own time. Until now an unresolved forecast end ignored the rivals still racing, so
+in mid-race the chooser ranked by the mover's own projected time alone. A rival whose forecast move crashes keeps its
+last projection (round 309's rule: a model's crash is no win), a rival never projected counts behind, and a race that
+a crashed rival's projection keeps open is not over. Round 314's two-car tie re-roll ranks on the same key. Nested
+choosers (aware upgraded moves, true confirms) and lap races over the exact potential's budget (the Nordschleife)
+keep the round-270/274 key. Code: RaceAi.ppPlaceKey and the ppDepth state; -Dai.debug.pp=true prints both keys of
+every landing a top-level call rolls out.
+
+Where it came from: PR #24's projected-place (RacecraftReview.projectedAhead), re-implemented on today's chooser with
+three corrections -- a rival actually finishing ahead always outranks any projection (the rank-first rule, literally:
+key (finished * n + projected) * S + time), a forecast crash buys no place, and no per-landing abstention when some
+car is map-dead. Round 259's place ranker, the cruder ancestor, washed against the round-257 chooser (-0.019 +- 0.035).
+
+The arm (E:/tmp-claude/on314/arm316_projplace_on314.py; PP_DUEL=0 'all', jar b316pp0; PP_DUEL=1 'duel', b316pp1)
+against the round-314 champion, mirrored unless stated:
+
+| Slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| duels, random 1-20 | -0.079 +- 0.007 | 20/1/63 | 253:242 |
+| duels, held-out 21-40 | -0.079 +- 0.007 | 22/2/60 | 247:252 |
+| duels, computed 1-20 | -0.068 +- 0.006 | 10/1/73 | 212:204 |
+| 4 cars, random 1-20 (round-310 base) | -0.079 +- 0.010 | 42/22/20 | 32:6 |
+| 8 cars, random 1-10 (round-310 base) | -0.059 +- 0.022 | 47/28/9 | 90:94 |
+| 8 cars, held-out 11-20 | -0.010 +- 0.021 | 41/36/7 | 107:91 |
+| 8 cars, computed 1-10 | -0.070 +- 0.020 | 47/27/10 | 82:87 |
+| 8 cars, scattered 1-10 | -0.014 +- 0.003 | 26/5/53 | 9:13 |
+| lone check (8 cars, random 1-5, every seat) | -0.047 +- 0.019 (4.453 against 4.500) | 49/28/7 | 40:44 |
+
+- The duel rows are the 'duel' variant, which races exactly as 'all' in duels (identical race digests); 'duel' changed
+  no 4-car race (+0.000, 84/84 tied). 'all' is promoted (the owner, 2026-10-20).
+- The round-310-base rows are the arm on round 310: round 314 changed no 4- or 8-car race measured.
+- In 4-car fields the candidate crashes more (32 against 6); the place reading prices it, and it gains.
+- CPU 1.08x in duels, 1.10x in 8-car fields (six races, every slot a candidate).
+
+The promotion (E:/tmp-claude/p316/promote316.py PROMO316=all; jar p316all a2a15535, code-identical to 132eb99a, which
+the box raced) is the arm token for token with three changes: no candidate() in the gate, no PP_DUEL constant, and the
+promotion's comments (E:/tmp-claude/p316/check_tokens.py). It races as the arm with every slot a candidate: seven
+random-start and three computed-start 8-car races and eight duels (PROMO316 identity).
+
+Corpus on the box -- the widest move since round 260:
+- Goldens: 11 of 12 re-frozen (all but the 2-car Hairpin s1, which still runs 33 turns for the browser golden).
+- Pins: 18 of 25 moved; 7 re-frozen by the loop, 11 by hand from the probe records (four editors, four independent
+  reviewers, one comment corrected).
+- Crashes in the pins: seven go and three come. Cars return in six-ahead Spa s83 (p2, lost on its 27th move since
+  round 310), bounded-field Le Mans s93 (both cars round 310 lost), funnel s36 (p8), mixed-safety Le Mans s7 (p1),
+  staged Hungaroring s4 (p2) and private-slack Zandvoort s34 (p6). New crashes in six-ahead Spa s27 (p1, 31st move)
+  and Spa s47 (p3, 26th) and in private-slack Hungaroring s12 (p2, 45th, closed in by the pack); staged Hungaroring
+  s25's crash moves from p6 to p4. Recorded, not vetoed.
+- Pinned decisions re-anchored at the same turn and car: six-ahead Spa s83 turn 201 (round 278's line again),
+  finish-frontier Coil s6 and s47, finish-denial Hairpin s68 move 104 (p8 now steers S there, where the denial
+  switch cannot fire).
+- Label invariance holds: the all-AI1, alternating and all-AI2 Coil s5 fields race identically.
+- Several field sums rose a few moves (cross-model Silverstone s1 582 -> 588): description, never a veto.
+- The headless smoke race on Chicane s1 now has seven finishers and no crash (H, which round 310 crashed, finishes
+  sixth; D is the car still running).
+- Query replay and lap progress pass, the browser parity duel keeps its digest ec48301e, and the Python unit tests,
+  the Java suite and the local browser build pass.
+
+The other PR #24 arms on this champion: 317 duel-anytime and 319 duel-cache are inert (+0.000 in 1680 duels each,
+never a race changed); 321 selective -0.001 +- 0.002 in duels (2/2/80) -- a wash; their 4- and 8-car screens on the
+round-310 base are queued. The new peer branch's arms, against the round-314 champion: 323 response-cycle is inert in
+duels (+0.000, 84/84 tied) and a wash in 4-car fields (-0.000 +- 0.001, 2/1/81); 324, round 314's tie-break with the
+peer's pace rule, loses in duels (+0.007 +- 0.002, 0/3/81) and is dropped; 325 contingent costs 3.1x CPU in duels and
+6.2x in 8-car fields, and its screens are running.
+
 ## Round 314 promoted (2026-10-19): exact chooser ties broken by a depth-1 re-roll in duels
 
 At a top-level decision with exactly two live cars, when the champion's forecast (five own continuation moves by the

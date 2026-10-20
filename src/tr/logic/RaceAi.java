@@ -191,6 +191,8 @@ final class RaceAi {
 		final int[] vy;
 		final boolean[] alive;
 		final boolean[] scorerSet;
+		/** Round 316: each car's projected finishing round in a projected-place forecast. */
+		final int[] ppArrival;
 		final int[] move = new int[4];
 		final ScorerWorkspace scorer;
 		/** perf_bnb: written by a chooser's own rollout under a bound (simOutcomeCore), read
@@ -211,6 +213,7 @@ final class RaceAi {
 			vy = new int[players];
 			alive = new boolean[players];
 			scorerSet = new boolean[players];
+			ppArrival = new int[players];
 			scorer = new ScorerWorkspace(players);
 		}
 	}
@@ -3564,6 +3567,47 @@ final class RaceAi {
 	 *  serve their stored moves but store none (nor refresh old entries), so both are left
 	 *  exactly as the chooser's own rollouts left them. */
 	private boolean movesMemoFrozen;
+	/** Round 316: the forecast depth whose rollout ranks by projected place (-1: none); a
+	 *  top-level chooser call sets it per landing beside placeKeyDepth and puts it back, and so
+	 *  does round 314's tie re-roll of that call (tieRerollVerdict). */
+	private int ppDepth = -1;
+	/** Round 316: -Dai.debug.pp=true prints both keys of every landing a top-level
+	 *  projected-place chooser rolls out; moves are unchanged. */
+	private static final boolean PP_DEBUG = Boolean.getBoolean("ai.debug.pp");
+	/** Round 316: an arrival never projected, and a rival that finished (counted in rivalsFinished). */
+	private static final int PP_UNDEF = Integer.MAX_VALUE, PP_DONE = Integer.MIN_VALUE;
+	/** Round 316: the round-270/274 key of the last projected-place forecast (debug only). */
+	private long ppControlKey = -1;
+
+	/** Round 316: the rank-first place key with projected place. Rivals FINISHED ahead
+	 *  dominate, n strides each, so fewer of them always ranks better; then one stride for every
+	 *  rival projected to finish before the mover -- arrival[i] is the round of its projected
+	 *  finishing move, from its exact distance after its last forecast move, ties to the earlier
+	 *  slot. A rival whose forecast crashed keeps its last projection (a model's crash is no win);
+	 *  one never projected counts behind; when the mover has finished (myDone), a rival still
+	 *  racing is behind. myRound is the mover's finishing round, projected when !myDone. */
+	private static long ppPlaceKey(final int myIdx, final int finishedAhead, final boolean myDone,
+			final long myRound, final long time, final boolean[] alive, final int[] arrival) {
+		final int n = arrival.length;
+		int ahead = 0;
+		for (int i = 0; i < n; i++) {
+			final int a = arrival[i];
+			if (i == myIdx || a == PP_UNDEF || a == PP_DONE || myDone && alive[i])
+				continue;
+			if (a < myRound || a == myRound && i < myIdx)
+				ahead++;
+		}
+		return ((long) finishedAhead * n + ahead) * PLACE_KEY_STRIDE + time;
+	}
+
+	/** Round 316: does a rival whose forecast crashed still hold a projection -- presumed racing, so
+	 *  a classification that rival's crash made possible is no finish? Asked with no rival live. */
+	private static boolean ppRacing(final int myIdx, final int[] arrival) {
+		for (int i = 0; i < arrival.length; i++)
+			if (i != myIdx && arrival[i] != PP_UNDEF && arrival[i] != PP_DONE)
+				return true;
+		return false;
+	}
 	/** perf_aware (exact): the moves of suppressed decisions met in this top-level decision
 	 *  (or standalone rollout), and whether a top-level decision owns that memo now. */
 	private final RaceAiMoveMemo suppressedMoves = new RaceAiMoveMemo();
@@ -3698,6 +3742,20 @@ final class RaceAi {
 		py[myIdx] = myY;
 		vx[myIdx] = myVx;
 		vy[myIdx] = myVy;
+		// Round 316: in a projected-place forecast, each live rival's projected finishing
+		// round, from its exact distance in its own frame.
+		final boolean pp = simDepth == ppDepth;
+		final int[] arrival = workspace.ppArrival;
+		int ppMyRound = 0;
+		if (pp)
+			for (int i = 0; i < game.players.length; i++) {
+				arrival[i] = PP_UNDEF;
+				if (i == myIdx || !alive[i])
+					continue;
+				final int t = ttfFor(i, px[i], py[i], vx[i], vy[i]);
+				if (t != Integer.MAX_VALUE)
+					arrival[i] = i > game.subgamestate ? t - 1 : t;
+			}
 		// perf_bnb: the base at the landing, in the frame after the candidate's move: no move
 		// made, P0 to go. A landing the potential cannot price gets no bound.
 		if (boundPot != null) {
@@ -3858,10 +3916,16 @@ final class RaceAi {
 						if (outFieldCost == null) {
 							if (simDepth == placeKeyDepth)
 								placeKey = rivalsFinished * PLACE_KEY_STRIDE + round;
+							if (pp && simDepth == placeKeyDepth) { // round 316: projected place
+								ppControlKey = placeKey;
+								placeKey = ppPlaceKey(myIdx, rivalsFinished, true, round, round, alive, arrival);
+							}
 							return rankVerdict(rivalsFinished, 0);
 						}
 						myFinished = true;
 					} else {
+						if (pp)
+							arrival[i] = PP_DONE; // round 316: finished, not projected
 						rivalsFinished++;
 					}
 					if (liveCount <= terminalLiveCount) {
@@ -3895,6 +3959,15 @@ final class RaceAi {
 				workspace.laps[i] = transition.lapAfter();
 				workspace.gates[i] = game.lapGates == null ? 0 : transition.gateAfter();
 				updateRolloutFrame(workspace, i);
+				if (pp) { // round 316: the rival's projected finishing round; the mover's last move
+					if (i == myIdx)
+						ppMyRound = round;
+					else {
+						final int t = ttfFor(i, move[0], move[1], move[2], move[3]);
+						if (t != Integer.MAX_VALUE)
+							arrival[i] = round + t;
+					}
+				}
 				px[i] = move[0];
 				py[i] = move[1];
 				vx[i] = move[2];
@@ -3950,6 +4023,25 @@ final class RaceAi {
 			placeKey = myFinished
 					? aheadAtMyFinish * PLACE_KEY_STRIDE + myFinishRound
 					: rivalsFinished * PLACE_KEY_STRIDE + (rounds - 1) + Math.min(myTime, PLACE_KEY_STRIDE / 2);
+		// Round 316: projected place; the round-270/274 key is kept for PP_DEBUG. At the
+		// horizon the mover's round is (rounds - 1) + myTime. A classification (a rival's finish
+		// left only the mover) is its finish unless a rival whose forecast crashed is presumed
+		// racing: then the race is not over and it ranks as at a horizon from the mover's state.
+		if (pp && simDepth == placeKeyDepth) {
+			ppControlKey = placeKey;
+			if (!myFinished)
+				placeKey = ppPlaceKey(myIdx, rivalsFinished, false,
+						myTime == Integer.MAX_VALUE ? Long.MAX_VALUE : rounds - 1L + myTime,
+						rounds - 1L + Math.min(myTime, PLACE_KEY_STRIDE / 2), alive, arrival);
+			else if (!ppRacing(myIdx, arrival))
+				placeKey = ppPlaceKey(myIdx, aheadAtMyFinish, true, myFinishRound, myFinishRound, alive, arrival);
+			else {
+				final int t = ttfFor(myIdx, px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
+				placeKey = ppPlaceKey(myIdx, aheadAtMyFinish, false,
+						t == Integer.MAX_VALUE ? Long.MAX_VALUE : (long) ppMyRound + t,
+						ppMyRound + Math.min(t, PLACE_KEY_STRIDE / 2), alive, arrival);
+			}
+		}
 		return rankVerdict(myFinished ? aheadAtMyFinish : rivalsFinished, myTime);
 	}
 
@@ -4508,7 +4600,13 @@ final class RaceAi {
 	 *  Round 314: at a top-level decision with exactly two live cars, the landings
 	 *  that share the best live verdict exactly are forecast again with
 	 *  AI1_TIE_SELF_MOVES own moves by the full policy (tieRerollVerdict); the best
-	 *  verdict wins, and a further tie goes to the earliest in score order. */
+	 *  verdict wins, and a further tie goes to the earliest in score order.
+	 *  Round 316: a top-level call with any number of live cars ranks its forecasts by
+	 *  projected place (ppPlaceKey) where a whole-race distance exists: rivals
+	 *  finished ahead, then rivals projected to finish ahead, then time -- round
+	 *  259's place ranker, which washed against that chooser, rebuilt on the
+	 *  rank-first key with round 309's rule (a forecast crash is no win); round
+	 *  314's re-roll of such a call ranks on the same key. */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore,
 			final Direction pace) {
@@ -4540,6 +4638,20 @@ final class RaceAi {
 		// perf_aware: the relevant-rival fronts serve this call's landings only.
 		if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0)
 			trafficFronts.clear();
+		// Round 316 (PR #24's projected place): this top-level call ranks its landings by projected
+		// place with any number of live cars where a whole-race distance exists -- rivals finished
+		// ahead first, then rivals projected to finish ahead, then the mover's time -- decided once, so
+		// every landing is on one scale. Nested choosers (aware upgraded moves, true confirms: the
+		// mover's own continuation and every model of a car) keep the round-270/274 key, and a lap race
+		// over the exact potential's budget (the Nordschleife) keeps it too. Against the round-314
+		// champion: duels -0.079 +- 0.007 places on random starts, -0.079 +- 0.007 held-out, -0.068 +-
+		// 0.006 computed (the two-car variant, which races as this in duels); eight-car fields -0.010
+		// +- 0.021 held-out, -0.070 +- 0.020 computed, -0.014 +- 0.003 scattered; -0.047 +- 0.019 (49
+		// tracks for it, 28 against) as a lone entrant. Against the round-310 champion (round 314
+		// changed no four- or eight-car race measured): -0.079 +- 0.010 in four-car fields, -0.059 +-
+		// 0.022 in eight-car fields on random starts.
+		final boolean ppOn = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0
+				&& (exactPot != null || game.lapGates == null);
 		Direction pick = null;
 		long pickVerdict = -1;
 		long paceVerdict = Long.MIN_VALUE;
@@ -4598,6 +4710,10 @@ final class RaceAi {
 			final int outerKeyDepth = placeKeyDepth;
 			placeKeyDepth = simDepth + 1;
 			placeKey = -1;
+			final int outerPpDepth = ppDepth; // round 316
+			ppDepth = ppOn ? simDepth + 1 : -1;
+			if (ppOn)
+				ppControlKey = -1; // debug only: a rollout that writes no key leaves none behind
 			// Round 303 (the chooser lab's aware, promoted): in a top-level chooser's forecast
 			// the mover's own first continuation and the most-interacting rival's first move
 			// play their full policy (-0.150 places on held-out seeds, -0.142 as a lone
@@ -4631,6 +4747,7 @@ final class RaceAi {
 			}
 			final long key = placeKey;
 			placeKeyDepth = outerKeyDepth;
+			ppDepth = outerPpDepth; // round 316
 			awareDepth = outerAwareDepth;
 			awareRival = outerAwareRival;
 			final long verdict = outcome >= 0 && key >= 0 ? key : outcome;
@@ -4644,6 +4761,9 @@ final class RaceAi {
 					: verdict;
 			if (d == pace)
 				paceVerdict = verdict;
+			if (PP_DEBUG && ppOn && simDepth == 0 && !inScorerSim && trueConfirmDepth == 0)
+				System.err.println("AIDBG PP p=" + playerNum + " turn=" + game.turnCount() + " d=" + d
+						+ " pp=" + verdict + " ctrl=" + (outcome >= 0 && ppControlKey >= 0 ? ppControlKey : outcome));
 			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
 				pick = d;
 				pickVerdict = verdict;
@@ -4691,7 +4811,11 @@ final class RaceAi {
 					if (verdictByCand[k] != pickVerdict)
 						continue;
 					final Direction d = cands[k];
-					final long verdict = tieRerollVerdict(pos, vel, playerNum, d, rivalByCand[k]);
+					// Round 316: under ppOn the landings tied on projected place; the re-roll ranks on it.
+					final long verdict = tieRerollVerdict(pos, vel, playerNum, d, rivalByCand[k], ppOn);
+					if (PP_DEBUG && ppOn)
+						System.err.println("AIDBG PP TIE p=" + playerNum + " turn=" + game.turnCount() + " d=" + d
+								+ " pp=" + verdict + " ctrl=" + (verdict >= 0 && ppControlKey >= 0 ? ppControlKey : verdict));
 					if (tiePick == null || verdict >= 0 && (tiePickVerdict < 0 || verdict < tiePickVerdict)) {
 						tiePick = d;
 						tiePickVerdict = verdict;
@@ -4717,17 +4841,24 @@ final class RaceAi {
 	 *  (awareSelfMoves is read only by this depth's own rollout), so the memos stay exact and
 	 *  later decisions meet them as the chooser's own rollouts left them. The caller puts
 	 *  placeKey back. The forecast runs in full: it carries no branch-and-bound cutoff
-	 *  (perf_bnb). */
+	 *  (perf_bnb). Round 316: ppOn is the calling chooser's gate. When it holds, the loop
+	 *  ranked and tied its landings by projected place, and so does this forecast
+	 *  (ppDepth, set beside placeKeyDepth and put back); a call without it sets -1, which
+	 *  ppDepth already is at a top-level decision. */
 	private long tieRerollVerdict(final int[] pos, final int[] vel, final int playerNum,
-			final Direction d, final int rival) {
+			final Direction d, final int rival, final boolean ppOn) {
 		final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 		final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 		final int outerKeyDepth = placeKeyDepth;
+		final int outerPpDepth = ppDepth; // round 316
 		final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
 		final int outerSelfMoves = awareSelfMoves;
 		final boolean outerFrozen = movesMemoFrozen;
 		placeKeyDepth = simDepth + 1;
 		placeKey = -1;
+		ppDepth = ppOn ? simDepth + 1 : -1; // round 316: the key the loop tied these landings on
+		if (ppOn)
+			ppControlKey = -1; // debug only: a rollout that writes no key leaves none behind
 		awareDepth = simDepth + 1;
 		awareRival = rival;
 		awareSelfMoves = AI1_TIE_SELF_MOVES;
@@ -4748,6 +4879,7 @@ final class RaceAi {
 			awareSelfMoves = outerSelfMoves;
 			awareRival = outerAwareRival;
 			awareDepth = outerAwareDepth;
+			ppDepth = outerPpDepth; // round 316
 			placeKeyDepth = outerKeyDepth;
 		}
 		final long key = placeKey;
@@ -4791,7 +4923,12 @@ final class RaceAi {
 	 *  landing is rolled in full: every bound is checked against the verdict it bounds and
 	 *  the pruned loop's pick against the real one (PERF-AWARE BNB MISMATCH). Round 314's
 	 *  tie re-roll reads the tied landings' full verdicts (a skipped landing is recorded
-	 *  dead) and runs its own forecasts without a bound. */
+	 *  dead) and runs its own forecasts without a bound. Round 316: a projected-place
+	 *  verdict is at least the round-270/274 key of the same rollout, path by path (n >= 1
+	 *  strides per finished rival, the same time part; a classification a crashed rival's
+	 *  projection reopens needs a rival's finish and n >= 2), so the bound still bounds
+	 *  it from below and the strict cutoffs keep every tie; the cutoff, a projected-place
+	 *  verdict, only prunes less. */
 	private static final boolean PERF_NO_BNB = Boolean.getBoolean("ai.perf.noBnb");
 	private static final boolean PERF_BNB_STATS = Boolean.getBoolean("ai.perf.bnbStats");
 	private static final String[] BNB_STAT_NAMES = {"calls", "off", "offGrid", "landings", "eligible",

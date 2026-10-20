@@ -22,7 +22,8 @@ EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
-    ("zigzag", 1): [65, 65, 65, 66, 66, 66, 66],
+    # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
+    ("zigzag", 1): [65, 65, 66, 66, 66, 67, 67],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
@@ -30,7 +31,7 @@ EXPECTED = {
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
-    ("cog", 1): [46, 46, 47, 47, 47, 47, 48],
+    ("cog", 1): [46, 46, 46, 47, 47, 47, 48],
 }
 
 
