@@ -1,5 +1,74 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 326 promoted (2026-10-20): nested choosers rank by projected place too
+
+Round 316 ranked a car's own top-level chooser call by projected place and kept the round-270/274 key in every
+nested chooser -- the full-policy decisions inside the top-level forecast: aware's upgraded moves (the mover's first
+five continuation moves and the relevant rival's first move, rounds 303/305) and the true confirms. Those nested
+decisions model how a car really decides, and since round 316 every car really decides by projected place, so the
+model was one key behind the policy it models. Rounds 303-305 found the forecast's value lies in exactly those nested
+choosers ("aware, keep-score": +0.026 when the upgraded move's chooser keeps the score's landing). Now every chooser
+call ranks by projected place, nested ones too; their own forecasts still run without aware's upgraded moves and
+round 314's tie re-roll, which stay top-level. Round 316's "nested choosers keep the round-270/274 key" no longer
+holds. Code: jointChooser's ppOn is the whole-race-distance test alone (exactPot != null || game.lapGates == null).
+
+The arm (E:/tmp-claude/arm326_nestedpp.py, jar b326npp: while a candidate decided, every chooser call beneath its
+decision ranked by projected place, and the upgraded memo was off for its decisions) against the round-316 champion,
+mirrored:
+
+| Slice | Place C-H | Tracks C/H/tied | Crashes C:H |
+|---|---|---|---|
+| duels, random 1-20 | -0.051 +- 0.008 | 17/5/62 | 222:290 |
+| duels, held-out 21-40 | -0.049 +- 0.008 | 15/3/66 | 231:296 |
+| duels, computed 1-20 | -0.043 +- 0.007 | 11/2/71 | 178:247 |
+| 4 cars, random 1-20 | -0.047 +- 0.010 | 50/18/16 | 17:10 |
+| 8 cars, random 1-10 | -0.105 +- 0.024 | 52/24/8 | 102:93 |
+| 8 cars, held-out 11-20 | -0.113 +- 0.023 | 56/24/4 | 90:102 |
+| 8 cars, computed 1-10 | -0.104 +- 0.022 | 50/30/4 | 88:76 |
+| 8 cars, scattered 1-10 | -0.013 +- 0.003 | 27/5/52 | 11:11 |
+| lone check (8 cars, random 1-5, every seat) | -0.076 +- 0.019 (4.424 against 4.500) | 54/25/5 | 41:39 |
+
+- Every slice gains, the largest in 8-car fields (a tenth of a place per car); duels gain about a twentieth and the
+  candidate crashes a quarter less there.
+- CPU of the promoted jar against round 316: 1.03x in duels, 1.08x in 8-car fields (six races). The arm read 1.10x
+  and 1.20x because its candidate decisions forwent the upgraded memo.
+- Promoted on the owner's go (2026-10-20).
+
+The promotion (E:/tmp-claude/p326/promote326.py; jar p326) writes the arm's every-slot-a-candidate behaviour directly:
+ppOn is the distance test at every call and the arm's decider bookkeeping is gone. The upgraded memo stays on: once
+every car's nested choosers rank alike, an upgraded move is again a function of the memo's key, whoever decides at the
+top. The promoted jar (memo on) races as the arm with every slot a candidate (memo off): seven random-start and three
+computed-start 8-car races and eight duels (PROMO326 identity), and check mode prints no PERF-AWARE line. Outside races,
+MoveQueries' true-world simulation queries now rank their true rivals' nested choosers by projected place as well (the
+arm left them on the old key, having no decider there); the lap-progress regression, which checks that every TRUE choice
+in such a query equals a fresh policy query, passes. Reviewed twice before the box: the arm (fidelity and exactness, no
+defects) and the promotion (equivalence and memo exactness correct; two comments corrected).
+
+Corpus on the box: 10 of 12 goldens re-frozen (Hairpin s1 with 2 cars, still 33 turns for the browser golden, and
+Monaco s9 with 4 cars unchanged); 15 of 25 pins moved, 6 re-frozen by the loop and 9 by hand from the probe records
+(four editors, four independent reviewers, one comment corrected); the headless smoke race on Chicane s1 did not move.
+- Crashes in the pins, recorded, not vetoed: new crashes in six-ahead Spa s12 (p5, 29th move) and Silverstone s78 (p5,
+  75th), bounded-field Le Mans s93 (p8, 12th, the cell round 310 lost it on) and s14 (p3, 57th), field-neutral Cog s1
+  (p8, closed out by p2), private-slack Le Mans s2 (p7, 54th), Hungaroring s40 (p3, 45th, the same corner and move as
+  s12's p2 since round 316) and Zandvoort s34 (p6, 19th); cars return in six-ahead Spa s47 (p3) and thin-ridge seed
+  132 (two cars); six-ahead Spa s27's crash moves from p1 to p5.
+- Pinned decisions re-anchored at the same turn and car: six-ahead Spa s83 turn 201 (round 305/309's line again) and
+  finish-frontier Coil s6 turn 299, where p3 now plays W and brakes one move later -- the pinned brake is gone.
+- Label invariance holds: the all-AI1, alternating and all-AI2 Coil s5 fields race identically (new reference digest).
+- Query replay and lap progress pass and the browser parity duel keeps its digest ec48301e. Box verify 30/30, the Python
+  unit tests (104), the Java suite and the local browser build pass.
+
+Elsewhere this round: the peer branch's response-cycle (323) is closed -- inert in duels, a wash in 4- and 8-car fields
+against round 314 (-0.000 and -0.001) -- and its duel-ties pace rule (324) lost in duels (+0.007 +- 0.002). Contingent
+(325) was a wash in duels (-0.003 +- 0.006, crashing far less) but gained in 4-car fields (-0.030 +- 0.010) against round
+314, at 3-6x CPU; it is to be ported onto this champion before any wider screen. The paired-value tie headroom study
+(G1, on the round-316 champion: duels, 84 tracks x seeds 41-43, every other tied landing forced at 8 sampled ties per
+race and the race replayed; E:/tmp-claude/p316/g1/g1_ties.py) found 70,900 exact ties in 252 races, the executed move
+always among them, and 249 of 249 control replays reproducing their race. Of 3,407 forced switches 3,360 left the
+forced car's place unchanged, 22 gained a place and 25 lost one: the champion's tie choice is as good as any tied
+alternative, and what a switch changes is chaos, not a pattern a model can learn (9 of 504 car-races improvable by
+one switch, 17 harmable). The learned tie-break (paired-value) is not ported.
+
 ## Round 316 promoted (2026-10-20): the chooser ranks its forecasts by projected place
 
 At its own top-level chooser decision, every car now ranks each landing's forecast by PROJECTED PLACE: first the

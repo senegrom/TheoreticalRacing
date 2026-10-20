@@ -30,6 +30,13 @@ both seeds.
 Round 310: the round-178/185 thin-ridge hold check went with the
 danger-joint-search family; the pinned outcome is unchanged under the
 promoted champion (measured), so the pin now guards that outcome.
+
+Round 326 (every chooser call ranks by projected place, nested ones
+too): seed 132 is crash-free again. p6 and p8 start down into the bend
+on their 14th and 15th moves instead of running along row 8, and both
+keep their race. The AI2 slots' crash count stays pinned per seed as
+measured -- none on either seed now -- and the AI1 slots stay
+crash-free on both.
 """
 
 from pathlib import Path
@@ -51,7 +58,8 @@ def main() -> int:
         bench_ai.set_nplayers(8)
         bench_ai.set_kinds(["AI1", "AI2"] * 4)
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); seed 132 loses two cars, p6 (sixth home on its 54th move before) and p8 (the car still running at the end before), both AI2 slots, into the outer wall at the top of the course at (60,7) and (61,7) on moves 134 and 136, both their 17th, so five cars finish and p7 (seventh home before) is the car still running at the end, after 52 moves; seed 111 and every AI1 slot stay crash-free -- recorded, not vetoed (AGENTS.md).
-        expected_ai2 = {111: 0, 132: 2}
+        # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); seed 132 is crash-free again: p6 and p8, which crashed into the outer wall at the top of the course on their 17th moves (moves 134 and 136) in round 316, as in round 305/309, now start down into the bend on their 14th and 15th moves (S from (82,9), SE from (76,8)) instead of running along row 8 -- p6 comes home fifth on its 53rd and p8 is the car still running at the end, after 53 moves; p5 is fourth on its 53rd (fifth before), p2 sixth on its 54th (fourth on its 53rd before) and p7, the car still running at the end before, seventh on its 54th; p1, p3 and p4 still come home first to third. Seed 111 and every AI1 slot stay crash-free. The race parts from round 316's on move 109 (p5's 14th).
+        expected_ai2 = {111: 0, 132: 0}
         for seed in (111, 132):
             result = bench_ai.run_track_h2h("lobe2", timeout=600, seed=seed)
             if result is None:
@@ -98,7 +106,8 @@ def main() -> int:
         # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); no crash, and p7 survives, now home seventh on its 67th move (fifth on its 66th before); p3 (the car still running at the end before) finishes fourth on its 66th, p6 fifth (fourth before), p1 sixth on its 67th (seventh on its 68th before), and p8 (sixth home before) is the car still running at the end, after 66 moves.
         # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
-        expected = {"AI1": (24, 4, 0), "AI2": (12, 4, 0)}
+        # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); no crash, and p7 survives, now home sixth on its 67th move (seventh on its 67th before); p4 wins on its 65th (second before), p2 is second on its 66th (first on its 65th before), p3 (the car still running at the end before) third on its 66th, p5 fourth on its 66th (third on its 65th before), p6 fifth on its 67th (fourth on its 66th before) and p8 seventh on its 68th (fifth on its 66th before), and p1 (sixth home on its 67th before) is the car still running at the end, after 68 moves. The race parts from round 316's on move 64 (p8's 8th).
+        expected = {"AI1": (21, 4, 0), "AI2": (15, 4, 0)}
         if result != expected:
             raise SystemExit(
                 "Round-185 width-three ridge regression: "

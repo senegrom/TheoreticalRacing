@@ -22,7 +22,8 @@ CASES = [("silverstone", 93)]
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
 # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
-PROMOTED = (7, 0, [82, 83, 84, 84, 85, 85, 85])
+# Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
+PROMOTED = (7, 0, [82, 83, 84, 85, 85, 86, 86])
 LEGACY_CHAMPION = (7, 0, [81, 82, 83, 84, 85, 86, 87])
 EXPECTED = {kind: {"silverstone:93": PROMOTED} for kind in LABELS}
 

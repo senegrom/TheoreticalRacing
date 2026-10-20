@@ -3103,7 +3103,9 @@ final class RaceAi {
 	 *  lines, which an upgraded decision prints (it runs unsuppressed). An arm that makes
 	 *  nested behaviour depend on the top-level decider must turn it off. Round 314's tie
 	 *  re-roll does not: it runs only at simDepth 0, an upgraded move does not depend on
-	 *  the forecast's depth, and it serves both memos without storing (movesMemoFrozen). */
+	 *  the forecast's depth, and it serves both memos without storing (movesMemoFrozen).
+	 *  Round 326's nested projected place does not either: every car's nested choosers rank
+	 *  by it, whoever decides at the top. */
 	private boolean upgradedMemoOn() {
 		return !PERF_NO_UPMEMO && suppressedMovesOn() && !AI_DEBUG_FINISH_DENIAL;
 	}
@@ -3567,9 +3569,10 @@ final class RaceAi {
 	 *  serve their stored moves but store none (nor refresh old entries), so both are left
 	 *  exactly as the chooser's own rollouts left them. */
 	private boolean movesMemoFrozen;
-	/** Round 316: the forecast depth whose rollout ranks by projected place (-1: none); a
-	 *  top-level chooser call sets it per landing beside placeKeyDepth and puts it back, and so
-	 *  does round 314's tie re-roll of that call (tieRerollVerdict). */
+	/** Round 316: the forecast depth whose rollout ranks by projected place (-1: none); every
+	 *  chooser call sets it per landing beside placeKeyDepth -- to its rollouts' depth where it
+	 *  ranks by projected place (round 326: nested calls too), else -1 -- and puts it back, and so
+	 *  does round 314's tie re-roll of a top-level call (tieRerollVerdict). */
 	private int ppDepth = -1;
 	/** Round 316: -Dai.debug.pp=true prints both keys of every landing a top-level
 	 *  projected-place chooser rolls out; moves are unchanged. */
@@ -4606,7 +4609,8 @@ final class RaceAi {
 	 *  finished ahead, then rivals projected to finish ahead, then time -- round
 	 *  259's place ranker, which washed against that chooser, rebuilt on the
 	 *  rank-first key with round 309's rule (a forecast crash is no win); round
-	 *  314's re-roll of such a call ranks on the same key. */
+	 *  314's re-roll of such a call ranks on the same key. Round 326: every call ranks
+	 *  so, nested ones too (aware's upgraded moves, true confirms). */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore,
 			final Direction pace) {
@@ -4642,16 +4646,24 @@ final class RaceAi {
 		// place with any number of live cars where a whole-race distance exists -- rivals finished
 		// ahead first, then rivals projected to finish ahead, then the mover's time -- decided once, so
 		// every landing is on one scale. Nested choosers (aware upgraded moves, true confirms: the
-		// mover's own continuation and every model of a car) keep the round-270/274 key, and a lap race
-		// over the exact potential's budget (the Nordschleife) keeps it too. Against the round-314
-		// champion: duels -0.079 +- 0.007 places on random starts, -0.079 +- 0.007 held-out, -0.068 +-
-		// 0.006 computed (the two-car variant, which races as this in duels); eight-car fields -0.010
-		// +- 0.021 held-out, -0.070 +- 0.020 computed, -0.014 +- 0.003 scattered; -0.047 +- 0.019 (49
-		// tracks for it, 28 against) as a lone entrant. Against the round-310 champion (round 314
-		// changed no four- or eight-car race measured): -0.079 +- 0.010 in four-car fields, -0.059 +-
-		// 0.022 in eight-car fields on random starts.
-		final boolean ppOn = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0
-				&& (exactPot != null || game.lapGates == null);
+		// mover's own continuation and every model of a car) kept the round-270/274 key until round 326
+		// (below); a lap race over the exact potential's budget (the Nordschleife) keeps it. Against
+		// the round-314 champion: duels -0.079 +- 0.007 places on random starts, -0.079 +- 0.007
+		// held-out, -0.068 +- 0.006 computed (the two-car variant, which races as this in duels);
+		// eight-car fields -0.010 +- 0.021 held-out, -0.070 +- 0.020 computed, -0.014 +- 0.003
+		// scattered; -0.047 +- 0.019 (49 tracks for it, 28 against) as a lone entrant. Against the
+		// round-310 champion (round 314 changed no four- or eight-car race measured): -0.079 +- 0.010
+		// in four-car fields, -0.059 +- 0.022 in eight-car fields on random starts.
+		// Round 326: every chooser call ranks by projected place, nested ones too -- the full-policy
+		// moves inside a forecast (aware's upgraded moves, true confirms) rank on the key the cars they
+		// model use since round 316; their own forecasts still run without aware's upgraded moves and
+		// round 314's tie re-roll, which stay top-level. Against the round-316 champion: duels -0.051
+		// +- 0.008 places on random starts, -0.049 +- 0.008 held-out, -0.043 +- 0.007 computed;
+		// four-car fields -0.047 +- 0.010; eight-car fields -0.105 +- 0.024 on random starts, -0.113 +-
+		// 0.023 held-out, -0.104 +- 0.022 computed, -0.013 +- 0.003 scattered; -0.076 +- 0.019 (54
+		// tracks for it, 25 against) as a lone entrant. CPU 1.03x in duels and 1.08x in eight-car
+		// fields.
+		final boolean ppOn = exactPot != null || game.lapGates == null;
 		Direction pick = null;
 		long pickVerdict = -1;
 		long paceVerdict = Long.MIN_VALUE;
@@ -4928,7 +4940,7 @@ final class RaceAi {
 	 *  strides per finished rival, the same time part; a classification a crashed rival's
 	 *  projection reopens needs a rival's finish and n >= 2), so the bound still bounds
 	 *  it from below and the strict cutoffs keep every tie; the cutoff, a projected-place
-	 *  verdict, only prunes less. */
+	 *  verdict, only prunes less -- at any depth (round 326's nested calls). */
 	private static final boolean PERF_NO_BNB = Boolean.getBoolean("ai.perf.noBnb");
 	private static final boolean PERF_BNB_STATS = Boolean.getBoolean("ai.perf.bnbStats");
 	private static final String[] BNB_STAT_NAMES = {"calls", "off", "offGrid", "landings", "eligible",

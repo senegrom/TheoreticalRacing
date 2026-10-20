@@ -24,7 +24,8 @@ EXPECTED = {
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
-    6: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
+    # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
+    6: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -33,12 +34,14 @@ EXPECTED = {
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); the same seven finish, no crash, p3, p6 and p7 each one own move faster (sum 418 -> 415).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); the same seven finish, no crash, p5 one own move faster, in 59, and p2, p3 and p6 each one own move slower, in 60, 60 and 61 (sum 415 -> 417).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p1 (first home in 58 before) is now the car still running at the end, p8 (the car still running at the end before) now finishes seventh in 60 own moves, p2 and p6 each finish two own moves faster, first in 58 and fourth in 59, p3 one faster, second in 59, and p5 one slower, fifth in 60 (sum 417 -> 415).
-    47: (7, 0, [58, 59, 59, 59, 60, 60, 60]),
+    # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); the same seven finish, no crash, p1 still the car running at the end, and p6 one own move slower, fifth in 60 (fourth in 59 before), so p5 is fourth, in 60 as before (sum 415 -> 416).
+    47: (7, 0, [58, 59, 59, 60, 60, 60, 60]),
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); no crash, p8 (the car still running at the end before) now finishes third in 59 own moves, p7 (sixth home in 60 before) is the car still running at the end, and p3 and p6 each finish one own move slower, in 60 and 61 (sum 417 -> 418).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); no crash, p7 (the car still running at the end before) now finishes seventh in 61 own moves, p8 (third home in 59 before) is the car still running at the end, and p3, p5 and p6 each finish one own move faster, in 59, 60 and 60 (sum 418 -> 417).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); the same seven finish in the same order, no crash, p8 still the car running at the end, and p6 one own move slower, in 61 (sum 417 -> 418).
-    49: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); the same seven finish in the same order, no crash, p8 still the car running at the end, and p6 one own move faster, in 60 (sum 418 -> 417).
+    49: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -49,12 +52,13 @@ EXPECTED_SEED6_FINISHERS = [
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); no crash, p2 now finishes second in 59 own moves (classified last before) and p8 is the car still running at the end; the sum is 419 now.
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); no crash, p3, p4 and p6 each finish one own move faster, in 59, 60 and 60, p5 one slower, seventh in 61, p8 (the car still running at the end before) now finishes sixth in 60 own moves and p7 (fifth home in 60 before) is the car still running at the end; the sum is 417 now.
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p4 finishes one own move faster, third in 59, and p3, p6 and p8 each one slower, fourth in 60 and sixth and seventh in 61; p5 is home fifth instead of seventh, in 61 as before, and p7 is still the car running at the end; the sum is 419 now.
+    # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); no crash, p3 finishes one own move faster, second in 59 (fourth in 60 before), p5 and p6 each one faster, fourth and fifth in 60 (fifth and sixth in 61 before), p7 (the car still running at the end before) now finishes sixth in 61 own moves, and p2 (second home in 59 before) is the car still running at the end; p1, p4 and p8 finish as before, first in 58, third in 59 and seventh in 61; the sum is 418 now.
     (1, 58),
-    (2, 59),
+    (3, 59),
     (4, 59),
-    (3, 60),
-    (5, 61),
-    (6, 61),
+    (5, 60),
+    (6, 60),
+    (7, 61),
     (8, 61),
 ]
 EXPECTED_DECISION = {
@@ -68,7 +72,8 @@ EXPECTED_DECISION = {
     # Round 303: the same turns and cars, re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); s6's p3 brakes SW as before, three cells further east (round 260's line), s49's p4 now reaches (66,47) at v(1,-5) and plays W to (0,-5); s47 unchanged.
     # Round 305/309: the same turns and cars, re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); s49's p4 still plays W from v(1,-5) to (0,-5), one cell further west: it coasts at move 292 and reaches (65,47) at move 300 instead of (66,47); s6 and s47 unchanged.
     # Round 316: the same turns and cars, re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); s6's p3 brakes SW as before, two cells further west: it reaches (66,47) at move 291 instead of (68,47); s47's p2 now reaches the column a move earlier, (65,49) at v(1,-6) at move 282, and at move 290 plays W there, to (0,-6) and (65,43) -- from the very state at which round 96 pinned its SW veto, it now plays the W that round 96 pinned as seed 6's gain -- and brakes SW from (65,43) at move 298; the old line's SW from (65,47) is p3's now, at move 299; s49 unchanged.
-    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (66,47)→(66,42) ok",
+    # Round 326: the same turns and cars, re-frozen from measurement (every chooser call ranks by projected place, nested ones too); s6's p3 no longer brakes at move 299: it reaches (65,48) at v(1,-6) at move 291, one cell west and one south of round 316's (66,47), and plays W there, to (0,-6) and (65,42) -- the W that round 96 pinned as seed 6's gain and the W-then-SW pair s47's p2 plays at moves 290 and 298, each from (65,49), one cell further south -- and brakes SW from (65,42) at move 307; s47 and s49 unchanged.
+    6: "299 p3 {kind} W v(1,-6)→(0,-6) (65,48)→(65,42) ok",
     47: "298 p2 {kind} SW v(0,-6)→(-1,-5) (65,43)→(64,38) ok",
     49: "308 p4 {kind} W v(1,-5)→(0,-5) (65,47)→(65,42) ok",
 }
@@ -121,12 +126,13 @@ def main() -> int:
     # Round 303: 419 (aware forecasts, the chooser lab's aware promoted), measured; still below the pre-frontier 426.
     # Round 305/309: 417 (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win), measured; still below the pre-frontier 426.
     # Round 316: 419 (the chooser ranks its forecasts by projected place, then time), measured; still below the pre-frontier 426.
-    if any(move_sum != 419 or move_sum >= 426 for move_sum in move_sums.values()):
+    # Round 326: 418 (every chooser call ranks by projected place, nested ones too), measured; still below the pre-frontier 426.
+    if any(move_sum != 418 or move_sum >= 426 for move_sum in move_sums.values()):
         raise SystemExit(f"Round-96 Coil seed-6 pace gain lost: {move_sums}")
 
     print(
         "AI1FinishFrontierRegression: OK "
-        "(Coil seed 6 at 419 moves; seeds 47/49 vetoes pinned)"
+        "(Coil seed 6 at 418 moves; seeds 47/49 vetoes pinned)"
     )
     return 0
 

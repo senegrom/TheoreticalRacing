@@ -24,7 +24,8 @@ CASES = {
     ("lemans", 11): 489,
     # Round 229: re-anchored from measurement (the soft caution stack left the score).
     ("spa", 11): 569,  # Round 247: re-anchored from measurement.
-    ("silverstone", 15): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
+    # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
+    ("silverstone", 15): 601,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
     ("silverstone", 18): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
     ("coil", 18): 421,  # Rounds 234 and 247: re-anchored from measurement.
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
@@ -67,7 +68,7 @@ EXACT_MOVES = {
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time);
     # the same seven finishers in a new order (p2 now wins on its 83rd move; p1, the winner before on its
     # 82nd, finishes seventh on its 86th), four moves more; p8 is still the car running at the end.
-    ("silverstone", 15): [83, 83, 84, 84, 85, 85, 86],
+    ("silverstone", 15): [83, 84, 86, 87, 87, 87, 87],
 }
 
 
