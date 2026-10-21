@@ -1,0 +1,82 @@
+name: Record racecraft ideas ledger
+
+on:
+  push:
+    branches: [work/racecraft-ideas-20261021]
+    paths: [.github/workflows/racecraft-ideas-ledger-once.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: racecraft-ideas-ledger-20261021
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: github.repository == 'senegrom/TheoreticalRacing' && github.ref == 'refs/heads/work/racecraft-ideas-20261021'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - name: Preserve existing ledger and record documentation-only proposal
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=work/racecraft-ideas-20261021
+          test "$GITHUB_REF" = "refs/heads/$branch"
+          test "$(git ls-remote origin "refs/heads/$branch" | cut -f1)" = "$GITHUB_SHA"
+          test "$(git hash-object racing-memory.md)" = "1fb8d0253a3ab1edc235b3e02bc2e3da70c48509"
+          test -f docs/experiments/interaction-racecraft/README.md
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('racing-memory.md')
+          original = path.read_bytes()
+          heading, separator, rest = original.partition(b'\n\n')
+          if not separator or not heading.startswith(b'# racing-memory.md'):
+              raise SystemExit('Unexpected campaign ledger heading')
+          entry = '''## Interaction-focused racecraft research plan (2026-10-21; proposals only)
+
+          Branch `work/racecraft-ideas-20261021`, based on round-327 champion
+          `b75ff732b7906fdc6cf5ce1c319b17f2e4a74f26`. The owner asked to push the
+          latest ideas to a branch, not to implement or promote them. Full plan:
+          [interaction-racecraft research](docs/experiments/interaction-racecraft/README.md).
+
+          Six hypotheses, with independent controls and stopping criteria:
+          1. Select an upgraded simulated decision's horizon from its simulated
+             field; first isolate finish-induced pack-to-duel transitions.
+          2. Allocate a fixed stronger-rival budget across decisive rival-time
+             pairs, including bounded third-car dependencies.
+          3. Extend finalist forecasts together through concrete unresolved
+             interactions, with common decision clocks and hard work caps.
+          4. Generate multi-cell, timed route-denial manoeuvres using exact solo
+             time-debt accounting; proposals are not forced-win certificates.
+          5. Measure singleton versus paired-action intervention headroom, then
+             gate conditional planning where its additional cost earns value.
+          6. Calibrate relative-classification uncertainty within equal factual
+             finishing tiers; start in shadow mode, with complete reacting tails.
+
+          Priority: simulated-field horizon, stronger-call allocation, paired
+          headroom, endpoint extensions, multi-cell denial, then uncertainty.
+          The plan also specifies a common-base 2x2 comparison of 12/16-round
+          duel horizons and 1/3 stronger rival decisions; gains from different
+          champion bases must not be added. The response-cycle and exact-tie
+          learning results already recorded below motivate these revised targets.
+
+          Measurement: no new races, engine tests, training or performance gains.
+          Documentation only; the champion, source, maps, start rules, profiles
+          and benchmark tooling are unchanged. Every proposed arm remains
+          unimplemented and unpromoted by this change.
+
+          '''
+          updated = heading + separator + entry.encode('utf-8') + rest
+          if not updated.endswith(rest):
+              raise SystemExit('Existing ledger would not be preserved')
+          path.write_bytes(updated)
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = racing-memory.md
+          git add -- racing-memory.md
+          git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m 'docs: record six interaction-focused racecraft research proposals'
+          test "$(git ls-remote origin "refs/heads/$branch" | cut -f1)" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$branch"
