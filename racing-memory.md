@@ -1,5 +1,54 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 327 promoted (2026-10-21): sixteen-round forecasts when only two cars are live
+
+In a decision taken with exactly two live cars -- a duel, or the last two cars of a bigger field -- every
+chooser forecast now runs 16 rounds instead of 12 (AI1_CHOOSER_DUEL_ROUNDS): the landing loop, round 314's
+tie re-roll and every nested call. Round 257 found 12 rounds saturating on a chooser that ranked an
+unresolved forecast end by the mover's own time; with projected place (rounds 316/326) the question was
+open again. Code: chooserDuel, set in computeAiMove's top-level branch from the live field (and in
+querySimOutcome from the query's board), and chooserRounds().
+
+Arm 327 (E:/tmp-claude/arm327_horizon.py) against the round-326 champion, mirrored:
+
+| Horizon | Duels 1-20 | Duels held-out 21-40 | Duels computed 1-20 | 4 cars 1-20 | 8 cars 1-10 | CPU (duels / 8 cars) |
+|---|---|---|---|---|---|---|
+| 8 rounds, every decision | +0.013 +- 0.005 (9/12/63) | | | | +0.066 +- 0.024 (32/50/2) | 1.01x / 0.98x |
+| 16 rounds, every decision | -0.024 +- 0.007 (9/9/66) | -0.037 +- 0.006 (10/6/68) | | | +0.013 +- 0.024 (36/43/5; crashes 125:83) | 1.08x / 1.13x |
+| 16 rounds with two cars live (promoted) | as above | as above | -0.033 +- 0.006 (6/5/73) | +0.000 (84/84 tied) | +0.000 (84/84 tied) | 1.00x / 0.99x |
+
+- The two-car variant races exactly as the plain 16-round arm in duels (eight candidate duels identical), so
+  the first two duel columns are its readings too; the lone-candidate check (8 cars, every seat) is +0.000
+  with all 84 tracks tied.
+- The duel gain sits on four courses in all three slices: fractal3, hungaroring and nordschleife flip almost
+  every race, fractal23 often. Round 314's duel gain was similarly concentrated (Hungaroring, rand13).
+- Eight rounds lose everywhere; sixteen in every decision gain nothing in eight-car fields and crash more.
+- Promoted on the owner's go (2026-10-21).
+
+The promotion (E:/tmp-claude/p327/promote327.py; jar p327f) keeps the race-scoped upgraded memo on: an
+upgraded move's own chooser now forecasts the decision's horizon, which the real field fixes, so
+maintainUpgradedMemo empties both generations whenever chooserDuel differs from the value they were filled
+under (upgradedDuel). The promoted jar (memo on) races as the arm with every slot a candidate (memo off):
+seven random-start and three computed-start 8-car races -- each ends with two live cars, so the reset is
+exercised -- and eight duels (PROMO327 identity); check mode prints no PERF-AWARE line. Two reviewers: the
+memo's exactness proved; five defects outside races fixed before the box verify -- a true-world simulation
+query now sets the horizon from its own board, so its TRUE rivals forecast as a decision there would (the
+lap-progress regression compares exactly those); the memo's exactness argument and RaceAiMoveMemo's doc
+name the horizon; the CPU figure is the promoted jar's own; notes in jointChooser's doc and PERF_BNB_STATS.
+The final jar differs from the identity-tested one in querySimOutcome alone (javap).
+
+Corpus on the box: only the browser parity duel moved (informed Hairpin s1, 2 cars: ec48301e -> 978446be;
+an empty and a warm reach cache agree) -- web/tests/informed_races.json re-frozen. All 12 goldens are
+identical (the legacy Hairpin s1 duel still runs 33 turns for the browser golden), all 25 pins pass without
+a re-freeze, and the headless smoke race, query replay and lap progress pass. Box verify with the final jar
+30/30; the Python unit tests (104), the Java suite and the local browser build pass.
+
+In flight on this champion's base (round 326): arm 328 lets aware's relevant rival play its first K moves by
+the full policy (E:/tmp-claude/arm328_awarerival.py; the memo stays exact since round 326): K = 2 duels
+-0.018 +- 0.004, 8 cars +0.001 +- 0.022; K = 3 duels -0.039 +- 0.005 (13/2/69), 8 cars -0.060 +- 0.024
+(48/28/8), CPU 1.05x / 1.04x; K = 5 duels -0.021 +- 0.006. Contingent (325) ported onto round 326: duels
++0.004 +- 0.007, 4 cars -0.025 +- 0.011 (round 314's base: -0.030), CPU 3.1x / 6.9x; its 8-car screen runs.
+
 ## Round 326 promoted (2026-10-20): nested choosers rank by projected place too
 
 Round 316 ranked a car's own top-level chooser call by projected place and kept the round-270/274 key in every

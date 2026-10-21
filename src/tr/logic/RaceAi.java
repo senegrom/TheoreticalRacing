@@ -252,12 +252,16 @@ final class RaceAi {
 		// perf_aware: a top-level decision owns the suppressed-move memo, empty at its start.
 		suppressedMoves.clear();
 		suppressedMovesOwned = true;
+		// Round 327: a decision with two live cars forecasts AI1_CHOOSER_DUEL_ROUNDS rounds.
+		final boolean outerChooserDuel = chooserDuel;
+		chooserDuel = liveRivalsRemaining(playerNum) == 1;
 		try {
 			// perf (upmemo): and the race-scoped upgraded memo's generations and world.
 			maintainUpgradedMemo();
 			return optimalMoveAI1(pos, vel, playerNum);
 		} finally {
 			suppressedMovesOwned = false;
+			chooserDuel = outerChooserDuel;
 		}
 	}
 
@@ -516,6 +520,7 @@ final class RaceAi {
 	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured); since round 310 the private pace override's and the round-175 hold leg's horizon
 	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent in every race mode (round 279), no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
+	private final static int		AI1_CHOOSER_DUEL_ROUNDS	= 16;	// round 327: the same, in a decision taken with only two cars live
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_AWARE_SELF_MOVES	= 5;	// round 305: the mover's forecast continuation moves played by its full policy
 	private final static int		AI1_TIE_SELF_MOVES	= 1;	// round 314: the mover's forecast continuation moves played by its full policy when the chooser re-rolls an exact tie with two live cars (round 303's depth)
@@ -3095,7 +3100,8 @@ final class RaceAi {
 	 *  that a top-level decision owns the memo (maintainUpgradedMemo ran), so any other
 	 *  context bypasses it. There the move is a function of the suppressed memo's key --
 	 *  the installed board, the mover's slot, the turn counter and the decider's grid
-	 *  world -- and of the race world, which maintainUpgradedMemo validates. Budgets are
+	 *  world -- of the race world and (round 327) of its decision's horizon, chooserDuel,
+	 *  which its nested choosers forecast; maintainUpgradedMemo validates both. Budgets are
 	 *  per call, there is no clock and no RNG, and what a replay skips is rewritten before
 	 *  it is read (placeKey, chooserJudgedPace, the workspaces), compared only at deeper
 	 *  rollouts (allScorerRolloutDepth, awareDepth) or a pure cache. Off with the kill
@@ -3105,7 +3111,9 @@ final class RaceAi {
 	 *  re-roll does not: it runs only at simDepth 0, an upgraded move does not depend on
 	 *  the forecast's depth, and it serves both memos without storing (movesMemoFrozen).
 	 *  Round 326's nested projected place does not either: every car's nested choosers rank
-	 *  by it, whoever decides at the top. */
+	 *  by it, whoever decides at the top. Nor does round 327's horizon: it is the real
+	 *  field's (two live cars or more), the same for every car deciding at one moment, and
+	 *  maintainUpgradedMemo empties both generations when it changes (upgradedDuel). */
 	private boolean upgradedMemoOn() {
 		return !PERF_NO_UPMEMO && suppressedMovesOn() && !AI_DEBUG_FINISH_DENIAL;
 	}
@@ -3114,7 +3122,9 @@ final class RaceAi {
 	 *  when the turn counter has not advanced since the last one (Undo, a restart, a
 	 *  query, a test) or when the race world changed; otherwise they rotate once every
 	 *  players.length turns, so a car's next decision and its rivals' in between still
-	 *  find the entries of its last one. */
+	 *  find the entries of its last one. Round 327: and when the decision's horizon
+	 *  (chooserDuel) is not the one the generations were filled under -- an upgraded move's
+	 *  own chooser forecasts that many rounds. */
 	private void maintainUpgradedMemo() {
 		if (PERF_NO_UPMEMO)
 			return;
@@ -3122,7 +3132,9 @@ final class RaceAi {
 		// Every decision records the world, so a clear records it too; prepareDecisionFrame
 		// asks for the potential next anyway.
 		final boolean changed = upgradedWorld.sync(game, reach, game.optimalPotential());
-		if (t <= upgradedLastTurn || changed) {
+		final boolean horizonChanged = chooserDuel != upgradedDuel; // round 327
+		upgradedDuel = chooserDuel;
+		if (t <= upgradedLastTurn || changed || horizonChanged) {
 			upgradedNew.clear();
 			upgradedOld.clear();
 			upgradedGenTurn = t;
@@ -3461,8 +3473,16 @@ final class RaceAi {
 		prepareDecisionFrame(mp, mv, me.getNumber());
 		final int[] ft = { 3 };
 		final int[] tr = { 0, 0 };
-		final int v = simulate(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
-				true, scorerRivals, scorerSelf, trueRivals, scorerCap, ft, null, tr, false);
+		// Round 327: the query's board fixes its true rivals' chooser horizon, as a decision on it would.
+		final boolean outerChooserDuel = chooserDuel;
+		chooserDuel = liveRivalsRemaining(me.getNumber()) == 1;
+		final int v;
+		try {
+			v = simulate(mp[0], mp[1], mv[0], mv[1], me.getNumber(), rounds, true, true,
+					true, scorerRivals, scorerSelf, trueRivals, scorerCap, ft, null, tr, false);
+		} finally {
+			chooserDuel = outerChooserDuel;
+		}
 		if (outAudit != null) {
 			outAudit[0] = ft[0];
 			outAudit[1] = tr[0];
@@ -3574,6 +3594,24 @@ final class RaceAi {
 	 *  ranks by projected place (round 326: nested calls too), else -1 -- and puts it back, and so
 	 *  does round 314's tie re-roll of a top-level call (tieRerollVerdict). */
 	private int ppDepth = -1;
+	/** Round 327: the running top-level decision began with exactly two live cars -- a duel, or the
+	 *  last two cars of a bigger field -- so its chooser forecasts, nested ones too, run
+	 *  AI1_CHOOSER_DUEL_ROUNDS rounds (computeAiMove sets it for a decision and querySimOutcome for its
+	 *  rollout, from the live field; false outside both). Against the round-326 champion: duels -0.024
+	 *  +- 0.007 places on random starts, -0.037 +- 0.006 held-out, -0.033 +- 0.006 computed (fractal3,
+	 *  hungaroring and nordschleife flip almost every race, fractal23 often); no four-car, eight-car or
+	 *  lone-entrant race changed; CPU 1.00x in duels and 0.99x in eight-car fields (the arm, its
+	 *  candidate decisions forgoing the upgraded memo, read 1.08x). Sixteen rounds in every decision
+	 *  gained nothing in eight-car fields (+0.013 +- 0.024, crashes 125:83), and eight rounds lost in
+	 *  duels and eight-car fields. */
+	private boolean chooserDuel;
+	/** Round 327: the chooserDuel the upgraded memo's generations were filled under. */
+	private boolean upgradedDuel;
+
+	/** Round 327: the rounds of a chooser forecast in the running decision. */
+	private int chooserRounds() {
+		return chooserDuel ? AI1_CHOOSER_DUEL_ROUNDS : AI1_CHOOSER_ROUNDS;
+	}
 	/** Round 316: -Dai.debug.pp=true prints both keys of every landing a top-level
 	 *  projected-place chooser rolls out; moves are unchanged. */
 	private static final boolean PP_DEBUG = Boolean.getBoolean("ai.debug.pp");
@@ -4592,7 +4630,7 @@ final class RaceAi {
 	 *  landing within AI1_CHOOSER_WINDOW turns of the best score, at most
 	 *  AI1_CHOOSER_WIDTH of them, in score order -- choose by the faithful joint
 	 *  world (the mover driven by its own scorer, every rival by theirs): the
-	 *  lowest time-to-finish after AI1_CHOOSER_ROUNDS rounds wins, a dead
+	 *  lowest time-to-finish after chooserRounds() rounds wins, a dead
 	 *  verdict never beats a live one, and equal verdicts keep the score's
 	 *  order. The score ranks landings by facts local to the landing; this
 	 *  ranks them by what the whole field actually does next. Round 257
@@ -4610,7 +4648,9 @@ final class RaceAi {
 	 *  259's place ranker, which washed against that chooser, rebuilt on the
 	 *  rank-first key with round 309's rule (a forecast crash is no win); round
 	 *  314's re-roll of such a call ranks on the same key. Round 326: every call ranks
-	 *  so, nested ones too (aware's upgraded moves, true confirms). */
+	 *  so, nested ones too (aware's upgraded moves, true confirms). Round 327: a
+	 *  decision taken with two live cars forecasts AI1_CHOOSER_DUEL_ROUNDS (16) rounds
+	 *  (chooserDuel, chooserRounds). */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore,
 			final Direction pace) {
@@ -4750,7 +4790,7 @@ final class RaceAi {
 			bnbPot = boundRolled ? boundPot : null;
 			bnbCutoff = boundCut;
 			try {
-				outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+				outcome = simOutcome(nx, ny, nvx, nvy, playerNum, chooserRounds(),
 						true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
 			} finally {
 				allScorerRolloutDepth = -1;
@@ -4846,7 +4886,7 @@ final class RaceAi {
 
 	/** Round 314: the chooser's forecast of one tied landing again, with AI1_TIE_SELF_MOVES own
 	 *  moves by the full policy instead of AI1_AWARE_SELF_MOVES. Otherwise the same forecast:
-	 *  AI1_CHOOSER_ROUNDS rounds, every live rival by its scorer, the relevant rival the chooser
+	 *  chooserRounds() rounds, every live rival by its scorer, the relevant rival the chooser
 	 *  recorded for this landing playing its first move by its full policy, round 309's rule
 	 *  (simDepth == placeKeyDepth) and the rank-first verdict. Both move memos serve the moves
 	 *  they hold and store none: an upgraded move does not depend on the forecast's depth
@@ -4883,7 +4923,7 @@ final class RaceAi {
 		bnbCutoff = Long.MAX_VALUE;
 		final int outcome;
 		try {
-			outcome = simOutcome(nx, ny, nvx, nvy, playerNum, AI1_CHOOSER_ROUNDS,
+			outcome = simOutcome(nx, ny, nvx, nvy, playerNum, chooserRounds(),
 					true, true, true, true, true, AI1_SCORER_MAXRIVALS, null);
 		} finally {
 			allScorerRolloutDepth = -1;
@@ -4930,7 +4970,8 @@ final class RaceAi {
 	 *  false or no pocket, and a live rival (the rollout cannot start with the race over).
 	 *  Off wherever a skipped decision would print (suppressedMovesOn, finish-denial debug).
 	 *  -Dai.perf.noBnb=true rolls every landing (the round-310 loop, a same-jar CPU control);
-	 *  -Dai.perf.bnbStats=true prints PERF-STATS BNB at exit (in check mode the cuts and
+	 *  -Dai.perf.bnbStats=true prints PERF-STATS BNB at exit (movesSaved counts
+	 *  AI1_CHOOSER_ROUNDS rounds a rollout, round 327's sixteen-round decisions too; in check mode the cuts and
 	 *  stops it counts are the ones the pruned loop would make). Under PERF_CHECK every
 	 *  landing is rolled in full: every bound is checked against the verdict it bounds and
 	 *  the pruned loop's pick against the real one (PERF-AWARE BNB MISMATCH). Round 314's

@@ -16,8 +16,9 @@ package tr.logic;
  *  which only recomputes.
  *
  *  perf (upmemo): RaceAi also keeps two smaller instances for the moves of upgraded
- *  (aware) forecast decisions over a whole race -- the same key, in one fixed context
- *  and a validated race world (RaceAi.upgradedMemoOn). */
+ *  (aware) forecast decisions over a whole race -- the same key, in one fixed context,
+ *  a validated race world and one chooser horizon (RaceAi.upgradedMemoOn,
+ *  maintainUpgradedMemo). */
 final class RaceAiMoveMemo {
 	static final int MISS = -2;
 	private static final int NO_MOVE = -1;
