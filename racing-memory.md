@@ -1,5 +1,38 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Interaction-focused racecraft research plan (2026-10-21; proposals only)
+
+Branch `work/racecraft-ideas-20261021`, based on round-327 champion
+`b75ff732b7906fdc6cf5ce1c319b17f2e4a74f26`. The owner asked to push the
+latest ideas to a branch, not to implement or promote them. Full plan:
+[interaction-racecraft research](docs/experiments/interaction-racecraft/README.md).
+
+Six hypotheses, with independent controls and stopping criteria:
+1. Select an upgraded simulated decision's horizon from its simulated
+   field; first isolate finish-induced pack-to-duel transitions.
+2. Allocate a fixed stronger-rival budget across decisive rival-time
+   pairs, including bounded third-car dependencies.
+3. Extend finalist forecasts together through concrete unresolved
+   interactions, with common decision clocks and hard work caps.
+4. Generate multi-cell, timed route-denial manoeuvres using exact solo
+   time-debt accounting; proposals are not forced-win certificates.
+5. Measure singleton versus paired-action intervention headroom, then
+   gate conditional planning where its additional cost earns value.
+6. Calibrate relative-classification uncertainty within equal factual
+   finishing tiers; start in shadow mode, with complete reacting tails.
+
+Priority: simulated-field horizon, stronger-call allocation, paired
+headroom, endpoint extensions, multi-cell denial, then uncertainty.
+The plan also specifies a common-base 2x2 comparison of 12/16-round
+duel horizons and 1/3 stronger rival decisions; gains from different
+champion bases must not be added. The response-cycle and exact-tie
+learning results already recorded below motivate these revised targets.
+
+Measurement: no new races, engine tests, training or performance gains.
+Documentation only; the champion, source, maps, start rules, profiles
+and benchmark tooling are unchanged. Every proposed arm remains
+unimplemented and unpromoted by this change.
+
 ## Round 327 promoted (2026-10-21): sixteen-round forecasts when only two cars are live
 
 In a decision taken with exactly two live cars -- a duel, or the last two cars of a bigger field -- every
