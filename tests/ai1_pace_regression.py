@@ -32,12 +32,14 @@ MAX_FINISH_MOVE_SUM = 891
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
 # assertion logic remains intact. (Its AI1/AI2 identity checks retired on
 # 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
-# Every case below retains seven finishers and zero crashes.
+# Every case below retains seven finishers and zero crashes, except where
+# SAFETY records the measured finishers and crashes (Le Mans s12 since round 328).
 FINISH_EXPECTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
-    ("bigoval", 7): [20, 20, 21, 21, 22, 22, 22],
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p4 (second before, on its 20th move) now wins on its 20th, p1 (third before, on its 21st) finishes second on its 21st, p3 (the winner before, on its 20th) third on its 21st, p5 (sixth before, on its 22nd) fourth on its 21st and p6 (fourth before, on its 21st) sixth on its 22nd; p2 and p7 finish fifth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 148 -> 149).
+    ("bigoval", 7): [20, 21, 21, 21, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -46,8 +48,12 @@ FINISH_EXPECTED = {
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
-    ("lemans", 12): [66, 67, 68, 69, 70, 72, 73],
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Le Mans s12, whole in every round since round 94 pinned it, loses a car: p2 (seventh home before, on its 73rd move) now crashes on its 37th, at turn 290 ((81,147)->(83,154)), and seven finishers become six; p4 is still the car running at the end, after 71 moves (72 before), and p3, p5, p6, p7, p8 and p1 finish first to sixth as before -- recorded, not vetoed (AGENTS.md).
+    ("lemans", 12): [66, 67, 68, 69, 70, 72],
 }
+# Round 328: the measured (finishers, crashes) of a case that no longer keeps
+# seven finishers and zero crashes; every other case takes the (7, 0) default.
+SAFETY = {("lemans", 12): (6, 1)}
 
 
 def main() -> int:
@@ -85,7 +91,7 @@ def main() -> int:
         )
 
     for (kind, track, seed), finish_result in finish_results.items():
-        expected = (7, 0, FINISH_EXPECTED[(track, seed)])
+        expected = (*SAFETY.get((track, seed), (7, 0)), FINISH_EXPECTED[(track, seed)])
         if finish_result != expected:
             raise SystemExit(
                 f"Round-94 {kind} {track} seed-{seed} regression: "

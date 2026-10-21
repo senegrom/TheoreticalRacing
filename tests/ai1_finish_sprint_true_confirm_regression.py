@@ -41,7 +41,8 @@ PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 61), (4, 61), (5, 62), (6, 62), (7, 
 PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 61, 5: 62, 6: 62, 7: 62, 8: 61}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
-PROMOTED_SHA256 = 'ddc77ca88aa9eaeb62f1b8e365653083ae4f5a5a6264dd5395ef40bad27f29fd'
+# Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+PROMOTED_SHA256 = '8e7bfdc72806f39820bcb3031d06a3ecffe58f5ba54ff8586d71b3d9d41eeb97'
 
 
 def main() -> int:

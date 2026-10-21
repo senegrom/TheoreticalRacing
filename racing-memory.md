@@ -1,5 +1,86 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 328 promoted (2026-10-21): aware's relevant rival plays three forecast moves by its full policy
+
+In an aware forecast -- the top-level chooser's landing loop and round 314's tie re-roll, whose rollout mover
+is the deciding car -- the most-interacting rival (ChooserTraffic's pick for that landing) now plays its first
+AI1_AWARE_RIVAL_MOVES = 3 forecast moves by its full policy instead of one (round 285); the mover keeps its
+five (round 305; one in the tie re-roll, round 314). Code: simOutcomeCore's one-move flag became a budget,
+awareRivalLeft. An upgraded move is the modelled car's full decision on the installed board,
+decider-independent since round 326, so the race-scoped upgraded memo stays exact and needs no change.
+
+Arm 328 (E:/tmp-claude/arm328_awarerival.py, AR328_K) against the round-327 champion, mirrored (boards
+favouring candidate / champion / tied; crashes candidate:champion):
+
+| Slice | K = 3 (promoted) |
+|---|---|
+| Duels 1-20 | -0.035 +- 0.005 (13/3/68; 208:247) |
+| Duels held-out 21-40 | -0.033 +- 0.005 (14/3/67; 204:241) |
+| Duels computed 1-20 | -0.010 +- 0.005 (6/4/74; 161:177) |
+| 4 cars 1-20 (round-326 base) | -0.024 +- 0.008 (33/28/23; 21:23) |
+| 8 cars 1-10 | -0.060 +- 0.024 (48/28/8; 105:106) |
+| 8 cars held-out 11-20 | +0.011 +- 0.022 (36/43/5; 105:96) |
+| 8 cars fresh 21-30 | +0.016 +- 0.023 (37/42/5; 95:103) |
+| 8 cars computed 1-10 | +0.003 +- 0.020 (40/37/7; 96:90) |
+| 8 cars scattered 1-10 | -0.006 +- 0.003 (17/8/59; 13:11) |
+| Lone candidate (8 cars, every seat) | -0.015 +- 0.019 (47/31/6; 43:38) |
+
+- Round 327 changes no 4- or 8-car race, so the 4-car screen on round 326 stands, and seeds 1-10 of the
+  8-car screen raced identically on both bases. The three random-start 8-car windows pool to about -0.011
+  +- 0.013: neutral. The owner's condition (2026-10-21) was to promote if the 8-car seeds read neutral or
+  better.
+- Two rival moves read -0.018 +- 0.004 in duels and +0.001 +- 0.022 in 8-car fields, five -0.021 +- 0.006
+  and -0.024 +- 0.024 (both on round 326): three is the measured best.
+- Round 308 called rival fidelity closed (two moves -0.009, three +0.007, every rival -0.020, on depth 5).
+  Its arms raced only 8-car fields, before round 309's rule and projected place; in 8-car fields three
+  rival moves still read neutral. The gain lies in duels and four-car fields, which round 308 never raced.
+- CPU: the promoted jar against the round-327 champion 1.09x in duels (eight duels) and 1.02x in 8-car
+  fields (six races); the arm read 1.05x and 1.03x.
+
+The promotion (E:/tmp-claude/p328/promote328.py; jar p328f) writes the arm with every car a candidate and
+changes no memo. The promoted jar races as the arm with every slot a candidate: seven random-start and three
+computed-start 8-car races and eight duels (PROMO328 identity); check mode prints no PERF-AWARE line. Two
+reviewers proved the equivalence and the memo's exactness with three rival moves (the 2nd and 3rd upgraded
+moves pass the same one-context gate, and the bound stays admissible under any rival continuation); the five
+defects they confirmed were all comments -- the tie re-roll's doc (its forecast gives the rival three moves
+too), the chooser's aware note, awareDepth's doc, the four-car reading's base, and round 308's verdict
+(above). The final jar is code-identical to the identity-tested one (javap).
+
+Corpus on the box: 10 of the 12 goldens moved -- every 4- and 8-car golden; both duels are unchanged (the
+legacy Hairpin s1 duel still runs 33 turns) and the browser parity duel keeps 978446be. 16 of the 25 pins
+moved. The box loop re-froze six (early round trap, energy pace, equal-speed veto, finish-sprint true
+confirm, graduated field acceleration, six-ahead acceleration); ten were re-frozen by hand from the probe
+records, four editors and four independent reviewers, all confirmed:
+- six-ahead high speed: Spa s83's turn-201 decision re-anchored at the same turn and car -- the same NW
+  acceleration, from round 303's exact cell again; Spa s40 gains a crash, s27 and s12 regain a car,
+  Silverstone s78 swaps which car crashes;
+- label invariance: unchanged; it passes through the six-ahead pin's re-frozen Coil s5 digest (4889006c),
+  which the all-AI1 and alternating fields measure too;
+- cross-model pace: Silverstone s1's p7 crashes on its 76th move (seventh home on its 85th before);
+- bounded uncertain field: Le Mans s29's p6 is closed out of its one on-track landing by p3 and crashes on
+  its 16th move; s14 regains its car;
+- mixed safety: the Gear s1 front ordering returns to round 316's totals (the first four slots finish first
+  to fourth);
+- finish frontier: Coil s6's turn-299 decision re-anchored -- p3 brakes SW there again, the line rounds
+  233-234 and 281-301a' pinned; the winner still plays round 96's W frontier move;
+- field neutral: Cog s1 keeps every car again;
+- staged pace: Hungaroring s25 keeps every car, s8 loses one in the same three-car squeeze at the same bend;
+- private slack: Le Mans s2, Hungaroring s40 and Zandvoort s34 are whole again, Monaco s35 loses a car;
+- pace: Le Mans s12, whole since round 94 pinned it, loses p2 on its 37th move (the pin gains a SAFETY dict,
+  field neutral's pattern).
+Every crash is recorded, not vetoed. Box verify with the final jar 30/30; the Python unit tests (104), the
+Java suite and the local browser build pass.
+
+Also closed on this champion's eve: the contingent arm (325) on round 326 read duels +0.004 +- 0.007, 4 cars
+-0.025 +- 0.011, 8 cars -0.032 +- 0.024 (44/35/5; crashes 102:69) at 3.1x CPU in duels and 6.9x in 8-car
+fields; closed by the owner (2026-10-21). IR1 of the interaction-racecraft plan (branch
+work/racecraft-ideas-20261021: an upgraded decision inside a forecast takes the horizon of its forecast's own
+field when a finish leaves two cars live) is inactive: a debug probe (-Dai.debug.ir1) recomputed every
+eligible upgraded decision with the 16-round duel horizon -- 8-car seeds 1-2 on all 84 tracks: 3,214,366
+upgraded decisions, 4,163 eligible (15 after a forecast crash), 0 changed moves; 4-car seeds 1-2: 1,462,379,
+3,552 eligible (54 after a forecast crash), 0 changed. The probe's races are the champion's (identity with the
+flag on). Stopped there by its own stop condition.
+
 ## Round 327 promoted (2026-10-21): sixteen-round forecasts when only two cars are live
 
 In a decision taken with exactly two live cars -- a duel, or the last two cars of a bigger field -- every

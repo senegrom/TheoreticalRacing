@@ -27,7 +27,8 @@ EXPECTED = {
  # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
  # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
  # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
- ("nurburgring",1): (7, 0, [93, 94, 95, 95, 95, 97, 97]),
+ # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+ ("nurburgring",1): (7, 0, [93, 95, 95, 95, 95, 96, 96]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p7 now crashes on its 56th move -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p7 no longer crashes on its 56th move and finishes seventh on its 130th -- recorded, not vetoed (AGENTS.md).
@@ -39,12 +40,12 @@ EXPECTED = {
  # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
- ("spa",17): (7, 0, [78, 79, 80, 81, 81, 81, 82]),
+ ("spa",17): (7, 0, [78, 79, 81, 82, 82, 83, 84]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p6 no longer crashes on its 19th move and finishes third on its 139th -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
- ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 143]),  # Round 303: whole again.
+ ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 144]),  # Round 303: whole again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

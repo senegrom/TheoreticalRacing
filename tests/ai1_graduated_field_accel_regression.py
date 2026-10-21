@@ -23,19 +23,20 @@ PROMOTED = {
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p8 (the car still running at the end before) now finishes fifth in 60 own moves, p7 (sixth home in 60 before) is the car still running at the end, and p6 finishes one own move slower, seventh in 61 (sum 417 -> 418).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
-    1: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+    1: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p8 (the car still running at the end before) now finishes seventh in 61 own moves, p7 (seventh home in 61 before) is the car still running at the end, p3 finishes two own moves slower, sixth in 61, and p5 one slower, fourth in 60 (sum 416 -> 419).
-    38: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
+    38: (7, 0, [58, 59, 59, 59, 60, 61, 61]),
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p7, seventh home in 60 moves before, now crashes on its 50th move and seven finishers become six, p4 (fifth home before) the car still running at the end -- recorded, not vetoed.
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p7 no longer crashes on its 50th move and p4, the car still running at the end before, now finishes fourth in 60 moves: six finishers become seven, p7 the car still running at the end -- crash-free again, and that is what is pinned.
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); still crash-free: p7, the car still running at the end before, now finishes fifth in 60 moves, p8 (sixth home in 60 moves before) the car still running at the end.
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); still crash-free, the same seven finish and p8 is still the car running at the end: p2, p3, p4 and p5 each finish one own move faster, second to fifth in 59, 59, 60 and 60, p7 one slower, seventh in 61, and p6 (second home in 59 before) two slower, sixth in 61 (sum 419 -> 418).
-    106: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    106: (7, 0, [58, 59, 59, 60, 60, 60, 60]),
 }
 # Seed 106 was the round-115 coast control, pinned equal to the legacy
 # champion; re-freezes moved it, so EXPECTED alone pins it now (review,

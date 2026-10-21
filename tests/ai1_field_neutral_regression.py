@@ -18,14 +18,16 @@ LABELS = ("AI2",)
 # assertion logic remains intact. (Its AI1/AI2 identity checks retired on
 # 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
 # Every case below retains seven finishers and zero crashes, except where
-# SAFETY records the measured finishers and crashes (Cog s1 since round 326).
+# SAFETY records the measured finishers and crashes (Cog s1 in round 326;
+# none since round 328).
 EXPECTED = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); seven finishers and no crash as before, but p3 (seventh home before, on its 67th move) now wins on its 65th, p6 and p8 (third and fifth before) are second and third, on their 66th as before, p1 (the winner before, on its 65th) is fourth on its 67th, p2 fifth on its 67th (sixth before), p4 (the car still running at the end before, after 66 moves) sixth on its 67th and p5 (second before, on its 65th) seventh on its 68th; p7 (fourth home before, on its 66th) is the car still running at the end, after 67 moves (sum 462 -> 466).
-    ("zigzag", 1): [65, 66, 66, 67, 67, 67, 68],
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, p3 still the winner on its 65th move, but p5 (seventh home before, on its 68th) is now second on its 65th, p1 (fourth before, on its 67th) third on its 66th, p2 fourth on its 67th (fifth before), p6 (second before, on its 66th) fifth on its 67th, p7 (the car still running at the end before, after 67 moves) sixth on its 67th and p4 (sixth before, on its 67th) seventh on its 68th; p8 (third home before, on its 66th) is the car still running at the end, after 67 moves (sum 466 -> 465).
+    ("zigzag", 1): [65, 65, 66, 67, 67, 67, 68],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
@@ -34,11 +36,13 @@ EXPECTED = {
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); Cog s1 loses a car: p8 (the car still running at the end before, after 47 moves) now crashes on its 9th move, at turn 72 ((99,23)->(94,20), into the outer wall: p2 had taken (92,20), p8's one landing from (99,23) at v(-6,-4) that did not cross the wall, at turn 66), and seven finishers become six; p3 (seventh home before, on its 48th) is the car still running at the end, after 47 moves, so it is placed seventh and p8 eighth as before -- the classification is unchanged; p1, p2, p4, p5, p6 and p7 finish as before -- recorded, not vetoed (AGENTS.md).
-    ("cog", 1): [46, 46, 46, 47, 47, 47],
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Cog s1 gets its car back: p8 no longer crashes on its 9th move (turn 72, now (101,25)->(95,22) ok: it braked S to v(-4,-4) at (106,28) on its 7th, at turn 56, and never reached round 326's (99,23) at v(-6,-4)) and is the car still running at the end, after 46 moves; p3 (the car still running at the end before, after 47 moves) now finishes third on its 46th, p4 (third before, on its 46th) fourth on its 47th, and p5, p6 and p7 each one place lower, fifth to seventh on their 47th as before; p1 and p2 finish as before, first and second on their 46th -- seven finishers and no crash again, as before round 326, so the case leaves SAFETY and takes the (7, 0) default.
+    ("cog", 1): [46, 46, 46, 47, 47, 47, 47],
 }
 # Round 326: the measured (finishers, crashes) of a case that no longer keeps
 # seven finishers and zero crashes; every other case takes the (7, 0) default.
-SAFETY = {("cog", 1): (6, 1)}
+# Round 328: Cog s1 keeps every car again, so no case needs an entry.
+SAFETY = {}
 
 
 def run(track: str, seed: int, kind: str) -> tuple[int, int, list[int]]:
@@ -79,8 +83,7 @@ def main() -> int:
 
     print(
         "AI1FieldNeutralRegression: OK "
-        "(Zigzag seed 1: 7 finishers / 0 crashes; Cog seed 1: 6 finishers / 1 crash; "
-        "finish moves pinned)"
+        "(Zigzag seed 1 and Cog seed 1: 7 finishers / 0 crashes, finish moves pinned)"
     )
     return 0
 

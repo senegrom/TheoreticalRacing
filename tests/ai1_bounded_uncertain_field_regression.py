@@ -54,7 +54,8 @@ PROOF_VETO = ("lemans", 87)
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); the same seven finish in the same order and no car crashes, p2 seventh home one own move faster (73 -> 72), so p4, the car still running at the end, stops on its 71st (72 before).
 # Round 310: re-frozen from measurement (the danger-joint-search family deleted); the same seven finish in the same order and no car crashes, p2 seventh home one own move slower (72 -> 73), so p4, the car still running at the end, stops on its 72nd (71 before) -- round 303's numbers again; recorded, not vetoed (AGENTS.md).
-PROMOTED = (7, 0, [66, 67, 68, 69, 70, 71, 73])
+# Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); p6, fourth home on its 69th move before, now crashes on its 16th (move 126, into the wall at (42,7) at the top of the course: it reached (41,6), on the outer edge of the bend, at v(2,1) on its 15th, as before, and p3 had taken (42,8), p6's one landing that did not leave the track, three moves before -- move 123, p3's 16th, where the race parts from round 326's: p3 went to (41,8) there before and p6 to (42,8)) -- six finishers. p1, p3 and p5 still come home first to third on their 66th to 68th; p7 and p8 move up to fourth and fifth on their 69th and 70th (fifth and sixth on their 70th and 71st before), p2 to sixth on its 72nd (seventh on its 73rd before), and p4 is still the car running at the end, now after 71 moves (72 before) -- recorded, not vetoed (AGENTS.md).
+PROMOTED = (6, 1, [66, 67, 68, 69, 70, 72])
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
@@ -62,10 +63,12 @@ PROMOTED = (7, 0, [66, 67, 68, 69, 70, 71, 73])
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
 # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
-PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 68), (6, 69), (7, 70), (8, 71), (2, 73)]
+# Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+PROMOTED_FINISHERS = [(1, 66), (3, 67), (5, 68), (7, 69), (8, 70), (2, 72)]
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
-PROMOTED_CRASHES = []
+# Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+PROMOTED_CRASHES = [(6, 16)]
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
 # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
@@ -73,7 +76,8 @@ PROMOTED_CRASHES = []
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
 # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
-PROMOTED_ALL_MOVES = {1: 66, 2: 73, 3: 67, 4: 72, 5: 68, 6: 69, 7: 70, 8: 71}
+# Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+PROMOTED_ALL_MOVES = {1: 66, 2: 72, 3: 67, 4: 71, 5: 68, 6: 16, 7: 69, 8: 70}
 
 # Le Mans s87 reaches and fails the componentwise proof. Le Mans s93 is the
 # early-round trajectory-only class excluded by the last-three-movers gate;
@@ -110,7 +114,8 @@ RETENTION_CASES = {
                  # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
                  # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); finishers, crashes and every move count unchanged -- the trajectory parts from round 310's on move 33 (p1's 5th).
                  # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); finishers, crashes and every move count unchanged -- the trajectory parts from round 316's on move 41 (p1's 6th).
-                 '82ccdd62d70e5323e726e4975518ac28260dae85c75c84e48b37bec6b397db3e'),
+                 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); finishers, crashes and every move count unchanged -- the trajectory parts from round 326's on move 67 (p3's 9th).
+                 '3691d1e9a45bd630c9d074fbdbd629b97c8266f294036cbbb96b840123351881'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
@@ -134,7 +139,8 @@ RETENTION_CASES = {
                      # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
                      # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
                      # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
-                     '219773fd653e93a67eb8cbbc80ac9ad92e14f78b82845bfa8c2762a61af0c11b'),
+                     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); finishers, crashes and every move count unchanged -- p8 still crashes on its 12th move (move 96) and the trajectory parts from round 326's on move 325 (p5's 45th).
+                     '89e0a6c50b324724b666ae7ee61a3cc67b9602ebf6bbcd55915283be603412ea'),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -145,7 +151,8 @@ RETENTION_CASES = {
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); the same seven finish in the same order and no car crashes, p1 seventh home one own move faster (73 -> 72).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); the same seven finish in the same order and no car crashes, p1 seventh home one own move slower (72 -> 73), so p3, the car still running at the end, stops on its 72nd (71 before) -- round 303's numbers again; recorded, not vetoed (AGENTS.md). The race parts from round 310's on move 1 (p1's 1st).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); p3, the car still running at the end before, now crashes on its 57th move (move 451, at the bottom-left of the course: it came onto the outer edge of the bend at (20,136) at v(-4,-3) on its 56th, and from there every landing left the track) and p1, seventh home on its 73rd before, is the car still running at the end, after 71 moves -- six finishers. p2, p4, p5, p6, p7 and p8 still come home first to sixth on their 66th to 71st -- recorded, not vetoed (AGENTS.md). The race parts from round 316's on move 8 (p8's 1st).
-    ("lemans", 14): ((6, 1, [66, 67, 68, 69, 70, 71]),
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); p3, which crashed on its 57th move in round 326, keeps its race (on its 55th, move 435, it steers to (24,138) rather than (24,139) and never comes onto the outer edge at (20,136)) and is the car still running at the end, after 71 moves, and p1, the car still running at the end before, comes home seventh on its 72nd -- seven finishers and no crash again, the numbers of rounds 305/309 and 310. p2, p4, p5, p6, p7 and p8 still come home first to sixth on their 66th to 71st. The race parts from round 326's on move 358 (p6's 45th).
+    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 70, 71, 72]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
                      # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -157,7 +164,8 @@ RETENTION_CASES = {
                      # Round 310: re-frozen from measurement (the danger-joint-search family deleted); finishers, crashes and every move count unchanged -- the trajectory parts from round 305/309's on move 134 (p6's 17th).
                      # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
                      # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
-                     '8d430304e1cabf0417fa9a8e1eaf830ce2a479ae6171c0ec01fb2b8782655f96'),
+                     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
+                     '9199fc1a4d1b2e61a281f42cc120e0b8e0eb48c11e27449c2d9bb01f6064bd84'),
     # Spa s12, s31, s40, s47 and Silverstone s78 raced here too: the same fixture
     # geometry, profile and roster as ai1_six_ahead_high_speed_regression, which
     # pins the same races by summary and digest -- so they race once, there

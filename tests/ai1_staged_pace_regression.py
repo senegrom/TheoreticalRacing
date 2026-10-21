@@ -68,7 +68,13 @@ EXACT_MOVES = {
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time);
     # the same seven finishers in a new order (p2 now wins on its 83rd move; p1, the winner before on its
     # 82nd, finishes seventh on its 86th), four moves more; p8 is still the car running at the end.
-    ("silverstone", 15): [83, 84, 86, 87, 87, 87, 87],
+    # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy);
+    # p2 still wins on its 83rd move, but p3, p4 and p5 (fourth, fifth and third in round 326's race, on their 87th, 87th
+    # and 86th) are now second to fourth on their 83rd, 84th and 84th, p6 and p7 fifth and sixth on their 85th (sixth and
+    # seventh on their 87th before), p8 (the car still running at the end before, after 86 moves) seventh on its 85th, and
+    # p1 (second home on its 84th before) is the car still running at the end, after 85 moves; no crash, twelve moves
+    # fewer (601 -> 589), and the ceiling above keeps its value.
+    ("silverstone", 15): [83, 83, 84, 84, 85, 85, 85],
 }
 
 
@@ -154,7 +160,19 @@ def main() -> int:
             # one, now p4 on its 6th move (at turn 44, (95,147)->(97,149), on the run to the first
             # corner; p6, lost on its 10th move in round 310, is the car still running at the end, after
             # 126 moves, and the six finishers finish as before) -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 25): (6, 1)}
+            # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast
+            # moves by its full policy); Hungaroring 25, a car short since round 310, keeps every car (p4,
+            # lost on its 45th move in round 326, at turn 356, (59,117)->(61,118) -- on its 6th in round
+            # 316 --, now finishes seventh on its 128th, and p6 is still the car running at the end, after
+            # 127 moves), so it leaves this list and takes the (7, 0) default; Hungaroring 8, whole since
+            # round 278, drops one: p3 (the car still running at the end before, after 128 moves) crashes
+            # on its 45th move, at turn 355, on that very cell and velocity ((59,117)->(61,118) at v(3,2),
+            # into the outer wall of the bend): on its 44th, at turn 347, p1, p7 and p6 held (59,116),
+            # (60,116) and (61,116), so its only landings on the track were (59,117) and (60,117), on the
+            # outer edge, from which every landing crosses the wall. p5, seventh home on its 128th before,
+            # is the car still running at the end, after 126 moves, and p2, p4, p6, p7, p8 and p1 finish as
+            # before -- recorded, not vetoed (AGENTS.md).
+            SAFETY = {("hungaroring", 8): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
