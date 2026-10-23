@@ -1,5 +1,76 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 330 promoted (2026-10-23): a third rival in contact plays one stronger forecast move too (2+1+1)
+
+On top of round 329's split, when a third live rival is in two-cycle contact with the mover at the landing, the
+next one in the fast path's order (ChooserTraffic.relevantExcept without the relevant and the second rival)
+plays its first AI1_AWARE_THIRD_MOVES = 1 forecast move by its full policy, beside round 329's two and one.
+Without a third rival in contact nothing changes, so duels, the tie re-roll and every forecast with fewer than
+three rivals in contact race as round 329. heaviest() now leaves out two rivals (relevant() passes -1, -1, the
+one-rival relevantExcept except, -1); check mode cross-checks the third pick on the original graph. The memo
+is unchanged: the third rival's upgraded move is made in the one context every upgraded move has.
+
+Arm 332 (E:/tmp-claude/arm332_morerivals.py, AR332_N=3; jar h332n3 on bbaf956) against the round-329
+champion, mirrored (boards favouring candidate / champion / tied; crashes candidate:champion):
+
+| Slice | 2+1+1 (promoted) |
+|---|---|
+| 8 cars 1-10 | -0.051 +- 0.022 (51/32/1; 79:70) |
+| 8 cars held-out 11-20 | -0.050 +- 0.022 (51/31/2; 67:72) |
+| 8 cars fresh 21-30 | -0.026 +- 0.022 (42/37/5; 72:72) |
+| 8 cars computed 1-10 | -0.039 +- 0.020 (44/32/8; 51:76) |
+| 8 cars scattered 1-10 | +0.001 +- 0.001 (1/3/80; 11:11) |
+| 4 cars 1-20 | -0.009 +- 0.005 (37/19/28; 20:21) |
+| 4 cars held-out 21-40 | -0.014 +- 0.006 (31/21/32; 10:16) |
+| Lone candidate (8 cars, every seat) | -0.049 +- 0.017 (50/28/6; 32:40) |
+| Duels | unchanged by construction (no second or third rival) |
+
+- The three random-start 8-car windows pool to about -0.042 +- 0.013. The owner's condition (2026-10-23) was to
+  promote if the lone check held; it read -0.049.
+- The split variants that led here (arm 331 against round 328, 8 cars seeds 1-10 / 4 cars seeds 1-20): split
+  2+1 -0.037 / -0.016, 2+2 -0.045 / -0.033, 3+1 -0.058 / -0.040, 2+1+1 -0.085 / -0.024. Against round 329
+  (arms 332 and 333): a fourth rival's move as well (2+1+1+1) -0.016 / -0.009 (a four-car field has no fourth
+  rival); keeping the relevant rival's three (3+1) -0.024 / -0.007; that plus the third rival's move (3+1+1)
+  -0.031 and -0.030 held-out / -0.021 and -0.021 held-out -- behind 2+1+1 with eight cars, ahead with four.
+- CPU: the promoted jar against the round-329 champion 1.08x in 8-car fields (six races); the arm read 1.05x.
+
+The promotion (E:/tmp-claude/p330/promote330.py; jar p330f) writes the arm with every car a candidate. The
+promoted jar races as the arm with every slot a candidate: seven random-start and three computed-start 8-car
+races and eight duels (PROMO330 identity); check mode, with 4 and 8 cars, prints no PERF-AWARE line. Two
+reviewers proved the equivalence, round 329's behaviour wherever no third rival is in contact (relevant() and
+the one-rival relevantExcept return what they returned), the memo's exactness and the check-mode twin; their
+fixes were comments only. The final jar is code-identical to the identity-tested one (javap).
+
+Corpus on the box: 10 of the 12 goldens moved -- every multi-car golden; both duels are unchanged and the
+browser parity duel keeps 978446be. 18 of the 25 pins failed the probe. The box loop re-froze eight (early round
+trap, energy pace, field neutral, equal-speed veto, finish-sprint true confirm, six-ahead acceleration, graduated
+field acceleration, thin ridge); ten were re-frozen by hand from the probe records, four editors and four
+independent reviewers, all confirmed (two notes' wording corrected):
+- six-ahead high speed: Spa s83 gains a crash (p3, 30th move); the pinned turn-201 line is p1's NW
+  acceleration again (round 329 had held there), now from v(0,8) at (102,134); Spa s47 gains a second crash,
+  s27 and s40 regain a car; the Coil s5 digest is now 53b861c2;
+- label invariance: unchanged; it passes through the six-ahead pin's re-frozen Coil s5 digest;
+- cross-model pace: Silverstone s1 three finisher moves slower, p7 now the car still running;
+- bounded uncertain field: Le Mans s14 gains a crash at the top-of-course bend (p7, its one safe landing taken
+  by p6 the move before); s93 and s87 move behind unchanged contracts;
+- mixed safety: the Gear s1 front ordering moves to AI1 14, AI2 22 (rounds 303 and 305/309's totals);
+- finish denial: the Hairpin s68 race moves and its turn-104 p8 line is re-anchored -- an ordinary steer; the
+  finish-denial switch still fires nowhere in this race (round 329);
+- finish frontier: Coil s49's turn-308 p4 line re-anchored (a NW re-acceleration; round 96's SW veto velocity
+  change appears at move 300); s6 and s47 move;
+- staged pace: Hungaroring s4 and Silverstone s18 are whole again; the mixed Monaco s9 race gains an AI2 crash
+  (p7, boxed onto the outer wall of the first right-hander), asserted as round 260 did;
+- pace: Monaco s1 is whole again (round 329's SAFETY entry removed); Big Oval s7 moves; Le Mans s12 still loses
+  p2;
+- private slack: Hungaroring s12 (p5, 46th move, the corner rounds 316-328 lost cars at) and Zandvoort s34 (p7,
+  18th) lose a car; Interlagos s47 and Monaco s35 regain theirs.
+Every crash is recorded, not vetoed. Box verify with the final jar 30/30; the Python unit tests (104), the
+Java suite and the local browser build pass.
+
+In flight: IR5 of the interaction-racecraft plan (does a pair of forced own moves find headroom no single
+forced move does?), E:/tmp-claude/ir5: duels, 83 tracks x seeds 41-42, one snapshot per race on the round-329
+champion, ~14,000 forced replays with controls, a permutation null and placebo pairs.
+
 ## Round 329 promoted (2026-10-23): a second rival in contact plays one of aware's three stronger moves
 
 In an aware forecast (the top-level chooser's landing loop; round 314's tie re-roll never qualifies, it has two

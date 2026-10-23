@@ -29,7 +29,8 @@ CASES = [("zandvoort", 115)]
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
 # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
-PROMOTED = (7, 0, [137, 138, 139, 140, 141, 143, 144])
+# Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
+PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 144])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in LABELS}
 

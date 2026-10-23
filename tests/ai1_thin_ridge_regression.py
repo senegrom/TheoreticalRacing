@@ -107,7 +107,8 @@ def main() -> int:
         # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); no crash, and p7 survives, now home seventh on its 67th move (fifth on its 66th before); p3 (the car still running at the end before) finishes fourth on its 66th, p6 fifth (fourth before), p1 sixth on its 67th (seventh on its 68th before), and p8 (sixth home before) is the car still running at the end, after 66 moves.
         # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
         # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); no crash, and p7 survives, now home sixth on its 67th move (seventh on its 67th before); p4 wins on its 65th (second before), p2 is second on its 66th (first on its 65th before), p3 (the car still running at the end before) third on its 66th, p5 fourth on its 66th (third on its 65th before), p6 fifth on its 67th (fourth on its 66th before) and p8 seventh on its 68th (fifth on its 66th before), and p1 (sixth home on its 67th before) is the car still running at the end, after 68 moves. The race parts from round 316's on move 64 (p8's 8th).
-        expected = {"AI1": (21, 4, 0), "AI2": (15, 4, 0)}
+        # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
+        expected = {"AI1": (19, 4, 0), "AI2": (17, 4, 0)}
         if result != expected:
             raise SystemExit(
                 "Round-185 width-three ridge regression: "

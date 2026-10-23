@@ -58,7 +58,11 @@ EXACT_MOVES = {
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
     # Round 310: re-frozen from measurement (the danger-joint-search family deleted);
     # the same seven finishers in the same order, p6 and p7 each home one move later (on their 71st and 72nd).
-    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
+    # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too);
+    # the same seven finishers in the same order, p7 home one move earlier, on its 71st (on its 72nd in the list pinned
+    # since round 310), and p8 still the car running at the end, after 70 moves (71 before); no crash, one move fewer
+    # (483 -> 482) -- round 303's list again -- and the ceiling above keeps its value.
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 71],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
@@ -80,7 +84,13 @@ EXACT_MOVES = {
     # p1 (the car still running at the end before, after 85 moves) seventh on its 86th, and p8 (seventh home on its 85th
     # before) is the car still running at the end, after 85 moves; no crash, one move more (589 -> 590), and the ceiling
     # above keeps its value.
-    ("silverstone", 15): [83, 83, 84, 84, 85, 85, 86],
+    # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too);
+    # p2 still wins on its 83rd move, p3 is now second on its 83rd and p4 third on its 84th (third on its 84th and second
+    # on its 83rd before), p6 fourth on its 84th (fifth on its 85th before), p1 (seventh before, on its 86th) fifth on its
+    # 85th, p5 sixth on its 85th (fourth on its 84th before), p7 seventh on its 85th (sixth on its 85th before), and p8 is
+    # still the car running at the end, after 84 moves (85 before); no crash, one move fewer (590 -> 589) -- round 328's
+    # list again, in a new order -- and the ceiling above keeps its value.
+    ("silverstone", 15): [83, 83, 84, 84, 85, 85, 85],
 }
 
 
@@ -198,7 +208,20 @@ def main() -> int:
             # is second on its 84th, p5, p4 and p6 (second, third and fourth before) third to fifth on their
             # 84th, 85th and 85th, p8 sixth on its 85th (seventh before), and p7 is still the car running at
             # the end, after 85 moves -- recorded, not vetoed (AGENTS.md).
-            SAFETY = {("hungaroring", 4): (6, 1), ("silverstone", 18): (6, 1)}
+            # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one
+            # stronger forecast move too); Hungaroring 4 and Silverstone 18, each a car short since round 329,
+            # keep every car, so both leave this list, which is empty now: every case takes the (7, 0)
+            # default. Hungaroring 4: p7 (lost on its 11th move in round 329, at turn 87) now finishes sixth on
+            # its 127th, p1 (sixth before, on its 128th) seventh on its 129th, p3 is still the car running at
+            # the end, after 128 moves, and p5, p6, p8, p2 and p4 finish first to fifth as before, on their
+            # 121st, 122nd, 123rd, 125th and 126th (873 moves, under the ceiling of 889). Silverstone 18: p3
+            # (lost on its 57th move in round 329, at turn 451) now finishes third on its 84th, p4 (fourth
+            # before, on its 85th) second on its 83rd, p1 and p5 (second and third before, on their 84th)
+            # fourth and fifth on their 85th, p7 (the car still running at the end before, after 85 moves)
+            # sixth on its 86th, p8 (sixth before, on its 85th) seventh on its 86th, p6 (fifth before, on its
+            # 85th) is the car still running at the end, after 86 moves, and p2 still wins on its 83rd (592
+            # moves, under the ceiling of 594).
+            SAFETY = {}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -229,14 +252,25 @@ def main() -> int:
         # the crash rather than vetoing it (AGENTS.md); the pin keeps the
         # measured pair, so a further change still fails.
         # Round 278: the AI2 car keeps its race, so the mixed field is crash-free again.
-        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
+        # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one
+        # stronger forecast move too); an AI2 car dies here again: p7 (fifth home before, on its 116th
+        # move) crashes on its 10th, at turn 79, ((85,29)->(85,24) at v(0,-4), into the outer wall of the
+        # first right-hander): on its 9th, at turn 71, p1 held (85,30) and p6 (85,31), so its only free landing
+        # on the track was (85,29), the outer wall's corner, from which every landing crosses the wall.
+        # p1 (seventh before, on its 119th) is now second on its 114th, p3 (the car still running at the
+        # end before, after 118 moves) third on its 115th, p4, p5 and p6 (second to fourth before, on
+        # their 113th, 114th and 115th) fourth to sixth on their 116th, 117th and 118th, p8 (sixth before,
+        # on its 117th) is the car still running at the end, after 117 moves, and p2 still wins on its
+        # 112th; the place sums move from 18 and 18 to AI1 10 and AI2 26 -- recorded, not vetoed
+        # (AGENTS.md). As in round 260, the pin keeps the measured pair, AI2 (4, 1).
+        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 1):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
     print(
         "AI1StagedPaceRegression: OK "
         "(three-ahead Coil/Hungaroring gains; low-speed Hungaroring and "
         "ambiguous Le Mans vetoes; stationary-grid Silverstone gain; "
-        "mixed Monaco seed 9 crash-free)"
+        "mixed Monaco seed 9 safety pinned)"
     )
     return 0
 

@@ -36,6 +36,16 @@ LABELS = ("AI2",)
 # running at the end, after 117 moves, and p1, p2 and p8 finish first, second and
 # sixth as before -- recorded, not vetoed (AGENTS.md). SAFETY below records the
 # measured (6, 1); the six finishers sum to 687 and this bound keeps its value.
+# Round 330: re-frozen from measurement (a third rival in contact with the mover
+# plays one stronger forecast move too); Monaco seed 1 keeps every car again: p7
+# (lost on its 17th move in round 329, at turn 135) now finishes fourth on its
+# 115th, p6 (fifth before, on its 116th) third on its 114th, p8 (sixth before, on
+# its 117th) fifth on its 116th, p3 (the car still running at the end before, after
+# 117 moves) sixth on its 118th, p4 (third before, on its 114th) seventh on its
+# 119th, p5 (fourth before, on its 115th) is the car still running at the end, after
+# 118 moves, and p1 and p2 finish first and second as before. SAFETY below drops the
+# entry round 329 added, so the race takes the (7, 0) default again; the seven
+# finishers sum to 807 and this bound keeps its value.
 MAX_FINISH_MOVE_SUM = 891
 
 # Round 94 extends the dual-model finish sprint from map TTF 15 to 20 only
@@ -53,7 +63,8 @@ FINISH_EXPECTED = {
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p4 (second before, on its 20th move) now wins on its 20th, p1 (third before, on its 21st) finishes second on its 21st, p3 (the winner before, on its 20th) third on its 21st, p5 (sixth before, on its 22nd) fourth on its 21st and p6 (fourth before, on its 21st) sixth on its 22nd; p2 and p7 finish fifth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 148 -> 149).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p3 (third before, on its 21st move) now wins on its 20th, p4 (the winner before, on its 20th) finishes second on its 20th, p1 (second before, on its 21st) third on its 21st, p2 (fifth before, on its 22nd) fourth on its 22nd and p5 (fourth before, on its 21st) fifth on its 22nd; p6 and p7 finish sixth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 149, unchanged).
-    ("bigoval", 7): [20, 20, 21, 22, 22, 22, 22],
+    # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); seven finishers and no crash as before, but p6 (sixth before, on its 22nd move) now finishes fourth on its 21st, so p2 and p5 (fourth and fifth before) finish fifth and sixth, on their 22nd as before; p3, p4 and p1 finish first to third on their 20th, 20th and 21st as before, p7 seventh on its 22nd as before, and p8 is still the car running at the end, after 21 moves -- round 303's list again (sum 149 -> 148).
+    ("bigoval", 7): [20, 20, 21, 21, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -69,7 +80,11 @@ FINISH_EXPECTED = {
 # seven finishers and zero crashes; every other case takes the (7, 0) default.
 # Round 329: the Monaco seed-1 AI1 race joins it (see MAX_FINISH_MOVE_SUM above);
 # Le Mans s12 still loses p2 on its 37th move, at turn 290, as in round 328.
-SAFETY = {("monaco", 1): (6, 1), ("lemans", 12): (6, 1)}
+# Round 330: the Monaco seed-1 AI1 race leaves it again (see MAX_FINISH_MOVE_SUM
+# above); Le Mans s12 still loses p2 on its 37th move, at turn 290, as in rounds
+# 328 and 329, and its six finishers and the car still running at the end, p4
+# after 71 moves, finish as before.
+SAFETY = {("lemans", 12): (6, 1)}
 
 
 def main() -> int:
