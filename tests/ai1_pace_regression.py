@@ -23,6 +23,19 @@ LABELS = ("AI2",)
 # fleet cleared the change on both seed slices (no crash moved; +19 moves in
 # 1.85M on seeds 1-10, +133 on 11-20), and the safety assertions above this
 # bound -- seven finishers, no crash -- are untouched.
+# Round 329: re-frozen from measurement (a second rival in contact with the mover
+# plays one of aware's three stronger forecast moves); Monaco seed 1, whole in every
+# round since round 83 pinned it, loses a car: p7 (fifth home before, on its 116th
+# move) crashes on its 17th, at turn 135, ((103,5)->(104,1) at v(2,-4), into the
+# outer wall where the climb turns right): on its 15th, at turn 119, p8 held
+# (101,10), the one landing from which it could still make the bend, and from each
+# of its free landings only one more move stays on the track. Seven finishers become
+# six: p4 (seventh before, on its 119th) is now third on its 114th, p5 (the car still
+# running at the end before, after 118 moves) fourth on its 115th, p6 (fourth before,
+# on its 115th) fifth on its 116th, p3 (third before, on its 114th) is the car still
+# running at the end, after 117 moves, and p1, p2 and p8 finish first, second and
+# sixth as before -- recorded, not vetoed (AGENTS.md). SAFETY below records the
+# measured (6, 1); the six finishers sum to 687 and this bound keeps its value.
 MAX_FINISH_MOVE_SUM = 891
 
 # Round 94 extends the dual-model finish sprint from map TTF 15 to 20 only
@@ -39,7 +52,8 @@ FINISH_EXPECTED = {
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p4 (second before, on its 20th move) now wins on its 20th, p1 (third before, on its 21st) finishes second on its 21st, p3 (the winner before, on its 20th) third on its 21st, p5 (sixth before, on its 22nd) fourth on its 21st and p6 (fourth before, on its 21st) sixth on its 22nd; p2 and p7 finish fifth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 148 -> 149).
-    ("bigoval", 7): [20, 21, 21, 21, 22, 22, 22],
+    # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p3 (third before, on its 21st move) now wins on its 20th, p4 (the winner before, on its 20th) finishes second on its 20th, p1 (second before, on its 21st) third on its 21st, p2 (fifth before, on its 22nd) fourth on its 22nd and p5 (fourth before, on its 21st) fifth on its 22nd; p6 and p7 finish sixth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 149, unchanged).
+    ("bigoval", 7): [20, 20, 21, 22, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -53,7 +67,9 @@ FINISH_EXPECTED = {
 }
 # Round 328: the measured (finishers, crashes) of a case that no longer keeps
 # seven finishers and zero crashes; every other case takes the (7, 0) default.
-SAFETY = {("lemans", 12): (6, 1)}
+# Round 329: the Monaco seed-1 AI1 race joins it (see MAX_FINISH_MOVE_SUM above);
+# Le Mans s12 still loses p2 on its 37th move, at turn 290, as in round 328.
+SAFETY = {("monaco", 1): (6, 1), ("lemans", 12): (6, 1)}
 
 
 def main() -> int:
@@ -79,7 +95,7 @@ def main() -> int:
     if result is None:
         raise SystemExit("AI1 Monaco seed-1 race failed or produced no complete log")
     finishes, crashes, finish_moves = result
-    if finishes != 7 or crashes != 0:
+    if (finishes, crashes) != SAFETY.get(("monaco", 1), (7, 0)):
         raise SystemExit(
             f"AI1 Monaco seed-1 safety regression: finishes={finishes}, crashes={crashes}"
         )

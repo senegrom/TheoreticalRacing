@@ -10,7 +10,8 @@ import java.util.Set;
  *  turn order, ignoring other bodies, and an edge counts the cells where one
  *  car's arrivals meet another car's cells at that slot. It allocates forecast
  *  fidelity; it never certifies danger or vetoes a move. Bounded work: past
- *  the transition budget every live pair is treated as interacting. */
+ *  the transition budget every live pair is treated as interacting, except that
+ *  relevantExcept (round 329) then finds no second rival. */
 final class ChooserTraffic {
     private static final Direction[] DIRECTIONS = Direction.values();
     private static final int TRANSITION_BUDGET = 2048;
@@ -29,6 +30,30 @@ final class ChooserTraffic {
     static int relevant(final RaceGame g, final FrontCache cache, final int[] x, final int[] y,
             final int[] vx, final int[] vy, final int[] lap, final int[] gate, final boolean[] alive,
             final int focal) {
+        final int fast = heaviest(g, cache, x, y, vx, vy, lap, gate, alive, focal, -1);
+        return fast == OVER_BUDGET ? relevant(g, x, y, vx, vy, lap, gate, alive, focal) : fast;
+    }
+
+    /** Round 329: the fast path's heaviest live rival other than {@code except}, by the same order
+     *  (edge, then nearer, then lower index), or -1 when none interacts; -1 past the transition
+     *  budget, which no field below 23 live cars reaches. */
+    static int relevantExcept(final RaceGame g, final FrontCache cache, final int[] x, final int[] y,
+            final int[] vx, final int[] vy, final int[] lap, final int[] gate, final boolean[] alive,
+            final int focal, final int except) {
+        final int fast = heaviest(g, cache, x, y, vx, vy, lap, gate, alive, focal, except);
+        return fast == OVER_BUDGET ? -1 : fast;
+    }
+
+    /** Round 329: {@link #heaviest} past the transition budget. */
+    private static final int OVER_BUDGET = -2;
+
+    /** Round 329: the one fast path of {@link #relevant} (except -1) and {@link #relevantExcept}: the
+     *  live rival other than {@code except} with the heaviest edge to {@code focal}, then the nearer,
+     *  then the lower index; -1 when none interacts or focal is not live; OVER_BUDGET past the
+     *  transition budget. */
+    private static int heaviest(final RaceGame g, final FrontCache cache, final int[] x, final int[] y,
+            final int[] vx, final int[] vy, final int[] lap, final int[] gate, final boolean[] alive,
+            final int focal, final int except) {
         final int n = alive.length;
         if (focal < 0 || focal >= n || !alive[focal])
             return -1;
@@ -41,12 +66,12 @@ final class ChooserTraffic {
                 work += (long) DIRECTIONS.length * (1 + fronts[i].size1);
             }
         if (work > TRANSITION_BUDGET)
-            return relevant(g, x, y, vx, vy, lap, gate, alive, focal);
+            return OVER_BUDGET;
         final Fronts mine = fronts[focal];
         final long here = cell(x[focal], y[focal]);
         int best = -1, bestEdge = 0;
         for (int i = 0; i < n; i++) {
-            if (i == focal || !alive[i])
+            if (i == focal || i == except || !alive[i])
                 continue;
             final Fronts other = fronts[i];
             final int edge = common(other.cells1, mine.cells1) + common(other.cells2, mine.cells2)
@@ -195,6 +220,26 @@ final class ChooserTraffic {
         int best = -1;
         for (int i = 0; i < n; i++) {
             if (i == focal || !alive[i] || edge[focal][i] <= 0)
+                continue;
+            if (best < 0 || edge[focal][i] > edge[focal][best]
+                    || edge[focal][i] == edge[focal][best] && distance(x, y, focal, i) < distance(x, y, focal, best))
+                best = i;
+        }
+        return best;
+    }
+
+    /** Round 329, check mode (-Dai.perf.check=true): {@link #relevantExcept} read from the original
+     *  graph's focal row, by the same order. Within the transition budget the fast path's edge is
+     *  that row's entry for every rival, so the two agree. */
+    static int relevantExcept(final RaceGame g, final int[] x, final int[] y, final int[] vx, final int[] vy,
+            final int[] lap, final int[] gate, final boolean[] alive, final int focal, final int except) {
+        final int n = alive.length;
+        if (focal < 0 || focal >= n || !alive[focal])
+            return -1;
+        final int[][] edge = graph(g, x, y, vx, vy, lap, gate, alive, (focal + 1) % n);
+        int best = -1;
+        for (int i = 0; i < n; i++) {
+            if (i == focal || i == except || !alive[i] || edge[focal][i] <= 0)
                 continue;
             if (best < 0 || edge[focal][i] > edge[focal][best]
                     || edge[focal][i] == edge[focal][best] && distance(x, y, focal, i) < distance(x, y, focal, best))

@@ -6,20 +6,20 @@
       "track": "hairpin",
       "seed": 10,
       "players": 8,
-      "sha256": "5e2a0029ff4ccd79b7597dd9c648f7630aaacdd12de1961fc1325a7569ab45ea",
+      "sha256": "fb389d9a86b6c8c4ba030e79ff21a7cf02b277538dc2c1930388f5187a44caa2",
       "summary": {
-        "turns": 134,
+        "turns": 135,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
           "B",
           "E",
-          "F",
           "G",
           "H",
           "C",
-          "D"
+          "D",
+          "F"
         ]
       }
     },
@@ -28,19 +28,19 @@
       "track": "zigzag",
       "seed": 4,
       "players": 8,
-      "sha256": "002ceabb0044f94c335f53aa69d022e1c238f037bed4d6b900d6e34545b5fdd8",
+      "sha256": "a40e59e41f3773ef468f9046bb148527cf34e24db42115c7514bcb4f57bf315f",
       "summary": {
-        "turns": 475,
-        "finishes": 6,
-        "crashes": 1,
+        "turns": 530,
+        "finishes": 7,
+        "crashes": 0,
         "results": [
-          "B",
-          "D",
-          "E",
-          "G",
           "A",
-          "F",
+          "G",
+          "D",
           "H",
+          "B",
+          "E",
+          "F",
           "C"
         ]
       }
@@ -50,19 +50,19 @@
       "track": "hungaroring",
       "seed": 13,
       "players": 8,
-      "sha256": "813b1a9c2d8c8eed533d2163790a58f552e9590e80744858fb5a7b1766c27c1a",
+      "sha256": "c9aee8bc6ed2eebf318164510d0eb4821add5d42b21cfec8e860c17053db5af6",
       "summary": {
-        "turns": 919,
+        "turns": 915,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "D",
+          "E",
+          "F",
           "H",
           "A",
-          "E",
           "B",
           "C",
-          "F",
           "G"
         ]
       }
@@ -72,19 +72,19 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "9f22662e80bfe88a0c50ace7b67f507f4b3482f2f9e546623e0046e0f5b60414",
+      "sha256": "f6f464df0729e9dea2aef1e84261431ce4e89efad0eae2f63ce89fd16a77158a",
       "summary": {
-        "turns": 1189,
-        "finishes": 7,
-        "crashes": 0,
+        "turns": 1074,
+        "finishes": 6,
+        "crashes": 1,
         "results": [
           "B",
           "F",
           "G",
           "H",
           "A",
-          "E",
           "D",
+          "E",
           "C"
         ]
       }
@@ -110,16 +110,16 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "bea1bb4dedeb7e640ca71906e6b3510e4910047c28deb750a598b255862ee1ba",
+      "sha256": "00e7a61440c27e18a24808c33ce448735e9e95ff7ccc1cbe4df396b6609771d6",
       "summary": {
-        "turns": 540,
+        "turns": 541,
         "finishes": 3,
         "crashes": 0,
         "results": [
           "A",
-          "B",
           "C",
-          "D"
+          "D",
+          "B"
         ]
       }
     },
@@ -128,7 +128,7 @@
       "track": "monaco",
       "seed": 16,
       "players": 8,
-      "sha256": "8169a557c2e8a0a238472f0c163139d1a6469b5c42348464502be5d51ee50cb9",
+      "sha256": "7ed5d4bab3f254d8aa81ac1640792dbb0fc69ced521a349697a9aac60372350d",
       "summary": {
         "turns": 1104,
         "finishes": 7,
@@ -136,12 +136,12 @@
         "results": [
           "A",
           "C",
-          "G",
           "D",
           "E",
-          "F",
+          "G",
           "H",
-          "B"
+          "B",
+          "F"
         ]
       }
     },
@@ -150,20 +150,20 @@
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "37afd492c95df51c61f138e73964dea532bc34c014ae111b1768a9bebbaded19",
+      "sha256": "ff3a545961e562982a49208130064ec707187a17e4bafdbee37bfa6fa5536611",
       "summary": {
-        "turns": 1121,
+        "turns": 1115,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "C",
           "D",
           "E",
+          "F",
           "G",
           "H",
-          "B",
-          "F",
-          "A"
+          "A",
+          "B"
         ]
       }
     },
@@ -172,15 +172,15 @@
       "track": "interlagos",
       "seed": 10,
       "players": 8,
-      "sha256": "5127fd1aa0ee1a240fdef4e915e8bf55c15d335ebf18c84e79a7025ebdb716e8",
+      "sha256": "1d752a53c8659ac82b5a57ea2a39c96d67bf15b477895f8d01a8a1f3c337ad2d",
       "summary": {
-        "turns": 991,
+        "turns": 996,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
-          "B",
           "C",
+          "B",
           "D",
           "E",
           "F",
@@ -194,20 +194,20 @@
       "track": "zigzag",
       "seed": 22,
       "players": 8,
-      "sha256": "a2d426d66252e0630e5d5f238ee699d424aea9ba853ad200ccc51cbfd27b7dde",
+      "sha256": "8dc93e8f807126271b161fea9df6f784197e424bf53d6abcee7402b3521bec31",
       "summary": {
-        "turns": 528,
+        "turns": 533,
         "finishes": 7,
         "crashes": 0,
         "results": [
           "A",
           "B",
-          "C",
-          "D",
-          "E",
-          "F",
           "G",
-          "H"
+          "D",
+          "F",
+          "H",
+          "C",
+          "E"
         ]
       }
     },
@@ -216,20 +216,20 @@
       "track": "zandvoort",
       "seed": 45,
       "players": 8,
-      "sha256": "b4f440802e6a3b699dea7b97d581e74ed1ac6aed21e77b7e630ca567becf6d2a",
+      "sha256": "9fee190d4ed4affd0cb5d973d97392f7d9912e5578d63e5a4d6ac3e9436fbdda",
       "summary": {
-        "turns": 1114,
+        "turns": 1109,
         "finishes": 7,
         "crashes": 0,
         "results": [
-          "A",
-          "B",
-          "C",
           "D",
           "E",
           "F",
           "G",
-          "H"
+          "A",
+          "B",
+          "H",
+          "C"
         ]
       }
     },

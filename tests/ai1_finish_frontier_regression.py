@@ -44,7 +44,8 @@ EXPECTED = {
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); the same seven finish in the same order, no crash, p8 still the car running at the end, and p6 one own move slower, in 61 (sum 417 -> 418).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); the same seven finish in the same order, no crash, p8 still the car running at the end, and p6 one own move faster, in 60 (sum 418 -> 417).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); no crash, p8 (the car still running at the end before) now finishes sixth in 60 own moves, p6 (sixth home in 60 before) two own moves slower, seventh in 62, and p7 (seventh home in 61 before) is the car still running at the end, after 61 own moves; p1 to p5 finish as before (sum 417 -> 418).
-    49: (7, 0, [58, 59, 59, 60, 60, 60, 62]),
+    # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); no crash, p6 (seventh home in 62 before) two own moves faster, sixth in 60, p7 (the car still running at the end before) now finishes seventh in 61 own moves, and p8 (sixth home in 60 before) is the car still running at the end, after 60 own moves; p1 to p5 finish as before -- round 326's classification again (sum 418 -> 417).
+    49: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -57,13 +58,14 @@ EXPECTED_SEED6_FINISHERS = [
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p4 finishes one own move faster, third in 59, and p3, p6 and p8 each one slower, fourth in 60 and sixth and seventh in 61; p5 is home fifth instead of seventh, in 61 as before, and p7 is still the car running at the end; the sum is 419 now.
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); no crash, p3 finishes one own move faster, second in 59 (fourth in 60 before), p5 and p6 each one faster, fourth and fifth in 60 (fifth and sixth in 61 before), p7 (the car still running at the end before) now finishes sixth in 61 own moves, and p2 (second home in 59 before) is the car still running at the end; p1, p4 and p8 finish as before, first in 58, third in 59 and seventh in 61; the sum is 418 now.
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); the same seven finish in the same order, no crash, p7 one own move faster, sixth in 60 (61 before), and p2 still the car running at the end, after 61 own moves; the sum is 417 now.
+    # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); no crash, p2 (the car still running at the end before, after 61 own moves) now finishes second in 59, p3 one own move slower, fourth in 60 (second in 59 before), p8 one faster, sixth in 60 (seventh in 61 before), p6 one slower, seventh in 61 (fifth in 60 before), and p7 (sixth home in 60 before) is the car still running at the end, after 60 own moves; p1 and p4 finish as before, first in 58 and third in 59, and p5 is fifth, in 60 as before (fourth before); the sum is unchanged at 417.
     (1, 58),
-    (3, 59),
+    (2, 59),
     (4, 59),
+    (3, 60),
     (5, 60),
-    (6, 60),
-    (7, 60),
-    (8, 61),
+    (8, 60),
+    (6, 61),
 ]
 EXPECTED_DECISION = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
@@ -78,7 +80,8 @@ EXPECTED_DECISION = {
     # Round 316: the same turns and cars, re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); s6's p3 brakes SW as before, two cells further west: it reaches (66,47) at move 291 instead of (68,47); s47's p2 now reaches the column a move earlier, (65,49) at v(1,-6) at move 282, and at move 290 plays W there, to (0,-6) and (65,43) -- from the very state at which round 96 pinned its SW veto, it now plays the W that round 96 pinned as seed 6's gain -- and brakes SW from (65,43) at move 298; the old line's SW from (65,47) is p3's now, at move 299; s49 unchanged.
     # Round 326: the same turns and cars, re-frozen from measurement (every chooser call ranks by projected place, nested ones too); s6's p3 no longer brakes at move 299: it reaches (65,48) at v(1,-6) at move 291, one cell west and one south of round 316's (66,47), and plays W there, to (0,-6) and (65,42) -- the W that round 96 pinned as seed 6's gain and the W-then-SW pair s47's p2 plays at moves 290 and 298, each from (65,49), one cell further south -- and brakes SW from (65,42) at move 307; s47 and s49 unchanged.
     # Round 328: the same turns and cars, re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); s6's p3 brakes at move 299 again: it reaches (65,47) at v(1,-6) at move 291, one cell north of round 326's (65,48), and brakes SW there, to (0,-5) and (65,42) -- the very line rounds 233-234 and 281-301a' pinned at this turn -- then plays W from (65,42) at move 307, to (-1,-5) and (64,37), where round 326's line also stood after that move; the W that round 96 pinned as seed 6's gain, from (65,49) at v(1,-6) to (65,43), is the winner p1's, at move 289, as in round 326; s47 and s49 unchanged.
-    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (65,47)→(65,42) ok",
+    # Round 329: the same turns and cars, re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); s6's p3 still brakes SW at move 299, one cell further east: it reaches (66,47) at v(1,-6) at move 291 instead of (65,47) and brakes there, to (0,-5) and (66,42) -- round 316's line again -- then plays W from (66,42) at move 307, to (-1,-5) and (65,37); the W that round 96 pinned as seed 6's gain, from (65,49) at v(1,-6) to (65,43), is still the winner p1's, at move 289; s47 and s49 unchanged.
+    6: "299 p3 {kind} SW v(1,-6)→(0,-5) (66,47)→(66,42) ok",
     47: "298 p2 {kind} SW v(0,-6)→(-1,-5) (65,43)→(64,38) ok",
     49: "308 p4 {kind} W v(1,-5)→(0,-5) (65,47)→(65,42) ok",
 }

@@ -1,5 +1,85 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 329 promoted (2026-10-23): a second rival in contact plays one of aware's three stronger moves
+
+In an aware forecast (the top-level chooser's landing loop; round 314's tie re-roll never qualifies, it has two
+live cars), when another live rival besides the relevant one is in two-cycle contact with the mover at the
+landing, the next-heaviest of them (ChooserTraffic.relevantExcept: the fast path's order -- edge, then
+nearer, then lower index -- without the relevant rival) plays its first AI1_AWARE_SECOND_MOVES = 1 forecast
+move by its full policy, and the relevant rival plays two of round 328's three. Otherwise the relevant rival
+keeps its three, so duels race as round 328. This is IR2 of the interaction-racecraft plan (branch
+work/racecraft-ideas-20261021, README s4) in its simple deterministic form ("split"), not the plan's
+trace-nominated schedule. relevant() and relevantExcept share one fast path (heaviest()); check mode
+cross-checks the second pick on the original graph. The second rival's upgraded move is made in the one
+context every upgraded move has and is decider-independent (round 326), so the race-scoped memo is unchanged.
+
+Arm 329 (E:/tmp-claude/arm329_ir2.py, IR2_MODE=split; jar e329s, code-identical to 22517ad apart from the arm)
+against the round-328 champion, mirrored (boards favouring candidate / champion / tied; crashes
+candidate:champion):
+
+| Slice | Split (promoted) |
+|---|---|
+| 8 cars 1-10 | -0.037 +- 0.022 (46/35/3; 76:100) |
+| 8 cars held-out 11-20 | -0.044 +- 0.023 (50/30/4; 79:94) |
+| 8 cars fresh 21-30 | -0.024 +- 0.023 (40/38/6; 81:105) |
+| 8 cars computed 1-10 | -0.018 +- 0.022 (41/37/6; 76:83) |
+| 8 cars scattered 1-10 | -0.001 +- 0.001 (6/4/74; 11:11) |
+| 4 cars 1-20 | -0.016 +- 0.009 (33/27/24; 13:24) |
+| 4 cars held-out 21-40 | -0.011 +- 0.008 (36/26/22; 18:16) |
+| Lone candidate (8 cars, every seat) | -0.053 +- 0.021 (51/29/4; 51:56) |
+| Duels | unchanged by construction (no second rival) |
+
+- The three random-start 8-car windows pool to about -0.035 +- 0.013. The owner's condition (2026-10-23) was
+  to promote if the scattered and the fresh 8-car seeds held; they read -0.001 and -0.024.
+- Reselect (each cycle's heaviest rival in the forecast's own state gets the stronger move, none in a cycle
+  without contact; jar e329r) lost everywhere: duels +0.008 +- 0.004 (4/3/77), 4 cars +0.021 +- 0.008
+  (24/37/23), 8 cars +0.013 +- 0.023 (35/43/6). Spending the budget late or on other rivals in later cycles
+  is worse than spending it at once; spending one of it on a second rival at once is better.
+- CPU: the promoted jar against the round-328 champion 0.98x in 8-car fields (six races); the arm read 1.02x.
+- In flight on this champion's base: split variants (arm331_split.py: 3+1, 2+2, 2+1+1 across the top rivals).
+
+The promotion (E:/tmp-claude/p329/promote329.py; jar p329f) writes the arm with every car a candidate. Both the
+first build and the final jar race as the arm with every slot a candidate: seven random-start and three
+computed-start 8-car races and eight duels (PROMO329/PROMO329F identity); check mode, with 4 and 8 cars,
+prints no PERF-AWARE line. Two reviewers found no race defect; adopted: relevant() and relevantExcept share
+heaviest() so the two orders cannot drift; check mode recomputes the second pick on the original graph;
+ChooserTraffic's class doc names the exception past the transition budget; the CPU figure is the promoted
+jar's own.
+
+Corpus on the box: 10 of the 12 goldens moved -- every multi-car golden; both duels are unchanged (the legacy
+Hairpin s1 duel still runs 33 turns) and the browser parity duel keeps 978446be. 16 of the 25 pins moved. The
+box loop re-froze six (early round trap, energy pace, field neutral, finish-sprint true confirm, six-ahead
+acceleration, graduated field acceleration); ten were re-frozen by hand from the probe records, four editors
+and four independent reviewers, all confirmed (one note's round reference corrected):
+- six-ahead high speed: Spa s83's turn-201 line re-anchored at the same turn and car -- p1 now holds v(0,7)
+  there, two cells further back, and makes its NW acceleration at turn 209; Spa s27 (p8, 43rd move) and s47
+  (p5, 48th) gain a crash, s40 swaps which car crashes; the Coil s5 digest is now 2d00c5ee;
+- label invariance: unchanged; it passes through the six-ahead pin's re-frozen Coil s5 digest, which the
+  all-AI1 and alternating fields measure too;
+- cross-model pace: Silverstone s1 is whole again (p7 seventh on its 85th);
+- bounded uncertain field: Le Mans s93 regains its car; s14's last finisher one move later;
+- mixed safety: the Gear s1 front ordering moves (AI1 12, AI2 24; p3 home on its 44th);
+- finish denial: the Hairpin s68 race moves (7,0,[16,16,16,17,18,18,19]) and the turn-104 p8 line is
+  re-anchored. The finish-denial switch fires nowhere in this race -- true since round 233 (its landings are
+  dead or outside the window); the pin guards the race's outcome and trajectory, and its docstring still
+  describes the old specimen;
+- finish frontier: Coil s6's turn-299 decision re-anchored -- p3 still brakes SW there, one cell east (round
+  316's line); the winner still plays round 96's W frontier move;
+- staged pace: Hungaroring s4 (p7, 11th move, closed out of the first corner) and Silverstone s18 (p3, 57th)
+  gain a crash, Hungaroring s8 is whole again;
+- pace: Monaco s1, crash-free since round 83, loses p7 on its 17th move (the pin's Monaco check now reads the
+  SAFETY dict round 328 added); Big Oval s7 moves; Le Mans s12 still loses p2;
+- private slack: Hungaroring s12 (p2) and Monaco s35 (p1) regain a car; Interlagos s47 (p2, 35th) and Monaco
+  s35 (p4 and p7, 20th) lose cars.
+Every crash is recorded, not vetoed. Box verify with the final jar 30/30; the Python unit tests (104), the
+Java suite and the local browser build pass.
+
+Also closed on this champion's eve: IR3 (re-forecast every landing 4 rounds further when a forecast's end
+leaves the order to a contest; arm330_ir3.py): disagree trigger 8 cars +0.019 +- 0.024 (39/41/4), 4 cars
++0.018 +- 0.006 (24/34/26); contest trigger 8 cars +0.025 +- 0.025 (32/46/6), 4 cars +0.002 +- 0.009. The
+contest trigger fires on ~80% of 8-car decisions; after the extra rounds ~89% of disagree-triggered
+decisions still disagree -- the extensions chase contests that do not resolve (the plan's stop condition).
+
 ## Round 328 promoted (2026-10-21): aware's relevant rival plays three forecast moves by its full policy
 
 In an aware forecast -- the top-level chooser's landing loop and round 314's tie re-roll, whose rollout mover

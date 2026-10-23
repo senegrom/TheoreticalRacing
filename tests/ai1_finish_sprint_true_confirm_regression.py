@@ -37,12 +37,13 @@ TARGET = ("rand3", 1)
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
 PROMOTED = (7, 0, [60, 61, 61, 61, 62, 62, 62])
-PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 61), (4, 61), (5, 62), (6, 62), (7, 62)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 61, 5: 62, 6: 62, 7: 62, 8: 61}
+# Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
+PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 61), (5, 61), (4, 62), (6, 62), (7, 62)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 62, 5: 61, 6: 62, 7: 62, 8: 61}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
-PROMOTED_SHA256 = '8e7bfdc72806f39820bcb3031d06a3ecffe58f5ba54ff8586d71b3d9d41eeb97'
+PROMOTED_SHA256 = 'bee7413ecd33c245453c0dae451676099c34cd44c566db4fdabba09449e22e35'
 
 
 def main() -> int:

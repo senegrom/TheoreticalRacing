@@ -23,7 +23,8 @@ PROMOTED = {
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
-    86: (7, 0, [58, 59, 59, 60, 60, 61, 62]),
+    # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
+    86: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
 }
 LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in LABELS}
