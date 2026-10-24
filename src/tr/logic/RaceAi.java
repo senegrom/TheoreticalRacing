@@ -524,7 +524,7 @@ final class RaceAi {
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_AWARE_SELF_MOVES	= 5;	// round 305: the mover's forecast continuation moves played by its full policy
 	private final static int		AI1_AWARE_RIVAL_MOVES	= 3;	// round 328: the relevant rival's forecast moves played by its full policy
-	private final static int		AI1_AWARE_SECOND_MOVES	= 1;	// round 329: of those, the second-heaviest rival's when one is in contact with the mover
+	private final static int		AI1_AWARE_SECOND_MOVES	= 1;	// round 329: the second-heaviest rival's when one is in contact with the mover (round 331: beside those)
 	private final static int		AI1_AWARE_THIRD_MOVES	= 1;	// round 330: the third-heaviest rival's when one is in contact with the mover, beside those
 	private final static int		AI1_TIE_SELF_MOVES	= 1;	// round 314: the mover's forecast continuation moves played by its full policy when the chooser re-rolls an exact tie with two live cars (round 303's depth)
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
@@ -3584,8 +3584,8 @@ final class RaceAi {
 	/** Round 285: the forecast depth whose mover and relevant rival make their
 	 *  first move with the full policy (rounds 305, 314 and 328: the mover's first
 	 *  awareSelfMoves, the rival's first AI1_AWARE_RIVAL_MOVES; round 329: a second
-	 *  rival in contact takes AI1_AWARE_SECOND_MOVES of those; round 330: a third in
-	 *  contact plays AI1_AWARE_THIRD_MOVES beside them); -1 for none. */
+	 *  rival in contact plays AI1_AWARE_SECOND_MOVES, taken from those until round 331;
+	 *  round 330: a third in contact plays AI1_AWARE_THIRD_MOVES); -1 for none. */
 	private int awareDepth = -1, awareRival = -1;
 	/** Round 314: the mover's continuation moves an aware forecast plays by its full
 	 *  policy -- AI1_AWARE_SELF_MOVES, or AI1_TIE_SELF_MOVES while the chooser's tie
@@ -3872,7 +3872,7 @@ final class RaceAi {
 		// Round 329 (IR2 split): when another live rival is in two-cycle contact with the mover at the
 		// landing, the next-heaviest one (ChooserTraffic.relevantExcept, read here from the forecast's
 		// arrays, the landing's state) plays its first AI1_AWARE_SECOND_MOVES moves by its full policy
-		// and the relevant rival that many fewer. A tie re-roll has two live cars, so no second rival.
+		// (until round 331 the relevant rival that many fewer). A tie re-roll has no second rival.
 		// Against the round-328 champion: eight-car fields -0.037 +- 0.022 places (seeds 1-10), -0.044
 		// +- 0.023 (11-20), -0.024 +- 0.023 (21-30), -0.018 +- 0.022 computed, -0.001 +- 0.001
 		// scattered; four-car fields -0.016 +- 0.009, -0.011 +- 0.008 held-out; -0.053 +- 0.021 as a
@@ -3892,10 +3892,8 @@ final class RaceAi {
 					awareSecond = original;
 				}
 			}
-			if (awareSecond >= 0) {
-				awareRivalLeft = AI1_AWARE_RIVAL_MOVES - AI1_AWARE_SECOND_MOVES;
+			if (awareSecond >= 0) // round 331: beside the relevant rival's three, no longer one of them
 				awareSecondLeft = AI1_AWARE_SECOND_MOVES;
-			}
 		}
 		// Round 330 (IR2, 2+1+1): when a third live rival is in contact with the mover at the landing,
 		// the next one in the same order (relevantExcept without the relevant and the second rival)
@@ -3909,6 +3907,14 @@ final class RaceAi {
 		// its three (3+1), eight-car fields read -0.024 (seeds 1-10) and four-car fields -0.007; with
 		// the third rival's move too (3+1+1), eight-car fields -0.031 (seeds 1-10) and -0.030 (11-20),
 		// behind 2+1+1, but four-car fields -0.021 and -0.021 held-out, ahead of it.
+		// Round 331 (3+1+1): the relevant rival keeps its AI1_AWARE_RIVAL_MOVES beside the second and
+		// third rivals' moves; round 329 had taken the second's from them.
+		// Against the round-330 champion: four-car fields -0.015 +- 0.006 places (seeds 1-20), -0.015
+		// +- 0.006 (21-40); eight-car fields +0.019 +- 0.020 (seeds 1-10), -0.002 +- 0.021 (11-20),
+		// +0.003 +- 0.021 (21-30), +0.005 +- 0.018 computed, +0.001 +- 0.001 scattered; +0.005 +- 0.016
+		// as a lone entrant; duels unchanged (a duel has no second rival); CPU 1.01x in eight-car
+		// fields (the arm read 1.04x). Giving the second rival two moves instead (2+2+1) read -0.007 in
+		// four-car and -0.007 in eight-car fields.
 		int awareThird = -1, awareThirdLeft = 0;
 		if (awareSecond >= 0) {
 			awareThird = ChooserTraffic.relevantExcept(game, trafficFronts, px, py, vx, vy, workspace.laps,
@@ -4848,9 +4854,9 @@ final class RaceAi {
 			// play their full policy (-0.150 places on held-out seeds, -0.142 as a lone
 			// entrant against round 301c; CPU 2.65x, accepted by the owner). Round 305: the
 			// mover's first AI1_AWARE_SELF_MOVES continuation moves; round 328: the rival's first
-			// AI1_AWARE_RIVAL_MOVES; round 329: a second rival in contact takes AI1_AWARE_SECOND_MOVES
-			// of them; round 330: a third in contact plays AI1_AWARE_THIRD_MOVES beside them (see
-			// simOutcomeCore).
+			// AI1_AWARE_RIVAL_MOVES; round 329: a second rival in contact plays AI1_AWARE_SECOND_MOVES
+			// (beside them since round 331); round 330: a third in contact plays AI1_AWARE_THIRD_MOVES
+			// (see simOutcomeCore).
 			final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
 			if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0) {
 				awareDepth = simDepth + 1;

@@ -49,10 +49,11 @@ HUNGARORING_SEED = 12
 # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); six finishers and one crash as before, but p8 (sixth before, on its 127th move) now finishes fifth on its 125th and p1 (fifth before, on its 126th) sixth on its 127th -- the first six of rounds 303 to 310 again, each on the same own move; p2 still crashes on its 45th, at turn 354 ((59,117)->(61,118)), p3, p4, p6 and p7 finish as before and p5 is still the car running at the end, after 126 moves (127 before) -- recorded, not vetoed (AGENTS.md).
 # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); Hungaroring s12 is whole again (a car short since round 316): p2, lost on its 45th move since round 316, now finishes seventh on its 128th, so six finishers become seven; p5 is still the car running at the end, after 127 moves (126 before), and p1, p3, p4, p6, p7 and p8 finish as before -- the whole classification of rounds 303 to 310 again, each car on the same own move, on a new trajectory (the race leaves round 328's at p6's 2nd move, turn 14); recorded, not vetoed (AGENTS.md).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); Hungaroring s12 loses a car again (whole since round 329): p5 (the car still running at the end before, after 127 moves) now crashes on its 46th move, at turn 365 ((60,117)->(62,118)) -- one cell east of p2's crash in rounds 316 to 328 (on its 45th, at turn 354 ((59,117)->(61,118))), at the same velocity -- and seven finishers become six; p2 (seventh home before, on its 128th) is the car still running at the end, after 126 moves, and p1, p3, p4, p6, p7 and p8 finish as before -- the six finishers of rounds 326 and 328 again, each in the same place on the same own move, but the car lost is now p5 (p2 then, on its 45th) and the car running at the end p2 (p5 then, after 126 moves), on a new trajectory (the race leaves round 329's at p2's 1st move, turn 2); recorded, not vetoed (AGENTS.md).
-HUNGARORING_PROMOTED = (6, 1, [121, 122, 123, 124, 125, 127])
-HUNGARORING_PROMOTED_FINISHERS = [(3, 121), (4, 122), (6, 123), (7, 124), (8, 125), (1, 127)]
+# Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); Hungaroring s12 is whole again (a car short since round 330): p5, lost on its 46th move in round 330, is the car still running at the end, after 127 moves, and p2 (the car still running at the end before, after 126 moves) now finishes seventh on its 128th, so six finishers become seven; p1, p3, p4, p6, p7 and p8 finish as before -- the whole classification of round 329 (and of rounds 303 to 310) again, each car on the same own move, on a new trajectory (the race leaves round 330's at p8's 1st move, turn 8); recorded, not vetoed (AGENTS.md).
+HUNGARORING_PROMOTED = (7, 0, [121, 122, 123, 124, 125, 127, 128])
+HUNGARORING_PROMOTED_FINISHERS = [(3, 121), (4, 122), (6, 123), (7, 124), (8, 125), (1, 127), (2, 128)]
 HUNGARORING_ALL_MOVES = {
-    "AI2": {1: 127, 2: 126, 3: 121, 4: 122, 5: 46, 6: 123, 7: 124, 8: 125},
+    "AI2": {1: 127, 2: 128, 3: 121, 4: 122, 5: 127, 6: 123, 7: 124, 8: 125},
 }
 HUNGARORING_NORMALIZED_SHA256 = (
     # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
@@ -71,7 +72,8 @@ HUNGARORING_NORMALIZED_SHA256 = (
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); the same classification as before, a different trajectory from p8's 7th move at turn 56: every car finishes in the same place on the same own move, p2 still crashes on its 45th, at turn 354 ((59,117)->(61,118)), and p5 is still the car running at the end, after 126 moves.
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    'f5202993f68a018a7403b1d1bf645058fc43cd05f9a4fa510ab0e6ee86817ad5'
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    'ca4de53b082493fbcbbc7edab9e288695e5b6166584d6975ed871e314736b082'
 )
 
 # Each case pins one false-positive class from the broader score-slack screens:
@@ -104,7 +106,8 @@ VETO_CASES = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p6 (fifth before, on its 82nd move) now finishes fourth on its 81st, p5 (fourth before, on its 81st) fifth on its 82nd and p8 seventh on its 82nd (83rd before); p1, p3, p4 and p7 finish as before and p2 is still the car running at the end, after 82 moves (83 before) -- recorded, not vetoed (AGENTS.md).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p5 (fifth before, on its 82nd move) now finishes fourth on its 81st, p6 (fourth before, on its 81st) fifth on its 81st, p8 (seventh before, on its 82nd) sixth on its 82nd and p2 (the car still running at the end before, after 82 moves) seventh on its 83rd; p7 (sixth before, on its 82nd) is the car still running at the end, after 82 moves, and p1, p3 and p4 finish as before -- the round-310 summary again (p7 then sixth on its 82nd and p8 the car running at the end, after 82 moves); recorded, not vetoed (AGENTS.md).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); seven finishers and no crash as before, but p6 (fifth before, on its 81st move) now finishes fourth on its 81st, p5 (fourth before, on its 81st) fifth on its 82nd and p7 (the car still running at the end before, after 82 moves) sixth on its 82nd; p8 (sixth before, on its 82nd) is the car still running at the end, after 82 moves, and p1, p2, p3 and p4 finish as before -- the round-326 summary again, from a different classification; recorded, not vetoed (AGENTS.md).
-    ("spa", 1): (7, 0, [78, 79, 80, 81, 82, 82, 83]),
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); seven finishers and no crash as before, but p6 now finishes fourth on its 80th move (81st before), p5 fifth on its 81st (82nd before) and p8 (the car still running at the end before, after 82 moves) seventh on its 82nd; p2 (seventh before, on its 83rd) is the car still running at the end, after 82 moves, and p1, p3, p4 and p7 finish as before -- recorded, not vetoed (AGENTS.md).
+    ("spa", 1): (7, 0, [78, 79, 80, 80, 81, 82, 82]),
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247 (the soft rollout at one level, not two): every case below
     # re-frozen from measurement. Hungaroring s40 is whole again; Zandvoort
@@ -133,7 +136,8 @@ VETO_CASES = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p5 (the car still running at the end before, after 81 moves) now finishes fifth on its 79th, p6 sixth on its 79th (fifth on its 80th before) and p7 seventh on its 80th (sixth on its 81st before); p8 (seventh home before, on its 81st) is the car still running at the end, after 79 moves, and p1, p2, p3 and p4 finish as before -- p1 to p7 home in number order again, as in round 316 (p7 then on its 79th); recorded, not vetoed (AGENTS.md).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p7 now finishes seventh on its 79th move (80th before) and p8 is still the car running at the end, after 78 moves (79 before); p1 to p6 finish as before -- the classification of rounds 305/309 to 316 again (p1 to p7 home in number order, p7 on its 79th), on a new trajectory; recorded, not vetoed (AGENTS.md).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); seven finishers and no crash as before, but p5 (fifth before, on its 79th move) now finishes fourth on its 79th, p6 (sixth before, on its 79th) fifth on its 80th, p4 (fourth before, on its 79th) sixth on its 81st and p7 seventh on its 81st (79th before); p8 is still the car running at the end, after 80 moves (78 before), and p1, p2 and p3 finish as before -- the round-326 summary again, from a different classification; recorded, not vetoed (AGENTS.md).
-    ("monza", 30): (7, 0, [77, 78, 79, 79, 80, 81, 81]),
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); seven finishers and no crash as before, but p4 (sixth before, on its 81st move) now finishes fourth on its 79th, p5 (fourth before, on its 79th) fifth on its 80th, p7 (seventh before, on its 81st) sixth on its 80th and p6 (fifth before, on its 80th) seventh on its 82nd; p8 is still the car running at the end, after 81 moves (80 before), and p1, p2 and p3 finish as before -- recorded, not vetoed (AGENTS.md).
+    ("monza", 30): (7, 0, [77, 78, 79, 79, 80, 80, 82]),
     # Round 224 moved this race: still seven finishers and no crash, but the
     # car that misses out changes (car 7 finished before, car 1 finishes now)
     # and the last five finishers each take a few moves longer.
@@ -146,7 +150,8 @@ VETO_CASES = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Monaco s35 loses a car (whole since round 300a): p1 (the car still running at the end before, after 119 moves) now crashes on its 18th move, at turn 137 ((103,5)->(105,1)) -- the own move on which p8 (round 281) and p6 (round 292b) were lost here -- and seven finishers become six; p8 (seventh home before, on its 119th) is the car still running at the end, after 117 moves, and p2, p3, p4, p5, p6 and p7 finish as before -- recorded, not vetoed (AGENTS.md).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); Monaco s35 loses another car (a car short since round 328): p1, lost on its 18th move in round 328, now finishes fifth on its 117th, but p4 (third before, on its 115th move) now crashes on its 20th, at turn 156 ((108,4)->(109,2)), and p7 (sixth before, on its 118th) on its 20th too, at turn 159 ((106,3)->(107,3)) -- the corner where p1 was lost in round 328 -- so six finishers become five; p5 (fourth before, on its 116th) now finishes second on its 113th, p6 (fifth before, on its 117th) third on its 114th and p8 (the car still running at the end before, after 117 moves) fourth on its 115th; p2 (second before, on its 114th) is the car still running at the end, after 116 moves, and p3 still wins on its 112th -- recorded, not vetoed (AGENTS.md).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); Monaco s35 gets a car back (two short since round 329): p4, lost on its 20th move in round 329, now finishes sixth on its 118th and p7, lost on its 20th too, is the car still running at the end, after 117 moves, but p1 (fifth before, on its 117th) now crashes on its 69th, at turn 545 ((12,109)->(11,113)), so two crashes become one and five finishers become six; p2 (the car still running at the end before, after 116 moves) now finishes fifth on its 117th, and p3, p5, p6 and p8 finish as before -- recorded, not vetoed (AGENTS.md).
-    ("monaco", 35): (6, 1, [112, 113, 114, 115, 117, 118]),
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); Monaco s35 is whole again (a car or two short since round 328): p1, lost on its 69th move in round 330, is the car still running at the end, after 119 moves, and p7 (the car still running at the end before, after 117 moves) now finishes sixth on its 118th, so six finishers become seven; p2 (fifth before, on its 117th) now finishes third on its 115th, p4 (sixth before, on its 118th) fourth on its 116th, p6 (third before, on its 114th) fifth on its 117th and p8 (fourth before, on its 115th) seventh on its 119th; p3 and p5 finish as before -- recorded, not vetoed (AGENTS.md).
+    ("monaco", 35): (7, 0, [112, 113, 115, 116, 117, 118, 119]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
@@ -156,7 +161,8 @@ VETO_CASES = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Zandvoort s34 is whole again (a car short since round 326): p6, lost on its 19th move in round 326, now finishes third on its 139th, so seven finishers again; p7 (fifth before, on its 141st) finishes fourth on its 140th, p1 (the car still running at the end before, after 142 moves) fifth on its 142nd, p4 (third before, on its 139th) sixth on its 143rd and p5 (fourth before, on its 140th) seventh on its 144th; p8 (sixth home before, on its 142nd) is the car still running at the end, after 143 moves, and p2 and p3 finish as before -- recorded, not vetoed (AGENTS.md).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p4 (sixth before, on its 143rd move) now finishes third on its 139th, p5 (seventh before, on its 144th) fourth on its 140th, p6 (third before, on its 139th) fifth on its 141st, p7 (fourth before, on its 140th) sixth on its 142nd and p1 (fifth before, on its 142nd) seventh on its 143rd; p8 is still the car running at the end, after 142 moves (143 before), and p2 and p3 finish as before -- p2 to p7 home in number order, the round-316 summary again from a different classification; recorded, not vetoed (AGENTS.md).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); Zandvoort s34 loses a car again (whole since round 328): p7 (sixth before, on its 142nd move) now crashes on its 18th, at turn 143 ((57,5)->(59,1)) -- two cells west of p6's crash in round 326 (on its 19th, at turn 150 ((59,5)->(61,1))), at the same velocity -- and seven finishers become six; p8 (the car still running at the end before, after 142 moves) now finishes sixth on its 142nd and p1 (seventh before, on its 143rd) is the car still running at the end, after 142 moves; p2, p3, p4, p5 and p6 finish as before -- the round-326 classification again with p6 and p7 swapped (p7 then fifth on its 141st, p6 lost on its 19th); recorded, not vetoed (AGENTS.md).
-    ("zandvoort", 34): (6, 1, [137, 138, 139, 140, 141, 142]),
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); Zandvoort s34 is whole again (a car short since round 330): p7, lost on its 18th move in round 330, now finishes fifth on its 141st and p1 (the car still running at the end before, after 142 moves) seventh on its 144th, so six finishers become seven; p5 (fourth before, on its 140th) now finishes third on its 139th and p6 (fifth before, on its 141st) fourth on its 140th; p4 (third before, on its 139th) is the car still running at the end, after 143 moves, and p2, p3 and p8 finish as before -- recorded, not vetoed (AGENTS.md).
+    ("zandvoort", 34): (7, 0, [137, 138, 139, 140, 141, 142, 144]),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); seven finishers and no crash as before, but p2 and p4 (third and fourth before) now finish second and third, on their 79th as before, p5 (the car still running at the end before, after 80 moves) fourth on its 80th, p6 fifth on its 80th (79th before), p7 sixth on its 80th (seventh before) and p3 (second before, on its 78th) seventh on its 81st; p8 (sixth before, on its 79th) is the car still running at the end, after 80 moves, and p1 still wins on its 78th -- recorded, not vetoed (AGENTS.md).
@@ -164,7 +170,8 @@ VETO_CASES = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p4 (fifth before, on its 80th move) now wins on its 78th, p3 (fourth before, on its 80th) finishes second on its 79th, p5 (sixth before, on its 80th) third on its 79th, p2 (third before, on its 80th) fourth on its 80th, p6 (the car still running at the end before, after 80 moves) fifth on its 80th, p8 (the winner before, on its 78th) sixth on its 80th and p7 seventh on its 81st (80th before); p1 (second before, on its 80th) is the car still running at the end, after 81 moves -- the round-316 summary again, from a different classification; recorded, not vetoed (AGENTS.md).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p2 (fourth before, on its 80th move) now wins on its 78th, p1 (the car still running at the end before, after 81 moves) finishes third on its 80th, p4 (the winner before, on its 78th) fourth on its 80th, p5 (third before, on its 79th) fifth on its 80th, p6 (fifth before, on its 80th) sixth on its 80th and p7 seventh on its 80th (81st before); p8 (sixth before, on its 80th) is the car still running at the end, after 79 moves, and p3 finishes second on its 79th as before -- recorded, not vetoed (AGENTS.md).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); seven finishers and no crash as before, but p1 (third before, on its 80th move) now wins on its 78th, p3 finishes second on its 78th (79th before), p2 (the winner before, on its 78th) third on its 79th, p4 fourth on its 79th (80th before), p6 (sixth before, on its 80th) fifth on its 79th, p7 (seventh before, on its 80th) sixth on its 80th and p5 (fifth before, on its 80th) seventh on its 81st; p8 is still the car running at the end, after 80 moves (79 before) -- recorded, not vetoed (AGENTS.md).
-    ("monza", 145): (7, 0, [78, 78, 79, 79, 79, 80, 81]),
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); seven finishers and no crash as before, but p3 (second before, on its 78th move) now wins on its 78th, p4 (fourth before, on its 79th) finishes second on its 79th, p5 (seventh before, on its 81st) third on its 79th, p6 (fifth before, on its 79th) fourth on its 79th, p7 (sixth before, on its 80th) fifth on its 80th, p2 (third before, on its 79th) sixth on its 81st and p8 (the car still running at the end before, after 80 moves) seventh on its 81st; p1 (the winner before, on its 78th) is the car still running at the end, after 81 moves -- recorded, not vetoed (AGENTS.md).
+    ("monza", 145): (7, 0, [78, 79, 79, 79, 80, 81, 81]),
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); seven finishers and no crash as before, but p8 (seventh before, on its 103rd move) now finishes sixth on its 103rd and p6 (sixth before, on its 103rd) seventh on its 104th; p1 to p5 finish as before and p7 is still the car running at the end, after 103 moves -- recorded, not vetoed (AGENTS.md).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p2 (seventh before, on its 104th move) now finishes second on its 103rd, p4 (the car still running at the end before, after 103 moves) third on its 103rd, p5 fourth on its 103rd (third before), p6 fifth on its 103rd (fourth before), p3 (second before, on its 103rd) sixth on its 104th and p7 (fifth before, on its 103rd) seventh on its 104th; p8 (sixth before, on its 103rd) is the car still running at the end, after 103 moves, and p1 still wins on its 103rd -- recorded, not vetoed (AGENTS.md).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); seven finishers and no crash as before, but p2 (second before, on its 103rd move) now wins on its 103rd, p3 (sixth before, on its 104th) finishes second on its 103rd, p7 (seventh before, on its 104th) third on its 103rd, p8 (the car still running at the end before, after 103 moves) fourth on its 103rd, p4 (third before, on its 103rd) fifth on its 104th, p5 (fourth before, on its 103rd) sixth on its 104th and p6 (fifth before, on its 103rd) seventh on its 104th; p1 (the winner before, on its 103rd) is the car still running at the end, after 104 moves -- recorded, not vetoed (AGENTS.md).
@@ -184,7 +191,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); the same classification as before, a different trajectory from p4's 39th move at turn 308: every car finishes in the same place on the same own move and p1 is still the car running at the end, after 71 moves.
-    ("lemans", 2): 'ee1557f72135e18dde735c3c6e65bd9d02daa2e3bae764dffd3475fb7d43ec1e',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); the same classification as before, a different trajectory from p7's 4th move at turn 31: every car finishes in the same place on the same own move and p1 is still the car running at the end, after 71 moves.
+    ("lemans", 2): '4728edb18a135bcd95fe44a417fcf08623a85175ccce02a22cae501092dad02a',
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
@@ -195,7 +203,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("spa", 1): 'a58cb913c1a7f63a5c75625c9bbacf38d4eb0934d0bcf57d0600110058d0ff31',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    ("spa", 1): '335ccb8c098264afabd28ed945d999885b540b52006bfcf967931f1e728a5022',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -211,7 +220,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); the same classification as before, a different trajectory from p7's 3rd move at turn 23: every car finishes in the same place on the same own move and p3 is still the car running at the end, after 127 moves.
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); the same classification as before, a different trajectory from p2's 7th move at turn 50: every car finishes in the same place on the same own move and p3 is still the car running at the end, after 127 moves.
-    ("hungaroring", 40): '843f1148b2d221ecaab9f92385bcc9928a8df791d0154b9a3d03c337f9777794',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); the same classification as before, a different trajectory from p6's 6th move at turn 46: every car finishes in the same place on the same own move and p3 is still the car running at the end, after 127 moves.
+    ("hungaroring", 40): '0aac3eb263a033bf570c68208d7d7e43c20980c6c31ea4d0753dd163e272e4a5',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 291: re-frozen from measurement (the grid rule at the finish, finishing without the potential, crossings that do not finish, no field-cost veto).
@@ -225,7 +235,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("interlagos", 47): '982c9b4a1a62a8acc634487ff3781291134493dc6acc8f3963f62268f64986b3',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); the same classification as before, a different trajectory from p7's 1st move at turn 7: every car finishes in the same place on the same own move and p3 is still the car running at the end, after 130 moves.
+    ("interlagos", 47): 'e28adf45e9cc3a98f27510bf75bbdb65873bdcbae5ac4d075c930f66f72fce5f',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -236,7 +247,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("monza", 30): 'c89c6e51b5ce70ad7dedde95bd2ec3f4604858dd5a74216ca5da8e97b61ac850',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    ("monza", 30): '8c8721ac088b11e2ff121218ce0cf3d9ef01151a0fa2bfc86ea7e39b69042d01',
     # Round 224, the one case that changes its result: still seven finishers,
     # but car 1 finishes seventh where car 7 used to, and the race is nine
     # moves longer. The fleet cleared the change on 1460 races either side
@@ -253,7 +265,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("monaco", 35): '0ecd117763f57c6a9f640fe3ac127753df2672a8b4d8d0eae42a9e588cc42a24',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    ("monaco", 35): '44a2c44f4b659e38c3c2e498900016c530c009c09c9afa61706af72cb071c8ae',
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
@@ -263,7 +276,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("zandvoort", 34): '74c3206d1d358d9b99f87336ce192d2901732638241b677246a7127e0dee4dd1',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    ("zandvoort", 34): '85a7054fd8d3a5a991d644a50df12dbdbe22b26b0a3334f90ae277498b1cac06',
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
@@ -273,7 +287,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("monza", 145): '531b51a7c390f54ac206bb375f6dac72ae9fb98d416ef64e6c0d2ad19214fa89',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    ("monza", 145): 'b88ac9bcd4f20e8b33d1c999ea3a8f4c856b223622439704e369033e20243129',
     # Reject p3's wall-overlap finish at turn 819: its last two approach moves
     # and p6's nearby response move, but the full field's outcome counters do not.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -283,7 +298,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); the same summary, a different race from p7's 11th move at turn 87: p3 (third before), p5 (fifth before), p6 (seventh before, on its 104th) and p7 (the car still running at the end before, after 103 moves) now finish second to fifth, each on its 103rd move, p8 sixth on its 103rd as before and p2 (second before, on its 103rd) seventh on its 104th; p4 (fourth before, on its 103rd) is the car still running at the end, after 103 moves, and p1 still wins on its 103rd.
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    ("serpentine", 38): '7d22ef658a8e207b899b9bbc5a5300c1312064b744b99cd8a72968c103c949a2',
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); the same summary, a different race from p6's 13th move at turn 102: p1 (the car still running at the end before, after 104 moves) now wins on its 103rd, p2 (the winner before, on its 103rd) finishes second on its 103rd, p4 (fifth before, on its 104th) third on its 103rd, p6 (seventh before, on its 104th) fourth on its 103rd, p3 (second before, on its 103rd) fifth on its 104th, p5 sixth on its 104th as before and p7 (third before, on its 103rd) seventh on its 104th; p8 (fourth before, on its 103rd) is the car still running at the end, after 103 moves.
+    ("serpentine", 38): '69bc255bedeaa0004d799181874f94e3cf91a8faeb5069990578441ef6a06239',
 }
 
 

@@ -26,7 +26,8 @@ CASES = [("silverstone", 93)]
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
 # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-PROMOTED = (7, 0, [83, 83, 84, 84, 85, 85, 86])
+# Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+PROMOTED = (7, 0, [82, 83, 83, 84, 84, 85, 85])
 LEGACY_CHAMPION = (7, 0, [81, 82, 83, 84, 85, 86, 87])
 EXPECTED = {kind: {"silverstone:93": PROMOTED} for kind in LABELS}
 

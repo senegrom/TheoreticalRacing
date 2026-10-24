@@ -117,7 +117,8 @@ RETENTION_CASES = {
                  # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); finishers, crashes and every move count unchanged -- the trajectory parts from round 326's on move 67 (p3's 9th).
                  # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); finishers, crashes and every move count unchanged -- the trajectory parts from round 328's on move 82 (p2's 11th).
                  # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); crashes and the summary unchanged, but p3, the car still running at the end before (after 72 moves), now comes home seventh on its 73rd and p2, seventh home on its 73rd before, is the car still running at the end, after 73 moves -- the trajectory parts from round 329's on move 32 (p8's 4th).
-                 'ca6fea2864eb68a5773b14797afb15fe2a09017260787a90cf4f2ea3e94f13ba'),
+                 # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+                 '853ee689bb2cf4bdd14fd71a1e087ccec98b7bb1eb5aecf9405a03ed5d43a3ef'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
@@ -146,7 +147,7 @@ RETENTION_CASES = {
                      # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); finishers, crashes and every move count unchanged -- p8 still crashes on its 12th move (move 96) and the trajectory parts from round 326's on move 325 (p5's 45th).
                      # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
                      # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-                     '8ae02d0b6da6a1d4c843d7f835833b1a106b679bb202155b43aaed7fe7dc3273'),
+                     '1f560b0d707827fe282f7026462261a846d089d4666c29975aae852568ef02a5'),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).

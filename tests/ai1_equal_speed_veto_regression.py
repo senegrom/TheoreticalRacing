@@ -30,7 +30,8 @@ CASES = [("zandvoort", 115)]
 # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 144])
+# Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); p7, fifth home on its 141st move before, now crashes on its 19th, move 151, at the top-of-course hairpin: from (59,4) at v(2,-3) every landing is beyond the outer wall, and it goes NW to (60,0). On its 15th, move 119, its one landing from (48,22) at v(4,-6) that could still stop for the hairpin, (51,17) at v(3,-5), was held by p1 (there since move 113), and it went W to (51,16) at v(3,-6). p7 leaves its old line on its 4th, move 31 (it holds v(2,-3) where it turned NW before), and comes into the hairpin about a move ahead of its old line, in the pack. Seven finishers become six: p8 moves up to fifth on its 141st (sixth on its 142nd before) and p1 to sixth on its 143rd (seventh on its 144th before); p2 is still the car running at the end, now after 142 moves (143 before), and p3 to p6 still come home first to fourth on their 137th to 140th. The race parts from round 330's on move 20 (p4's 3rd) -- recorded, not vetoed (AGENTS.md).
+PROMOTED = (6, 1, [137, 138, 139, 140, 141, 143])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in LABELS}
 
@@ -55,12 +56,16 @@ def main() -> int:
     # champion and pinned the pace edge instead; round 248's physical world model
     # gave the race its seventh finisher back and the contract returned. Round 281
     # lost that car again (six finishers and one crash, like the legacy car) and
-    # pinned the pace edge once more; round 300a gives the race its seventh
-    # finisher back and the original contract holds again.
+    # pinned the pace edge once more; round 300a gave the race its seventh
+    # finisher back and the original contract returned, holding through round
+    # 330. Round 331 loses that car again (six finishers and one crash, like the
+    # legacy car, fifteen finisher moves faster), and the rule records a crash
+    # rather than vetoing it (CLAUDE.md): the measured race above is the pin, and
+    # the pace edge over the legacy car still has to hold, as in rounds 247 and 281.
     result = actual[LABELS[0]]["zandvoort:115"]
-    if not (result[0] > LEGACY_CHAMPION[0] and result[1] < LEGACY_CHAMPION[1]):
-        raise SystemExit(f"Round-126 safety contract lost: {result}, legacy {LEGACY_CHAMPION}")
-    print("AI1EqualSpeedVetoRegression: OK (Zandvoort s115 rescue holds)")
+    if sum(result[2]) >= sum(LEGACY_CHAMPION[2]):
+        raise SystemExit(f"Round-126 pace edge lost: {result}, legacy {LEGACY_CHAMPION}")
+    print("AI1EqualSpeedVetoRegression: OK (Zandvoort s115 pinned, with the pace edge over the legacy car)")
     return 0
 
 

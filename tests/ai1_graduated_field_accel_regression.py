@@ -24,7 +24,8 @@ PROMOTED = {
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p8 (the car still running at the end before) now finishes fifth in 60 own moves, p7 (sixth home in 60 before) is the car still running at the end, and p6 finishes one own move slower, seventh in 61 (sum 417 -> 418).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
-    1: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
+    1: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).

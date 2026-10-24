@@ -56,7 +56,8 @@ MAX_FINISH_MOVE_SUM = 891
 # assertion logic remains intact. (Its AI1/AI2 identity checks retired on
 # 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
 # Every case below retains seven finishers and zero crashes, except where
-# SAFETY records the measured finishers and crashes (Le Mans s12 since round 328).
+# SAFETY records the measured finishers and crashes (Le Mans s12 in rounds 328 to
+# 330; none since round 331).
 FINISH_EXPECTED = {
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
@@ -64,7 +65,8 @@ FINISH_EXPECTED = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); seven finishers and no crash as before, but p4 (second before, on its 20th move) now wins on its 20th, p1 (third before, on its 21st) finishes second on its 21st, p3 (the winner before, on its 20th) third on its 21st, p5 (sixth before, on its 22nd) fourth on its 21st and p6 (fourth before, on its 21st) sixth on its 22nd; p2 and p7 finish fifth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 148 -> 149).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); seven finishers and no crash as before, but p3 (third before, on its 21st move) now wins on its 20th, p4 (the winner before, on its 20th) finishes second on its 20th, p1 (second before, on its 21st) third on its 21st, p2 (fifth before, on its 22nd) fourth on its 22nd and p5 (fourth before, on its 21st) fifth on its 22nd; p6 and p7 finish sixth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves (sum 149, unchanged).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); seven finishers and no crash as before, but p6 (sixth before, on its 22nd move) now finishes fourth on its 21st, so p2 and p5 (fourth and fifth before) finish fifth and sixth, on their 22nd as before; p3, p4 and p1 finish first to third on their 20th, 20th and 21st as before, p7 seventh on its 22nd as before, and p8 is still the car running at the end, after 21 moves -- round 303's list again (sum 149 -> 148).
-    ("bigoval", 7): [20, 20, 21, 21, 22, 22, 22],
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); seven finishers and no crash as before, but p4 (second before, on its 20th move) now wins on its 20th, p1 (third before, on its 21st) finishes second on its 21st, p3 (the winner before, on its 20th) third on its 21st, p5 (sixth before, on its 22nd) fourth on its 21st and p6 (fourth before, on its 21st) sixth on its 22nd; p2 and p7 finish fifth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves -- round 328's list and classification again (sum 148 -> 149).
+    ("bigoval", 7): [20, 21, 21, 21, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -74,7 +76,8 @@ FINISH_EXPECTED = {
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Le Mans s12, whole in every round since round 94 pinned it, loses a car: p2 (seventh home before, on its 73rd move) now crashes on its 37th, at turn 290 ((81,147)->(83,154)), and seven finishers become six; p4 is still the car running at the end, after 71 moves (72 before), and p3, p5, p6, p7, p8 and p1 finish first to sixth as before -- recorded, not vetoed (AGENTS.md).
-    ("lemans", 12): [66, 67, 68, 69, 70, 72],
+    # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); Le Mans s12 keeps every car again: p2 (lost on its 37th move in rounds 328 to 330, at turn 290, (81,147)->(83,154)) now finishes seventh on its 73rd, as before round 328 -- it leaves round 330's line on its 9th move, at turn 66 (SE to v(3,-3) and (11,22), where it played E to v(3,-4) and (11,21)), and on its 37th, at turn 290, plays N from (82,143) at v(2,7), to (2,6) and (84,149) -- and p4 is still the car running at the end, after 72 moves (71 before); p3, p5, p6, p7, p8 and p1 finish first to sixth as before -- round 296's list again, so the case leaves SAFETY and takes the (7, 0) default.
+    ("lemans", 12): [66, 67, 68, 69, 70, 72, 73],
 }
 # Round 328: the measured (finishers, crashes) of a case that no longer keeps
 # seven finishers and zero crashes; every other case takes the (7, 0) default.
@@ -84,7 +87,12 @@ FINISH_EXPECTED = {
 # above); Le Mans s12 still loses p2 on its 37th move, at turn 290, as in rounds
 # 328 and 329, and its six finishers and the car still running at the end, p4
 # after 71 moves, finish as before.
-SAFETY = {("lemans", 12): (6, 1)}
+# Round 331: Le Mans s12 keeps every car again (p2 finishes seventh on its 73rd;
+# see FINISH_EXPECTED above), so no case needs an entry. The Monaco seed-1 AI1
+# race stays whole: it leaves round 330's race on p5's 16th move, at turn 125, but
+# keeps its classification -- seven finishers, p5 still the car running at the end
+# after 118 moves -- and its 807 moves, under MAX_FINISH_MOVE_SUM.
+SAFETY = {}
 
 
 def main() -> int:
