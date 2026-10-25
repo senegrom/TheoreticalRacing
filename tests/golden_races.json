@@ -110,16 +110,16 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "860b823d6c1d4404fda885d1a0fc3e6e05bce86af70f1a707003d65a41a4ac01",
+      "sha256": "28fa1b5548d83eac281ee63d60e8c22357e3198b98678d8bed0f30a6ce3b22bd",
       "summary": {
-        "turns": 540,
+        "turns": 546,
         "finishes": 3,
         "crashes": 0,
         "results": [
-          "A",
           "B",
-          "C",
-          "D"
+          "D",
+          "A",
+          "C"
         ]
       }
     },
@@ -238,16 +238,16 @@
       "track": "lemans",
       "seed": 1,
       "players": 4,
-      "sha256": "1970ee65e547a23bc95e9e292dff9e33c6e854247d5ca16b2ff2a5dd798ee45b",
+      "sha256": "9911dd2561e28c427af4fd9e0c104d11ce5c0c35274264f6067396f8efe1b19a",
       "summary": {
-        "turns": 587,
+        "turns": 590,
         "finishes": 3,
         "crashes": 0,
         "results": [
-          "B",
           "C",
           "D",
-          "A"
+          "A",
+          "B"
         ]
       }
     }

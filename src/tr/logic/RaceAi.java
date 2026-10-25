@@ -255,6 +255,17 @@ final class RaceAi {
 		// Round 327: a decision with two live cars forecasts AI1_CHOOSER_DUEL_ROUNDS rounds.
 		final boolean outerChooserDuel = chooserDuel;
 		chooserDuel = liveRivalsRemaining(playerNum) == 1;
+		// Round 332: a decision with at most AI1_AWARE_FEW_RIVALS live rivals plays the mover's first
+		// AI1_AWARE_SELF_MOVES_FEW continuation moves by the full policy in each aware forecast
+		// (awareSelfMoves; round 314's tie re-roll still plays its one).
+		// Against the round-331 champion: four-car fields -0.045 +- 0.008 places (seeds 1-20), -0.047
+		// +- 0.008 (21-40), -0.046 +- 0.008 computed, -0.002 +- 0.001 scattered; -0.020 +- 0.008 as a
+		// lone entrant with four cars; eight-car fields +0.000 (84 of 84 boards tied); duels -0.007 +-
+		// 0.003; CPU 1.02x in four-car fields (the arm read 1.035x). Round 305's five stay with more
+		// rivals live.
+		final int outerAwareSelfMoves = awareSelfMoves;
+		awareSelfMoves = liveRivalsRemaining(playerNum) <= AI1_AWARE_FEW_RIVALS ? AI1_AWARE_SELF_MOVES_FEW
+				: AI1_AWARE_SELF_MOVES;
 		try {
 			// perf (upmemo): and the race-scoped upgraded memo's generations and world.
 			maintainUpgradedMemo();
@@ -262,6 +273,7 @@ final class RaceAi {
 		} finally {
 			suppressedMovesOwned = false;
 			chooserDuel = outerChooserDuel;
+			awareSelfMoves = outerAwareSelfMoves;
 		}
 	}
 
@@ -523,6 +535,8 @@ final class RaceAi {
 	private final static int		AI1_CHOOSER_DUEL_ROUNDS	= 16;	// round 327: the same, in a decision taken with only two cars live
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_AWARE_SELF_MOVES	= 5;	// round 305: the mover's forecast continuation moves played by its full policy
+	private final static int		AI1_AWARE_SELF_MOVES_FEW	= 8;	// round 332: the same, in a decision taken with at most AI1_AWARE_FEW_RIVALS live rivals
+	private final static int		AI1_AWARE_FEW_RIVALS	= 3;	// round 332: a decision with at most this many live rivals plays AI1_AWARE_SELF_MOVES_FEW (a field of four cars or fewer throughout, a bigger field once only four cars are live)
 	private final static int		AI1_AWARE_RIVAL_MOVES	= 3;	// round 328: the relevant rival's forecast moves played by its full policy
 	private final static int		AI1_AWARE_SECOND_MOVES	= 1;	// round 329: the second-heaviest rival's when one is in contact with the mover (round 331: beside those)
 	private final static int		AI1_AWARE_THIRD_MOVES	= 1;	// round 330: the third-heaviest rival's when one is in contact with the mover, beside those
@@ -3588,8 +3602,9 @@ final class RaceAi {
 	 *  round 330: a third in contact plays AI1_AWARE_THIRD_MOVES); -1 for none. */
 	private int awareDepth = -1, awareRival = -1;
 	/** Round 314: the mover's continuation moves an aware forecast plays by its full
-	 *  policy -- AI1_AWARE_SELF_MOVES, or AI1_TIE_SELF_MOVES while the chooser's tie
-	 *  re-roll runs (tieRerollVerdict). */
+	 *  policy -- AI1_AWARE_SELF_MOVES, AI1_AWARE_SELF_MOVES_FEW in a decision with at most
+	 *  AI1_AWARE_FEW_RIVALS live rivals (round 332; computeAiMove sets it), or
+	 *  AI1_TIE_SELF_MOVES while the chooser's tie re-roll runs (tieRerollVerdict). */
 	private int awareSelfMoves = AI1_AWARE_SELF_MOVES;
 	/** Round 314: while a tie re-roll runs, the suppressed and the upgraded move memos
 	 *  serve their stored moves but store none (nor refresh old entries), so both are left
@@ -3855,8 +3870,9 @@ final class RaceAi {
 		}
 		// Round 285: in an aware forecast the mover's and the relevant rival's first
 		// moves use the full policy. Round 305: the mover's first AI1_AWARE_SELF_MOVES
-		// continuation moves do. Round 314: AI1_TIE_SELF_MOVES of them in the chooser's
-		// tie re-roll (awareSelfMoves). Round 328: the rival's first AI1_AWARE_RIVAL_MOVES,
+		// continuation moves do (round 332: AI1_AWARE_SELF_MOVES_FEW with at most AI1_AWARE_FEW_RIVALS
+		// live rivals). Round 314: AI1_TIE_SELF_MOVES of them in the chooser's tie re-roll
+		// (awareSelfMoves). Round 328: the rival's first AI1_AWARE_RIVAL_MOVES,
 		// in the tie re-roll too.
 		// Against the round-327 champion: duels -0.035 +- 0.005 places on random starts, -0.033 +-
 		// 0.005 held-out, -0.010 +- 0.005 computed; eight-car fields -0.060 +- 0.024 (seeds 1-10),
@@ -4853,7 +4869,8 @@ final class RaceAi {
 			// the mover's own first continuation and the most-interacting rival's first move
 			// play their full policy (-0.150 places on held-out seeds, -0.142 as a lone
 			// entrant against round 301c; CPU 2.65x, accepted by the owner). Round 305: the
-			// mover's first AI1_AWARE_SELF_MOVES continuation moves; round 328: the rival's first
+			// mover's first AI1_AWARE_SELF_MOVES continuation moves (round 332: AI1_AWARE_SELF_MOVES_FEW
+			// with at most AI1_AWARE_FEW_RIVALS live rivals); round 328: the rival's first
 			// AI1_AWARE_RIVAL_MOVES; round 329: a second rival in contact plays AI1_AWARE_SECOND_MOVES
 			// (beside them since round 331); round 330: a third in contact plays AI1_AWARE_THIRD_MOVES
 			// (see simOutcomeCore).
@@ -4971,19 +4988,19 @@ final class RaceAi {
 	}
 
 	/** Round 314: the chooser's forecast of one tied landing again, with AI1_TIE_SELF_MOVES own
-	 *  moves by the full policy instead of AI1_AWARE_SELF_MOVES. Otherwise the same forecast:
-	 *  chooserRounds() rounds, every live rival by its scorer, the relevant rival the chooser
-	 *  recorded for this landing playing its first AI1_AWARE_RIVAL_MOVES moves by its full
-	 *  policy (round 328; with two live cars there is no second or third rival, rounds 329 and
-	 *  330), round 309's rule (simDepth == placeKeyDepth) and the rank-first verdict. Both move
-	 *  memos serve the moves they hold and store none: an upgraded move does not depend on the
-	 *  forecast's depth (awareSelfMoves is read only by this depth's own rollout), so the memos
-	 *  stay exact and later decisions meet them as the chooser's own rollouts left them. The
-	 *  caller puts placeKey back. The forecast runs in full: it carries no branch-and-bound
-	 *  cutoff (perf_bnb). Round 316: ppOn is the calling chooser's gate. When it holds, the
-	 *  loop ranked and tied its landings by projected place, and so does this forecast
-	 *  (ppDepth, set beside placeKeyDepth and put back); a call without it sets -1, which
-	 *  ppDepth already is at a top-level decision. */
+	 *  moves by the full policy instead of the decision's awareSelfMoves (round 332). Otherwise
+	 *  the same forecast: chooserRounds() rounds, every live rival by its scorer, the relevant
+	 *  rival the chooser recorded for this landing playing its first AI1_AWARE_RIVAL_MOVES moves
+	 *  by its full policy (round 328; with two live cars there is no second or third rival,
+	 *  rounds 329 and 330), round 309's rule (simDepth == placeKeyDepth) and the rank-first
+	 *  verdict. Both move memos serve the moves they hold and store none: an upgraded move does
+	 *  not depend on the forecast's depth (awareSelfMoves is read only by this depth's own
+	 *  rollout), so the memos stay exact and later decisions meet them as the chooser's own
+	 *  rollouts left them. The caller puts placeKey back. The forecast runs in full: it carries
+	 *  no branch-and-bound cutoff (perf_bnb). Round 316: ppOn is the calling chooser's gate.
+	 *  When it holds, the loop ranked and tied its landings by projected place, and so does this
+	 *  forecast (ppDepth, set beside placeKeyDepth and put back); a call without it sets -1,
+	 *  which ppDepth already is at a top-level decision. */
 	private long tieRerollVerdict(final int[] pos, final int[] vel, final int playerNum,
 			final Direction d, final int rival, final boolean ppOn) {
 		final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;

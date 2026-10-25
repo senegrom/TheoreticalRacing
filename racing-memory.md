@@ -1,5 +1,74 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 332 promoted (2026-10-25): with at most three live rivals the mover's forecast plays eight of its own moves by its full policy
+
+In a top-level chooser's aware forecast the mover played its first AI1_AWARE_SELF_MOVES = 5 continuation moves by its
+full policy in every decision (round 305). A decision taken with at most AI1_AWARE_FEW_RIVALS = 3 live rivals now
+plays AI1_AWARE_SELF_MOVES_FEW = 8: every decision of a field of four cars or fewer, and a bigger field's once only
+four cars are live. Round 305's depth table raced eight-car fields only (five best there: -0.151, six -0.130, eight
+-0.121, eleven -0.129); its duel readings (two, three and five moves) predate round 309's fix, and four-car fields
+were never raced at any depth. Code: computeAiMove sets awareSelfMoves from the live field beside round 327's
+chooserDuel and puts it back afterwards; round 314's tie re-roll still plays AI1_TIE_SELF_MOVES and restores the
+decision's value. awareSelfMoves is read only by a top-level chooser's own rollouts, so upgraded and suppressed moves,
+and both memos, are unchanged.
+
+Arm 338 (E:/tmp-claude/arm338_awself.py, AS338_K=8 AS338_RIVALS=3; jar s338k8 on 1b7d895) against the round-331
+champion, mirrored (boards favouring candidate / champion / tied; crashes candidate:champion):
+
+| Slice | Eight own moves (promoted) |
+|---|---|
+| 4 cars 1-20 | -0.045 +- 0.008 (34/19/31; 21:35) |
+| 4 cars held-out 21-40 | -0.047 +- 0.008 (35/17/32; 16:27) |
+| 4 cars computed 1-20 | -0.046 +- 0.008 (26/15/43; 5:13) |
+| 4 cars scattered 1-20 | -0.002 +- 0.001 (8/4/72; 12:13) |
+| Lone candidate (4 cars, every seat) | -0.020 +- 0.008 (22/12/50; 4:4; lone mean 2.480 vs 2.500) |
+| 8 cars 1-10 | +0.000 (0/0/84; 73:73 -- every race as the champion's) |
+| Duels 1-20 | -0.007 +- 0.003 (5/2/77; 216:212) |
+
+- The four-car gain replicates to two thousandths on held-out seeds and computed starts. The candidate crashes less in
+  every mirrored four-car slice (42 crashes against 75 over random, held-out and computed starts; 12 against 13
+  scattered) and as often as a lone entrant (4 against 4). The duel gain is small and rare (nurburgring, hybrid17,
+  circle, rand12 and rand14 for it; hungaroring and fractal26 against); six identity duels raced identically.
+- Eleven own moves by the full policy (every continuation move of a twelve-round forecast) read -0.052 +- 0.008
+  (37/19/28; 18:23) with four cars on seeds 1-20 and
+  -0.062 +- 0.009 (35/18/31; 20:21) on 21-40, at 1.14x CPU in four-car fields; the owner chose eight (2026-10-25).
+- Eight own moves in every field size read -0.038 +- 0.021 (40/40/4; 84:85) in eight-car fields (seeds 1-10) at 1.07x
+  CPU: suggestive only; its held-out window is in flight (below).
+- CPU: the promoted jar against the round-331 champion 1.02x in four-car fields (six races) and 1.01x in eight-car
+  fields (six races); the arm read 1.035x with four cars.
+
+Also measured on the round-331 champion and closed:
+- Sixteen-round forecasts with at most three live rivals (arm 336): four cars +0.003 +- 0.009 (crashes 9:32) and
+  +0.015 +- 0.009 held-out (9:21) -- far fewer crashes, no places; eight cars +0.000 (84/84 tied); with at most two
+  live rivals (three cars live), four cars +0.001 (82/84 tied). Round 327's horizon pays only with two cars live.
+- The chooser's shortlist width (arms 337, 340), in a candidate's top-level decision: four close calls within 1.0 turn
+  in duels +0.015 +- 0.004 (a winner's curse: rand8, fractal23, fractal8, circle), five within 1.5 turns +0.002 +-
+  0.005 (hybrid1 and fractal3 for it, circle and fractal8 against); two close calls in every field +0.057 +- 0.006 in
+  duels (fractal3 and hybrid20 lose every pair). Rounds 256/259's three within one turn are right from both sides.
+- Four relevant-rival moves outside duels (arm 339): four cars +0.006 +- 0.006, eight cars -0.019 +- 0.019 --
+  round 328's three stay.
+
+The promotion (E:/tmp-claude/p332/promote332.py; jar p332) writes the arm with every car a candidate. The promoted jar
+races as the arm with every slot a candidate: seven random-start and three computed-start 8-car races, eight
+random-start and three computed-start 4-car races, and eight duels (PROMO332 identity); check mode, with 2, 4 and 8
+cars, prints no PERF-AWARE line. The final jar is code-identical to the identity-tested one (javap; only line numbers
+moved).
+
+Corpus on the box: 2 of the 12 goldens moved -- exactly the two 4-car ones, each with its three finishers and no
+crash: Monaco s9 finishes B, D, A, C in 546 turns (A, B, C, D in 540 before), Le Mans s1 C, D, A, B in 590 (B, C, D, A
+in 587). Every 8-car golden and the duel golden are unchanged (the legacy Hairpin s1 duel still runs 33 turns), and
+the browser parity duel keeps 978446be. All 25 pins pass without a re-freeze.
+
+Box verify on the final tree: every pin, the goldens, headless smoke, query replay, lap progress and compileall pass
+(30/30). The Python unit tests pass (104); the fleet grid's Ctrl+C resume test, untouched by this round, timed out once
+under the box's load again (as in round 331) and passed on three solo and two full re-runs. The Java suite and the
+local browser build pass. An independent review (two reviewers, two skeptics per finding) found no behaviour defect;
+its comment and ledger corrections are in. One stats-only drift is left for a perf round: the perf_bnb counter
+topAwareSaved still adds AI1_AWARE_SELF_MOVES for a landing pruned before its rollout.
+
+In flight: arm 341 (E:/tmp-claude/arm341_k11onp332.py: eleven own moves where round 332 plays eight, against round
+332, four cars, seeds 1-20) and eight own moves in every field size on held-out eight-car seeds 11-20.
+
 ## Round 331 promoted (2026-10-24): the relevant rival keeps its three stronger forecast moves (3+1+1)
 
 In a top-level chooser's aware forecast with a second rival in two-cycle contact with the mover, the relevant
