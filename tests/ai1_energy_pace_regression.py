@@ -31,11 +31,12 @@ EXPECTED = {
  # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
  # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
  # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
- ("nurburgring",1): (7, 0, [92, 93, 94, 94, 95, 96, 96]),
+ # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
+ ("nurburgring",1): (7, 0, [91, 92, 93, 94, 95, 95, 96]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p7 now crashes on its 56th move -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p7 no longer crashes on its 56th move and finishes seventh on its 130th -- recorded, not vetoed (AGENTS.md).
- ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),  # Round 305/309: whole again.
+ ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 131]),  # Round 305/309: whole again.
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same
  # race by summary and digest (the labels race alike; review, 2026-09-28).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -43,12 +44,12 @@ EXPECTED = {
  # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
- ("spa",17): (7, 0, [80, 81, 81, 83, 83, 84, 84]),
+ ("spa",17): (7, 0, [79, 80, 81, 81, 81, 82, 84]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p6 no longer crashes on its 19th move and finishes third on its 139th -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
- ("zandvoort",44): (7, 0, [137, 138, 139, 140, 141, 143, 144]),  # Round 303: whole again.
+ ("zandvoort",44): (7, 0, [137, 138, 139, 140, 142, 143, 143]),  # Round 303: whole again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

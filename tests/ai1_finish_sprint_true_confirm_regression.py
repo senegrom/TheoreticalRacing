@@ -44,7 +44,8 @@ PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 62, 5: 61, 6: 62, 7: 62, 8: 61}
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-PROMOTED_SHA256 = 'f378b15fd8998ecd82adb8e10d5e1678c4857d6dd04893a63a0de81ea8d9ecee'
+# Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
+PROMOTED_SHA256 = 'ecedd0fda97a598d8f7e2a6b4ed52a25bdb4ca3edb87d7029df55434b0257984'
 
 
 def main() -> int:

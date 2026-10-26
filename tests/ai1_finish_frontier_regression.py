@@ -28,7 +28,8 @@ EXPECTED = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); no crash, p5 and p6 each one own move faster, in 60 (61 before), p7 (the car still running at the end before, after 60 own moves) now finishes in 61, and p8 (home in 60 before) is the car still running at the end, after 60 own moves -- the list of rounds 328 and 329 again (sum 418 -> 417); the classification is under EXPECTED_SEED6_FINISHERS.
-    6: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision); no crash, p5 and p6 each one own move slower, in 61 (60 before), p8 (the car still running at the end before, after 60 own moves) now finishes in 60, and p7 (home in 61 before) is the car still running at the end, after 60 own moves -- the list of round 330 again (sum 417 -> 418); the classification is under EXPECTED_SEED6_FINISHERS.
+    6: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 260: re-frozen from measurement (the faithful joint world as a chooser).
     # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -41,7 +42,8 @@ EXPECTED = {
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); the same seven finish, no crash, p1 still the car running at the end (after 60 own moves), and p6 one own move faster, fourth in 59 (fifth in 60 before), so p5 is fifth, in 60 as before -- round 316's classification again (sum 416 -> 415).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); no crash, p1 (the car still running at the end before, after 60 own moves) now finishes fifth in 61, p7 fourth in 60 (sixth in 60 before), p4 one own move slower, third in 60 (third in 59 before), p5 one slower, sixth in 61 (fifth in 60 before), p6 two slower, seventh in 61 (fourth in 59 before), and p8 (seventh home in 60 before) is the car still running at the end, after 60 own moves; p2 and p3 finish first and second as before, in 58 and 59 (sum 415 -> 420).
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); no crash, p7 one own move faster, third in 59 (fourth in 60 before), p6 one faster, fourth in 60 (seventh in 61 before), p4 one slower, fifth in 61 (third in 60 before), p8 (the car still running at the end before, after 60 own moves) now finishes seventh in 61, and p1 (fifth home in 61 before) is the car still running at the end, after 61 own moves; p2, p3 and p5 finish first, second and sixth as before, in 58, 59 and 61 (sum 420 -> 419).
-    47: (7, 0, [58, 59, 59, 60, 61, 61, 61]),
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision); no crash, the race is round 331's through move 357: p4 one own move faster, third in 60 (fifth in 61 before), p7 one slower, fourth in 60 (third in 59 before), p6 two slower, seventh in 62 (fourth in 60 before), so p5 and p8 are fifth and sixth, in 61 as before (sixth and seventh before), and p1 is still the car running at the end, after 62 own moves (61 before); p2 and p3 finish first and second as before, in 58 and 59 (sum 419 -> 421).
+    47: (7, 0, [58, 59, 60, 60, 61, 61, 62]),
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); no crash, p8 (the car still running at the end before) now finishes third in 59 own moves, p7 (sixth home in 60 before) is the car still running at the end, and p3 and p6 each finish one own move slower, in 60 and 61 (sum 417 -> 418).
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); no crash, p7 (the car still running at the end before) now finishes seventh in 61 own moves, p8 (third home in 59 before) is the car still running at the end, and p3, p5 and p6 each finish one own move faster, in 59, 60 and 60 (sum 418 -> 417).
@@ -51,6 +53,7 @@ EXPECTED = {
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); no crash, p6 (seventh home in 62 before) two own moves faster, sixth in 60, p7 (the car still running at the end before) now finishes seventh in 61 own moves, and p8 (sixth home in 60 before) is the car still running at the end, after 60 own moves; p1 to p5 finish as before -- round 326's classification again (sum 418 -> 417).
     # Round 330: measured (a third rival in contact with the mover plays one stronger forecast move too); the same summary, a different classification: no crash, p8 (the car still running at the end before, after 60 own moves) now finishes sixth in 60, p6 one own move slower, seventh in 61 (sixth in 60 before), and p7 (seventh home in 61 before) is the car still running at the end, after 60 own moves; p1 to p5 finish as before (sum 417, unchanged).
     # Round 331: measured (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); the same summary, a different classification: no crash, p6 one own move faster, sixth in 60 (seventh in 61 before), p8 one slower, seventh in 61 (sixth in 60 before), and p7 is still the car running at the end, after 61 own moves (60 before); p1 to p5 finish as before (sum 417, unchanged).
+    # Round 333: measured (the mover's aware forecast plays eight own moves by its full policy in every decision); the same summary, a different classification: no crash, p8 one own move faster, sixth in 60 (seventh in 61 before), p6 one slower, seventh in 61 (sixth in 60 before), and p7 is still the car running at the end, after 60 own moves (61 before); p1 to p5 finish as before -- round 330's classification again (sum 417, unchanged).
     49: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
 }
 EXPECTED_SEED6_FINISHERS = [
@@ -67,13 +70,14 @@ EXPECTED_SEED6_FINISHERS = [
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); no crash, p2 (the car still running at the end before, after 61 own moves) now finishes second in 59, p3 one own move slower, fourth in 60 (second in 59 before), p8 one faster, sixth in 60 (seventh in 61 before), p6 one slower, seventh in 61 (fifth in 60 before), and p7 (sixth home in 60 before) is the car still running at the end, after 60 own moves; p1 and p4 finish as before, first in 58 and third in 59, and p5 is fifth, in 60 as before (fourth before); the sum is unchanged at 417.
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); no crash, p5 one own move slower, sixth in 61 (fifth in 60 before), so p8 is fifth, in 60 as before (sixth before); p1, p2, p4, p3 and p6 finish as before, first in 58, second and third in 59, fourth in 60 and seventh in 61, and p7 is still the car running at the end, after 60 own moves; the sum is 418 now.
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); no crash, p5 and p6 each one own move faster, fifth and sixth in 60 (sixth and seventh in 61 before), p7 (the car still running at the end before, after 60 own moves) now finishes seventh in 61, and p8 (fifth home in 60 before) is the car still running at the end, after 60 own moves; p1, p2, p4 and p3 finish as before, first in 58, second and third in 59 and fourth in 60; the sum is 417 now.
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision); no crash, p8 (the car still running at the end before, after 60 own moves) now finishes fifth in 60, p5 and p6 each one own move slower, sixth and seventh in 61 (fifth and sixth in 60 before), and p7 (seventh home in 61 before) is the car still running at the end, after 60 own moves -- round 330's classification again; p1, p2, p4 and p3 finish as before, first in 58, second and third in 59 and fourth in 60; the sum is 418 now.
     (1, 58),
     (2, 59),
     (4, 59),
     (3, 60),
-    (5, 60),
-    (6, 60),
-    (7, 61),
+    (8, 60),
+    (5, 61),
+    (6, 61),
 ]
 EXPECTED_DECISION = {
     # Round 229: re-frozen from measurement (the soft caution stack left the score).
@@ -91,6 +95,7 @@ EXPECTED_DECISION = {
     # Round 329: the same turns and cars, re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves); s6's p3 still brakes SW at move 299, one cell further east: it reaches (66,47) at v(1,-6) at move 291 instead of (65,47) and brakes there, to (0,-5) and (66,42) -- round 316's line again -- then plays W from (66,42) at move 307, to (-1,-5) and (65,37); the W that round 96 pinned as seed 6's gain, from (65,49) at v(1,-6) to (65,43), is still the winner p1's, at move 289; s47 and s49 unchanged.
     # Round 330: the same turns and cars, re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); s49's p4 reaches v(1,-5) a move earlier and brakes from it: it plays W at move 292 (it coasted there before), from (63,56) at v(2,-5), to (1,-5) and (64,51), and brakes SW at move 300, from (64,51), to (0,-4) and (64,47) -- the very velocity change, v(1,-5) to (0,-4), that round 96 pinned as s49's veto, at move 308 from (67,49) -- then at move 308, from (64,47) at v(0,-4), one cell west of round 329's (65,47) at v(1,-5), plays NW, to (-1,-5) and (63,42); it finishes fourth in 60 as before; s6 and s47 unchanged.
     # Round 331: the same turns and cars, re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); s49's p4 races round 329's line again, move for move: it leaves round 330's line at move 260, coasts at move 292 again, from (62,57) at v(2,-5) to (64,52), plays W at move 300, to (1,-5) and (65,47), and at move 308 plays W from (65,47) at v(1,-5), to (0,-5) and (65,42) -- the line rounds 305/309 to 329 pinned at this turn; it finishes fourth in 60 as before, and the velocity change round 96 pinned as s49's veto, v(1,-5) to (0,-4), is p7's now, at move 319 from (68,45); s6's p3 still brakes SW at move 299, from (66,47) at v(1,-6), to (0,-5) and (66,42), as in rounds 329 and 330 -- the velocity change, v(1,-6) to (0,-5), of round 96's s47 SW veto -- and the W that round 96 pinned as seed 6's gain, from (65,49) at v(1,-6) to (65,43), is still the winner p1's, at move 289; s47 unchanged.
+    # Round 333: the same turns and cars, measured (the mover's aware forecast plays eight own moves by its full policy in every decision); the three pinned lines stand: s6's p3 races round 331's line move for move and still brakes SW at move 299, and the winner p1 still plays round 96's seed-6 gain W at move 289; s47's race is round 331's through move 357, so p2's SW at move 298 stands; s49's p4 leaves round 331's line only at move 356 and still plays W at move 308, from (65,47) at v(1,-5). The velocity change round 96 pinned as s49's veto, v(1,-5) to (0,-4), is in none of the three races now: s49's p7 leaves round 331's line at move 63 and at move 319 plays SW from (64,43) at v(0,-6), to (-1,-5) and (63,38); round 96's own s47 line, SW from (65,49) at v(1,-6) to (0,-5) and (65,44), is s49's p8's now, at move 304.
     6: "299 p3 {kind} SW v(1,-6)→(0,-5) (66,47)→(66,42) ok",
     47: "298 p2 {kind} SW v(0,-6)→(-1,-5) (65,43)→(64,38) ok",
     49: "308 p4 {kind} W v(1,-5)→(0,-5) (65,47)→(65,42) ok",
@@ -148,12 +153,13 @@ def main() -> int:
     # Round 328: 417 (aware's relevant rival plays its first three forecast moves by its full policy), measured; still below the pre-frontier 426.
     # Round 330: 418 (a third rival in contact with the mover plays one stronger forecast move too), measured; still below the pre-frontier 426.
     # Round 331: 417 (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'), measured; still below the pre-frontier 426.
-    if any(move_sum != 417 or move_sum >= 426 for move_sum in move_sums.values()):
+    # Round 333: 418 (the mover's aware forecast plays eight own moves by its full policy in every decision), measured; still below the pre-frontier 426.
+    if any(move_sum != 418 or move_sum >= 426 for move_sum in move_sums.values()):
         raise SystemExit(f"Round-96 Coil seed-6 pace gain lost: {move_sums}")
 
     print(
         "AI1FinishFrontierRegression: OK "
-        "(Coil seed 6 at 417 moves; seeds 47/49 vetoes pinned)"
+        "(Coil seed 6 at 418 moves; seeds 47/49 vetoes pinned)"
     )
     return 0
 

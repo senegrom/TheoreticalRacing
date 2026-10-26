@@ -31,6 +31,20 @@ finishers and crashes, the round-107 7/0 again.
 Round 310: the round-107 ESC-route true-rival confirm went with the
 danger-joint-search family; the pinned outcome is unchanged under the
 promoted champion (measured), so the pin now guards that outcome.
+
+Round 333 (the mover's aware forecast plays eight own moves by its full
+policy in every decision): the race is no longer crash-free. It first
+plays differently on p5's 3rd move (turn 21); p1, seventh home on its
+116th move before, now crashes on its 29th (turn 225, (6,95)->(3,91) at
+v(-3,-4), into the outer wall of the hairpin at the end of the long
+straight): on its 28th (turn 217), from (9,99) at v(-3,-4), the one
+landing from which it could still make the hairpin was (7,96), which p4
+had taken on its 27th (turn 212), so every free landing reached the wall
+within two moves. p2, the car still running at the end before (after 115
+moves), now finishes third on its 114th, and p8, sixth home on its 115th
+before, is the car still running at the end, after 115 moves, so seven
+finishers become six. Recorded, not vetoed (AGENTS.md): the pin holds the
+measured finishers and crashes, 6/1, as in rounds 301a' and 301c.
 """
 
 from pathlib import Path
@@ -67,12 +81,18 @@ def main() -> int:
     # crashed on its 44th move in rounds 301a' and 301c, now keeps its race and comes home seventh on its
     # 117th, so six finishers become seven again: p8, still the car running at the end, now after 116
     # moves, drops from seventh to eighth -- crash-free again, and that is what is pinned below.
-    if crashes != 0 or finishes != 7:
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy
+    # in every decision); p1, seventh home on its 116th move before, now crashes on its 29th (turn 225, closed
+    # out of the hairpin at the end of the long straight: p4 held its one surviving landing) and seven finishers
+    # become six: p2, the car still running at the end before, now finishes third on its 114th, and p8, sixth
+    # home on its 115th before, is the car still running at the end, after 115 moves -- recorded, not vetoed
+    # (AGENTS.md); the round-301a' 6/1 is pinned below.
+    if crashes != 1 or finishes != 6:
         raise SystemExit(
             "ESC true-confirm regression: hungaroring s144 finishes="
-            f"{finishes} crashes={crashes} (expected 7/0)"
+            f"{finishes} crashes={crashes} (expected 6/1)"
         )
-    print("ai1 ESC true-confirm pin OK: hungaroring s144 7/0")
+    print("ai1 ESC true-confirm pin OK: hungaroring s144 6/1")
     return 0
 
 

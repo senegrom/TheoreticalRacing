@@ -30,7 +30,8 @@ EXPECTED = {
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
-    ("zigzag", 1): [65, 65, 66, 66, 67, 67, 68],
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
+    ("zigzag", 1): [65, 66, 66, 66, 66, 67, 67],
     # Round 228: the raw-distance policy saves eight finisher moves in this race.
     # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).

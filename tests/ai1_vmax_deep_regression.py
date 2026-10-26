@@ -27,6 +27,13 @@ passes (p1 accelerates E to v(11,0) from (76,113) on move 97 and survives
 the right-end hairpin). The pin now guards seed 6 crash-free under both
 labels, seed 35 crash-free for AI2, and seed 35's AI1 half at its measured
 two crashes.
+
+Round 333: seed 35 keeps both AI1 cars again -- they still reach max-axis 11
+on that straight drifting outward, but stop the drift on their next move and
+finish, never coming onto the outer wall's line, y=101 (SAFETY below) -- so
+both seeds run crash-free under both labels again, the round-133 contract. No car in seed 35 goes beyond max-axis 10 on the bottom
+straight any more; in seed 6, p6 and p8 (AI2) accelerate to v(11,0) there on
+moves 94 and 96, and both finish.
 """
 
 from pathlib import Path
@@ -41,7 +48,8 @@ import bench_ai  # noqa: E402
 # The measured crash count of a seed's label that no longer runs crash-free;
 # every other seed and label takes the 0 default.
 # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); seed 35 loses two AI1 cars in two separate wall crashes two moves apart, at the west end of the westbound straight above the bottom one, before the left-end hairpin: p7 (fourth home before, on its 179th move) crashes on its 39th, move 311, NE from (45,101) at v(-9,1) to (37,101), and p1 (seventh home before, on its 181st) on its 40th, move 313, NE from (38,101) at v(-8,1) to (31,101). Neither target cell held a car: each car was on the outer wall's line (y=101) still drifting outward, where every landing runs along the wall or crosses it. Each had found its one landing that could still stop for the hairpin held by an AI2 car on its 38th move: p7, on move 303 from (54,100) at v(-10,1), found (45,100) at v(-9,0) held by p8 (there since move 296), and p1, on move 297 from (55,98) at v(-10,2), found (46,99) at v(-9,1) held by p4 (there since move 292). Both had accelerated W to max-axis 11 from v(-10,0) on their 35th move (p1 on move 273, p7 on move 279) and turned toward the outer wall at that speed on their 36th -- the class the docstring describes, on another straight. p6, p8, p3, p5 and p2 come home first to fifth and p4 is still the car running at the end, now after 179 moves (180 before). The race parts from round 330's on move 175 (p7's 22nd). Seed 6 stays crash-free under both labels; its finishers move -- recorded, not vetoed (AGENTS.md).
-SAFETY = {(35, "AI1"): 2}
+# Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision); seed 35 keeps both AI1 cars it lost in rounds 331 and 332: p7 (crashed on its 39th, move 311, before) comes home second on its 178th and p1 (crashed on its 40th, move 313, before) seventh on its 181st. Both still accelerate to max-axis 11 on the westbound straight above the bottom one, drifting outward (p7 SW to v(-11,1) at (76,100) on its 34th, move 271; p1 SW to v(-11,1) at (76,99) on its 36th, move 281), but stop the drift on their next move (p7 N to v(-11,0), p1 NE to v(-10,0)) and brake for the left-end hairpin turning inward, never coming onto the outer wall's line (y=101). p6 still wins on its 177th and p3 is still third on its 179th; p4 (the car still running at the end before, after 179 moves) is fourth on its 179th, p8 (second before, on its 178th) fifth on its 179th and p5 (fourth before, on its 179th) sixth on its 180th, and p2 (fifth home before, on its 180th) is the car still running at the end, after 180 moves. The race parts from round 332's on move 2 (p2's 1st). Seed 6 stays crash-free under both labels; the race parts from round 332's on move 54 (p6's 7th) and its finishers move. Both seeds run crash-free under both labels again, so no seed and label needs an entry.
+SAFETY = {}
 
 
 def main() -> int:

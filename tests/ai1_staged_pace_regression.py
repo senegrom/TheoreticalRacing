@@ -62,7 +62,11 @@ EXACT_MOVES = {
     # the same seven finishers in the same order, p7 home one move earlier, on its 71st (on its 72nd in the list pinned
     # since round 310), and p8 still the car running at the end, after 70 moves (71 before); no crash, one move fewer
     # (483 -> 482) -- round 303's list again -- and the ceiling above keeps its value.
-    ("lemans", 3): [66, 67, 68, 69, 70, 71, 71],
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every
+    # decision); the same seven finishers in the same order, p7 home one move later, on its 72nd (on its 71st since round
+    # 330), and p8 still the car running at the end, after 71 moves (70 before); no crash, one move more (482 -> 483) --
+    # the list pinned from round 310 to round 329 again -- and the ceiling above keeps its value.
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
@@ -96,7 +100,12 @@ EXACT_MOVES = {
     # 85th (sixth before), p6 (fourth before, on its 84th) sixth on its 86th, p7 seventh on its 86th (on its 85th before),
     # and p8 is still the car running at the end, after 85 moves (84 before); no crash, four moves more (589 -> 593), and
     # the ceiling above keeps its value.
-    ("silverstone", 15): [83, 84, 84, 85, 85, 86, 86],
+    # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every
+    # decision); six finishers now instead of seven: p6 (sixth home before, on its 86th) crashes on its 76th move (see the
+    # safety notes in main), p7 is now sixth on its 86th (seventh before), p8 is still the car running at the end, after
+    # 85 moves, and p2, p1, p3, p4 and p5 finish first to fifth as before, on their 83rd, 84th, 84th, 85th and 85th; the
+    # sum drops with the lost car (593 -> 507), and the ceiling above keeps its value.
+    ("silverstone", 15): [83, 84, 84, 85, 85, 86],
 }
 
 
@@ -254,7 +263,26 @@ def main() -> int:
             # 128th) is the car still running at the end, after 126 moves, and p3, p5, p7, p8, p1 and p2 finish
             # first to sixth as before. Hungaroring 4 and Silverstone 18, whole again since round 330, keep
             # every car (872 and 589 moves, under the ceilings of 889 and 594).
-            SAFETY = {("spa", 4): (6, 1), ("spa", 11): (6, 1), ("hungaroring", 25): (6, 1)}
+            # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its
+            # full policy in every decision). Spa 4, a car short since round 331, keeps every car, so it leaves
+            # this list and takes the (7, 0) default: p1, lost on its 28th move in round 331, now makes the
+            # kink -- at turn 217, where it crashed from (105,136) before, it runs from (102,141) to (100,147)
+            # -- and is the car still running at the end, after 83 moves; p5 still wins, on its 79th (78th
+            # before), p7 (sixth before, on its 82nd) is now second on its 80th, p3 (fourth before) third on
+            # its 81st, p8 (second before, on its 79th) fourth on its 81st, p4 (the car still running at the
+            # end before, after 82 moves) fifth on its 82nd, p2 (third before, on its 81st) sixth on its 83rd,
+            # and p6 (fifth before, on its 82nd) seventh on its 83rd (569 moves, under the ceiling of 573).
+            # Silverstone 15, whole in every round since this pin began (round 83), drops one and joins this
+            # list -- recorded, not vetoed (AGENTS.md): p6 (sixth home before, on its 86th move) crashes on its
+            # 76th, at turn 606, ((30,31)->(25,31) at v(-5,0), across the needle that forms the inside wall of
+            # the hairpin before the finish, one cell short of its tip): on its 75th, at turn 598, it ran onto
+            # (30,31), from which at v(-4,1) the one landing that stays on the track is (27,33), round the
+            # needle's tip, and p4 took that landing on its 76th, at turn 604, so every free landing crosses
+            # the wall. p7 (seventh before, on its 86th) is now sixth on its 86th, p8 is still the car running
+            # at the end, after 85 moves, and p2, p1, p3, p4 and p5 finish first to fifth as before. Spa 11
+            # (p7 on its 5th move, at turn 39; the race is round 331's through turn 102) and Hungaroring 25
+            # (p6 on its 6th, at turn 46; the race is unchanged) still drop one each.
+            SAFETY = {("spa", 11): (6, 1), ("silverstone", 15): (6, 1), ("hungaroring", 25): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -308,7 +336,21 @@ def main() -> int:
         # its 115th) is the car still running at the end, after 116 moves, and p2 still wins on its 112th;
         # the place sums move from AI1 10 and AI2 26 to AI1 14 and AI2 22 -- recorded, not vetoed
         # (AGENTS.md). As in rounds 260 and 330, the pin keeps the measured pair, AI2 (4, 2).
-        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 2):
+        # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its
+        # full policy in every decision); both AI2 cars keep their race and an AI1 car dies instead, the
+        # first this pin has recorded: p3 (the car still running at the end before, after 116 moves)
+        # crashes on its 9th move, at turn 67, ((84,32)->(82,28) at v(-2,-4), into the outer wall of the
+        # first right-hander, the wall p7 hit before): on its 8th, at turn 59, p1 held (84,33), the one
+        # landing from which it could still make the bend, so its only free landing on the track was
+        # (84,32), on the outer wall's line, from which every landing crosses the wall. The race first
+        # plays differently on p7's 4th move, at turn 31; p7 (lost on its 10th move since round 330) is
+        # now the car still running at the end, after 117 moves, p5 (lost on its 17th in round 331) third
+        # on its 114th, p6, p8 and p1 (third to fifth before, on their 114th, 115th and 117th) fourth to
+        # sixth on their 115th, 116th and 118th, and p2 and p4 still finish first and second, on their
+        # 112th and 113th; the place sums move from AI1 14 and AI2 22 to AI1 17 and AI2 19 -- recorded,
+        # not vetoed (AGENTS.md). As in rounds 260, 330 and 331, the pin keeps the measured pair, now
+        # AI1 (4, 1) and AI2 (4, 0).
+        if mixed["AI1"][1:] != (4, 1) or mixed["AI2"][1:] != (4, 0):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
     print(

@@ -1,5 +1,89 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 333 promoted (2026-10-26): the mover's forecast plays eight of its own moves by its full policy in every decision
+
+Round 332 gave a decision with at most three live rivals AI1_AWARE_SELF_MOVES_FEW = 8 own continuation moves by the
+full policy in each aware forecast and kept round 305's five with more rivals live. Round 333 plays eight in every
+decision: AI1_AWARE_SELF_MOVES = 8, and round 332's gate (its two constants and computeAiMove's per-decision budget)
+is deleted. Four-car fields and duels race exactly as round 332; the change is the early and middle game of bigger
+fields. Round 305 had found five best on eight-car fields (eight -0.121 against five -0.151 then), on a champion
+without round 309's rule, projected place (316, 326), the duel horizon (327) and the stronger rival moves (328-331).
+awareSelfMoves is read only by a top-level chooser's own rollouts, so upgraded and suppressed moves, and both memos,
+are unchanged; round 314's tie re-roll still plays AI1_TIE_SELF_MOVES and puts the value back.
+
+Arm 343 (E:/tmp-claude/arm343_eightall.py on 6157252; jar a343: a candidate plays round 332's eight with any number
+of live rivals) against the round-332 champion, mirrored (boards favouring candidate / champion / tied; crashes
+candidate:champion):
+
+| Slice | Eight own moves everywhere (promoted) |
+|---|---|
+| 8 cars fresh 21-30 | -0.026 +- 0.021 (41/34/9; 78:97) |
+| 8 cars fresh 31-40 | -0.082 +- 0.020 (49/30/5; 64:88) |
+| 8 cars computed 1-10 | -0.060 +- 0.020 (41/35/8; 78:94) |
+| 8 cars computed 11-20 | -0.065 +- 0.020 (51/26/7; 69:76) |
+| 8 cars scattered 1-10 | -0.010 +- 0.003 (23/4/57; 12:14) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | -0.014 +- 0.017 (37/37/10; 40:39; lone mean 4.486 vs 4.500) |
+| 4 cars, duels | as round 332 by construction |
+
+- Against round 331 the same eight-car effect (round 332's own gate changed no eight-car race on seeds 1-10: 84 of
+  84 boards tied, every race as round 331's) read -0.038 +- 0.021 (40/40/4; 84:85) on seeds 1-10 and -0.038 +- 0.021
+  (38/41/5; 78:80) on 11-20. The four random-start
+  windows pool to about -0.046 +- 0.010 places, computed starts to about -0.062 +- 0.014; the candidate crashes less in
+  every mirrored eight-car slice.
+- CPU: the promoted jar against the round-332 champion 1.10x in eight-car fields (six races); the arm read 1.09x.
+- Also measured on the round-332 champion and closed: eleven own moves instead of eight with at most three live
+  rivals (arm 341) read -0.002 +- 0.005 with four cars and +0.010 +- 0.003 in duels -- eight stays; sixteen-round
+  forecasts with at most three live rivals (arm 342) -0.001 +- 0.010 with four cars -- their crash advantage of round
+  331 (9:32) had shrunk to 15:19, since eight own moves already avoid those crashes. Eleven own moves in eight-car
+  fields on top of round 333 (arm 344) read -0.022 +- 0.019 on seeds 1-10 with more crashes (96:81): in flight.
+
+The promotion (E:/tmp-claude/p333/promote333.py; jar p333) writes the arm with every car a candidate. The promoted jar
+races as the arm with every slot a candidate: seven random-start and three computed-start 8-car races, eight
+random-start and three computed-start 4-car races, and eight duels (PROMO333 identity); check mode, with 2, 4 and 8
+cars, prints no PERF-AWARE line. The final jar is code-identical to the identity-tested one (javap;
+only line numbers moved).
+
+Corpus on the box: 8 of the 12 goldens moved -- every 8-car golden but Hairpin s10; the duel and
+both 4-car goldens are unchanged (the legacy Hairpin s1 duel still runs 33 turns) and the browser parity duel keeps
+978446be. Zandvoort s45 loses a car (six finishers and a crash in 1025 turns, seven in 1110 before), recorded, not
+vetoed; the other seven keep their seven finishers in a new order or a few turns apart. 18 of the 25 pins failed the
+probe. The box loop re-froze eight (early round trap, energy pace, field neutral, finish-sprint true confirm,
+graduated field acceleration, pace, private slack, six-ahead acceleration); nine were re-frozen by hand from the probe
+records, four editors and four independent reviewers (three wording corrections, applied), and the tenth passes
+through them:
+- six-ahead high speed: Spa s83 loses p5 on its 49th move (turn 389; on its 46th, at turn 365, its one surviving
+  landing was (81,117), onto which p3 had braked two turns before); the pinned turn-201 decision is still p1's NW
+  acceleration from v(1,9), one cell earlier; Silverstone s78 keeps its two crashes, the 75th-move one moving from p5
+  (turn 536) to p6 (turn 537) at the same state; the Coil s5 digest is now 81a19585;
+- label invariance: unchanged; it passes through the six-ahead pin's Coil s5 digest, which its all-AI1 and
+  alternating races measure too;
+- cross-model pace: Silverstone s1's seven finishers take 586 moves, two fewer;
+- bounded uncertain field: Le Mans s29 keeps every car again (p6, lost on its 16th since round 328, finishes fourth),
+  and so does s14;
+- equal-speed veto: Zandvoort s115 keeps every car again (p7, lost on its 19th in rounds 331-332, finishes seventh),
+  so the round-126 safety contract against the legacy champion is restored, as in rounds 248 and 300a;
+- vmax deep: serpentine2 s35 is crash-free again (round 331's p7 and p1 crashes are gone): the round-133 contract
+  holds for every seed and label;
+- finish frontier: Coil s6 and s47 finish in new orders (s6 is round 330's classification again); the pinned decision
+  lines stand;
+- staged pace: Spa s4 keeps every car again; Silverstone s15, whole since the pin began in round 83, loses p6 on its
+  76th; the mixed Monaco s9 race gets back both AI2 cars it had lost (p7 since round 330, p5 since round 331) and has
+  its first AI1 crash (p3, 9th move);
+- ESC true confirm: Hungaroring s144 loses p1 (6/1, as in rounds 301a' and 301c);
+- finish denial: p8 now accelerates SE at turn 104 (v(7,0) to (8,1) from (41,6), the old frozen control's move; round
+  332 steered S from (48,7) there) and keeps it although the switch's logged gates hold -- no finish-denial brake and
+  no crash; the decision is re-anchored at the same turn and car. The brake the pin was written for still does not
+  occur in its race, as in every re-freeze since round 316.
+Every crash is recorded, not vetoed.
+
+Box verify on the final tree: every pin, the goldens, headless smoke, query replay, lap progress and compileall pass
+(30/30). The Python unit tests pass (104); the fleet grid's Ctrl+C resume test, untouched by this round, timed out once
+under the box's load again (as in rounds 331 and 332) and passed on three solo and two full re-runs. The Java suite and
+the local browser build pass.
+
+In flight: arm 344 (E:/tmp-claude/arm344_k11big.py: eleven own moves where round 333 plays eight, with at least four
+live rivals; against round 333, eight-car seeds 11-20 and 21-30) and a second eight-car lone check (seeds 6-10).
+
 ## Round 332 promoted (2026-10-25): with at most three live rivals the mover's forecast plays eight of its own moves by its full policy
 
 In a top-level chooser's aware forecast the mover played its first AI1_AWARE_SELF_MOVES = 5 continuation moves by its
