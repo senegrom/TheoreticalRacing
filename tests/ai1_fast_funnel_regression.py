@@ -57,7 +57,8 @@ EXPECTED = {
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
-    45: {"AI1": (13, 4, 0), "AI2": (23, 4, 0)},
+    # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
+    45: {"AI1": (17, 4, 0), "AI2": (19, 4, 0)},
 }
 
 

@@ -32,11 +32,13 @@ EXPECTED = {
  # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
  # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
  # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
- ("nurburgring",1): (7, 0, [91, 92, 93, 94, 95, 95, 96]),
+ # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); p1 still wins, one own move faster (91 -> 90); p3 (fifth home on its 95th before) is second on its 91st, p7 (fourth on its 94th) third on its 92nd, p4 (sixth on its 95th) fourth on its 94th, p5 (seventh on its 96th) fifth on its 95th, p8 (the car still running at the end before, after 95 moves) sixth on its 95th and p6 (third on its 93rd) seventh on its 96th; p2, second home on its 92nd before, is the car still running at the end, after 96 moves (it reaches (95,39) on its 96th, where it was on its 90th before) -- seven finishers and no crash. The race parts from round 333's on move 5 (p5's 1st).
+ ("nurburgring",1): (7, 0, [90, 91, 92, 94, 95, 95, 96]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p7 now crashes on its 56th move -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p7 no longer crashes on its 56th move and finishes seventh on its 130th -- recorded, not vetoed (AGENTS.md).
- ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 131]),  # Round 305/309: whole again.
+ # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); p1 to p4 still come home first to fourth on their 124th to 127th; p5, seventh home on its 131st before, is fifth on its 128th, p6, the car still running at the end before (after 130 moves), sixth on its 129th and p7, fifth home on its 128th before, seventh on its 130th; p8, sixth home on its 129th before, is the car still running at the end, after 129 moves -- seven finishers and no crash, the seventh home one own move sooner (131 -> 130), the numbers of rounds 305/309 to 332 again. The race parts from round 333's on move 61 (p5's 8th).
+ ("interlagos",29): (7, 0, [124, 125, 126, 127, 128, 129, 130]),  # Round 305/309: whole again.
  # Interlagos s47 races in ai1_private_slack_regression, which pins the same
  # race by summary and digest (the labels race alike; review, 2026-09-28).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -44,12 +46,14 @@ EXPECTED = {
  # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
- ("spa",17): (7, 0, [79, 80, 81, 81, 81, 82, 84]),
+ # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); p3, the car still running at the end before (after 83 moves), now wins on its 78th and p2, the winner on its 79th before, comes home seventh on its 84th; p5 to p8 move up a place each, to second to fifth on their 79th to 82nd (third to sixth on their 81st, 81st, 81st and 82nd before), p1 to sixth on its 83rd (seventh on its 84th before), and p4, second home on its 80th before, is the car still running at the end, after 83 moves -- seven finishers and no crash. The race parts from round 333's on move 15 (p7's 2nd).
+ ("spa",17): (7, 0, [78, 79, 80, 81, 82, 83, 84]),
  # Round 274: re-frozen from measurement (rank first; the single-player rule made literal).
  # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts); p6 now crashes on its 19th move -- recorded, not vetoed.
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p6 no longer crashes on its 19th move and finishes third on its 139th -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
- ("zandvoort",44): (7, 0, [137, 138, 139, 140, 142, 143, 143]),  # Round 303: whole again.
+ # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); p2, sixth home on its 143rd move before, now crashes on its 39th (move 306, in the hairpin at the foot of the run down from the top of the course: it came to (39,71) at v(-3,2) on its 37th, move 290, and on its 38th, move 298, its two landings that did not lead into the wall, (37,72) and (37,73), were held by p1 (since move 297, the move before) and p6 (since move 294), so it held v(-3,2) to (36,73), from where every landing left the track; it steered into (32,74)) -- six finishers. p4 to p7 still come home first to fourth on their 137th to 140th and p1 fifth on its 142nd; p3, the car still running at the end before (after 143 moves), comes home sixth on its 143rd, and p8, seventh home on its 143rd before, is the car still running at the end, after 142 moves -- recorded, not vetoed (AGENTS.md). The race parts from round 333's on move 75 (p3's 10th).
+ ("zandvoort",44): (6, 1, [137, 138, 139, 140, 142, 143]),  # Round 334: loses a car again.
 }
 def main():
  with tempfile.TemporaryDirectory(prefix="ai1-energy-") as d:

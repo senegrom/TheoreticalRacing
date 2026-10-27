@@ -45,6 +45,23 @@ moves), now finishes third on its 114th, and p8, sixth home on its 115th
 before, is the car still running at the end, after 115 moves, so seven
 finishers become six. Recorded, not vetoed (AGENTS.md): the pin holds the
 measured finishers and crashes, 6/1, as in rounds 301a' and 301c.
+
+Round 334 (every other live rival plays its first forecast move by its
+full policy): the race is crash-free again. It first plays differently on
+p1's 10th move (turn 73); p1, which crashed on its 29th move in round 333
+(turn 225, closed out of the hairpin at the end of the long straight), now
+brakes on its 28th (turn 217), from (9,100) at v(-3,-4) to (7,97) at
+v(-2,-3) -- it coasted there before, from (9,99) to (6,95) -- reaches
+(6,95) on its 29th, at v(-1,-2), makes the hairpin and comes home seventh
+on its 119th move (turn 924), so six finishers become seven again. p5,
+fifth home on its 115th move before, is now the car still running at the
+end, after 118 moves; p8, the car still running at the end before (after
+115 moves), now finishes sixth on its 117th; p4 is second on its 112th
+(fourth on its 114th before), p6 fourth on its 116th (sixth before), p7
+fifth on its 117th (second on its 112th before), and p3 and p2 finish
+first and third as before, on their 111th and 114th. The pin holds the
+measured finishers and crashes, the round-107 7/0 again, as from round
+303 to round 332.
 """
 
 from pathlib import Path
@@ -87,12 +104,18 @@ def main() -> int:
     # become six: p2, the car still running at the end before, now finishes third on its 114th, and p8, sixth
     # home on its 115th before, is the car still running at the end, after 115 moves -- recorded, not vetoed
     # (AGENTS.md); the round-301a' 6/1 is pinned below.
-    if crashes != 1 or finishes != 6:
+    # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy);
+    # p1, which crashed on its 29th move in round 333, now brakes for the hairpin at the end of the long straight on
+    # its 28th (turn 217), keeps its race and comes home seventh on its 119th, so six finishers become seven again:
+    # p5, fifth home on its 115th before, is now the car still running at the end, after 118 moves, and p8, the car
+    # still running at the end before, finishes sixth on its 117th -- crash-free again, and the round-107 7/0 is
+    # pinned below.
+    if crashes != 0 or finishes != 7:
         raise SystemExit(
             "ESC true-confirm regression: hungaroring s144 finishes="
-            f"{finishes} crashes={crashes} (expected 6/1)"
+            f"{finishes} crashes={crashes} (expected 7/0)"
         )
-    print("ai1 ESC true-confirm pin OK: hungaroring s144 6/1")
+    print("ai1 ESC true-confirm pin OK: hungaroring s144 7/0")
     return 0
 
 

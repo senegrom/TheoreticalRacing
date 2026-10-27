@@ -77,9 +77,21 @@ TARGET = ("hairpin", 68)
 # fourth in 17 and p1 seventh in 19, and p5 is still the car running at the end, after 18 moves, now at
 # (74,26), a move from the line (at (71,21) before). The same summary: still seven finishers and no
 # crash.
-RESCUED = (7, 0, [16, 16, 16, 17, 17, 18, 19])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (6, 17), (7, 17), (8, 18), (1, 19)]
-RESCUED_MOVES = {1: 19, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 18}
+# Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its
+# full policy); the race first plays differently at move 8 (p8's first: NW to (14,26), not W to (14,27),
+# as in round 329, whose race this one leaves at move 16, p8's second), and p1 and p8 trade places.
+# From (16,14) at v(2,-3), which it reaches at move 49, p1 races round 330's p8 line (round 333's p7's)
+# move for move and is home sixth, at move 134, in 18 moves (seventh at move 137 in 19 before). From
+# (18,10) at v(3,-2), which it reaches at move 56, p8 races round 329's p7 line move for move and is home
+# seventh, at move 136, in 18 moves as before (sixth before); it brakes W at move 104 (below). p2, p3 and
+# p4 are still home first to third in 16 moves, p6 fourth and p7 fifth in 17, and p5 is still the car
+# running at the end, after 18 moves, at (71,21) again, as in round 330, a move from the line (at (74,26)
+# before): p8's crossing, the seventh, ends the race, so p5 is classified eighth. Still seven finishers
+# and no crash; the last finisher is home in 18 moves, not 19 (the summary of rounds 281, 303 and
+# 305/309 again).
+RESCUED = (7, 0, [16, 16, 16, 17, 17, 18, 18])
+RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (6, 17), (7, 17), (1, 18), (8, 18)]
+RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 18}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
@@ -133,7 +145,19 @@ RESCUED_MOVES = {1: 19, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 18}
 # rejoins round 330's line at (16,14) at v(2,-3) at move 56, a move late, and reaches (41,6) at v(7,0)
 # at move 96 (88 before); round 330's S steer from (48,7), pinned here for p8 at move 104, is p7's now,
 # at move 103.
-RESCUED_DECISION = "104 p8 AI SE v(7,0)→(8,1) (41,6)→(49,7) ok"
+# Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its
+# full policy); the same turn and car: p8 now brakes W there, v(7,1) to (6,1), from (47,7) to (53,8) --
+# the original rescue's direction (W, v(7,0) to (6,0)) and round 329's p7 move at move 103, but no
+# finish-denial brake: no live rival is within a cell of the coast landing (54,8) (the nearest, p6, is
+# at (56,9)), and every landing at or above the switch's 64 speed2 (NE, E and SE, all at vx 8 from x
+# 55) runs into the outer wall of the hairpin before it can reach the line, so the switch has nothing to
+# replace. W, like NONE and S, keeps p8 on its fastest line home (five more moves, as raced), and no car
+# closes it. p8 reaches (40,6) at v(7,0) at move 88 (round 333's (41,6) at move 96) and steers S to
+# (47,7) at move 96 (SE to (48,7) was a move faster alone); after the brake it steers S at move 112,
+# brakes SW at moves 120 and 128, steers S at move 133 and finishes at move 136, on p7's cells from
+# (59,10) on, a round behind. Round 330's S steer from (48,7), pinned here for p8 at move 104 in rounds
+# 316 and 330 and p7's at move 103 in round 333, is p1's now, at move 105.
+RESCUED_DECISION = "104 p8 AI W v(7,1)→(6,1) (47,7)→(53,8) ok"
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 260: re-frozen from measurement (the chooser).
@@ -146,7 +170,8 @@ RESCUED_DECISION = "104 p8 AI SE v(7,0)→(8,1) (41,6)→(49,7) ok"
 # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
-RESCUED_SHA256 = "b46a61c2ec06d828fc883c0a755e63d4a919ace96fe646a07e3d8c81d6330a42"
+# Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
+RESCUED_SHA256 = "424ab661a70bcb06a456efaa87b3dfd73372f5ab532d026f04fff3203885141d"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:
