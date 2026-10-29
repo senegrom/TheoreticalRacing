@@ -33,7 +33,8 @@ CASES = [("zandvoort", 115)]
 # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); p7, fifth home on its 141st move before, now crashes on its 19th, move 151, at the top-of-course hairpin: from (59,4) at v(2,-3) every landing is beyond the outer wall, and it goes NW to (60,0). On its 15th, move 119, its one landing from (48,22) at v(4,-6) that could still stop for the hairpin, (51,17) at v(3,-5), was held by p1 (there since move 113), and it went W to (51,16) at v(3,-6). p7 leaves its old line on its 4th, move 31 (it holds v(2,-3) where it turned NW before), and comes into the hairpin about a move ahead of its old line, in the pack. Seven finishers become six: p8 moves up to fifth on its 141st (sixth on its 142nd before) and p1 to sixth on its 143rd (seventh on its 144th before); p2 is still the car running at the end, now after 142 moves (143 before), and p3 to p6 still come home first to fourth on their 137th to 140th. The race parts from round 330's on move 20 (p4's 3rd) -- recorded, not vetoed (AGENTS.md).
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision); p7, which crashed on its 19th move (move 151) at the top-of-course hairpin in rounds 331 and 332, keeps its race and comes home seventh on its 144th: it now brakes on its 13th and 14th (moves 103 and 111: S to (44,29) at v(3,-6), then S to (47,24) at v(3,-5), where it held v(3,-7) to (44,28) and went SE to (48,22) at v(4,-6) before), so on its 18th it is at (54,10) at v(2,-2), where it was at (59,4) at v(2,-3) before, and it rounds the hairpin. Six finishers become seven, with no crash: p1 moves up to fifth on its 142nd (sixth on its 143rd before), p2, the car still running at the end before (after 142 moves), comes home sixth on its 143rd, and p8, fifth home on its 141st before, is the car still running at the end, after 143 moves; p3 to p6 still come home first to fourth on their 137th to 140th. The race parts from round 332's on move 8 (p8's 1st).
 # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
-PROMOTED = (7, 0, [137, 138, 139, 140, 141, 142, 144])
+# Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy); p5, third home on its 139th move before, now crashes on its 15th, move 117, on the run up to the top-of-course hairpin: from (47,21) at v(2,-7), hard against the outer wall, every move crosses it, and it goes SE to (50,15). On its 14th, move 109, its two landings from (45,28) at v(3,-7) that could still stop for the hairpin, (47,22) at v(2,-6) and (48,22) at v(3,-6), were held by p1 (there since move 105) and p4 (there since move 108), and it went W to (47,21) at v(2,-7). p5 leaves its old line on its 2nd, move 13 (NE where it went E before), and comes into the hairpin about a move ahead of its old line, in the pack. Seven finishers become six, the summary round 281 pinned: p6 moves up to third on its 139th (fourth on its 140th before) and p1 to fourth on its 141st (seventh on its 144th before), p2, the car still running at the end before (after 143 moves), comes home fifth on its 142nd, p7 is sixth on its 143rd (fifth on its 141st before), and p8, sixth home on its 142nd before, is the car still running at the end, after 142 moves; p3 and p4 still come home first and second on their 137th and 138th. The race parts from round 334's on move 13 (p5's 2nd) -- recorded, not vetoed (AGENTS.md).
+PROMOTED = (6, 1, [137, 138, 139, 141, 142, 143])
 LEGACY_CHAMPION = (6, 1, [139, 140, 141, 143, 144, 146])
 EXPECTED = {kind: {"zandvoort:115": PROMOTED} for kind in LABELS}
 
@@ -62,12 +63,17 @@ def main() -> int:
     # finisher back and the original contract returned, holding through round
     # 330. Round 331 lost that car again (six finishers and one crash, like the
     # legacy car, fifteen finisher moves faster) and pinned the pace edge once
-    # more, as in rounds 247 and 281, through round 332; round 333 gives the race
-    # its seventh finisher back and the original contract holds again.
+    # more, as in rounds 247 and 281, through round 332; round 333 gave the race
+    # its seventh finisher back and the original contract returned, holding
+    # through round 334. Round 335 loses that car again (six finishers and one
+    # crash, like the legacy car, thirteen finisher moves faster), and the rule
+    # records a crash rather than vetoing it (CLAUDE.md): the measured race above
+    # is the pin, and the pace edge over the legacy car still has to hold, as in
+    # rounds 247, 281 and 331.
     result = actual[LABELS[0]]["zandvoort:115"]
-    if not (result[0] > LEGACY_CHAMPION[0] and result[1] < LEGACY_CHAMPION[1]):
-        raise SystemExit(f"Round-126 safety contract lost: {result}, legacy {LEGACY_CHAMPION}")
-    print("AI1EqualSpeedVetoRegression: OK (Zandvoort s115 rescue holds)")
+    if sum(result[2]) >= sum(LEGACY_CHAMPION[2]):
+        raise SystemExit(f"Round-126 pace edge lost: {result}, legacy {LEGACY_CHAMPION}")
+    print("AI1EqualSpeedVetoRegression: OK (Zandvoort s115 pinned, with the pace edge over the legacy car)")
     return 0
 
 

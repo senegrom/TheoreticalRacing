@@ -524,9 +524,9 @@ final class RaceAi {
 	private final static double	AI1_CHOOSER_WINDOW	= 1.0;	// round 256/259: a landing is a close call within this much score
 	private final static int		AI1_AWARE_SELF_MOVES	= 8;	// round 305: the mover's forecast continuation moves played by its full policy (five; round 332: eight with at most three live rivals; round 333: eight in every decision)
 	private final static int		AI1_AWARE_RIVAL_MOVES	= 3;	// round 328: the relevant rival's forecast moves played by its full policy
-	private final static int		AI1_AWARE_SECOND_MOVES	= 1;	// round 329: the second-heaviest rival's when one is in contact with the mover (round 331: beside those)
-	private final static int		AI1_AWARE_THIRD_MOVES	= 1;	// round 330: the third-heaviest rival's when one is in contact with the mover, beside those
-	private final static int		AI1_AWARE_OTHER_MOVES	= 1;	// round 334: every other live rival's forecast moves played by its full policy, beside those
+	private final static int		AI1_AWARE_SECOND_MOVES	= 2;	// round 329: the second-heaviest rival's when one is in contact with the mover (one; round 331: beside those; round 335: two)
+	private final static int		AI1_AWARE_THIRD_MOVES	= 2;	// round 330: the third-heaviest rival's when one is in contact with the mover, beside those (one; round 335: two)
+	private final static int		AI1_AWARE_OTHER_MOVES	= 2;	// round 334: every other live rival's forecast moves played by its full policy, beside those (one; round 335: two)
 	private final static int		AI1_TIE_SELF_MOVES	= 1;	// round 314: the mover's forecast continuation moves played by its full policy when the chooser re-rolls an exact tie with two live cars (round 303's depth)
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
@@ -3587,7 +3587,7 @@ final class RaceAi {
 	 *  awareSelfMoves, the rival's first AI1_AWARE_RIVAL_MOVES; round 329: a second
 	 *  rival in contact plays AI1_AWARE_SECOND_MOVES, taken from those until round 331;
 	 *  round 330: a third in contact plays AI1_AWARE_THIRD_MOVES; round 334: every other
-	 *  live rival its first AI1_AWARE_OTHER_MOVES); -1 for none. */
+	 *  live rival its first AI1_AWARE_OTHER_MOVES; all three one each until round 335); -1 for none. */
 	private int awareDepth = -1, awareRival = -1;
 	/** Round 314: the mover's continuation moves an aware forecast plays by its full
 	 *  policy -- AI1_AWARE_SELF_MOVES, or AI1_TIE_SELF_MOVES while the chooser's tie
@@ -3885,7 +3885,8 @@ final class RaceAi {
 		// Round 329 (IR2 split): when another live rival is in two-cycle contact with the mover at the
 		// landing, the next-heaviest one (ChooserTraffic.relevantExcept, read here from the forecast's
 		// arrays, the landing's state) plays its first AI1_AWARE_SECOND_MOVES moves by its full policy
-		// (until round 331 the relevant rival that many fewer). A tie re-roll has no second rival.
+		// (one until round 335; until round 331 the relevant rival one fewer). A tie re-roll has no
+		// second rival.
 		// Against the round-328 champion: eight-car fields -0.037 +- 0.022 places (seeds 1-10), -0.044
 		// +- 0.023 (11-20), -0.024 +- 0.023 (21-30), -0.018 +- 0.022 computed, -0.001 +- 0.001
 		// scattered; four-car fields -0.016 +- 0.009, -0.011 +- 0.008 held-out; -0.053 +- 0.021 as a
@@ -3910,7 +3911,8 @@ final class RaceAi {
 		}
 		// Round 330 (IR2, 2+1+1): when a third live rival is in contact with the mover at the landing,
 		// the next one in the same order (relevantExcept without the relevant and the second rival)
-		// plays its first AI1_AWARE_THIRD_MOVES moves by its full policy, beside round 329's 2+1.
+		// plays its first AI1_AWARE_THIRD_MOVES moves by its full policy (one until round 335), beside
+		// round 329's 2+1.
 		// Against the round-329 champion: eight-car fields -0.051 +- 0.022 places (seeds 1-10), -0.050
 		// +- 0.022 (11-20), -0.026 +- 0.022 (21-30), -0.039 +- 0.020 computed, +0.001 +- 0.001
 		// scattered; four-car fields -0.009 +- 0.005, -0.014 +- 0.006 held-out; -0.049 +- 0.017 as a
@@ -3945,8 +3947,9 @@ final class RaceAi {
 				awareThirdLeft = AI1_AWARE_THIRD_MOVES;
 		}
 		// Round 334: every other live rival -- not the relevant, second or third one -- plays its first
-		// AI1_AWARE_OTHER_MOVES forecast moves by its full policy. Round 308 measured the same upgrade
-		// at -0.020 places for 1.67x CPU on round 305's forecast. Against the round-333 champion:
+		// AI1_AWARE_OTHER_MOVES forecast moves by its full policy (one until round 335). Round 308
+		// measured the same upgrade at -0.020 places for 1.67x CPU on round 305's forecast.
+		// Against the round-333 champion:
 		// eight-car fields -0.059 +- 0.023 places (seeds 1-10), -0.021 +- 0.022 (11-20), -0.036 +-
 		// 0.022 (21-30), -0.081 +- 0.021 computed (1-10), -0.073 +- 0.021 (11-20), -0.003 +- 0.002
 		// scattered; -0.045 +- 0.021 as a lone entrant; four-car fields -0.002 +- 0.005 (its cars crash
@@ -3954,6 +3957,15 @@ final class RaceAi {
 		// ChooserTraffic.relevant finds no interaction edge); CPU 1.18x in eight-car fields (the arm
 		// read 1.21x). The same upgrade only in the race's first 12 rounds read +0.005 and +0.018
 		// (seeds 1-10, 11-20) and -0.037 and -0.003 computed: the gain is not the launch's.
+		// Round 335: the second and third rivals in contact and every other live rival play their first
+		// two forecast moves by the full policy (round 334 gave the others one). Against the round-334
+		// champion: eight-car fields -0.055 +- 0.024 places (seeds 1-10), -0.045 +- 0.022 (11-20),
+		// +0.002 +- 0.022 (21-30), -0.012 +- 0.021 (31-40), pooled about -0.028 +- 0.011; computed
+		// -0.015 +- 0.022, -0.042 +- 0.021, -0.040 +- 0.021 and -0.066 +- 0.022 over the same windows,
+		// pooled about -0.041 +- 0.011; +0.000 +- 0.002 scattered; -0.050 +- 0.014 as a lone entrant
+		// (seeds 1-10); four-car fields +0.001 +- 0.007; duels +0.001 +- 0.001; CPU 1.17x in eight-car
+		// fields (the arm read 1.17x). Three moves each read -0.053 +- 0.024 on seeds 1-10, where two
+		// read -0.055 +- 0.024, for 1.33x CPU.
 		final int[] awareOtherLeft = awareRollout ? new int[game.players.length] : null;
 		if (awareOtherLeft != null)
 			java.util.Arrays.fill(awareOtherLeft, AI1_AWARE_OTHER_MOVES);
@@ -4889,7 +4901,7 @@ final class RaceAi {
 			// the rival's first AI1_AWARE_RIVAL_MOVES; round 329: a second rival in contact plays
 			// AI1_AWARE_SECOND_MOVES (beside them since round 331); round 330: a third in contact plays
 			// AI1_AWARE_THIRD_MOVES; round 334: every other live rival its first AI1_AWARE_OTHER_MOVES
-			// (see simOutcomeCore).
+			// (second, third and other rivals: one each until round 335; see simOutcomeCore).
 			final int outerAwareDepth = awareDepth, outerAwareRival = awareRival;
 			if (simDepth == 0 && !inScorerSim && trueConfirmDepth == 0) {
 				awareDepth = simDepth + 1;
@@ -5008,16 +5020,16 @@ final class RaceAi {
 	 *  the same forecast: chooserRounds() rounds, every live rival by its scorer, the relevant
 	 *  rival the chooser recorded for this landing playing its first AI1_AWARE_RIVAL_MOVES moves
 	 *  by its full policy (round 328; with two live cars there is no second or third rival,
-	 *  rounds 329 and 330, and round 334 gives the one rival AI1_AWARE_OTHER_MOVES when the
-	 *  chooser recorded none), round 309's rule (simDepth == placeKeyDepth) and the rank-first
-	 *  verdict. Both move memos serve the moves they hold and store none: an upgraded move does
-	 *  not depend on the forecast's depth (awareSelfMoves is read only by this depth's own
-	 *  rollout), so the memos stay exact and later decisions meet them as the chooser's own
-	 *  rollouts left them. The caller puts placeKey back. The forecast runs in full: it carries
-	 *  no branch-and-bound cutoff (perf_bnb). Round 316: ppOn is the calling chooser's gate.
-	 *  When it holds, the loop ranked and tied its landings by projected place, and so does this
-	 *  forecast (ppDepth, set beside placeKeyDepth and put back); a call without it sets -1,
-	 *  which ppDepth already is at a top-level decision. */
+	 *  rounds 329 and 330, and round 334 gives the one rival AI1_AWARE_OTHER_MOVES (one until
+	 *  round 335) when the chooser recorded none), round 309's rule (simDepth == placeKeyDepth)
+	 *  and the rank-first verdict. Both move memos serve the moves they hold and store none: an
+	 *  upgraded move does not depend on the forecast's depth (awareSelfMoves is read only by
+	 *  this depth's own rollout), so the memos stay exact and later decisions meet them as the
+	 *  chooser's own rollouts left them. The caller puts placeKey back. The forecast runs in
+	 *  full: it carries no branch-and-bound cutoff (perf_bnb). Round 316: ppOn is the calling
+	 *  chooser's gate. When it holds, the loop ranked and tied its landings by projected place,
+	 *  and so does this forecast (ppDepth, set beside placeKeyDepth and put back); a call
+	 *  without it sets -1, which ppDepth already is at a top-level decision. */
 	private long tieRerollVerdict(final int[] pos, final int[] vel, final int playerNum,
 			final Direction d, final int rival, final boolean ppOn) {
 		final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;

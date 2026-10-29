@@ -27,6 +27,7 @@ PROMOTED = {
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
     # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
+    # Round 335: measured (every rival but the relevant one plays its first two forecast moves by its full policy); the same summary, a different classification: no crash, p3 second in 59 (third before), p8 one own move faster, third in 59 (fifth in 60 before), p2 one slower, fourth in 60 (second in 59 before), p4 fifth in 60 (fourth before), p6 sixth in 61 (seventh before), p7 (the car still running at the end before, after 60 own moves) now finishes seventh in 61, and p5 (sixth home in 61 before) is the car still running at the end, after 61 own moves; p1 still wins in 58 (sum 418, unchanged).
     1: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
@@ -34,6 +35,7 @@ PROMOTED = {
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); no crash, p8 (the car still running at the end before) now finishes seventh in 61 own moves, p7 (seventh home in 61 before) is the car still running at the end, p3 finishes two own moves slower, sixth in 61, and p5 one slower, fourth in 60 (sum 416 -> 419).
     # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
+    # Round 335: measured (every rival but the relevant one plays its first two forecast moves by its full policy); the same summary as before (round 334's, which the box loop re-froze here without a note, as it did round 333's), a different classification: no crash, p4 one own move faster, third in 60 (fifth in 61 before), and p3 one slower, fifth in 61 (third in 60 before); p1, p2, p5, p6 and p7 finish as before, in 58, 59, 60, 61 and 61, and p8 is still the car running at the end, after 60 own moves (sum 420, unchanged).
     38: (7, 0, [58, 59, 60, 60, 61, 61, 61]),
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties); p7, seventh home in 60 moves before, now crashes on its 50th move and seven finishers become six, p4 (fifth home before) the car still running at the end -- recorded, not vetoed.
@@ -41,7 +43,8 @@ PROMOTED = {
     # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); still crash-free: p7, the car still running at the end before, now finishes fifth in 60 moves, p8 (sixth home in 60 moves before) the car still running at the end.
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); still crash-free, the same seven finish and p8 is still the car running at the end: p2, p3, p4 and p5 each finish one own move faster, second to fifth in 59, 59, 60 and 60, p7 one slower, seventh in 61, and p6 (second home in 59 before) two slower, sixth in 61 (sum 419 -> 418).
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
-    106: (7, 0, [58, 59, 59, 60, 60, 61, 61]),
+    # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy); still crash-free (before is round 334's race, which the box loop re-froze here without a note, as it did round 333's): p7 finishes one own move faster, sixth in 60 (seventh in 61 before), p8 (the car still running at the end before, after 60 own moves) now finishes seventh in 60, and p6 (sixth home in 61 before) is the car still running at the end, after 60 own moves; p1 to p5 finish first to fifth as before, in 58, 59, 59, 60 and 60 -- the list of round 328 again (sum 418 -> 416).
+    106: (7, 0, [58, 59, 59, 60, 60, 60, 60]),
 }
 # Seed 106 was the round-115 coast control, pinned equal to the legacy
 # champion; re-freezes moved it, so EXPECTED alone pins it now (review,

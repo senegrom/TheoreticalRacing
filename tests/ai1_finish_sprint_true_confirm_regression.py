@@ -45,7 +45,8 @@ PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 62, 5: 61, 6: 62, 7: 62, 8: 61}
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
-PROMOTED_SHA256 = 'ecedd0fda97a598d8f7e2a6b4ed52a25bdb4ca3edb87d7029df55434b0257984'
+# Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
+PROMOTED_SHA256 = '4b5a30be444e6100d2d93b6d6235d1f37f6a15fc89a32dc7287ec98f5865e4f2'
 
 
 def main() -> int:

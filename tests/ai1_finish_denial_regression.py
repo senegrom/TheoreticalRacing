@@ -171,7 +171,8 @@ RESCUED_DECISION = "104 p8 AI W v(7,1)→(6,1) (47,7)→(53,8) ok"
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
 # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
-RESCUED_SHA256 = "424ab661a70bcb06a456efaa87b3dfd73372f5ab532d026f04fff3203885141d"
+# Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
+RESCUED_SHA256 = "08ffb7bc08ee58faa363bfe757a0df731456af067fb7995dd675a98ed485cb63"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:

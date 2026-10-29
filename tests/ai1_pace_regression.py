@@ -68,7 +68,8 @@ FINISH_EXPECTED = {
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); seven finishers and no crash as before, but p4 (second before, on its 20th move) now wins on its 20th, p1 (third before, on its 21st) finishes second on its 21st, p3 (the winner before, on its 20th) third on its 21st, p5 (sixth before, on its 22nd) fourth on its 21st and p6 (fourth before, on its 21st) sixth on its 22nd; p2 and p7 finish fifth and seventh on their 22nd as before and p8 is still the car running at the end, after 21 moves -- round 328's list and classification again (sum 148 -> 149).
     # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
-    ("bigoval", 7): [20, 20, 21, 21, 21, 22, 22],
+    # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
+    ("bigoval", 7): [20, 21, 22, 22, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
