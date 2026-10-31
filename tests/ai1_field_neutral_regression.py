@@ -43,7 +43,8 @@ EXPECTED = {
     # Round 310: re-frozen from measurement (the danger-joint-search family deleted).
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); Cog s1 loses a car: p8 (the car still running at the end before, after 47 moves) now crashes on its 9th move, at turn 72 ((99,23)->(94,20), into the outer wall: p2 had taken (92,20), p8's one landing from (99,23) at v(-6,-4) that did not cross the wall, at turn 66), and seven finishers become six; p3 (seventh home before, on its 48th) is the car still running at the end, after 47 moves, so it is placed seventh and p8 eighth as before -- the classification is unchanged; p1, p2, p4, p5, p6 and p7 finish as before -- recorded, not vetoed (AGENTS.md).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Cog s1 gets its car back: p8 no longer crashes on its 9th move (turn 72, now (101,25)->(95,22) ok: it braked S to v(-4,-4) at (106,28) on its 7th, at turn 56, and never reached round 326's (99,23) at v(-6,-4)) and is the car still running at the end, after 46 moves; p3 (the car still running at the end before, after 47 moves) now finishes third on its 46th, p4 (third before, on its 46th) fourth on its 47th, and p5, p6 and p7 each one place lower, fifth to seventh on their 47th as before; p1 and p2 finish as before, first and second on their 46th -- seven finishers and no crash again, as before round 326, so the case leaves SAFETY and takes the (7, 0) default.
-    ("cog", 1): [46, 46, 47, 47, 47, 47, 48],
+    # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
+    ("cog", 1): [46, 46, 46, 47, 47, 47, 48],
 }
 # Round 326: the measured (finishers, crashes) of a case that no longer keeps
 # seven finishers and zero crashes; every other case takes the (7, 0) default.

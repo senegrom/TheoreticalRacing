@@ -36,17 +36,18 @@ TARGET = ("rand3", 1)
 # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
 # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted).
 # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win).
-PROMOTED = (7, 0, [60, 61, 61, 61, 62, 62, 62])
+# Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
+PROMOTED = (7, 0, [60, 61, 61, 62, 62, 62, 63])
 # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
-PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 61), (5, 61), (4, 62), (6, 62), (7, 62)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 62, 5: 61, 6: 62, 7: 62, 8: 61}
+PROMOTED_FINISHERS = [(1, 60), (3, 61), (5, 61), (4, 62), (6, 62), (7, 62), (8, 63)]
+PROMOTED_ALL_MOVES = {1: 60, 2: 63, 3: 61, 4: 62, 5: 61, 6: 62, 7: 62, 8: 63}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
 # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
-PROMOTED_SHA256 = '4b5a30be444e6100d2d93b6d6235d1f37f6a15fc89a32dc7287ec98f5865e4f2'
+PROMOTED_SHA256 = '2424b70875c79149edb02e929882a1904888666236707b09bcce320ca6f1be27'
 
 
 def main() -> int:

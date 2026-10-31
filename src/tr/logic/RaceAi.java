@@ -756,6 +756,17 @@ final class RaceAi {
 		int fallbackLegalMask = 0;
 		int fallbackIllegalMask = 0;
 		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
+		// Round 336: gates are ordinary landings wherever the exact potential prices them after the
+		// move (round 296). The S/F and checkpoint precedences below returned before the score, the
+		// chooser and the pace swap, for gate maps that could not price a crossing; with the potential
+		// they could only hand a car in traffic a worse landing, up to six moves a crossing, a leak the
+		// one-lap pins never showed. Against the round-335 champion: eight-car fields -0.185 +- 0.022
+		// places on random starts (seeds 1-10), -0.159 +- 0.023 (11-20), -0.153 +- 0.022 computed,
+		// -0.037 +- 0.004 scattered; -0.098 +- 0.021 as a lone entrant; four-car fields -0.090 +-
+		// 0.009; duels -0.024, 9 boards for and 3 against; crashes level (127:123 on random starts);
+		// CPU 1.02x in eight-car fields. The gain sits on the boards that leaked: fractal25 about -2.9,
+		// hybrid1 about -2.1.
+		final boolean gatesPriced = exactPot != null && game.lapGates != null;
 
 		for (final Direction d : DIRECTIONS) {
 			final int bit = 1 << d.ordinal();
@@ -771,8 +782,9 @@ final class RaceAi {
 				return d;
 			// perf_aisearch (exact): the precedence below needs !lapAware or lapGate == 0.
 			if ((!lapAware || lapGate == 0) && game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
-				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan).
-				if (!lapAware && game.onFinalLap(playerNum) || lapGate == 0 && ((sm & bit) != 0
+				// Multi-lap: survivable-and-shedable crossing precedence (see pure scan), where
+				// the gate maps price the race (round 336).
+				if (!lapAware && game.onFinalLap(playerNum) || !gatesPriced && lapGate == 0 && ((sm & bit) != 0
 						&& !game.isCrashingPlayer(newX, newY, playerNum)
 						&& reach.shedableLanding(newX, newY, newVx, newVy)
 						&& reach.turnsToGate(1, newX, newY, newVx, newVy) != Integer.MAX_VALUE
@@ -784,19 +796,18 @@ final class RaceAi {
 						System.err.println("AIDBG SCAN-CROSS p=" + playerNum + " chosen=" + d);
 					return d;
 				}
-				// Stray or unshedable crossing: an ordinary legal move (cars
-				// spawn BEHIND the line -- excluding these walls them in),
-				// priced after the move since round 296.
+				// Any crossing where the potential prices the gates (after the move,
+				// round 296), else a stray or unshedable one: an ordinary legal move
+				// (cars spawn BEHIND the line -- excluding these walls them in).
 			}
 			// Checkpoint touch precedence: the post-touch landing prices a
 			// full lap on the CURRENT gate map, so slow approaches would bob
 			// one cell before the line forever (the gate-0 stall, at the CPs).
 			// A touch with a continuing landing is progress -- take it (in
-			// traffic only with needle headway; see pure scan). Since round 296
-			// the exact potential prices a touch after the move: a touch refused
-			// here is an ordinary move at its true distance, no longer ruled out
-			// by a price that owed the gate again (the review, 2026-09-30).
-			if (lapAware && lapGate != 0 && (sm & bit) != 0
+			// traffic only with needle headway; see pure scan). Since round 336
+			// only where no exact potential exists: it prices a touch after the
+			// move (round 296), at its true distance, an ordinary landing.
+			if (!gatesPriced && lapAware && lapGate != 0 && (sm & bit) != 0
 					&& game.touchesGate(lapGate, pos[0], pos[1], newX, newY)
 					&& !game.isCrashingPlayer(newX, newY, playerNum)
 					&& reach.isAlive(newX, newY, newVx, newVy)
@@ -808,14 +819,13 @@ final class RaceAi {
 					// west side: the touch at (17,67) v(-5,8) scored 105 against 41
 					// for the safe move and the precedence took it). In traffic the
 					// landing must be in the robust set of the next gate; else the
-					// scorer prices the touch (after the move since round 296, so
-					// it may take it now) or takes it a move later.
+					// scorer prices the touch on the gate map or takes it a move
+					// later.
 					&& (!robustMode
 							|| reach.isRobust(lapGate == 1 ? 2 : 0, newX, newY, newVx, newVy))) {
 				if (AI_DEBUG_PLAYER == playerNum && !inScorerSim)
 					System.err.println("AIDBG SCAN-CP p=" + playerNum + " gate=" + lapGate + " chosen=" + d);
-				return exactPot != null
-						? bestCheckpointMove(pos, vel, playerNum, sm, d) : d;
+				return d;
 			}
 			if ((sm & bit) == 0) {
 				fallbackIllegalMask |= bit;
@@ -827,8 +837,7 @@ final class RaceAi {
 			// Round 296: the landing and its continuations are priced in the
 			// frame after the move -- the gate events it collects are paid, not
 			// owed again (a continuation past an owed checkpoint read as owing it).
-			final boolean paidFrame = exactPot != null && game.lapGates != null;
-			final int moveEvents = paidFrame ? game.gateEventsOnMove(lapGate, pos[0], pos[1], newX, newY) : 0;
+			final int moveEvents = gatesPriced ? game.gateEventsOnMove(lapGate, pos[0], pos[1], newX, newY) : 0;
 			final int ownTurns = moveEvents == 0 ? ttf(newX, newY, newVx, newVy)
 					: exactPot.movesToFinish(exactRemaining - moveEvents, newX, newY, newVx, newVy);
 			if (ownTurns == Integer.MAX_VALUE)
@@ -840,7 +849,7 @@ final class RaceAi {
 			// follow-up landing on a simulated body.
 			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY,
 					twoRoundReference);
-			final double[] deepCounted = paidFrame && AI1_DEEP_LOOKAHEAD == 1
+			final double[] deepCounted = gatesPriced && AI1_DEEP_LOOKAHEAD == 1
 					? searchCountedAfter(newX, newY, newVx, newVy, worlds.world1Occupancy,
 							gateAfter(lapGate, moveEvents), exactRemaining - moveEvents)
 					: searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD,
@@ -4717,40 +4726,6 @@ final class RaceAi {
 		return liveOccupancy[nx * (game.gameRows + 1) + ny] != 0;
 	}
 
-	/** Round 231: rank the already-permitted checkpoint touches in the successor's own lap
-	 * frame. Preserve enum order on equal values and the old choice when the
-	 * exact potential cannot price any qualifying continuation. */
-	private Direction bestCheckpointMove(final int[] pos, final int[] vel,
-			final int playerNum, final int mask, final Direction fallback) {
-		Direction best = fallback;
-		int bestValue = Integer.MAX_VALUE;
-		final int nextGate = lapGate == 1 ? 2 : 0;
-		for (final Direction d : DIRECTIONS) {
-			final int bit = 1 << d.ordinal();
-			if ((mask & bit << 16) == 0 || (mask & bit) == 0)
-				continue;
-			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-			final boolean progress = game.touchesGate(lapGate, pos[0], pos[1], nx, ny)
-					&& reach.isAlive(nx, ny, nvx, nvy);
-			if (!progress || game.isCrashingPlayer(nx, ny, playerNum)
-					|| reach.turnsToGate(nextGate, nx, ny, nvx, nvy) == Integer.MAX_VALUE
-					|| !needleHeadway(nx, ny, nvx, nvy, playerNum, nextGate)
-					|| robustMode && !reach.isRobust(nextGate, nx, ny, nvx, nvy))
-				continue;
-			final int events = game.gateEventsOnMove(lapGate, pos[0], pos[1], nx, ny);
-			final int value = exactPot.movesToFinish(exactRemaining - events, nx, ny, nvx, nvy);
-			if (value < bestValue) {
-				bestValue = value;
-				best = d;
-			}
-		}
-		if (best != fallback && AI_DEBUG_DJS)
-			System.err.println("AIDBG CHECKPOINT-CHOICE p=" + playerNum + " gate=" + lapGate
-					+ " " + fallback + " -> " + best + " remaining=" + bestValue);
-		return best;
-	}
-
 	/** Round 256: among the landings the score cannot separate -- every legal
 	 *  landing within AI1_CHOOSER_WINDOW turns of the best score, at most
 	 *  AI1_CHOOSER_WIDTH of them, in score order -- choose by the faithful joint
@@ -5546,7 +5521,7 @@ final class RaceAi {
 
 	/** Round 296: ttfFor at the landing of a move from (x,y) with the gate
 	 *  events the move collects paid -- the landing owes them no more, as
-	 *  bestCheckpointMove and the private lane price it (the third review,
+	 *  the score and the private lane price it (the third review,
 	 *  2026-09-29: a landing past an owed checkpoint read as owing it again). */
 	private int ttfForAfter(final int idx, final int x, final int y, final int nx, final int ny,
 			final int nvx, final int nvy) {
@@ -5572,7 +5547,7 @@ final class RaceAi {
 	 *  AFTER the candidate's move (next gate, remaining events), each successor
 	 *  paying the gate events it collects. searchMinTurnsCountedSoft3 at one
 	 *  level, in that frame: the same prices, plateau count and crossing
-	 *  precedence (a finish, or a counted lap crossing). */
+	 *  precedence (a finish; a counted lap crossing until round 336). */
 	private double[] searchCountedAfter(final int x, final int y, final int vx, final int vy,
 			final CellOccupancy occupancy, final int gate, final int remaining) {
 		double best = Double.MAX_VALUE;
@@ -5584,11 +5559,10 @@ final class RaceAi {
 				continue;
 			final int nx = x + nvx, ny = y + nvy;
 			// perf_aisearch (exact): a move collects at most three gate events, so the
-			// precedence below needs remaining <= 3 or gate == 0.
-			if ((remaining <= 3 || gate == 0) && game.crossesFinishLegally(x, y, nx, ny)) {
+			// precedence below needs remaining <= 3.
+			if (remaining <= 3 && game.crossesFinishLegally(x, y, nx, ny)) {
 				final int events = game.gateEventsOnMove(gate, x, y, nx, ny);
-				if (events >= remaining || remaining <= 1
-						|| gate == 0 && reach.shedableLanding(nx, ny, nvx, nvy))
+				if (events >= remaining || remaining <= 1)
 					return new double[]{1, 9 };
 			}
 			if ((sm & 1 << d.ordinal()) == 0)

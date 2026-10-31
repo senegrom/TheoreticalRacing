@@ -52,6 +52,16 @@ round 310 the pin guards the outcome, not a check. Recorded, not vetoed
 (AGENTS.md): the AI1 slots' crash count is now pinned per seed as
 measured too (one on seed 132, none on seed 111), and the AI2 slots stay
 crash-free on both seeds.
+
+Round 336 (gates are ordinary landings wherever the exact potential
+prices them): seed 132 is crash-free again. p7 still comes down the left
+side of the course with p2, p6 and p5, but p5 now holds (12,103) when p7
+moves on its 33rd, so it lands two cells further left, on (10,103), and
+comes through (12,109) and (15,114) instead of (15,109) and (18,115): it
+makes the bend on row 124 and comes home seventh on its 54th. The AI1
+slots' crash count stays pinned per seed as measured -- none on either
+seed now -- and the AI2 slots stay crash-free on both; round 335's
+account above stands as the record of that crash.
 """
 
 from pathlib import Path
@@ -76,7 +86,8 @@ def main() -> int:
         # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too); seed 132 is crash-free again: p6 and p8, which crashed into the outer wall at the top of the course on their 17th moves (moves 134 and 136) in round 316, as in round 305/309, now start down into the bend on their 14th and 15th moves (S from (82,9), SE from (76,8)) instead of running along row 8 -- p6 comes home fifth on its 53rd and p8 is the car still running at the end, after 53 moves; p5 is fourth on its 53rd (fifth before), p2 sixth on its 54th (fourth on its 53rd before) and p7, the car still running at the end before, seventh on its 54th; p1, p3 and p4 still come home first to third. Seed 111 and every AI1 slot stay crash-free. The race parts from round 316's on move 109 (p5's 14th).
         expected_ai2 = {111: 0, 132: 0}
         # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy); seed 132 loses p7, an AI1 slot (seventh home on its 54th move before), into the outer wall at the bottom of the course on its 41st move (move 327: from (38,130) at v(5,1), on the wall itself, every move runs along it or leaves the track, and it goes N to (43,130)). On its 35th, move 279, from (15,109) at v(3,6), its three landings that could still make the bend, (17,114), (18,114) and (19,114) at v(2..4,5), were held by p2, p6 and p5 (there since moves 274, 278 and 277), the cars it had come down the left side with, four abreast, and it coasted to (18,115). Six cars finish: p1 and p3 still first and second on their 51st, p4 third on its 52nd (sixth on its 54th before), p2 fourth on its 53rd (fifth on its 54th before), p5 fifth on its 53rd (third on its 52nd before) and p6 sixth on its 54th (fourth on its 53rd before); p8 is still the car running at the end, after 53 moves. The race parts from round 334's on move 22 (p6's 3rd). Seed 111 stays crash-free, and the AI2 slots stay crash-free on both seeds -- recorded, not vetoed (AGENTS.md): the AI1 slots' crash count is pinned per seed as measured, like the AI2 slots' (per seed since round 180).
-        expected_ai1 = {111: 0, 132: 1}
+        # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); seed 132 is crash-free again, as it was from round 326 to round 334: p7, lost on its 41st move in round 335, is seventh home on its 54th, and the place sums are AI1 14 and AI2 22 (16 and 20 before). On its 33rd, move 263, from (9,96) at v(2,8), p7 found (12,103), the landing it took in round 335, held by p5 (on (14,105) there before), and landed on (10,103) at v(1,7); on its 35th, move 279, it ran from (12,109) at v(2,6) to (15,114) at v(3,5) instead of coasting from (15,109) to (18,115) at v(3,6), and at move 327, where it crashed from (38,130) before, it runs from (40,124) to (48,123), round the bend. p1 still wins on its 51st, p3 is second on its 52nd (51st before), p4 still third on its 52nd, p5 fourth on its 53rd (fifth before), p2 fifth on its 54th (fourth on its 53rd before) and p6 still sixth on its 54th; p8 is still the car running at the end, after 53 moves. The race parts from round 335's on move 93 (p5's 12th). Seed 111 stays crash-free, and the AI2 slots stay crash-free on both seeds. The dict stays per seed: it records that this contract is frozen by measurement.
+        expected_ai1 = {111: 0, 132: 0}
         for seed in (111, 132):
             result = bench_ai.run_track_h2h("lobe2", timeout=600, seed=seed)
             if result is None:
@@ -128,7 +139,8 @@ def main() -> int:
         # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
         # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
         # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy); no crash, and p7 survives, now home sixth on its 67th move (seventh on its 68th before); p3 still wins on its 65th, p2 is second on its 66th (third before), p4 third on its 66th (second on its 65th before), p5 still fourth, now on its 67th (66th before), p6 (the car still running at the end before, after 68 moves) fifth on its 67th and p8 seventh on its 68th (fifth on its 66th before), and p1 (sixth home on its 68th before) is the car still running at the end, after 68 moves -- round 330's place sums again. The race parts from round 334's on move 30 (p6's 4th).
-        expected = {"AI1": (19, 4, 0), "AI2": (17, 4, 0)}
+        # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); no crash, and p7 survives, still home sixth on its 67th move; p2 now wins on its 65th (second on its 66th before), p4 is second on its 65th (third on its 66th before), p5 third on its 65th (fourth on its 67th before), p3 fourth on its 66th (the winner before, on its 65th), p6 still fifth, now on its 66th (67th before), p8 still seventh, now on its 67th (68th before), and p1 is still the car running at the end, after 67 moves (68 before) -- round 326's place sums again. The race parts from round 335's on move 85 (p5's 11th).
+        expected = {"AI1": (21, 4, 0), "AI2": (15, 4, 0)}
         if result != expected:
             raise SystemExit(
                 "Round-185 width-three ridge regression: "

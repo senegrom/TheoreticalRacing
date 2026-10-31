@@ -355,7 +355,24 @@ def main() -> int:
             # at the end, after 126 moves (127 before), and p3, p5, p7 and p8 finish first to fourth as before, on
             # their 121st, 122nd, 123rd and 124th (743 moves, under the ceiling of 890). The other eight cases keep
             # every car, as in round 334, each under its ceiling.
-            SAFETY = {("silverstone", 18): (6, 1), ("hungaroring", 8): (6, 1), ("hungaroring", 25): (6, 1)}
+            # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices
+            # them). Hungaroring 8, a car short since round 335, keeps every car, so it leaves this list and takes the
+            # (7, 0) default: p5, lost on its 46th move in round 335, now makes the bend. The race first plays
+            # differently on p8's 42nd move, at turn 336, where it brakes a notch harder, to (48,111) instead of
+            # (49,111); after its 43rd, at turn 344, it stands on (52,113), so (53,113), the one landing from which p5
+            # could still make the bend, is free, p5 takes it on its 44th, at turn 349, and at turn 365, where it
+            # crashed from (56,117) before, it runs from (57,115) to (60,116). p5 is seventh home on its 128th, p8 is
+            # still the car running at the end, after 127 moves (126 before), and p2, p4, p6, p7, p1 and p3 finish
+            # first to sixth as before, on their 121st, 122nd, 123rd, 124th, 126th and 127th (871 moves, under the
+            # ceiling of 884). Silverstone 18 and Hungaroring 25, each a car short since round 335, still drop one --
+            # recorded, not vetoed (AGENTS.md). Silverstone 18: p7 on its 75th, at turn 599; the race is round 335's
+            # byte for byte. Hungaroring 25: p1 on its 47th, at turn 369, on the same cells and in the same way; the
+            # race is round 335's through turn 370 (the first move that differs is p3's 47th, at turn 371), p3, p5, p7,
+            # p8, p2 and p4 finish first to sixth as before, and p6 is still the car running at the end, after 126
+            # moves. The other nine cases keep every car, as in round 335, each under its ceiling. Silverstone 15, Spa
+            # 4, Spa 11 and Coil 18 are round 335's races byte for byte, and Le Mans 3, which first plays differently
+            # on p1's 24th move, at turn 185, comes home on the same moves, so both lists under EXACT_MOVES stand.
+            SAFETY = {("silverstone", 18): (6, 1), ("hungaroring", 25): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -454,7 +471,21 @@ def main() -> int:
         # 114th, 115th and 117th; the place sums stay AI1 14 and AI2 22 -- recorded, not vetoed (AGENTS.md). As in
         # rounds 260, 330, 331, 333 and 334, the pin keeps the measured pair, now AI1 (4, 0) and AI2 (4, 1) -- the
         # pair of rounds 260 and 330 again.
-        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 1):
+        # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices
+        # them); the last AI2 car keeps its race and the mixed field is crash-free again, for the first time since
+        # round 329. The race first plays differently on p1's 34th move, at turn 265, where it steps east to (119,4)
+        # instead of south to (118,5). p1 then comes down from the climb behind p8 instead of ahead of it, crossing
+        # the first checkpoint on its 51st, at turn 401 (on its 48th, at turn 377, before), a turn after p8, so it no
+        # longer holds (13,109) at the kink. p8, lost on its 68th move in rounds 334 and 335, holds its speed on its
+        # 66th, at turn 528, landing on (12,103) at v(0,5) instead of accelerating to (12,104) at v(0,6), and takes
+        # p6's line round the kink: at turn 544, where it crashed from (12,109) before, it runs from (13,107) to
+        # (15,111). It finishes fifth on its 116th, as in round 333. p1 (fifth before, on its 117th) is now sixth on
+        # its 118th, p3 (sixth before, on its 118th) seventh on its 119th, p7 is still the car running at the end,
+        # after 118 moves (117 before), and p2, p4, p5 and p6 still finish first to fourth, on their 112th, 113th,
+        # 114th and 115th; the place sums move from AI1 14 and AI2 22 to AI1 16 and AI2 20. As in rounds 260, 330,
+        # 331, 333, 334 and 335, the pin keeps the measured pair, now AI1 (4, 0) and AI2 (4, 0) -- the pair of rounds
+        # 278 to 329 again, the crash-free field this check began with.
+        if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
     print(

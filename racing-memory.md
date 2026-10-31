@@ -1,5 +1,100 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 336 promoted (2026-10-31): gates are ordinary landings wherever the exact potential prices them
+
+The biggest mirrored eight-car gain since round 296, and it was a defect, not a tuning. Since the first lap races the
+S/F and checkpoint precedences in the scorer's candidate loop returned before the score, the chooser and the pace
+swap: the first permitted lap crossing in Direction order, unranked, and any permitted touch over every non-touch
+(round 231's bestCheckpointMove ranked touches only among themselves). searchCountedAfter gave a landing with a
+permitted crossing next a cost of 1 and a plateau of 9, so the score was blind one decision earlier too. Their reason
+was gate maps that could not price a crossing ("slow approaches would bob one cell before the line forever"). Rounds
+216 and 296 removed the reason where the exact potential exists, it prices a landing after its move, but the
+precedences stayed, and in traffic they handed a car a landing up to six moves worse per crossing: hybrid1 (138,36)
+v(-1,-3), every landing crosses and NW lands at exact 91 against SW's 85. Solo cars never saw it, so the leak never
+showed in a car's solo time, and the pins, one lap each, have no lap crossing and barely leak at their checkpoints.
+On the logs of arms 353 and 354 against round 335 (80 races a track) winners ran 268.6 moves on hybrid1 against an
+exact 264 and 441.6 on fractal25 against 436, where lobe3 and fractal24 sit on the exact count.
+
+Found by the design workflow of 2026-10-30 (E:/tmp-claude/p335/next_arms_report.md, the 'fresh search dimensions'
+lens): a port of the potential and the gate rules to a leader model showed 26 of 72 lap tracks leaking, 1.64 moves a
+race, and both gate precedences off equalled the exact optimum on 72 of 72. Its critic's chooser model cut that to
+0.5-0.7 moves.
+
+Arm 356 (E:/tmp-claude/arm356_gates.py on aaf8d8b: a candidate's decision on a track with an exact potential treats
+gates as ordinary landings; a356a the S/F precedence only, a356b the checkpoint precedence too, both without
+searchCountedAfter's crossing shortcut) against the round-335 champion, mirrored (boards favouring candidate /
+champion / tied; crashes candidate:champion):
+
+| Slice | a356b (promoted) |
+|---|---|
+| 8 tracks (6 leak, 2 null), 8 cars, seeds 1-3 | -0.760 +- 0.208 (5/2/1; 1:1); a356a -0.354 +- 0.138 (5/1/2; 0:0) |
+| 8 cars random 1-10 | -0.185 +- 0.022 (52/16/16; 57:59) |
+| 8 cars held-out 11-20 | -0.159 +- 0.023 (41/27/16; 70:64) |
+| 8 cars computed 1-10 | -0.153 +- 0.022 (40/25/19; 49:51) |
+| 8 cars scattered 1-10 | -0.037 +- 0.004 (47/2/35; 8:12) |
+| 4 cars 1-20 | -0.090 +- 0.009 (39/13/32; 16:15) |
+| Duels 1-20 | -0.024 +- 0.005 (9/3/72; 244:235) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | -0.098 +- 0.021 (40/27/17; 36:40; lone mean 4.402 vs 4.500) |
+
+- The gain sits on the leak boards as predicted: fractal25 -2.900 random and -2.950 computed, hybrid1 -2.125 and
+  -2.025, weave2 -1.025 and -1.225, hybrid20 -0.925 and -0.700, fractal24 -0.725 and -0.950. Crashes stay level. The
+  scattered reading, the clearest since round 260, says it is pace, not traffic.
+- The duel error bar is understated: hungaroring (+0.900, the one real board against) is seed-degenerate, one race
+  repeated in 38 of 40, as fractal3 was in arm 354's four-car board. Read duels by boards.
+- CPU: the arm 1.02x in eight-car fields (a356a 1.04x).
+- Measured on round 335 and closed: arms 353 and 354 (eleven own moves, with and without duels): 8-car random about
+  -0.007 +- 0.011 over seeds 1-30, computed -0.007 +- 0.017, duels +0.021 +- 0.004 ungated; arm 354's four-car -0.020
+  +- 0.007 was five sixths fractal3, one race per mirror half in 38 of 40 races (about -0.003 without it). Eight own
+  moves stay.
+- SerialGC, tested for memory (the owner: the 5-JVM cap need not stay if it lowers it): byte-identical races at 0.97x
+  CPU but peak RSS up, mean 4,680 MB against G1's 3,543 and max 8,094 against 7,225 on five tracks. Not adopted; the
+  cap stays.
+
+The promotion (E:/tmp-claude/p336/promote336.py; jar p336) names gatesPriced (the old paidFrame) above the candidate
+loop: both precedences now run only where no exact potential exists, so the Nordschleife races as before. That leaves
+bestCheckpointMove without a caller, and it goes; so does searchCountedAfter's shedable shortcut, which only ever ran
+where the potential exists. pureMinTurnsMove, its twin and the rollout proxies keep their precedence, as the arm
+measured them: they model cars in the cheap world. pureMinTurnsMove alone still prices a landing before the move, so
+a crossing there is not comparable without it; the twin and the proxies have priced after the move since round 296,
+and no arm has taken theirs away. The promoted jar races as the arm with every slot a candidate: seven random-start
+and three computed-start 8-car races, eight random-start and three computed-start 4-car races, and eight duels, the
+Nordschleife among them (PROMO336 identity); check mode, with 2, 4 and 8 cars, prints no PERF-AWARE line.
+
+Corpus on the box: 8 of the 12 goldens moved, with every finisher and crash count unchanged (Le Mans s4 1186 -> 1187
+turns, Interlagos s10 989 -> 988, the rest the same turns on new trajectories); the Hairpin s10 and Zigzag s4 and s22
+8-car goldens, the legacy Hairpin s1 duel (33 turns) and the browser parity duel (978446be) did not. 9 of the 25 pins
+failed the probe. The box loop re-froze five (energy pace, fast funnel, field neutral, finish-sprint true confirm,
+private slack), keeping every finisher and crash count; four were re-frozen by hand from the probe records, two
+editors and two independent reviewers (four wording corrections, applied):
+- bounded uncertain field: Le Mans s29 loses p8 on its 38th move (move 304, into the wall at the bottom right from
+  (86,163)): from its 30th it had no braking slack, its one live landing at move 263 was taken by p7, and six
+  finishers and a crash return, ending the run round 333 restored. No gate landing cost it a move: the first change
+  is p8's 20th, seven moves short of cp1, so the new gate rule reaches it through the forecast. Seeds 87, 93 and 14
+  keep seven finishers and no crash, s93 and s14 faster;
+- mixed safety: the place sums move (Le Mans s7 AI1 13, Gear s1 AI1 13). Gear's field is three moves slower behind
+  the first two: every net move lost is a landing a rival held, the leader still races the exact 40 and no gate
+  landing loses one;
+- staged pace: Hungaroring s8 keeps every car again (p5, lost on its 46th in round 335, is seventh on its 128th) and
+  the mixed Monaco s9 field is crash-free for the first time since round 329 (p8, lost on its 68th, is fifth on its
+  116th): the pair AI1 (4, 0) / AI2 (4, 0) of rounds 278 to 329. Silverstone s18 and Hungaroring s25 keep their
+  crashes;
+- thin ridge: lobe2 s132 is crash-free again (p7, lost on its 41st in round 335, is seventh on its 54th);
+  expected_ai1 stays a per-seed dict, back at none. Rand13 s4 keeps every car, with round 326's place sums (AI1 21,
+  AI2 15).
+Every crash is recorded, not vetoed.
+
+Box verify on the final tree: every pin, the goldens, headless smoke, query replay, lap progress and compileall pass
+(30/30). The Python unit tests pass (104); the fleet grid's Ctrl+C resume test, untouched by this round, failed once
+under the box's load again (as in rounds 331 to 335) and passed on three solo and two full re-runs. The Java suite
+and the local browser build pass.
+
+In flight: arm 358 (E:/tmp-claude/arm357_calls.py with every part, re-based on round 336, VERIFY_A358 INERT): the
+owner's calls (2026-10-30: "land the calls"), the single-player rule above the duel tactic, the field-cost ties on
+the rivals' worse line and round 293's fixes, which the ledger read as done and master never had (see 'The owner's
+calls' below), and the owner's answer of 2026-10-31: a forecast that leaves the mover doomed ranks below any live
+one. Arm 355 (shortlist width 4 with at least two live rivals; round 311 read +0.001 on round 310): 8-car screen
+paused for this round.
+
 ## Round 335 promoted (2026-10-29): every rival but the relevant one plays its first two forecast moves by its full policy
 
 Round 334 gave every other live rival its first forecast move by the full policy, beside the relevant rival's three

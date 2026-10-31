@@ -34,7 +34,8 @@ EXPECTED = {
  # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
  # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); p1 still wins, one own move faster (91 -> 90); p3 (fifth home on its 95th before) is second on its 91st, p7 (fourth on its 94th) third on its 92nd, p4 (sixth on its 95th) fourth on its 94th, p5 (seventh on its 96th) fifth on its 95th, p8 (the car still running at the end before, after 95 moves) sixth on its 95th and p6 (third on its 93rd) seventh on its 96th; p2, second home on its 92nd before, is the car still running at the end, after 96 moves (it reaches (95,39) on its 96th, where it was on its 90th before) -- seven finishers and no crash. The race parts from round 333's on move 5 (p5's 1st).
  # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
- ("nurburgring",1): (7, 0, [90, 92, 93, 93, 95, 96, 97]),
+ # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
+ ("nurburgring",1): (7, 0, [90, 91, 92, 94, 95, 96, 96]),
  # Round 254: re-frozen from measurement (the danger guard in a faithful world).
  # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted); p7 now crashes on its 56th move -- recorded, not vetoed (AGENTS.md).
  # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); p7 no longer crashes on its 56th move and finishes seventh on its 130th -- recorded, not vetoed (AGENTS.md).
