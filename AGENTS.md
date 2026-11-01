@@ -41,8 +41,10 @@ is worse than any rollout in which fewer do, whatever the times; finishing
 first and being classified behind a finisher are never the same verdict. The
 rollout verdict carries it: `ahead * VERDICT_PLACE_STRIDE + time`
 (`RaceAi.rankVerdict`), identical to the old verdict when nobody finishes
-ahead. This is mandatory, not a tuning: a candidate that ranks outcomes by
-time alone does not conform, whatever it measures.
+ahead. A forecast that leaves the mover doomed, with no finite distance at its
+end, ranks below any live one, whatever the finishers ahead (owner,
+2026-10-31; `RaceAi.ppDoomed`). This is mandatory, not a tuning: a candidate
+that ranks outcomes by time alone does not conform, whatever it measures.
 
 ## Single-player rule (decided by the owner, 2026-09-21; literal since 2026-09-23)
 

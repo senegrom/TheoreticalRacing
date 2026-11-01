@@ -1,5 +1,75 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 337 promoted (2026-11-01): the owner's calls, round 293's fixes and doomed forecasts below live ones
+
+A conformance round, not a tuning: of 5,880 mirrored race pairs three raced differently and one finished in a
+different order, the only reading that moved (+0.001 on computed starts). The second review's notes listed the
+owner's calls of rounds 294 and 295 as landed, and round 293's fixes had screened inert beside them, but master
+received none of them: the arms stayed on the queue. The design workflow of 2026-10-30 found the gap by reading the
+code, and the owner said "land the calls". The same report asked whether a forecast that leaves the mover doomed
+should rank below any live one, whatever the finishers ahead. The owner's answer of 2026-10-31 was yes, and it is now
+a sentence of the rank-first rule in CLAUDE.md and AGENTS.md.
+
+| Part | Change |
+|---|---|
+| Round 294 | The single-player gate comes before RaceAiTactics.winNow: with no rival within the rule's twenty cells the car runs the solo descent, whatever the duel tactic would say |
+| Round 295 | The field-acceleration and private-slack ties go to the rivals' worse line, never their better one (no cooperation) |
+| Round 293 (1) | The finish precedence guards the seal, so it is armed on the seal's own rivals (placeRivals) too: with enough lapped cars the seal fired unguarded |
+| Round 293 (4) | On the key used where projected place is off (the Nordschleife) an unknown mover time ranks below every live key; doomed forecasts tie there |
+| Round 293 (5) | The true-confirm rescue walks place, then slower-first, then time (the rank-first rule) |
+| Round 293 (7a) | currentFreeContinuingSuccessors reads the predicted car's own lap frame, not the mover's |
+| Doomed | ppDoomed: a forecast with no finite distance at its end ranks below any live one; doomed forecasts keep their order among themselves |
+
+Rounds 293 (2) and (3) needed nothing: the ridge override they fixed went with the danger family in round 310.
+
+Arm 358 (E:/tmp-claude/arm357_calls.py with every part on d279bd3, each part gated on candidate()) against the
+round-336 champion, mirrored (boards favouring candidate / champion / tied; crashes candidate:champion):
+
+| Slice | a358 |
+|---|---|
+| 8 cars random 1-10 | +0.000 +- 0.000 (0/0/84; 45:45) |
+| 8 cars computed 1-10 | +0.001 +- 0.001 (0/1/83; 47:47) |
+| 8 cars scattered 1-10 | +0.000 +- 0.000 (0/0/84; 8:8) |
+| 4 cars 1-20 | +0.000 +- 0.000 (0/0/84; 8:8) |
+| Duels 1-20 | +0.000 +- 0.000 (0/0/84; 199:199) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | +0.000 +- 0.000 (0/0/84; 22:22; lone mean 4.500) |
+
+- Race by race (the pins' projection of the odd and the even half's log of each pair, and of every lone seat's race
+  against its all-champion control; E:/tmp-claude/p337/pair_identity.py), three of the 5,880 pairs raced differently
+  and none of the 3,360 lone-seat races. Lobe5 s6 (random starts, move 644: p4 as a candidate takes SE, the champion
+  S) and lobe1 s5 (computed, move 1269: p5 as a candidate NE, the champion E) finish in the same order. Zigzag s6
+  (computed) does not: from move 52, p4 as a candidate at (35,56) v(6,1) takes SE and the champion E. It is early, in
+  the pack, so most likely the field-acceleration tie; no part was proven. So the arm is not vacuous: it fires,
+  rarely.
+- A correctness fix the fleet clears ships. CPU 1.00x. The promoted jar raced identically to the arm with every slot
+  a candidate: 8 cars on random starts with the Nordschleife, computed starts, 4 cars and duels; check mode printed
+  no PERF-AWARE line.
+- Corpus: no pin or golden moved. Box verify on the final tree: every pin, the goldens, headless smoke, query replay,
+  lap progress and compileall pass (30/30). The Python unit tests pass (104); the fleet grid's Ctrl+C resume test,
+  untouched by this round, failed once under the box's load again (as in rounds 331 to 336) and passed on three solo
+  and two full re-runs. The Java suite and the local browser build pass.
+
+Measured on round 336, closing the eight-car line for now (the owner left the order to me, 2026-10-30):
+
+- Residual leak census (72 lap tracks, 40 races each: the best round-336 car per race, from the four candidate seats
+  of arm 356b's mixed eight-car screens, against the exact count): mean excess -0.37 moves (start cells vary), no
+  track over 3, largest hybrid12 +2.25 and fractal10 +1.40. No track is more than 2.25 moves above the exact count,
+  about what start cells add, so the pace leak is closed and what remains in eight-car places is traffic and order.
+- Decision ledger, stage 1 (12 tracks, 2 seeds, 8 cars): random starts 216.5 chooser calls per car-race, tied at best
+  76.1%, the pick off the score's first landing 2.67% (5.79 per car-race), projected place differs from the old key
+  0.97%, the score's first landing dead with a live alternative 0.109 per car-race; computed 215.3, 76.2%, 2.44%,
+  0.87%, 0.057. The score's first landing dead with a live alternative stays under the critic's gate of 0.2 per
+  car-race for a second stage; with round 314's forced ties at +0.049 and G1's chaos, the tie family stays closed.
+- With 353 and 354 closed, 355 dropped unread (its screen on round 335 died in the box's idle stop and was not
+  requeued) and arm 358 place-neutral, no eight-car place arm is queued. Work moves to speed.
+
+In flight: speed round 3 (E:/tmp-claude/perf4/sp4_*.py, four exact patches on this tree: the memo key packed in
+longs, a row table for the counted search, the board installed in place under an outer forecast, and a cheaper
+reference round). Against this round's jar the stack runs at 0.751x CPU in eight-car fields on random starts, 0.799x
+computed, 0.796x scattered and 0.967x in duels (0.721x, 0.743x and 0.822x on 20 more races on other tracks and seeds,
+0.898x in four-car fields), every race byte-identical and check mode clean; on this tree its box verify (30/30) and
+the Java suite pass. It waits for the owner's go.
+
 ## Round 336 promoted (2026-10-31): gates are ordinary landings wherever the exact potential prices them
 
 The biggest mirrored eight-car gain since round 296, and it was a defect, not a tuning. Since the first lap races the

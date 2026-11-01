@@ -640,6 +640,11 @@ final class RaceAi {
 	 * measured promotion. Round 310 removed the danger block, and with it Round
 	 * 126's false-target veto, Round 174's squeeze check, the thin-ridge check and
 	 * its axial-vmax extension.
+	 * Round 337 landed the owner's calls of rounds 294 and 295, which the notes listed as landed and
+	 * master never had, round 293's fixes, screened inert beside them, and the owner's answer of
+	 * 2026-10-31 on doomed forecasts; each site says which. Against the round-336 champion: places
+	 * identical in every slice but one computed pair of 840 (zigzag s6, +0.001 +- 0.001); 3 of 5,880
+	 * mirrored pairs and none of 3,360 lone-seat races raced differently; crashes level; CPU 1.00x.
 	 */
 	private Direction optimalMoveAI1(final int[] pos, final int[] vel, final int playerNum) {
 		// Endgame seal (frontier, per "force the last rival to crash = win"): with
@@ -648,10 +653,6 @@ final class RaceAi {
 		// round (ri > subgamestate) can be forced; gated on my own safety so I never
 		// trap myself to trap them.
 		prepareDecisionFrame(pos, vel, playerNum);
-		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum,
-				!inScorerSim && trueConfirmDepth == 0 && simDepth == 0);
-		if (tacticalWin != null)
-			return tacticalWin;
 		// Round 214: with nobody near, the race is a shortest-path problem and
 		// the exact potential solves it. Every caution term below is priced
 		// against a rival that is not there, and the measured cost of that was
@@ -660,26 +661,35 @@ final class RaceAi {
 		// Round 274, the owner's single-player rule made literal: the radius is
 		// the rule's twenty cells, not forty. Round 279: point-to-point courses
 		// descend the reachability map, the exact distance to their one crossing.
+		// Round 337 (the owner's call, round 294): the rule comes before the duel
+		// tactic, which never overrides the solo descent with no rival in range.
 		if (!rivalWithinCheb(pos[0], pos[1], playerNum, AI1_CHOOSER_MAXDIST)) {
 			final Direction alone = optimalAloneMove(pos, vel, playerNum);
 			if (alone != null)
 				return alone;
 		}
+		final Direction tacticalWin = RaceAiTactics.winNow(game, playerNum,
+				!inScorerSim && trueConfirmDepth == 0 && simDepth == 0);
+		if (tacticalWin != null)
+			return tacticalWin;
 		final int sealRivals = liveRivalsRemaining(playerNum);
+		final int placeRivals = placeRivalsRemaining(playerNum);
 		// Candidate: crossing now permanently secures this place, so it dominates
 		// every seal that forgoes the finish to crash a later mover. Lap mode:
 		// only once the gates are complete is a crossing actually the finish --
 		// with a checkpoint still owed the referee treats it as an ordinary move,
 		// so the legality-waived immediate crossing would drive into the wall.
-		if (sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS && game.onFinalLap(playerNum)
-				&& lapGate == 0) {
+		// Round 337 (round 293): it guards the seal, so it is armed on the seal's
+		// own rivals too.
+		if ((sealRivals >= 1 && sealRivals <= AI1_SEAL_MAXRIVALS
+				|| placeRivals >= 1 && placeRivals <= AI1_SEAL_MAXRIVALS)
+				&& game.onFinalLap(playerNum) && lapGate == 0) {
 			final Direction finish = immediateFinishMove(pos, vel);
 			if (finish != null)
 				return finish;
 		}
 		// Round 279 (round 277): the seal fights for places, so a car we have
 		// lapped is neither its target nor part of the field it waits for.
-		final int placeRivals = placeRivalsRemaining(playerNum);
 		if (placeRivals >= 1 && placeRivals <= AI1_SEAL_MAXRIVALS) {
 			final int ri = decisivePlaceRival(playerNum);
 			if (ri > game.subgamestate && rivalEscapes(ri, -1, -1, playerNum) >= 1) {
@@ -1831,8 +1841,10 @@ final class RaceAi {
 			// Round 279: the field's cost is no veto (the racecraft rule).
 			if (candidateFinal < 0 || candidateFinal >= chosenFinal)
 				continue;
+			// Round 337 (the owner's call, round 295): a tie on the mover's verdict goes to
+			// the rivals' worse line, never their better one (no cooperation).
 			if (best == null || candidateFinal < bestFinal
-					|| candidateFinal == bestFinal && candidateField < bestField) {
+					|| candidateFinal == bestFinal && candidateField > bestField) {
 				best = d;
 				bestFinal = candidateFinal;
 				bestField = candidateField;
@@ -1931,11 +1943,12 @@ final class RaceAi {
 										AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
 								final long candidateField = rolloutFieldCost[0];
 								final double score = scoreByDir[d.ordinal()];
+								// Round 337 (round 295): ties go to the rivals' worse line.
 								if (candidateFinal >= 0 && candidateFinal != Integer.MAX_VALUE
 										&& candidateFinal < slackChosenFinal
 										&& (slackBest == null || candidateFinal < slackBestFinal
 												|| candidateFinal == slackBestFinal
-														&& (candidateField < slackBestField
+														&& (candidateField > slackBestField
 																|| candidateField == slackBestField
 																		&& score < slackBestScore))) {
 									slackBest = d;
@@ -3634,6 +3647,8 @@ final class RaceAi {
 	private static final boolean PP_DEBUG = Boolean.getBoolean("ai.debug.pp");
 	/** Round 316: an arrival never projected, and a rival that finished (counted in rivalsFinished). */
 	private static final int PP_UNDEF = Integer.MAX_VALUE, PP_DONE = Integer.MIN_VALUE;
+	/** Round 337: above every live key -- a doomed forecast's key without projected place, its offset with it (ppDoomed). */
+	private static final long PP_DOOMED = Long.MAX_VALUE / 2;
 	/** Round 316: the round-270/274 key of the last projected-place forecast (debug only). */
 	private long ppControlKey = -1;
 
@@ -3656,6 +3671,13 @@ final class RaceAi {
 				ahead++;
 		}
 		return ((long) finishedAhead * n + ahead) * PLACE_KEY_STRIDE + time;
+	}
+
+	/** Round 337 (the owner, 2026-10-31): a forecast that leaves the mover doomed, with no finite
+	 *  distance at its end, ranks below any live one, whatever the finishers ahead; added to the
+	 *  key, so doomed forecasts keep their order among themselves. */
+	private static long ppDoomed(final int time) {
+		return time == Integer.MAX_VALUE ? PP_DOOMED : 0;
 	}
 
 	/** Round 316: does a rival whose forecast crashed still hold a projection -- presumed racing, so
@@ -4197,6 +4219,7 @@ final class RaceAi {
 		if (simDepth == placeKeyDepth)
 			placeKey = myFinished
 					? aheadAtMyFinish * PLACE_KEY_STRIDE + myFinishRound
+					: myTime == Integer.MAX_VALUE ? PP_DOOMED // Round 337 (round 293): below every live key
 					: rivalsFinished * PLACE_KEY_STRIDE + (rounds - 1) + Math.min(myTime, PLACE_KEY_STRIDE / 2);
 		// Round 316: projected place; the round-270/274 key is kept for PP_DEBUG. At the
 		// horizon the mover's round is (rounds - 1) + myTime. A classification (a rival's finish
@@ -4205,14 +4228,14 @@ final class RaceAi {
 		if (pp && simDepth == placeKeyDepth) {
 			ppControlKey = placeKey;
 			if (!myFinished)
-				placeKey = ppPlaceKey(myIdx, rivalsFinished, false,
+				placeKey = ppDoomed(myTime) + ppPlaceKey(myIdx, rivalsFinished, false,
 						myTime == Integer.MAX_VALUE ? Long.MAX_VALUE : rounds - 1L + myTime,
 						rounds - 1L + Math.min(myTime, PLACE_KEY_STRIDE / 2), alive, arrival);
 			else if (!ppRacing(myIdx, arrival))
 				placeKey = ppPlaceKey(myIdx, aheadAtMyFinish, true, myFinishRound, myFinishRound, alive, arrival);
 			else {
 				final int t = ttfFor(myIdx, px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
-				placeKey = ppPlaceKey(myIdx, aheadAtMyFinish, false,
+				placeKey = ppDoomed(t) + ppPlaceKey(myIdx, aheadAtMyFinish, false,
 						t == Integer.MAX_VALUE ? Long.MAX_VALUE : (long) ppMyRound + t,
 						ppMyRound + Math.min(t, PLACE_KEY_STRIDE / 2), alive, arrival);
 			}
@@ -4389,6 +4412,7 @@ final class RaceAi {
 				Direction cand = null;
 				int candT = Integer.MAX_VALUE;
 				int candSpd = Integer.MAX_VALUE;
+				int candAhead = Integer.MAX_VALUE;
 				for (final Direction d : DIRECTIONS) {
 					if (d == chosen || rejected[d.ordinal()])
 						continue;
@@ -4405,11 +4429,15 @@ final class RaceAi {
 							exactSelf, exactRivals, scorerRivals, scorerSelf, scorerCap, null);
 					// Round 105: slower-first -- the shelf invariant governs
 					// switch targets too: a fast sibling passing both ladder
-					// worlds can still be a depth-7 doom (zandvoort s128).
+					// worlds can still be a depth-7 doom (zandvoort s128). Round 337
+					// (round 293): rank first -- place, then slower-first, then time.
 					final int spd = Math.max(Math.abs(nvx), Math.abs(nvy));
-					if (t >= 0 && (spd < candSpd || spd == candSpd && t < candT)) {
+					final int ahead = t / VERDICT_PLACE_STRIDE;
+					if (t >= 0 && (ahead < candAhead || ahead == candAhead
+							&& (spd < candSpd || spd == candSpd && t < candT))) {
 						candT = t;
 						candSpd = spd;
+						candAhead = ahead;
 						cand = d;
 					}
 				}
@@ -5491,7 +5519,8 @@ final class RaceAi {
 					|| game.isCrashingPlayer(nx, ny, playerNum)
 					|| !reach.isAlive(nx, ny, nvx, nvy))
 				continue;
-			if (gate >= 0 && lapAware
+			// Round 337 (round 293): the predicted car's own lap frame, not the mover's.
+			if (gate >= 0 && frameLapAware[playerNum - 1]
 					&& reach.turnsToGate(gate, nx, ny, nvx, nvy) == Integer.MAX_VALUE
 					&& !(gate == 0 && reach.turnsToGate(1, nx, ny, nvx, nvy) != Integer.MAX_VALUE
 							&& game.crossesFinishLegally(x, y, nx, ny))) // perf_aisearch: map test first
