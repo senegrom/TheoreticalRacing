@@ -55,32 +55,34 @@ final class RaceAi {
 
 	}
 
-	/** Exact touched-cell occupancy counts for one projected board. Counts,
-	 * rather than booleans, preserve duplicate-cell semantics while allowing
-	 * O(1) successor tests and O(1) mover removal/reinsertion. */
+	/** The projected cells of one board, exactly: a multiset of the in-range cells, so a car's
+	 *  removal leaves another car on its cell. perf_refround (exact): a short list, one cell
+	 *  per car and the candidate's, scanned by every test: no board-sized table, no cache miss
+	 *  per test. A cell out of range is never held, so only add tests the range. */
 	static final class CellOccupancy {
-		final byte[] counts;
-		final int[] touched;
-		final long[] recorded;	// cells already listed in touched during this clear epoch
+		/** A landing's Direction bit by 3 * (dy + 1) + dx + 1, its offset from around's centre. */
+		private static final int[] LANDING_BIT = new int[DIRECTIONS.length];
+
+		static {
+			for (final Direction d : DIRECTIONS)
+				LANDING_BIT[3 * (d.dy + 1) + d.dx + 1] = 1 << d.ordinal();
+		}
+
+		private int[] xs = new int[16];
+		private int[] ys = new int[16];
+		private int size;
 		final int width;
 		final int height;
-		int touchedCount;
+		/** perf_refround, check mode: the windowed round's cells, compared with every read. */
+		private CellOccupancy readCheck;
 
 		CellOccupancy(final int width, final int height) {
 			this.width = width;
 			this.height = height;
-			counts = new byte[width * height];
-			touched = new int[width * height];
-			recorded = new long[(width * height + 63) >>> 6];
 		}
 
 		void clear() {
-			for (int i = 0; i < touchedCount; i++) {
-				final int index = touched[i];
-				counts[index] = 0;
-				recorded[index >>> 6] &= ~(1L << (index & 63));
-			}
-			touchedCount = 0;
+			size = 0;
 		}
 
 		void rebuild(final int[][] cells) {
@@ -93,29 +95,62 @@ final class RaceAi {
 		void add(final int x, final int y) {
 			if (x < 0 || y < 0 || x >= width || y >= height)
 				return;
-			final int index = x * height + y;
-			if (counts[index] == 0) {
-				final int word = index >>> 6;
-				final long mask = 1L << (index & 63);
-				if ((recorded[word] & mask) == 0) {
-					recorded[word] |= mask;
-					touched[touchedCount++] = index;
-				}
+			if (size == xs.length) {
+				xs = java.util.Arrays.copyOf(xs, 2 * size);
+				ys = java.util.Arrays.copyOf(ys, 2 * size);
 			}
-			counts[index]++;
+			xs[size] = x;
+			ys[size++] = y;
 		}
 
 		void remove(final int x, final int y) {
-			if (x < 0 || y < 0 || x >= width || y >= height)
-				return;
-			final int index = x * height + y;
-			if (counts[index] != 0)
-				counts[index]--;
+			for (int k = 0; k < size; k++)
+				if (xs[k] == x && ys[k] == y) {
+					size--;
+					xs[k] = xs[size];
+					ys[k] = ys[size];
+					return;
+				}
 		}
 
 		boolean contains(final int x, final int y) {
-			return x >= 0 && y >= 0 && x < width && y < height
-					&& counts[x * height + y] != 0;
+			final boolean held = holds(x, y);
+			if (PERF_CHECK && readCheck != null && readCheck.holds(x, y) != held)
+				System.err.println("PERF-AWARE REFROUND MISMATCH read cell=(" + x + "," + y + ") whole="
+						+ held + " windowed=" + !held);
+			return held;
+		}
+
+		private boolean holds(final int x, final int y) {
+			for (int k = 0; k < size; k++)
+				if (xs[k] == x && ys[k] == y)
+					return true;
+			return false;
+		}
+
+		/** The held cells among (cx, cy) and its eight neighbours, as Direction bits: the
+		 *  nine contains of a car's landings, from one scan of the list. */
+		int around(final int cx, final int cy) {
+			int bits = 0;
+			for (int k = 0; k < size; k++) {
+				final int dx = xs[k] - cx, dy = ys[k] - cy;
+				if (dx >= -1 && dx <= 1 && dy >= -1 && dy <= 1)
+					bits |= LANDING_BIT[3 * (dy + 1) + dx + 1];
+			}
+			return bits;
+		}
+
+		/** perf_refround: forget the held cells outside the rectangle. */
+		void keepWithin(final int x0, final int y0, final int x1, final int y1) {
+			int kept = 0;
+			for (int k = 0; k < size; k++) {
+				final int x = xs[k], y = ys[k];
+				if (x >= x0 && x <= x1 && y >= y0 && y <= y1) {
+					xs[kept] = x;
+					ys[kept++] = y;
+				}
+			}
+			size = kept;
 		}
 	}
 
@@ -124,20 +159,20 @@ final class RaceAi {
 	 *  lookahead never reaches. */
 	private static final class TwoRoundWorkspace {
 		final int[][] current;
-		final int[][] world1;
 		final int[][] simulatedVelocity;
 		final int[][] round1Position;
 		final int[][] round1Velocity;
-		final CellOccupancy blockedOccupancy;
+		/** The round's cells: while it runs those that block its movers, the candidate's
+		 *  landing among them; after it the rivals' landings, for my next move. */
 		final CellOccupancy world1Occupancy;
+		/** perf_refround, check mode: the windowed round kept beside this whole one. */
+		TwoRoundWorkspace windowed;
 
 		TwoRoundWorkspace(final int players, final int width, final int height) {
 			current = new int[players][];
-			world1 = new int[players][];
 			simulatedVelocity = new int[players][];
 			round1Position = new int[players][2];
 			round1Velocity = new int[players][2];
-			blockedOccupancy = new CellOccupancy(width, height);
 			world1Occupancy = new CellOccupancy(width, height);
 		}
 	}
@@ -161,7 +196,8 @@ final class RaceAi {
 		final int[][] simulatedPosition;
 		final int[][] simulatedVelocity;
 		final int[] finishedPlace;
-		final int[][] originalLapState;
+		final int[] originalLap;
+		final int[] originalGate;
 		final int[] frameGate;
 		final int[] frameRemaining;
 		final boolean[] frameLapAware;
@@ -172,7 +208,8 @@ final class RaceAi {
 			simulatedPosition = new int[players][2];
 			simulatedVelocity = new int[players][2];
 			finishedPlace = new int[players];
-			originalLapState = new int[players][];
+			originalLap = new int[players];
+			originalGate = new int[players];
 			frameGate = new int[players];
 			frameRemaining = new int[players];
 			frameLapAware = new boolean[players];
@@ -746,7 +783,7 @@ final class RaceAi {
 		// blocker is removed) is therefore identical. Any hit falls back to the
 		// original candidate-conditioned simulation.
 		final TwoRoundWorkspace twoRoundReference = trueConfirmDepth > 0 || inScorerSim
-				? prepareTwoRoundReference(playerNum) : null;
+				? prepareTwoRoundReference(pos, vel, playerNum) : null;
 		// The ply-2 foresight (fore2) that priced the bodies of rivals AHEAD of
 		// me in a second simulated round ended with round 247: the lookahead is
 		// one level (AI1_DEEP_LOOKAHEAD), so the search never reaches a second
@@ -777,6 +814,10 @@ final class RaceAi {
 		// CPU 1.02x in eight-car fields. The gain sits on the boards that leaked: fractal25 about -2.9,
 		// hybrid1 about -2.1.
 		final boolean gatesPriced = exactPot != null && game.lapGates != null;
+		// perf_swap: the rollout whose board the players hold (landingHeld), and the fewest turns
+		// of any landing (the perf_lean walk below).
+		final RolloutWorkspace heldBoard = PERF_NO_SWAP || simDepth == 0 ? null : rolloutsByDepth[simDepth];
+		int poMinT = Integer.MAX_VALUE;
 
 		for (final Direction d : DIRECTIONS) {
 			final int bit = 1 << d.ordinal();
@@ -841,7 +882,7 @@ final class RaceAi {
 				fallbackIllegalMask |= bit;
 				continue;
 			}
-			if (game.isCrashingPlayer(newX, newY, playerNum))
+			if (landingHeld(heldBoard, newX, newY, playerNum))
 				continue;
 			fallbackLegalMask |= bit;
 			// Round 296: the landing and its continuations are priced in the
@@ -857,14 +898,20 @@ final class RaceAi {
 			// turn order, conditioned on THIS candidate landing. It answers the
 			// round-r+1 questions: safe successors, and the ply-1 price of a
 			// follow-up landing on a simulated body.
-			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY,
+			final TwoRoundWorkspace worlds = simulateTwoRounds(playerNum, newX, newY, newVx, newVy,
 					twoRoundReference);
-			final double[] deepCounted = gatesPriced && AI1_DEEP_LOOKAHEAD == 1
-					? searchCountedAfter(newX, newY, newVx, newVy, worlds.world1Occupancy,
-							gateAfter(lapGate, moveEvents), exactRemaining - moveEvents)
-					: searchMinTurnsCountedSoft3(newX, newY, newVx, newVy, AI1_DEEP_LOOKAHEAD,
-							worlds.world1Occupancy);
-			final double deep = deepCounted[0];
+			final double deep;
+			final int plateau;
+			if (gatesPriced && AI1_DEEP_LOOKAHEAD == 1) {
+				deep = searchCountedAfter(newX, newY, newVx, newVy, worlds.world1Occupancy,
+						gateAfter(lapGate, moveEvents), exactRemaining - moveEvents);
+				plateau = countedPlateau;
+			} else {
+				final double[] deepCounted = searchMinTurnsCountedSoft3(newX, newY, newVx, newVy,
+						AI1_DEEP_LOOKAHEAD, worlds.world1Occupancy);
+				deep = deepCounted[0];
+				plateau = (int) deepCounted[1];
+			}
 			// Soft trap: if every depth-2 continuation is blocked but the state
 			// itself can still reach the finish, keep the move alive with a
 			// large finite surcharge instead of hard-skipping (which would drop
@@ -1021,7 +1068,7 @@ final class RaceAi {
 			final double momentum = AI2_MOMENTUM_TIEBREAK * speed;
 			// Plateau-width robustness tie-break: prefer candidates whose best
 			// follow-up is achievable many ways over knife-edge lines.
-			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min((int) deepCounted[1], 5);
+			final double robustness = AI2_PLATEAU_TIEBREAK * Math.min(plateau, 5);
 			// Lane spreading (round 201): every magnet death in the multi-seed
 			// census begins as displacement off a SINGLE shared geodesic --
 			// eight cars stacked on one line. In lap traffic each driver weighs
@@ -1055,6 +1102,8 @@ final class RaceAi {
 						+ " qb=" + queueBox + " mom=" + momentum
 						+ " rob=" + robustness);
 			poTByDir[d.ordinal()] = poT;
+			if (poT < poMinT)
+				poMinT = poT;
 			scoreByDir[d.ordinal()] = score;
 			if (!leanSkip && poT < poBestT) {
 				if (paceMobility == null)
@@ -1091,7 +1140,9 @@ final class RaceAi {
 		// consults). So test only the landings below poScorerT, in ascending (turns, ordinal)
 		// order, and stop at the first that passes: the same landing, or none. The projection
 		// is built at the first test, from the board the loop left unchanged.
-		if (lean) {
+		// perf_swap (exact): with no landing below poScorerT the walk tests none and leaves poDir
+		// and poBestT as a lean decision found them; only check mode's compare needs it then.
+		if (lean && (!leanSkip || poMinT < poScorerT)) {
 			Direction leanDir = null;
 			int leanT = Integer.MAX_VALUE;
 			MobilitySearch leanMobility = null;
@@ -1556,22 +1607,35 @@ final class RaceAi {
 		// models every car on the track with the grid until it has passed its
 		// first checkpoint, and without it afterwards. Set at the top level only,
 		// so nested rival decisions share the decider's world.
-		if (simDepth == 0 && !inScorerSim)
+		if (simDepth == 0 && !inScorerSim) {
 			game.aiGridLegal = !passedFirstCheckpoint(playerNum);
-		lapGate = game.nextGateOf(playerNum);
-		lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
+			maintainCountRows(); // perf_countrow: nested decisions share its race world too
+		}
+		// perf_swap (exact): a decision inside a rollout has the rollout's frame, every car's and
+		// its own, and the enclosing decision's potential (see PERF_NO_SWAP).
+		if (PERF_SWAP && simDepth != 0)
+			usePlayerFrame(game.subgamestate);
+		else {
+			lapGate = game.nextGateOf(playerNum);
+			lapAware = !game.onFinalLap(playerNum) || lapGate != 0;
+			exactPot = PERF_CHECK && simDepth != 0 ? checkedPotential(playerNum) : game.optimalPotential();
+			// Round 291 (round 287): the events owed need no potential; finishingMove
+			// reads them on the Nordschleife too.
+			int lapsDone = 0;
+			for (final Player q : game.players)
+				if (q.getNumber() == playerNum)
+					lapsDone = q.getLap();
+			exactRemaining = OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps);
+			recordPlayerFrames();
+			if (PERF_CHECK && simDepth != 0)
+				checkRolloutFrame(playerNum);
+		}
+		// perf_swap (exact): both reads of robustMode stand behind !gatesPriced (optimalMoveAI1),
+		// so where the potential prices the gates it stays false, unasked.
 		final int robustSp = Math.max(Math.abs(vel[0]), Math.abs(vel[1]));
-		robustMode = lapAware && rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum,
-				Math.max(AI1_ROBUST_RANGE, Math.min(robustSp * (robustSp + 1) / 2, AI1_ROBUST_KIN_CAP)));
-		exactPot = game.optimalPotential();
-		// Round 291 (round 287): the events owed need no potential; finishingMove
-		// reads them on the Nordschleife too.
-		int lapsDone = 0;
-		for (final Player q : game.players)
-			if (q.getNumber() == playerNum)
-				lapsDone = q.getLap();
-		exactRemaining = OptimalPotential.remainingEvents(lapGate, lapsDone, game.totalLaps);
-		recordPlayerFrames();
+		robustMode = (exactPot == null || game.lapGates == null) && lapAware
+				&& rivalAheadWithinCheb(pos[0], pos[1], vel[0], vel[1], playerNum,
+						Math.max(AI1_ROBUST_RANGE, Math.min(robustSp * (robustSp + 1) / 2, AI1_ROBUST_KIN_CAP)));
 	}
 
 	/** Multi-lap: true while choosing for a mover NOT on its final lap --
@@ -1587,21 +1651,23 @@ final class RaceAi {
 	/** Round 216: the exact distance-to-finish map, and the gate events this
 	 *  mover still owes. Null on a board too large for the potential's budget
 	 *  and on a course without lap gates; the gate maps then serve as before.
-	 *  Round 222: like lapGate/lapAware/robustMode these are the MOVER's and
-	 *  a nested rival compute reassigns them -- scorerMoveOverState restores
-	 *  all four. */
+	 *  Round 222: like lapGate/lapAware/robustMode the events owed are the
+	 *  MOVER's: a nested rival compute reassigns them and scorerMoveOverState
+	 *  restores all four. The map is the race's: a nested compute keeps it
+	 *  (perf_swap). */
 	private OptimalPotential	exactPot;
 	private int					exactRemaining;
 	/** Round 222: every player's own lap frame, by player index, recorded at
-	 *  each decision entry so a rival's state is priced on the rival's gate
-	 *  schedule and not the mover's. */
+	 *  each top-level decision and kept by each rollout for its own board, so a
+	 *  rival's state is priced on the rival's gate schedule and not the mover's. */
 	private int[]				frameGate		= new int[0];
 	private int[]				frameRemaining	= new int[0];
 	private boolean[]			frameLapAware	= new boolean[0];
 
 	/** Round 222: each player's gate, lap-awareness and remaining events, by
-	 *  player index. Per-player facts, so a nested rival compute records the
-	 *  projected values. Rollouts and nested scorers own separate frame arrays. */
+	 *  player index. Per-player facts: a rollout keeps its own arrays of them
+	 *  (updateRolloutFrame), which a decision inside it reads (perf_swap); under
+	 *  PERF_NO_SWAP and check mode it records the projected values here. */
 	private void recordPlayerFrames() {
 		final int n = game.players.length;
 		if (frameGate.length < n) {
@@ -2334,7 +2400,8 @@ final class RaceAi {
 	 *  simMoveTable checks; and the borders, fixed for the game as succMask and the
 	 *  edge caches already take them. The key packs every varying input and an
 	 *  entry keeps its whole key, so a hit returns what the scan computes. */
-	private int simMove(final int idx, final int[] pos, final int[] vel, final CellOccupancy occupied) {
+	private int simMove(final int idx, final int[] pos, final int[] vel, final CellOccupancy occupied,
+			final long[] table) {
 		final int x = pos[0], y = pos[1], vx = vel[0], vy = vel[1];
 		final int gate = frameGate[idx], remaining = frameRemaining[idx];
 		final int max = RaceGame.AI_MAX_SPEED;
@@ -2342,12 +2409,9 @@ final class RaceAi {
 				|| gate < 0 || gate > 2 || remaining < 0 || remaining > 255
 				|| game.lapGates != null && game.lapGates.length != 3)
 			return simMoveCompute(idx, pos, vel, occupied);
-		int landings = 0;
-		for (final Direction d : DIRECTIONS) {
-			final int nvx = vx + d.dx, nvy = vy + d.dy;
-			if (!RaceGame.aiVelocityOutOfRange(nvx, nvy) && occupied.contains(x + nvx, y + nvy))
-				landings |= 1 << d.ordinal();
-		}
+		// perf_refround (exact): the bit of every held landing whose velocity is in range.
+		final int span = 2 * max + 1;
+		final int landings = occupied.around(x + vx, y + vy) & RANGE9[(vx + max) * span + vy + max] >>> 16;
 		long key = x;
 		key = key << 9 | y;
 		key = key << 5 | (vx + max);
@@ -2357,7 +2421,6 @@ final class RaceAi {
 		key = key << 1 | (frameLapAware[idx] ? 1 : 0);
 		key = key << 9 | landings;
 		key = key << 1 | (game.aiGridLegal ? 1 : 0);
-		final long[] table = simMoveTable();
 		final int slot = (int) (key * 0x9E3779B97F4A7C15L >>> 64 - SIM_MOVE_BITS);
 		final long entry = table[slot];
 		if (entry >>> 5 == key)
@@ -2431,59 +2494,126 @@ final class RaceAi {
 		return nestedScorerTwoRoundReferenceWorkspace;
 	}
 
-	/** Build the no-mover reference used only inside a nested scorer. */
-	private TwoRoundWorkspace prepareTwoRoundReference(final int playerNum) {
-		return simulateTwoRounds(nestedScorerTwoRoundReferenceWorkspace(), playerNum,
-				0, 0, false);
+	/** Build the no-mover reference used only inside a nested scorer. Its decision reads
+	 *  it at the landings (position + velocity + d) and at their continuations
+	 *  (position + 2 * velocity + 2d + d'): the rectangle given here (perf_refround). */
+	private TwoRoundWorkspace prepareTwoRoundReference(final int[] pos, final int[] vel, final int playerNum) {
+		final int landX = pos[0] + vel[0], landY = pos[1] + vel[1];
+		final int nextX = landX + vel[0], nextY = landY + vel[1];
+		return simulateTwoRounds(nestedScorerTwoRoundReferenceWorkspace(), playerNum, 0, 0, false,
+				Math.min(landX - 1, nextX - 3), Math.min(landY - 1, nextY - 3),
+				Math.max(landX + 1, nextX + 3), Math.max(landY + 1, nextY + 3));
 	}
 
 	/** Reuse is exact unless the candidate blocks a landing selected in the
 	 *  no-mover first round. A hit takes the unchanged conditioned path. */
-	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX,
-			final int candY, final TwoRoundWorkspace reference) {
+	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY,
+			final int candVx, final int candVy, final TwoRoundWorkspace reference) {
 		if (reference != null && !reference.world1Occupancy.contains(candX, candY))
 			return reference;
-		return simulateTwoRounds(playerNum, candX, candY);
+		return simulateTwoRounds(playerNum, candX, candY, candVx, candVy);
 	}
 
 	/** Simulate the next complete opponent round in actual turn order,
-	 *  conditioned on my candidate landing: {@code world1} contains the cells
-	 *  for my next move. (A second round, the cells for the move after that,
-	 *  fed only the ply-2 price and was removed on 2026-09-26.) */
-	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY) {
-		return simulateTwoRounds(twoRoundWorkspace(), playerNum, candX, candY, true);
+	 *  conditioned on my candidate landing: {@code world1Occupancy} holds the cells
+	 *  for my next move, which the decision reads at the landing's continuations:
+	 *  the rectangle given here (perf_refround). (A second round, the cells for the
+	 *  move after that, fed only the ply-2 price and was removed on 2026-09-26.) */
+	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY,
+			final int candVx, final int candVy) {
+		final int nextX = candX + candVx, nextY = candY + candVy;
+		return simulateTwoRounds(twoRoundWorkspace(), playerNum, candX, candY, true,
+				nextX - 1, nextY - 1, nextX + 1, nextY + 1);
 	}
 
+	/** perf_refround (exact): -Dai.perf.noRefRound=true runs the whole round (a same-jar CPU
+	 *  control). Check mode races the whole round and keeps a windowed one beside it, and
+	 *  every read of world 1 compares the two (PERF-AWARE REFROUND MISMATCH). */
+	private static final boolean PERF_NO_REFROUND = Boolean.getBoolean("ai.perf.noRefRound");
+
+	/** perf_refround (exact): the cells of a round are read inside the rectangle (x0, y0) to
+	 *  (x1, y1) and nowhere else: optimalMoveAI1's candidate loop is their one reader, no
+	 *  decision starts inside it, and the calls above name the cells it reads. A rival moves
+	 *  once in a round and ends on its own cell or on one of the nine landings around
+	 *  position + velocity (mayEndIn). So the pass stops once the last rival that can end
+	 *  inside has moved: what ran is a prefix of the whole pass, so those moves are the whole
+	 *  pass's, and every other rival ends outside, moved or not. With no such rival no pass
+	 *  runs. keepWithin then drops the cells outside, so a read scans the few left and
+	 *  answers as after the whole round. */
 	private TwoRoundWorkspace simulateTwoRounds(final TwoRoundWorkspace workspace,
-			final int playerNum, final int candX, final int candY,
-			final boolean blockCandidate) {
+			final int playerNum, final int candX, final int candY, final boolean blockCandidate,
+			final int x0, final int y0, final int x1, final int y1) {
+		if (!PERF_CHECK) {
+			simulateRound(workspace, playerNum, candX, candY, blockCandidate, x0, y0, x1, y1, !PERF_NO_REFROUND);
+			return workspace;
+		}
+		workspace.world1Occupancy.readCheck = null;
+		simulateRound(workspace, playerNum, candX, candY, blockCandidate, x0, y0, x1, y1, false);
+		if (!PERF_NO_REFROUND) {
+			if (workspace.windowed == null)
+				workspace.windowed = new TwoRoundWorkspace(workspace.current.length,
+						workspace.world1Occupancy.width, workspace.world1Occupancy.height);
+			simulateRound(workspace.windowed, playerNum, candX, candY, blockCandidate, x0, y0, x1, y1, true);
+			workspace.world1Occupancy.readCheck = workspace.windowed.world1Occupancy;
+		}
+		return workspace;
+	}
+
+	private void simulateRound(final TwoRoundWorkspace workspace, final int playerNum,
+			final int candX, final int candY, final boolean blockCandidate,
+			final int x0, final int y0, final int x1, final int y1, final boolean windowed) {
 		final int[][] current = workspace.current;
 		final int[][] simulatedVelocity = workspace.simulatedVelocity;
+		final CellOccupancy world1 = workspace.world1Occupancy;
 		java.util.Arrays.fill(current, null);
+		int reaching = 0;
 		for (final Player p : game.players) {
 			if (p.getNumber() == playerNum || p.isFinished())
 				continue;
 			final int idx = p.getNumber() - 1;
-			current[idx] = p.getPosition();
-			simulatedVelocity[idx] = p.getVelocity();
+			final int[] position = p.getPosition(), velocity = p.getVelocity();
+			current[idx] = position;
+			simulatedVelocity[idx] = velocity;
+			if (!windowed || mayEndIn(position, velocity, x0, y0, x1, y1))
+				reaching |= 1 << idx;
 		}
-		workspace.blockedOccupancy.rebuild(current);
+		if (reaching == 0) {
+			world1.clear();
+			return;
+		}
+		world1.rebuild(current);
 		if (blockCandidate)
-			workspace.blockedOccupancy.add(candX, candY);
-		simulateRoundPass(playerNum, current, simulatedVelocity,
-				workspace.blockedOccupancy, workspace.round1Position, workspace.round1Velocity);
-		System.arraycopy(current, 0, workspace.world1, 0, current.length);
-		workspace.world1Occupancy.rebuild(workspace.world1);
-		return workspace;
+			world1.add(candX, candY);
+		simulateRoundPass(playerNum, current, simulatedVelocity, world1, workspace.round1Position,
+				workspace.round1Velocity, reaching);
+		// perf_refround (exact): each mover took its cell out and put its landing in, so the
+		// list now holds the rivals' cells and, once, the candidate's.
+		if (blockCandidate)
+			world1.remove(candX, candY);
+		if (windowed)
+			world1.keepWithin(x0, y0, x1, y1);
 	}
 
-	/** One two-pass opponent round. A mover always receives a fresh logical
-	 *  position row, but that row is caller-owned and reused on the next root;
+	/** perf_refround: can this car end a round inside the rectangle? */
+	private static boolean mayEndIn(final int[] position, final int[] velocity,
+			final int x0, final int y0, final int x1, final int y1) {
+		final int x = position[0], y = position[1], cx = x + velocity[0], cy = y + velocity[1];
+		return cx >= x0 - 1 && cx <= x1 + 1 && cy >= y0 - 1 && cy <= y1 + 1
+				|| x >= x0 && x <= x1 && y >= y0 && y <= y1;
+	}
+
+	/** One two-pass opponent round, stopping when every rival of {@code reaching} (a bit
+	 *  per car, at most nine: RaceGame.maxPlayers) has moved. A mover always receives a
+	 *  fresh logical position row, but that row is caller-owned and reused on the next root;
 	 *  a velocity row is replaced only when the move is legal, matching the
 	 *  original stay-put semantics exactly. */
 	private void simulateRoundPass(final int playerNum, final int[][] occupancy,
 			final int[][] simulatedVelocity, final CellOccupancy blockedOccupancy,
-			final int[][] nextPosition, final int[][] nextVelocity) {
+			final int[][] nextPosition, final int[][] nextVelocity, final int reaching) {
+		// perf_refround (exact): one check of the table's stamps for the whole pass; nothing a
+		// pass calls replaces a map, the potential, a gate or the finish line.
+		final long[] table = simMoveTable();
+		int left = reaching;
 		for (int pass = 0; pass < 2; pass++) {
 			for (final Player p : game.players) {
 				final boolean later = p.getNumber() > playerNum;
@@ -2495,7 +2625,7 @@ final class RaceAi {
 				final int[] velocity = simulatedVelocity[idx];
 				// perf_aisearch (exact): the move and its succMask bit -- velocity in range
 				// and aiMoveLegal, the very tests made here -- memoised (simMove).
-				final int code = simMove(idx, current, velocity, blockedOccupancy);
+				final int code = simMove(idx, current, velocity, blockedOccupancy, table);
 				int nx = current[0];
 				int ny = current[1];
 				if (code != SIM_MOVE_NONE) {
@@ -2517,6 +2647,9 @@ final class RaceAi {
 				positionOut[1] = ny;
 				occupancy[idx] = positionOut;
 				blockedOccupancy.add(nx, ny);
+				left &= ~(1 << idx);
+				if (left == 0)
+					return;
 			}
 		}
 	}
@@ -2768,7 +2901,7 @@ final class RaceAi {
 	private static boolean occupiedByOther(final int x, final int y, final int self,
 			final int[] px, final int[] py, final boolean[] alive) {
 		for (int i = 0; i < px.length; i++)
-			if (i != self && alive[i] && px[i] == x && py[i] == y)
+			if (px[i] == x && py[i] == y && i != self && alive[i]) // perf_swap: the cell first
 				return true;
 		return false;
 	}
@@ -3026,32 +3159,49 @@ final class RaceAi {
 		final int[] outerFrameGate = frameGate, outerFrameRemaining = frameRemaining;
 		final boolean[] outerFrameLapAware = frameLapAware;
 		final int outerTurns = game.turnCount();
-		for (int j = 0; j < n; j++) {
-			final Player player = game.players[j];
-			workspace.originalPosition[j] = player.getPosition();
-			workspace.originalVelocity[j] = player.getVelocity();
-			workspace.finishedPlace[j] = player.getFinishedPlace();
-			workspace.originalLapState[j] = player.lapState();
+		// perf_swap (exact): under an outer scorer board the players hold rows only the AI reads,
+		// so this board is written into them and the outer one written back: nothing to save, no
+		// reference to store, and the frame stays the rollout's (see PERF_NO_SWAP).
+		final int outerBoardDepth = boardDepth;
+		final boolean inPlace = PERF_SWAP && outerBoardDepth != 0;
+		if (!inPlace) {
+			for (int j = 0; j < n; j++) {
+				final Player player = game.players[j];
+				workspace.originalPosition[j] = player.getPosition();
+				workspace.originalVelocity[j] = player.getVelocity();
+				workspace.finishedPlace[j] = player.getFinishedPlace();
+				workspace.originalLap[j] = player.getLap();
+				workspace.originalGate[j] = player.getNextGate();
+			}
+			if (PERF_CHECK && outerBoardDepth != 0)
+				checkOuterBoard(workspace, rolloutsByDepth[outerBoardDepth], i);
 		}
 		final Direction direction;
 		try {
-			frameGate = workspace.frameGate;
-			frameRemaining = workspace.frameRemaining;
-			frameLapAware = workspace.frameLapAware;
-			game.setQueryTurnCounter(rollout.turns);
-			for (int j = 0; j < n; j++) {
-				final Player player = game.players[j];
-				final int[] position = workspace.simulatedPosition[j];
-				position[0] = px[j];
-				position[1] = py[j];
-				final int[] velocity = workspace.simulatedVelocity[j];
-				velocity[0] = vx[j];
-				velocity[1] = vy[j];
-				player.setPosition(position);
-				player.setVelocity(velocity);
-				player.setFinishedPlace(alive[j] ? 0 : 77);
-				player.restoreLapState(new int[]{rollout.laps[j], rollout.gates[j], 0, 0, 0, 0});
+			boardDepth = simDepth;
+			if (!PERF_SWAP) {
+				frameGate = workspace.frameGate;
+				frameRemaining = workspace.frameRemaining;
+				frameLapAware = workspace.frameLapAware;
 			}
+			game.setQueryTurnCounter(rollout.turns);
+			if (inPlace)
+				rewriteBoard(rollout);
+			else
+				for (int j = 0; j < n; j++) {
+					final Player player = game.players[j];
+					final int[] position = workspace.simulatedPosition[j];
+					position[0] = px[j];
+					position[1] = py[j];
+					final int[] velocity = workspace.simulatedVelocity[j];
+					velocity[0] = vx[j];
+					velocity[1] = vy[j];
+					player.setPosition(position);
+					player.setVelocity(velocity);
+					player.setFinishedPlace(alive[j] ? 0 : 77);
+					player.setLap(rollout.laps[j]);
+					player.setNextGate(rollout.gates[j]);
+				}
 			game.subgamestate = i;
 			inScorerSim = suppress || awarePolicyDepth > 0;
 			if (upgrade)
@@ -3065,17 +3215,24 @@ final class RaceAi {
 			robustMode = outerRobustMode;
 			exactRemaining = outerExactRemaining;
 			moverNumber = outerMoverNumber;
-			frameGate = outerFrameGate;
-			frameRemaining = outerFrameRemaining;
-			frameLapAware = outerFrameLapAware;
-			game.setQueryTurnCounter(outerTurns);
-			for (int j = 0; j < n; j++) {
-				final Player player = game.players[j];
-				player.setPosition(workspace.originalPosition[j]);
-				player.setVelocity(workspace.originalVelocity[j]);
-				player.setFinishedPlace(workspace.finishedPlace[j]);
-				player.restoreLapState(workspace.originalLapState[j]);
+			boardDepth = outerBoardDepth;
+			if (!PERF_SWAP) {
+				frameGate = outerFrameGate;
+				frameRemaining = outerFrameRemaining;
+				frameLapAware = outerFrameLapAware;
 			}
+			game.setQueryTurnCounter(outerTurns);
+			if (inPlace)
+				rewriteBoard(rolloutsByDepth[outerBoardDepth]);
+			else
+				for (int j = 0; j < n; j++) {
+					final Player player = game.players[j];
+					player.setPosition(workspace.originalPosition[j]);
+					player.setVelocity(workspace.originalVelocity[j]);
+					player.setFinishedPlace(workspace.finishedPlace[j]);
+					player.setLap(workspace.originalLap[j]);
+					player.setNextGate(workspace.originalGate[j]);
+				}
 			game.subgamestate = ss;
 		}
 		if (memoized)
@@ -3098,6 +3255,81 @@ final class RaceAi {
 			return false;
 		final int nvx = vx[i] + direction.dx, nvy = vy[i] + direction.dy;
 		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
+	}
+
+	/** perf_swap: {@code board}'s cars into the rows the players hold and into their finished place,
+	 *  lap and next gate: the outermost install, in place, for the board below it and back. */
+	private void rewriteBoard(final RolloutWorkspace board) {
+		final Player[] players = game.players;
+		final int[] px = board.px, py = board.py, vx = board.vx, vy = board.vy;
+		final int[] laps = board.laps, gates = board.gates;
+		final boolean[] alive = board.alive;
+		for (int j = 0; j < players.length; j++) {
+			final Player player = players[j];
+			final int[] position = player.getPosition(), velocity = player.getVelocity();
+			position[0] = px[j];
+			position[1] = py[j];
+			velocity[0] = vx[j];
+			velocity[1] = vy[j];
+			player.setFinishedPlace(alive[j] ? 0 : 77);
+			player.setLap(laps[j]);
+			player.setNextGate(gates[j]);
+		}
+	}
+
+	/** perf_swap, check mode: what scorerMoveOverState saved under an outer board is that board's
+	 *  rollout, which is what rewriteBoard would write back. */
+	private void checkOuterBoard(final ScorerWorkspace saved, final RolloutWorkspace outer, final int i) {
+		boolean same = true;
+		for (int j = 0; j < game.players.length; j++)
+			same &= saved.originalPosition[j][0] == outer.px[j] && saved.originalPosition[j][1] == outer.py[j]
+					&& saved.originalVelocity[j][0] == outer.vx[j] && saved.originalVelocity[j][1] == outer.vy[j]
+					&& saved.finishedPlace[j] == (outer.alive[j] ? 0 : 77)
+					&& saved.originalLap[j] == outer.laps[j] && saved.originalGate[j] == outer.gates[j];
+		if (!same)
+			System.err.println("PERF-AWARE SWAP MISMATCH board slot=" + i + " depth=" + simDepth
+					+ " turns=" + game.turnCount());
+	}
+
+	/** perf_swap, check mode: a decision inside a rollout records the frame that rollout holds, the
+	 *  mover's own included. */
+	private void checkRolloutFrame(final int playerNum) {
+		final RolloutWorkspace rollout = rolloutsByDepth[simDepth];
+		final int mover = game.subgamestate;
+		boolean same = lapGate == rollout.gates[mover] && lapAware == rollout.lapAware[mover]
+				&& exactRemaining == rollout.remaining[mover];
+		for (int j = 0; j < game.players.length; j++)
+			same &= frameGate[j] == rollout.gates[j] && frameLapAware[j] == rollout.lapAware[j]
+					&& frameRemaining[j] == rollout.remaining[j];
+		if (!same)
+			System.err.println("PERF-AWARE SWAP MISMATCH frame p=" + playerNum + " depth=" + simDepth
+					+ " turns=" + game.turnCount());
+	}
+
+	/** perf_swap, check mode: the monitor's map, which must be the one this decision holds. */
+	private OptimalPotential checkedPotential(final int playerNum) {
+		final OptimalPotential published = game.optimalPotential();
+		if (published != exactPot)
+			System.err.println("PERF-AWARE SWAP MISMATCH potential p=" + playerNum + " depth=" + simDepth
+					+ " turns=" + game.turnCount());
+		return published;
+	}
+
+	/** perf_swap (exact): game.isCrashingPlayer for a landing of this decision. Inside a rollout
+	 *  ({@code board} not null) the players hold that rollout's board, so the same test runs on its
+	 *  flat arrays: a car's cell is (px, py), it is unfinished iff alive, and the mover, whose number
+	 *  is playerNum, is the slot to move. */
+	private boolean landingHeld(final RolloutWorkspace board, final int x, final int y, final int playerNum) {
+		if (board == null)
+			return game.isCrashingPlayer(x, y, playerNum);
+		final boolean held = occupiedByOther(x, y, game.subgamestate, board.px, board.py, board.alive);
+		if (!PERF_CHECK)
+			return held;
+		final boolean original = game.isCrashingPlayer(x, y, playerNum);
+		if (original != held)
+			System.err.println("PERF-AWARE SWAP MISMATCH held p=" + playerNum + " depth=" + simDepth
+					+ " landing=(" + x + "," + y + ") players=" + original + " board=" + held);
+		return original;
 	}
 
 	/** perf_aware: store a computed suppressed decision, or (self-check) compare a
@@ -3696,8 +3928,8 @@ final class RaceAi {
 	 *  whole race in two generations (upgradedMemoOn, maintainUpgradedMemo): a car's next
 	 *  decision meets its forecast's boards again when the field followed that forecast, and
 	 *  a rival's decision meets the board another car's forecast gave it. Each holds at
-	 *  most 1 << 12 entries and 1 << 18 key ints (eight-car keys are 60 ints: 245,760 at the
-	 *  entry cap); a full generation stops storing, which only recomputes. */
+	 *  most 1 << 12 entries and 1 << 18 ints' worth of key words (an eight-car key is nine
+	 *  longs: 36,864 at the entry cap); a full generation stops storing, which only recomputes. */
 	private RaceAiMoveMemo upgradedNew = new RaceAiMoveMemo(1 << 12, 1 << 18),
 			upgradedOld = new RaceAiMoveMemo(1 << 12, 1 << 18);
 	/** perf (upmemo): the turn the new generation began, the turn of the last top-level
@@ -3736,6 +3968,53 @@ final class RaceAi {
 	 *  second and third), race on the recomputed values and print any difference to stderr.
 	 *  Off by default. */
 	private static final boolean PERF_CHECK = Boolean.getBoolean("ai.perf.check");
+	/** perf_swap (exact): the decision inside a forecast inside a forecast -- nearly every decision
+	 *  of a race -- no longer pays for the swap around it: a reference store per row each way into
+	 *  objects older than the rows (G1 post-barriers), three frame references, a lapState array per
+	 *  car, a frame recorded that its rollout holds, and a monitor.
+	 *
+	 *  Where a scorer board already lies above (boardDepth != 0) the players hold that board's rows,
+	 *  and scorerMoveOverState writes its own board into them and the outer one back (rewriteBoard).
+	 *  Exact because: the outer board is what the rollout at boardDepth holds, which the outer call
+	 *  installed and which nothing writes while it waits for this decision (simOutcomeCore is the
+	 *  only writer of its arrays, and it is suspended); a row is read fresh through its Player, or
+	 *  by a suspended frame after the write back, and no call into a rollout passes a row down; the
+	 *  only field that keeps one below the outermost save, TwoRoundWorkspace, is read only while one
+	 *  simulated round runs, and that installs nothing; nothing compares rows by identity. The
+	 *  referee's rows, which the move history shares, are never written: the outermost board swaps
+	 *  references as before, its finally puts them back, and scorerMoveOverState is the only setter
+	 *  on this path.
+	 *
+	 *  Such a decision keeps the rollout's frame arrays: updateRolloutFrame derives them from the
+	 *  laps and gates the install writes, by recordPlayerFrames' formulas (onFinalLap is lap + 1 >=
+	 *  totalLaps; a car's gate is 0 on both sides without gates; player numbers are unique), and
+	 *  the decision writes none (its own rollouts take their own, simulate).
+	 *
+	 *  It keeps exactPot too. The enclosing decision's optimalPotential() returned after the
+	 *  publication, on this thread, so the map's contents are visible and every nested read is this
+	 *  thread's own. RaceGame writes the field once per game before optimalPotentialReady, and after
+	 *  that only to null, on a cancel: restartMe, on the event thread that runs the decisions and so
+	 *  never during one, or a worker that outlived that cancel, whose game races no more. The
+	 *  browser build cancels nothing.
+	 *
+	 *  The install no longer zeroes traceStart, gateMark and leftGrid. Nothing beneath a decision
+	 *  reads them (passGate and the snapshots run on real moves, the trace is drawn between decisions
+	 *  on their thread, gridLegalFor is asked by the referee's evaluateMove and at simDepth 0), and
+	 *  never writing them leaves them exactly as found on every exit, an exception out of
+	 *  computeAiMove included; every field that is written goes back in the finally, the outermost
+	 *  one's from the saved references and primitives.
+	 *
+	 *  -Dai.perf.noSwap=true keeps the reference swap, the frame swap and the monitor at every level
+	 *  and the Player-object landing test (a same-jar CPU control). Check mode runs that path too,
+	 *  races on it, and compares each shortcut's input with the original: the outer board with its
+	 *  rollout, the frame recorded with the rollout's, the monitor's map with the held one, and the
+	 *  landing test (PERF-AWARE SWAP MISMATCH board / frame / potential / held). It cannot see a
+	 *  row written in place, or read through a held reference: the byte-identical race is that check. */
+	private static final boolean PERF_NO_SWAP = Boolean.getBoolean("ai.perf.noSwap");
+	private static final boolean PERF_SWAP = !PERF_NO_SWAP && !PERF_CHECK;
+	/** perf_swap: the depth of the rollout whose board the players hold, 0 for none (a rollout's
+	 *  depth is at least 1). */
+	private int boardDepth;
 	/** Lab port: set by awareMoveOverState for exactly one scorerMoveOverState
 	 *  call; every policy call beneath that upgraded move runs suppressed. */
 	private boolean awareUpgrade;
@@ -4606,7 +4885,8 @@ final class RaceAi {
 	 *  279: the reach-map descent on point-to-point courses), or null when a lap
 	 *  race's potential was not built (over budget) or no finite continuation. */
 	private Direction optimalAloneMove(final int[] pos, final int[] vel, final int playerNum) {
-		final OptimalPotential potential = game.optimalPotential();
+		// perf_swap (exact): the map prepareDecisionFrame just took for this decision.
+		final OptimalPotential potential = PERF_CHECK ? checkedPotential(playerNum) : exactPot;
 		if (potential == null)
 			return game.lapGates == null ? reachAloneMove(pos, vel) : null;
 		int lapsDone = 0;
@@ -5576,8 +5856,75 @@ final class RaceAi {
 	 *  AFTER the candidate's move (next gate, remaining events), each successor
 	 *  paying the gate events it collects. searchMinTurnsCountedSoft3 at one
 	 *  level, in that frame: the same prices, plateau count and crossing
-	 *  precedence (a finish; a counted lap crossing until round 336). */
-	private double[] searchCountedAfter(final int x, final int y, final int vx, final int vy,
+	 *  precedence (a finish; a counted lap crossing until round 336). Returns the
+	 *  price and leaves the plateau count in countedPlateau, which the one caller reads at
+	 *  once, so a call allocates nothing.
+	 *
+	 *  perf_countrow (exact): each state's walk (countedWalk) runs once, into a row
+	 *  (countRow), and a repeat pays a table probe and the occupancy reads that can still
+	 *  decide the answer (countRowPrice). The walk reads the occupancy only for the price, and
+	 *  a landing is asked again on every board that differs in the rivals: the suppressed
+	 *  memo has already taken the repeats of a whole board. Everything else it reads is
+	 *  the state, the frame (gate, remaining), the grid world (aiGridLegal: the legal bits and
+	 *  the crossing's run-up) and the race world: the exact potential, the gates, the crossing
+	 *  line and its direction, the corridor, the start zone and the pocket between them, and
+	 *  the borders, fixed for the game as succMask and the edge caches already take them.
+	 *  The key packs the first three whole, so a hit is this state's row. countRowWorld
+	 *  records the last, weakly, at every top-level frame (maintainCountRows), which every
+	 *  nested decision lies beneath, and a change empties the table: a race never changes
+	 *  it (a restart builds a new game and with it a new RaceAi), hand-built test games do.
+	 *  The walk reads no board, turn counter, lap state or rollout frame (its gate and
+	 *  remaining are arguments), so nested rollouts meet the same rows, and a skipped walk
+	 *  only leaves pure caches unfilled. Memory: 2^COUNT_ROW_BITS direct-mapped slots of two
+	 *  longs (2 MiB), allocated at the first call, so never on a course without the
+	 *  potential; a colliding state overwrites, which only recomputes; a slot holds no
+	 *  reference, so the table pins no map. -Dai.perf.noCountRow=true walks every call (a
+	 *  CPU comparison within one jar). Under PERF_CHECK the walk runs as well, its values
+	 *  stand, and a difference prints a PERF-AWARE COUNTROW MISMATCH line. */
+	private double searchCountedAfter(final int x, final int y, final int vx, final int vy,
+			final CellOccupancy occupancy, final int gate, final int remaining) {
+		final int max = RaceGame.AI_MAX_SPEED;
+		if (PERF_NO_COUNT_ROW || (x | y | remaining) >>> 12 != 0 || gate >>> 2 != 0
+				|| vx < -max || vx > max || vy < -max || vy > max) {
+			if (PERF_COUNTROW_STATS)
+				countRowStat(COUNTROW_WALKS);
+			return countedWalk(x, y, vx, vy, occupancy, gate, remaining);
+		}
+		long[] rows = countRows;
+		if (rows == null) {
+			rows = new long[2 << COUNT_ROW_BITS];
+			java.util.Arrays.fill(rows, -1L);
+			countRows = rows;
+			countRowWorld.sync(game, reach, exactPot);
+		}
+		final long key = x | (long) y << 12 | (long) (vx + max) << 24 | (long) (vy + max) << 29
+				| (long) gate << 34 | (long) remaining << 36 | (game.aiGridLegal ? 1L << 48 : 0L);
+		final int slot = (int) (key * 0x9E3779B97F4A7C15L >>> 64 - COUNT_ROW_BITS) << 1;
+		final long held = rows[slot];
+		if (PERF_COUNTROW_STATS)
+			countRowLookup(held, key);
+		long row = rows[slot + 1];
+		if (held != key) {
+			row = countRow(x, y, vx, vy, gate, remaining);
+			rows[slot] = key;
+			rows[slot + 1] = row;
+		}
+		final double price = countRowPrice(row, x + vx, y + vy, occupancy);
+		if (!PERF_CHECK)
+			return price;
+		final int plateau = countedPlateau;
+		final double walked = countedWalk(x, y, vx, vy, occupancy, gate, remaining);
+		if (Double.compare(walked, price) != 0 || countedPlateau != plateau)
+			System.err.println("PERF-AWARE COUNTROW MISMATCH p=" + moverNumber + " state=(" + x + "," + y
+					+ "," + vx + "," + vy + ") gate=" + gate + " remaining=" + remaining + " grid="
+					+ game.aiGridLegal + " walk=" + walked + "/" + countedPlateau + " row=" + price + "/"
+					+ plateau);
+		return walked;
+	}
+
+	/** searchCountedAfter's walk over the nine successors. perf_countrow: the authority
+	 *  under PERF_CHECK, and the path for a state outside the row key's domain. */
+	private double countedWalk(final int x, final int y, final int vx, final int vy,
 			final CellOccupancy occupancy, final int gate, final int remaining) {
 		double best = Double.MAX_VALUE;
 		int countAtMin = 0;
@@ -5591,8 +5938,10 @@ final class RaceAi {
 			// precedence below needs remaining <= 3.
 			if (remaining <= 3 && game.crossesFinishLegally(x, y, nx, ny)) {
 				final int events = game.gateEventsOnMove(gate, x, y, nx, ny);
-				if (events >= remaining || remaining <= 1)
-					return new double[]{1, 9 };
+				if (events >= remaining || remaining <= 1) {
+					countedPlateau = 9;
+					return 1;
+				}
 			}
 			if ((sm & 1 << d.ordinal()) == 0)
 				continue;
@@ -5608,7 +5957,148 @@ final class RaceAi {
 			} else if (total == best)
 				countAtMin++;
 		}
-		return new double[]{best, countAtMin };
+		countedPlateau = countAtMin;
+		return best;
+	}
+
+	/** perf_countrow: the walk of this state without its occupancy, as a row (COUNT_ROW_FINISH
+	 *  for the layout). The same tests in the same order, the price apart. */
+	private long countRow(final int x, final int y, final int vx, final int vy, final int gate,
+			final int remaining) {
+		final int[] turns = countRowTurns;
+		int tmin = Integer.MAX_VALUE;
+		final int sm = succMask(x, y, vx, vy);
+		for (final Direction d : DIRECTIONS) {
+			final int o = d.ordinal();
+			turns[o] = Integer.MAX_VALUE;
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			if ((sm & 1 << 16 + o) == 0)
+				continue;
+			final int nx = x + nvx, ny = y + nvy;
+			if (remaining <= 3 && game.crossesFinishLegally(x, y, nx, ny)) {
+				final int events = game.gateEventsOnMove(gate, x, y, nx, ny);
+				if (events >= remaining || remaining <= 1)
+					return COUNT_ROW_FINISH;
+			}
+			if ((sm & 1 << o) == 0)
+				continue;
+			final int t = exactPot.movesToFinish(remaining - game.gateEventsOnMove(gate, x, y, nx, ny),
+					nx, ny, nvx, nvy);
+			turns[o] = t;
+			tmin = Math.min(tmin, t);
+		}
+		if (tmin == Integer.MAX_VALUE)
+			return 0L;
+		long row = (long) tmin << 36;
+		for (int o = 0; o < DIRECTIONS.length; o++)
+			if (turns[o] != Integer.MAX_VALUE && turns[o] - tmin <= 3)
+				row |= 1L << 9 * (turns[o] - tmin) + o;
+		return row;
+	}
+
+	/** perf_countrow: the walk's price and plateau count from a row, on this occupancy;
+	 *  (ax, ay) is the state's coasting cell. A landing at tmin + k prices tmin + k + 1 free
+	 *  and tmin + k + 4 occupied, all integers below 2^17, exact in a double. So the first
+	 *  band with a free landing, among k = 0, 1, 2, sets the price and only its free landings
+	 *  meet it: an occupied landing would need band k - 3. With no free landing in those
+	 *  bands the price is tmin + 4, met by all of band 0, occupied, and the free landings of
+	 *  band 3, and by nothing else. */
+	private double countRowPrice(final long row, final int ax, final int ay, final CellOccupancy occupancy) {
+		if (row == COUNT_ROW_FINISH) {
+			countedPlateau = 9;
+			return 1;
+		}
+		if (row == 0L) {
+			countedPlateau = 0;
+			return Double.MAX_VALUE;
+		}
+		final int tmin = (int) (row >>> 36);
+		for (int k = 0; k < 3; k++) {
+			final int free = countRowFree((int) (row >>> 9 * k) & 0x1FF, ax, ay, occupancy);
+			if (free != 0) {
+				countedPlateau = Integer.bitCount(free);
+				return 1.0 + tmin + k;
+			}
+		}
+		countedPlateau = Integer.bitCount((int) row & 0x1FF)
+				+ Integer.bitCount(countRowFree((int) (row >>> 27) & 0x1FF, ax, ay, occupancy));
+		return 4.0 + tmin;
+	}
+
+	/** perf_countrow: the directions of {@code mask} (bit = ordinal) whose landing, from the
+	 *  coasting cell (ax, ay), holds no body. */
+	private static int countRowFree(final int mask, final int ax, final int ay, final CellOccupancy occupancy) {
+		int free = 0;
+		for (int left = mask; left != 0; left &= left - 1) {
+			final int o = Integer.numberOfTrailingZeros(left);
+			final Direction d = DIRECTIONS[o];
+			if (!occupancy.contains(ax + d.dx, ay + d.dy))
+				free |= 1 << o;
+		}
+		return free;
+	}
+
+	/** perf_countrow: at every top-level frame, a changed race world empties the table. The
+	 *  stamp (WorldStamp) compares what a race never changes, so a race pays only the compare. */
+	private void maintainCountRows() {
+		if (countRows != null && countRowWorld.sync(game, reach, game.optimalPotential())) {
+			java.util.Arrays.fill(countRows, -1L);
+			if (PERF_COUNTROW_STATS)
+				countRowStat(COUNTROW_CLEARS);
+		}
+	}
+
+	/** perf_countrow: -Dai.perf.noCountRow=true walks every call. */
+	private static final boolean PERF_NO_COUNT_ROW = Boolean.getBoolean("ai.perf.noCountRow");
+	/** perf_countrow: log2 of the table's slots. */
+	private static final int COUNT_ROW_BITS = 17;
+	/** perf_countrow: a row. tmin, the fewest turns among the legal landings with a value, in
+	 *  bits 36-51 (a distance is at most 65534 moves); below it, nine bits at 9 * k for k = 0..3:
+	 *  the directions whose landing has tmin + k turns. A landing at tmin + 4 or more is left
+	 *  out, as it can neither win nor tie: a landing at tmin prices at most tmin + 4, this one at
+	 *  least tmin + 5. This value marks a state with a finish, where the walk returns (1, 9)
+	 *  whatever else it met, and zero one with no priced landing; any other row has a band 0. */
+	private static final long COUNT_ROW_FINISH = 1L << 52;
+	/** perf_countrow: the table -- slot s holds its whole key at index 2 * s (-1 when empty) and
+	 *  its row at the next -- and the race world it was filled in. */
+	private long[] countRows;
+	private final WorldStamp countRowWorld = new WorldStamp();
+	private final int[] countRowTurns = new int[DIRECTIONS.length];
+	/** The plateau count of the last searchCountedAfter or countedWalk. */
+	private int countedPlateau;
+	/** perf_countrow stats, -Dai.perf.countRowStats=true: counters over the whole JVM, printed to
+	 *  stderr as one PERF-STATS COUNTROW line by a shutdown hook. A lookup is a hit or a store,
+	 *  into an empty slot (cold) or over another state (overwrites); walks are the calls that
+	 *  took no row. No decision reads them. */
+	private static final boolean PERF_COUNTROW_STATS = Boolean.getBoolean("ai.perf.countRowStats");
+	private static final String[] COUNTROW_STAT_NAMES = {"lookups", "hits", "cold", "overwrites", "walks",
+			"clears"};
+	private static final int COUNTROW_LOOKUPS = 0, COUNTROW_HITS = 1, COUNTROW_COLD = 2,
+			COUNTROW_OVERWRITES = 3, COUNTROW_WALKS = 4, COUNTROW_CLEARS = 5;
+	private static final java.util.concurrent.atomic.AtomicLongArray COUNTROW_COUNTS =
+			PERF_COUNTROW_STATS ? countRowCounters() : null;
+
+	private static void countRowLookup(final long held, final long key) {
+		countRowStat(COUNTROW_LOOKUPS);
+		countRowStat(held == key ? COUNTROW_HITS : held == -1L ? COUNTROW_COLD : COUNTROW_OVERWRITES);
+	}
+
+	private static void countRowStat(final int counter) {
+		if (COUNTROW_COUNTS != null)
+			COUNTROW_COUNTS.incrementAndGet(counter);
+	}
+
+	/** perf_countrow stats: the counters, and the shutdown hook that prints them. */
+	private static java.util.concurrent.atomic.AtomicLongArray countRowCounters() {
+		final java.util.concurrent.atomic.AtomicLongArray counts =
+				new java.util.concurrent.atomic.AtomicLongArray(COUNTROW_STAT_NAMES.length);
+		Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+			final StringBuilder line = new StringBuilder("PERF-STATS COUNTROW");
+			for (int k = 0; k < COUNTROW_STAT_NAMES.length; k++)
+				line.append(' ').append(COUNTROW_STAT_NAMES[k]).append('=').append(counts.get(k));
+			System.err.println(line);
+		}, "perf-stats-countrow"));
+		return counts;
 	}
 
 	/** Round 279 (round 272): does this move FINISH the race for the car whose

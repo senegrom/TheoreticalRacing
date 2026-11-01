@@ -115,6 +115,11 @@ public final class Player {
 		return ++lap;
 	}
 
+	/** The completed crossings of a board a forecast installs (RaceAi.scorerMoveOverState). */
+	void setLap(final int completed) {
+		lap = completed;
+	}
+
 	/** Multi-lap gate order: 1 = CP1 next, 2 = CP2 next, 0 = S/F next. */
 	public int getNextGate() {
 		return nextGate;

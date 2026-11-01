@@ -1,5 +1,63 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Speed round 3 (2026-11-01): four exact patches, the champion at 0.75x its CPU
+
+The 8-car profile of the round-336 champion (E:/tmp-claude/perf3/prof336, JFR with DebugNonSafepoints): the chooser
+is 90% of a race, its forecasts 87% and their upgraded moves 85-86%. Four lanes were designed and implemented on the
+round-337 tree, each attacked by an adversarial exactness reviewer (workflow wf_beb8a36f-c05), and raced on the box:
+
+- **Packed memo key** (E:/tmp-claude/perf4/sp4_packkey.py; code in RaceAiMoveMemo.java only, one comment in
+  RaceAi.java). A key is one header word and one long per car, nine longs for eight cars instead of 60 ints; the hash
+  is one multiplication per word, off the chain; keys are still compared in full. A board whose values do not fit
+  returns MISS, which only recomputes. The pool no longer caps the suppressed memo first: it holds 65,536 keys at
+  eight cars where it stopped at 34,952, and replays past that rest on the memo's contract (check mode recomputes
+  every hit).
+- **Counted-search rows** (sp4_countrow.py). searchCountedAfter's walk over a landing's nine successors reads the
+  rivals' cells only to price the landings; everything else it reads is the state, the gate and events owed after the
+  move, the grid world and the race world. So it runs once per state, frame and grid world into a row of a 2^17-slot
+  direct-mapped table (2 MiB, stamped with the race world and emptied when it changes; a key whose slot another took
+  is computed again). A repeat pays a probe and the occupancy reads that can still decide the price or its plateau
+  count. 99.8% of lookups hit in the two stats races.
+- **In-place forecast boards** (sp4_swaptrim.py). A decision beneath another forecast's board (a forecast inside a
+  forecast: nearly every decision of a race) writes its board into the rows the players already hold and the outer
+  board back, instead of swapping references; the outermost install still swaps them. No install allocates a lap
+  state per car any more. Every decision inside a forecast keeps the forecast's frame arrays and the enclosing
+  decision's potential (no monitor), asks robustMode only where it is read, and skips the empty lean walk. Player
+  gains a package-private setLap. Check mode compares the outer board, the frame, the potential and the landing test
+  with the original. It cannot see a row written in place. The robustMode gate and the lap and gate setters (an
+  install no longer zeroes traceStart, gateMark and leftGrid) run there as in a race, and check mode never takes the
+  lean-walk skip. The byte-identical races are their test.
+- **A cheaper reference round** (sp4_refround.py). CellOccupancy is a short list instead of a board-sized count
+  table, one per workspace; simMove reads a landing mask from one scan, and the move table's stamps are checked once
+  a round instead of once a move; and a round stops after the last rival that can end inside the rectangle its
+  decision reads, then drops the cells outside. Check mode compares every read of the windowed round with the whole
+  one. The list, the scan and the stamp check run in check mode too: the byte-identical races are their test.
+
+Against the round-337 champion jar, base and perf alternating, every race byte-identical:
+
+| Patch | 8 cars random (12) | computed (4) | scattered (2) | duels (5) |
+|---|---|---|---|---|
+| packed memo key | 0.980x | 0.954x | 0.969x | 0.989x |
+| counted-search rows | 0.897x | 0.949x | 0.942x | 1.022x |
+| in-place forecast boards | 0.943x | 0.957x | 1.022x | 0.982x |
+| cheaper reference round | 0.966x | 0.951x | 0.945x | 0.990x |
+| all four | 0.751x | 0.799x | 0.796x | 0.967x |
+
+- Check mode (8 cars x2, duels x3, for each patch and the stack; 4 cars x2 for the stack): zero PERF-AWARE lines.
+- The packed key alone sits on its 0.98x kill line in 8-car random fields, but inside the stack it earns 0.962x
+  random and 0.939x computed (the stack against the stack without it), so it stays. In the browser (CheerpJ 4.3, a
+  micro-benchmark of old and new memo on race-shaped boards) it is level, median 0.97x over the last eight of 14
+  rounds.
+- A broader check of the stack on other tracks and seeds: 14 eight-car random races 0.721x, 4 computed 0.743x (zigzag
+  s6 among them, where round 337 changed a finishing order), 2 scattered 0.822x, 7 four-car 0.898x, 9 duels 0.981x,
+  all byte-identical.
+- The profile after it: Hungaroring s13 1,100 samples (1,602 before), Monaco s9 1,484 (2,378). What is left at
+  Hungaroring (Monaco): the reference round 13.5% (15.4%), the memo probe 8.7% (8.6%), optimalMoveAI1's own time 9.9%
+  (9.1%), map preparation 11.5% (9.8%) on its own thread.
+- Box verify on the final tree (every pin, the goldens, smoke, query replay, lap progress, compileall) 30/30; the
+  Python unit tests pass after the usual re-runs of the fleet grid's Ctrl+C resume test; the Java suite and the local
+  browser build pass.
+
 ## Round 337 promoted (2026-11-01): the owner's calls, round 293's fixes and doomed forecasts below live ones
 
 A conformance round, not a tuning: of 5,880 mirrored race pairs three raced differently and one finished in a
