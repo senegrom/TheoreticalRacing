@@ -92,6 +92,12 @@ final class RaceAiDuelSearch {
             if (inPlanningDomain(mine, d) && move(game, mine, theirs, d).finishes())
                 return d;
         }
+        // Round 338: an already boxed rival needs no proof, as in immediateWin. With no
+        // legal reply every legal first move scores horizon 1 and the loop below would take the
+        // first in Direction order, whatever it costs; at a point-to-point start a rival still in
+        // the start pocket is boxed only in the decider's grid world, and the referee lets it move.
+        if (boxed(game, theirs))
+            return null;
         for (final Direction d : DIRECTIONS) {
             if (!inPlanningDomain(mine, d))
                 continue;
@@ -107,6 +113,23 @@ final class RaceAiDuelSearch {
             }
         }
         return budget.exhausted ? null : best;
+    }
+
+    /** Round 338: has the rival no legal reply? Its nine physical accelerations are asked with
+     *  nothing occupied (the mover's old cell vacated) in the decider's grid world, as
+     *  RaceAiTactics.immediateWin counts its escapes; a finishing reply is a legal one.
+     *  Against the speed-round-3 champion as arm 359: duels -0.019 +- 0.003 places on random starts (7
+     *  boards for, none against; the eleven point-to-point courses among them -0.050 +- 0.015), -0.017
+     *  +- 0.003 computed, +0.000 scattered; the Nordschleife carries most of the random and computed
+     *  readings (-0.950, -1.000; without it about -0.008 and -0.005). Eight cars on random starts and
+     *  the lone entrant identical in places. */
+    private static boolean boxed(final RaceGame game, final State rival) {
+        for (final Direction d : DIRECTIONS) {
+            final int x = rival.x + rival.vx + d.dx, y = rival.y + rival.vy + d.dy;
+            if (game.evaluateMove(rival.lap, rival.gate, rival.x, rival.y, x, y, false).legal())
+                return false;
+        }
+        return true;
     }
 
     /** Universal rival node. An illegal reply retires it and wins for us;
@@ -439,6 +462,10 @@ final class RaceAiDuelSearch {
             if (inPlanningDomain(mine, d) && (move(p, slot, mine, theirs, d) & FINISHES) != 0)
                 return d;
         }
+        // Round 338: winWithinMoves' abstention on an already boxed rival, at the same
+        // point, before any Budget take.
+        if (boxedOnRows(p, rivalSlot))
+            return null;
         for (final Direction d : DIRECTIONS) {
             if (!inPlanningDomain(mine, d))
                 continue;
@@ -455,6 +482,17 @@ final class RaceAiDuelSearch {
             }
         }
         return budget.exhausted ? null : best;
+    }
+
+    /** boxed on the rows: the rival root's unblocked codes in immediateWinOnRows' order. That leg
+     *  asked every reply read here (it stops no earlier than its first legal one), so where the
+     *  root has a row, the row answers them. */
+    private static boolean boxedOnRows(final Proof p, final int rivalSlot) {
+        for (final Direction d : DIRECTIONS) {
+            if ((unblocked(p, rivalSlot, p.theirs, d) & LEGAL) != 0)
+                return false;
+        }
+        return true;
     }
 
     /** afterOurMove on the rows; rivalSlot is rival's row, which the caller looked up (a

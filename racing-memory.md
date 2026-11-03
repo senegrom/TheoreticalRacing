@@ -1,5 +1,59 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 338 promoted (2026-11-03): the multi-move duel proofs abstain on a rival with no legal reply
+
+A correctness fix, found by the racecraft-ideas workflow of 2026-11-01 (E:/tmp-claude/ideas338/racecraft_ideas.md,
+idea 2.1). The 2-, 3- and 4-move duel proofs (RaceAiDuelSearch.winWithinMoves and its tabled twin searchOnRows) score
+each legal first move by its worst-case horizon. Against a rival with no legal reply every move scores 1, so the root
+took the first legal direction in Direction order, whatever it cost. RaceAiTactics.immediateWin already refused this
+case ("No tactical intervention is needed for an already boxed car"); the longer searches did not. At point-to-point
+starts the case is false: the decider's grid world turns pocket-illegal at its first landing off the grid, so a rival
+still in the start pocket has no legal reply there although the referee lets it move. In the champion's duel corpus
+p1 played that first legal move at turn 3 in 42 of the 220 point-to-point duels; in 16 it cost one or two moves, and
+p1 lost 11 of those. Now both searches abstain at the root when the rival has no legal reply, as immediateWin does,
+and the normal decision runs.
+
+Measured as arm 359 (E:/tmp-claude/arm359_boxed.py, candidate-gated) against the speed-round-3 champion, mirrored
+(boards favouring candidate / champion / tied; crashes candidate:champion):
+
+| Slice | a359 |
+|---|---|
+| Duels on the 11 point-to-point courses, seeds 1-20 | -0.050 +- 0.015 (5/0/6; 0:0) |
+| Duels, random starts, 1-20 | -0.019 +- 0.003 (7/0/77; 199:216) |
+| Duels, computed starts, 1-20 | -0.017 +- 0.003 (4/0/80; 152:171) |
+| Duels, scattered starts, 1-20 | +0.000 +- 0.000 (0/0/84; 22:22) |
+| 8 cars, random starts, 1-10 | +0.000 +- 0.000 (0/0/84; 45:45) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | +0.000 +- 0.000 (0/0/84; 22:22) |
+
+- The Nordschleife reads -0.950 in random-start duels (the candidate won 39 of its 40 races; in the champion's own
+  duels there seat 2 wins 18 of 20, so the gain is the candidate in seat 1 beating the champion in seat 2) and -1.000
+  on computed starts. Its random-start seeds are nearly one race (18 of 20 converge within about 50 moves), so the
+  board is far from 20 samples. It is a lap course with no false proof at the top level; the mechanism is not
+  identified. Without it the random-start duels read about -0.008, computed about -0.005.
+- Checks: with no candidate the arm raced the 16 costly duels exactly as the champion; check mode printed no
+  PERF-AWARE line; CPU 1.006x with no candidate, 0.985x with p1 a candidate over the 16 costly duels. The promoted
+  jar raced as the arm with every slot a candidate in duels on random and computed starts, the Nordschleife included,
+  and in 8- and 4-car fields.
+- A correctness fix the fleet clears ships; the owner said yes to this one on 2026-11-01.
+- Corpus: no pin or golden moved. Box verify on the final tree: every pin, the goldens, headless smoke, query replay,
+  lap progress and compileall pass (30/30). The Python unit tests pass (104); the fleet grid's Ctrl+C resume test
+  failed once under the box's load again and passed on three solo and two full re-runs. The Java suite and the local
+  browser build pass.
+
+Measured beside it (the plan's experiments, 2026-11-01 to 2026-11-02):
+
+- Census c360 (E:/tmp-claude/c360_census.py, a debug print that changes no race: 336 races identical with and without
+  it): walls at the forecast horizon would change 0.18 top-level picks per car-race (nested choosers not counted),
+  under the gate of 0.2, so that arm is parked; the DEF tie key would switch 1.5 picks per car-race and its forecast
+  beats persistence, but it stays a long shot; in lap 1, 39% of decisions with a reversed or DEF opponent in contact
+  play a different rival as the relevant one (6.7 per multi-lap car-race); the forecast predicts rivals' cells at the
+  mover's next decision right 96.6% of the time (92.4% in contact). The Spielberg s4 trap is a forecast miss: p4's
+  forecasts put p3 one cell away from where it went, on p4's only escape.
+- Arm 360 (the score's rival twin plays the rival's own rules): 4 cars +0.021 +- 0.009 (27/36/21), 8 cars -0.003
+  random, +0.000 computed, +0.004 +- 0.002 scattered, duels -0.008, lone -0.050 +- 0.022. Split in 4 cars: the gate
+  part +0.001 +- 0.001, the tie-break part +0.015 +- 0.009. The tie-break part is closed; the gate part needs its own
+  battery.
+
 ## Speed round 3 (2026-11-01): four exact patches, the champion at 0.75x its CPU
 
 The 8-car profile of the round-336 champion (E:/tmp-claude/perf3/prof336, JFR with DebugNonSafepoints): the chooser
