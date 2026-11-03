@@ -21,8 +21,9 @@ public final class SimulationFollowupTests {
         if (args.length == 0 || args[0].equals("proxy")) testProxyAbstention();
         if (args.length == 0 || args[0].equals("progress")) testMoverProgress();
         if (args.length == 0 || args[0].equals("human")) testHumanAboveCap();
-        System.out.println("SimulationFollowupTests: legal blockades, proxy continuations, mover progress"
-                + " and human rivals above the AI cap OK");
+        if (args.length == 0 || args[0].equals("twingates")) testTwinGates();
+        System.out.println("SimulationFollowupTests: legal blockades, proxy continuations, mover progress,"
+                + " human rivals above the AI cap and the rival twin's gate rules OK");
     }
 
     private static void testLegalBlockade() throws Exception {
@@ -231,6 +232,338 @@ public final class SimulationFollowupTests {
         set(g, "finishFwdX", 1.0);
         set(g, "rui", new RaceUI(g.gameRows, g.gameCols));
         return g;
+    }
+
+    /** Round 341: the score's rival twin -- RaceAi.pureMinTurnsMoveSim, the move the score's simulated round
+     *  gives every rival but a human above the AI speed cap (round 340) -- plays the rival's own gate rules.
+     *  Where the exact potential prices the gates, a lap-scoring S/F crossing and a checkpoint touch are
+     *  ordinary landings, ranked by the exact distance with the move's gate events paid (ttfForAfter), as
+     *  round 336 made them in the car's own decision; a finish keeps its precedence; where no potential prices
+     *  the gates the old precedences still decide. On the two-lap Circle, player 1 deciding and player 2 the
+     *  rival: (a) owing the line on its first lap, (b) owing CP1, (c) both with the exact map capped, (d) on
+     *  its final lap with a body on its first finishing landing. (a) and (b) accept any of the fastest
+     *  landings, so the twin's tie-break is not pinned; (c) and (d) guard what round 341 must not change and
+     *  pass on round 340 too. Each part runs on its own and the failures are reported together. */
+    private static void testTwinGates() throws Exception {
+        final java.util.List<String> failures = new java.util.ArrayList<>();
+        final RaceGame priced = circle();
+        twinPart(failures, "(a) a lap-scoring S/F crossing is an ordinary landing", () -> twinCrossing(priced));
+        twinPart(failures, "(b) a checkpoint touch is an ordinary landing", () -> twinTouch(priced));
+        twinPart(failures, "(c) with no exact potential the old precedences decide", () -> twinUnpriced());
+        twinPart(failures, "(d) a finish keeps its precedence", () -> twinFinish(priced));
+        check(failures.isEmpty(),
+                "the score's rival twin broke the rival's gate rules: " + String.join("; ", failures));
+    }
+
+    /** Round 341: one part of testTwinGates. */
+    private interface TwinPart {
+        String run() throws Exception;
+    }
+
+    private static void twinPart(final java.util.List<String> failures, final String name, final TwinPart part)
+            throws Exception {
+        try {
+            System.out.println("Twin gates " + name + ": ok, " + part.run());
+        } catch (final AssertionError | java.lang.reflect.InvocationTargetException e) {
+            final String why = e instanceof AssertionError ? e.getMessage() : "the code under test threw " + e.getCause();
+            System.out.println("Twin gates " + name + ": FAILED: " + why);
+            failures.add(name + ": " + why);
+        }
+    }
+
+    /** (a) The rival on its first lap, past both checkpoints, at (47, 10) doing 5 right and 2 up: all nine
+     *  landings cross the line, and the first permitted lap-scoring crossing is slower than the fastest. */
+    private static String twinCrossing(final RaceGame g) throws Exception {
+        final Player rival = twinField(g, 47, 10, 5, -2, 0, 0);
+        final RaceAi.CellOccupancy free = cells(g);
+        check(g.optimalPotential() != null, "fixture: the Circle's exact potential was not built");
+        for (final Direction d : Direction.values()) {
+            final int[] p = rival.getPosition(), n = landing(rival, d);
+            check(g.crossesFinishLegally(p[0], p[1], n[0], n[1]), "fixture: " + d + " does not cross the line");
+        }
+        final Direction first = firstPermittedCrossing(g, rival, free), fastest = fastestLanding(g, rival, free);
+        check(first != null && referee(g, rival, first).lapCross() && !referee(g, rival, first).finishes(),
+                "fixture: no permitted lap-scoring crossing");
+        check(fastest != null && fastest != first && turnsAfter(g, rival, fastest) < turnsAfter(g, rival, first),
+                "fixture: the first permitted crossing " + first + " is the fastest landing");
+        final Direction twin = twin(g, rival, free);
+        final int best = turnsAfter(g, rival, fastest);
+        final String fastestSet = fastestLandings(g, rival, free);
+        check(twin != null && freeLegal(g, rival, twin, free) && turnsAfter(g, rival, twin) == best,
+                "the twin took " + twin + (twin == first ? ", the first permitted crossing" : "")
+                + ", not one of the fastest landings (" + fastestSet + " at " + best + " moves; the first permitted"
+                + " crossing " + first + " at " + turnsAfter(g, rival, first) + ")");
+        final int[] landed = roundLanding(g, rival);
+        check(Arrays.equals(landed, landing(rival, twin)), "the score's simulated round put the rival on "
+                + Arrays.toString(landed) + ", not on the twin's landing " + Arrays.toString(landing(rival, twin)));
+        return "the twin takes " + twin + ", one of the fastest (" + fastestSet + " at " + best
+                + " moves), not the first permitted crossing " + first + " (" + turnsAfter(g, rival, first) + ")";
+    }
+
+    /** (b) The rival on its first lap owing CP1, at (80, 65) doing 2 left and 4 down: all nine landings touch
+     *  CP1, and the first permitted touch is slower than the fastest. */
+    private static String twinTouch(final RaceGame g) throws Exception {
+        final Player rival = twinField(g, 80, 65, -2, 4, 0, 1);
+        final RaceAi.CellOccupancy free = cells(g);
+        check(g.optimalPotential() != null, "fixture: the Circle's exact potential was not built");
+        for (final Direction d : Direction.values()) {
+            final int[] p = rival.getPosition(), n = landing(rival, d);
+            check(g.touchesGate(1, p[0], p[1], n[0], n[1]), "fixture: " + d + " does not touch CP1");
+        }
+        final Direction first = firstPermittedTouch(g, rival, free), fastest = fastestLanding(g, rival, free);
+        check(first != null && referee(g, rival, first).passCp1(), "fixture: no permitted checkpoint touch");
+        check(fastest != null && fastest != first && turnsAfter(g, rival, fastest) < turnsAfter(g, rival, first),
+                "fixture: the first permitted touch " + first + " is the fastest landing");
+        final Direction twin = twin(g, rival, free);
+        final int best = turnsAfter(g, rival, fastest);
+        final String fastestSet = fastestLandings(g, rival, free);
+        check(twin != null && freeLegal(g, rival, twin, free) && turnsAfter(g, rival, twin) == best,
+                "the twin took " + twin + (twin == first ? ", the first permitted touch" : "")
+                + ", not one of the fastest landings (" + fastestSet + " at " + best + " moves; the first permitted"
+                + " touch " + first + " at " + turnsAfter(g, rival, first) + ")");
+        final int[] landed = roundLanding(g, rival);
+        check(Arrays.equals(landed, landing(rival, twin)), "the score's simulated round put the rival on "
+                + Arrays.toString(landed) + ", not on the twin's landing " + Arrays.toString(landing(rival, twin)));
+        return "the twin takes " + twin + ", one of the fastest (" + fastestSet + " at " + best
+                + " moves), not the first permitted touch " + first + " (" + turnsAfter(g, rival, first) + ")";
+    }
+
+    /** (c) The rivals of (a) and (b) on the Circle with the exact map capped, as over budget (the
+     *  Nordschleife): the lap gates stay, and the gate maps, which cannot price a crossing or a touch, would
+     *  rank another landing first. The twin keeps round 224's precedences. */
+    private static String twinUnpriced() throws Exception {
+        final String cap = System.getProperty("tr.optimalBuildBytes");
+        RaceGame.clearOptimalMemoForTests();
+        System.setProperty("tr.optimalBuildBytes", "0");
+        try {
+            final RaceGame g = circle();
+            check(g.optimalPotential() == null && g.lapGates != null,
+                    "fixture: the capped Circle has an exact potential");
+            final Player crossing = twinField(g, 47, 10, 5, -2, 0, 0);
+            final RaceAi.CellOccupancy free = cells(g);
+            final Direction line = firstPermittedCrossing(g, crossing, free);
+            final Direction lineByMap = gateMapFastest(g, crossing, free);
+            check(line != null && lineByMap != null && lineByMap != line,
+                    "fixture: the gate map ranks the first permitted crossing first");
+            final Direction lineTwin = twin(g, crossing, free);
+            final Player touching = twinField(g, 80, 65, -2, 4, 0, 1);
+            final Direction touch = firstPermittedTouch(g, touching, free);
+            final Direction touchByMap = gateMapFastest(g, touching, free);
+            check(touch != null && touchByMap != null && touchByMap != touch,
+                    "fixture: the gate map ranks the first permitted touch first");
+            final Direction touchTwin = twin(g, touching, free);
+            String broken = "";
+            if (lineTwin != line)
+                broken = lineTwin + ", not " + line + ", the first permitted crossing"
+                        + (lineTwin == lineByMap ? " (the gate map's pick)" : "");
+            if (touchTwin != touch)
+                broken += (broken.isEmpty() ? "" : ", and ") + touchTwin + ", not " + touch
+                        + ", the first permitted touch" + (touchTwin == touchByMap ? " (the gate map's pick)" : "");
+            check(broken.isEmpty(), "with no exact potential the twin took " + broken);
+            return "the twin takes the first permitted crossing " + lineTwin + " (the gate map: " + lineByMap
+                    + ") and the first permitted touch " + touchTwin + " (the gate map: " + touchByMap + ")";
+        } finally {
+            if (cap == null) System.clearProperty("tr.optimalBuildBytes");
+            else System.setProperty("tr.optimalBuildBytes", cap);
+            RaceGame.clearOptimalMemoForTests();
+        }
+    }
+
+    /** (d) The rival of (a) on its final lap: all nine landings finish. A third car stands on the first
+     *  finishing landing, which the referee lets a finish land on, so ranking the landings would take another. */
+    private static String twinFinish(final RaceGame g) throws Exception {
+        final Player body = car(3, 51, 7, 0, 0);
+        final Player rival = twinField(g, 47, 10, 5, -2, 1, 0, body);
+        final RaceAi.CellOccupancy held = cells(g);
+        held.add(body.getPosition()[0], body.getPosition()[1]);
+        check(g.optimalPotential() != null, "fixture: the Circle's exact potential was not built");
+        Direction first = null;
+        int finishing = 0;
+        for (final Direction d : Direction.values()) {
+            final int[] p = rival.getPosition(), v = rival.getVelocity(), n = landing(rival, d);
+            if (!RaceGame.aiVelocityOutOfRange(v[0] + d.dx, v[1] + d.dy) && g.evaluateMove(rival.getLap(),
+                    rival.getNextGate(), p[0], p[1], n[0], n[1], held.contains(n[0], n[1])).finishes()) {
+                finishing++;
+                if (first == null)
+                    first = d;
+            }
+        }
+        check(finishing == 9 && held.contains(landing(rival, first)[0], landing(rival, first)[1]),
+                "fixture: not every landing finishes, or no body on the first finishing landing");
+        final Direction fastest = fastestLanding(g, rival, held);
+        check(fastest != null && fastest != first, "fixture: ranking the landings takes the first finishing one");
+        final Direction twin = twin(g, rival, held);
+        check(twin == first, "the twin took " + twin + ", not " + first + ", the first finishing landing"
+                + (twin == fastest ? " (ranked as an ordinary landing)" : ""));
+        return "the twin takes the first finishing landing " + twin + ", on a body, where ranking takes " + fastest;
+    }
+
+    /** Round 341: the Circle with player 1 deciding at rest on the bottom straight, past CP1 (its world has no
+     *  grid) and owing CP2; player 2, the twin's rival, at (x, y) with velocity (vx, vy) on {@code lap} owing
+     *  {@code gate}; then {@code others}. Player 1's slot is to move, and its decision frame is prepared, so
+     *  every expected value is computed in the world the twin plays in. */
+    private static Player twinField(final RaceGame g, final int x, final int y, final int vx, final int vy,
+            final int lap, final int gate, final Player... others) throws Exception {
+        final Player mover = car(1, 48, 88, 0, 0), rival = car(2, x, y, vx, vy);
+        mover.setNextGate(2); mover.leaveGrid();
+        rival.setLap(lap); rival.setNextGate(gate); rival.leaveGrid();
+        final Player[] players = new Player[2 + others.length];
+        players[0] = mover; players[1] = rival;
+        System.arraycopy(others, 0, players, 2, others.length);
+        g.players = players;
+        g.subgamestate = 0;
+        decisionFrame(g);
+        check(!g.aiGridLegal, "fixture: player 1's frame models the grid, though it is past CP1");
+        return rival;
+    }
+
+    /** Round 341: player 1's decision frame (every car's lap frame, the race's potential), then the twin's move
+     *  for {@code rival} against {@code occupied}. */
+    private static Direction twin(final RaceGame g, final Player rival, final RaceAi.CellOccupancy occupied)
+            throws Exception {
+        decisionFrame(g);
+        final Method twin = RaceAi.class.getDeclaredMethod("pureMinTurnsMoveSim", int.class, int[].class, int[].class,
+                RaceAi.CellOccupancy.class);
+        twin.setAccessible(true);
+        return (Direction) twin.invoke(g.ai, rival.getNumber() - 1, rival.getPosition().clone(),
+                rival.getVelocity().clone(), occupied);
+    }
+
+    private static void decisionFrame(final RaceGame g) throws Exception {
+        final Method frame = RaceAi.class.getDeclaredMethod("prepareDecisionFrame", int[].class, int[].class,
+                int.class);
+        frame.setAccessible(true);
+        final Player mover = g.players[0];
+        frame.invoke(g.ai, mover.getPosition(), mover.getVelocity(), mover.getNumber());
+    }
+
+    /** Round 341: where the score's simulated round puts {@code rival}: player 1's round with its candidate on
+     *  its own cell, read inside the rival's nine landings (perf_refround's window). */
+    private static int[] roundLanding(final RaceGame g, final Player rival) throws Exception {
+        decisionFrame(g);
+        final Class<?> type = Class.forName("tr.logic.RaceAi$TwoRoundWorkspace");
+        final Method workspace = RaceAi.class.getDeclaredMethod("twoRoundWorkspace");
+        workspace.setAccessible(true);
+        final Method round = RaceAi.class.getDeclaredMethod("simulateTwoRounds", type, int.class, int.class, int.class,
+                boolean.class, int.class, int.class, int.class, int.class);
+        round.setAccessible(true);
+        final int[] p = rival.getPosition(), v = rival.getVelocity(), m = g.players[0].getPosition();
+        final int cx = p[0] + v[0], cy = p[1] + v[1];
+        final RaceAi.CellOccupancy cells = (RaceAi.CellOccupancy) get(round.invoke(g.ai, workspace.invoke(g.ai),
+                g.players[0].getNumber(), m[0], m[1], true, cx - 1, cy - 1, cx + 1, cy + 1), "world1Occupancy");
+        int[] landed = null;
+        for (final Direction d : Direction.values())
+            if (cells.contains(cx + d.dx, cy + d.dy)) {
+                check(landed == null, "the simulated round holds two of the rival's landings");
+                landed = new int[]{cx + d.dx, cy + d.dy};
+            }
+        return landed;
+    }
+
+    private static RaceAi.CellOccupancy cells(final RaceGame g) {
+        return new RaceAi.CellOccupancy(g.gameCols + 1, g.gameRows + 1);
+    }
+
+    private static int[] landing(final Player p, final Direction d) {
+        final int[] pos = p.getPosition(), vel = p.getVelocity();
+        return new int[]{pos[0] + vel[0] + d.dx, pos[1] + vel[1] + d.dy};
+    }
+
+    /** The referee's transition for {@code p}'s move {@code d} onto a free landing, in the AI's grid world. */
+    private static RaceGame.MoveResult referee(final RaceGame g, final Player p, final Direction d) {
+        final int[] pos = p.getPosition(), n = landing(p, d);
+        return g.evaluateMove(p.getLap(), p.getNextGate(), pos[0], pos[1], n[0], n[1], false);
+    }
+
+    /** Can the twin move {@code p} by {@code d}: in the AI's speed range, legal in its world and free? */
+    private static boolean freeLegal(final RaceGame g, final Player p, final Direction d,
+            final RaceAi.CellOccupancy occupied) {
+        final int[] pos = p.getPosition(), vel = p.getVelocity(), n = landing(p, d);
+        return !RaceGame.aiVelocityOutOfRange(vel[0] + d.dx, vel[1] + d.dy)
+                && g.aiMoveLegal(pos[0], pos[1], n[0], n[1]) && !occupied.contains(n[0], n[1]);
+    }
+
+    /** The exact distance at {@code p}'s landing by {@code d}, the gate credit the referee gives the move paid. */
+    private static int turnsAfter(final RaceGame g, final Player p, final Direction d) {
+        final RaceGame.MoveResult move = referee(g, p, d);
+        check(move.legal(), "fixture: the referee refuses " + d + ", a landing legal in the AI's world");
+        final int[] n = landing(p, d), vel = p.getVelocity();
+        return move.finishes() ? 0 : g.optimalPotential().movesToFinish(
+                OptimalPotential.remainingEvents(move.gateAfter(), move.lapAfter(), g.totalLaps),
+                n[0], n[1], vel[0] + d.dx, vel[1] + d.dy);
+    }
+
+    /** The fastest of {@code p}'s free legal landings by turnsAfter, the first in Direction order on a tie. */
+    private static Direction fastestLanding(final RaceGame g, final Player p, final RaceAi.CellOccupancy occupied) {
+        Direction best = null;
+        int bestTurns = Integer.MAX_VALUE;
+        for (final Direction d : Direction.values())
+            if (freeLegal(g, p, d, occupied) && turnsAfter(g, p, d) < bestTurns) {
+                bestTurns = turnsAfter(g, p, d);
+                best = d;
+            }
+        return best;
+    }
+
+    /** The free legal landings of {@code p} that tie for the fewest turnsAfter, in Direction order. */
+    private static String fastestLandings(final RaceGame g, final Player p, final RaceAi.CellOccupancy occupied) {
+        final int best = turnsAfter(g, p, fastestLanding(g, p, occupied));
+        final java.util.List<String> names = new java.util.ArrayList<>();
+        for (final Direction d : Direction.values())
+            if (freeLegal(g, p, d, occupied) && turnsAfter(g, p, d) == best)
+                names.add(d.toString());
+        return String.join(", ", names);
+    }
+
+    /** The landing the gate maps alone rank first -- the turns to {@code p}'s next gate, which a crossing or
+     *  touch restarts -- the first in Direction order on a tie. */
+    private static Direction gateMapFastest(final RaceGame g, final Player p, final RaceAi.CellOccupancy occupied) {
+        Direction best = null;
+        int bestTurns = Integer.MAX_VALUE;
+        for (final Direction d : Direction.values()) {
+            final int[] n = landing(p, d), vel = p.getVelocity();
+            final int turns = freeLegal(g, p, d, occupied)
+                    ? g.reach.turnsToGate(p.getNextGate(), n[0], n[1], vel[0] + d.dx, vel[1] + d.dy)
+                    : Integer.MAX_VALUE;
+            if (turns < bestTurns) {
+                bestTurns = turns;
+                best = d;
+            }
+        }
+        return best;
+    }
+
+    /** Round 224's S/F precedence: {@code p}'s first move in Direction order that crosses the line with a legal
+     *  run-up onto a free legal landing that sheds its speed and can still reach CP1. */
+    private static Direction firstPermittedCrossing(final RaceGame g, final Player p,
+            final RaceAi.CellOccupancy occupied) {
+        final int[] pos = p.getPosition(), vel = p.getVelocity();
+        for (final Direction d : Direction.values()) {
+            final int[] n = landing(p, d);
+            final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+            if (g.crossesFinishLegally(pos[0], pos[1], n[0], n[1]) && freeLegal(g, p, d, occupied)
+                    && g.reach.shedableLanding(n[0], n[1], nvx, nvy)
+                    && g.reach.turnsToGate(1, n[0], n[1], nvx, nvy) != Integer.MAX_VALUE)
+                return d;
+        }
+        return null;
+    }
+
+    /** Round 224's checkpoint precedence: {@code p}'s first move in Direction order that touches its next
+     *  checkpoint onto a free legal landing that is alive and can still reach the gate after it. */
+    private static Direction firstPermittedTouch(final RaceGame g, final Player p,
+            final RaceAi.CellOccupancy occupied) {
+        final int[] pos = p.getPosition(), vel = p.getVelocity();
+        final int gate = p.getNextGate();
+        for (final Direction d : Direction.values()) {
+            final int[] n = landing(p, d);
+            final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
+            if (g.touchesGate(gate, pos[0], pos[1], n[0], n[1]) && freeLegal(g, p, d, occupied)
+                    && g.reach.isAlive(n[0], n[1], nvx, nvy)
+                    && g.reach.turnsToGate(gate == 1 ? 2 : 0, n[0], n[1], nvx, nvy) != Integer.MAX_VALUE)
+                return d;
+        }
+        return null;
     }
 
     private static RaceGame circle() throws Exception {

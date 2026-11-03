@@ -70,7 +70,8 @@ EXACT_MOVES = {
     # the same seven finishers in the same order, p7 home one move earlier, on its 71st (on its 72nd since round 333),
     # and p8 still the car running at the end, after 70 moves (71 before); no crash, one move fewer (483 -> 482) --
     # the list of rounds 303 and 330 again -- and the ceiling above keeps its value.
-    ("lemans", 3): [66, 67, 68, 69, 70, 71, 71],
+    # Round 341: re-frozen from measurement (the score's rival twin plays the rival's own gate rules).
+    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);

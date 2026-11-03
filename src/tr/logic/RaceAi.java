@@ -2312,13 +2312,28 @@ final class RaceAi {
 
 	/** {@link #pureMinTurnsMove} against an exact counted simulated occupancy
 	 *  instead of the live player positions; used by
-	 *  {@link #simulateRoundPass}. */
+	 *  {@link #simulateRoundPass}. Round 341: where the exact potential prices the
+	 *  gates a crossing or a touch is an ordinary landing, a finish apart, as round
+	 *  336 made them in the car's own decision. */
 	private Direction pureMinTurnsMoveSim(final int idx, final int[] pos, final int[] vel,
 			final CellOccupancy occupied) {
 		Direction best = null;
 		int bestTurns = Integer.MAX_VALUE;
 		int fallbackLegalMask = 0;
 		final int sm = succMask(pos[0], pos[1], vel[0], vel[1]);
+		// Round 341: the score's rival twin plays the rival's own gate rules. Where the exact potential
+		// prices the gates (round 336's gatesPriced) a lap-scoring S/F crossing and a checkpoint touch
+		// are ordinary landings, ranked by ttfForAfter, which pays the move's gate events (round 296);
+		// a finish keeps its precedence. Before, the twin took the first permitted crossing or touch in
+		// Direction order over every other landing: round 224's copies of the precedences round 336
+		// removed from the car's own decision wherever the potential prices the gates. Measured as arm
+		// 360's gate part against the speed-round-3 champion: eight-car fields -0.001 +- 0.011 places
+		// on random starts, -0.009 +- 0.008 computed and +0.001 +- 0.001 scattered (seeds 1-10); -0.008
+		// +- 0.008 as a lone entrant (random starts, seeds 1-5); four-car fields +0.001 +- 0.001 and
+		// duels +0.000 (random starts, seeds 1-20); ported onto round 340, against its champion,
+		// eight-car fields -0.018 +- 0.009 computed. No slice reads a loss beyond one standard error;
+		// CPU 1.00x with every car on the rule (the port against round 340).
+		final boolean gatesPriced = exactPot != null && game.lapGates != null;
 		for (final Direction d : DIRECTIONS) {
 			final int bit = 1 << d.ordinal();
 			final int newVx = vel[0] + d.dx;
@@ -2330,14 +2345,16 @@ final class RaceAi {
 			if (finishesFor(idx, pos[0], pos[1], newX, newY))
 				return d; // round 296: CP2 on the way included
 			// perf_aisearch (exact): the precedence below needs !frameLapAware[idx] or
-			// frameGate[idx] == 0, so only that frame asks for the crossing.
-			if ((!frameLapAware[idx] || frameGate[idx] == 0)
+			// frameGate[idx] == 0, so only that frame asks for the crossing; where the
+			// exact potential prices the gates only the final lap's, a finish (round 341).
+			if ((!frameLapAware[idx] || frameGate[idx] == 0 && !gatesPriced)
 					&& game.crossesFinishLegally(pos[0], pos[1], newX, newY)) {
 				// Round 224: the twin's precedence, in this car's own frame. A
 				// crossing ends the race only on the final lap with nothing owed;
-				// a lap-scoring one must be survivable (legal edge, no simulated
-				// body, a shedable landing that can still reach CP1). Anything
-				// else is an ordinary move and falls through to the pace compare.
+				// a lap-scoring one, where the gate maps price the race (round
+				// 341), must be survivable (legal edge, no simulated body, a
+				// shedable landing that can still reach CP1). Anything else is an
+				// ordinary move and falls through to the pace compare.
 				if (!frameLapAware[idx]
 					|| frameGate[idx] == 0 && (sm & bit) != 0
 						&& !occupied.contains(newX, newY)
@@ -2346,8 +2363,9 @@ final class RaceAi {
 					return d;
 			}
 			// Round 224: the twin's checkpoint precedence -- a touch with a
-			// continuing landing is progress the gate map cannot price.
-			if (frameLapAware[idx] && frameGate[idx] != 0 && (sm & bit) != 0
+			// continuing landing is progress the gate map cannot price. Since
+			// round 341 only where no exact potential prices the gates.
+			if (!gatesPriced && frameLapAware[idx] && frameGate[idx] != 0 && (sm & bit) != 0
 				&& game.touchesGate(frameGate[idx], pos[0], pos[1], newX, newY)
 				&& !occupied.contains(newX, newY)
 				&& reach.isAlive(newX, newY, newVx, newVy)

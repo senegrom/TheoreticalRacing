@@ -1,5 +1,72 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 341 promoted (2026-11-03): the score's rival twin plays the rival's own gate rules
+
+A correctness fix, the gate part of arm 360 (the racecraft-ideas workflow of 2026-11-01,
+E:/tmp-claude/ideas338/racecraft_ideas.md section 2.2). The score reads one simulated round: its cells set the +3.0
+price on a successor cell that a simulated rival holds and the plateau count, and feed the timed safe-successor count
+behind the trap ladder and queueBox. That round moves every rival but a human above the AI speed cap (round 340) by
+its twin, pureMinTurnsMoveSim. Round 336 made a lap-scoring S/F crossing and a checkpoint touch ordinary landings in
+the car's own decision wherever the exact potential prices the gates; the twin kept round 224's copies of the old
+precedences, taking the first permitted crossing or touch in Direction order over every other landing. Now, where the
+exact potential prices the gates (exactPot != null && game.lapGates != null), the twin ranks a crossing and a touch
+by ttfForAfter like any other landing, and a finish keeps its precedence. The Nordschleife (no potential) and
+point-to-point courses (no lap gates) race as before. The arm gated the rule on the predicting car being a candidate
+and widened simMove's memo key by that bit; with every car a candidate that plumbing collapses to the ungated rule,
+and the key needs no new bit, since every car plays the one twin. Only src/tr/logic/RaceAi.java changes (the browser
+build copies it byte for byte), with SimulationFollowupTests' new test.
+
+The owner, 2026-11-01: arm 360 ships as a correctness fix once the fleet shows no loss ("Yes"). Arm 360 as a whole
+lost in four-car fields (+0.021 +- 0.009) and on scattered starts (+0.004 +- 0.002); split, its score part
+(twinscore) carried the four-car loss (+0.015 +- 0.009) and was closed. The gate part alone, measured as a360gate
+against the speed-round-3 champion, mirrored (boards favouring candidate / champion / tied; crashes
+candidate:champion):
+
+| Slice | a360gate |
+|---|---|
+| 8 cars, random starts, seeds 1-10 | -0.001 +- 0.011 (24/27/33; 51:49) |
+| 8 cars, computed starts, seeds 1-10 | -0.009 +- 0.008 (23/17/44; 41:44) |
+| 8 cars, scattered starts, seeds 1-10 | +0.001 +- 0.001 (1/3/80; 8:8) |
+| Lone candidate (8 cars, every seat, random starts, seeds 1-5) | -0.008 +- 0.008 (25/19/40; 21:22) |
+| 4 cars, random starts, seeds 1-20 | +0.001 +- 0.001 (4/4/76; 8:8) |
+| Duels, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 204:199) |
+| Ported onto round 340 (a360g340, against the round-340 champion): 8 cars, computed starts, seeds 1-10 | -0.018 +- 0.009 (23/20/41; 37:26) |
+
+- The port onto round 340 (E:/tmp-claude/arm360_twin_on340.py, whose one change is the simMove call that round 340
+  made a branch) raced exactly as the champion with no candidate: 8 cars on random (4 races), computed (4) and
+  scattered (3) starts, 4 cars (3) and duels (3). In check mode with every slot a candidate it printed no PERF-AWARE
+  line. With every slot a candidate one of six random-start races differed (Interlagos s10) and none of three on
+  computed starts, at 1.008x and 0.984x the champion's CPU.
+- The promoted twin, every car on the rule, raced exactly as the port with every slot a candidate: 8 cars on random
+  starts (8 races, Interlagos s10 among them, the race the rule changed in the port's checks), computed (6) and
+  scattered (4) starts, 4 cars on random (8) and computed (4) starts, and duels on random (8) and computed (4)
+  starts, the Nordschleife in both duel sets; CPU 0.97x to 1.02x. Check mode printed no PERF-AWARE line (8 cars, 4
+  cars with the Nordschleife, duels).
+- Unit test: SimulationFollowupTests.testTwinGates ("twingates"), on the two-lap Circle with player 1 deciding. (a) A
+  rival owing the S/F line on its first lap, every landing a crossing, the first permitted crossing (NW, 40 moves)
+  slower than the fastest landings (S and SE, 36): the twin takes one of the fastest, and the score's simulated round
+  puts it there. (b) A rival owing CP1, every landing a touch, the first permitted touch (NW, 61) slower than the
+  fastest (W and SW, 59): likewise. (c) With the exact potential capped (tr.optimalBuildBytes=0, the Nordschleife's
+  path) the old precedences still decide. (d) On the final lap the first finishing landing still wins, though a car
+  stands on it. The fastest and finishing landings come from the referee's transition and the exact potential, the
+  first permitted ones from round 224's conditions restated over the reach maps; none come from the twin. On round
+  340 (a) and (b) fail; reverting either condition alone fails its own part, ignoring the potential fails (c),
+  dropping the finish precedence fails (d), and a change of the twin's tie-break passes.
+- Corpus re-frozen from measurement (the box's corpus job). Goldens: 3 of 12 change their trajectory digest with
+  every summary unchanged (lemans-s4-8p, interlagos-s10-8p, lemans-s1-4p). Pins: 7 of 25, six by the box loop --
+  energy pace (Nurburgring s1), fast funnel (mixed Le Mans s36, back to the place sums 20 and 16 that round 336
+  moved), field neutral (Cog s1), staged pace (Le Mans s3), private slack (Le Mans s2, Monza s30 and s145) and
+  bounded uncertain field (Le Mans s29, still six finishers and p8's crash on its 38th move, s87 and s14) -- and the
+  mixed-safety pin by hand, with an independent check against the race logs: Le Mans s7 moves one place back between
+  the halves (AI1 13 to 14, AI2 23 to 22, the sums round 301a' set) and Gear s1 three (AI1 13 to 10, AI2 23 to 26:
+  the first four grid slots finish first to fourth again), seven finishers and no crash in both. The browser parity
+  race (informed Hairpin s1, a19e2b09) and the browser e2e Hairpin (33 turns) do not move.
+- Box verify on the round-341 tree: every pin, the goldens, headless smoke, query replay, lap progress and compileall
+  pass (30/30); the Python unit tests pass (104), after the fleet grid's Ctrl+C resume test failed once under the
+  box's load again and passed on three solo and two full re-runs. The Java suite and the local browser build pass.
+  The text review's comment fixes grew RaceAi.java's Round 341 comment by one line: the committed tree's jar is javap
+  code-identical to the verified one.
+
 ## Round 340 promoted (2026-11-03): a human rival above the AI speed cap sheds its excess speed in the AI's models
 
 A correctness fix, found by the racecraft-ideas workflow of 2026-11-01 (E:/tmp-claude/ideas338/racecraft_ideas.md,
