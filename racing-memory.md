@@ -1,5 +1,47 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 340 promoted (2026-11-03): a human rival above the AI speed cap sheds its excess speed in the AI's models
+
+A correctness fix, found by the racecraft-ideas workflow of 2026-11-01 (E:/tmp-claude/ideas338/racecraft_ideas.md,
+section 2.5). Only an AI move is capped (RaceGame.AI_MAX_SPEED, 12 per axis); a human may take any of its nine
+accelerations. No map holds a state above the cap: the exact potential and the reachability maps answer
+Integer.MAX_VALUE there, so such a rival had no projection while above the cap (ppPlaceKey counts a rival never
+projected behind the mover), and a policy takes only accelerations that land within the cap, so from two above the
+cap it found none, and optimalMoveAI1's last resort coasted the rival into the first wall its forecast met, where it
+was retired. Now a human above the cap is projected by shedTurns, the fewest moves that brake every axis above the
+cap by one a move, the other kept within it, on legal landings of the free track until it is back in the cap, plus
+the exact distance from there in its frame after those moves; a finish at any of its nine accelerations ends it at
+once. A projected-place forecast reads it at its start and after each of the rival's forecast moves. In a forecast
+the rival takes the braking move to a legal, free landing with the fewest shedTurns from there (a finishing move
+first; without a braking move, its physical continuation, as for any car its model leaves without a move), and the
+score's simulated round, where simMove found no move from two above the cap and left the car on its cell, makes the
+same choice on the round's cells: the car moves where the whole segment is legal (aiMoveLegal), and otherwise, or
+without a move, keeps its cell. Back in the cap it follows its model. The gate is the car's kind, never its speed: an
+AI car above the cap is only ever a forecast's model, and it keeps that model, so no race of AI cars changes. Only
+src/tr/logic/RaceAi.java changes (the browser build copies it byte for byte), with SimulationFollowupTests' new test.
+
+The owner, 2026-11-01: the fix ships on identical AI races plus a unit test ("Yes").
+
+- Measured as arm 363 (E:/tmp-claude/arm363_humancap.py, kind-gated) against the speed-round-3 champion: every race
+  of AI cars identical, 12 races each of 8 cars on random and on computed starts, 4 cars and duels (CPU 1.008x,
+  1.010x, 1.029x, 0.998x); check mode printed no PERF-AWARE line.
+- The promoted fix on round 339's tree (the classes of RaceAi.java javap code-identical to the arm's, every other
+  class byte-identical to round 339's) raced exactly as round 339 in every race of AI cars: 12 races each of 8 cars
+  on random, computed and scattered starts, 4 cars and duels (CPU 1.008x, 1.011x, 1.014x, 1.002x, 0.997x); check mode
+  printed no PERF-AWARE line.
+- Unit test: SimulationFollowupTests.testHumanAboveCap. A human at speed (14,0) one cell ahead of an AI mover, on a
+  straight whose lower half alone runs on past a step: it is projected by its two braking moves and the exact
+  distance (against a brute force over the nine braking paths), alive at the end of a five-round projected-place
+  forecast and projected ahead of the mover; in one-round forecasts, which end with it still above the cap, it is
+  projected by shedTurns after its one shedding move and, first in the move order, at the forecast's start; the
+  score's simulated round brakes it. An AI1 car in the same state keeps the old model. The test fails on the
+  round-339 champion: the human is retired by a phantom crash.
+- --auto refuses a race with a human player, so no fleet or pin race takes a new branch. Box verify on the round-340
+  tree: every pin, the goldens, headless smoke, query replay, lap progress and compileall pass (30/30); the Python
+  unit tests pass (104), after the fleet grid's Ctrl+C resume test failed once under the box's load again and passed
+  on three solo and two full re-runs. The Java suite and the local browser build pass. The text review's two comment
+  fixes grew a doc by one line: the committed tree's jar is javap code-identical to the verified one.
+
 ## Round 339 promoted (2026-11-03): a car taking its computed start also considers where the cars after it may place
 
 The owner, 2026-11-01: "yes. Cars should also consider where other cars may place." The owner's go, 2026-11-02: "Yes,

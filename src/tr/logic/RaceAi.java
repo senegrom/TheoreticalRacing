@@ -2624,8 +2624,11 @@ final class RaceAi {
 				blockedOccupancy.remove(current[0], current[1]);
 				final int[] velocity = simulatedVelocity[idx];
 				// perf_aisearch (exact): the move and its succMask bit -- velocity in range
-				// and aiMoveLegal, the very tests made here -- memoised (simMove).
-				final int code = simMove(idx, current, velocity, blockedOccupancy, table);
+				// and aiMoveLegal, the very tests made here -- memoised (simMove). Round 340:
+				// a human above the cap sheds its excess speed, as in a forecast (shedCode).
+				final int code = humanAboveCap(p, velocity[0], velocity[1])
+						? shedCode(p, current, velocity, blockedOccupancy)
+						: simMove(idx, current, velocity, blockedOccupancy, table);
 				int nx = current[0];
 				int ny = current[1];
 				if (code != SIM_MOVE_NONE) {
@@ -3647,6 +3650,152 @@ final class RaceAi {
 		return found;
 	}
 
+	/** Round 340: is this car a human above the AI speed cap? Only an AI move is capped
+	 *  (RaceGame.AI_MAX_SPEED); a human may take any of its nine accelerations, as RaceAiTactics counts
+	 *  them. No map holds a state above the cap, so the exact distance has no value there, and a policy
+	 *  takes only accelerations that land within it: from two above it finds none, and optimalMoveAI1's
+	 *  last resort is NONE, a coast into the first wall. The gate is the car's kind, never its speed:
+	 *  an AI car above the cap is only ever a forecast's model (physicalMoveOverState has no cap), and
+	 *  it keeps that model, so a race of AI cars runs as it did. Measured: every race of AI cars
+	 *  identical to the round-339 champion's (12 races each of 8 cars on random, computed and scattered
+	 *  starts, 4 cars and duels; CPU 1.00x to 1.01x); SimulationFollowupTests.testHumanAboveCap fails
+	 *  on that champion. */
+	private static boolean humanAboveCap(final Player car, final int vx, final int vy) {
+		return RaceGame.aiVelocityOutOfRange(vx, vy) && !car.isAi();
+	}
+
+	/** Round 340: does acceleration {@code d} brake every axis of (vx, vy) above the cap by one and
+	 *  keep every other axis within it? */
+	private static boolean sheds(final int vx, final int vy, final Direction d) {
+		return shedsAxis(vx, d.dx) && shedsAxis(vy, d.dy);
+	}
+
+	private static boolean shedsAxis(final int v, final int dv) {
+		final int max = RaceGame.AI_MAX_SPEED;
+		return v > max ? dv == -1 : v < -max ? dv == 1 : v + dv >= -max && v + dv <= max;
+	}
+
+	/** Round 340: a state of shedTurns' search -- the frame (laps done, next gate) and the car -- and
+	 *  the key of its memo. */
+	private record ShedState(int lap, int gate, int x, int y, int vx, int vy) {}
+
+	/** Round 340: the moves a human above the cap (humanAboveCap) needs by ttfFor's measure: to the
+	 *  finish, or to the next gate where only the gate maps price the race. It brakes every axis above
+	 *  the cap by one a move and keeps the other within it (sheds), on legal landings of the free
+	 *  track, until it is back in the cap; from that state on it is the exact distance in its frame
+	 *  after those moves (frameTurns). A finish at any of its nine accelerations ends it at once. The
+	 *  fewest over every such path; Integer.MAX_VALUE where none finishes. {@code lap} and {@code gate}
+	 *  are its frame: laps done and the next gate (0 without lap gates). */
+	private int shedTurns(final int lap, final int gate, final int x, final int y, final int vx,
+			final int vy) {
+		return shedTurns(lap, gate, x, y, vx, vy, new java.util.HashMap<>());
+	}
+
+	/** shedTurns with the memo of one search: a state's moves depend on the state alone, and paths
+	 *  through different speeds meet on it again. */
+	private int shedTurns(final int lap, final int gate, final int x, final int y, final int vx,
+			final int vy, final java.util.HashMap<ShedState, Integer> memo) {
+		if (!RaceGame.aiVelocityOutOfRange(vx, vy))
+			return frameTurns(lap, gate, x, y, vx, vy);
+		final ShedState state = new ShedState(lap, gate, x, y, vx, vy);
+		final Integer known = memo.get(state);
+		if (known != null)
+			return known;
+		int best = Integer.MAX_VALUE;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			final int nx = x + nvx, ny = y + nvy;
+			final boolean brake = sheds(vx, vy, d);
+			// Only a move across the line can finish.
+			if (!brake && !game.crossesFinish(x, y, nx, ny))
+				continue;
+			final RaceGame.MoveResult move = game.evaluateMove(lap, gate, x, y, nx, ny, false);
+			if (move.finishes()) {
+				best = 1;
+				break;
+			}
+			if (!brake || !move.legal())
+				continue;
+			final int rest = shedTurns(move.lapAfter(), move.gateAfter(), nx, ny, nvx, nvy, memo);
+			if (rest != Integer.MAX_VALUE && rest + 1 < best)
+				best = rest + 1;
+		}
+		memo.put(state, best);
+		return best;
+	}
+
+	/** Round 340: ttfFor in a frame given as laps done and next gate, by recordPlayerFrames' and
+	 *  updateRolloutFrame's formulas. */
+	private int frameTurns(final int lap, final int gate, final int x, final int y, final int vx,
+			final int vy) {
+		if (exactPot != null)
+			return exactPot.movesToFinish(OptimalPotential.remainingEvents(gate, lap, game.totalLaps),
+					x, y, vx, vy);
+		if (lap + 1 >= game.totalLaps && gate == 0)
+			return reach.turnsToFinish(x, y, vx, vy);
+		return reach.turnsToGate(gate, x, y, vx, vy);
+	}
+
+	/** Round 340: a human above the cap's move in a model of the race: a finish at any of its nine
+	 *  accelerations, else the braking move (sheds) to a legal, free landing with the fewest
+	 *  shedTurns from there, the first in Direction order on a tie; null when there is none. A landing
+	 *  is free of the cells {@code held} holds or, with {@code held} null, of every live car of the
+	 *  board (px, py, alive) but car {@code self}. The move is the best of the free landings, so a
+	 *  blocker on a landing it does not take leaves it as it is. */
+	private Direction shedMove(final int lap, final int gate, final int x, final int y, final int vx,
+			final int vy, final CellOccupancy held, final int self, final int[] px, final int[] py,
+			final boolean[] alive) {
+		final java.util.HashMap<ShedState, Integer> memo = new java.util.HashMap<>();
+		Direction best = null;
+		int bestTurns = Integer.MAX_VALUE;
+		for (final Direction d : DIRECTIONS) {
+			final int nvx = vx + d.dx, nvy = vy + d.dy;
+			final int nx = x + nvx, ny = y + nvy;
+			final boolean brake = sheds(vx, vy, d);
+			if (!brake && !game.crossesFinish(x, y, nx, ny))
+				continue;
+			final RaceGame.MoveResult move = game.evaluateMove(lap, gate, x, y, nx, ny,
+					held != null ? held.contains(nx, ny) : occupiedByOther(nx, ny, self, px, py, alive));
+			if (move.finishes())
+				return d;
+			if (!brake || !move.legal())
+				continue;
+			final int turns = shedTurns(move.lapAfter(), move.gateAfter(), nx, ny, nvx, nvy, memo);
+			if (best == null || turns < bestTurns) {
+				best = d;
+				bestTurns = turns;
+			}
+		}
+		return best;
+	}
+
+	/** Round 340: a human above the cap's forecast move -- shedMove on the forecast's board, in the
+	 *  car's frame there; back in the cap it follows its model like every car. False when no
+	 *  acceleration finishes and no braking move has a legal, free landing: the forecast then takes its
+	 *  physical continuation, as for any car its model leaves without a move. */
+	private boolean shedMoveOverState(final int i, final int[] px, final int[] py, final int[] vx,
+			final int[] vy, final boolean[] alive, final int[] out, final RolloutWorkspace rollout) {
+		final Direction d = shedMove(rollout.laps[i], rollout.gates[i], px[i], py[i], vx[i], vy[i], null,
+				i, px, py, alive);
+		if (d == null)
+			return false;
+		final int nvx = vx[i] + d.dx, nvy = vy[i] + d.dy;
+		return writeMove(out, px[i] + nvx, py[i] + nvy, nvx, nvy);
+	}
+
+	/** Round 340: simMove's code for a human above the cap in the simulated round: shedMove's move on
+	 *  the round's cells, in the car's frame, with SIM_MOVE_LEGAL where its whole segment is legal
+	 *  (aiMoveLegal), the test simMoveCompute reads from succMask; SIM_MOVE_NONE without a move. */
+	private int shedCode(final Player car, final int[] position, final int[] velocity,
+			final CellOccupancy held) {
+		final Direction d = shedMove(car.getLap(), game.lapGates == null ? 0 : car.getNextGate(),
+				position[0], position[1], velocity[0], velocity[1], held, -1, null, null, null);
+		if (d == null)
+			return SIM_MOVE_NONE;
+		final int nx = position[0] + velocity[0] + d.dx, ny = position[1] + velocity[1] + d.dy;
+		return game.aiMoveLegal(position[0], position[1], nx, ny) ? d.ordinal() | SIM_MOVE_LEGAL : d.ordinal();
+	}
+
 	/** Disjoint storage for every active rollout, including suppressed nested
 	 * scorers. Parent proof vectors and progress ledgers remain live. */
 	private RolloutWorkspace rolloutWorkspace() {
@@ -3887,10 +4036,11 @@ final class RaceAi {
 	/** Round 316: the rank-first place key with projected place. Rivals FINISHED ahead
 	 *  dominate, n strides each, so fewer of them always ranks better; then one stride for every
 	 *  rival projected to finish before the mover -- arrival[i] is the round of its projected
-	 *  finishing move, from its exact distance after its last forecast move, ties to the earlier
-	 *  slot. A rival whose forecast crashed keeps its last projection (a model's crash is no win);
-	 *  one never projected counts behind; when the mover has finished (myDone), a rival still
-	 *  racing is behind. myRound is the mover's finishing round, projected when !myDone. */
+	 *  finishing move, from its exact distance after its last forecast move (round 340: a human
+	 *  above the AI cap, from shedTurns), ties to the earlier slot. A rival whose forecast crashed
+	 *  keeps its last projection (a model's crash is no win); one never projected counts behind;
+	 *  when the mover has finished (myDone), a rival still racing is behind. myRound is the
+	 *  mover's finishing round, projected when !myDone. */
 	private static long ppPlaceKey(final int myIdx, final int finishedAhead, final boolean myDone,
 			final long myRound, final long time, final boolean[] alive, final int[] arrival) {
 		final int n = arrival.length;
@@ -4103,7 +4253,8 @@ final class RaceAi {
 		vx[myIdx] = myVx;
 		vy[myIdx] = myVy;
 		// Round 316: in a projected-place forecast, each live rival's projected finishing
-		// round, from its exact distance in its own frame.
+		// round, from its exact distance in its own frame. Round 340: a human above the cap,
+		// from the moves it needs to shed the excess and the exact distance after them.
 		final boolean pp = simDepth == ppDepth;
 		final int[] arrival = workspace.ppArrival;
 		int ppMyRound = 0;
@@ -4112,7 +4263,9 @@ final class RaceAi {
 				arrival[i] = PP_UNDEF;
 				if (i == myIdx || !alive[i])
 					continue;
-				final int t = ttfFor(i, px[i], py[i], vx[i], vy[i]);
+				final int t = humanAboveCap(game.players[i], vx[i], vy[i])
+						? shedTurns(workspace.laps[i], workspace.gates[i], px[i], py[i], vx[i], vy[i])
+						: ttfFor(i, px[i], py[i], vx[i], vy[i]);
 				if (t != Integer.MAX_VALUE)
 					arrival[i] = i > game.subgamestate ? t - 1 : t;
 			}
@@ -4329,8 +4482,11 @@ final class RaceAi {
 				// Round 51: my car follows the trap-aware policy. Round 57:
 				// rivals use the score-shaped ttf + trap proxy; selected close
 				// rivals instead use their recursion-guarded real scorer.
+				// Round 340: a human above the cap first sheds its excess speed.
 				boolean moved;
-				if (awareSelfLeft > 0 && i == myIdx) {
+				if (humanAboveCap(game.players[i], vx[i], vy[i]))
+					moved = shedMoveOverState(i, px, py, vx, vy, alive, move, workspace);
+				else if (awareSelfLeft > 0 && i == myIdx) {
 					awareSelfLeft--;
 					moved = awareMoveOverState(i, px, py, vx, vy, alive, move, workspace);
 				} else if (awareRivalLeft > 0 && i == awareRivalIdx) {
@@ -4439,7 +4595,9 @@ final class RaceAi {
 					if (i == myIdx)
 						ppMyRound = round;
 					else {
-						final int t = ttfFor(i, move[0], move[1], move[2], move[3]);
+						final int t = humanAboveCap(game.players[i], move[2], move[3]) // round 340
+								? shedTurns(workspace.laps[i], workspace.gates[i], move[0], move[1], move[2], move[3])
+								: ttfFor(i, move[0], move[1], move[2], move[3]);
 						if (t != Integer.MAX_VALUE)
 							arrival[i] = round + t;
 					}

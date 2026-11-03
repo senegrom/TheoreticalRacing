@@ -20,7 +20,9 @@ public final class SimulationFollowupTests {
         if (args.length == 0 || args[0].equals("blockade")) testLegalBlockade();
         if (args.length == 0 || args[0].equals("proxy")) testProxyAbstention();
         if (args.length == 0 || args[0].equals("progress")) testMoverProgress();
-        System.out.println("SimulationFollowupTests: legal blockades, proxy continuations and mover progress OK");
+        if (args.length == 0 || args[0].equals("human")) testHumanAboveCap();
+        System.out.println("SimulationFollowupTests: legal blockades, proxy continuations, mover progress"
+                + " and human rivals above the AI cap OK");
     }
 
     private static void testLegalBlockade() throws Exception {
@@ -104,6 +106,131 @@ public final class SimulationFollowupTests {
         straight.players[1] = car(2, 30, 2, 0, -4);
         check(straight.ai.querySimOutcome(0, 1, true, true, false, 1, null) == 0,
                 "genuine retirement did not classify the survivor");
+    }
+
+    /** Round 340: only an AI move is capped, so a human may arrive at v=(14,0), where no map holds a state
+     *  and the AI's policy, which takes only moves that land within the cap, finds none. Its forecast
+     *  sheds the excess speed and projects its arrival from the moves that takes, so it is neither
+     *  retired by a coast into the first wall nor counted behind. An AI car above the cap, only ever a
+     *  forecast's model, keeps its model: the gate is the car's kind. */
+    private static void testHumanAboveCap() throws Exception {
+        for (final Player.Kind kind : new Player.Kind[]{Player.Kind.HUMAN, Player.Kind.AI1}) {
+            final boolean human = kind == Player.Kind.HUMAN;
+            final RaceGame g = capCorridor(kind, false);
+            check(g.evaluateMove(0, 0, 129, 10, 143, 10, false).legal()
+                    && !g.evaluateMove(0, 0, 143, 10, 157, 10, false).legal(),
+                    "a coast at 14 from x = 101 must meet the step on its fourth move");
+            // Five rounds: the human sheds its excess speed, then races by its scorer.
+            final Forecast five = forecast(g, 0, 1, 5);
+            check(five.verdict() >= 0, "the mover did not survive the forecast: " + five);
+            if (human) {
+                check(five.alive(), "a human above the AI cap was retired by a phantom crash: " + five);
+                check(five.arrival() != Integer.MAX_VALUE && five.arrival() != Integer.MIN_VALUE && five.ahead() == 1,
+                        "a human above the AI cap was not projected ahead of the mover: " + five);
+                // Two braking moves bring it into the cap at x = 126; the exact distance runs from there.
+                int expected = Integer.MAX_VALUE;
+                for (int a1 = -1; a1 <= 1; a1++)
+                    for (int a2 = -1; a2 <= 1; a2++)
+                        if (g.evaluateMove(0, 0, 101, 10, 114, 10 + a1, false).legal()
+                                && g.evaluateMove(0, 0, 114, 10 + a1, 126, 10 + 2 * a1 + a2, false).legal()) {
+                            final int t = g.reach.turnsToFinish(126, 10 + 2 * a1 + a2, 12, a1 + a2);
+                            if (t != Integer.MAX_VALUE) expected = Math.min(expected, 2 + t);
+                        }
+                check(expected != Integer.MAX_VALUE && shedTurns(g, 101, 10, 14, 0) == expected,
+                        "a human above the AI cap was not projected by its braking moves and the exact distance");
+            } else
+                check(!five.alive() && five.arrival() == Integer.MAX_VALUE && five.ahead() == 0,
+                        "an AI car above the cap left its model: the gate is the car's kind, not its speed: " + five);
+            // One round, which its projection alone decides: the human ends it above the cap. Moving after
+            // the mover, it sheds one unit and is projected after that move; first in the move order, it
+            // does not move before the mover's next slot and is projected at the forecast's start.
+            final Forecast after = forecast(g, 0, 1, 1);
+            final RaceGame first = capCorridor(kind, true);
+            final Forecast start = forecast(first, 1, 0, 1);
+            if (human) {
+                check(after.x() == 114 && after.vx() == 13 && after.ahead() == 1
+                        && after.arrival() == shedTurns(g, after.x(), after.y(), after.vx(), after.vy()),
+                        "a human above the AI cap was not projected by shedTurns after its move: " + after);
+                check(start.x() == 101 && start.vx() == 14 && start.ahead() == 1
+                        && start.arrival() == shedTurns(first, 101, 10, 14, 0),
+                        "a human above the AI cap was not projected by shedTurns at the forecast's start: " + start);
+            } else
+                check(after.x() == 115 && after.vx() == 14 && after.arrival() == Integer.MAX_VALUE
+                        && after.ahead() == 0 && start.arrival() == Integer.MAX_VALUE && start.ahead() == 0,
+                        "an AI car above the cap was projected or left its model's coast: " + after + ", " + start);
+            // The score's simulated round: the human brakes onto x = 114; the AI car finds no move
+            // there and keeps its cell.
+            final Method frame = RaceAi.class.getDeclaredMethod("prepareDecisionFrame", int[].class, int[].class,
+                    int.class);
+            frame.setAccessible(true);
+            frame.invoke(g.ai, g.players[0].getPosition(), g.players[0].getVelocity(), 1);
+            final Method round = RaceAi.class.getDeclaredMethod("simulateTwoRounds",
+                    int.class, int.class, int.class, int.class, int.class);
+            round.setAccessible(true);
+            final RaceAi.CellOccupancy cells = (RaceAi.CellOccupancy) get(round.invoke(g.ai, 1, 102, 12, 12, -2),
+                    "world1Occupancy");
+            final boolean braked = cells.contains(114, 9) || cells.contains(114, 10) || cells.contains(114, 11);
+            check(braked == human, human ? "a human above the cap did not shed speed in the simulated round"
+                    : "an AI car above the cap left its model in the simulated round");
+        }
+    }
+
+    /** Round 340: the step corridor with an AI1 mover at rest on (100, 10) and, one cell ahead at v=(14,0), a
+     *  rival of {@code kind}, after the mover in the move order or, {@code rivalFirst}, before it. The
+     *  mover's slot is to move. */
+    private static RaceGame capCorridor(final Player.Kind kind, final boolean rivalFirst) throws Exception {
+        final RaceGame g = stepCorridor();
+        final Player rival = new Player("P" + (rivalFirst ? 1 : 2), rivalFirst ? 1 : 2, Color.RED, kind);
+        rival.setPosition(new int[]{101, 10}); rival.setVelocity(new int[]{14, 0}); rival.setNextGate(0);
+        final Player mover = car(rivalFirst ? 2 : 1, 100, 10, 0, 0);
+        g.players = rivalFirst ? new Player[]{rival, mover} : new Player[]{mover, rival};
+        g.reach.computeDistMap(); g.reach.computeReachability();
+        g.subgamestate = rivalFirst ? 1 : 0;
+        return g;
+    }
+
+    /** Round 340: what a projected-place forecast leaves of one car -- its cell, velocity, life and projected
+     *  arrival -- with the rivals its key counts ahead of the mover, and its verdict. */
+    private record Forecast(int x, int y, int vx, int vy, boolean alive, int arrival, long ahead, int verdict) {}
+
+    /** Round 340: a projected-place forecast of {@code rounds} for the car in slot {@code mover}, every rival
+     *  by its scorer as in a chooser's, read at the car in slot {@code car}. */
+    private static Forecast forecast(final RaceGame g, final int mover, final int car, final int rounds)
+            throws Exception {
+        set(g.ai, "ppDepth", 1); set(g.ai, "placeKeyDepth", 1);
+        final int verdict = g.ai.querySimOutcome(mover, rounds, true, false, true, 1, null);
+        set(g.ai, "ppDepth", -1); set(g.ai, "placeKeyDepth", -1);
+        final Object w = ((Object[]) get(g.ai, "rolloutsByDepth"))[1];
+        return new Forecast(((int[]) get(w, "px"))[car], ((int[]) get(w, "py"))[car], ((int[]) get(w, "vx"))[car],
+                ((int[]) get(w, "vy"))[car], ((boolean[]) get(w, "alive"))[car], ((int[]) get(w, "ppArrival"))[car],
+                (long) get(g.ai, "placeKey") / RaceAi.VERDICT_PLACE_STRIDE, verdict);
+    }
+
+    /** Round 340: RaceAi.shedTurns in the step corridor's one frame (no lap done, no gates). */
+    private static int shedTurns(final RaceGame g, final int x, final int y, final int vx, final int vy)
+            throws Exception {
+        final Method m = RaceAi.class.getDeclaredMethod("shedTurns", int.class, int.class, int.class, int.class,
+                int.class, int.class);
+        m.setAccessible(true);
+        return (int) m.invoke(g.ai, 0, 0, x, y, vx, vy);
+    }
+
+    /** SimulationBoundaryTests' straight with a step: from x = 150 only its lower half, y 11 to 19, is
+     *  track, and the line crosses that half. A car on y = 10 has to leave its row before the step. */
+    private static RaceGame stepCorridor() throws Exception {
+        final RaceGame g = new RaceGame(new Properties());
+        g.gameCols = 180; g.gameRows = 20;
+        g.track = new Track();
+        g.track.addLeft(0, 1); g.track.addLeft(150, 1); g.track.addLeft(150, 11); g.track.addLeft(173, 11);
+        g.track.addRight(0, 19); g.track.addRight(173, 19);
+        final java.awt.geom.Area track = new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(0, 1, 150, 18));
+        track.add(new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(150, 11, 23, 8)));
+        g.trackA = track;
+        g.startZoneA = new java.awt.geom.Area();
+        g.finishLine = new java.awt.geom.Line2D.Double(172.5, 11, 172.5, 19);
+        set(g, "finishFwdX", 1.0);
+        set(g, "rui", new RaceUI(g.gameRows, g.gameCols));
+        return g;
     }
 
     private static RaceGame circle() throws Exception {
