@@ -19,17 +19,19 @@ import java.util.Properties;
 import java.util.Random;
 import tr.gui.RaceUI;
 
-/** The owner's computed-start rule (2026-10-02, CLAUDE.md) against an
- *  independent forward-referee oracle. */
+/** The owner's computed-start rule (2026-10-02, CLAUDE.md; later placements
+ *  2026-11-01, round 339) against independent forward-referee oracles. */
 final class StartPlacementTests {
     private StartPlacementTests() {}
     static void run() {
         for (final boolean gated : new boolean[]{false, true}) testScoring(gated);
+        for (final boolean gated : new boolean[]{false, true}) testLaunchExposure(gated);
+        testFinishingLaunch();
         testTerminalOccupancy();
         testOverBudget();
         System.out.println("StartPlacementTests: the computed-start rule (exact solo value from rest, taken cells"
                 + " and nothing else, x-then-y and seeded ties, the first-checkpoint map over budget), shared"
-                + " analysis, live occupancy and barriers OK");
+                + " analysis, live occupancy and barriers, and the least exposed launch OK");
     }
     private static void check(final boolean ok, final String message) {
         if (!ok) throw new AssertionError(message);
@@ -93,6 +95,183 @@ final class StartPlacementTests {
         }
         return Integer.MAX_VALUE;
     }
+    /** The fewest referee moves to the finish from any state, alone. */
+    private static int fromState(final RaceGame g, final State start) {
+        final var queue = new ArrayDeque<Node>();
+        final var seen = new HashSet<State>();
+        queue.add(new Node(start,0)); seen.add(start);
+        while (!queue.isEmpty()) {
+            final Node n = queue.remove(); final State s = n.state();
+            for (final Direction d : Direction.values()) {
+                final int vx = s.vx()+d.dx, vy = s.vy()+d.dy, nx = s.x()+vx, ny = s.y()+vy;
+                if (RaceGame.aiVelocityOutOfRange(vx,vy)) continue;
+                final RaceGame.MoveResult result = g.evaluateMove(s.lap(),s.gate(),s.x(),s.y(),nx,ny,false);
+                if (!result.legal()) continue;
+                if (result.finishes()) return n.depth()+1;
+                if (nx<0 || ny<0 || nx>g.gameCols || ny>g.gameRows) continue;
+                final State next = new State(nx,ny,vx,vy,result.lapAfter(),result.gateAfter());
+                if (seen.add(next)) queue.add(new Node(next,n.depth()+1));
+            }
+        }
+        return Integer.MAX_VALUE;
+    }
+    /** The launch by brute force: the landings of the first moves from rest
+     *  that achieve the cell's referee value without finishing. */
+    private static List<int[]> fastestLandings(final RaceGame g, final int x, final int y) {
+        final int value = oracle(g,x,y,false);
+        final List<int[]> landings = new ArrayList<>();
+        for (final Direction d : Direction.values()) {
+            final int nx = x+d.dx, ny = y+d.dy;
+            final RaceGame.MoveResult result = g.evaluateMove(0,1,x,y,nx,ny,false);
+            if (!result.legal() || result.finishes()) continue;
+            final int rest = fromState(g, new State(nx,ny,d.dx,d.dy,result.lapAfter(),result.gateAfter()));
+            if (rest != Integer.MAX_VALUE && rest+1 == value) landings.add(new int[]{nx,ny});
+        }
+        return landings;
+    }
+    /** Independent launch exposure for car {@code number}: how many fastest
+     *  landings are starting cells no other car holds (0 none, 2 all, else 1). */
+    private static int exposureOracle(final RaceGame g, final int x, final int y, final int number) {
+        final List<int[]> landings = fastestLandings(g,x,y);
+        int exposed = 0;
+        for (final int[] l : landings) if (g.startZoneA.contains(l[0],l[1]) && !g.isCrashingPlayer(l[0],l[1],number)) exposed++;
+        return exposed == 0 ? 0 : exposed < landings.size() ? 1 : 2;
+    }
+
+    /** Round 339 (the owner, 2026-11-01): a car also considers where the cars
+     *  after it may place. Any free starting cell may be taken by a later car,
+     *  which still stands there when this one first moves, so among its best cells
+     *  every car with a car after it keeps the least exposed launch; which cell a
+     *  later car takes is never predicted. Four computer cars, against the
+     *  independent referee oracles. */
+    private static void testLaunchExposure(final boolean gated) {
+        final RaceGame g = corridor(gated);
+        g.players[1] = new Player("B",2,Color.RED,Player.Kind.AI1);
+        if (gated) g.prepareOptimalStartMap();
+        else { g.reach.computeDistMap(); g.reach.computeReachability(); g.prepareOptimalStartMap(); }
+        set(g.reach,"reachabilityReady",true);
+        final Player ai = g.players[0], second = g.players[1], third = g.players[2], last = g.players[3];
+        final int[][] alone = new int[6][4];
+        int best = Integer.MAX_VALUE;
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
+            alone[x][y] = StartPlacement.exposure(g,ai,x,y);
+            check(alone[x][y] == exposureOracle(g,x,y,1), "Launch exposure is not the referee's");
+            best = Math.min(best, StartPlacement.score(g,ai,x,y));
+        }
+        check(StartPlacement.exposure(g,ai,6,1) == Integer.MAX_VALUE, "A cell off the grid has a launch exposure");
+        final List<int[]> ties = new ArrayList<>(), pool = new ArrayList<>();
+        int least = Integer.MAX_VALUE;
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) if (StartPlacement.score(g,ai,x,y) == best) {
+            ties.add(new int[]{x,y}); least = Math.min(least, alone[x][y]);
+        }
+        for (final int[] c : ties) if (alone[c[0]][c[1]] == least) pool.add(c);
+        // The boxed launch. The first best cell, (3,1), was the rule's pick before
+        // round 339: both its fastest first moves land on free starting cells,
+        // (4,1) and (4,2), so two of the three cars placing after it can box it,
+        // and it loses a move. The car takes (5,1), whose fastest first moves leave
+        // the grid, where no car can place.
+        final int[] old = ties.get(0), now = StartPlacement.choose(g,ai,null);
+        check(Arrays.equals(old,new int[]{3,1}), "The first best cell is not (3,1)");
+        check(Arrays.equals(now,pool.get(0)) && Arrays.equals(now,new int[]{5,1}),
+                "Without a seed the car did not take the first least exposed best cell");
+        check(alone[old[0]][old[1]] == 2 && least == 0, "Fixture has no boxed launch beside an unexposed one");
+        final List<int[]> box = fastestLandings(g,old[0],old[1]);
+        check(box.size() == 2, "The first best cell does not launch onto exactly two starting cells");
+        for (int i=0;i<box.size();i++) g.players[i+1].setPosition(box.get(i).clone());
+        check(oracle(g,old[0],old[1],true) > best, "The later cars did not box the first best cell");
+        check(oracle(g,now[0],now[1],true) == best, "The later cars boxed the car's start");
+        final List<int[]> launch = fastestLandings(g,now[0],now[1]);
+        check(!launch.isEmpty(), "The car's start has no launch");
+        for (final int[] landing : launch)
+            check(!g.startZoneA.contains(landing[0],landing[1]), "A later placement could close the car's launch");
+        for (int i=1;i<g.players.length;i++) g.players[i].setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+        // Equally good cells -- the same value and exposure -- go to the seed's draw.
+        // Every car with a car after it draws among its least exposed best cells;
+        // the last car to place keeps all its best cells.
+        for (long seed=0;seed<10;seed++) {
+            for (final Player car : new Player[]{ai, second, third})
+                check(Arrays.equals(StartPlacement.choose(g,car,seed),
+                        pool.get(new Random(seed ^ ((long) car.getNumber() << 32)).nextInt(pool.size()))),
+                        "A seeded car with a car after it is not the seed's draw among its least exposed best cells");
+            check(Arrays.equals(StartPlacement.choose(g,last,seed),
+                    ties.get(new Random(seed ^ ((long) last.getNumber() << 32)).nextInt(ties.size()))),
+                    "The last car to place weighed placements no car will make");
+        }
+        // An earlier car's cell is not free: that car moves first. With the first
+        // two cars on (5,1) and (5,2), the launch from (4,1) lands only on their
+        // cells, so the car in slot 3 takes it, where the first best free cell is (3,1).
+        ai.setPosition(new int[]{5,1}); second.setPosition(new int[]{5,2});
+        boolean cleared = false;
+        final List<int[]> free = new ArrayList<>();
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
+            if (g.isCrashingPlayer(x,y,3)) continue;
+            final int exposure = StartPlacement.exposure(g,third,x,y);
+            check(exposure == exposureOracle(g,x,y,3), "Launch exposure is not the referee's beside earlier cars");
+            cleared |= exposure < alone[x][y];
+            if (StartPlacement.score(g,third,x,y) == best) free.add(new int[]{x,y});
+        }
+        check(cleared, "Fixture has no launch an earlier car clears");
+        check(Arrays.equals(free.get(0),new int[]{3,1}), "The first best free cell in slot 3 is not (3,1)");
+        final int[][] positions = Arrays.stream(g.players).map(p -> p.getPosition().clone()).toArray(int[][]::new);
+        final int[] behind = StartPlacement.choose(g,third,null);
+        check(Arrays.equals(behind,new int[]{4,1}) && StartPlacement.exposure(g,third,4,1) == 0,
+                "The car in slot 3 did not take the launch the earlier cars clear");
+        check(Arrays.equals(behind,StartPlacement.choose(g,third,null)), "Choice is not a pure function");
+        check(Arrays.deepEquals(positions,Arrays.stream(g.players).map(Player::getPosition).toArray(int[][]::new)),
+                "Exposure mutated players");
+        // A later human may place too: with a human in the last slot the car in
+        // slot 3 still keeps its launch clear of the cells it may take.
+        g.players[3] = new Player("H",4,Color.BLACK,Player.Kind.HUMAN);
+        check(Arrays.equals(StartPlacement.choose(g,third,null),behind), "A later human was not a car that may place");
+        g.players[3] = last;
+        // The tiers stay apart. With the first two cars on (5,2) and (5,3), (4,1) and
+        // (4,2) keep a fastest first move no placement can close, yet still launch onto
+        // a free starting cell; (4,3) launches only onto the earlier cars' cells. The
+        // car takes (4,3), where merging the tiers would take (4,1) and the first best
+        // free cell is (3,1); seeded, it draws among the unexposed best cells alone.
+        ai.setPosition(new int[]{5,2}); second.setPosition(new int[]{5,3});
+        final List<int[]> bestFree = new ArrayList<>(), unexposed = new ArrayList<>();
+        int lowest = Integer.MAX_VALUE, firstUnclosable = -1, firstUnexposed = -1;
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
+            if (g.isCrashingPlayer(x,y,3) || StartPlacement.score(g,third,x,y) != best) continue;
+            final int exposure = exposureOracle(g,x,y,3);
+            check(StartPlacement.exposure(g,third,x,y) == exposure, "Launch exposure is not the referee's beside earlier cars");
+            if (exposure == 1 && firstUnclosable < 0) firstUnclosable = bestFree.size();
+            if (exposure == 0 && firstUnexposed < 0) firstUnexposed = bestFree.size();
+            bestFree.add(new int[]{x,y}); lowest = Math.min(lowest,exposure);
+            if (exposure == 0) unexposed.add(new int[]{x,y});
+        }
+        check(lowest == 0 && firstUnclosable >= 0 && firstUnexposed > firstUnclosable && unexposed.size() < bestFree.size(),
+                "Fixture has no unclosable exposed launch before an unexposed one");
+        check(Arrays.equals(bestFree.get(0),new int[]{3,1}), "The first best free cell in slot 3 is not (3,1)");
+        check(Arrays.equals(StartPlacement.choose(g,third,null),unexposed.get(0))
+                && Arrays.equals(unexposed.get(0),new int[]{4,3}), "The car merged the unexposed and unclosable tiers");
+        for (long seed=0;seed<10;seed++)
+            check(Arrays.equals(StartPlacement.choose(g,third,seed),
+                    unexposed.get(new Random(seed ^ ((long) third.getNumber() << 32)).nextInt(unexposed.size()))),
+                    "A seeded car in slot 3 is not the seed's draw among its least exposed best cells");
+        // Undo takes the earlier cars back: the same car then chooses as alone.
+        for (final Player player : g.players) player.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+        check(Arrays.equals(StartPlacement.choose(g,third,null),pool.get(0)), "Undo did not restore the same choice");
+    }
+    /** Round 339: a finishing move is exempt from bodies, so it never joins a launch.
+     *  With the finish line through the grid, the cells whose fastest first moves
+     *  all finish onto free starting cells are not exposed, and a car standing on
+     *  such a landing leaves them their value from rest (the referee's rule). */
+    private static void testFinishingLaunch() {
+        final RaceGame g = corridor(false);
+        g.finishLine = new Line2D.Double(4.5,0,4.5,4);
+        g.reach.computeDistMap(); g.reach.computeReachability(); g.prepareOptimalStartMap();
+        set(g.reach,"reachabilityReady",true);
+        final Player ai = g.players[0];
+        for (int y=1;y<=3;y++) {
+            check(StartPlacement.score(g,ai,4,y) == 1 && oracle(g,4,y,false) == 1, "The grid's immediate finish is not its value from rest");
+            check(g.startZoneA.contains(5,y) && StartPlacement.exposure(g,ai,4,y) == 0, "A finishing launch was exposed");
+        }
+        g.players[1].setPosition(new int[]{5,2});
+        check(oracle(g,4,2,true) == 1 && StartPlacement.exposure(g,ai,4,2) == 0, "A car beyond the line blocked a finishing launch");
+        g.players[1].setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+    }
     private static void testTerminalOccupancy() {
         final RaceGame g = corridor(false);
         g.finishLine = new Line2D.Double(5.5,0,5.5,4);
@@ -128,18 +307,24 @@ final class StartPlacementTests {
             check(before[x][y] == oracle(g,x,y,false), "Empty-field score is not the shortest referee route");
             emptyBest = Math.min(emptyBest, before[x][y]);
         }
-        // Equally good cells go to the seed's draw, or without a seed to the first
-        // in x-then-y order -- never to a replay of the race among them (the
-        // owner rejected start-ties, 2026-10-02).
+        // Equally good cells -- the same value and, since cars place after this one,
+        // the same launch exposure (round 339) -- go to the seed's draw, or without a
+        // seed to the first in x-then-y order; never to a replay of the race among
+        // them (the owner rejected start-ties, 2026-10-02).
+        int leastExposure = Integer.MAX_VALUE;
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++)
+            if (before[x][y] == emptyBest) leastExposure = Math.min(leastExposure, StartPlacement.exposure(g,ai,x,y));
         final List<int[]> ties = new ArrayList<>();
-        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) if (before[x][y] == emptyBest) ties.add(new int[]{x,y});
-        check(ties.size() >= 2, "Fixture has no tie among its best cells");
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++)
+            if (before[x][y] == emptyBest && StartPlacement.exposure(g,ai,x,y) == leastExposure) ties.add(new int[]{x,y});
+        check(ties.size() >= 2, "Fixture has no tie among its least exposed best cells");
         final int[] oldBest = StartPlacement.choose(g,ai,null);
-        check(Arrays.equals(oldBest, ties.get(0)), "Without a seed the tie did not go to the first best cell in x-then-y order");
+        check(Arrays.equals(oldBest, ties.get(0)),
+                "Without a seed the tie did not go to the first least exposed best cell in x-then-y order");
         for (long seed=0;seed<10;seed++)
             check(Arrays.equals(StartPlacement.choose(g,ai,seed),
                     ties.get(new Random(seed ^ ((long) ai.getNumber() << 32)).nextInt(ties.size()))),
-                    "A seeded tie is not the seed's draw among the best cells");
+                    "A seeded tie is not the seed's draw among the least exposed best cells");
         g.players[1].setPosition(oldBest.clone());
         g.players[2].setPosition(new int[]{5,2});
         g.players[3].setPosition(new int[]{5,3});
@@ -221,8 +406,38 @@ final class StartPlacementTests {
                             "Over budget a cell's score is not its distance to the first checkpoint from rest");
                     if (value < best) { best = value; first = new int[]{x, y}; }
                 }
-            check(cells > 1 && best != Integer.MAX_VALUE, "The Circle's grid does not reach its first checkpoint");
-            check(Arrays.equals(StartPlacement.choose(g, ai, null), first), "Over budget the AI did not take a best cell");
+            check(cells > 1 && best != Integer.MAX_VALUE && first != null, "The Circle's grid does not reach its first checkpoint");
+            // Round 339: the launch on the first-checkpoint map -- the first moves whose
+            // distance to the first checkpoint achieves the cell's from rest (a move that
+            // collects it has none left) -- is exposed where it lands on a free starting cell.
+            int exposedCells = 0, leastExposure = Integer.MAX_VALUE;
+            int[] firstLeast = null;
+            for (int x = (int) Math.floor(bounds.getMinX()); x <= (int) Math.ceil(bounds.getMaxX()); x++)
+                for (int y = (int) Math.floor(bounds.getMinY()); y <= (int) Math.ceil(bounds.getMaxY()); y++) {
+                    if (!g.startZoneA.contains(x, y)) continue;
+                    final int value = g.reach.turnsToGate(1, x, y, 0, 0);
+                    int moves = 0, exposed = 0;
+                    for (final Direction d : Direction.values()) {
+                        final int nx = x + d.dx, ny = y + d.dy;
+                        final RaceGame.MoveResult move = g.evaluateMove(0, 1, true, x, y, nx, ny, false);
+                        if (d == Direction.NONE || !move.legal() || move.finishes()) continue;
+                        final int rest = move.gateAfter() != 1 ? 0 : g.reach.turnsToGate(1, nx, ny, d.dx, d.dy);
+                        if (rest == Integer.MAX_VALUE || rest + 1 != value) continue;
+                        moves++;
+                        if (g.startZoneA.contains(nx, ny) && !g.isCrashingPlayer(nx, ny, ai.getNumber())) exposed++;
+                    }
+                    final int expected = exposed == 0 ? 0 : exposed < moves ? 1 : 2;
+                    check(StartPlacement.exposure(g, ai, x, y) == expected,
+                            "Over budget a launch's exposure is not the first-checkpoint map's");
+                    if (expected > 0) exposedCells++;
+                    if (value == best && expected < leastExposure) { leastExposure = expected; firstLeast = new int[]{x, y}; }
+                }
+            check(exposedCells > 0, "The Circle's grid has no exposed launch");
+            // B places after A, so A takes the first of its least exposed best cells,
+            // not the first best cell, the rule's pick before round 339.
+            check(!Arrays.equals(firstLeast, first), "The Circle's first best cell is already its least exposed");
+            check(Arrays.equals(StartPlacement.choose(g, ai, null), firstLeast),
+                    "Over budget the AI did not take its first least exposed best cell");
             final Method log = RaceGame.class.getDeclaredMethod("initGameLog");
             log.setAccessible(true); log.invoke(g);
             check(get(g, "gameLog").toString().contains("# start-placement informed (first-checkpoint map"),

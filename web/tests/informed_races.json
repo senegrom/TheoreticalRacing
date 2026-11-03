@@ -7,8 +7,8 @@
       "seed": 1,
       "laps": 1,
       "policy": "informed",
-      "sha256": "978446be4a76a37684b8363b57b9fb55a01da2e737613840119811bbe934d103",
-      "note": "Round 327 policy (on d2ff7ce; a decision with two live cars forecasts sixteen rounds): re-frozen from measurement. Desktop and browser logs are byte-identical, as the parity test asserts before this digest; the same race on the bench box gives this digest with a warm and with an empty reach cache."
+      "sha256": "a19e2b0933eff80c4174f5ec354db7866aeff52d9ce6f56b05ab7ff68e89f967",
+      "note": "Round 339 policy (on ec1437b; every car with a car after it keeps its least exposed launch, so the grid is A 7,27, B 13,27): re-frozen from measurement. Desktop and browser logs are byte-identical, as the parity test asserts before this digest; the same race on the bench box gives this digest with an empty and a warm reach cache at 2g and with an empty one at 4g."
     }
   ]
 }

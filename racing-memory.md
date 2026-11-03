@@ -1,5 +1,58 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 339 promoted (2026-11-03): a car taking its computed start also considers where the cars after it may place
+
+The owner, 2026-11-01: "yes. Cars should also consider where other cars may place." The owner's go, 2026-11-02: "Yes,
+land it when confirmed", on the held-out 8-car window (seeds 11-20) and identity on random and scattered starts; both
+are met below. The racecraft-ideas workflow of 2026-11-01 (E:/tmp-claude/ideas338/racecraft_ideas.md) found that on
+computed starts the cars that choose after seat 1 often take the cells that seat 1's best first moves need. In 17.0%
+of 8-car computed-start races (11.7% on random starts) seat 1 lost a move in its first four that no move of its own
+from that cell could have avoided, with every rival's body where it really was, and it then finished 6.57th on
+average, against 1.34th otherwise. In the design's launch model, removing only the later cars still on their starting
+cells frees seat 1 in two thirds of those losses. Rule CF (design E:/tmp-claude/place364, the critic's final
+version): a best cell's fastest first moves are the first moves from rest that achieve its value without finishing
+(the referee exempts a finishing move from bodies); one is exposed where it lands on a free starting cell, which a
+later car, AI or human, may take and still hold when this car first moves. Among its best cells a car keeps those
+with no exposed fastest first move; failing those, those with at least one that is not exposed, which no later
+placement can close; failing those, all of them. The seed's draw, or without a seed the first in x-then-y order, is
+then taken over the cells it keeps, as before over all its best cells. The last car to place keeps all its best
+cells. Nothing is predicted, simulated or replayed, and where the earlier cars go is never priced: they move first.
+The computed-start rule in CLAUDE.md and AGENTS.md now says so with the owner's words; README.md, web/README.md and
+web/index.html describe it.
+
+Measured as arm 364 (E:/tmp-claude/arm364_placeahead.py, candidate-gated) against the speed-round-3 champion, on
+computed starts, mirrored (boards favouring candidate / champion / tied; crashes candidate:champion):
+
+| Slice | a364 |
+|---|---|
+| 8 cars, seeds 1-10 | -0.279 +- 0.028 (64/17/3; 44:47) |
+| 8 cars, held-out seeds 11-20 | -0.354 +- 0.029 (70/12/2; 48:51) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | -0.254 +- 0.027 (67/14/3; 27:26) |
+| 4 cars, seeds 1-20 | -0.097 +- 0.012 (47/10/27; 9:9) |
+| Duels, seeds 1-20 | -0.008 +- 0.007 (11/13/60; 135:194) |
+
+- In the eight-car screens the candidate's cars won 969 of 1,680 races (seeds 1-10) and 1,022 (11-20).
+- Random and scattered starts never reach StartPlacement: with every slot a candidate the arm raced exactly as the
+  champion in 8 cars (12 races on random and 12 on scattered starts), 4 cars (4 + 4) and duels (4 + 4).
+- The promoted placement, built on the arm's own base (master 03e3d00; its StartPlacement classes byte-identical to
+  the promoted jar's on ec1437b), raced exactly as the arm with every slot a candidate: 8 cars on computed starts (6
+  races) and on random starts (2), 4 cars (4) and duels (5, the Nordschleife's first-checkpoint map among them) on
+  computed starts; CPU 1.00x (1.02x in four cars, 0.98x in duels).
+- Corpus: one browser fixture re-frozen from measurement, web/tests/informed_races.json hairpin-informed-s1-2p. Its
+  grid's A moves from (11,28) to (7,27) and B stays on (13,27); the digest goes from 978446be to a19e2b09, the same
+  with an empty and a warm reach cache at 2g, with an empty one at 4g, and with round 339 on 03e3d00 (round 338
+  leaves it). The legacy goldens and the pins race random starts and do not move; the goldens pass with the promoted
+  jar. Box verify on the round-339 tree: every pin, the goldens, headless smoke, query replay, lap progress and
+  compileall pass (30/30); the Python unit tests pass (104), after the fleet grid's Ctrl+C resume test failed once
+  under the box's load again and passed on three solo and two full re-runs. The Java suite and the local browser
+  build pass.
+- parity.py's monza-informed-two-laps pins no digest (desktop == browser only). It now ends at turn 20: A starts on
+  (192,20) instead of (190,21), and B, after its own turn-18 move to (225,7) at speed (4,-2), has no landing on the
+  track and leaves it on turn 20, on the outside where the first right-hander begins, so A is classified first. With
+  the champion that race ran 337 turns without a crash.
+- Next: the C+ variant, which the owner said to screen (arm 365, the critic's rule CFP: a car with a car after it
+  also holds the landings of the earlier cars' fastest first moves), is screened against this rule.
+
 ## Round 338 promoted (2026-11-03): the multi-move duel proofs abstain on a rival with no legal reply
 
 A correctness fix, found by the racecraft-ideas workflow of 2026-11-01 (E:/tmp-claude/ideas338/racecraft_ideas.md,

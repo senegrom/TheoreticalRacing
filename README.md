@@ -126,18 +126,22 @@ owner's rule (CLAUDE.md): the cars take the grid in roster order, the order they
 then race in, and each computer takes a best free cell on its placement turn,
 after all shared maps and the exact full-race potential (for checkpoint courses)
 are ready. Best is the fewest moves to finish from rest on that cell, alone: the
-cars placed earlier only take their cells, since they move first, and later
-players are not predicted. Earlier human placements can overlap preparation.
+cars placed earlier only take their cells, since they move first. Any cell still
+free may be taken by a later player, so among its best cells a computer keeps
+one whose fastest first moves no later placement can block, failing that one
+whose launch no later placement can close (the owner, 2026-11-01); which cell a
+later player takes is never predicted. Earlier human placements can overlap
+preparation.
 
 The setup offers **Legacy benchmark starts** to preserve old experiments.
 Headless benchmarking defaults to that historical policy, because racecraft is
 measured from varied starts and the pinned corpus is frozen on them. A
 properties file selects the other two modes:
 
-* `aiStartPlacement=informed` benchmarks computed starts (a seed breaks
-  equal-score ties only). Where the exact full-race map is over its budget
-  (the Nordschleife) the start is scored on the next best map, the distance
-  to the first checkpoint, and the log header says
+* `aiStartPlacement=informed` benchmarks computed starts (a seed breaks ties
+  among equally good cells only). Where the exact full-race map is over its
+  budget (the Nordschleife) the start is scored on the next best map, the
+  distance to the first checkpoint, and the log header says
   `start-placement informed (first-checkpoint map: ...)`.
 * `aiStartPlacement=scatter` is a racecraft instrument: every AI starts at a
   seeded random alive, robust state anywhere on the course, at speed, owing

@@ -90,7 +90,8 @@ is available from the workflow for other static hosts.
   exports the catalogue. `track-hashes.json` and `engine-sources.json` allow
   independent audits.
 * Interactive AI starts use the completed shared maps and the positions already
-  placed. Seeded randomness breaks only equal-score ties. Explicit legacy
+  placed, and prefer a best cell whose launch later players cannot block.
+  Seeded randomness breaks only ties among equally good cells. Explicit legacy
   placement retains the historical random/first-free starts for benchmarks.
 
 Both hosts compile the same shared `src/`, including the computed placement
@@ -275,8 +276,12 @@ exact original x-then-y cell order and checking occupancy on each snapshot.
 Starting-cell **selection** is now computed by default in interactive Java and
 browser games. Each AI waits for all shared maps (including the exact full-race
 potential on checkpoint courses AND the shared start table), then scores the
-cells still free: the cars already placed take their cells, and nothing else. Placement order and driving turn order remain
-the roster order: an AI cannot see a later player's future placement. Humans
+cells still free: the cars already placed take their cells, and nothing else
+about them counts. Any cell still free may be taken by a later player, so among
+its best cells an AI keeps the least exposed launch (the owner, 2026-11-01).
+Placement order and driving turn order remain the roster order: an AI never
+predicts a later player's placement; it only weighs the cells a later player
+may take. Humans
 whose placement turn comes first can place while the maps are building. There
 is **no humans-first phase**. For example, AI / Human / AI / Human waits for
 analysis, places AI 1, waits for Human 2, places AI 3 using both earlier cells,
@@ -284,10 +289,12 @@ and then lets Human 4 choose. No future positions are assumed or preselected.
 
 The preparation daemon values every start cell **once per race**: the cheapest
 legal first move from rest plus the exact solo continuation, through the
-geometry and gate transitions. The result is an immutable table shared by all
+geometry and gate transitions, and records which first moves achieve that value
+without finishing (its launch). The result is an immutable table shared by all
 AIs. It does not read live players, so a human placing concurrently cannot
 contaminate it. Each placement only refuses the cells already taken and selects
-the best remaining value; where the earlier cars will move never counts, since
+the best remaining value and, when a car places after it, the least exposed
+launch among those cells; where the earlier cars will move never counts, since
 they move first (the owner's rule, 2026-10-02). Undo changes which cells are
 taken, never prunes the base table, and never launches another analysis build.
 
@@ -295,8 +302,8 @@ This is an intentional starting-policy change, not just rescheduling. The drivin
 AI, track geometry, physics and finish rules are unchanged. The score is the
 single-player optimum from the cell: the minimum finish time from rest by the
 exact solo route within the engine's velocity domain. It is not a multiplayer
-optimum, by the owner's design. Seeds break only equal-score ties, and each AI
-scores afresh after earlier placements.
+optimum, by the owner's design. Seeds break only ties among equally good
+cells, and each AI scores afresh after earlier placements.
 
 Legacy benchmark placement remains an explicit setup option and the default for
 headless benchmark runs. The aiStartPlacement=informed property enables computed
