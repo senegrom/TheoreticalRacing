@@ -125,13 +125,15 @@ Interactive Java and browser races default to **computed AI starts**, by the
 owner's rule (CLAUDE.md): the cars take the grid in roster order, the order they
 then race in, and each computer takes a best free cell on its placement turn,
 after all shared maps and the exact full-race potential (for checkpoint courses)
-are ready. Best is the fewest moves to finish from rest on that cell, alone: the
-cars placed earlier only take their cells, since they move first. Any cell still
-free may be taken by a later player, so among its best cells a computer keeps
-one whose fastest first moves no later placement can block, failing that one
-whose launch no later placement can close (the owner, 2026-11-01); which cell a
-later player takes is never predicted. Earlier human placements can overlap
-preparation.
+are ready. Best is the fewest moves to finish from rest on that cell, alone: a
+cell's value ignores the cars placed earlier, since they move first. Any cell
+still free may be taken by a later player, and a car placed earlier may stand
+where one of its fastest first moves lands, so among its best cells a computer
+with a player after it keeps one whose fastest first moves neither a later
+placement nor an earlier car's fastest first move can block, failing that one
+whose launch they cannot close (the owner, 2026-11-01 and 2026-11-04); which
+cell a later player takes, or which first move an earlier car makes, is never
+predicted. Earlier human placements can overlap preparation.
 
 The setup offers **Legacy benchmark starts** to preserve old experiments.
 Headless benchmarking defaults to that historical policy, because racecraft is

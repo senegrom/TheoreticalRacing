@@ -20,18 +20,21 @@ import java.util.Random;
 import tr.gui.RaceUI;
 
 /** The owner's computed-start rule (2026-10-02, CLAUDE.md; later placements
- *  2026-11-01, round 339) against independent forward-referee oracles. */
+ *  2026-11-01, round 339; earlier launches 2026-11-04, round 342) against
+ *  independent forward-referee oracles. */
 final class StartPlacementTests {
     private StartPlacementTests() {}
     static void run() {
         for (final boolean gated : new boolean[]{false, true}) testScoring(gated);
         for (final boolean gated : new boolean[]{false, true}) testLaunchExposure(gated);
+        for (final boolean gated : new boolean[]{false, true}) testEarlierLaunches(gated);
         testFinishingLaunch();
         testTerminalOccupancy();
         testOverBudget();
         System.out.println("StartPlacementTests: the computed-start rule (exact solo value from rest, taken cells"
-                + " and nothing else, x-then-y and seeded ties, the first-checkpoint map over budget), shared"
-                + " analysis, live occupancy and barriers, and the least exposed launch OK");
+                + " refused, x-then-y and seeded ties, the first-checkpoint map over budget), shared"
+                + " analysis, live occupancy and barriers, and the least exposed launch with the earlier cars'"
+                + " launches held OK");
     }
     private static void check(final boolean ok, final String message) {
         if (!ok) throw new AssertionError(message);
@@ -142,8 +145,10 @@ final class StartPlacementTests {
      *  after it may place. Any free starting cell may be taken by a later car,
      *  which still stands there when this one first moves, so among its best cells
      *  every car with a car after it keeps the least exposed launch; which cell a
-     *  later car takes is never predicted. Four computer cars, against the
-     *  independent referee oracles. */
+     *  later car takes is never predicted. Round 342 (the owner, 2026-11-04): a
+     *  launch is also exposed where it lands on a landing of an earlier car's
+     *  fastest first moves, which that car may stand on (C+). Four computer cars,
+     *  against the independent referee oracles. */
     private static void testLaunchExposure(final boolean gated) {
         final RaceGame g = corridor(gated);
         g.players[1] = new Player("B",2,Color.RED,Player.Kind.AI1);
@@ -197,25 +202,45 @@ final class StartPlacementTests {
                     ties.get(new Random(seed ^ ((long) last.getNumber() << 32)).nextInt(ties.size()))),
                     "The last car to place weighed placements no car will make");
         }
-        // An earlier car's cell is not free: that car moves first. With the first
-        // two cars on (5,1) and (5,2), the launch from (4,1) lands only on their
-        // cells, so the car in slot 3 takes it, where the first best free cell is (3,1).
+        // An earlier car's cell is not free: that car moves first and leaves it. With
+        // the first two cars on (5,1) and (5,2), the launch from (4,1) lands only on
+        // their cells, so the car in slot 3 takes it, where the first best free cell
+        // is (3,1). Round 342: those cars may stand where their fastest first moves
+        // land, (6,1), (6,2) and (6,3), so (5,3), whose launch onto (6,2) and (6,3) no
+        // later placement can block, is exposed in full: seeded too, the car takes
+        // (4,1), where round 339's rule drew between (4,1) and (5,3).
         ai.setPosition(new int[]{5,1}); second.setPosition(new int[]{5,2});
+        final List<int[]> earlier = new ArrayList<>(fastestLandings(g,5,1));
+        earlier.addAll(fastestLandings(g,5,2));
         boolean cleared = false;
-        final List<int[]> free = new ArrayList<>();
+        final List<int[]> free = new ArrayList<>(), kept = new ArrayList<>(), kept339 = new ArrayList<>();
+        int tier = Integer.MAX_VALUE, tier339 = Integer.MAX_VALUE;
         for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
             if (g.isCrashingPlayer(x,y,3)) continue;
-            final int exposure = StartPlacement.exposure(g,third,x,y);
+            final int exposure = StartPlacement.exposure(g,third,x,y), plus = plusOracle(g,x,y,3,earlier);
             check(exposure == exposureOracle(g,x,y,3), "Launch exposure is not the referee's beside earlier cars");
+            check(StartPlacement.exposurePlus(g,third,x,y) == plus, "C+ exposure is not the referee's beside earlier cars");
             cleared |= exposure < alone[x][y];
-            if (StartPlacement.score(g,third,x,y) == best) free.add(new int[]{x,y});
+            if (StartPlacement.score(g,third,x,y) != best) continue;
+            free.add(new int[]{x,y});
+            if (plus < tier) { tier = plus; kept.clear(); }
+            if (plus == tier) kept.add(new int[]{x,y});
+            if (exposure < tier339) { tier339 = exposure; kept339.clear(); }
+            if (exposure == tier339) kept339.add(new int[]{x,y});
         }
         check(cleared, "Fixture has no launch an earlier car clears");
         check(Arrays.equals(free.get(0),new int[]{3,1}), "The first best free cell in slot 3 is not (3,1)");
+        check(kept.size() == 1 && kept339.size() == 2 && Arrays.equals(kept339.get(1),new int[]{5,3})
+                && plusOracle(g,5,3,3,earlier) == 2, "Fixture has no unexposed launch the earlier cars' launches close");
         final int[][] positions = Arrays.stream(g.players).map(p -> p.getPosition().clone()).toArray(int[][]::new);
         final int[] behind = StartPlacement.choose(g,third,null);
-        check(Arrays.equals(behind,new int[]{4,1}) && StartPlacement.exposure(g,third,4,1) == 0,
+        check(Arrays.equals(behind,new int[]{4,1}) && Arrays.equals(behind,kept.get(0))
+                && StartPlacement.exposure(g,third,4,1) == 0 && StartPlacement.exposurePlus(g,third,4,1) == 0,
                 "The car in slot 3 did not take the launch the earlier cars clear");
+        for (long seed=0;seed<10;seed++)
+            check(Arrays.equals(StartPlacement.choose(g,third,seed),
+                    kept.get(new Random(seed ^ ((long) third.getNumber() << 32)).nextInt(kept.size()))),
+                    "A seeded car in slot 3 took a launch the earlier cars' launches close");
         check(Arrays.equals(behind,StartPlacement.choose(g,third,null)), "Choice is not a pure function");
         check(Arrays.deepEquals(positions,Arrays.stream(g.players).map(Player::getPosition).toArray(int[][]::new)),
                 "Exposure mutated players");
@@ -225,27 +250,35 @@ final class StartPlacementTests {
         check(Arrays.equals(StartPlacement.choose(g,third,null),behind), "A later human was not a car that may place");
         g.players[3] = last;
         // The tiers stay apart. With the first two cars on (5,2) and (5,3), (4,1) and
-        // (4,2) keep a fastest first move no placement can close, yet still launch onto
-        // a free starting cell; (4,3) launches only onto the earlier cars' cells. The
+        // (4,2) keep a fastest first move that neither a placement nor an earlier
+        // car's fastest first move can close, yet still launch onto a free starting
+        // cell; (4,3) launches only onto the earlier cars' cells, which they leave. The
         // car takes (4,3), where merging the tiers would take (4,1) and the first best
         // free cell is (3,1); seeded, it draws among the unexposed best cells alone.
+        // Round 342: (5,1), unexposed before, launches onto (6,1) and (6,2), where the
+        // earlier cars' fastest first moves land, so it no longer joins them.
         ai.setPosition(new int[]{5,2}); second.setPosition(new int[]{5,3});
-        final List<int[]> bestFree = new ArrayList<>(), unexposed = new ArrayList<>();
+        earlier.clear(); earlier.addAll(fastestLandings(g,5,2)); earlier.addAll(fastestLandings(g,5,3));
+        final List<int[]> bestFree = new ArrayList<>(), unexposed = new ArrayList<>(), unexposed339 = new ArrayList<>();
         int lowest = Integer.MAX_VALUE, firstUnclosable = -1, firstUnexposed = -1;
         for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
             if (g.isCrashingPlayer(x,y,3) || StartPlacement.score(g,third,x,y) != best) continue;
-            final int exposure = exposureOracle(g,x,y,3);
-            check(StartPlacement.exposure(g,third,x,y) == exposure, "Launch exposure is not the referee's beside earlier cars");
+            final int exposure = plusOracle(g,x,y,3,earlier), round339 = exposureOracle(g,x,y,3);
+            check(StartPlacement.exposurePlus(g,third,x,y) == exposure, "C+ exposure is not the referee's beside earlier cars");
+            check(StartPlacement.exposure(g,third,x,y) == round339, "Launch exposure is not the referee's beside earlier cars");
             if (exposure == 1 && firstUnclosable < 0) firstUnclosable = bestFree.size();
             if (exposure == 0 && firstUnexposed < 0) firstUnexposed = bestFree.size();
             bestFree.add(new int[]{x,y}); lowest = Math.min(lowest,exposure);
             if (exposure == 0) unexposed.add(new int[]{x,y});
+            if (round339 == 0) unexposed339.add(new int[]{x,y});
         }
         check(lowest == 0 && firstUnclosable >= 0 && firstUnexposed > firstUnclosable && unexposed.size() < bestFree.size(),
                 "Fixture has no unclosable exposed launch before an unexposed one");
         check(Arrays.equals(bestFree.get(0),new int[]{3,1}), "The first best free cell in slot 3 is not (3,1)");
         check(Arrays.equals(StartPlacement.choose(g,third,null),unexposed.get(0))
                 && Arrays.equals(unexposed.get(0),new int[]{4,3}), "The car merged the unexposed and unclosable tiers");
+        check(unexposed.size() == 1 && unexposed339.size() == 2 && Arrays.equals(unexposed339.get(1),new int[]{5,1}),
+                "Fixture has no unexposed launch the earlier cars' launches close");
         for (long seed=0;seed<10;seed++)
             check(Arrays.equals(StartPlacement.choose(g,third,seed),
                     unexposed.get(new Random(seed ^ ((long) third.getNumber() << 32)).nextInt(unexposed.size()))),
@@ -253,6 +286,95 @@ final class StartPlacementTests {
         // Undo takes the earlier cars back: the same car then chooses as alone.
         for (final Player player : g.players) player.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
         check(Arrays.equals(StartPlacement.choose(g,third,null),pool.get(0)), "Undo did not restore the same choice");
+    }
+    /** Round 342 (C+; the owner, 2026-11-04): every car with a car after it also
+     *  holds the landings of the earlier cars' fastest first moves, which those cars
+     *  may stand on when it first moves, whether they are computers or humans. For
+     *  every cell the first car may take, with that car a computer and then a human,
+     *  against the independent oracles: the car in slot 2 takes the first of its
+     *  best free cells of least C+ exposure and draws over them seeded, which moves
+     *  it off round 339's choice where the first car stands on (5,1), (5,2) or (5,3);
+     *  the last car keeps all its best cells. */
+    private static void testEarlierLaunches(final boolean gated) {
+        for (final Player.Kind kind : new Player.Kind[]{Player.Kind.AI1, Player.Kind.HUMAN}) testEarlierLaunches(gated, kind);
+    }
+    private static void testEarlierLaunches(final boolean gated, final Player.Kind firstKind) {
+        final RaceGame g = corridor(gated);
+        g.players[0] = new Player("A",1,Color.BLUE,firstKind);
+        g.players[1] = new Player("B",2,Color.RED,Player.Kind.AI1);
+        if (gated) g.prepareOptimalStartMap();
+        else { g.reach.computeDistMap(); g.reach.computeReachability(); g.prepareOptimalStartMap(); }
+        set(g.reach,"reachabilityReady",true);
+        final Player first = g.players[0], second = g.players[1], last = g.players[3];
+        final List<int[]> moved = new ArrayList<>();
+        int placed = 0;
+        for (int fx=1;fx<=5;fx++) for (int fy=1;fy<=3;fy++) {
+            for (final Player p : g.players) p.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+            if (oracle(g,fx,fy,false) == Integer.MAX_VALUE) continue;
+            first.setPosition(new int[]{fx,fy});
+            final List<int[]> earlier = fastestLandings(g,fx,fy);
+            final List<int[]> ties = bestFree(g,second);
+            if (ties.isEmpty()) continue;
+            placed++;
+            final List<int[]> plus = new ArrayList<>(), round339 = new ArrayList<>();
+            int leastPlus = Integer.MAX_VALUE, least = Integer.MAX_VALUE;
+            for (final int[] c : ties) {
+                final int p = plusOracle(g,c[0],c[1],2,earlier), e = exposureOracle(g,c[0],c[1],2);
+                check(StartPlacement.exposurePlus(g,second,c[0],c[1]) == p, "C+ exposure is not the referee's");
+                check(StartPlacement.exposure(g,second,c[0],c[1]) == e,
+                        "Launch exposure is not the referee's beside an earlier car");
+                if (p < leastPlus) { leastPlus = p; plus.clear(); }
+                if (p == leastPlus) plus.add(c);
+                if (e < least) { least = e; round339.clear(); }
+                if (e == least) round339.add(c);
+            }
+            check(Arrays.equals(StartPlacement.choose(g,second,null),plus.get(0)),
+                    "The car in slot 2 did not hold the earlier car's launch");
+            for (long seed=0;seed<10;seed++)
+                check(Arrays.equals(StartPlacement.choose(g,second,seed),
+                        plus.get(new Random(seed ^ ((long) second.getNumber() << 32)).nextInt(plus.size()))),
+                        "A seeded car in slot 2 is not the seed's draw among its least C+ exposed best cells");
+            if (!Arrays.equals(plus.get(0),round339.get(0))) moved.add(new int[]{fx,fy});
+            // The last car to place weighs neither later placements nor earlier launches.
+            final List<int[]> lastTies = bestFree(g,last);
+            check(Arrays.equals(StartPlacement.choose(g,last,null),lastTies.get(0)),
+                    "The last car to place weighed the earlier car's launch or later placements");
+            for (long seed=0;seed<10;seed++)
+                check(Arrays.equals(StartPlacement.choose(g,last,seed),
+                        lastTies.get(new Random(seed ^ ((long) last.getNumber() << 32)).nextInt(lastTies.size()))),
+                        "A seeded last car is not the seed's draw among all its best cells");
+        }
+        for (final Player p : g.players) p.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
+        check(placed == 15 && moved.size() == 3 && Arrays.equals(moved.get(0),new int[]{5,1})
+                && Arrays.equals(moved.get(1),new int[]{5,2}) && Arrays.equals(moved.get(2),new int[]{5,3}),
+                "The earlier launches that move the car in slot 2 are not those from (5,1), (5,2) and (5,3)");
+    }
+    /** The free cells of the best referee value from rest for {@code car}, in
+     *  x-then-y order: the oracle's values and the referee's occupancy. */
+    private static List<int[]> bestFree(final RaceGame g, final Player car) {
+        final List<int[]> ties = new ArrayList<>();
+        int best = Integer.MAX_VALUE;
+        for (int x=1;x<=5;x++) for (int y=1;y<=3;y++) {
+            if (g.isCrashingPlayer(x,y,car.getNumber())) continue;
+            final int s = oracle(g,x,y,false);
+            if (s == Integer.MAX_VALUE || s > best) continue;
+            if (s < best) { best = s; ties.clear(); }
+            ties.add(new int[]{x,y});
+        }
+        return ties;
+    }
+    /** Independent C+ exposure for car {@code number}: a fastest landing is held where
+     *  it is a starting cell no other car holds or one of {@code earlier}'s landings. */
+    private static int plusOracle(final RaceGame g, final int x, final int y, final int number,
+            final List<int[]> earlier) {
+        final List<int[]> landings = fastestLandings(g,x,y);
+        int exposed = 0;
+        for (final int[] l : landings) {
+            boolean held = g.startZoneA.contains(l[0],l[1]) && !g.isCrashingPlayer(l[0],l[1],number);
+            for (final int[] e : earlier) held |= Arrays.equals(e,l);
+            if (held) exposed++;
+        }
+        return exposed == 0 ? 0 : exposed < landings.size() ? 1 : 2;
     }
     /** Round 339: a finishing move is exempt from bodies, so it never joins a launch.
      *  With the finish line through the grid, the cells whose fastest first moves
@@ -333,8 +455,8 @@ final class StartPlacementTests {
             final int score = StartPlacement.score(g,ai,x,y);
             if (g.isCrashingPlayer(x,y,1)) check(score == Integer.MAX_VALUE, "Occupied start was accepted");
             else {
-                // The earlier cars' cells are taken and nothing else about them
-                // counts: they move first, so a free cell keeps its solo value.
+                // The earlier cars' cells are taken, and a free cell's value ignores
+                // those cars: they move first, so it keeps its solo value.
                 check(score == before[x][y], "Another car's cell changed a free cell's value");
                 witnessed |= oracle(g,x,y,true) > score; minimum = Math.min(minimum,score);
             }

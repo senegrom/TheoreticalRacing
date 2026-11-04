@@ -2,33 +2,56 @@ package tr.logic;
 
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /** The owner's computed-start rule (2026-10-02, CLAUDE.md; later placements
- * 2026-11-01): one shared, occupancy-independent value for every starting cell,
- * and the first moves that achieve it.
+ * 2026-11-01; earlier launches 2026-11-04): one shared, occupancy-independent
+ * value for every starting cell, and the first moves that achieve it.
  *
  * All players place in roster order, the order they then race in. At each AI's
- * turn the cells the earlier cars took are refused and nothing else about those
- * cars counts: they move first. A free cell scores its exact single-player value
- * from rest -- the cheapest legal first move plus the exact solo continuation --
- * with no preselected positions. Where the exact full-race map is over budget,
- * the continuation is the next best map, the exact distance to the first
- * checkpoint, which the cars then race by.
+ * turn the cells the earlier cars took are refused, and a free cell's value
+ * ignores those cars: they move first. A free cell scores its exact single-player
+ * value from rest -- the cheapest legal first move plus the exact solo
+ * continuation -- with no preselected positions. Where the exact full-race map is
+ * over budget, the continuation is the next best map, the exact distance to the
+ * first checkpoint, which the cars then race by.
  *
  * Round 339 (the owner, 2026-11-01: "Cars should also consider where other cars
  * may place."): any free starting cell may be taken by a later car, AI or human,
- * and that car still stands there when this one first moves. Among its best cells
- * a car keeps the least exposed launch: none of its fastest first moves lands on a
- * free starting cell; else at least one lands elsewhere, so no later placement can
- * close it; else any best cell. The last car to place keeps all its best cells.
- * Which cell a later car takes is never predicted, nothing is simulated, and where
- * the earlier cars go is never priced.
+ * and that car still stands there when this one first moves. A fastest first move
+ * is exposed where it lands on a free starting cell. Among its best cells a car
+ * keeps the least exposed launch: none of its fastest first moves is exposed; else
+ * at least one is not, so no later placement can close it; else any best cell. The
+ * last car to place keeps all its best cells. Which cell a later car takes is never
+ * predicted, and nothing is simulated.
  * Against the speed-round-3 champion as arm 364, all on computed starts: eight-car
  * fields -0.279 +- 0.028 places (seeds 1-10) and -0.354 +- 0.029 on held-out seeds
  * 11-20, a lone car among eight -0.254 +- 0.027, four-car fields -0.097 +- 0.012,
  * duels -0.008 +- 0.007; random and scattered starts never reach the placement.
+ *
+ * Round 342 (C+; the owner, 2026-11-02: "Yes, screen the variant"; 2026-11-04:
+ * "yes, do it"): the earlier cars move first and may stand where their fastest
+ * first moves land when this one first moves, so a fastest first move is also
+ * exposed where it lands on a landing of an earlier car's fastest first moves.
+ * Every landing of every fastest first move of every earlier car is held,
+ * whichever that car takes, which is never predicted; an earlier car's own cell
+ * is not among its own landings, since it moves off it first. A launch of the
+ * middle tier keeps a fastest first move that neither a later placement nor an
+ * earlier car's fastest first move can close. This prices where the earlier
+ * cars may go, which round 339 did not.
+ * Measured as arm 365 against the round-341 champion, on computed starts: mirrored
+ * eight-car fields -0.026 +- 0.019 places (seeds 1-10) and -0.049 +- 0.018
+ * (held-out seeds 11-20), mirrored four-car fields -0.024 +- 0.006 (seeds 1-20); a
+ * lone car among eight, in every seat against the all-champion race,
+ * -0.053 +- 0.016 (seeds 1-5). On round 339's base, against round 339 (round 340
+ * changed no race of AI cars): eight-car fields -0.033 +- 0.018, -0.063 +- 0.018
+ * and -0.016 +- 0.019 (seeds 1-10, 11-20 and 21-30), four-car fields
+ * -0.023 +- 0.006, a lone car -0.047 +- 0.016. Duels are identical by construction
+ * (the first car has no earlier car, the second is the last), and random and
+ * scattered starts never reach the placement.
  */
 final class StartPlacement {
     private StartPlacement() {}
@@ -69,14 +92,44 @@ final class StartPlacement {
          *  one does, else 1. A cell another car holds is not free: in a placement
          *  only an earlier car holds one, and it moves first. */
         private int exposure(final RaceGame game, final Player player, final Cell cell) {
+            return exposure(game, player, cell, null);
+        }
+
+        /** Round 342 (C+): the exposure with {@code earlier} held as well, the
+         *  landings of the earlier cars' fastest first moves (earlierLaunches): those
+         *  cars move first and may stand there when this one first moves. Null is the
+         *  round-339 exposure. */
+        private int exposure(final RaceGame game, final Player player, final Cell cell, final Set<Long> earlier) {
             int moves = 0, exposed = 0;
             for (final Direction d : Direction.values()) {
                 if ((cell.launch() & (1 << d.ordinal())) == 0) continue;
                 moves++;
                 final int lx = cell.x() + d.dx, ly = cell.y() + d.dy;
-                if (find(lx, ly) != null && !game.isCrashingPlayer(lx, ly, player.getNumber())) exposed++;
+                if (find(lx, ly) != null && !game.isCrashingPlayer(lx, ly, player.getNumber())
+                        || earlier != null && earlier.contains(cellKey(lx, ly))) exposed++;
             }
             return exposed == 0 ? 0 : exposed < moves ? 1 : 2;
+        }
+
+        /** Round 342: the landings of the fastest first moves of every other car on a
+         *  starting cell, whichever it takes. In a placement only an earlier car stands
+         *  on one, and it moves first; an unplaced car's position is off the table. */
+        private Set<Long> earlierLaunches(final RaceGame game, final Player player) {
+            final Set<Long> landings = new HashSet<>();
+            for (final Player other : game.players) {
+                if (other.getNumber() == player.getNumber() || other.isFinished()) continue;
+                final int[] position = other.getPosition();
+                final Cell cell = find(position[0], position[1]);
+                if (cell == null) continue;
+                for (final Direction d : Direction.values())
+                    if ((cell.launch() & (1 << d.ordinal())) != 0)
+                        landings.add(cellKey(cell.x() + d.dx, cell.y() + d.dy));
+            }
+            return landings;
+        }
+
+        private static long cellKey(final int x, final int y) {
+            return ((long) x << 32) | (y & 0xffffffffL);
         }
     }
 
@@ -150,6 +203,16 @@ final class StartPlacement {
         return cell == null ? Integer.MAX_VALUE : analysis.exposure(game, player, cell);
     }
 
+    /** Round 342: one cell's C+ exposure, the earlier cars' launches held as well (0, 1
+     *  or 2; MAX_VALUE outside the table), behind requireAnalysis's checks: the tests'
+     *  entry point. */
+    static int exposurePlus(final RaceGame game, final Player player, final int x, final int y) {
+        final Analysis analysis = requireAnalysis(game, player);
+        final Cell cell = analysis.find(x, y);
+        return cell == null ? Integer.MAX_VALUE
+                : analysis.exposure(game, player, cell, analysis.earlierLaunches(game, player));
+    }
+
     static int[] choose(final RaceGame game, final Player player, final Long seed) {
         final Analysis analysis = requireAnalysis(game, player);
         final List<Cell> bestCells = new ArrayList<>();
@@ -181,13 +244,15 @@ final class StartPlacement {
         return false;
     }
 
-    /** Round 339: the cells of the least exposure, in their x-then-y order. */
+    /** Round 339: the cells of the least exposure, in their x-then-y order. Round 342
+     *  (C+): the earlier cars' launches are held as well. */
     private static List<Cell> leastExposed(final Analysis analysis, final RaceGame game, final Player player,
                                            final List<Cell> cells) {
+        final Set<Long> earlier = analysis.earlierLaunches(game, player);
         final List<Cell> pool = new ArrayList<>();
         int least = Integer.MAX_VALUE;
         for (final Cell cell : cells) {
-            final int exposure = analysis.exposure(game, player, cell);
+            final int exposure = analysis.exposure(game, player, cell, earlier);
             if (exposure > least) continue;
             if (exposure < least) { least = exposure; pool.clear(); }
             pool.add(cell);

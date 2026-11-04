@@ -72,38 +72,44 @@ cheaply, by the owner's design: until the deciding car has passed its first
 checkpoint it models every car on the track with the grid, afterwards on the
 track without it; a car still on the grid by then is not worth modelling.
 
-## Computed-start rule (decided by the owner, 2026-10-02; later placements 2026-11-01)
+## Computed-start rule (decided by the owner, 2026-10-02; later placements 2026-11-01; earlier launches 2026-11-04)
 
 With computed starts (`aiStartPlacement=informed`: the desktop and browser
 default; headless runs ask for it) the cars take the grid in **roster order**,
 the order they then race in. Each car takes a best cell among those the cars
-before it have left free, and nothing else about those cars counts: they move
-first, so where they go is never priced. Best is the single-player optimum,
-the fewest moves to finish from rest on that cell: the exact full-race
-potential on lap races, the reachability map on point-to-point courses, and
-where the exact map is over budget (the Nordschleife) the next best map, the
-exact distance to the first checkpoint, which the cars then race by
-(`StartPlacement`). The first car's advantage is accepted.
+before it have left free; a cell's value ignores those cars, since they move
+first. Best is the single-player optimum, the fewest moves to finish from rest
+on that cell: the exact full-race potential on lap races, the reachability
+map on point-to-point courses, and where the exact map is over budget (the
+Nordschleife) the next best map, the exact distance to the first checkpoint,
+which the cars then race by (`StartPlacement`). The first car's advantage is
+accepted.
 
 "Cars should also consider where other cars may place" (owner, 2026-11-01;
 round 339). Any free starting cell may be taken by a later car, AI or human,
-and that car still stands there when this one first moves. A best cell's
+and that car still stands there when this one first moves. A starting cell's
 fastest first moves are the first moves that achieve its value from rest
 without finishing (the referee exempts a finishing move from bodies); one is
-exposed where it lands on a free starting cell. Among its best cells a car
-keeps those with no exposed fastest first move; failing those, the ones with
-at least one fastest first move that is not exposed, which no later placement
-can close; failing those, all of them. The last car to place keeps all its
-best cells. No car predicts which cell a later car takes, and no car
-simulates or replays later placements or the race: a start-ties replay was
-rejected as too complicated.
+exposed where it lands on a free starting cell. The earlier cars move first
+and may then stand where their own fastest first moves land, so one is also
+exposed where it lands on a landing of an earlier car's fastest first moves:
+every landing of every fastest first move of every earlier car counts,
+whichever that car takes (owner, 2026-11-02: "Yes, screen the variant";
+2026-11-04: "yes, do it"; round 342). Among its best cells a car keeps those
+with no exposed fastest first move; failing those, the ones with at least one
+fastest first move that is not exposed, which neither a later placement nor
+an earlier car's fastest first move can close; failing those, all of them.
+The last car to place keeps all its best cells. No car predicts which cell a
+later car takes or which first move an earlier car makes, and no car
+simulates or replays placements or the race: a start-ties replay was rejected
+as too complicated.
 
 The cells a car keeps are equally good: they go to the seed's draw, or
 without a seed to the first cell in x-then-y order. A human takes any free
 cell on its turn; placement Undo takes back that cell and every AI cell after
 it, which then choose again. Changing what "best" or "exposed" means, pricing
-where the earlier cars go, or adding any lookahead, is a rule change and
-needs the owner.
+the earlier cars in any other way, or adding any lookahead, is a rule change
+and needs the owner.
 
 ## Measurement discipline (unchanged)
 

@@ -1,5 +1,63 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 342 promoted (2026-11-04): a car with a car after it also holds the landings of the earlier cars' fastest first moves
+
+The owner, 2026-11-02, on the C+ variant: "Yes, screen the variant"; 2026-11-04, asked whether it should land as
+round 342 if its held-out 8-car window confirmed it on round 341 ("It changes the computed-start rule, which today
+never prices where the earlier cars go"): "yes, do it". The held-out window read -0.049 +- 0.018. Rule CFP (the
+critic's, design E:/tmp-claude/place364; arm 365, E:/tmp-claude/arm365_cplus.py): round 339 counts a best cell's
+fastest first move as exposed where it lands on a free starting cell, which a later car may take; a car with a car
+after it now also counts it exposed where it lands on a landing of an earlier car's fastest first moves. The earlier
+cars move first and may stand there when this car first moves; every landing of every fastest first move of every
+earlier car counts, whichever that car takes, and no car predicts which. The tiers, the pool of least exposure, the
+seed's draw over it and the last car's exemption (it keeps all its best cells) are round 339's. The computed-start
+rule in CLAUDE.md and AGENTS.md now says so with the owner's words; README.md, web/README.md and web/index.html
+describe it.
+
+Measured as arm 365, candidate-gated, on computed starts, mirrored (boards favouring candidate / champion / tied;
+crashes candidate:champion): a365 on round 339 against round 339 (round 340 changed no race of AI cars), and
+a365on341 on round 341 against round 341, as the owner's rule re-measures an open arm on the new master:
+
+| Slice | a365 (round 339) | a365on341 (round 341) |
+|---|---|---|
+| 8 cars, seeds 1-10 | -0.033 +- 0.018 (40/33/11; 48:26) | -0.026 +- 0.019 (43/33/8; 46:21) |
+| 8 cars, held-out seeds 11-20 | -0.063 +- 0.018 (46/27/11; 43:31) | -0.049 +- 0.018 (48/27/9; 44:21) |
+| 8 cars, seeds 21-30 | -0.016 +- 0.019 (43/34/7; 51:27) | -0.015 +- 0.019 (47/28/9; 49:30) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | -0.047 +- 0.016 (47/25/12; 14:14) | -0.053 +- 0.016 (46/25/13; 15:17) |
+| 4 cars, seeds 1-20 | -0.023 +- 0.006 (23/12/49; 6:6) | -0.024 +- 0.006 (24/13/47; 6:6) |
+| Duels, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 208:208) | identical by construction |
+
+- In the mirrored eight-car fields C+'s cars crash more often than CF's (43 to 51 against 21 to 31); as a lone
+  entrant the counts are level (14:14, 15:17). A crash scores as that car's last place, so the place readings price
+  it; the field counts are description.
+- Duels cannot differ: the first car has no earlier car and the second places last. Random and scattered starts never
+  reach StartPlacement: with every slot a candidate the arm raced exactly as the champion on both, 4 races each in 8
+  cars on round 339 and on round 341; on computed starts all four checked races differed on both bases.
+- The promoted placement raced exactly as the arm with every slot a candidate on computed starts: 8 cars (15 races),
+  4 cars (6) and duels (5), the Nordschleife's first-checkpoint map in the 4-car and duel sets. On random and
+  scattered starts it raced exactly as the champion (4 races each). CPU 0.98x to 1.01x. Against the champion on
+  computed starts all four checked races differ.
+- StartPlacementTests are restated for every car from brute-force oracles over the referee's moves;
+  testLaunchExposure takes its best cells from StartPlacement.score, which testScoring checks against the oracle. In
+  testLaunchExposure's two slot-3 fields C+ keeps {(4,1)} where round 339 kept {(4,1),(5,3)}, and {(4,3)} where it
+  kept {(4,3),(5,1)}; the seeded draws (seeds 0-9) run over the C+ pool. testEarlierLaunches runs on both corridors
+  (point-to-point and gated), with the first car a computer and then a human, over every cell the first car may take:
+  the car in slot 2 takes the first of its best free cells of least C+ exposure and draws over them, C+ and round 339
+  choose differently exactly when the first car stands on (5,1), (5,2) or (5,3), and the last car keeps all its best
+  free cells. 29 of 30 mutants of the promoted StartPlacement fail a test (round 339's rule, C+ for the last car too,
+  the earlier car's landings ignored, a human earlier car skipped, among others); the survivor is the equivalent one
+  round 339's mutants also left.
+- Corpus: nothing moves. The browser parity race (informed Hairpin s1, two cars) keeps a19e2b09 with an empty and a
+  warm reach cache at 2g and an empty one at 4g, and parity.py's two-lap Monza race is identical to the champion's:
+  with two cars the first has no earlier car and the second places last. The legacy goldens and the pins race random
+  starts, which never reach StartPlacement; the goldens pass with the promoted jar.
+- Box verify on the round-342 tree: every pin, the goldens, headless smoke, query replay, lap progress and compileall
+  pass (30/30); the Python unit tests pass (104), after the fleet grid's Ctrl+C resume test failed once under the
+  box's load again and passed on three solo and two full re-runs. The Java suite, the local browser build and the
+  browser engine's tests on the prepared sources (BrowserTests, StartupTests, PlayerOrderTests) pass. The text
+  review's fixes changed StartPlacement.java's class doc only: the committed tree's jar is javap code-identical to
+  the verified one.
+
 ## Round 341 promoted (2026-11-03): the score's rival twin plays the rival's own gate rules
 
 A correctness fix, the gate part of arm 360 (the racecraft-ideas workflow of 2026-11-01,
