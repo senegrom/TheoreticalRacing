@@ -227,7 +227,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
-    ("spa", 1): '509b17d699ff851387783d3db2dcdbefa4c0e60f0b36892ac72a43631cd9d92e',
+    # Round 343: re-frozen from measurement (a rival whose simulated move finishes leaves the score's simulated round); seven finishers and no crash, every car in the same place on the same own move as before; the race is the round-342 race through turn 569, the first change is p2's 72nd move at turn 570 (SE instead of E).
+    ("spa", 1): '8db7f08ba615e29ba41b12f64b1be0b30fa87f147f746716ea774c3dd4168457',
     # Round 224: same finishing order and same per-car move counts, new route.
     # Round 234: re-frozen from measurement (the seal guard left the decision).
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).

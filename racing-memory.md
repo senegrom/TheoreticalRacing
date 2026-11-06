@@ -1,5 +1,96 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 343 promoted (2026-11-06): a rival whose simulated move finishes leaves the score's simulated round
+
+A correctness fix, arm 366 (E:/tmp-claude/arm366_twinfinish.py). The score reads one simulated round
+(simulateRoundPass): its cells set the +3.0 price on a successor cell that a simulated rival holds and the plateau
+count, feed the timed safe-successor count behind the trap ladder and queueBox, and decide whether a nested scorer
+may reuse its no-mover reference. The round applied a rival's move only when the move passed the whole-segment test
+(aiMoveLegal) and its landing was free, so a rival whose move finished stayed in it as a phantom body: on its old
+cell when it finished onto a body, which the referee allows (a finishing move is exempt from bodies), or past the
+track's end, which the run-up rule allows and aiMoveLegal refuses; on its landing when it finished onto a free one.
+The referee takes a finished car off the board (finishPlayer; isCrashingPlayer skips it), and so does every forecast
+(simOutcomeCore). Now a rival whose move finishes leaves the round: its cell out, no landing in, its row null. The
+twin's move finishes exactly when finishesFor holds in the rival's frame, since its finish precedence is the one
+branch that returns a finishing landing; a human above the AI speed cap's shed move (round 340) by the referee's
+transition. The perf_refround window and the nested reference's reuse stay exact (a finished rival ends on no cell; a
+finish needs no free cell), and check mode now runs every reused round conditioned as well and compares the cells the
+decision reads (PERF-AWARE REFREUSE MISMATCH), reading the reference through contains, so the reference's windowed
+round, the one a reuse returns outside check mode, is still compared with its whole round (REFROUND). The round-242
+predictor, which keeps a rival predicted to cross on its final lap on its landing, is a different model and is
+untouched. Only src/tr/logic/RaceAi.java changes (the browser build copies it byte for byte), with
+SimulationFollowupTests' new test.
+
+The owner, 2026-11-06: "ship 366 if it looks good". Measured as arm 366, candidate-gated (a candidate's decisions use
+the rule), against the round-342 champion, mirrored (boards favouring candidate / champion / tied; crashes
+candidate:champion):
+
+| Slice | a366 |
+|---|---|
+| 8 cars, random starts, seeds 1-10 | -0.001 +- 0.001 (2/1/81; 50:50) |
+| 8 cars, computed starts, seeds 1-10 | +0.001 +- 0.002 (1/2/81; 28:28) |
+| 8 cars, scattered starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 8:8) |
+| Lone candidate (8 cars, every seat, random starts, seeds 1-5) | -0.000 +- 0.001 (1/1/82; 22:22) |
+| 4 cars, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 8:8) |
+| Duels, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 221:221) |
+
+- The arm raced exactly as the champion with no candidate: 8 cars on random (4 races), computed (4) and scattered (3)
+  starts, 4 cars (3) and duels (3). In check mode with every slot a candidate it printed no PERF-AWARE line (8 cars,
+  4 cars with the Nordschleife, duels), its REFREUSE self-test included. With every slot a candidate six random-start
+  and three computed-start races raced exactly as the champion, at 1.007x and 1.001x its CPU; the check-mode set's
+  Zigzag s6 changed. Its census (-Dai.debug.twinFinish, every car on the champion's rules and the other rules run
+  beside) changed no race. In its four races (Coil s2, Hybrid1 s3, Interlagos s10, Rand14 s5) 0.5% to 2.7% of the
+  simulated rounds met a finishing rival, mostly one finishing past the track's end or onto a free landing; 6% to 29%
+  of the decisions read a round the rule changes, 2 to 10 per race in the decision's own round.
+- The promoted round as first built (jar p343), every car on the rule, raced exactly as the arm with every slot a
+  candidate: 8 cars on random starts (8 races, Zigzag s6 and Hybrid4 s1 among them, both of which differ from the
+  champion), computed (6) and scattered (4) starts, 4 cars on random (5) and computed (3) starts, and duels on random
+  (6) and computed (3) starts, the Nordschleife in both duel sets; CPU 0.99x to 1.02x. Its check mode, whose REFREUSE
+  self-test then read the reference through holds, printed no PERF-AWARE line (8 cars, 4 cars with the Nordschleife,
+  duels). The code review changed that one read to contains (otherwise check mode no longer compared the windowed
+  reference a reuse returns), so the final jar differs from p343 in one check-mode instruction: it raced exactly as
+  p343 in normal mode (8 cars on random (3 races) and computed (2) starts, duels (2)) and exactly as the arm with
+  every slot a candidate in check mode, printing no PERF-AWARE line (8 cars (4 races), 4 cars with the Nordschleife
+  (3), duels (3)).
+- Unit test: SimulationFollowupTests.testTwinFinishLeaves ("twinfinish"), seven parts, player 1 deciding. (held) On
+  the two-lap Circle the rival of twin gates (d), on its final lap with every landing finishing, takes NW onto a car
+  at rest; (free) the same rival with the landing free; (off) on the step corridor a rival at 10 cells a move crosses
+  the line and lands past the track's end; (shed) a human at 14, above the AI cap, does so. In these the finisher
+  moves first, and player 1's round, read on the whole board and in the window perf_refround reads around it, must
+  equal the round of the same field with the finisher already finished and hold no body where round 342 kept it (its
+  old cell, its landing, its old cell, its old cell). That round answers for the cars moving after the finisher only
+  as long as its body turned no car before it, and not for a car moving before it, so three parts put a second car
+  beside the finisher of (free): (follow) moving after it, the car takes the landing it left; (lead) moving before
+  it, the car keeps the landing it then finishes onto; (wait) moving before it, the car still finds the finisher's
+  old cell held. No part's rounds may change the live field. On round 342 all seven parts fail; 12 wrong rules each
+  fail at least one (the code review's mutants, among them dropping the finisher before the round, only after the
+  pass, only onto a free landing, with its landing too, or writing the live rival).
+- Corpus re-frozen from measurement (the box's corpus job). Goldens: 2 of 12 change their trajectory digest with
+  every summary unchanged (zigzag-s4-8p, zigzag-s22-8p). Pins: 4 of 25. The box loop re-froze three: six-ahead high
+  speed (five Spa digests, every car in the same place on the same own move; Coil s5, where p3 and p4 swap third and
+  fourth, and Coil s22, where p6 and p8 each finish two places higher, with two and three own moves more in all),
+  graduated field accel (Coil s38, three own moves fewer, and s106, four more) and private slack (a Spa digest); each
+  value it re-froze has its own note. The finish-frontier pin's seed 49 by hand, since the loop alternated between
+  seeds 6 and 49, whose old summaries were the same text: p7 now fourth in 60, p3, p4 and p5 one own move slower, and
+  the pinned line at move 308 stands. The label-invariance pin takes its reference from the six-ahead pin's Coil s5
+  digest and passes. Every pin race that changed (25 of the probe's 71) is the round-342 race until late: through
+  turn 357 or later on the Coil (of about 480), turn 556 or later on Spa (of about 650), and through all but its last
+  17 to 24 turns on Zigzag, Lobe2, Rand13 and Serpentine2. The browser parity race (informed Hairpin s1, a19e2b09,
+  with an empty and a warm reach cache at 2g and an empty one at 4g), parity.py's two-lap Monza race and the browser
+  e2e Hairpin (33 turns) do not move.
+- Box verify on the round-343 tree with the reviewed jar (p343b): every pin, the goldens, headless smoke, query
+  replay, lap progress and compileall pass (30/30), and the Python unit tests pass (104). The fleet grid's Ctrl+C
+  resume test fails in every job of the box's queue, whatever the tree: the queue starts its jobs with SIGINT
+  ignored, so Python installs no KeyboardInterrupt handler and the test's interrupt_main does nothing; with SIGINT at
+  its default all 104 pass. Rounds 331 to 342 put that failure down to the box's load. The Java suite, the local
+  browser build and the browser engine's tests pass. The text review's fixes changed comments in RaceAi.java and the
+  test's messages and comments: the committed tree's jar is javap code-identical to p343b.
+- Arm 362 (E:/tmp-claude/arm362_def3.py, candidate-gated: the DEF tier, a third key below place and time in the
+  chooser, with six or more live cars early in the race), screened beside arm 366 against round 342, is closed (the
+  owner, 2026-11-06: "close 362"). In 8 cars on random starts it read +0.032 +- 0.020 (35/42/7; crashes 48:64), past
+  the kill rule set before its screens (a slice at +0.015 or worse); on computed starts -0.048 +- 0.015 (44/28/12;
+  35:43).
+
 ## Round 342 promoted (2026-11-04): a car with a car after it also holds the landings of the earlier cars' fastest first moves
 
 The owner, 2026-11-02, on the C+ variant: "Yes, screen the variant"; 2026-11-04, asked whether it should land as

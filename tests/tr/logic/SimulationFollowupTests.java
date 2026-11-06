@@ -22,8 +22,9 @@ public final class SimulationFollowupTests {
         if (args.length == 0 || args[0].equals("progress")) testMoverProgress();
         if (args.length == 0 || args[0].equals("human")) testHumanAboveCap();
         if (args.length == 0 || args[0].equals("twingates")) testTwinGates();
+        if (args.length == 0 || args[0].equals("twinfinish")) testTwinFinishLeaves();
         System.out.println("SimulationFollowupTests: legal blockades, proxy continuations, mover progress,"
-                + " human rivals above the AI cap and the rival twin's gate rules OK");
+                + " human rivals above the AI cap, the rival twin's gate rules and its finishes OK");
     }
 
     private static void testLegalBlockade() throws Exception {
@@ -396,6 +397,207 @@ public final class SimulationFollowupTests {
         check(twin == first, "the twin took " + twin + ", not " + first + ", the first finishing landing"
                 + (twin == fastest ? " (ranked as an ordinary landing)" : ""));
         return "the twin takes the first finishing landing " + twin + ", on a body, where ranking takes " + fastest;
+    }
+
+    /** Round 343: a rival whose simulated move finishes leaves the score's simulated round, as the referee takes a
+     *  finished car off the board (RaceGame.finishPlayer; isCrashingPlayer skips a finished car) and every forecast
+     *  does (simOutcomeCore). Before, the round kept it as a phantom body: on its old cell when its twin finished
+     *  onto a body, which the referee lets a finish land on (held), or past the track's end, where the run-up rule
+     *  lets a finish land and the round's whole-segment test (aiMoveLegal) does not (off, and a human above the cap
+     *  doing so, shed); on its landing when it finished onto a free one (free). Player 1 decides, and no part's
+     *  rounds may change the live field. In those four the finisher is the round's first mover, and the round, read
+     *  on the whole board and in the window perf_refround reads around the finisher, must be the round of the same
+     *  field with the finisher already finished. That round answers for every car moving after the finisher as long
+     *  as the finisher's body turned no car before it, and not for one moving before it, which still meets the
+     *  finisher's body. Three more parts put a second car where the finish matters, beside the finisher of (free):
+     *  (follow) moving after the finisher, it takes the landing the finisher left; (lead) moving before it, it
+     *  keeps the landing the finisher then finishes onto; (wait) moving before it, it still finds the finisher's
+     *  old cell held. The failures are reported together. */
+    private static void testTwinFinishLeaves() throws Exception {
+        final java.util.List<String> failures = new java.util.ArrayList<>();
+        final RaceGame circle = circle();
+        finishPart(failures, "(held) a finish onto a body", () -> finishOnCircle(circle, true));
+        finishPart(failures, "(free) a finish onto a free landing", () -> finishOnCircle(circle, false));
+        finishPart(failures, "(off) a finish past the track's end", () -> finishPastEnd(Player.Kind.AI1));
+        finishPart(failures, "(shed) a human above the cap finishing past the end",
+                () -> finishPastEnd(Player.Kind.HUMAN));
+        finishPart(failures, "(follow) a car after the finisher takes the landing it left",
+                () -> finishBesideCar(circle, false));
+        finishPart(failures, "(lead) a car before the finisher keeps the landing it finishes onto",
+                () -> finishBesideCar(circle, true));
+        finishPart(failures, "(wait) a car before the finisher still meets its body", () -> finishAfterCar(circle));
+        check(failures.isEmpty(),
+                "the score's simulated round mishandled a finishing rival: " + String.join("; ", failures));
+    }
+
+    /** Round 343: one part of testTwinFinishLeaves. */
+    private static void finishPart(final java.util.List<String> failures, final String name, final TwinPart part)
+            throws Exception {
+        try {
+            System.out.println("Twin finish " + name + ": ok, " + part.run());
+        } catch (final AssertionError | java.lang.reflect.InvocationTargetException e) {
+            final String why = e instanceof AssertionError ? e.getMessage() : "the code under test threw " + e.getCause();
+            System.out.println("Twin finish " + name + ": FAILED: " + why);
+            failures.add(name + ": " + why);
+        }
+    }
+
+    /** Round 343 (held, free): the rival of twin gates (d), on its final lap at (47, 10) doing 5 right and 2 up: all
+     *  nine landings finish, and the twin takes the first, NW at (51, 7). With {@code held} a third car stands there
+     *  at rest; it moves after the rival. */
+    private static String finishOnCircle(final RaceGame g, final boolean held) throws Exception {
+        final Player rival = held ? twinField(g, 47, 10, 5, -2, 1, 0, car(3, 51, 7, 0, 0))
+                : twinField(g, 47, 10, 5, -2, 1, 0);
+        final int[] from = rival.getPosition().clone(), to = landing(rival, Direction.NW);
+        check(g.evaluateMove(rival.getLap(), rival.getNextGate(), from[0], from[1], to[0], to[1], held).finishes()
+                && g.aiMoveLegal(from[0], from[1], to[0], to[1]),
+                "fixture: the rival's NW move is no legal finish" + (held ? " onto the body" : ""));
+        final RaceAi.CellOccupancy board = cells(g);
+        if (held)
+            board.add(to[0], to[1]);
+        check(twin(g, rival, board) == Direction.NW, "fixture: the twin does not take the finishing NW landing");
+        return finishRounds(g, rival, held ? from : to, held ? "its old cell" : "its landing");
+    }
+
+    /** Round 343 (off, shed): the step corridor's line stands at x = 172.5 and its track ends at x = 173. A rival
+     *  at (165, 15) doing 10 right, or a human at (163, 15) doing 14 right, above the AI cap, crosses the line on
+     *  its first acceleration, NW, and lands past the end. Player 1 decides at rest at (100, 15). */
+    private static String finishPastEnd(final Player.Kind kind) throws Exception {
+        final RaceGame g = stepCorridor();
+        final boolean human = kind == Player.Kind.HUMAN;
+        final Player rival = new Player("P2", 2, Color.RED, kind);
+        rival.setPosition(new int[]{human ? 163 : 165, 15}); rival.setVelocity(new int[]{human ? 14 : 10, 0});
+        rival.setNextGate(0);
+        g.players = new Player[]{car(1, 100, 15, 0, 0), rival};
+        g.reach.computeDistMap(); g.reach.computeReachability();
+        g.subgamestate = 0;
+        decisionFrame(g);
+        final int[] from = rival.getPosition().clone(), to = landing(rival, Direction.NW);
+        check(g.evaluateMove(0, 0, from[0], from[1], to[0], to[1], false).finishes()
+                && !g.aiMoveLegal(from[0], from[1], to[0], to[1]),
+                "fixture: the rival's NW move does not finish past the track's end");
+        if (!human)
+            check(twin(g, rival, cells(g)) == Direction.NW, "fixture: the twin does not take the finishing NW landing");
+        return finishRounds(g, rival, from, "its old cell");
+    }
+
+    /** Round 343 (follow, lead): the finisher of (free) and a car on its first lap owing the line at (49, 8) doing
+     *  1 right, which moves after the finisher or, {@code lead}, before it. Either way the round must be the round
+     *  with the finisher already finished, which puts that car on (51, 7), the finisher's landing. */
+    private static String finishBesideCar(final RaceGame g, final boolean lead) throws Exception {
+        final Player other = car(lead ? 2 : 3, 49, 8, 1, 0), finisher = finishingCar(lead ? 3 : 2);
+        other.leaveGrid();
+        if (lead) finishField(g, other, finisher); else finishField(g, finisher, other);
+        final int[] board = {0, 0, g.gameCols, g.gameRows};
+        final String live = state(g);
+        final java.util.List<String> round = roundCells(g, board), without = finishedRoundCells(g, finisher, board);
+        check(state(g).equals(live), "the simulated rounds changed the live field");
+        check(without.equals(java.util.List.of("51,7")),
+                "fixture: with the finisher finished the other car does not take (51,7): " + without);
+        check(round.equals(without), "the round " + round + " is not the round with the finisher finished, " + without);
+        return "the round " + round + " is the round with the finisher finished";
+    }
+
+    /** Round 343 (wait): a car on its first lap owing the line at (45, 11) doing 1 right moves before the finisher
+     *  of (free), whose body still stands on (47, 10) then: the round holds that car on (47, 11). The round with the
+     *  finisher already finished, which drops the finisher before anyone moves, puts it on (47, 10). */
+    private static String finishAfterCar(final RaceGame g) throws Exception {
+        final Player other = car(2, 45, 11, 1, 0), finisher = finishingCar(3);
+        other.leaveGrid();
+        finishField(g, other, finisher);
+        final int[] board = {0, 0, g.gameCols, g.gameRows};
+        final String live = state(g);
+        final java.util.List<String> round = roundCells(g, board), without = finishedRoundCells(g, finisher, board);
+        check(state(g).equals(live), "the simulated rounds changed the live field");
+        check(without.equals(java.util.List.of("47,10")),
+                "fixture: with the finisher finished the other car does not take (47,10): " + without);
+        check(round.equals(java.util.List.of("47,11")),
+                "the round " + round + " is not the other car alone on (47,11), beside the finisher's body");
+        return "the round " + round + " holds the other car beside the finisher's body (with the finisher finished: "
+                + without + ")";
+    }
+
+    /** Round 343 (follow, lead, wait): the finisher of (free), on its final lap at (47, 10) doing 5 right and 2 up,
+     *  as player {@code number}. */
+    private static Player finishingCar(final int number) {
+        final Player p = car(number, 47, 10, 5, -2);
+        p.setLap(1); p.setNextGate(0); p.leaveGrid();
+        return p;
+    }
+
+    /** Round 343 (follow, lead, wait): player 1 deciding as in twinField, then {@code cars} in the order the round
+     *  moves them. */
+    private static void finishField(final RaceGame g, final Player... cars) throws Exception {
+        final Player mover = car(1, 48, 88, 0, 0);
+        mover.setNextGate(2); mover.leaveGrid();
+        final Player[] players = new Player[1 + cars.length];
+        players[0] = mover;
+        System.arraycopy(cars, 0, players, 1, cars.length);
+        g.players = players;
+        g.subgamestate = 0;
+        decisionFrame(g);
+    }
+
+    /** Round 343: player 1's simulated round, read on the whole board and in the window perf_refround reads around
+     *  the rival (its cell and its nine landings), must be the round of the same field with the rival already
+     *  finished, which holds no body on {@code phantom}, where the round kept the rival before. */
+    private static String finishRounds(final RaceGame g, final Player rival, final int[] phantom, final String where)
+            throws Exception {
+        final int[] p = rival.getPosition(), v = rival.getVelocity();
+        final int cx = p[0] + v[0], cy = p[1] + v[1];
+        final int[][] windows = {{0, 0, g.gameCols, g.gameRows},
+                {Math.min(p[0], cx - 1), Math.min(p[1], cy - 1), Math.max(p[0], cx + 1), Math.max(p[1], cy + 1)}};
+        final String cell = phantom[0] + "," + phantom[1], live = state(g);
+        String seen = "";
+        for (final int[] w : windows) {
+            final String in = w[0] == 0 ? "" : " in the window " + Arrays.toString(w);
+            final java.util.List<String> round = roundCells(g, w);
+            check(state(g).equals(live), "the simulated round changed the live field" + in);
+            final java.util.List<String> without = finishedRoundCells(g, rival, w);
+            check(state(g).equals(live), "the round with the rival finished changed the live field" + in);
+            check(!without.contains(cell), "fixture: the round with the rival finished holds " + where + " ("
+                    + cell + ")" + in + ": " + without);
+            check(round.equals(without), "the score's simulated round" + in + " is " + round
+                    + (round.contains(cell) ? ", the finished rival kept on " + where + " (" + cell + ")," : "")
+                    + " where the round with it finished, " + without + ", was expected");
+            seen += (seen.isEmpty() ? "" : "; ") + round;
+        }
+        return "the round takes the rival off the board, as with it finished (" + seen + "), not on " + where + " ("
+                + cell + ")";
+    }
+
+    /** Round 343: the cells of player 1's simulated round, its candidate on its own cell, inside the rectangle
+     *  {@code w} (x0, y0, x1, y1); sorted. */
+    private static java.util.List<String> roundCells(final RaceGame g, final int[] w) throws Exception {
+        decisionFrame(g);
+        final Class<?> type = Class.forName("tr.logic.RaceAi$TwoRoundWorkspace");
+        final Method workspace = RaceAi.class.getDeclaredMethod("twoRoundWorkspace");
+        workspace.setAccessible(true);
+        final Method round = RaceAi.class.getDeclaredMethod("simulateTwoRounds", type, int.class, int.class,
+                int.class, boolean.class, int.class, int.class, int.class, int.class);
+        round.setAccessible(true);
+        final int[] m = g.players[0].getPosition();
+        final RaceAi.CellOccupancy cells = (RaceAi.CellOccupancy) get(round.invoke(g.ai, workspace.invoke(g.ai),
+                1, m[0], m[1], true, w[0], w[1], w[2], w[3]), "world1Occupancy");
+        final int[] xs = (int[]) get(cells, "xs"), ys = (int[]) get(cells, "ys");
+        final java.util.List<String> held = new java.util.ArrayList<>();
+        for (int k = 0, n = (int) get(cells, "size"); k < n; k++)
+            if (xs[k] >= w[0] && xs[k] <= w[2] && ys[k] >= w[1] && ys[k] <= w[3])
+                held.add(xs[k] + "," + ys[k]);
+        java.util.Collections.sort(held);
+        return held;
+    }
+
+    /** Round 343: roundCells with {@code rival} finished, off the board, as the referee leaves a finished car. */
+    private static java.util.List<String> finishedRoundCells(final RaceGame g, final Player rival, final int[] w)
+            throws Exception {
+        final int place = rival.getFinishedPlace();
+        rival.setFinishedPlace(1);
+        try {
+            return roundCells(g, w);
+        } finally {
+            rival.setFinishedPlace(place);
+        }
     }
 
     /** Round 341: the Circle with player 1 deciding at rest on the bottom straight, past CP1 (its world has no

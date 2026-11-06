@@ -163,7 +163,8 @@ final class RaceAi {
 		final int[][] round1Position;
 		final int[][] round1Velocity;
 		/** The round's cells: while it runs those that block its movers, the candidate's
-		 *  landing among them; after it the rivals' landings, for my next move. */
+		 *  landing among them; after it the rivals' landings, for my next move (none for a
+		 *  rival whose move finished: round 343). */
 		final CellOccupancy world1Occupancy;
 		/** perf_refround, check mode: the windowed round kept beside this whole one. */
 		TwoRoundWorkspace windowed;
@@ -2342,6 +2343,7 @@ final class RaceAi {
 				continue;
 			final int newX = pos[0] + newVx;
 			final int newY = pos[1] + newVy;
+			// Round 343: a finish reads no cell; the simulated round takes the car off the board.
 			if (finishesFor(idx, pos[0], pos[1], newX, newY))
 				return d; // round 296: CP2 on the way included
 			// perf_aisearch (exact): the precedence below needs !frameLapAware[idx] or
@@ -2524,11 +2526,34 @@ final class RaceAi {
 	}
 
 	/** Reuse is exact unless the candidate blocks a landing selected in the
-	 *  no-mover first round. A hit takes the unchanged conditioned path. */
+	 *  no-mover first round. A hit takes the unchanged conditioned path. A mover chooses
+	 *  among its own landings only, the best free one in an order fixed before any cell is
+	 *  read, so a blocker off its choice changes nothing, and the landing it takes stays held
+	 *  to the round's end. Round 343: a finish needs no free cell (the twin's finish
+	 *  precedence reads none; shedMove's test reads its landing, but the referee's transition
+	 *  exempts a finish from bodies) and its car leaves whatever the cells hold, so it selects
+	 *  no landing and no blocker changes it. Check mode runs a reused round conditioned as
+	 *  well and races on it, comparing the nine cells the decision reads
+	 *  (PERF-AWARE REFREUSE MISMATCH). It reads the reference there through contains, so the
+	 *  reference's windowed round, the one a reuse returns outside check mode, is still
+	 *  compared with its whole round (REFROUND). */
 	private TwoRoundWorkspace simulateTwoRounds(final int playerNum, final int candX, final int candY,
 			final int candVx, final int candVy, final TwoRoundWorkspace reference) {
-		if (reference != null && !reference.world1Occupancy.contains(candX, candY))
-			return reference;
+		if (reference != null && !reference.world1Occupancy.contains(candX, candY)) {
+			if (!PERF_CHECK)
+				return reference;
+			final TwoRoundWorkspace conditioned = simulateTwoRounds(playerNum, candX, candY, candVx, candVy);
+			final int cx = candX + candVx, cy = candY + candVy;
+			for (int dy = -1; dy <= 1; dy++)
+				for (int dx = -1; dx <= 1; dx++) {
+					final boolean reused = reference.world1Occupancy.contains(cx + dx, cy + dy);
+					if (reused != conditioned.world1Occupancy.holds(cx + dx, cy + dy))
+						System.err.println("PERF-AWARE REFREUSE MISMATCH p=" + playerNum + " candidate=(" + candX
+								+ "," + candY + "," + candVx + "," + candVy + ") cell=(" + (cx + dx) + "," + (cy + dy)
+								+ ") reference=" + reused + " conditioned=" + !reused);
+				}
+			return conditioned;
+		}
 		return simulateTwoRounds(playerNum, candX, candY, candVx, candVy);
 	}
 
@@ -2552,12 +2577,13 @@ final class RaceAi {
 	/** perf_refround (exact): the cells of a round are read inside the rectangle (x0, y0) to
 	 *  (x1, y1) and nowhere else: optimalMoveAI1's candidate loop is their one reader, no
 	 *  decision starts inside it, and the calls above name the cells it reads. A rival moves
-	 *  once in a round and ends on its own cell or on one of the nine landings around
-	 *  position + velocity (mayEndIn). So the pass stops once the last rival that can end
-	 *  inside has moved: what ran is a prefix of the whole pass, so those moves are the whole
-	 *  pass's, and every other rival ends outside, moved or not. With no such rival no pass
-	 *  runs. keepWithin then drops the cells outside, so a read scans the few left and
-	 *  answers as after the whole round. */
+	 *  once in a round and ends on its own cell, on one of the nine landings around
+	 *  position + velocity (mayEndIn) or, a finish (round 343), on no cell, outside every
+	 *  rectangle. So the pass stops once the last rival that can end inside has moved: what
+	 *  ran is a prefix of the whole pass, so those moves are the whole pass's, and every
+	 *  other rival ends outside, moved or not. With no such rival no pass runs. keepWithin
+	 *  then drops the cells outside, so a read scans the few left and answers as after the
+	 *  whole round. */
 	private TwoRoundWorkspace simulateTwoRounds(final TwoRoundWorkspace workspace,
 			final int playerNum, final int candX, final int candY, final boolean blockCandidate,
 			final int x0, final int y0, final int x1, final int y1) {
@@ -2604,8 +2630,9 @@ final class RaceAi {
 			world1.add(candX, candY);
 		simulateRoundPass(playerNum, current, simulatedVelocity, world1, workspace.round1Position,
 				workspace.round1Velocity, reaching);
-		// perf_refround (exact): each mover took its cell out and put its landing in, so the
-		// list now holds the rivals' cells and, once, the candidate's.
+		// perf_refround (exact): each mover took its cell out and put its landing in (a
+		// finished one none: round 343), so the list now holds the rivals' cells and, once,
+		// the candidate's.
 		if (blockCandidate)
 			world1.remove(candX, candY);
 		if (windowed)
@@ -2624,7 +2651,10 @@ final class RaceAi {
 	 *  per car, at most nine: RaceGame.maxPlayers) has moved. A mover always receives a
 	 *  fresh logical position row, but that row is caller-owned and reused on the next root;
 	 *  a velocity row is replaced only when the move is legal, matching the
-	 *  original stay-put semantics exactly. */
+	 *  original stay-put semantics exactly. Round 343: a rival whose move finishes leaves
+	 *  the round -- its cell out, no landing in, its row null -- as the referee takes a
+	 *  finished car off the board (finishPlayer; isCrashingPlayer skips it) and every
+	 *  forecast does (simOutcomeCore). */
 	private void simulateRoundPass(final int playerNum, final int[][] occupancy,
 			final int[][] simulatedVelocity, final CellOccupancy blockedOccupancy,
 			final int[][] nextPosition, final int[][] nextVelocity, final int reaching) {
@@ -2644,8 +2674,8 @@ final class RaceAi {
 				// perf_aisearch (exact): the move and its succMask bit -- velocity in range
 				// and aiMoveLegal, the very tests made here -- memoised (simMove). Round 340:
 				// a human above the cap sheds its excess speed, as in a forecast (shedCode).
-				final int code = humanAboveCap(p, velocity[0], velocity[1])
-						? shedCode(p, current, velocity, blockedOccupancy)
+				final boolean shed = humanAboveCap(p, velocity[0], velocity[1]);
+				final int code = shed ? shedCode(p, current, velocity, blockedOccupancy)
 						: simMove(idx, current, velocity, blockedOccupancy, table);
 				int nx = current[0];
 				int ny = current[1];
@@ -2653,6 +2683,25 @@ final class RaceAi {
 					final Direction direction = DIRECTIONS[code & 0xF];
 					final int nvx = velocity[0] + direction.dx;
 					final int nvy = velocity[1] + direction.dy;
+					// Round 343: a finish leaves the round whatever its landing holds and whatever the
+					// segment test says: the referee lets a finish land on a body and judges it by the
+					// run-up rule, so it may land off the track past the line, which aiMoveLegal
+					// refuses. Before, the round kept the car as a phantom body: on its old cell when
+					// its landing held a body or its segment failed, on its landing otherwise. Measured
+					// as arm 366 against the round-342 champion, mirrored: eight-car fields -0.001 +-
+					// 0.001 places on random starts (81 of 84 boards tied), +0.001 +- 0.002 on computed
+					// starts (81 tied) and +0.000 +- 0.000 on scattered starts, every board tied (seeds
+					// 1-10); four-car fields and duels +0.000 +- 0.000, every board tied (random
+					// starts, seeds 1-20); a lone car among eight, in every seat against the
+					// all-champion race, -0.000 +- 0.001, 82 of 84 boards tied (random starts, seeds
+					// 1-5). No slice reads a loss beyond one standard error.
+					if (simMoveFinishes(p, idx, current, nvx, nvy, shed)) {
+						occupancy[idx] = null;
+						left &= ~(1 << idx);
+						if (left == 0)
+							return;
+						continue;
+					}
 					if ((code & SIM_MOVE_LEGAL) != 0
 							&& !blockedOccupancy.contains(current[0] + nvx, current[1] + nvy)) {
 						nx = current[0] + nvx;
@@ -2673,6 +2722,19 @@ final class RaceAi {
 					return;
 			}
 		}
+	}
+
+	/** Round 343: does rival {@code idx}'s simulated move, from {@code current} with the new
+	 *  velocity (nvx, nvy), finish its race? The twin's (pureMinTurnsMoveSim) exactly when
+	 *  finishesFor holds in the rival's frame: its finish precedence is the one branch that
+	 *  returns a finishing landing, as every later branch is reached only past a failed finish
+	 *  test (a memo hit is the same code). A human above the cap's (shedCode) by shedMove's own
+	 *  test, the referee's transition in its frame, whose finish no body changes. */
+	private boolean simMoveFinishes(final Player p, final int idx, final int[] current, final int nvx,
+			final int nvy, final boolean shed) {
+		final int x = current[0], y = current[1];
+		return shed ? game.evaluateMove(p.getLap(), game.lapGates == null ? 0 : p.getNextGate(), x, y,
+				x + nvx, y + nvy, false).finishes() : finishesFor(idx, x, y, x + nvx, y + nvy);
 	}
 
 	/** The search below the first ply: a plain min-turns search {@code levels}
