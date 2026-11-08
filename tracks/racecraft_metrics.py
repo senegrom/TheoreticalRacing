@@ -9,19 +9,107 @@ Equal-place time is descriptive, conditional on BOTH runs really finishing.
 A survivor's observed moves are not a finish time. Matched seats of a mirrored
 pair race in different fields, and cars of one race are not independent
 samples, so the counts carry no standard error.
+
+The module also holds what both tools need for their reading's own standard
+error, corrected for repeated races (round 344): a race's identity
+(race_digest), the cluster-robust error over a reading's units
+(clustered_standard_error) and the note a reading's line gains when units
+repeat (repeat_note).
 """
 from __future__ import annotations
 
 from collections import Counter
 from fractions import Fraction
+import hashlib
+import math
 import re
 import statistics
 from pathlib import Path
 
 if __package__:
     from .benchmark_io import read_properties
+    from .forensics_common import parse_move
 else:
     from benchmark_io import read_properties
+    from forensics_common import parse_move
+
+
+def race_digest(path):
+    """A race's identity in the screens' repeat check (round 344): the SHA-256
+    of its move lines in log order, each without its kind label (the third
+    token: AI1, AI2 or HUMAN) and ended by a newline.
+
+    Only move lines count -- the lines benchmark_io.read_race counts as moves.
+    Names, kinds, the header (candidate slots, start placement, grid,
+    checkpoints, laps, the course), the player lines, the results and any
+    comment or seed line do not, and neither do line endings. A car's first
+    move line carries its start cell, so two races with one digest made the
+    same moves from the same cells and took the same places.
+
+    Read the log with read_race first: this reads the same file again and
+    validates nothing. It lives here, not in benchmark_io.py, because the
+    fleet manifest hashes benchmark_io.py: a new hash would refuse to resume,
+    or to pool with a new one, every grid raced before the change.
+    """
+    digest = hashlib.sha256()
+    for line in Path(path).read_text(encoding='utf-8').splitlines():
+        if parse_move(line) is not None:
+            turn, player, _kind, rest = line.split(' ', 3)
+            digest.update(('%s %s %s\n' % (turn, player, rest)).encode('utf-8'))
+    return digest.hexdigest()
+
+
+def clustered_standard_error(values, identities):
+    """The standard error of the mean of a reading's units, corrected for
+    repeated races (round 344; the owner, 2026-11-06: "Report corrected").
+
+    ``values`` are the units (a track-seed each) and ``identities`` theirs:
+    the track and the digest (race_digest) of every race of the unit, so two
+    units share an identity exactly when they raced the same races. On
+    computed starts a race depends on its seed only through the start draw,
+    and the draw repeated races across seeds (C+'s eight-car screen of seeds
+    1-10: 733 distinct units of 840); duels repeat under any draw. The
+    uncorrected error counts each repeat as a new observation.
+
+    Units with one identity form one cluster, and the error is the
+    cluster-robust one, scaled by C/(C-1) for C clusters (CR1):
+        sqrt(C/(C-1) * sum over clusters of (sum of its units' x - mean)^2) / n
+    with the mean over all n units -- the mean the reading prints. Without
+    repeats every cluster is one unit and C = n, where this IS the
+    uncorrected stdev/sqrt(n) (the n/(n-1) of the sample variance); it is
+    then computed exactly as before, so a screen without repeats prints the
+    old number to the last digit. With repeats the sums are exact (fractions
+    of the float units), so the order of the units cannot move a digit. With
+    every unit one repeated race there is no spread to measure: nan.
+
+    Returns (distinct units C, corrected error, uncorrected error); both
+    errors are nan for a single unit, as before.
+    """
+    n = len(values)
+    uncorrected = statistics.stdev(values) / math.sqrt(n) if n > 1 else float('nan')
+    clusters = {}
+    for value, identity in zip(values, identities, strict=True):
+        clusters.setdefault(identity, []).append(Fraction(value))
+    distinct = len(clusters)
+    if distinct == n:
+        return distinct, uncorrected, uncorrected
+    if distinct < 2:
+        return distinct, float('nan'), uncorrected
+    mean = sum((v for cluster in clusters.values() for v in cluster), Fraction(0)) / n
+    spread = sum(((sum(cluster, Fraction(0)) - len(cluster) * mean) ** 2 for cluster in clusters.values()),
+                 Fraction(0))
+    return distinct, math.sqrt(spread * distinct / (distinct - 1)) / n, uncorrected
+
+
+def repeat_note(distinct, units, uncorrected):
+    """What a reading's line gains after its old text when some of its units
+    repeat (round 344): the number of distinct units and the uncorrected
+    error, in the line's own unit. Without repeats it is empty, so the line
+    is exactly the old one -- the corrected error is then the old error."""
+    if distinct == units:
+        return ''
+    return ('; corrected for repeated races: %d distinct of %d track-seed units, uncorrected %.3f'
+            % (distinct, units, uncorrected))
 
 
 def terminal(outcomes, seat):

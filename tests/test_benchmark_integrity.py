@@ -3,6 +3,7 @@ import contextlib
 import hashlib
 import io
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -178,6 +179,63 @@ class MirroredGridTests(unittest.TestCase):
         self.assertIn('mirrored races 2: candidate minus champion mean place -1.750  '
                       '(standard error 0.750; negative favours the candidate)', output)
         self.assertIn('per candidate car -0.875 places (standard error 0.375)', output)
+        # Round 344: the even half races alike on both seeds, but a unit repeats
+        # only if both of its races do. Without repeats both lines are exactly
+        # the old ones.
+        lines = output.splitlines()
+        self.assertIn('mirrored races 2: candidate minus champion mean place -1.750  '
+                      '(standard error 0.750; negative favours the candidate)', lines)
+        self.assertIn('per candidate car -0.875 places (standard error 0.375), the unit of the lone-candidate check',
+                      lines)
+        self.assertNotIn('repeated races', output)
+
+    def test_repeated_races_are_one_cluster_of_the_standard_error(self):
+        # Round 344 (the owner, 2026-11-06: "Report corrected"). Seeds 1-3 race
+        # the same races in both halves -- their logs differ only in a seed
+        # comment, which a race's identity ignores; seed 4 races others; seed 5
+        # races seed 1's odd race but another even race, so it repeats nothing.
+        # Units -1, -1, -1, +2.5, -1 (mean -0.3). Clusters {1,2,3}, {4}, {5}:
+        # summed deviations -2.1, +2.8, -0.7, so with C/(C-1) = 3/2 the error is
+        # sqrt(3/2 * 12.74) / 5 = 0.874; uncorrected stdev/sqrt(5) = 0.700.
+        odd = {1: [1, 2, 3, 4, 5, 6, 7, 8], 4: [2, 1, 4, 3, 6, 5, 8, 7], 5: [1, 2, 3, 4, 5, 6, 7, 8]}
+        even = {1: [2, 1, 4, 3, 6, 5, 8, 7], 4: [1, 3, 5, 7, 2, 4, 6, 8], 5: [8, 7, 6, 5, 4, 3, 2, 1]}
+        for seed in (2, 3):
+            odd[seed], even[seed] = odd[1], even[1]
+
+        def seeded(text, seed):
+            head, rest = text.split('\n', 1)
+            return '%s\n# seed %d\n%s' % (head, seed, rest)
+        a = self.grid('a', '1,3,5,7', 1, 5, log=lambda seed: seeded(ordered_log('1,3,5,7', odd[seed]), seed))
+        b = self.grid('b', '2,4,6,8', 1, 5, log=lambda seed: seeded(ordered_log('2,4,6,8', even[seed]), seed))
+        status, output, error = self.score(a, b)
+        self.assertEqual(0, status, error)
+        self.assertEqual('0.874', '%.3f' % (math.sqrt(3 / 2 * (2.1 ** 2 + 2.8 ** 2 + 0.7 ** 2)) / 5))
+        lines = output.splitlines()
+        self.assertIn('mirrored races 5: candidate minus champion mean place -0.300  (standard error 0.874; '
+                      'negative favours the candidate); corrected for repeated races: 3 distinct of 5 track-seed '
+                      'units, uncorrected 0.700', lines)
+        self.assertIn('per candidate car -0.150 places (standard error 0.437), the unit of the lone-candidate '
+                      'check; corrected for repeated races: 3 distinct of 5 track-seed units, uncorrected 0.350',
+                      lines)
+
+    def test_repeats_are_found_across_seed_slices_in_either_grid_order(self):
+        # Seed 3 races seed 1's races, its slice given even grid first; seed 2
+        # races seed 1's two move sequences with the assignments swapped --
+        # other races, read with the other sign. Units -1, +1, -1, 0 (mean
+        # -0.25). Clusters {1,3}, {2}, {4}: summed deviations -1.5, +1.25,
+        # +0.25, so sqrt(3/2 * 3.875) / 4 = 0.603; uncorrected 0.479.
+        p, q, r = [1, 2, 3, 4, 5, 6, 7, 8], [2, 1, 4, 3, 6, 5, 8, 7], [1, 3, 5, 7, 2, 4, 6, 8]
+        odd, even = {1: p, 2: q, 3: p, 4: r}, {1: q, 2: p, 3: q, 4: r}
+        a = self.grid('a', '1,3,5,7', 1, 2, log=lambda seed: ordered_log('1,3,5,7', odd[seed]))
+        b = self.grid('b', '2,4,6,8', 1, 2, log=lambda seed: ordered_log('2,4,6,8', even[seed]))
+        c = self.grid('c', '1,3,5,7', 3, 4, log=lambda seed: ordered_log('1,3,5,7', odd[seed]))
+        d = self.grid('d', '2,4,6,8', 3, 4, log=lambda seed: ordered_log('2,4,6,8', even[seed]))
+        status, output, error = self.score(a, b, d, c)
+        self.assertEqual(0, status, error)
+        self.assertEqual('0.603', '%.3f' % (math.sqrt(3 / 2 * (1.5 ** 2 + 1.25 ** 2 + 0.25 ** 2)) / 4))
+        self.assertIn('mirrored races 4: candidate minus champion mean place -0.250  (standard error 0.603; '
+                      'negative favours the candidate); corrected for repeated races: 3 distinct of 4 track-seed '
+                      'units, uncorrected 0.479', output.splitlines())
 
     def test_duplicate_and_noncomplementary_inputs_are_rejected(self):
         a = self.grid('a', '1,3,5,7')
@@ -293,6 +351,39 @@ class LoneCandidateReportTests(unittest.TestCase):
         self.assertIn('paired track-seeds 2: candidate minus champion place -0.250  '
                       '(standard error 0.250; negative favours the candidate)', text)
         self.assertIn('crashes      lone candidate 0   champion in the same seat 0', text)
+        # Round 344: seat 1 races alike on both seeds, but a unit repeats only if
+        # all of its races do. Without repeats the line is exactly the old one.
+        self.assertIn('paired track-seeds 2: candidate minus champion place -0.250  '
+                      '(standard error 0.250; negative favours the candidate)', text.splitlines())
+
+    def test_repeated_track_seeds_are_one_cluster_of_the_standard_error(self):
+        # Round 344 (the owner, 2026-11-06: "Report corrected"). Seed 2 races
+        # seed 1's races in the control and both seats; seed 4 seed 1's control
+        # and seat-1 races but another seat-2 race, so it repeats nothing. Units
+        # -0.5, -0.5, +0.5, 0 (mean -0.125). Clusters {1,2}, {3}, {4}: summed
+        # deviations -0.75, +0.625, +0.125, so with C/(C-1) = 3/2 the error is
+        # sqrt(3/2 * 31/32) / 4 = 0.301; uncorrected stdev/sqrt(4) = 0.239.
+        import sys
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'docs/experiments/duel-lookahead'))
+        import run_1vfield
+        orders = {'control': {1: [2, 1], 2: [2, 1], 3: [1, 2], 4: [2, 1]},
+                  'seat1': {1: [1, 2], 2: [1, 2], 3: [2, 1], 4: [1, 2]},
+                  'seat2': {1: [2, 1], 2: [2, 1], 3: [1, 2], 4: [1, 2]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            grids = {}
+            for name, slots in (('control', []), ('seat1', [1]), ('seat2', [2])):
+                grids[name] = Path(tmp) / name
+                grids[name].mkdir()
+                for seed, order in orders[name].items():
+                    (grids[name] / ('example_s%d.log' % seed)).write_text(
+                        ordered_log(','.join(map(str, slots)) or None, order), encoding='utf-8')
+                publish(grids[name], {'jar': 'build', 'tracks': {'example': 'x'}, 'seeds': [1, 4],
+                                      'comparison': {'properties': 'profile', 'candidate_slots': slots}}, range(1, 5))
+            text = run_1vfield.report(grids['control'], {1: grids['seat1'], 2: grids['seat2']}, range(1, 5))
+        self.assertEqual('0.301', '%.3f' % (math.sqrt(3 / 2 * (0.75 ** 2 + 0.625 ** 2 + 0.125 ** 2)) / 4))
+        self.assertIn('paired track-seeds 4: candidate minus champion place -0.125  (standard error 0.301; '
+                      'negative favours the candidate); corrected for repeated races: 3 distinct of 4 track-seed '
+                      'units, uncorrected 0.239', text.splitlines())
 
 
 class FleetGridGuardTests(unittest.TestCase):

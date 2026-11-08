@@ -15,6 +15,19 @@ raced, the control's places in one track-seed are a permutation of 1..n, so
 its mean is (n+1)/2 exactly: the pairing fixes the reading's zero, and the
 control otherwise contributes only the descriptive crash count.
 
+The reading's unit is a track-seed: the control's race and every seat's race
+of one track and seed. Its standard error is corrected for repeated races
+(round 344; the owner, 2026-11-06: "Report corrected"), as in head_to_head.py:
+a unit's identity is its track and the digests of the move lines of the
+control's race and of each seat's race (racecraft_metrics.race_digest: every
+move line without its kind label). Units with one identity are one cluster,
+and the error is the cluster-robust one scaled by C/(C-1) for C clusters
+(racecraft_metrics.clustered_standard_error); the mean stays the mean over
+all units. The paired line prints the corrected error where the old one
+stood. A check without repeats prints exactly its old line; where units
+repeat, the line goes on after its old text with the number of distinct
+units and the uncorrected error.
+
 Below the reading the report describes the same seats (racecraft_metrics.py):
 place gains, losses and ties against the control's car in that seat, terminal
 fates, own finishing time where places are equal and both cars finished, and
@@ -34,9 +47,16 @@ paired with the all-candidate race of the same track, seed and seat. Negative
 then means the old champion gains places as a lone entrant in the new field.
 Its files carry a -reverse suffix.
 
+--report-only reads a finished check again (round 344): the grids under --out
+named by --players, --mode and --reverse, over the --seeds window they were
+raced with. It prints the report and nothing else happens: no race, no
+profile, no report file, and no --jar needed.
+
     run_1vfield.py --jar ARM.jar --out DIR [--seeds 1-5] [--jobs 3]
                    [--heap=-Xmx8g] [--players 8] [--mode legacy] [--tracks ALL]
                    [--props PROFILE] [--reverse]
+    run_1vfield.py --report-only --out DIR [--seeds 1-5] [--players 8]
+                   [--mode legacy] [--reverse]
 """
 from __future__ import annotations
 
@@ -44,7 +64,6 @@ import argparse
 import collections
 import hashlib
 import json
-import math
 import os
 from pathlib import Path
 import statistics
@@ -53,7 +72,8 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'tracks'))
-from racecraft_metrics import MatchedMetrics, profile_text, sensitivity  # noqa: E402
+from racecraft_metrics import (MatchedMetrics, clustered_standard_error, profile_text, race_digest,  # noqa: E402
+                               repeat_note, sensitivity)
 from benchmark_io import read_race  # noqa: E402
 from fleet_grid import completed, json_text, run_grid_process, seed_range  # noqa: E402
 
@@ -90,6 +110,13 @@ def validated_grid(grid: Path, seeds: range) -> dict:
     return shared
 
 
+def unit_identity(track: str, control_digest: str, seat_digests) -> tuple:
+    """A track-seed's identity in the repeat check (round 344): its track, the
+    control's race and every seat's race, keyed by its seat. Two track-seeds are
+    one cluster only when all of these are the same."""
+    return track, control_digest, tuple(sorted(seat_digests))
+
+
 def report(control: Path, seats: dict[int, Path], seeds: range, reverse: bool = False) -> str:
     """The paired reading; with ``reverse`` the entrant in each seat is the
     old champion and the control is the all-candidate race."""
@@ -100,7 +127,7 @@ def report(control: Path, seats: dict[int, Path], seeds: range, reverse: bool = 
         if validated_grid(grid, seeds) != common:
             raise ValueError(f'seat {seat} was raced by another build, runtime, seed window, course set or profile')
     tracks = sorted(common['tracks'])
-    units, per_track = [], collections.defaultdict(list)
+    units, identities, per_track = [], [], collections.defaultdict(list)
     cand_places, cand_crash, champ_crash = [], 0, 0
     matched = MatchedMetrics()
     for track in tracks:
@@ -114,7 +141,7 @@ def report(control: Path, seats: dict[int, Path], seeds: range, reverse: bool = 
             # The control's mean place is (n+1)/2 only with every seat raced once.
             if set(seats) != roster:
                 raise ValueError(f'entrant check requires every seat exactly once: {track} s{seed}')
-            diffs = []
+            diffs, digests = [], []
             for seat, grid in seats.items():
                 race = read_race(grid / f'{track}_s{seed}.log')
                 if race.players != base.players or race.profile != base.profile:
@@ -122,22 +149,26 @@ def report(control: Path, seats: dict[int, Path], seeds: range, reverse: bool = 
                 if race.slots != (roster - {seat} if reverse else {seat}):
                     raise ValueError(f'seat {seat} race has candidates {sorted(race.slots)}: {track} s{seed}')
                 diffs.append(race.places[seat] - base.places[seat])
+                digests.append((seat, race_digest(grid / f'{track}_s{seed}.log')))
                 matched.add(race.places, base.places, race.moves, base.moves, race.outcomes, base.outcomes, seat)
                 cand_places.append(race.places[seat])
                 cand_crash += seat in race.crashed
                 champ_crash += seat in base.crashed
             units.append(statistics.mean(diffs))
+            identities.append(unit_identity(track, race_digest(control / f'{track}_s{seed}.log'), digests))
             per_track[track].append(statistics.mean(diffs))
     n = len(units)
     mean = statistics.mean(units)
-    se = statistics.stdev(units) / math.sqrt(n) if n > 1 else float('nan')
+    # Round 344: the error corrected for repeated races stands where the old one
+    # stood; only a check whose units repeat says so after the old text.
+    distinct, se, uncorrected = clustered_standard_error(units, identities)
     lines = [
         '%d races per seat, %d seats, %d paired track-seeds' % (n, len(seats), n),
         'lone candidate mean place %.3f  (the champion in the same seats: %.3f)'
         % (statistics.mean(cand_places), statistics.mean(cand_places) - mean),
         'crashes      lone candidate %d   champion in the same seat %d' % (cand_crash, champ_crash),
         'paired track-seeds %d: candidate minus champion place %+.3f  (standard error %.3f; negative favours the candidate)'
-        % (n, mean, se),
+        % (n, mean, se) + repeat_note(distinct, n, uncorrected),
         # One candidate car's shift; head_to_head's mirrored difference is twice
         # this unit and prints it as its per-car line (review, 2026-09-27).
         "(one candidate car's shift in its seat: the unit of the mirrored screen's per-car line)",
@@ -166,15 +197,37 @@ def report(control: Path, seats: dict[int, Path], seeds: range, reverse: bool = 
     return '\n'.join(lines) + '\n'
 
 
+def report_only(out: Path, name: str, players: int, seeds: str | None, reverse: bool) -> int:
+    """--report-only: print the report of the finished check ``name`` under
+    ``out``; nothing is raced or written (round 344). Without --seeds the window
+    is the one the control grid was raced with (its manifest's seeds)."""
+    try:
+        if seeds is None:
+            manifest = json.loads((out / f'{name}-control' / 'manifest.json').read_text(encoding='utf-8'))
+            lo, hi = manifest['seeds']
+        else:
+            lo, hi = seed_range(seeds)
+        text = report(out / f'{name}-control', {seat: out / f'{name}-seat{seat}' for seat in range(1, players + 1)},
+                      range(lo, hi + 1), reverse)
+    except (OSError, ValueError, KeyError) as error:
+        print(f'one-versus-field report failed: {error}', file=sys.stderr)
+        return 1
+    print(text, end='', flush=True)
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--out', required=True, type=Path)
-    parser.add_argument('--jar', required=True, type=Path)
+    parser.add_argument('--jar', type=Path, help='the candidate build; required unless --report-only')
     parser.add_argument('--props', type=Path, default=ROOT / 'tracks/lap_bench.properties',
                         help='base profile; its keys go into every race profile')
     parser.add_argument('--reverse', action='store_true',
                         help='one old champion among n-1 candidates, paired with the all-candidate race')
-    parser.add_argument('--seeds', default='1-5')
+    parser.add_argument('--report-only', action='store_true',
+                        help='print the report of the finished check under --out; races and writes nothing')
+    parser.add_argument('--seeds', default=None,
+                        help='seed window, default 1-5; with --report-only, default the window the check was raced with')
     parser.add_argument('--jobs', type=int, default=1)
     parser.add_argument('--heap', default='-Xmx8g')
     parser.add_argument('--players', type=int, default=8)
@@ -183,13 +236,19 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.jobs < 1 or not 2 <= args.players <= 9:
         parser.error('--jobs must be positive and --players 2-9')
+    name = f'{args.players}p-{args.mode}' + ('-reverse' if args.reverse else '')
+    if args.report_only:
+        return report_only(args.out.resolve(), name, args.players, args.seeds, args.reverse)
+    if args.seeds is None:
+        args.seeds = '1-5'
+    if args.jar is None:
+        parser.error('--jar is required unless --report-only')
     jar, out = args.jar.resolve(), args.out.resolve()
     if not jar.is_file():
         parser.error('Build the candidate JAR first')
     if 'ALL' in args.tracks and args.tracks != ['ALL']:
         parser.error('Use --tracks ALL by itself')
     roster = set(range(1, args.players + 1))
-    name = f'{args.players}p-{args.mode}' + ('-reverse' if args.reverse else '')
 
     def profile(slots):
         return profile_text(args.props, {'nPlayers': str(args.players), 'aiStartPlacement': args.mode,

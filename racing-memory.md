@@ -1,5 +1,27 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Screening tools report standard errors corrected for repeated races (2026-11-08)
+
+The owner, 2026-11-06: "Report corrected". tracks/head_to_head.py and docs/experiments/duel-lookahead/run_1vfield.py
+print the standard error corrected for repeated races where the old one stood. A unit (a mirrored track-seed, or a
+lone check's track-seed with its control and every seat) has an identity: its track and the digest of each of its
+races' move lines without the kind label (racecraft_metrics.race_digest), the mirrored halves keyed by their
+candidate slots and the lone check's races by seat. Units with one identity are one cluster, and the error is the
+cluster-robust one, C/(C-1) times the sum over clusters of the squared summed residuals, over N squared
+(racecraft_metrics.clustered_standard_error); the mean is unchanged. A screen whose units are all distinct prints
+exactly the old line; one with repeats adds the distinct count and the uncorrected error after it. run_1vfield.py
+--report-only prints a finished check's report again without racing or writing anything, over the window the check
+was raced with unless --seeds names another.
+
+- Validated on the box against eight screens: sa368_8pi 838 of 840 units distinct (0.020 either way), sa368_4pi 1,626
+  of 1,680 (0.0083 to 0.0091), sa368_dui 1,513 of 1,680 (0.0045 to 0.0058), sa365x_8pi 733 of 840 (0.019 to 0.024),
+  and the lone checks lone8_a368 (420 of 420), lone8_a365x (389 of 420, 0.016 to 0.017) and lone8_a365x_b (369 of
+  420, 0.018 to 0.020); sa366_8p, without repeats, prints its old lines byte for byte. The tools' Python tests pass
+  (52); of the whole suite's 116 only the fleet runner's ten fail, on Windows, as on master.
+- Review (workflow wf_7ee8f1b4-21a): clustering half-races that repeat inside non-identical units would add the bias
+  of chance repeats wherever the draw is fair, so whole units stay the clusters; the tests now pin every part of a
+  unit's identity, and --report-only takes the raced window by default.
+
 ## Round 344 promoted (2026-11-08): a computed start's tie is drawn from the seed's SplitMix64 stream
 
 A correctness fix, arm 368 (E:/tmp-claude/arm368_draw.py), from the investigation of 2026-11-06 (workflow

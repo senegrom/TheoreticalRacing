@@ -8,6 +8,23 @@ Assignments must be complementary, configurations/builds identical apart from
 candidateSlots, and every expected log present. Old unmanifested logs cannot
 serve as promotion evidence; rerun them in fresh fleet output directories.
 
+The reading's unit is a track-seed: the mirrored pair of races of one track
+and seed. Its standard error is corrected for repeated races (round 344; the
+owner, 2026-11-06: "Report corrected"). On computed starts a race depends on
+its seed only through the start draw, so two seeds can race exactly the same
+pair of races, and the uncorrected error counted every repeat as new
+evidence. A unit's identity is its track and, for each half by its candidate
+slots, the digest of that race's move lines (racecraft_metrics.race_digest:
+every move line without its kind label). Units with one identity are one
+cluster, and the error is the cluster-robust one scaled by C/(C-1) for C
+clusters (racecraft_metrics.clustered_standard_error); the mean stays the
+mean over all units. The reading's line and the per-car line print the
+corrected error where the old one stood. A screen without repeats prints
+exactly its old lines; where units repeat, both lines go on after their old
+text with the number of distinct units and the uncorrected error:
+    ... (standard error S; negative favours the candidate); corrected for
+    repeated races: D distinct of N track-seed units, uncorrected U
+
 Below the per-car line it describes the same races (racecraft_metrics.py):
 each seat's place with the candidate against the same seat with the champion
 in the mirrored race, both cohorts' terminal fates, own finishing time where
@@ -22,18 +39,17 @@ import collections
 from contextlib import ExitStack
 import hashlib
 import json
-import math
 import pathlib
 import re
 import statistics
 import sys
 
 if __package__:
-    from .racecraft_metrics import MatchedMetrics, sensitivity
+    from .racecraft_metrics import MatchedMetrics, clustered_standard_error, race_digest, repeat_note, sensitivity
     from .benchmark_io import read_race
     from .fleet_grid import completed, directory_lock, json_text, seed_range
 else:
-    from racecraft_metrics import MatchedMetrics, sensitivity
+    from racecraft_metrics import MatchedMetrics, clustered_standard_error, race_digest, repeat_note, sensitivity
     from benchmark_io import read_race
     from fleet_grid import completed, directory_lock, json_text, seed_range
 
@@ -129,10 +145,22 @@ def paired_races(directories):
                 if (a.slots & b.slots or a.slots | b.slots != roster
                         or len(a.slots) != len(b.slots)):
                     raise ValueError('candidate assignments must be complementary balanced cohorts')
-                races[identity] = [(r.places, r.slots, r.crashed, r.moves, r.outcomes) for r in (a, b)]
+                # The sixth field is the race's digest, for the repeat check (round 344).
+                name = '%s_s%d.log' % identity
+                races[identity] = [(r.places, r.slots, r.crashed, r.moves, r.outcomes, race_digest(grid / name))
+                                   for r, grid in ((a, paths[offset]), (b, paths[offset + 1]))]
     if not races:
         raise ValueError('no complete mixed-field pairs')
     return races
+
+
+def unit_identity(track, runs):
+    """A track-seed's identity in the repeat check (round 344): its track and
+    each half's race digest, keyed by that half's candidate slots, so the
+    order the grids were given in does not matter. The same two move
+    sequences raced with the assignments swapped are other races, and their
+    reading has the other sign."""
+    return track, tuple(sorted((tuple(sorted(run[1])), run[5]) for run in runs))
 
 
 def main(argv=None) -> int:
@@ -147,12 +175,12 @@ def main(argv=None) -> int:
     cand, champ = [], []
     cand_wins = champ_wins = cand_crash = champ_crash = 0
     per_track = collections.defaultdict(lambda: [[], []])
-    paired = []
+    paired, identities = [], []
     matched = MatchedMetrics()
     track_units = collections.defaultdict(list)
     for (track, seed), runs in sorted(races.items()):
         diff = []
-        for places, slots, crashed, moves, outcomes in runs:
+        for places, slots, crashed, moves, outcomes, _digest in runs:
             c = [p for n, p in places.items() if n in slots]
             h = [p for n, p in places.items() if n not in slots]
             cand += c
@@ -166,6 +194,7 @@ def main(argv=None) -> int:
             diff.append(statistics.mean(c) - statistics.mean(h))
         if len(runs) >= 2:
             paired.append(statistics.mean(diff))
+            identities.append(unit_identity(track, runs))
             track_units[track].append(statistics.mean(diff))
             # Each seat once: its car in the run where it is a candidate against
             # the same seat in the mirrored run, where it is a champion.
@@ -184,14 +213,16 @@ def main(argv=None) -> int:
     print("crashes      candidate %d   champion %d" % (cand_crash, champ_crash))
     if paired:
         m = statistics.mean(paired)
-        se = statistics.stdev(paired) / math.sqrt(len(paired)) if len(paired) > 1 else float("nan")
+        # Round 344: the error corrected for repeated races stands where the old
+        # one stood; only a screen whose units repeat says so after the old text.
+        distinct, se, uncorrected = clustered_standard_error(paired, identities)
         print("mirrored races %d: candidate minus champion mean place %+.3f  (standard error %.3f; negative favours the candidate)"
-              % (len(paired), m, se))
+              % (len(paired), m, se) + repeat_note(distinct, len(paired), uncorrected))
         # Half the field is candidate, so each race's places sum to a constant and
         # the difference above is twice one candidate car's shift against the tie
         # -- the unit run_1vfield reports (review, 2026-09-27).
         print("per candidate car %+.3f places (standard error %.3f), the unit of the lone-candidate check"
-              % (m / 2, se / 2))
+              % (m / 2, se / 2) + repeat_note(distinct, len(paired), uncorrected / 2))
     for line in matched.lines() + sensitivity(track_units):
         print(line)
     rows = sorted(((statistics.mean(c) - statistics.mean(h), t, len(c)) for t, (c, h) in per_track.items() if c and h))
