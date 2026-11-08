@@ -1,5 +1,66 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 344 promoted (2026-11-08): a computed start's tie is drawn from the seed's SplitMix64 stream
+
+A correctness fix, arm 368 (E:/tmp-claude/arm368_draw.py), from the investigation of 2026-11-06 (workflow
+wf_58a4bfd0-458; report E:/tmp-claude/p344/inv/report.md). On computed starts a car's equally good cells went to new
+Random(seed ^ (long) number << 32).nextInt(size). java.util.Random scrambles its seed with an XOR, and for a bound
+that is a power of two nextInt reads the top bits of the first LCG step, which small seeds barely move: over seeds
+1-30 each car 1-9 took one fixed position in every pool of 2, 4, 8 or 16 cells, and on every pool size that is not a
+power of two all cars read one shared sequence, the differences between their picks never changing. A race on
+computed starts depends on its seed only through these draws (no other generator, no clock; 0 differing races among
+54,935 pairs with identical starts), so seeds repeated races: C+'s eight-car screens (round 342) held 733, 704 and
+736 distinct units of 840, and their held-out windows copied 139 and 153 units of seeds 1-10. Now draw(seed, number,
+size) is car number's output of the seed's SplitMix64 stream -- the number-th nextLong() of new
+java.util.SplittableRandom(seed), reduced unsigned to the pool: a pure function of the seed, the car's number and the
+pool's size that reads no shared stream (after Undo, the same placements redraw the same cell; benchmark RNG is
+untouched), in integer arithmetic only, so every JVM, the browser's among them, draws alike. Random and scattered
+starts never reach StartPlacement.choose, and an unseeded game still takes the first cell. Only
+src/tr/logic/StartPlacement.java changes, with StartPlacementTests (its seven seeded oracles restate the draw through
+the JDK's SplittableRandom; testDraw pins it) and the browser fixture.
+
+The owner, 2026-11-06: "fix and investigate"; on the screens' standard errors: "Report corrected". Measured as arm
+368 (the placing car's own slot gates the draw) against the round-343 champion, on computed starts, mirrored (boards
+favouring candidate / champion / tied; crashes candidate:champion; distinct units), with standard errors corrected
+for repeated races:
+
+| Slice | a368 |
+|---|---|
+| 8 cars, seeds 1-10 | +0.001 +- 0.020 (41/34/9; 56:46; 838 of 840 distinct) |
+| 8 cars, held-out seeds 11-20 | +0.010 +- 0.022 (37/43/4; 46:49; 839 of 840) |
+| Lone candidate (8 cars, every seat, seeds 1-5) | +0.012 +- 0.020 (34/34/16; 18:13; 420 of 420) |
+| 4 cars, seeds 1-20 | +0.009 +- 0.009 (15/29/40; 10:13; 1,626 of 1,680) |
+| Duels, seeds 1-20 | -0.007 +- 0.006 (5/3/76; 207:229; 1,513 of 1,680) |
+
+- No slice reads a loss beyond one corrected standard error (four-car fields 0.98). The arm's own screens keep
+  repeats, as a fair draw would too where the cars' pools are small (2 and 1 of 840 eight-car units, 54 of 1,680
+  four-car units, 167 of 1,680 duel units); uncorrected, the four-car reading's error is 0.008 and the duels' 0.004.
+- The arm raced exactly as the champion with no candidate: 8 cars on random (4 races), computed (5) and scattered (3)
+  starts, 4 cars on random (3) and computed (3) starts, duels on random (3) and computed (3) starts. With every slot
+  a candidate it raced exactly as the champion on random (3) and scattered (2) starts, which never reach the draw,
+  and differently in every computed-start race checked (8 cars 4, 4 cars 2, duels 2).
+- The promoted draw raced exactly as the arm with every slot a candidate on computed starts: 8 cars (8 races), 4 cars
+  (5) and duels (4), the Nordschleife among them in all three; and exactly as the champion on random starts (8 cars
+  4, duels 2) and scattered starts (3); CPU 0.99x to 1.02x.
+- Corpus: nothing moves; the goldens and the pins race random starts. The browser parity race (informed Hairpin s1,
+  web/tests/informed_races.json) moves from a19e2b09 to 742028dc, its grid from A 7,27 and B 13,27 to A 14,27 and B
+  11,28, alike with an empty and a warm reach cache at 2g and an empty one at 4g. parity.py's two-lap Monza race
+  changes too; it pins no digest.
+- Corrected for repeated races, round 342's readings against round 341 are -0.026 +- 0.024, -0.049 +- 0.023 and
+  -0.015 +- 0.023 (eight-car fields, seeds 1-10, held-out 11-20 and 21-30; pooled -0.030 +- 0.018), -0.024 +- 0.008
+  (four-car fields) and -0.053 +- 0.017 (the lone car), and on round 339's base -0.033 +- 0.022, -0.063 +- 0.024 and
+  -0.016 +- 0.022 (eight-car fields), -0.023 +- 0.008 (four-car fields) and -0.047 +- 0.017 (the lone car); on its
+  701 held-out units that copy no unit of seeds 1-10 (646 of them distinct) the held-out window reads -0.050 +-
+  0.020. Round 339's own eight-car and lone errors grow by at most 2%; its four-car error grows from 0.012 to 0.015
+  and its duels' from 0.007 to 0.015 (-0.008 +- 0.015). For the record, the rerun of C+'s lone check on seeds 6-10
+  (arm 365 on round 341, against round 341; its first run lost a Nordschleife batch, killed three times by SIGKILL)
+  reads -0.009 +- 0.020 corrected (369 of 420 units distinct; -0.025 +- 0.020 on the 364 units that copy no unit of
+  seeds 1-5), and seeds 1-10 pooled -0.031 +- 0.014.
+- Box verify on the round-344 tree: every pin, the goldens, headless smoke, query replay, lap progress, compileall
+  and the Python unit tests (run under timeout) pass (31/31). The Java suite, the local browser build and the browser
+  engine's tests on the build (BrowserTests, StartupTests, PlayerOrderTests) pass. The text review's fixes changed
+  comments only: the committed tree's jar is javap code-identical to the verified one.
+
 ## Round 343 promoted (2026-11-06): a rival whose simulated move finishes leaves the score's simulated round
 
 A correctness fix, arm 366 (E:/tmp-claude/arm366_twinfinish.py). The score reads one simulated round

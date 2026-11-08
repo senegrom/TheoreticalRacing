@@ -7,8 +7,8 @@
       "seed": 1,
       "laps": 1,
       "policy": "informed",
-      "sha256": "a19e2b0933eff80c4174f5ec354db7866aeff52d9ce6f56b05ab7ff68e89f967",
-      "note": "Round 339 policy (on ec1437b; every car with a car after it keeps its least exposed launch, so the grid is A 7,27, B 13,27): re-frozen from measurement. Desktop and browser logs are byte-identical, as the parity test asserts before this digest; the same race on the bench box gives this digest with an empty and a warm reach cache at 2g and with an empty one at 4g."
+      "sha256": "742028dc5d4c6ba6e85e01b3231fbe3391d82c5d206c1d444cce7e7c79ab6b08",
+      "note": "Round 344 draw (the seed's SplitMix64 stream breaks a computed start's tie; on 1a58439 the grid moves from A 7,27 and B 13,27 to A 14,27 and B 11,28): re-frozen from measurement. Desktop and browser logs are byte-identical, as the parity test asserts before this digest; the same race on the bench box gives this digest with an empty and a warm reach cache at 2g and with an empty one at 4g."
     }
   ]
 }

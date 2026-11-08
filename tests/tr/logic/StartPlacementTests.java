@@ -16,7 +16,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Properties;
-import java.util.Random;
+import java.util.SplittableRandom;
 import tr.gui.RaceUI;
 
 /** The owner's computed-start rule (2026-10-02, CLAUDE.md; later placements
@@ -31,6 +31,7 @@ final class StartPlacementTests {
         testFinishingLaunch();
         testTerminalOccupancy();
         testOverBudget();
+        testDraw();
         System.out.println("StartPlacementTests: the computed-start rule (exact solo value from rest, taken cells"
                 + " refused, x-then-y and seeded ties, the first-checkpoint map over budget), shared"
                 + " analysis, live occupancy and barriers, and the least exposed launch with the earlier cars'"
@@ -196,10 +197,10 @@ final class StartPlacementTests {
         for (long seed=0;seed<10;seed++) {
             for (final Player car : new Player[]{ai, second, third})
                 check(Arrays.equals(StartPlacement.choose(g,car,seed),
-                        pool.get(new Random(seed ^ ((long) car.getNumber() << 32)).nextInt(pool.size()))),
+                        pool.get(drawOracle(seed, car.getNumber(), pool.size()))),
                         "A seeded car with a car after it is not the seed's draw among its least exposed best cells");
             check(Arrays.equals(StartPlacement.choose(g,last,seed),
-                    ties.get(new Random(seed ^ ((long) last.getNumber() << 32)).nextInt(ties.size()))),
+                    ties.get(drawOracle(seed, last.getNumber(), ties.size()))),
                     "The last car to place weighed placements no car will make");
         }
         // An earlier car's cell is not free: that car moves first and leaves it. With
@@ -239,7 +240,7 @@ final class StartPlacementTests {
                 "The car in slot 3 did not take the launch the earlier cars clear");
         for (long seed=0;seed<10;seed++)
             check(Arrays.equals(StartPlacement.choose(g,third,seed),
-                    kept.get(new Random(seed ^ ((long) third.getNumber() << 32)).nextInt(kept.size()))),
+                    kept.get(drawOracle(seed, third.getNumber(), kept.size()))),
                     "A seeded car in slot 3 took a launch the earlier cars' launches close");
         check(Arrays.equals(behind,StartPlacement.choose(g,third,null)), "Choice is not a pure function");
         check(Arrays.deepEquals(positions,Arrays.stream(g.players).map(Player::getPosition).toArray(int[][]::new)),
@@ -281,7 +282,7 @@ final class StartPlacementTests {
                 "Fixture has no unexposed launch the earlier cars' launches close");
         for (long seed=0;seed<10;seed++)
             check(Arrays.equals(StartPlacement.choose(g,third,seed),
-                    unexposed.get(new Random(seed ^ ((long) third.getNumber() << 32)).nextInt(unexposed.size()))),
+                    unexposed.get(drawOracle(seed, third.getNumber(), unexposed.size()))),
                     "A seeded car in slot 3 is not the seed's draw among its least exposed best cells");
         // Undo takes the earlier cars back: the same car then chooses as alone.
         for (final Player player : g.players) player.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
@@ -332,7 +333,7 @@ final class StartPlacementTests {
                     "The car in slot 2 did not hold the earlier car's launch");
             for (long seed=0;seed<10;seed++)
                 check(Arrays.equals(StartPlacement.choose(g,second,seed),
-                        plus.get(new Random(seed ^ ((long) second.getNumber() << 32)).nextInt(plus.size()))),
+                        plus.get(drawOracle(seed, second.getNumber(), plus.size()))),
                         "A seeded car in slot 2 is not the seed's draw among its least C+ exposed best cells");
             if (!Arrays.equals(plus.get(0),round339.get(0))) moved.add(new int[]{fx,fy});
             // The last car to place weighs neither later placements nor earlier launches.
@@ -341,7 +342,7 @@ final class StartPlacementTests {
                     "The last car to place weighed the earlier car's launch or later placements");
             for (long seed=0;seed<10;seed++)
                 check(Arrays.equals(StartPlacement.choose(g,last,seed),
-                        lastTies.get(new Random(seed ^ ((long) last.getNumber() << 32)).nextInt(lastTies.size()))),
+                        lastTies.get(drawOracle(seed, last.getNumber(), lastTies.size()))),
                         "A seeded last car is not the seed's draw among all its best cells");
         }
         for (final Player p : g.players) p.setPosition(new int[]{Player.INIT_POS,Player.INIT_POS});
@@ -375,6 +376,39 @@ final class StartPlacementTests {
             if (held) exposed++;
         }
         return exposed == 0 ? 0 : exposed < landings.size() ? 1 : 2;
+    }
+    /** Round 344: the seed's draw, independently -- car {@code number}'s output of the
+     *  seed's SplitMix64 stream, the JDK's own (java.util.SplittableRandom), reduced to the
+     *  pool, unsigned. */
+    private static int drawOracle(final long seed, final int number, final int size) {
+        final SplittableRandom stream = new SplittableRandom(seed);
+        long z = 0;
+        for (int i = 0; i < number; i++) z = stream.nextLong();
+        return (int) Long.remainderUnsigned(z, size);
+    }
+    /** Round 344 (the owner, 2026-11-06: "fix and investigate"): the first output of
+     *  new Random(seed ^ (long) number << 32) gave a car the same position in a pool of
+     *  2, 4, 8 or 16 cells in every small seed. The seed's draw is the JDK's SplitMix64, and over each
+     *  window the screens race (seeds 1-5, 6-10, 11-20, 21-30) every car 1-9 takes more
+     *  than one cell of every pool of 2 to 16 cells; the known answers pin it. */
+    private static void testDraw() {
+        for (int car = 1; car <= 9; car++) for (int size = 1; size <= 64; size++)
+            for (long seed = -50; seed <= 50; seed++)
+                check(StartPlacement.draw(seed, car, size) == drawOracle(seed, car, size),
+                        "The seed's draw is not the car's output of the seed's SplitMix64 stream");
+        for (final long seed : new long[]{Long.MIN_VALUE, -1L, 1L << 32, Long.MAX_VALUE})
+            for (int car = 1; car <= 9; car++)
+                check(StartPlacement.draw(seed, car, 7) == drawOracle(seed, car, 7), "The draw fails at an extreme seed");
+        for (final long[] window : new long[][]{{1, 5}, {6, 10}, {11, 20}, {21, 30}})
+            for (int car = 1; car <= 9; car++) for (int size = 2; size <= 16; size++) {
+                final HashSet<Integer> cells = new HashSet<>();
+                for (long seed = window[0]; seed <= window[1]; seed++) cells.add(StartPlacement.draw(seed, car, size));
+                check(cells.size() > 1, "Car " + car + " takes one cell of " + size + " in every seed "
+                        + window[0] + "-" + window[1]);
+            }
+        check(StartPlacement.draw(1, 1, 2) == 1 && StartPlacement.draw(1, 1, 3) == 2 && StartPlacement.draw(1, 1, 8) == 1
+                && StartPlacement.draw(1, 2, 8) == 7 && StartPlacement.draw(2, 1, 8) == 6
+                && StartPlacement.draw(-7, 4, 8) == 2, "The seed's draw changed its known answers");
     }
     /** Round 339: a finishing move is exempt from bodies, so it never joins a launch.
      *  With the finish line through the grid, the cells whose fastest first moves
@@ -445,7 +479,7 @@ final class StartPlacementTests {
                 "Without a seed the tie did not go to the first least exposed best cell in x-then-y order");
         for (long seed=0;seed<10;seed++)
             check(Arrays.equals(StartPlacement.choose(g,ai,seed),
-                    ties.get(new Random(seed ^ ((long) ai.getNumber() << 32)).nextInt(ties.size()))),
+                    ties.get(drawOracle(seed, ai.getNumber(), ties.size()))),
                     "A seeded tie is not the seed's draw among the least exposed best cells");
         g.players[1].setPosition(oldBest.clone());
         g.players[2].setPosition(new int[]{5,2});

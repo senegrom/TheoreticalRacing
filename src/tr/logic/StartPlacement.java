@@ -4,7 +4,6 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Random;
 import java.util.Set;
 
 /** The owner's computed-start rule (2026-10-02, CLAUDE.md; later placements
@@ -52,6 +51,27 @@ import java.util.Set;
  * -0.023 +- 0.006, a lone car -0.047 +- 0.016. Duels are identical by construction
  * (the first car has no earlier car, the second is the last), and random and
  * scattered starts never reach the placement.
+ *
+ * Round 344 (the owner, 2026-11-06: "fix and investigate"): the seed's draw among
+ * equally good cells was the first output of new Random(seed ^ (long) number <<
+ * 32), whose top bits small seeds barely move: over seeds 1-30 each car took one
+ * fixed position in every pool of 2, 4, 8 or 16 cells, and on every pool size that
+ * is not a power of two every car read one shared sequence. A race on computed
+ * starts depends on its seed only through these draws, so seeds repeated races, and
+ * screens counted the repeats as fresh races. The draw is now the car's own output
+ * of the seed's SplitMix64 stream (draw). Measured as arm 368 against the round-343
+ * champion, on computed starts, with standard errors corrected for repeated races
+ * (the owner, 2026-11-06: "Report corrected"): mirrored eight-car fields +0.001 +-
+ * 0.020 places (seeds 1-10) and +0.010 +- 0.022 (held-out seeds 11-20), mirrored
+ * four-car fields +0.009 +- 0.009 and duels -0.007 +- 0.006 (seeds 1-20), a lone
+ * car among eight, in every seat against the all-champion race, +0.012 +- 0.020
+ * (seeds 1-5): no slice beyond one standard error of a loss. So corrected, round
+ * 342's readings above are -0.026 +- 0.024 and -0.049 +- 0.023 (eight-car fields),
+ * -0.024 +- 0.008 (four-car fields) and -0.053 +- 0.017 (the lone car), and on
+ * round 339's base -0.033 +- 0.022, -0.063 +- 0.024 and -0.016 +- 0.022 (eight-car
+ * fields), -0.023 +- 0.008 (four-car fields) and -0.047 +- 0.017 (the lone car);
+ * round 339's own eight-car and lone errors grow by at most 2%, its four-car error
+ * to 0.015 and its duels' to 0.015.
  */
 final class StartPlacement {
     private StartPlacement() {}
@@ -228,12 +248,30 @@ final class StartPlacement {
         // only the least exposed best cells stay; the last car to place keeps all of them.
         final List<Cell> pool = carFollows(game, player)
                 ? leastExposed(analysis, game, player, bestCells) : bestCells;
-        // The pool's cells are equally good: a stable x-then-y order and a local
-        // seed stream break their tie, which preserves Undo without perturbing
+        // The pool's cells are equally good: a stable x-then-y order and the seed's
+        // draw (round 344) break their tie, which preserves Undo without perturbing
         // benchmark RNG.
-        final int choice = seed == null ? 0 : new Random(seed ^ ((long) player.getNumber() << 32)).nextInt(pool.size());
+        final int choice = seed == null ? 0 : draw(seed, player.getNumber(), pool.size());
         final Cell selected = pool.get(choice);
         return new int[]{selected.x(), selected.y()};
+    }
+
+    /** Round 344 (the owner, 2026-11-06: "fix and investigate"): the seed's draw among
+     *  {@code size} equally good cells for car {@code number} -- the car's own output of
+     *  the seed's SplitMix64 stream (the {@code number}-th nextLong() of
+     *  {@code new java.util.SplittableRandom(seed)}), reduced to the pool. A pure function
+     *  of the seed, the car's number and the pool's size that reads no shared stream:
+     *  Undo draws again and, after the same placements, gets the same cell, and benchmark
+     *  RNG is never perturbed.
+     *  Integer arithmetic only, so every JVM, the browser's among them, draws alike. It
+     *  replaces new Random(seed ^ (long) number << 32).nextInt(size), whose first output
+     *  keeps the top bits of one LCG step: for the small seeds every screen races, a pool
+     *  of 2, 4, 8 or 16 cells gave each car the same position in it in every seed. */
+    static int draw(final long seed, final int number, final int size) {
+        long z = seed + number * 0x9E3779B97F4A7C15L;
+        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
+        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
+        return (int) Long.remainderUnsigned(z ^ (z >>> 31), size);
     }
 
     /** Round 339: does a roster slot follow this player's? That car places after it. */
