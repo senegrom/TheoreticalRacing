@@ -12,27 +12,79 @@ import bench_ai  # noqa: E402
 
 # Round 233 (the lane spread left the score): every ceiling re-anchored from
 # measurement, and three races lose a car -- recorded, not vetoed (AGENTS.md).
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+# every case starts from a new grid and is a new race, and every ceiling below was measured on a race on the grid
+# before round 345, so each is re-anchored to its new race: the ceiling is the new race's measured finisher move
+# sum, with no margin, as round 233 and every later re-anchoring set it. Each entry's round-345 note gives its
+# race; the cars a race loses are under SAFETY in main().
 CASES = {
-    ("hungaroring", 4): 889,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p1 to p4 finish first to fourth on their 121st to 124th moves, p6 fifth on its 125th, p8 sixth on its 126th and
+    # p5 seventh on its 128th; no crash, and p7 is the car still running at the end, after 127 moves: 869 moves, the
+    # ceiling (889 before, measured on the grid before round 345).
+    ("hungaroring", 4): 869,
     # Round 247: seven finishers here now instead of six, so the sum grows.
-    ("spa", 4): 573,
-    ("interlagos", 3): 897,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p1 to p5 finish first to fifth on their 79th, 80th, 81st, 82nd and 82nd moves, and p6 and p7 sixth and seventh
+    # on their 83rd; no crash, and p8 is the car still running at the end, after 82 moves: 570 moves, the ceiling
+    # (573 before, measured on the grid before round 345).
+    ("spa", 4): 570,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p1 to p7 finish first to seventh on their 124th to 130th moves; no crash, and p8 is the car still running at the
+    # end, after 129 moves: 889 moves, the ceiling (897 before, measured on the grid before round 345).
+    ("interlagos", 3): 889,
     # Round 234: Le Mans seed 3 keeps both of the cars it used to lose, so
     # seven finishers are counted here instead of five and the sum grows.
-    ("lemans", 3): 501,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # seven finishers and no crash (the list is under EXACT_MOVES), and p6 is the car still running at the end, after
+    # 72 moves: 486 moves, the ceiling (501 before, measured on the grid before round 345).
+    ("lemans", 3): 486,
     # Round 234: seven finishers here now instead of six, so the sum grows.
-    ("lemans", 11): 489,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # six finishers: p2 wins on its 66th move, p3 is second on its 67th, p5 third on its 68th, p6 and p7 fourth and
+    # fifth on their 69th, and p1 sixth on its 71st; p8 crashes on its 7th (see the safety notes in main), and p4 is
+    # the car still running at the end, after 70 moves: 410 moves, the ceiling (489 before, measured on the grid
+    # before round 345).
+    ("lemans", 11): 410,
     # Round 229: re-anchored from measurement (the soft caution stack left the score).
-    ("spa", 11): 569,  # Round 247: re-anchored from measurement.
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p5 wins on its 78th move, p6 is second on its 79th, p3 third on its 82nd, p8 fourth on its 83rd, p2 and p7 fifth
+    # and sixth on their 84th, and p1 seventh on its 85th; no crash, and p4 is the car still running at the end, after
+    # 84 moves: 575 moves, the ceiling (569 before, measured on the grid before round 345).
+    ("spa", 11): 575,  # Round 247: re-anchored from measurement.
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
-    ("silverstone", 15): 601,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
-    ("silverstone", 18): 594,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
-    ("coil", 18): 421,  # Rounds 234 and 247: re-anchored from measurement.
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # six finishers (the list is under EXACT_MOVES); p8 crashes on its 75th move (see the safety notes in main), and
+    # p7 is the car still running at the end, after 85 moves: 502 moves, the ceiling (601 before, measured on the grid
+    # before round 345).
+    ("silverstone", 15): 502,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p2 and p5 finish first and second on their 82nd moves, p3 and p6 third and fourth on their 83rd, p1 fifth on its
+    # 84th, and p4 and p7 sixth and seventh on their 86th; no crash, and p8 is the car still running at the end, after
+    # 85 moves: 586 moves, the ceiling (594 before, measured on the grid before round 345).
+    ("silverstone", 18): 586,  # Round 229: re-anchored from measurement  # Round 229: re-anchored from measurement
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p1 wins on its 58th move, p2 and p8 are second and third on their 59th, p5 fourth on its 60th, and p3, p4 and p6
+    # fifth to seventh on their 61st; no crash, and p7 is the car still running at the end, after 60 moves: 419 moves,
+    # the ceiling (421 before, measured on the grid before round 345).
+    ("coil", 18): 419,  # Rounds 234 and 247: re-anchored from measurement.
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
-    ("hungaroring", 8): 884,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p1 wins on its 122nd move, p2 is second on its 123rd, p6 third on its 124th, p7 fourth on its 125th, p8 fifth on
+    # its 126th, p3 sixth on its 128th and p4 seventh on its 129th; no crash, and p5 is the car still running at the
+    # end, after 128 moves: 877 moves, the ceiling (884 before, measured on the grid before round 345).
+    ("hungaroring", 8): 877,
     # Round 234: seven finishers here now instead of six, so the sum grows.
-    ("hungaroring", 10): 877,
-    ("hungaroring", 25): 890,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # six finishers: p1 and p2 finish first and second on their 121st and 122nd moves, and p4, p5, p6 and p7 third to
+    # sixth on their 123rd to 126th; p3 crashes on its 5th (see the safety notes in main), and p8 is the car still
+    # running at the end, after 125 moves: 741 moves, the ceiling (877 before, measured on the grid before round 345).
+    ("hungaroring", 10): 741,
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p1, p2 and p3 finish first to third on their 121st, 122nd and 123rd moves, p7 fourth on its 124th, p8 fifth on
+    # its 125th, p4 sixth on its 127th and p5 seventh on its 128th; no crash, and p6 is the car still running at the
+    # end, after 127 moves: 870 moves, the ceiling (890 before, measured on the grid before round 345).
+    ("hungaroring", 25): 870,
 }
 
 # A same-sum field redistribution at Le Mans seed 3 is the ambiguity boundary:
@@ -40,6 +92,8 @@ CASES = {
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
 # assertion logic and AI1/AI2 identity checks remain intact.
 # Round 248 (the physical world model): Le Mans seed 3 has six finishers.
+# Round 345: that boundary was the Le Mans seed-3 race on the grid before round 345. Every seed now starts from a
+# new grid and is a new race, and each list below pins its new race's finish list exactly, as measured.
 EXACT_MOVES = {
     # Round 228: the raw-distance policy changes the order and saves four moves.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
@@ -71,7 +125,11 @@ EXACT_MOVES = {
     # and p8 still the car running at the end, after 70 moves (71 before); no crash, one move fewer (483 -> 482) --
     # the list of rounds 303 and 330 again -- and the ceiling above keeps its value.
     # Round 341: re-frozen from measurement (the score's rival twin plays the rival's own gate rules).
-    ("lemans", 3): [66, 67, 68, 69, 70, 71, 72],
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # p3 wins on its 66th move, p5 is second on its 67th, p7 third on its 68th, p8 fourth on its 69th, p1 fifth on its
+    # 71st, p2 sixth on its 72nd and p4 seventh on its 73rd; no crash, and p6 is the car still running at the end,
+    # after 72 moves (486 moves, the ceiling above).
+    ("lemans", 3): [66, 67, 68, 69, 71, 72, 73],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
@@ -124,7 +182,11 @@ EXACT_MOVES = {
     # 84th) fourth on its 85th, p7 (sixth before, on its 86th) fifth on its 85th, and p4 (fourth before, on its 84th)
     # sixth on its 86th; the sum grows with the regained car (505 -> 593) -- round 331's list again, in a new order --
     # and the ceiling above keeps its value.
-    ("silverstone", 15): [83, 84, 84, 85, 85, 86, 86],
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # six finishers: p1 wins on its 82nd move, p3 and p4 are second and third on their 83rd, p5 and p6 fourth and
+    # fifth on their 84th, and p2 sixth on its 86th; p8 crashes on its 75th, at turn 600, across the needle (see the
+    # safety notes in main), and p7 is the car still running at the end, after 85 moves (502 moves, the ceiling above).
+    ("silverstone", 15): [82, 83, 83, 84, 84, 86],
 }
 
 
@@ -373,7 +435,28 @@ def main() -> int:
             # moves. The other nine cases keep every car, as in round 335, each under its ceiling. Silverstone 15, Spa
             # 4, Spa 11 and Coil 18 are round 335's races byte for byte, and Le Mans 3, which first plays differently
             # on p1's 24th move, at turn 185, comes home on the same moves, so both lists under EXACT_MOVES stand.
-            SAFETY = {("silverstone", 18): (6, 1), ("hungaroring", 25): (6, 1)}
+            # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64
+            # stream). Every case starts from a new grid and is a new race; the races narrated above were races on the
+            # grid before round 345. Three new races lose a car and make up this list -- recorded, not vetoed
+            # (AGENTS.md). Le Mans 11: p8 crashes on its 7th move, at turn 56, NW from (9,23) at v(1,-4) to (9,18) at
+            # v(0,-5); it ran onto (9,23) on its 6th, at turn 48, W from (8,27) at v(2,-4). p2, p3, p5, p6, p7 and p1
+            # finish first to sixth on their 66th, 67th, 68th, 69th, 69th and 71st, and p4 is the car still running at
+            # the end, after 70 moves (410 moves, the ceiling). Silverstone 15: p8 crashes on its 75th move, at turn
+            # 600, on the cells of the needle crashes of rounds 333 to 335 ((30,31)->(25,31) at v(-5,0), across the
+            # needle that forms the inside wall of the hairpin before the finish): on its 74th, at turn 592, it ran
+            # onto (30,31), from which at v(-4,1) the one landing that stays on the track is (27,33), round the needle's
+            # tip; p4 held that landing then (since its 74th, at turn 588), and p5 took it on its 75th, at turn 597, as
+            # p4 left it, so every free landing crosses the wall. p1, p3, p4, p5, p6 and p2 finish first to sixth (the
+            # list is under EXACT_MOVES), and p7 is the car still running at the end, after 85 moves (502 moves, the
+            # ceiling). Hungaroring 10: p3 crashes on its 5th move, at turn 35, on the cells of Hungaroring 25's crashes
+            # in rounds 316 and 331 ((95,147)->(97,149) at v(2,2), along the outer wall on the run to the first
+            # corner): on its 4th, at turn 27, it ran onto (95,147), on the wall's line, from which at v(3,2) the one
+            # landing that stays on the track is (97,150), and p7 took that landing on its 4th, at turn 31, so every
+            # free landing crosses the wall. p1, p2, p4, p5, p6 and p7 finish first to sixth on their 121st to 126th,
+            # and p8 is the car still running at the end, after 125 moves (741 moves, the ceiling). The other nine
+            # cases, Silverstone 18 and Hungaroring 25 (on this list before) among them, finish seven cars with no
+            # crash and take the (7, 0) default, each at its ceiling.
+            SAFETY = {("lemans", 11): (6, 1), ("silverstone", 15): (6, 1), ("hungaroring", 10): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(
@@ -396,6 +479,9 @@ def main() -> int:
         # The unrestricted certificate changed player 3's opening line on
         # Monaco seed 9 and caused a frozen AI2 car to crash 442 global moves
         # later. Self-play-only gating must leave this mixed field crash-free.
+        # Round 345: that race, and every race narrated below, was a race on the
+        # grid before round 345; seed 9 now starts from a new grid (see the
+        # round-345 note below).
         bench_ai.set_kinds(["AI1"] * 4 + ["AI2"] * 4)
         mixed = bench_ai.run_track_h2h("monaco", timeout=900, seed=9)
         if mixed is None:
@@ -486,13 +572,21 @@ def main() -> int:
         # 114th and 115th; the place sums move from AI1 14 and AI2 22 to AI1 16 and AI2 20. As in rounds 260, 330,
         # 331, 333, 334 and 335, the pin keeps the measured pair, now AI1 (4, 0) and AI2 (4, 0) -- the pair of rounds
         # 278 to 329 again, the crash-free field this check began with.
+        # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+        # seed 9 starts from a new grid and is a new race, and the mixed field is crash-free: p4, an AI1 car, wins on
+        # its 113th move, the four AI2 cars p5, p6, p7 and p8 are second to fifth on their 114th, 115th, 116th and
+        # 117th, p2 and p3 sixth and seventh on their 119th and 120th, and p1 is the car still running at the end,
+        # after 120 moves; the place sums are AI1 22 and AI2 14. As in every round since 260, the pin keeps the
+        # measured pair, AI1 (4, 0) and AI2 (4, 0).
         if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
+    # Round 345: the message named the races before round 345 (round 82/91's gains and vetoes); it names what is
+    # pinned.
     print(
         "AI1StagedPaceRegression: OK "
-        "(three-ahead Coil/Hungaroring gains; low-speed Hungaroring and "
-        "ambiguous Le Mans vetoes; stationary-grid Silverstone gain; "
+        "(twelve all-AI1 races: finisher and crash counts and move-sum ceilings pinned, "
+        "Le Mans seed 3 and Silverstone seed 15 finish lists exact; "
         "mixed Monaco seed 9 safety pinned)"
     )
     return 0

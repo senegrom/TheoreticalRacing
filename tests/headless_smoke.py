@@ -136,6 +136,11 @@ def main() -> int:
         # projected place, then time); seven cars finish crash-free again -- H (p8),
         # which round 310 crashed on its 13th move (turn 104, (46,12)->(51,12)),
         # finishes sixth -- and D (p4) is the car still running at the end.
+        # Round 345: measured again (random starts: each car's own draw from the
+        # seed's SplitMix64 stream); a new grid and so a new race, and the contract
+        # holds: seven cars finish crash-free -- C, D and G (p3, p4, p7) in 19 own
+        # moves, E (p5) in 20, A, F and H (p1, p6, p8) in 21 -- and B (p2) is the
+        # car still running at the end, after 21 own moves.
         crashed = [line.split()[1] for line in log.splitlines() if " CRASH " in line]
         if "# results" not in log or log.count(" FINISH ") != 7 or crashed != []:
             raise SystemExit("headless race did not produce the expected complete chicane result")

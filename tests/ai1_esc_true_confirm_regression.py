@@ -62,6 +62,17 @@ fifth on its 117th (second on its 112th before), and p3 and p2 finish
 first and third as before, on their 111th and 114th. The pin holds the
 measured finishers and crashes, the round-107 7/0 again, as from round
 303 to round 332.
+
+Round 345 (random starts: each car's own draw from the seed's SplitMix64
+stream): the start-funnel specimen above (move 26's SE commitment) and
+every race described above were Hungaroring s144 on the grid before round
+345, and the ESC-route confirm itself left the AI in round 310, so no race
+can show it. On the new grid the seed gives a new race, seven finishers
+and no crash: p2 wins on its 111th own move, p3 is second on its 112th,
+p5 third on its 113th, p7 fourth on its 114th, p1 fifth on its 115th, p6
+and p8 sixth and seventh on their 116th, and p4 is the car still running
+at the end, after 116 moves. The pin now guards that race's outcome: the
+round-107 7/0 holds, unchanged.
 """
 
 from pathlib import Path
@@ -110,6 +121,10 @@ def main() -> int:
     # p5, fifth home on its 115th before, is now the car still running at the end, after 118 moves, and p8, the car
     # still running at the end before, finishes sixth on its 117th -- crash-free again, and the round-107 7/0 is
     # pinned below.
+    # Round 345: measured on the new grid (random starts: each car's own draw from the seed's SplitMix64 stream);
+    # a new race, seven finishers and no crash: p2, p3, p5, p7 and p1 come home first to fifth on their 111th to
+    # 115th own moves, p6 and p8 sixth and seventh on their 116th, and p4 is the car still running at the end,
+    # after 116 moves -- the round-107 7/0 pinned below holds, unchanged.
     if crashes != 0 or finishes != 7:
         raise SystemExit(
             "ESC true-confirm regression: hungaroring s144 finishes="

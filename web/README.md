@@ -93,7 +93,7 @@ is available from the workflow for other static hosts.
   placed, and, except the last to place, prefer a best cell whose launch neither
   later players nor the earlier cars' fastest first moves can block. Seeded
   randomness breaks only ties among equally good cells. Explicit legacy
-  placement retains the historical random/first-free starts for benchmarks.
+  placement keeps the seeded-random/first-free starts for benchmarks.
 
 Both hosts compile the same shared `src/`, including the computed placement
 policy described below. At build time, `scripts/prepare_sources.py` adapts Swing
@@ -314,7 +314,7 @@ cells, and each AI scores afresh after earlier placements.
 
 Legacy benchmark placement remains an explicit setup option and the default for
 headless benchmark runs. The aiStartPlacement=informed property enables computed
-starts in headless Java too; aiStartPlacement=legacy requests the historical
+starts in headless Java too; aiStartPlacement=legacy requests the
 first-free/seeded-random policy, and aiStartPlacement=scatter (headless only in
 practice) starts every AI mid-course at speed for racecraft measurement. A board
 whose exact full-race map is over budget scores its starts on the next best map,

@@ -46,12 +46,28 @@ LABELS = ("AI2",)
 # 118 moves, and p1 and p2 finish first and second as before. SAFETY below drops the
 # entry round 329 added, so the race takes the (7, 0) default again; the seven
 # finishers sum to 807 and this bound keeps its value.
-MAX_FINISH_MOVE_SUM = 891
+# Round 345: re-frozen from measurement (random starts: each car's own draw from
+# the seed's SplitMix64 stream); every race described above was on the grid before
+# round 345. Monaco seed 1 starts from a new grid and is a new race, with seven
+# finishers and no crash: p6, p7 and p8 finish first to third on their 113th, 114th
+# and 115th moves, p1 fourth on its 117th, p2 fifth on its 118th, p4 sixth on its
+# 119th and p5 seventh on its 120th, and p3 is the car still running at the end,
+# after 120 moves; the seven finishers sum to 816. The bound moves with the race:
+# it is this race's own measured sum, with no margin -- round 224 set it to 891
+# because this race took four moves more than the 887 it had measured -- and later
+# rounds kept it while the race ran faster. 891 was the round-224 sum of the race
+# on the grid before round 345, which no longer exists, so the bound is re-derived
+# from the new race: 816.
+MAX_FINISH_MOVE_SUM = 816
 
 # Round 94 extends the dual-model finish sprint from map TTF 15 to 20 only
 # in mover-kind homogeneous fields. Big Oval seed 7 is the smallest active
 # gain; Le Mans seed 12 pins the extended-band NONE veto that removed the
 # broad experiment's sole slower race.
+# Round 345: that gain and that veto were measured on the grid before round
+# 345. Both seeds now start from new grids (random starts: each car's own draw
+# from the seed's SplitMix64 stream) and are new races, pinned below by their
+# measured finish moves.
 # Round 231: re-frozen from recorded checkpoint-choice races; the existing
 # assertion logic remains intact. (Its AI1/AI2 identity checks retired on
 # 2026-09-27: one policy under both labels, pinned by ai1_label_invariance.)
@@ -69,7 +85,8 @@ FINISH_EXPECTED = {
     # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
-    ("bigoval", 7): [20, 21, 22, 22, 22, 22, 22],
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); Big Oval s7 starts from a new grid and is a new race, with seven finishers and no crash: p1, p4 and p5 finish first to third on their 21st moves and p2, p3, p6 and p7 fourth to seventh on their 22nd, and p8 is the car still running at the end, after 21 moves (sum 151).
+    ("bigoval", 7): [21, 21, 21, 22, 22, 22, 22],
     # Round 228: measured without the narrow-lane distance surcharge.
     # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
     # Round 247: re-frozen from measurement (the soft rollout at one level, not two).
@@ -80,7 +97,8 @@ FINISH_EXPECTED = {
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy); Le Mans s12, whole in every round since round 94 pinned it, loses a car: p2 (seventh home before, on its 73rd move) now crashes on its 37th, at turn 290 ((81,147)->(83,154)), and seven finishers become six; p4 is still the car running at the end, after 71 moves (72 before), and p3, p5, p6, p7, p8 and p1 finish first to sixth as before -- recorded, not vetoed (AGENTS.md).
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals'); Le Mans s12 keeps every car again: p2 (lost on its 37th move in rounds 328 to 330, at turn 290, (81,147)->(83,154)) now finishes seventh on its 73rd, as before round 328 -- it leaves round 330's line on its 9th move, at turn 66 (SE to v(3,-3) and (11,22), where it played E to v(3,-4) and (11,21)), and on its 37th, at turn 290, plays N from (82,143) at v(2,7), to (2,6) and (84,149) -- and p4 is still the car running at the end, after 72 moves (71 before); p3, p5, p6, p7, p8 and p1 finish first to sixth as before -- round 296's list again, so the case leaves SAFETY and takes the (7, 0) default.
-    ("lemans", 12): [66, 67, 68, 69, 70, 72, 73],
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); Le Mans s12 starts from a new grid and is a new race, with seven finishers and no crash: p1 wins on its 66th move, p2, p3, p5, p6, p7 and p8 finish second to seventh on their 67th, 68th, 69th, 70th, 71st and 72nd, and p4 is the car still running at the end, after 72 moves (sum 483).
+    ("lemans", 12): [66, 67, 68, 69, 70, 71, 72],
 }
 # Round 328: the measured (finishers, crashes) of a case that no longer keeps
 # seven finishers and zero crashes; every other case takes the (7, 0) default.
@@ -95,6 +113,9 @@ FINISH_EXPECTED = {
 # race stays whole: it leaves round 330's race on p5's 16th move, at turn 125, but
 # keeps its classification -- seven finishers, p5 still the car running at the end
 # after 118 moves -- and its 807 moves, under MAX_FINISH_MOVE_SUM.
+# Round 345: all three races start from new grids (random starts: each car's own
+# draw from the seed's SplitMix64 stream) and are new races; each keeps seven
+# finishers and no crash, so no case needs an entry.
 SAFETY = {}
 
 
@@ -140,9 +161,11 @@ def main() -> int:
                 f"{finish_result}, expected {expected}"
             )
 
+    # Round 345: the message named round 94's Big Oval finish sprint and Le Mans veto, decisions of the races on
+    # the grid before round 345; it names what is pinned.
     print(
         "AI1PaceRegression: OK "
-        f"(Monaco sum={move_sum}; Big Oval finish sprint and Le Mans veto pinned)"
+        f"(Monaco sum={move_sum}; Big Oval seed 7 and Le Mans seed 12 finish moves pinned)"
     )
     return 0
 

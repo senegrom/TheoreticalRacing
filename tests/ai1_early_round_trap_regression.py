@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Pin Round 124's phase-consistent trap-L2 pace gain after promotion."""
+"""Pin Round 124's phase-consistent trap-L2 pace gain after promotion.
+
+Round 345: that gain was measured against the legacy champion on the grid
+before round 345. Random starts are now each car's own draw from the seed's
+SplitMix64 stream, so Silverstone s93 races from a new grid, and the pin holds
+the champion's new race there (PROMOTED).
+"""
 from pathlib import Path
 import sys
 import tempfile
@@ -30,8 +36,11 @@ CASES = [("silverstone", 93)]
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
 # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
 # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
-PROMOTED = (7, 0, [81, 82, 82, 83, 83, 84, 84])
-LEGACY_CHAMPION = (7, 0, [81, 82, 83, 84, 85, 86, 87])
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); Silverstone s93 is a new race from a new grid: seven finishers and no crash -- p1 wins on its 81st own move, p2 is second on its 82nd, p3 and p4 third and fourth on their 84th, p5 and p7 fifth and sixth on their 85th and p6 seventh on its 86th, and p8 is the car still running at the end, after 85 moves.
+PROMOTED = (7, 0, [81, 82, 84, 84, 85, 85, 86])
+# Round 345: retired with the check in main() that read it (the legacy
+# champion's race on the grid before round 345, which no race reaches now):
+# LEGACY_CHAMPION = (7, 0, [81, 82, 83, 84, 85, 86, 87])
 EXPECTED = {kind: {"silverstone:93": PROMOTED} for kind in LABELS}
 
 
@@ -51,13 +60,17 @@ def main() -> int:
                     track, timeout=1200, seed=seed)
     if actual != EXPECTED:
         raise SystemExit(f"Round-124 promoted regression: {actual}, expected {EXPECTED}")
-    result = actual[LABELS[0]]["silverstone:93"]
     # Round 229: the round-124 summed-moves contracts against the legacy champion
     # (no car slower, a smaller sum) are retired -- the policy is judged by
     # head-to-head places now (AGENTS.md) and the measured race has one car a
     # move slower. Finishers and crashes must still match the legacy champion.
-    if result[:2] != LEGACY_CHAMPION[:2]:
-        raise SystemExit(f"Round-124 finisher/crash contract lost: {result}, legacy {LEGACY_CHAMPION}")
+    # Round 345: that last contract (the race's finishers and crashes equal to
+    # LEGACY_CHAMPION's, 7 and 0) is retired too. LEGACY_CHAMPION was the legacy
+    # champion's race on the grid before round 345; random starts now give each
+    # car its own draw from the seed's SplitMix64 stream, so seed 93 starts from
+    # a new grid that the legacy policy never raced, and the check would hold a
+    # new race to an old one. PROMOTED above still pins the new race's seven
+    # finishers and no crash, inside its whole summary.
     print("AI1EarlyRoundTrapRegression: OK (Silverstone s93 promoted)")
     return 0
 

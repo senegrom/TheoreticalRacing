@@ -1,5 +1,136 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 345 promoted (2026-11-11): a random start is the car's own draw from the seed's SplitMix64 stream
+
+A correctness fix to the benchmark's random starts, from the investigation of 2026-11-06 (workflow wf_58a4bfd0-458,
+report E:/tmp-claude/p344/inv/report.md; random-start design wf_c18501b2-9a1). The owner, 2026-11-06, on fixing the
+random-start draw as well: "fix"; 2026-11-08, on the regression corpus: "re freeze everything" (not keeping it on the
+old draw through a corpus-only property). The owner's go, 2026-11-10, given with the retired comparisons, the outcome
+pins and the lone check that does not apply set out in the report before it: "land it". On random starts
+(aiStartPlacement=legacy: the headless default, every screen's random slice, the 12 goldens and 22 of the 25 pins)
+car k took the k-th output of one new Random(seed), startRng.nextInt(free.size()), over the start cells the cars
+before it left free. For a power-of-two bound the first output keeps the top bits of one LCG step, which small seeds
+barely move: in every seed 1-255 car 1 took the same cell of each 8- and 16-cell grid -- interlagos and zandvoort (8
+cells) and hybrid1, hybrid6, hybrid12, hybrid14, hybrid15 and lobe2 (16), 8 of the 84 fleet tracks. The second output
+moves on a lattice in the seed: over seeds 1-30 car 2 reached only 3 to 8 of its free list's 10 or more positions on
+46 tracks. In all, 93 of the 672 track-car slots of an eight-car race were frozen or confined, against none under a
+fair stream. Eight- and four-car grids never repeated inside a 10-seed window (840 distinct of 840 in each; two
+four-car grids of seeds 31-40 copy seeds 1-10), so past random-start readings and their errors stand; duels kept
+fewer distinct grids (807 to 814 of 840 a window), their errors understated by 1.00x to 1.27x, and no verdict
+changes. Now findStartPosition takes StartPlacement.draw(seed, number, free.size()), round 344's draw, over the same
+free cells in the same x-then-y order: a pure function of the seed, the car's number and those cells. startRng stays:
+scattered starts read it, show no quirk, and are untouched (reseeding it would move every scattered race for no
+gain). Unseeded games still take the first free cell; the draw reads no candidate slot and no player kind. A
+restarted seeded game now starts from the same random grid; before, it drew on from the stream. From this round on a
+seeded random-start race is not the race earlier entries name by the same track and seed: races, boards and field
+counters do not compare or pool across the round.
+
+- The battery (docs/experiments/start-draw: the fleet's start zones, the draws as index sequences, window and
+  chi-square statistics) on every fleet zone: the new draw freezes no car in any 10-seed window (the old one car 1 on
+  8 tracks in every window, for 8, 4 and 2 cars); duels keep 824/832/826/839 distinct grids of 840 per window (fair
+  825.1, sd 7.9; old 814/814/807/814); chi-square tests flagged at two-sided 1e-3, of 880: 1, 0 and 1 over seeds
+  1-1000, 1-100,000 and -1000..0 (chance about 1.8; old 673, 817, 663).
+- The code: javap of every class against the round-344 champion (pf7fab27) differs in RaceGame.findStartPosition only
+  (StartPlacement's line table aside). CoreTests' new testSeededRandomStarts restates the draw as a model on zones of
+  2x4, 4x4, 3x4, 5x5 and 1x2 cells, seeds -2 to 30, with car 1 never frozen and unseeded games on the first free
+  cells; it fails on round 344's RaceGame.
+- Identity on the box (perf_identity.py, round 344's champion pf7fab27 against p345 7907bc6d): computed starts race
+  byte-identically (eight cars 8 races with the Nordschleife, four cars 4, duels 4), and so do scattered starts (8
+  and 4 cars, 6 races), unseeded random starts (Hairpin, Hybrid1, Interlagos) and a seed raced alone against the same
+  seed inside a batch. Seeded random starts differ in every race checked (8 cars 6, 4 cars 2, duels 3), and every
+  logged grid equals its model: the old logs the old draw, the new logs the new. CPU 0.97x to 1.03x on the identical
+  races (0.95x to 1.00x on the seeded random-start slices, whose races differ).
+- The fleet, all-champion eight-car races on the 84 tracks with the lone check's profile. Random starts, seeds 1-10:
+  the old and the new draw race 840 different races, as they must, and every one of the 1,680 logged grids equals its
+  draw's model. As description, never a veto: 5,830 finishers and 50 crashes on the old grids, 5,848 and 32 on the
+  new, at 267.2 and 267.6 own moves a finisher; crashes fell most on spielberg (7 to 3), hybrid12 (4 to 1) and
+  nurburgring (3 to 0) and rose most on rand16 and circle (0 to 2 each). Computed starts (seeds 1-5, 420 races,
+  against the champion's races in arm 369's lone-check control) and scattered starts (seeds 1-2, 168 races) race
+  byte-identically.
+- No mirrored screen and no lone-candidate check: they do not apply. The draw is the game's, not a car's, so no race
+  can seat a candidate beside a champion, and no decision code changed (javap above). The fleet grids above, on
+  random, computed and scattered starts, are the round's measurement.
+- The corpus, re-frozen from measurement. All 12 goldens move (Zandvoort s45: 7 finishers and no crash, where the old
+  grid's race had 5 finishers and 2 crashes; hairpin-s1-2p, the browser e2e's race, 33 turns to 31); the
+  computed-start browser fixture keeps 742028dc. 20 of the 25 pins failed on their new races and 2 more passed with
+  texts describing the old races. 21 of those 22 are re-frozen with round-345 notes describing each new race, and
+  label invariance passes unchanged once six-ahead high speed's Coil s5 race, its reference, is (hand re-freeze,
+  workflow wf_a0b5ec57-8cb: five editors and five independent reviewers; every pin checked on the box probe's own
+  races without a JVM, then raced on the box). The three pins on constructed boards do not move. Outside the three
+  decision pins below, a re-frozen pin holds its new races by outcome (summary, finishers, moves or digest): the
+  gain, veto or rescue it is named for was measured in its old-grid race and no specimen search was run for it, so
+  these 18 pins guard the new races' outcomes, not demonstrably their mechanisms (the Coil scan below measured two:
+  six-ahead acceleration's race, Coil s86, holds no real switch of the override, and graduated field acceleration's
+  three hold one, in Coil s1). New races keep or lose crashes as races do. New ones, recorded, not vetoed: staged
+  pace (Le Mans s11, Silverstone s15, Hungaroring s10), vmax deep (Serpentine2 s6), energy pace (Spa s17), graduated
+  field acceleration (Coil s106), mixed safety (Le Mans s7) and six-ahead high speed's controls (Spa s40 two,
+  Silverstone s78 one). Crash-free where the old grid's race was not: bounded uncertain field (Le Mans s29),
+  cross-model pace (Silverstone s1), equal-speed veto (Zandvoort s115), energy pace (Zandvoort s44), staged pace
+  (Silverstone s18, Hungaroring s25). Bounds a pin set from its own race move with it: staged pace's twelve move-sum
+  ceilings, pace's MAX_FINISH_MOVE_SUM (891 to 816, equal to the race, round 224's convention) and cross-model pace's
+  finisher-move sum (588).
+- Retired, their numbers kept in comments: every comparison with a retired legacy policy's race on the old grid,
+  which cannot be raced on the new one. They are early round trap's legacy finisher/crash contract, equal-speed
+  veto's pace edge and its safety contract against the legacy car's 6/1, graduated field acceleration's Pareto and
+  pace gain on Coil s1 and s38, six-ahead acceleration's on Coil s86, six-ahead high speed's LEGACY, LEGACY_ALL_MOVES
+  and 'lost every gain', and finish frontier's seed-6 pre-frontier 426.
+- Decision pins. Finish frontier's lines for seeds 47 and 49 are re-anchored by situation and its seed-6 line stands,
+  found again word for word in the new race: the three hold the column's W and SW choices at the finish frontier in
+  the new Coil s6, s47 and s49 races (none of the three lines has the formation the round-96 rule needs before it may
+  fire, nor had round 343's lines). Six-ahead high speed gets a real specimen, and finish denial awaits one. Raced
+  with -Dai.debug.finishDenial and -Dai.debug.djs (they print and turn off only exact shortcuts, the move memos and a
+  bound: flagged and unflagged races have one digest wherever both were raced), the lines the two pins held until
+  round 344 were already ordinary moves (round 344's jar: no rescue, no switch), and on the pins' own setups no real
+  one exists over Hairpin seeds 1-1000 or Spa seeds 1-100 on the new grids. Scratch builds whose prints also name a
+  top-level decision (the code's own test: simDepth == 0, not inScorerSim, trueConfirmDepth == 0) settle it. On the
+  Hairpin all 28 rescue prints, in nine seeds, are forecasts' (the one logged move such a print matches is seed
+  897's, printed twice), while in those nine races four real decisions of p8 ran the certificate and kept the pick.
+  On Spa seven logged moves match a six-ahead print (one each in seeds 32, 37, 50, 86 and 87, two in seed 63), every
+  print in those six races is a forecast's, and a build with the override off in top-level decisions only races all
+  six identically. On Coil, seeds 1-100 and 106 hold six real six-ahead switches, in seeds 11, 36, 51, 57, 58 and 85,
+  each from below 49 to 49 or more with a gain of 13, round 175's shape. In the first, seed 11, p7 at turn 247,
+  seventh on the road with six rivals ahead, is switched from NW (speed-squared 37) to N (50), and with the override
+  off in top-level decisions the race parts exactly there. Six-ahead high speed pins that race (summary, digest and
+  the decision line) beside its Spa target race, which it holds whole; finish denial holds its new race whole
+  (summary, finishers, moves and digest).
+- Box verify on the final tree: every pin, the goldens, headless smoke, query replay, lap progress, compileall and
+  the Python unit tests (run under timeout) pass (31/31). Local, on the final sources: the Java suite (CoreTests' new
+  test included), the browser build and the browser engine's tests (BrowserTests, StartupTests, PlayerOrderTests)
+  pass. Code review wf_22131ec0-1c8 (three lenses and a skeptic per finding): 10 of 14 findings stood and are fixed,
+  nine minor or text and one rated major (the browser e2e's pinned 33 turns, which the corpus step rewrites to 31);
+  among them the test now also checks that a second draw over the same free cells keeps the cell and that cells
+  outside the zone are no start cells. A text review (wf_b53336c8-6d8: code texts, the ledger and commit message, the
+  decision pins) and a second, independent review of the tree as it stood before the Coil specimen was added
+  (wf_a114c7f8-b2c: the 22 pins in four groups; wf_1309c9b4-ddb: the engine change, its test and the docs), a skeptic
+  per reviewer, found no code defect, no wrong pinned value and no weakened check, traced every retired legacy number
+  to its first commit and judged the retirements justified. Their findings were texts, and the upheld ones are fixed:
+  six pass messages that still described the races before round 345, the reason given for the Hairpin's one match,
+  and doc, ledger and commit-message sentences; so is the six-ahead search's count of matching prints (short by two
+  seeds: a finding of the text review's first pass, whose skeptic never ran, settled by the top-level builds above).
+  The specimen and the final texts then had a last pass by two independent reviewers. One rebuilt the Coil s11 board
+  from the raw race files, checked the switch against the code and mutated each new constant (every mutation fails
+  the pin with its own message): no defect. The other checked this entry and the commit message against the readings:
+  five wording points and four omissions, all taken up. The committed tree's jar is javap code-identical to the
+  identity-checked p345 (RaceGame's and StartPlacement's line tables aside).
+
+## C+ re-measured under the fixed draw (arm 369, 2026-11-08)
+
+The owner, 2026-11-06, on re-measuring C+ (round 342) once the computed-start draw was fixed (round 344): "do it".
+Arm 369 (E:/tmp-claude/arm369_cf.py) gave a candidate car round 339's rule (CF: the earlier cars' launches not held)
+against champions on round 344 (C+), on computed starts, errors corrected for repeated races; a positive reading
+favours C+.
+
+| Slice | CF against C+ |
+|---|---|
+| 8 cars, seeds 1-10 | +0.099 +- 0.021 (839 of 840 distinct; crashes 39:51) |
+| 8 cars, held-out seeds 11-20 | +0.030 +- 0.020 (840 of 840; 44:44) |
+| 8 cars, held-out seeds 21-30 | +0.012 +- 0.019 (837 of 840; 42:49) |
+| 4 cars, seeds 1-20 | +0.013 +- 0.006 (1,588 of 1,680; 10:9) |
+| Lone CF car among C+ (8 cars, every seat, seeds 1-5) | -0.004 +- 0.017 (crashes 23:22) |
+
+- C+ stands: the mirrored eight-car windows pool to about +0.047 +- 0.012 in its favour and the four-car fields read
+  +0.013 +- 0.006; a lone CF car neither gains nor loses against C+. No rule change.
+
 ## Screening tools report standard errors corrected for repeated races (2026-11-08)
 
 The owner, 2026-11-06: "Report corrected". tracks/head_to_head.py and docs/experiments/duel-lookahead/run_1vfield.py

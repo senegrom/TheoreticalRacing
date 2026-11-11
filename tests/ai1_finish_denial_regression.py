@@ -10,6 +10,22 @@ scorer world and the faithful world, and it does not crash. Until the
 as a control. Both kinds now run one policy, so since 2026-09-27 the pin
 races the all-AI2 roster once; ai1_label_invariance_regression checks that
 the labels race alike.
+
+Round 345 (random starts: each car's own draw from the seed's SplitMix64
+stream): the race above was Hairpin s68 on the grid before round 345, and
+by round 344 it held no rescue either: raced with round 344's jar and
+-Dai.debug.finishDenial=true (the flag prints and turns off only exact
+shortcuts: the race kept its pinned digest), the certificate never got
+past its gates in it (it printed nothing), and the line the pin held for
+p8's move 104 was an ordinary move. The new race on this seed holds no rescue: the certificate runs only
+for the last car in the turn order, p8, and only when the landing it would
+pick is of 64 speed2 or more. p8 is never above 50 speed2 in the whole
+race, while p1 to p6 reach v(8,1), 65 speed2, on the top straight, and its
+one landing of 64 or more, SE to v(7,4) from (61,12) at move 128, is p3's
+cell (68,16). Raced with the same flag over Hairpin seeds 1-1000 on the new
+grids, no logged move of p8 is a rescue: all 28 'dies -> switch' prints,
+in nine seeds, come from forecasts (RESCUED_DECISION below). The pin holds
+the new race's outcome and trajectory, and its decision awaits a specimen.
 """
 
 from pathlib import Path
@@ -89,9 +105,15 @@ TARGET = ("hairpin", 68)
 # before): p8's crossing, the seventh, ends the race, so p5 is classified eighth. Still seven finishers
 # and no crash; the last finisher is home in 18 moves, not 19 (the summary of rounds 281, 303 and
 # 305/309 again).
-RESCUED = (7, 0, [16, 16, 16, 17, 17, 18, 18])
-RESCUED_FINISHERS = [(2, 16), (3, 16), (4, 16), (6, 17), (7, 17), (1, 18), (8, 18)]
-RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 18}
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+# a new grid and a new race, seven finishers and no crash. p2 wins in 16 moves (move 122); p1, p4, p5
+# and p6 are second to fifth in 17 (moves 129, 131, 132 and 133); p3 and p7 are sixth and seventh in
+# 18 (moves 136 and 137). p8 is the car still running at the end, after 17 moves, at (71,21) at
+# v(5,5), a move from the line (p2 crossed from that cell at that speed, SW to (75,27), at move 122):
+# p7's crossing, the seventh, ends the race, so p8 is classified eighth.
+RESCUED = (7, 0, [16, 17, 17, 17, 17, 18, 18])
+RESCUED_FINISHERS = [(2, 16), (1, 17), (4, 17), (5, 17), (6, 17), (3, 18), (7, 18)]
+RESCUED_MOVES = {1: 17, 2: 16, 3: 18, 4: 17, 5: 17, 6: 17, 7: 18, 8: 17}
 # The rescue decision with the kind label normalized, as normalized_lines does.
 # Round 233 (the lane spread left the score): p8 reaches (47,6) a move earlier
 # now, so move 104 is the step after the rescue rather than the rescue itself;
@@ -157,7 +179,35 @@ RESCUED_MOVES = {1: 18, 2: 16, 3: 16, 4: 16, 5: 18, 6: 17, 7: 17, 8: 18}
 # brakes SW at moves 120 and 128, steers S at move 133 and finishes at move 136, on p7's cells from
 # (59,10) on, a round behind. Round 330's S steer from (48,7), pinned here for p8 at move 104 in rounds
 # 316 and 330 and p7's at move 103 in round 333, is p1's now, at move 105.
-RESCUED_DECISION = "104 p8 AI W v(7,1)→(6,1) (47,7)→(53,8) ok"
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
+# AWAITING A SPECIMEN. The line pinned until round 344,
+# "104 p8 AI W v(7,1)→(6,1) (47,7)→(53,8) ok", belonged to the race on the grid before round 345,
+# and was no rescue there either: with round 344's jar and -Dai.debug.finishDenial=true (which
+# prints and turns off only exact shortcuts: the race kept its pinned digest) the certificate never got
+# past its gates in that race. The new race holds no rescue. The
+# certificate runs only for the last car in the turn order, p8, and in its last five moves (moves
+# 104, 112, 120, 128 and 135) p8 picks landings of 26, 40, 45, 41 and 50 speed2: 50 is its fastest
+# landing in the whole race, while p1 to p6 reach v(8,1), 65, on the top straight. A rescue logs
+# the brake, not the landing it replaces (the original logged W v(7,0) to (6,0), 36 speed2), so
+# what rules one out is that p8 never has a landing of 64 or more to replace: its one, SE to
+# v(7,4) from (61,12) at move 128, is p3's cell (68,16). The race's two brakes from v(7,0) and
+# v(6,0) on the top straight, short of the v(8,1) from which p1 to p6 brake into the hairpin, are
+# not rescues either: p7's SW at move 95, v(7,0) to (6,1) from (41,5) to (47,6),
+# behind p6, p5 and p1 at v(8,1) on (48,7) to (50,7), is not the last slot's move, and no rival
+# stands within a cell of its coast landing (48,5); p8's SW at move 104, v(6,0) to (5,1) from
+# (44,6) to (49,7), with p3 at (50,7) beside its coast landing (50,6), leaves no high-energy line
+# behind (its highest-energy landings, NE, E and SE at vx 7, are 49 and 50 speed2). Over Hairpin
+# seeds 1-1000 on the new grids, -Dai.debug.finishDenial shows no rescue in any logged move of p8. Its
+# 28 'dies -> switch' prints, in nine seeds, are all forecasts': a scratch build whose prints also name
+# a top-level decision (the code's own test at the certificate's entry: simDepth == 0, not inScorerSim,
+# trueConfirmDepth == 0) marks none of them, while in those nine races it marks four real decisions of
+# p8 in which the certificate kept the pick (seeds 243, 434, 727 and 935). The one logged move that a
+# 'dies -> switch' print matches is seed 897's W from (42,6) at v(7,0) at move 96 (two prints,
+# 'chosen=SE dies -> switch W'): when p8 moved, SE's landing (50,7) was p2's cell (since move 90), so
+# the real decision had no SE to replace, and seed 897 also races identically with the certificate
+# switched off (a scratch build).
+# No decision line is pinned until a specimen is found; the digest below holds the whole race.
+RESCUED_DECISION = None
 # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
 # Round 234: re-frozen from measurement (the seal guard left the decision); finishers and crashes unchanged.
 # Round 260: re-frozen from measurement (the chooser).
@@ -172,7 +222,8 @@ RESCUED_DECISION = "104 p8 AI W v(7,1)→(6,1) (47,7)→(53,8) ok"
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
 # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
 # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
-RESCUED_SHA256 = "08ffb7bc08ee58faa363bfe757a0df731456af067fb7995dd675a98ed485cb63"
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the note above RESCUED.
+RESCUED_SHA256 = "dfdfe33bb9e8fd652fd982ab7b29c2f2cadcffb780d6548c84f689fe751f4899"
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:
@@ -238,7 +289,8 @@ def main() -> int:
             raise SystemExit(
                 f"finish-denial {label} events changed: crashes={crashes}, moves={moves}"
             )
-        if RESCUED_DECISION not in normalized_lines(logs[label]):
+        # Round 345: no decision line is pinned while the pin awaits a specimen (RESCUED_DECISION is None).
+        if RESCUED_DECISION is not None and RESCUED_DECISION not in normalized_lines(logs[label]):
             raise SystemExit(f"finish-denial {label} decision missing: {RESCUED_DECISION}")
         digest = normalized_sha256(logs[label])
         if digest != RESCUED_SHA256:
@@ -246,9 +298,10 @@ def main() -> int:
                 f"finish-denial {label} trajectory changed: {digest}, expected {RESCUED_SHA256}"
             )
 
+    # Round 345: the new race on this seed holds no rescue (docstring); the message names what is pinned.
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68 p8 crash-free rescue)"
+        "(hairpin s68: seven finishers, no crash, trajectory pinned; the rescue decision awaits a specimen)"
     )
     return 0
 

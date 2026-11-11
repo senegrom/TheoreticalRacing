@@ -14,6 +14,15 @@ finishers.
 Round 310: the round-98 thread-fragility audit went with the
 danger-joint-search family; the pinned outcome is unchanged under the
 promoted champion (measured), so the pin now guards that outcome.
+
+Round 345: random starts are each car's own draw from the seed's SplitMix64
+stream, so chicane seed 51 races from a new grid, and the specimen described
+above (p1's SE commitment at move 121 and, before round 98, its crash at
+move 145) belonged to the grid before round 345. Measured again on the new
+grid, the contract holds: seven finishers and no crash -- p2, p6, p7 and p8
+come home first to fourth, each on its 19th own move, p1 and p3 fifth and
+sixth, each on its 21st, and p4 seventh on its 22nd, and p5 is the car still
+running at the end, after 21 moves. The pin guards that outcome.
 """
 
 from pathlib import Path
@@ -42,6 +51,8 @@ def main() -> int:
     # The last live car is placed by elimination without a FINISH log line, so a
     # crash-free 8-car race records 7 finishers. Before Round 98 this race had
     # crashes=1 (p1 dies at move 145 after the m121 commitment).
+    # Round 345: that race started from the grid before round 345; the new
+    # grid's race also has seven finishers and no crash (docstring).
     finishes, crashes, _ = result
     if crashes != 0 or finishes != 7:
         raise SystemExit(

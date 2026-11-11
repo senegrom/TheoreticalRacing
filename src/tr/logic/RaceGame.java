@@ -2794,6 +2794,16 @@ public final class RaceGame {
 		return null;
 	}
 
+	/** Random starts (aiStartPlacement=legacy, the headless default): the AI takes the
+	 *  first free start cell in x-then-y order, or with a seed the seed's draw among the
+	 *  free cells. Round 345 (the owner, 2026-11-06: "fix"; 2026-11-08: "re freeze
+	 *  everything"): the draw is the car's own output of the seed's SplitMix64 stream
+	 *  (StartPlacement.draw, round 344), a pure function of the seed, the car's number
+	 *  and the cells the cars before it left free. The cars read one new Random(seed) in
+	 *  turn before, whose first output keeps the top bits of one LCG step: in every seed
+	 *  1-255 car 1 took the same cell of each 8- and 16-cell grid (8 fleet tracks). Its
+	 *  second output moves on a lattice in the seed: over seeds 1-30 car 2 reached only
+	 *  3 to 8 of its free list's 10 or more positions on 46 tracks. */
 	private int[] findStartPosition() {
 		if (startZone == null)
 			return null;
@@ -2815,18 +2825,20 @@ public final class RaceGame {
 					continue;
 				if (isCrashingPlayer(x, y, playerNum))
 					continue;
-				if (startRng == null)
+				if (startSeed == null)
 					return new int[]{x, y }; // legacy: first free cell
 				free.add(new int[]{x, y });
 			}
 		if (free.isEmpty())
 			return null;
-		return free.get(startRng.nextInt(free.size()));
+		return free.get(StartPlacement.draw(startSeed, playerNum, free.size()));
 	}
 
-	/** Seeded start-placement randomization (statistical benching): when set,
-	 *  each AI gets a random free start cell instead of the first free one.
-	 *  Deterministic per seed; null (default) = legacy behavior. */
+	/** Seeded start placement (statistical benching). With a seed, an AI on random
+	 *  starts takes the seed's draw among the free start cells instead of the first
+	 *  free one (findStartPosition, round 345), computed starts break their ties with
+	 *  the same draw (StartPlacement), and scattered starts read startRng, a stream
+	 *  seeded with it. Deterministic per seed; null (default) = legacy behavior. */
 	private java.util.Random startRng = null;
 	private Long startSeed;
 
@@ -3203,7 +3215,8 @@ public final class RaceGame {
 				next.propertiesOverride = propertiesOverride;
 				next.gameLogOverride = gameLogOverride;
 				next.startRng = startRng;
-				// Computed starts break ties with the seed itself (review, 2026-09-27).
+				// Computed starts break ties with the seed itself (review, 2026-09-27),
+				// and since round 345 random starts draw with it too.
 				next.startSeed = startSeed;
 				next.start();
 			});

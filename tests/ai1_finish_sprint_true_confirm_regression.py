@@ -39,15 +39,18 @@ TARGET = ("rand3", 1)
 # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
 PROMOTED = (7, 0, [60, 61, 61, 62, 62, 62, 63])
 # Round 329: re-frozen from measurement (a second rival in contact with the mover plays one of aware's three stronger forecast moves).
-PROMOTED_FINISHERS = [(1, 60), (3, 61), (5, 61), (4, 62), (6, 62), (7, 62), (8, 63)]
-PROMOTED_ALL_MOVES = {1: 60, 2: 63, 3: 61, 4: 62, 5: 61, 6: 62, 7: 62, 8: 63}
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); a new grid and a new race, seven finishers and no crash: p1 wins on its 60th own move, p2 and p3 are second and third on their 61st, p4, p5 and p6 fourth to sixth on their 62nd and p7 seventh on its 63rd, and p8 is the car still running at the end, after 62 moves, at (141,113) at v(2,-5), a move from the line (p5 crossed from that cell at that speed, NW to (142,107), at move 489). The summary above, PROMOTED, is this race's summary as it stands.
+PROMOTED_FINISHERS = [(1, 60), (2, 61), (3, 61), (4, 62), (5, 62), (6, 62), (7, 63)]
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the note above PROMOTED_FINISHERS: the seven finishers' own moves, and p8's 62, the car still running at the end.
+PROMOTED_ALL_MOVES = {1: 60, 2: 61, 3: 61, 4: 62, 5: 62, 6: 62, 7: 63, 8: 62}
 # Round 237: re-frozen from measurement (every car takes the two-move duel proof).
 # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time).
 # Round 328: re-frozen from measurement (aware's relevant rival plays its first three forecast moves by its full policy).
 # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too).
 # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
 # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
-PROMOTED_SHA256 = '2424b70875c79149edb02e929882a1904888666236707b09bcce320ca6f1be27'
+# Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the note above PROMOTED_FINISHERS.
+PROMOTED_SHA256 = 'b9b6b54ee9ec6f0bac9e136534e41d2f5a403c5d3ba8267c6ea26762bbb94a7a'
 
 
 def main() -> int:
@@ -112,9 +115,11 @@ def main() -> int:
                 f"{digest}, expected {PROMOTED_SHA256}"
             )
 
+    # Round 345: the message named the race before round 345 (p8 home, round 176's crash-to-finish
+    # rescue, unchecked since round 215); in the new race p8 is the car still running at the end.
     print(
         "AI1FinishSprintTrueConfirmRegression: OK "
-        "(Rand3 s1 p8 crash-to-finish rescue holds; existing drivers unchanged)"
+        "(Rand3 s1: seven finishers, no crash, every move count and the trajectory pinned)"
     )
     return 0
 

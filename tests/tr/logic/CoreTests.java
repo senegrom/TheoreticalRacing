@@ -50,6 +50,7 @@ public final class CoreTests {
         testDerivedCacheStreams();
         testAbandonedTemporariesSwept();
         testAutomaticStartPositionBounds();
+        testSeededRandomStarts();
         testEmptyTrackUndo();
         testCoarseLoopBorders();
         testOpenLoopRefused();
@@ -819,6 +820,77 @@ public final class CoreTests {
             checkPoint(position, 0, 0);
         } catch (final ReflectiveOperationException error) {
             throw new AssertionError("could not arrange automatic start-position test", error);
+        }
+    }
+
+    /** Round 345 (the owner, 2026-11-06: "fix"): with a seed, random starts give car k
+     *  the seed's draw (StartPlacement.draw) over the start cells the cars before it left
+     *  free, in x-then-y order -- a pure function of the seed, the car's number and those
+     *  cells, so a second draw over the same free cells (an Undo) gives the same cell. The
+     *  cars read one new Random(seed) in turn before, and car 1 took the same cell of
+     *  every 8- or 16-cell zone in every seed 1-255. Without a seed every car still takes
+     *  the first free cell. */
+    private static void testSeededRandomStarts() {
+        try {
+            final java.lang.reflect.Field zone = RaceGame.class.getDeclaredField("startZone");
+            zone.setAccessible(true);
+            final java.lang.reflect.Method find = RaceGame.class.getDeclaredMethod("findStartPosition");
+            find.setAccessible(true);
+            for (final int[] size : new int[][]{{2, 4}, {4, 4}, {3, 4}, {5, 5}, {1, 2}}) {
+                final int w = size[0], h = size[1], cars = Math.min(8, w * h);
+                final RaceGame game = new RaceGame(new java.util.Properties());
+                game.gameCols = 10;
+                game.gameRows = 10;
+                game.startZoneA = new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(0.5, 0.5, w, h));
+                // The polygon is one cell wider than the zone on every side, as a rotated
+                // zone's bounding box is on 55 of the 84 fleet tracks: the cells it spans
+                // outside the zone are no start cells.
+                zone.set(game, new float[][]{{0, w + 1, w + 1, 0 }, {0, 0, h + 1, h + 1 } });
+                final java.util.Set<String> firstCells = new java.util.HashSet<>();
+                for (long seed = -2; seed <= 30; seed++) {
+                    game.players = new Player[cars];
+                    for (int k = 0; k < cars; k++)
+                        game.players[k] = new Player("AI" + (k + 1), k + 1, Color.BLUE, Player.Kind.AI2);
+                    game.setStartSeed(seed);
+                    final List<int[]> free = new ArrayList<>();
+                    for (int x = 1; x <= w; x++)
+                        for (int y = 1; y <= h; y++)
+                            free.add(new int[]{x, y });
+                    for (int k = 0; k < cars; k++) {
+                        game.subgamestate = k;
+                        final int[] cell = (int[]) find.invoke(game);
+                        final int[] expected = free.remove(StartPlacement.draw(seed, k + 1, free.size()));
+                        check(cell != null && cell[0] == expected[0] && cell[1] == expected[1],
+                                "car " + (k + 1) + " of " + cars + " on a " + w + "x" + h + " zone, seed " + seed
+                                        + ": not the seed's draw over the cells left free");
+                        final int[] again = (int[]) find.invoke(game);
+                        check(java.util.Arrays.equals(cell, again), "car " + (k + 1) + ", seed " + seed
+                                + ": a second draw over the same free cells moved the car");
+                        game.players[k].setPosition(cell);
+                        if (k == 0 && seed >= 1 && seed <= 10)
+                            firstCells.add(cell[0] + "," + cell[1]);
+                    }
+                }
+                check(firstCells.size() > 1, "car 1 takes one cell of a " + w * h + "-cell zone in every seed 1-10");
+            }
+            final RaceGame unseeded = new RaceGame(new java.util.Properties());
+            unseeded.gameCols = 10;
+            unseeded.gameRows = 10;
+            unseeded.startZoneA = new java.awt.geom.Area(new java.awt.geom.Rectangle2D.Double(0.5, 0.5, 2, 4));
+            zone.set(unseeded, new float[][]{{0, 3, 3, 0 }, {0, 0, 5, 5 } });
+            unseeded.players = new Player[3];
+            for (int k = 0; k < 3; k++)
+                unseeded.players[k] = new Player("AI" + (k + 1), k + 1, Color.BLUE, Player.Kind.AI2);
+            for (int k = 0; k < 3; k++) {
+                unseeded.subgamestate = k;
+                final int[] cell = (int[]) find.invoke(unseeded);
+                checkPoint(cell, 1, 1 + k);
+                unseeded.players[k].setPosition(cell);
+            }
+        } catch (final java.lang.reflect.InvocationTargetException error) {
+            throw new AssertionError("findStartPosition threw", error.getCause());
+        } catch (final ReflectiveOperationException error) {
+            throw new AssertionError("could not arrange the seeded random-start test", error);
         }
     }
 

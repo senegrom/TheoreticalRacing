@@ -1,0 +1,6 @@
+alpha 0.001 two-sided; tests per variant 880
+master     flagged 673 (uneven 147, too even 526)  by test {'car1': 24, 'car2-8': 124, 'joint12': 22, 'lag1': 24, 'pairs': 479}  worst Z=8 car1 chi2=4537.6 df=7 p=0  car-1 repeat of previous seed: worst Z=16 0.991 (fair 0.062)
+discard1   flagged 667 (uneven 152, too even 515)  by test {'car1': 20, 'car2-8': 119, 'joint12': 22, 'lag1': 24, 'pairs': 482}  worst Z=8 car7 chi2=0.0 df=1 p=1  car-1 repeat of previous seed: worst Z=48 0.240 (fair 0.021)
+splittable flagged   3 (uneven   1, too even   2)  by test {'car1': 1, 'car2-8': 1, 'pairs': 1}  worst Z=20 pair25 chi2=192.7 df=270 p=1  car-1 repeat of previous seed: worst Z=25 0.050 (fair 0.040)
+mixseed    flagged   2 (uneven   1, too even   1)  by test {'car2-8': 1, 'pairs': 1}  worst Z=22 car7 chi2=2.9 df=15 p=1  car-1 repeat of previous seed: worst Z=33 0.046 (fair 0.030)
+percar     flagged   1 (uneven   0, too even   1)  by test {'car2-8': 1}  worst Z=8 car7 chi2=0.0 df=1 p=1  car-1 repeat of previous seed: worst Z=25 0.054 (fair 0.040)

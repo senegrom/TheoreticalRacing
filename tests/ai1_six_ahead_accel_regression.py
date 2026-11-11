@@ -28,9 +28,16 @@ PROMOTED = {
     # Round 331: re-frozen from measurement (the relevant rival keeps its three stronger forecast moves beside the second and third rivals').
     # Round 333: re-frozen from measurement (the mover's aware forecast plays eight own moves by its full policy in every decision).
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
-    86: (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); a new grid and a new race: seven finishers and no crash -- p1 wins on its 58th move, p3 is second on its 59th, p2, p4 and p6 third to fifth on their 60th, and p5 and p7 sixth and seventh on their 61st -- and p8 is the car still running at the end, after 60 moves (the finishers' own moves sum to 419).
+    86: (7, 0, [58, 59, 60, 60, 60, 61, 61]),
 }
-LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
+# Round 345: LEGACY_CHAMPION_86 is retired, and with it the round-117 Pareto
+# contract and pace-gain checks against it in main(). It was the pre-round-117
+# champion's race on Coil seed 86's grid before round 345, the race round 117's
+# six-ahead acceleration gained on. Random starts now draw every car's own
+# cell, so that race no longer exists, and the legacy policy cannot be raced on
+# the new grid. The historical number, for the record:
+# LEGACY_CHAMPION_86 = (7, 0, [58, 59, 61, 61, 62, 62, 63])
 EXPECTED = {kind: PROMOTED for kind in LABELS}
 
 
@@ -47,12 +54,8 @@ def main() -> int:
                 actual[kind][seed] = bench_ai.run_track("coil", timeout=1200, seed=seed)
     if actual != EXPECTED:
         raise SystemExit(f"Round-117 promoted regression: {actual}, expected {EXPECTED}")
-    result = actual[LABELS[0]][86]
-    if result[:2] != LEGACY_CHAMPION_86[:2] or any(
-            a > b for a, b in zip(result[2], LEGACY_CHAMPION_86[2])):
-        raise SystemExit(f"Round-117 Pareto contract lost: {result}, {LEGACY_CHAMPION_86}")
-    if sum(result[2]) >= sum(LEGACY_CHAMPION_86[2]):
-        raise SystemExit(f"Round-117 pace gain lost: {result}, {LEGACY_CHAMPION_86}")
+    # Round 345: the Pareto contract and the pace gain against
+    # LEGACY_CHAMPION_86 are retired (see above); the measured summary is the pin.
     print("AI1SixAheadAccelRegression: OK (Coil s86 promoted; its s5/s22 controls race in the high-speed pin)")
     return 0
 

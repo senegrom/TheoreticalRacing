@@ -25,6 +25,15 @@ seed and label, re-frozen from measurement, so a further change in those
 totals still fails: seed 36's crash moves from p1 (AI1) to p8 (AI2), at
 the same wall cell at the top of the course; seed 45 stays crash-free with
 the same totals, although its race plays differently from move 206 on.
+
+Round 345 (random starts: each car's own draw from the seed's SplitMix64
+stream): the races above -- round 128's funnel commitments at (14,105) and
+(11,97), round 310's crash at (34,0) -- were the races on the grid before
+round 345. Both seeds now start from new grids and are new races, both
+crash-free with seven finishers: in seed 36 six cars pass the commitment
+cell (14,105), all to (11,98), and in seed 45 six pass it the same way and
+p8 passes (11,97). The pin keeps the measured (place sum, cars, crashes) per
+seed and label.
 """
 
 from pathlib import Path
@@ -52,7 +61,8 @@ EXPECTED = {
     # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); p8 (AI2), which crashed on its 14th move in round 310, into the wall at (34,0) on move 112, keeps its race and comes home seventh on its 72nd, so p1 (AI1), still the car running at the end, now after 72 moves, drops back to eighth; p2 to p7 come home first to sixth on their 66th to 71st as before -- crash-free again, as before round 305/309. The race parts from round 310's on move 79 (p7's 10th).
     # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
     # Round 341: re-frozen from measurement (the score's rival twin plays the rival's own gate rules).
-    36: {"AI1": (20, 4, 0), "AI2": (16, 4, 0)},
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); seed 36 is a new race from a new grid, crash-free: p4 (AI2) wins on its 66th move, p5 and p7 (AI1) are second and third on their 67th and 68th, p8 (AI2) fourth on its 69th, p1 (AI1) fifth on its 71st, and p2 (AI2) and p3 (AI1) sixth and seventh on their 72nd; p6 (AI2) is the car still running at the end, after 71 moves, and is placed eighth (AI1 5 + 7 + 2 + 3 = 17, AI2 6 + 1 + 8 + 4 = 19).
+    36: {"AI1": (17, 4, 0), "AI2": (19, 4, 0)},
     # Round 234: re-frozen from measurement. Eight cars share places 1-8,
     # so the two cohort sums always add to 36 whether or not one crashes.
     # Round 260: seed 45 is crash-free again.
@@ -60,7 +70,8 @@ EXPECTED = {
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).
     # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
-    45: {"AI1": (16, 4, 0), "AI2": (20, 4, 0)},
+    # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); seed 45 is a new race from a new grid, crash-free: p1 (AI1) wins on its 66th move, p2 and p4 (AI2) are second and third on their 67th and 68th, p5 (AI1) fourth on its 69th, p6 (AI2) and p7 (AI1) fifth and sixth on their 70th, and p8 (AI2) seventh on its 71st; p3 (AI1) is the car still running at the end, after 71 moves, and is placed eighth (AI1 1 + 8 + 4 + 6 = 19, AI2 2 + 3 + 5 + 7 = 17).
+    45: {"AI1": (19, 4, 0), "AI2": (17, 4, 0)},
 }
 
 

@@ -263,10 +263,13 @@ final class StartPlacement {
      *  of the seed, the car's number and the pool's size that reads no shared stream:
      *  Undo draws again and, after the same placements, gets the same cell, and benchmark
      *  RNG is never perturbed.
-     *  Integer arithmetic only, so every JVM, the browser's among them, draws alike. It
-     *  replaces new Random(seed ^ (long) number << 32).nextInt(size), whose first output
-     *  keeps the top bits of one LCG step: for the small seeds every screen races, a pool
-     *  of 2, 4, 8 or 16 cells gave each car the same position in it in every seed. */
+     *  Integer arithmetic only, so every JVM, the browser's among them, draws alike. On
+     *  computed starts it replaces new Random(seed ^ (long) number << 32).nextInt(size),
+     *  whose first output keeps the top bits of one LCG step: for the small seeds every
+     *  screen races, a pool of 2, 4, 8 or 16 cells gave each car the same position in it
+     *  in every seed. Since round 345 random starts draw with it too, over the free start
+     *  cells (RaceGame.findStartPosition), in place of one new Random(seed) the cars read
+     *  in turn. */
     static int draw(final long seed, final int number, final int size) {
         long z = seed + number * 0x9E3779B97F4A7C15L;
         z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;

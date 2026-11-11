@@ -135,10 +135,14 @@ whose launch they cannot close (the owner, 2026-11-01 and 2026-11-04); which
 cell a later player takes, or which first move an earlier car makes, is never
 predicted. Earlier human placements can overlap preparation.
 
-The setup offers **Legacy benchmark starts** to preserve old experiments.
-Headless benchmarking defaults to that historical policy, because racecraft is
-measured from varied starts and the pinned corpus is frozen on them. A
-properties file selects the other two modes:
+The setup offers **Legacy benchmark starts**: random starts, each AI on a free
+start cell, the first one in x-then-y order or, with a seed, the seed's draw
+among them (since round 345 each car's own output of the seed's SplitMix64
+stream; before, the cars read one `java.util.Random(seed)` in turn, which in
+every seed 1-255 kept car 1 on one cell of every 8- or 16-cell grid). Headless
+benchmarking defaults to random starts, because racecraft is measured from
+varied starts and the pinned corpus is frozen on them. A properties file
+selects the other two modes:
 
 * `aiStartPlacement=informed` benchmarks computed starts (a seed breaks ties
   among equally good cells only). Where the exact full-race map is over its

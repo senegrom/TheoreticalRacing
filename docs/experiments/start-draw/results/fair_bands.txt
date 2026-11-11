@@ -1,0 +1,5 @@
+n=2: distinct 825.1 sd 7.9 (1% 804); Kish 811.0 sd 15.1 (1% 768.6); held-out copies 32.8 sd 12.0 (99% 65)
+n=4: distinct 839.8 sd 0.7 (1% 835); Kish 839.7 sd 1.5 (1% 830.1); held-out copies 0.4 sd 1.1 (99% 5)
+n=8: distinct 840.0 sd 0.1 (1% 840); Kish 840.0 sd 0.1 (1% 840.0); held-out copies 0.0 sd 0.1 (99% 0)
+per-car spread: mean 7.811 sd 0.132; 0.1%-99.9% band 7.40-8.22
+a car constant over one 10-seed window: probability Z^-9 per (track, car, window), at most 7.5e-09 on the fleet
