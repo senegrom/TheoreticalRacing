@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+"""Pin the outcomes of round 90's energy-pace races.
+
+Outcome pin (noted 2026-11-13): round 90 admitted high-energy candidates to the
+staged pace override. That branch needed a positive uncertainty, which nothing
+has written since round 229, and it left the code in round 280, so no race can
+exercise it. The pin holds each race's measured finishers, crashes and finisher
+moves.
+"""
 from pathlib import Path
 import sys, tempfile
 ROOT = Path(__file__).resolve().parents[1]

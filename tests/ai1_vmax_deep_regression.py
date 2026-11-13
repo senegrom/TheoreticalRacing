@@ -47,6 +47,17 @@ loses one AI2 car, p8 on its 87th move, at the west end of the second
 westbound straight after running at max-axis 11 there (SAFETY below). The
 pin now guards seed 35 crash-free under both labels, seed 6 crash-free for
 AI1, and seed 6's AI2 half at its measured one crash.
+
+2026-11-13: outcome pin, awaiting a decision specimen. The leg judges only a
+pick that the kinematic confirm's own forecast reads alive, and the confirm
+runs only on courses with checkpoints. A fleet scan (the 83 courses other than
+the Nordschleife over seeds 1-40, eight AI2 cars, one lap, random starts, 3,320
+races, raced by a scratch build that prints the legs of top-level decisions
+only; 72 of the courses have checkpoints, 2,880 of the races) found the confirm
+switching a real pick that accelerates into max-axis 11 or more 133 times, in
+68 races. Raced again by a build that also names the danger search's speed leg,
+those 68 races show the round-133 leg judging 66 real picks and killing none:
+the 133 picks died in the confirm's own forecast, where the leg does not run.
 """
 
 from pathlib import Path

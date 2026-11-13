@@ -1,5 +1,12 @@
 #!/usr/bin/env python3
-"""Pin the promoted Round-78 and Round-94 pace gains."""
+"""Pin the promoted Round-78 and Round-94 pace gains.
+
+Decision specimens (2026-11-13): on round 345's grids the three races below hold
+no real switch of the private-lane override that stands (Le Mans s12 has one,
+which the kinematic confirm undoes) and no round-94 sprint. The pin also races
+one race with each: Monaco seed 3 on the live track and Big Oval seed 12
+(PRIVATE_LANE_SPECIMEN and SPRINT_BAND_SPECIMEN below).
+"""
 
 from pathlib import Path
 import sys
@@ -9,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+import decision_specimen  # noqa: E402
 
 # Both labels run one policy since round 222 and ai1_label_invariance_regression
 # checks it, so each case races once, under the champion label (2026-09-27).
@@ -117,6 +125,31 @@ FINISH_EXPECTED = {
 # draw from the seed's SplitMix64 stream) and are new races; each keeps seven
 # finishers and no crash, so no case needs an entry.
 SAFETY = {}
+# Decision specimens (2026-11-13). A fleet scan (the 83 courses other than the Nordschleife over seeds 1-40, eight
+# AI2 cars, one lap, random starts: 3,320 races; a scratch build that prints the legs of top-level decisions only)
+# found the private-lane override switching 390 real picks that stood, 15 of them on Monaco, and the finish sprint
+# taking 19 real moves in round 94's band (16 to 20 map turns from the finish), four of them on the Big Oval.
+# Monaco s3, the live track (the Monaco race above runs the frozen fixture geometry): at turn 228 p4, on its 29th of
+# 141 moves, stands at (168,17) with v(2,3). Its pick is NW to v(1,2), 5 speed2, and the private-lane override
+# switches it to S, v(2,4), 20 speed2, one map turn faster (110 to 109). The race has seven finishers and no crash:
+# p1 wins on its 134th move, p2, p3, p5, p6 and p8 follow on their 135th, 136th, 137th, 138th and 139th and p7 on its
+# 141st, and p4 is the car still running at the end, after 141 moves (1,101 turns). With the override's switch off in
+# top-level decisions only, a twin scratch build races the same race through turn 227 and plays NW at turn 228.
+PRIVATE_LANE_SPECIMEN = decision_specimen.Specimen(
+    "monaco", 3, (7, 0, [134, 135, 136, 137, 138, 139, 141]),
+    "6042735c13dd912a8bed83b8a58b49f8669b3c2476676beb3385ccd7268b0c0a",
+    "228 p4 AI S v(2,3)→(2,4) (168,17)→(170,21) ok",
+)
+# Big Oval s12: at turn 4 p4 makes its first move, from rest at (9,45). Its pick is N, and the finish sprint takes
+# NW, v(-1,-1), 19 map turns from the finish, inside the band round 94 opened. The race has seven finishers and no
+# crash: p1, p2, p3 and p4 finish on their 21st move and p5, p6 and p8 on their 22nd, and p7 is the car still running
+# at the end, after 22 moves (172 turns). With that band closed in top-level decisions only, the twin races the same
+# race through turn 3 and plays N at turn 4.
+SPRINT_BAND_SPECIMEN = decision_specimen.Specimen(
+    "bigoval", 12, (7, 0, [21, 21, 21, 21, 22, 22, 22]),
+    "651a462010e443193639d30ae8e7ddb39f9c5d4fab8c16e22d75f38c82abd669",
+    "4 p4 AI NW v(0,0)→(-1,-1) (9,45)→(8,44) ok",
+)
 
 
 def main() -> int:
@@ -161,11 +194,15 @@ def main() -> int:
                 f"{finish_result}, expected {expected}"
             )
 
+    decision_specimen.check("private-lane", PRIVATE_LANE_SPECIMEN)
+    decision_specimen.check("round-94 sprint band", SPRINT_BAND_SPECIMEN)
+
     # Round 345: the message named round 94's Big Oval finish sprint and Le Mans veto, decisions of the races on
     # the grid before round 345; it names what is pinned.
     print(
         "AI1PaceRegression: OK "
-        f"(Monaco sum={move_sum}; Big Oval seed 7 and Le Mans seed 12 finish moves pinned)"
+        f"(Monaco sum={move_sum}; Big Oval seed 7 and Le Mans seed 12 finish moves pinned; "
+        "decision specimens pinned on Monaco s3 and Big Oval s12)"
     )
     return 0
 

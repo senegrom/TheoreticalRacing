@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Pin the Round-78/79 field-externality boundaries."""
+"""Pin the Round-78/79 field-externality boundaries.
+
+Decision specimen (2026-11-13): the boundaries were vetoes on the field's cost,
+which round 279 removed (the racecraft rule: a faster own line is not refused
+for what it costs the rivals). What is left of rounds 78 and 79 in the code is
+their trigger and a comparison on the mover's own verdict: in a compact pack or
+a convoy the private-lane switch is taken only when the same scorer world reads
+it strictly better for the mover than the pick. The two races below hold no
+real decision of that comparison on round 345's grids, so the pin also races
+one in which it keeps the pick, Zigzag seed 2 (SPECIMEN below).
+"""
 
 from pathlib import Path
 import sys
@@ -9,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+import decision_specimen  # noqa: E402
 
 # Both labels run one policy since round 222 and ai1_label_invariance_regression
 # checks it, so each case races once, under the champion label (2026-09-27).
@@ -82,6 +93,24 @@ def check(track: str, seed: int) -> None:
             )
 
 
+# Decision specimen (2026-11-13). A fleet scan (the 83 courses other than the Nordschleife over seeds 1-40, eight AI2
+# cars, one lap, random starts: 3,320 races; a scratch build that prints the legs of top-level decisions only) found
+# the pack comparison deciding 65 real private-lane switches: it let 31 through and kept the pick in 34. In Zigzag s2
+# at turn 69 p5, on its 9th of 66 moves, stands at (50,54) with v(8,0). The private-lane override's candidate is
+# NONE, v(8,0), 64 speed2, onto (58,54), and all seven rivals stand within nine cells of that landing: a compact pack
+# by the override's test, which allows ten. The pick is SW, v(7,1), 50 speed2; the same scorer world reads both lines
+# alike for the mover (53 against 53), so the comparison keeps SW. The race has seven finishers and no crash: p1 and
+# p2 finish on their 65th move and p3, p4, p5, p7 and p8 on their 66th, and p6 is the car still running at the end,
+# after 66 moves (526 turns). With the comparison not run in top-level decisions, a twin scratch build races the same
+# race through turn 68 and plays NONE at turn 69. The twin is not a pure one: without the comparison the candidate's
+# own forecast counts three rivals, as the code has it outside a pack, and six with it.
+SPECIMEN = decision_specimen.Specimen(
+    "zigzag", 2, (7, 0, [65, 65, 66, 66, 66, 66, 66]),
+    "0a417f980b0a7203ba37b12424fa701c9a0ea8fa5e31dd98371948c7ed297d50",
+    "69 p5 AI SW v(8,0)→(7,1) (50,54)→(57,55) ok",
+)
+
+
 def main() -> int:
     if not Path(bench_ai.JAR).is_file():
         raise SystemExit("theoreticRacing.jar not found; run build_main.sh first")
@@ -91,9 +120,12 @@ def main() -> int:
         for track, seed in EXPECTED:
             check(track, seed)
 
+    decision_specimen.check("pack comparison", SPECIMEN)
+
     print(
         "AI1FieldNeutralRegression: OK "
-        "(Zigzag seed 1 and Cog seed 1: 7 finishers / 0 crashes, finish moves pinned)"
+        "(Zigzag seed 1 and Cog seed 1: 7 finishers / 0 crashes, finish moves pinned; "
+        "decision specimen pinned on Zigzag s2)"
     )
     return 0
 

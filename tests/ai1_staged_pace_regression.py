@@ -1,5 +1,15 @@
 #!/usr/bin/env python3
-"""Pin the Round-82/91 self-play-only staged-pace boundaries."""
+"""Pin the Round-82/91 self-play-only staged-pace boundaries.
+
+Decision specimens (2026-11-13): on round 345's grids the thirteen races below
+hold six real switches of the staged override, none with exactly three rivals
+ahead (round 82's class) and none from rest on the grid (round 91's). The pin
+also races one race with each: Le Mans seed 1 on the live track and Coil seed 6
+(THREE_AHEAD_SPECIMEN and LAUNCH_SPECIMEN below). Two of the boundaries it was
+written for cannot be raced by an all-AI field any more: the finite field
+rollout of the three-ahead class left the code in round 291 (Le Mans s3), and
+since round 223 only a human rival closes the self-play gate (Monaco s9).
+"""
 
 from pathlib import Path
 import sys
@@ -9,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
+import decision_specimen  # noqa: E402
 
 # Round 233 (the lane spread left the score): every ceiling re-anchored from
 # measurement, and three races lose a car -- recorded, not vetoed (AGENTS.md).
@@ -188,6 +199,35 @@ EXACT_MOVES = {
     # safety notes in main), and p7 is the car still running at the end, after 85 moves (502 moves, the ceiling above).
     ("silverstone", 15): [82, 83, 83, 84, 84, 86],
 }
+
+
+# Decision specimens (2026-11-13). A fleet scan (the 83 courses other than the Nordschleife over seeds 1-40, eight
+# AI2 cars, one lap, random starts: 3,320 races; a scratch build that prints the legs of top-level decisions only)
+# found the staged override switching 2,279 real picks: 99 with exactly three rivals ahead, the class round 82
+# opened, and 30 from rest on the grid, where round 91 orders the cars by track distance.
+# Le Mans s1, the live track (the Le Mans races above run the frozen fixture geometry): at turn 85 p5, on its 11th
+# move, stands at (37,17) with v(3,-4) and exactly three live rivals ahead ((rival - mover) . velocity > 0): p4 at
+# (38,16), p6 at (38,15) and p1 at (43,13). Its pick is S to v(3,-3), 18 speed2, above round 82's floor of 16, and
+# the override switches it to SE, v(4,-3), 25 speed2, one map turn faster (136 to 135). The race has six finishers
+# and one crash: p6 wins on its 147th move, p8, p1 and p2 follow on their 148th, 149th and 150th and p3 and p4 on
+# their 152nd, p7 crashes on its 54th move (turn 431), and p5 is the car still running at the end, after 151 moves
+# (1,103 turns). With the override off in top-level decisions only, a twin scratch build races the same race through
+# turn 84 and plays S at turn 85.
+THREE_AHEAD_SPECIMEN = decision_specimen.Specimen(
+    "lemans", 1, (6, 1, [147, 148, 149, 150, 152, 152]),
+    "37f5048d64f5df2f3d99429166d88a2ee4f5ce869e83c5a5b0cde9bac98dd5f6",
+    "85 p5 AI SE v(3,-4)→(4,-3) (37,17)→(41,14) ok",
+)
+# Coil s6: at turn 2 p2 makes its first move, from rest on the grid at (82,48), with five rivals ahead by track
+# distance. Its pick is E, and the override switches it to N, v(0,-1), one map turn faster (58 to 57). The race has
+# seven finishers and no crash: p1 wins on its 58th move, p2 and p4 follow on their 59th, p3, p5 and p6 on their 60th
+# and p7 on its 61st, and p8 is the car still running at the end, after 60 moves (477 turns). With the override off
+# in top-level decisions only, the twin races the same race through turn 1 and plays E at turn 2.
+LAUNCH_SPECIMEN = decision_specimen.Specimen(
+    "coil", 6, (7, 0, [58, 59, 59, 60, 60, 60, 61]),
+    "816c31c703e3f45641b150db847d3de095c809a22b24c625aa380028f9687c1d",
+    "2 p2 AI N v(0,0)→(0,-1) (82,48)→(82,47) ok",
+)
 
 
 def main() -> int:
@@ -581,13 +621,17 @@ def main() -> int:
         if mixed["AI1"][1:] != (4, 0) or mixed["AI2"][1:] != (4, 0):
             raise SystemExit(f"mixed Monaco seed-9 safety regression: {mixed}")
 
+    decision_specimen.check("staged three-ahead", THREE_AHEAD_SPECIMEN)
+    decision_specimen.check("staged launch", LAUNCH_SPECIMEN)
+
     # Round 345: the message named the races before round 345 (round 82/91's gains and vetoes); it names what is
     # pinned.
     print(
         "AI1StagedPaceRegression: OK "
         "(twelve all-AI1 races: finisher and crash counts and move-sum ceilings pinned, "
         "Le Mans seed 3 and Silverstone seed 15 finish lists exact; "
-        "mixed Monaco seed 9 safety pinned)"
+        "mixed Monaco seed 9 safety pinned; "
+        "decision specimens pinned on Le Mans s1 and Coil s6)"
     )
     return 0
 

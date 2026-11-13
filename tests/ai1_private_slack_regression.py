@@ -1,5 +1,17 @@
 #!/usr/bin/env python3
-"""Pin the exact-private score-slack pace frontier and its identity vetoes."""
+"""Pin the exact-private score-slack pace frontier and its identity vetoes.
+
+Outcome pin, awaiting a decision specimen (2026-11-13). The score-slack branch
+(round 169) acts only where the private-lane override finds no winner of its
+own. On round 345's grids the ten races below hold no real switch of it (their
+real decisions hold four switches of the private lane itself, eight of the
+staged override and four of the kinematic confirm), and a fleet scan found none
+in any real decision: the 83 courses other than the Nordschleife over seeds
+1-40, eight AI2 cars, one lap, random starts, 3,320 races, raced by a scratch
+build that prints the legs of top-level decisions only. The private-lane
+override's own switch stood in 390 real decisions there. The pin holds the
+races' outcomes and trajectories.
+"""
 
 from pathlib import Path
 import sys

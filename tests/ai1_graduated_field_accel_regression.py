@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Pin Round 115's low-energy field acceleration after promotion."""
+"""Pin Round 115's low-energy field acceleration after promotion.
+
+Decision specimen (2026-11-13): on round 345's grids the three races below hold
+one real switch of the field acceleration, in seed 1, and it is of round 106's
+class (a gain of 16), not of round 115's (9 to 15). The pin also races one that
+holds a round-115 switch, Coil seed 4 (SPECIMEN below).
+"""
 from pathlib import Path
 import sys
 import tempfile
@@ -7,6 +13,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 import bench_ai  # noqa: E402
+import decision_specimen  # noqa: E402
 
 # Both labels run one policy since round 222 and ai1_label_invariance_regression
 # checks it, so each case races once, under the champion label (2026-09-27).
@@ -66,6 +73,22 @@ PROMOTED = {
 #     38: (7, 0, [58, 59, 61, 61, 62, 62, 63]),
 # }
 EXPECTED = {kind: PROMOTED for kind in LABELS}
+# Decision specimen (2026-11-13). A fleet scan (the 83 courses other than the Nordschleife over seeds 1-40, eight AI2
+# cars, one lap, random starts: 3,320 races; a scratch build that prints the legs of top-level decisions only) found
+# 30 real switches of round 115's class: at most five rivals ahead and a speed-squared gain of 9 to 15 from a pick
+# below 49, onto an untrapped landing (three more such gains land on a trapped one, which round 124 admits). Six are
+# on the Coil, in seeds 4, 8, 23, 28, 34 and 40. In Coil s4 at turn 115 p3, on its 15th of 61 moves, stands at
+# (36,10) with v(-6,1) and four live rivals ahead by the override's own test: p8 at (33,9), p4 at (30,10), p2 at
+# (29,12) and p1 at (28,12). Its pick is SE to v(-5,2), 29 speed2, and the override switches it to S, v(-6,2), 40
+# speed2: a gain of 11, one map turn faster (44 to 43, inside round 115's limit of 45). The race has seven finishers
+# and no crash: p1 wins on its 58th move, p2 and p4 follow on their 59th, p8 on its 60th and p3, p5 and p6 on their
+# 61st, and p7 is the car still running at the end, after 60 moves (479 turns). With the moderate-gain admission off
+# in top-level decisions only, a twin scratch build races the same race through turn 114 and plays SE at turn 115.
+SPECIMEN = decision_specimen.Specimen(
+    "coil", 4, (7, 0, [58, 59, 59, 60, 61, 61, 61]),
+    "87009853eae2c7457a5ec35dd074acbf8cc6d3bf3dfc2df1e723bb16721d39ac",
+    "115 p3 AI S v(-6,1)→(-6,2) (36,10)→(30,12) ok",
+)
 
 
 def main() -> int:
@@ -83,7 +106,11 @@ def main() -> int:
         raise SystemExit(f"Round-115 promoted regression: {actual}, expected {EXPECTED}")
     # Round 345: the Pareto contract and the pace gain against LEGACY_CHAMPION
     # on seeds 1 and 38 are retired (see above); EXPECTED is the pin.
-    print("AI1GraduatedFieldAccelRegression: OK (Coil s1/s38 promoted; s106 frozen)")
+    decision_specimen.check("round-115", SPECIMEN)
+    print(
+        "AI1GraduatedFieldAccelRegression: OK "
+        "(Coil s1/s38 promoted; s106 frozen; decision specimen pinned on Coil s4)"
+    )
     return 0
 
 

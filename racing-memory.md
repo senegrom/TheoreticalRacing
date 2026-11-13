@@ -1,5 +1,137 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Decision specimens for the outcome pins (2026-11-13)
+
+Corpus only: tests/decision_specimen.py and its unit test tests/test_decision_specimen.py (both new) and twelve pins.
+No engine file changes, no race moves, and the champion stays round 346. The owner, 2026-11-11, on a fleet-wide
+search for the specimen the finish-denial pin has awaited since round 345, and on a re-targeting pass so that each
+outcome pin again exercises the mechanism it is named for: "1 yes", "2 yes". Round 345 left 18 pins holding their new
+races by outcome, "not demonstrably their mechanisms". A decision specimen is a race in which the mechanism changes a
+real decision, a decision of the race itself and not one inside a forecast; the pin then holds that race's summary,
+its trajectory digest and the decision's line.
+
+- The inventory, the 18 pins read against the code and the ledger by three independent readers, six pins each. Nine
+  name a mechanism that has left the code and stay outcome pins: bounded uncertain field and energy pace (round 177's
+  arm and round 90's high-energy branch, both gone in round 280), and cross-model pace, equal-speed veto, ESC true
+  confirm, fast funnel, mixed safety, thin ridge and thread fragility (rounds 95, 126, 107, 128, 93, 178 and 98, gone
+  with the danger-joint-search family in round 310). Eight said so already; energy pace, which had no docstring, now
+  does. Seven name a mechanism that still runs: early round trap, graduated field acceleration, pace, staged pace,
+  private slack, six-ahead acceleration and finish-sprint true confirm. Two are remnants: field neutral, whose
+  field-cost vetoes round 279 removed, and vmax deep, whose leg only the kinematic confirm still reaches, on courses
+  with checkpoints.
+- The scan. The fleet's 83 courses other than the Nordschleife over seeds 1-40 on the pins' setup (eight AI2 cars,
+  random starts, bench_ai's profile, which races one lap): 3,320 races, 2,880 of them on the 72 courses with
+  checkpoints. They were raced by a scratch print-only build of round 346's code (ctf_all, jar 4dcf21ca): under
+  -Dai.ctf.top=true a top-level decision (the code's own test: simDepth == 0, not inScorerSim, trueConfirmDepth == 0)
+  prints one line for each leg that switches or confirms its move. No decision reads the flag and the move memos stay
+  on. The eleven pins whose mechanism or remnant is still in the code (the nine above, finish denial and six-ahead
+  high speed) pass when raced under it, and every scan race raced again by a round-346 jar without a flag has the
+  scan's digest: the twelve of the twin runs below (the final jar, 29f84b76) and the ten finish-denial races (the
+  first-built jar, 1ddb32a2, javap code-identical to it), 21 races with Rand16 s4 in both. A leg's switch counts as
+  the logged move when the car's logged move from that cell at that velocity is the switch. In real decisions:
+
+| Leg | Real decisions in the 3,320 races |
+|---|---|
+| staged override | 2,279 switches, every one the logged move: 99 with exactly three rivals ahead (round 82's class, in 87 races), 30 from rest on the grid (round 91's), 2,150 others |
+| private lane | 400 switches, 390 the logged move; the pack comparison (what is left of rounds 78 and 79) judged 65 winners, let 31 through and kept the pick in 34 |
+| score slack (round 169) | none |
+| field acceleration | 160 switches, every one the logged move: 109 of round 106's class (73 races), 30 of round 115's (29 races), 18 of round 175's, 3 of round 124's (Hungaroring s8 and s30, Hybrid14 s31: trapped landings, each also a moderate gain that round 115's admission carries), none of round 117's |
+| finish sprint | 130 moves: 111 within 15 map turns of the finish (round 75), 19 at 16 to 20 (round 94's band), none at 21 to 30 (round 96's extension); round 176's veto dropped no candidate (the scan shows a drop, not how often the veto was asked) |
+| kinematic confirm | 833 switches, 829 the logged move; 133 of a pick that accelerates into max-axis 11 or more, in 68 races (102 of them on Monaco) |
+| finish denial | the faithful confirm ran 342 times, kept the pick in 332 and switched it in 10 |
+
+- The specimens, one for each pinned mechanism the scan found in a real decision. Each is confirmed by a twin: a
+  scratch build with that one leg off in top-level decisions only (ctf_off2, jar a4ae8643, -Dai.ctf.off=<leg>;
+  forecasts keep every leg) races the final jar's race up to the specimen's move, and plays the pick there. The pack
+  comparison's twin is not a pure one: with the comparison not run, the winner's own forecast counts three rivals
+  instead of six, as the code has it outside a pack; the print shows the comparison itself, 53 against 53.
+
+| Pin | Specimen | The real decision |
+|---|---|---|
+| finish denial | Rand16 s4, turn 440, p8 | the certificate switches NE to E, a brake from 101 to 82 speed-squared five moves from home |
+| early round trap | Hungaroring s8, turn 585, p1 | round 124's trap admission: the round's first mover is switched NW to W, onto a landing with two safe successors |
+| graduated field acceleration | Coil s4, turn 115, p3 | round 115's moderate gain: SE to S with four rivals ahead, a gain of 11 |
+| pace | Monaco s3, turn 228, p4 | the private lane switches NW to S, one map turn faster |
+| pace | Big Oval s12, turn 4, p4 | the finish sprint takes NW from rest, 19 map turns from the finish, in round 94's band |
+| staged pace | Le Mans s1, turn 85, p5 | the staged override with exactly three rivals ahead: S to SE |
+| staged pace | Coil s6, turn 2, p2 | the staged override from rest on the grid: E to N |
+| field neutral | Zigzag s2, turn 69, p5 | the pack comparison keeps SW over the private lane's NONE, the mover's verdict 53 against 53 |
+
+- What a specimen shows is that its mechanism acts, not that it pays. In the eight twin pairs the mover ends in the
+  same place with the leg off in three (Hungaroring s8, Coil s6, Rand16 s4), lower in two (Coil s4: seventh against
+  fifth; Zigzag s2: the car still running at the end against fifth) and higher in three (Big Oval s12: third against
+  fourth; Monaco s3: sixth against the car still running; Le Mans s1: third against the car still running, in a race
+  that loses no car where the final jar's loses p7). One race each: description, no measurement.
+- What the check holds, and the rule that follows. The pin checks the race and the line; nothing in the repository
+  can tell which mechanism chose the line, only the print build and the twin do, and both are exact-text patches of
+  round 346's RaceAi.java kept outside it (E:/tmp-claude/p346/retarget/ctf_all.py and ctf_off.py, with the readers
+  rt_table.py and rt_twin_table.py). So when a later round moves a specimen's race, the specimen is not re-frozen
+  from measurement as an outcome is: the mechanism is shown again in a real decision, by a print build and a twin, or
+  the pin drops the specimen and says that it awaits one. Rand16 s4's turn 440, Monaco s3's turn 228 and Hungaroring
+  s8's turn 585 lie deep in their races and will move with most rounds. tests/test_decision_specimen.py holds the
+  list of pins with specimens and their number, so that neither happens unnoticed.
+- No real decision in 3,320 races. Five pins keep their races and gain a dated note. Four are outcome pins "awaiting
+  a decision specimen". Six-ahead acceleration: no real switch of round 117's class, six rivals ahead and a gain of
+  16 or more (its race, Coil s86, holds no real switch of the field acceleration). Private slack: no real switch of
+  round 169's branch (its ten races hold four switches of the private lane itself, eight of the staged override and
+  four of the kinematic confirm). Finish-sprint true confirm: round 176's veto dropped no candidate (its race, Rand3
+  s1, holds no real decision of the sprint or of any pace override). Vmax deep: its leg is reachable on the 72
+  courses with checkpoints only; the 68 races in which the confirm switched an acceleration into max-axis 11 or more,
+  raced again by a build that also names the danger search's speed leg (ctf_all2, jar 6411e0a5), show round 133's leg
+  judging 66 real picks and the two hold legs 355, and no leg killing one: all 171 of the confirm's switches in those
+  races are of picks that died in its own forecast, where no leg runs. The fifth is finish frontier, a decision pin:
+  its three lines are column decisions at the finish frontier and not round 96's rule firing (round 345), and the
+  sprint took no real move in round 96's band. That makes five mechanisms that changed no real decision in 3,320
+  eight-car one-lap races on random starts. It does not show that they never act: three-lap races, four cars, duels,
+  computed and scattered starts and human rivals were not scanned. Whether to search further or to measure their
+  removal is the owner's call.
+- Field neutral is a judgment call. What the pin was written for, a veto on the field's cost, cannot be raced since
+  round 279. The specimen holds what the code still carries under rounds 78 and 79: in a compact pack or a convoy the
+  private-lane switch is taken only when the same scorer world reads it strictly better for the mover than the pick.
+- Finish denial, measured. The certificate (finishDenialOverride) confirms a high-energy pick of the last car in the
+  turn order, a few moves from home in a compact finish pack, by a faithful forecast, and switches a pick that dies
+  there to a surviving brake. A first search for it alone (round 345's code, the scratch build ctf_fdtop 2b060b13,
+  whose finish-denial prints also name a top-level decision, under -Dai.debug.finishDenial=true;
+  E:/tmp-claude/p346/spec and fd_hits_table.txt) raced the same 3,320 races and found the same counts as the scan in
+  every race: 342 runs in real decisions, 332 keeps and ten switches (Lobe1 s9; Rand16 s4, s19 and s22; Rand18 s4,
+  s9, s10, s16, s19 and s25), each race the first-built round-346 jar's by digest. With the certificate off in
+  top-level decisions only (fdoff c157a2f8: round 346's code and one early return), each of the ten races that jar's
+  race up to the switch and parts there. None of the twenty races has a crash. The switched car, p8 every time, ends
+  in the same place in eight and one place lower with the certificate in two: Rand16 s22 (seventh on its 61st move,
+  against sixth on its 60th) and Rand18 s9 (the car still running at the end, against seventh). In these races the
+  certificate gained its car nothing and cost it a place twice: every pick it called dead survived.
+- Arm 370 (E:/tmp-claude/arm370_nodenial.py on round 346's code: a candidate's decisions run no certificate),
+  measured against the round-346 champion, mirrored: +0.000 +- 0.000 in every slice, every same-seat comparison a tie
+  (8 cars on random, computed and scattered starts, seeds 1-10; 4 cars and duels on random starts, seeds 1-20; the
+  lone candidate in every seat, seeds 1-5; crashes candidate:champion 32:32, 45:45, 8:8, 7:7, 230:230 and 13:13). The
+  arm is inert on the screens' races: they race three laps, as the identity check does, in which thirteen races with
+  every slot a candidate race exactly as the champion, Rand16 s4 and s22, Rand18 s9 and Lobe1 s9 among them; the ten
+  switches are from one-lap races. Not promoted: a promotion would delete the certificate and retire the
+  finish-denial pin's specimen, and needs the owner's go.
+- The pins. tests/decision_specimen.py races a specimen on the live track in a runtime of its own (several pins
+  install frozen fixture tracks, which would race another geometry under the same name), eight AI2 cars on random
+  starts, and stops with the pin's name on a changed summary, a missing decision line or a changed digest. Six pins
+  gain eight specimen races; every specimen's summary and digest is computed from the final jar's race log and its
+  decision line asserted in it. Each constant must match its race: replayed on recorded races without a JVM, each of
+  24 mutations (a specimen's summary, digest and decision line in turn) fails its pin with the specimen's own
+  message. What no replayed pin catches, the unit test does: it runs the check on a made-up race (each of the three
+  differences, a failed race and a missing log stop; the race is asked of the live jar with eight AI2 cars in a
+  runtime of its own; the pin's own jar and files come back) and reads every pin's source (each specimen is a module
+  constant that main passes to the check exactly once). Twelve wrong versions of the helper or a pin each fail it, a
+  removed check call, a deleted comparison and an early return among them.
+- Box verify on the final corpus tree (master d5f81e4 with the fourteen test files, the champion's jar 29f84b76):
+  every pin with its specimen races, the goldens, headless smoke, query replay, lap progress, compileall and the
+  Python unit tests (124, run under timeout) pass, and so do the six specimen pins raced once more with an empty
+  reach cache, as CI starts (37/37). The new unit test also passes under Python 3.12 and 3.14 locally; CI runs 3.13.
+  Review by an independent reviewer (2026-11-13), from the raw race files and the code: every count, board fact,
+  digest and twin result stood, and each specimen's class conditions hold at its board against RaceAi.java. It found
+  that only four of the five mechanisms without a real decision had their pin say so (finish frontier's note
+  followed), that nothing in the repository guarded a specimen against a silent re-freeze, three wrong versions
+  passing every replayed pin (the rule above and the unit test followed), and nine points of fact and nine of
+  wording, all taken up: among them the count of round 115's class, which round 124's three trapped switches also
+  fit, the vmax leg's reach, "one lap" in every scoped claim, the pack comparison's impure twin and the builds named.
+  The corrections were not reviewed again; the final tree passed the checks above.
+
 ## Round 346 promoted (2026-11-13): a rival whose projected move finishes leaves the round-242 predictor's occupancy
 
 A correctness fix, arm 367 (E:/tmp-claude/arm367_predfinish.py). The owner, 2026-11-06, on the round-242 predictor's

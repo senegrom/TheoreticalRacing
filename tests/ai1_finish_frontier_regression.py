@@ -7,6 +7,15 @@ starts are now each car's own draw from the seed's SplitMix64 stream, so
 seeds 6, 47 and 49 race from new grids; the pin holds the champion's new
 races there and one finish-frontier column decision in each
 (EXPECTED_DECISION).
+
+2026-11-13: the rule itself awaits a decision specimen. Round 96 lets the
+finish sprint take a move 21 to 30 map turns from the finish. The three lines
+below are column decisions at the finish frontier, not the rule firing (round
+345), and a fleet scan found the sprint taking no real move in that band: the
+83 courses other than the Nordschleife over seeds 1-40, eight AI2 cars, one
+lap, random starts, 3,320 races, raced by a scratch build that prints the legs
+of top-level decisions only. The finish sprint took 130 real moves in them,
+every one within 20 map turns of the finish.
 """
 
 from pathlib import Path

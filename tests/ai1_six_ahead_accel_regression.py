@@ -1,5 +1,18 @@
 #!/usr/bin/env python3
-"""Pin Round 117's synchronized six-ahead acceleration after promotion."""
+"""Pin Round 117's synchronized six-ahead acceleration after promotion.
+
+Outcome pin, awaiting a decision specimen (2026-11-13). Round 117 admits a
+high-energy field acceleration with exactly six rivals ahead when a rival that
+has already moved stands beside the landing at the candidate's velocity. On
+round 345's grids the race below holds no real switch of the field
+acceleration, and a fleet scan found no real switch of round 117's class (six
+ahead and a speed-squared gain of 16 or more): the 83 courses other than the
+Nordschleife over seeds 1-40, eight AI2 cars, one lap, random starts, 3,320
+races, raced by a scratch build that prints the legs of top-level decisions
+only. The field acceleration switched 160 real picks in them: 109 of round
+106's class, 30 of round 115's, 18 of round 175's and 3 of round 124's. The pin
+holds the race's outcome.
+"""
 from pathlib import Path
 import sys
 import tempfile
