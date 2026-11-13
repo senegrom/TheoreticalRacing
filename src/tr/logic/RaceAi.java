@@ -2892,7 +2892,9 @@ final class RaceAi {
 	/** The round-34 frozen opponent step as an occupancy, built into {@code workspace}: each
 	 *  live rival's pure min-turns cell, transiting rivals nulled. optimalMoveAI1 ran this at
 	 *  every decision's entry; since perf_lean an eager decision still does and a lean one
-	 *  only when its queueBox asks for d2SafeCount. */
+	 *  only when its queueBox asks for d2SafeCount. Round 346: a rival whose projected move
+	 *  finishes has no cell (predictedOpponentCells); nulling it again as transiting changes
+	 *  nothing. */
 	private CellOccupancy predictedOccupancyNow(final int playerNum, final PredictionWorkspace workspace) {
 		final int[][] predictedCells = predictedOpponentCells(playerNum, workspace);
 		// Vacated-cell awareness: a fast-moving opponent (|v| >= 3) will have
@@ -2931,6 +2933,10 @@ final class RaceAi {
 	 * One move since round 247 (a one-level lookahead); the multi-step
 	 * generality had no caller (review, 2026-09-28). The rows are
 	 * {@code workspace}'s: the decision's, or perf_lean check mode's own.
+	 * Round 346: a rival whose projected move finishes its race has no cell,
+	 * as the referee takes a finished car off the board (finishPlayer;
+	 * isCrashingPlayer skips it), every forecast does (simOutcomeCore) and
+	 * the score's simulated round does (round 343).
 	 */
 	private int[][] predictedOpponentCells(final int myPlayerNum, final PredictionWorkspace workspace) {
 		java.util.Arrays.fill(workspace.result, null);
@@ -2945,6 +2951,20 @@ final class RaceAi {
 			final int nvx = pvx + direction.dx;
 			final int nvy = pvy + direction.dy;
 			if (RaceGame.aiVelocityOutOfRange(nvx, nvy))
+				continue;
+			// Round 346: the projected move finishes when finishesFor holds in the rival's frame, the
+			// frame pureMinTurnsMove has just read (round 343's simMoveFinishes asks the same for the
+			// score's twin). Asked last: a move out of the AI range has no cell either way. Before, a
+			// slow rival (below AI1_VACATE_SPEED2) whose projected move finished stayed a body on its
+			// landing: on the track past the line of a lap course, where the frozen safe-successor
+			// count read it, or past a point-to-point course's end, where no car can land; a transiting
+			// one predictedOccupancyNow nulls either way. Measured as arm 367 against the round-345
+			// champion, mirrored: +0.000 +- 0.000 places in every slice, every same-seat comparison a
+			// tie -- eight-car fields on random, computed and scattered starts (seeds 1-10), four-car
+			// fields and duels on random starts (seeds 1-20), and a lone car among eight in every seat
+			// against the all-champion race (random starts, seeds 1-5): 5,880 mirrored track-seeds and
+			// 420 lone ones.
+			if (finishesFor(player.getNumber() - 1, px, py, px + nvx, py + nvy))
 				continue;
 			final int[] cell = workspace.cells[player.getNumber() - 1];
 			cell[0] = px + nvx;

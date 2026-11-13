@@ -23,8 +23,10 @@ public final class SimulationFollowupTests {
         if (args.length == 0 || args[0].equals("human")) testHumanAboveCap();
         if (args.length == 0 || args[0].equals("twingates")) testTwinGates();
         if (args.length == 0 || args[0].equals("twinfinish")) testTwinFinishLeaves();
+        if (args.length == 0 || args[0].equals("predfinish")) testPredictedFinishLeaves();
         System.out.println("SimulationFollowupTests: legal blockades, proxy continuations, mover progress,"
-                + " human rivals above the AI cap, the rival twin's gate rules and its finishes OK");
+                + " human rivals above the AI cap, the rival twin's gate rules and its finishes, and the"
+                + " predictor's finishes OK");
     }
 
     private static void testLegalBlockade() throws Exception {
@@ -598,6 +600,242 @@ public final class SimulationFollowupTests {
         } finally {
             rival.setFinishedPlace(place);
         }
+    }
+
+    /** Round 346: the round-242 predictor -- RaceAi.predictedOccupancyNow, every live rival's pure min-turns move
+     *  (pureMinTurnsMove, in the rival's own lap frame) as a body on its landing, a transiting rival's (speed squared
+     *  9 or more) nulled -- leaves out a rival whose projected move finishes its race, as the referee takes a
+     *  finished car off the board (RaceGame.finishPlayer; isCrashingPlayer skips a finished car) and the score's
+     *  simulated round does (round 343). Before, it kept a slow finisher on its landing. Player 1 decides, and its
+     *  prediction must be the prediction of the same field with the slow finisher already finished, which holds no
+     *  body on that landing. Each part has a slow finisher, a transiting finisher (nulled either way) and a slow
+     *  rival whose projected move does not finish (kept): (corridor) the step corridor, a point-to-point course,
+     *  where a finish lands past the track's end; (circle) the two-lap Circle, where a finish on the final lap lands
+     *  on the track and the rival that does not finish crosses the line on its first lap; (gate) the Circle with its
+     *  second checkpoint moved beside the line for the referee, where the slow finisher owes that checkpoint and the
+     *  line and one move collects both; (stray) two more slow rivals that cross the line with a checkpoint owed, one
+     *  on its final lap and one on its first, which finishes nothing: both stay; (held) a car parked on the slow
+     *  finisher's landing, which the referee lets a finish land on: the finisher leaves all the same and the parked
+     *  car stays. Every part reads the prediction twice, plainly and with a rollout decision's flags set (simDepth 1,
+     *  inScorerSim, boardDepth 1; the frame and the board stay the top-level decision's), and the two must agree. No
+     *  part may change the live field. The failures are reported together. */
+    private static void testPredictedFinishLeaves() throws Exception {
+        final java.util.List<String> failures = new java.util.ArrayList<>();
+        predictedPart(failures, "(corridor) a slow rival finishing a point-to-point course", () -> predictedCorridor());
+        final RaceGame circle = circle();
+        predictedPart(failures, "(circle) a slow rival finishing its final lap", () -> predictedCircle(circle));
+        predictedPart(failures, "(gate) a slow rival finishing by its last checkpoint and the line",
+                () -> predictedGate());
+        predictedPart(failures, "(stray) slow rivals crossing the line with a checkpoint owed",
+                () -> predictedStray(circle));
+        predictedPart(failures, "(held) a slow rival finishing onto a body", () -> predictedHeld(circle));
+        check(failures.isEmpty(),
+                "the round-242 predictor mishandled a finishing rival: " + String.join("; ", failures));
+    }
+
+    /** Round 346: one part of testPredictedFinishLeaves. */
+    private static void predictedPart(final java.util.List<String> failures, final String name, final TwinPart part)
+            throws Exception {
+        try {
+            System.out.println("Predicted finish " + name + ": ok, " + part.run());
+        } catch (final AssertionError | java.lang.reflect.InvocationTargetException e) {
+            final String why = e instanceof AssertionError ? e.getMessage() : "the code under test threw " + e.getCause();
+            System.out.println("Predicted finish " + name + ": FAILED: " + why);
+            failures.add(name + ": " + why);
+        }
+    }
+
+    /** Round 346 (corridor): the step corridor's line stands at x = 172.5 and its track ends at x = 173. Player 1
+     *  decides at rest at (100, 15). A slow rival at (171, 15) doing 1 right finishes by its first finishing move,
+     *  NE, onto (173, 14); the transiting rival of twin finish (off), at (165, 15) doing 10 right, finishes by NW
+     *  onto (174, 14); a slow rival at (120, 15) doing 1 right does not reach the line (NE onto (122, 14)). */
+    private static String predictedCorridor() throws Exception {
+        final RaceGame g = stepCorridor();
+        final Player slow = car(2, 171, 15, 1, 0), fast = car(3, 165, 15, 10, 0), staying = car(4, 120, 15, 1, 0);
+        g.players = new Player[]{car(1, 100, 15, 0, 0), slow, fast, staying};
+        g.reach.computeDistMap(); g.reach.computeReachability();
+        g.subgamestate = 0;
+        return predictions(g, slow, fast, staying, false, false);
+    }
+
+    /** Round 346 (circle): player 1 deciding as in twinField. On their final lap a slow rival at (48, 10) doing 2
+     *  right finishes by NE onto (51, 9), and the finisher of twin finish (free), at (47, 10) doing 5 right and 2 up,
+     *  transiting, by NW onto (51, 7); a slow rival on its first lap at (48, 6) doing 2 right crosses the line by NE
+     *  onto (51, 5) without finishing. */
+    private static String predictedCircle(final RaceGame g) throws Exception {
+        final Player fast = finishingCar(3), staying = car(4, 48, 6, 2, 0);
+        staying.leaveGrid();
+        final Player slow = twinField(g, 48, 10, 2, 0, 1, 0, fast, staying);
+        return predictions(g, slow, fast, staying, true, false);
+    }
+
+    /** Round 346 (gate): a Circle of its own, its second checkpoint moved to x = 50.2, beside the line, for the
+     *  referee only (a new gate object: the referee's gate tests remember the gates they were asked about; the gate
+     *  maps and the exact potential that circle() built are not rebuilt and still price the old checkpoint). The slow
+     *  rival of (circle), now owing that checkpoint on its final lap, collects it and the line by the same NE move
+     *  onto (51, 9), which pureMinTurnsMove takes by its checkpoint-touch precedence; a rule that knew only a rival
+     *  owing nothing but the line would keep it. The other two rivals are (circle)'s. */
+    private static String predictedGate() throws Exception {
+        final RaceGame g = circle();
+        g.lapGates[2] = new java.awt.geom.Line2D.Double(50.2, 2, 50.2, 14);
+        final Player fast = finishingCar(3), staying = car(4, 48, 6, 2, 0);
+        staying.leaveGrid();
+        final Player slow = twinField(g, 48, 10, 2, 0, 1, 2, fast, staying);
+        return predictions(g, slow, fast, staying, true, true);
+    }
+
+    /** Round 346 (stray): (circle)'s two finishers beside two slow rivals at (50, 5) and (50, 11) doing 2 right,
+     *  both owing the first checkpoint, one on its final lap and one on its first: their projected moves cross the
+     *  line, which is neither a finish nor a lap for a car that owes a checkpoint. Both stay; a rule that dropped
+     *  every crossing on a final lap, or every crossing that scores no lap, would lose one. */
+    private static String predictedStray(final RaceGame g) throws Exception {
+        final Player fast = finishingCar(3), last = car(4, 50, 5, 2, 0), early = car(5, 50, 11, 2, 0);
+        last.setLap(1); last.setNextGate(1); last.leaveGrid();
+        early.setNextGate(1); early.leaveGrid();
+        final Player slow = twinField(g, 48, 10, 2, 0, 1, 0, fast, last, early);
+        final String told = predictions(g, slow, fast, last, false, false);
+        String strays = "";
+        for (final Player stray : new Player[]{last, early}) {
+            final int[] p = stray.getPosition(), n = predictedLanding(g, stray, true, false, false, false);
+            check(g.crossesFinishLegally(p[0], p[1], n[0], n[1]), "fixture: P" + stray.getNumber()
+                    + "'s projected move does not cross the line");
+            check(predictedCells(g, false).contains(cellName(n)) && predictedCells(g, true).contains(cellName(n)),
+                    "the prediction dropped P" + stray.getNumber() + ", whose projected move crosses the line with a"
+                    + " checkpoint owed and finishes nothing (" + cellName(n) + ")");
+            strays += " " + cellName(n);
+        }
+        return told + "; the rivals crossing with a checkpoint owed stay on" + strays;
+    }
+
+    /** Round 346 (held): (circle) with a car parked on (51, 9), the slow finisher's landing, which the referee lets
+     *  a finish land on. The finisher leaves all the same, and the parked car, whose own projected move finishes
+     *  nothing, stays; a rule that took a finisher off only from a free landing would keep the finisher. */
+    private static String predictedHeld(final RaceGame g) throws Exception {
+        final Player fast = finishingCar(3), staying = car(4, 48, 6, 2, 0), parked = car(5, 51, 9, 0, 0);
+        staying.leaveGrid();
+        parked.setLap(1); parked.setNextGate(1); parked.leaveGrid();
+        final Player slow = twinField(g, 48, 10, 2, 0, 1, 0, fast, staying, parked);
+        final int[] to = landing(slow, Direction.NE);
+        check(g.isCrashingPlayer(to[0], to[1], slow.getNumber()), "fixture: no body on the slow finisher's landing");
+        final String told = predictions(g, slow, fast, staying, true, false);
+        final String away = cellName(predictedLanding(g, parked, true, false, false, false));
+        check(predictedCells(g, false).contains(away) && predictedCells(g, true).contains(away),
+                "the prediction dropped the parked car, whose projected move finishes nothing (" + away + ")");
+        return told + "; a car stands on the slow finisher's landing and moves on to " + away;
+    }
+
+    /** Round 346: player 1's prediction, with the rivals' moves from pureMinTurnsMove checked against the referee
+     *  (predictedLanding): it must be the prediction with the slow finisher already finished -- the staying rival's
+     *  landing, and neither finisher's -- plainly and with a rollout decision's flags set, and neither reading may
+     *  change the live field. With {@code viaGate} the slow finisher's move collects its last checkpoint too. */
+    private static String predictions(final RaceGame g, final Player slow, final Player fast, final Player staying,
+            final boolean stayingCrosses, final boolean viaGate) throws Exception {
+        decisionFrame(g);
+        final String finish = cellName(predictedLanding(g, slow, true, true, true, viaGate)),
+                transit = cellName(predictedLanding(g, fast, false, true, true, false)),
+                stay = cellName(predictedLanding(g, staying, true, false, stayingCrosses, false));
+        final String live = state(g);
+        final java.util.List<String> prediction = predictedCells(g, false);
+        check(state(g).equals(live), "the prediction changed the live field");
+        final int place = slow.getFinishedPlace();
+        slow.setFinishedPlace(1);
+        final java.util.List<String> finished;
+        try {
+            finished = predictedCells(g, false);
+        } finally {
+            slow.setFinishedPlace(place);
+        }
+        check(state(g).equals(live), "the prediction with the slow finisher finished changed the live field");
+        check(finished.contains(stay) && !finished.contains(finish) && !finished.contains(transit),
+                "the prediction with the slow finisher finished, " + finished + ", does not hold the staying rival's"
+                + " landing (" + stay + ") without the finishers' (" + finish + ", " + transit + ")");
+        check(prediction.equals(finished), "the prediction is " + prediction
+                + (prediction.contains(finish) ? ", the finishing rival kept on its landing (" + finish + ")," : "")
+                + " where the prediction with it finished, " + finished + ", was expected");
+        final java.util.List<String> nested = predictedCells(g, true);
+        check(state(g).equals(live), "the prediction with a rollout decision's flags set changed the live field");
+        check(nested.equals(prediction), "the prediction with a rollout decision's flags set (simDepth 1,"
+                + " inScorerSim, boardDepth 1) is " + nested + ", the plain one " + prediction);
+        return "the prediction " + prediction + " is the prediction with the slow finisher finished: its landing "
+                + finish + " and the transiting finisher's " + transit + " are not in it, the staying rival's " + stay
+                + " is; the same with a rollout decision's flags set";
+    }
+
+    /** Round 346: {@code rival}'s pure min-turns move in player 1's decision frame, against the referee's transition
+     *  onto a free landing. Its speed squared is below 9 ({@code slow}) or not, the predictor's transiting test;
+     *  with {@code finishes} the move is the rival's first finishing move in Direction order (pureMinTurnsMove takes
+     *  the first crossing of a rival owing only the line by its finish precedence, and the first touch of a rival's
+     *  owed checkpoint by its checkpoint-touch precedence), collecting its last checkpoint on the way exactly when
+     *  {@code viaGate}; without it the move does not finish and scores a lap exactly when {@code crosses}. Returns
+     *  the landing. */
+    private static int[] predictedLanding(final RaceGame g, final Player rival, final boolean slow,
+            final boolean finishes, final boolean crosses, final boolean viaGate) throws Exception {
+        final int[] p = rival.getPosition(), v = rival.getVelocity();
+        final String name = "P" + rival.getNumber();
+        check((v[0] * v[0] + v[1] * v[1] < 9) == slow, "fixture: " + name + " is " + (slow ? "transiting" : "slow"));
+        final Method pure = RaceAi.class.getDeclaredMethod("pureMinTurnsMove", int.class, int.class, int.class,
+                int.class, int.class);
+        pure.setAccessible(true);
+        final Direction d = (Direction) pure.invoke(g.ai, p[0], p[1], v[0], v[1], rival.getNumber());
+        check(d != null && !RaceGame.aiVelocityOutOfRange(v[0] + d.dx, v[1] + d.dy),
+                "fixture: " + name + " has no projected move");
+        Direction first = null;
+        for (final Direction e : Direction.values())
+            if (first == null && !RaceGame.aiVelocityOutOfRange(v[0] + e.dx, v[1] + e.dy)
+                    && referee(g, rival, e).finishes())
+                first = e;
+        final RaceGame.MoveResult move = referee(g, rival, d);
+        if (finishes)
+            check(move.finishes() && d == first && move.passCp2() == viaGate, "fixture: " + name
+                    + "'s pure min-turns move " + d + " is not its first finishing move " + first
+                    + (viaGate ? " collecting its last checkpoint" : " owing only the line"));
+        else
+            check(!move.finishes() && move.lapCross() == crosses, "fixture: " + name + "'s pure min-turns move " + d
+                    + (move.finishes() ? " finishes" : crosses ? " scores no lap" : " scores a lap"));
+        return landing(rival, d);
+    }
+
+    /** Round 346: the cells of player 1's prediction (RaceAi.predictedOccupancyNow, into the decision's rows),
+     *  sorted: built plainly or, {@code nested}, with the flags of a rollout's decision set (simDepth 1, inScorerSim,
+     *  boardDepth 1). Only the flags: the frame and the board stay the top-level decision's, so this reading shows
+     *  that the rule asks none of them, not that a rollout's own frame is read. */
+    private static java.util.List<String> predictedCells(final RaceGame g, final boolean nested) throws Exception {
+        decisionFrame(g);
+        final Field depth = RaceAi.class.getDeclaredField("simDepth"), sim = RaceAi.class.getDeclaredField("inScorerSim"),
+                board = RaceAi.class.getDeclaredField("boardDepth");
+        depth.setAccessible(true);
+        sim.setAccessible(true);
+        board.setAccessible(true);
+        final int outerDepth = depth.getInt(g.ai), outerBoard = board.getInt(g.ai);
+        final boolean outerSim = sim.getBoolean(g.ai);
+        if (nested) {
+            depth.setInt(g.ai, 1);
+            sim.setBoolean(g.ai, true);
+            board.setInt(g.ai, 1);
+        }
+        try {
+            final Method workspace = RaceAi.class.getDeclaredMethod("predictionWorkspace");
+            workspace.setAccessible(true);
+            final Method prediction = RaceAi.class.getDeclaredMethod("predictedOccupancyNow", int.class,
+                    Class.forName("tr.logic.RaceAi$PredictionWorkspace"));
+            prediction.setAccessible(true);
+            final RaceAi.CellOccupancy cells = (RaceAi.CellOccupancy) prediction.invoke(g.ai, 1,
+                    workspace.invoke(g.ai));
+            final int[] xs = (int[]) get(cells, "xs"), ys = (int[]) get(cells, "ys");
+            final java.util.List<String> held = new java.util.ArrayList<>();
+            for (int k = 0, n = (int) get(cells, "size"); k < n; k++)
+                held.add(xs[k] + "," + ys[k]);
+            java.util.Collections.sort(held);
+            return held;
+        } finally {
+            depth.setInt(g.ai, outerDepth);
+            sim.setBoolean(g.ai, outerSim);
+            board.setInt(g.ai, outerBoard);
+        }
+    }
+
+    private static String cellName(final int[] cell) {
+        return cell[0] + "," + cell[1];
     }
 
     /** Round 341: the Circle with player 1 deciding at rest on the bottom straight, past CP1 (its world has no

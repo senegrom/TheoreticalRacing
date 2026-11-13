@@ -1,5 +1,98 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 346 promoted (2026-11-13): a rival whose projected move finishes leaves the round-242 predictor's occupancy
+
+A correctness fix, arm 367 (E:/tmp-claude/arm367_predfinish.py). The owner, 2026-11-06, on the round-242 predictor's
+finishing rivals, the first of three parked items: "1 fix"; the owner's go, 2026-11-11, the third of five points: "3
+yes". Round 343 took a finishing rival out of the score's simulated round and left this predictor untouched, as a
+different model that keeps a rival predicted to cross on its final lap on its landing. The predictor
+(predictedOpponentCells, round 34's frozen opponent step) projects every live rival one move by pureMinTurnsMove, in
+the rival's own lap frame, and predictedOccupancyNow nulls the cell of a transiting rival (speed squared 9 or more).
+A slow rival whose projected move finished therefore stayed a body on its landing: on the track past the line of a
+lap course, or past a point-to-point course's end, where no car can land. The referee takes a finished car off the
+board (finishPlayer; isCrashingPlayer skips it), and so do every forecast (simOutcomeCore) and, since round 343, the
+score's simulated round. Now a rival whose projected move finishes its race has no cell: finishesFor in the rival's
+frame, the frame pureMinTurnsMove has just read and the test round 343's simMoveFinishes asks for the score's twin,
+asked after the range test. The occupancy is read by the frozen safe-successor count (countFutureSafeSuccessors),
+whose maximum with the timed count, d2SafeCount, sets the trap ladder and queueBox's near trigger; every builder of
+it (an eager decision at its entry, a lean decision's lazy build, check mode's rows) passes through the one method.
+That count returns 9 as soon as a successor ends the decider's race, or scores its lap onto a shedable landing, so a
+finisher's landing mattered only for a successor that lands there without doing so. Only src/tr/logic/RaceAi.java
+changes (the browser build copies it byte for byte), with SimulationFollowupTests' new test.
+
+Measured as arm 367, candidate-gated (a candidate's predictions use the rule), on round 345's code (jar a367b
+909d26ff) against the round-345 champion, mirrored, errors corrected for repeated races (boards favouring candidate /
+champion / tied; crashes candidate:champion):
+
+| Slice | a367b |
+|---|---|
+| 8 cars, random starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 32:32) |
+| 8 cars, computed starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 45:45; 832 of 840 distinct) |
+| 8 cars, scattered starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 8:8) |
+| Lone candidate (8 cars, every seat, random starts, seeds 1-5) | +0.000 +- 0.000 (4.500 against 4.500; 13:13) |
+| 4 cars, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 7:7) |
+| Duels, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 230:230; 1,615 of 1,680 distinct) |
+
+- Every same-seat place comparison in the six slices is a tie (30,240 mirrored and 3,360 lone), over 5,880 mirrored
+  track-seeds and 420 lone ones: the rule changed no car's place in any of them.
+- The arm raced exactly as the champion with no candidate: 8 cars on random (5 races, the Nordschleife among them),
+  computed (5) and scattered (3) starts, 4 cars on random (3) and computed (3) starts, duels on random (3) and
+  computed (3) starts. With every slot a candidate eleven races raced exactly as the champion (8 cars: six on random,
+  three on computed and two on scattered starts), and check mode printed no PERF-AWARE line (8 cars, 4 cars, duels);
+  CPU 0.970x to 1.025x.
+- How rarely the rule bites, from the arm's census (-Dai.debug.predFinish, the arm's instrument, not promoted; run on
+  round 343's code and grids): in 17 races, 28,741 decisions and 1.03 million predictions a slow rival was projected
+  to finish seven times, all in rollouts' predictions on the Coil (seeds 2 to 5), a point-to-point course, where the
+  frozen count never reads the body: the 34 frozen counts a decision read beside them did not change. The ten
+  three-lap races among the 17 (25,339 decisions, 0.89 million predictions) projected no slow finisher, so the census
+  holds no case on a lap course, the only kind where the rule can change a count; 14,636 transiting rivals were
+  projected to finish, nulled either way.
+- The promoted round as first built (jar p346 1ddb32a2), every car on the rule, raced exactly as the arm with every
+  slot a candidate: 8 cars on random (9 races, Coil s1 and s11 among them), computed (6) and scattered (4) starts, 4
+  cars on random (5) and computed (3) starts, and duels on random (6) and computed (3) starts, the Nordschleife in
+  both duel sets; CPU 0.988x to 1.032x. Its check mode printed no PERF-AWARE line (8 cars, 4 cars with the
+  Nordschleife, duels: two races each). javap: only RaceAi differs from the champion's classes. The code review then
+  changed one comment in RaceAi.java and the test, so the final tree's jar (29f84b76) differs from p346 in line
+  tables only: javap code-identical in every class.
+- Unit test: SimulationFollowupTests.testPredictedFinishLeaves ("predfinish"), five parts, player 1 deciding. Each
+  has a slow finisher, a transiting finisher (nulled either way) and a slow rival whose projected move does not
+  finish (kept): (corridor) the step corridor, a point-to-point course, a slow rival at (171, 15) doing 1 right whose
+  first finishing move, NE, lands on (173, 14), past the track's end; (circle) the two-lap Circle, a slow rival on
+  its final lap at (48, 10) doing 2 right finishing by NE onto (51, 9), on the track, beside a rival that crosses the
+  line on its first lap without finishing; (gate) a Circle whose second checkpoint the referee sees moved beside the
+  line, where the slow finisher owes that checkpoint and the line and the one move collects both; (stray) (circle)'s
+  two finishers beside two slow rivals that cross the line with the first checkpoint owed, one on its final lap and
+  one on its first, which finishes nothing: both stay; (held) the (circle) field with a car parked on the slow
+  finisher's landing, which the referee lets a finish land on: the finisher leaves all the same and the parked car
+  stays. Each part checks its fixture against the referee (evaluateMove, and that pureMinTurnsMove takes the first
+  finishing move), and then that player 1's prediction is the prediction of the same field with the slow finisher
+  already finished, read plainly and with a rollout decision's flags set (simDepth 1, inScorerSim, boardDepth 1),
+  with the live field unchanged. The flags reading shows that the rule asks none of them. The test runs no rollout:
+  that a rollout's decision reads the rollout's own frame and board rests on the code, where one method builds every
+  prediction from the frame arrays the decision or the rollout recorded. On round 345's RaceAi all five parts fail;
+  ten wrong rules each fail at least one: the finisher kept on its old cell, the rule only in a top-level decision
+  (by simDepth, and by boardDepth), the rule only in an eager decision, the finish judged in the deciding car's
+  frame, only a rival owing nothing but the line (which (gate) alone catches), any legal crossing of the line, any
+  crossing on the rival's final lap, any crossing that scores no lap, and a finisher leaving only from a free landing
+  (which (held) alone catches). By the code review's reasoning two wrong rules would still pass, neither near the
+  fix: one gated on the turn order (player 1 always decides) and one that stops skipping the deciding car (each part
+  compares the predictor with itself and pins the kept rivals, not the whole list).
+- Corpus: nothing moves. Every golden and every pin passes unchanged with the promoted jar, and so does the browser's
+  computed-start fixture race (hairpin-informed-s1-2p, 742028dc, raced natively).
+- Box verify on the final round-346 tree: every pin, the goldens, headless smoke, query replay, lap progress,
+  compileall and the Python unit tests (run under timeout) pass (31/31). Local, on the same sources: the Java suite
+  (the new test included), the browser build and the browser engine's tests (BrowserTests, StartupTests,
+  PlayerOrderTests) pass. Code review by an independent reviewer (2026-11-11): the rule is the right test in the
+  right frame at the right place, its call writes only exact geometry memos, and nothing but the two frozen counts
+  reads the prediction. It built four wrong rules that the test's first version let through (a rule gated on
+  boardDepth, any crossing on a final lap, any crossing that scores no lap, a finisher leaving only from a free
+  landing): the test gained the boardDepth flag and the parts (stray) and (held), and says plainly what its flags
+  reading shows. It also corrected the fix's comment (past a point-to-point course's end the frozen count never read
+  the body, since no car can land there) and three texts of the test. A text review by a second independent reviewer
+  (2026-11-13) recomputed this entry's and the commit message's numbers from the reports and raw files: every number
+  stood, and four statements of this entry were corrected, among them the census's, whose hits are all on a
+  point-to-point course.
+
 ## Round 345 promoted (2026-11-11): a random start is the car's own draw from the seed's SplitMix64 stream
 
 A correctness fix to the benchmark's random starts, from the investigation of 2026-11-06 (workflow wf_58a4bfd0-458,
