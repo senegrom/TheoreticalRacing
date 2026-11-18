@@ -1,5 +1,176 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 347 promoted (2026-11-18): the finish-denial certificate and five legs that changed no measured race leave the code
+
+A deletion, on measurement. The owner, 2026-11-17, on the four calls open after the search for decision specimens and
+the removal runs that followed it: "1 promote 370", "2 delete", "3 measure removal", "4 return but you decide". The
+first is arm 370, a car that runs no finish-denial certificate. The second is five legs that decided no real decision
+where a print build looked and that change no measured race when they are removed at every depth: three of the
+specimen entry's five mechanisms (round 169's slack, round 176's veto, round 96's extension) and the danger search's
+two hold legs, which that entry's vmax deep paragraph counts beside round 133's leg. The third is the other two of
+its five, round 117's admission and round 133's speed leg, which stay in this round and are being measured as removal
+arms (arms 371 and 372, at the end). The fourth returns the field-neutral pin to its outcomes, a corpus decision of
+its own. Only src/tr/logic/RaceAi.java changes in the engine (the browser build copies it byte for byte): 397 lines
+leave and 64 enter, a comment at each site. Six mechanisms leave:
+
+- The finish-denial certificate (finishDenialOverride; promoted on the owner's word on 2026-09-04, after a fleet
+  grid). For the last car in the turn order on its final lap, with a pick of 64 speed-squared or more that lands at
+  most five map turns from home and gains a map turn, a rival within a cell of its coast landing, at least four
+  within ten cells of the pick's landing and at least two running ahead of it at nearly its velocity, it forecast the
+  pick eight rounds against its two nearest rivals playing their full policy, and switched a pick that died there to
+  a brake shedding 16 speed-squared or more that survived the deep scorer world and the same faithful forecast. Its
+  debug flags, -Dai.debug.finishDenial and -Dai.debug.finishDenialRivalCap, leave with it and are ignored.
+- Round 96's finish-sprint extension. The sprint could take a non-coasting move 21 to 30 map turns from the finish,
+  one turn faster than the pick, in a kind-homogeneous roster with five or more live rivals and a rival alongside
+  that had already moved at the mover's velocity, onto an unsealable landing with two safe successors that the
+  eight-round scorer world read strictly better for the mover.
+- Round 176's finish-sprint veto. A sprint candidate five or more map turns from the finish with one safe successor
+  was dropped when a five-round forecast against faithful rivals killed it, and dropped unseen inside a forecast at
+  the confirm depth limit.
+- Round 169's score slack. Where the private-lane override found no winner of its own, a candidate exactly one map
+  turn faster could concede up to 0.25 of non-trap score, 46 to 90 map turns from the finish in a kind-homogeneous
+  roster, on an exact private proof and an eight-round field proof.
+- The danger search's two hold legs. Round 175's judged a pick at max-axis 10, or at 9 coming from 10 or more, with a
+  rival within three cells of the mover, in the cheap five-round world; rounds 176 and 177's judged a pick at
+  max-axis 11 or more that does not raise it, by a thread count in the deep world and from two threads on by a
+  four-round true-rival forecast. Round 133's leg, for a pick that accelerates into max-axis 11 or more, is the one
+  speed leg left, and the search's debug line now names its verdict, the deep suppressed world's. With round 175's
+  leg go its two epoch bumps, at every decision and every query: they retired the leg's verdict memo, which the
+  second review removed on 2026-09-28 (93734ab), and since then only renumbered the mobility searches' epochs, each
+  of which takes a fresh one at build.
+
+The measurements, by subject and roughly in the order they were made. The scratch builds are exact-text patches of
+round 346's RaceAi.java kept outside the repository (E:/tmp-claude/p346/retarget, E:/tmp-claude/p346/spec,
+E:/tmp-claude/p346/census3 and E:/tmp-claude/p347). The fleet is the 84 courses of the standard screens. Three laps
+means the screens' profile: the 73 lap courses race three laps and the 11 point-to-point courses their one pass (770
+of the 5,880 races); of the 3,320 one-lap races 440 are point-to-point. "The champion's race" is, at three laps, the
+race that arm 370's two fleets and the print build's census share, and at one lap the scan's race, raced by the print
+build; the champion's own jar raced the spot races.
+
+- Real decisions, one lap (2026-11-11 and 12; "Decision specimens" below). 3,320 races, the 83 courses other than the
+  Nordschleife over seeds 1-40, eight cars on random starts. Round 96's band, round 176's veto and round 169's slack
+  decided no real decision. The certificate's faithful confirm ran in 342, kept the pick in 332 and switched it in
+  ten; with the certificate off in real decisions each of the ten races parts exactly at its switch, none has a crash
+  either way, and the switched car ends in the same place in eight and one place lower with the certificate in two.
+- Real decisions, three laps (2026-11-15). The print build ctf_all2 (jar 6411e0a5, -Dai.ctf.top=true) raced the
+  screens' five mirrored slices as fields of the champion: 8 cars on random, computed and scattered starts, seeds
+  1-10, and 4 cars and duels on random starts, seeds 1-20, 5,880 races, each byte-identical to arm 370's race in both
+  of its fleets. The certificate's confirm ran in 70 real decisions and kept the pick in every one. Round 96's band,
+  round 176's veto and round 169's slack again decided none, nor did round 117's admission or round 124's. The three
+  speed legs judged 12,490 real picks, round 133's 1,202, round 175's 7,095 and rounds 176 and 177's 4,193, and
+  killed none. What did decide real moves there: the staged override 1,432, the private lane 989 (975 the logged
+  move), the kinematic confirm 641, the finish sprint 145 (106 within 15 map turns of the finish, 39 in round 94's
+  band) and the field acceleration 19.
+- Removal at every depth (2026-11-15 and 16). rm346 (jar 4019a446) is round 346's code with one switch for each leg,
+  -Dai.rm=<legs>; a switch removes its leg from real decisions and forecasts alike, an unknown name stops the JVM,
+  and every JVM prints its list. The seven legs that decided no real decision, removed together (round 117's
+  admission, the slack, the veto, round 96's extension and the three speed legs): all 5,880 three-lap races
+  byte-identical to the champion's, and 3,316 of the 3,320 one-lap races. The four that differ, each raced again with
+  one leg removed and with all but one: round 117's admission alone accounts for three (Serpentine2 s15 and s20,
+  Zigzag s16) and round 133's leg alone for one (Rand16 s26), so neither is dead and both stay. The other five
+  removed together: all 5,880 and all 3,320 byte-identical.
+- The six of this round removed together, three laps (2026-11-17; rm346 under
+  -Dai.rm=denial,slack,veto176,r96,holdv,hold11): all 5,880 races byte-identical to the champion's, every JVM
+  announcing the six.
+- The promoted jar (6d1758ac; master dcfe3ab with E:/tmp-claude/p347/promote347.py, an exact-text deletion whose
+  input is pinned by hash). javap, line tables, constant-pool and bootstrap indices and offsets aside: nine methods
+  of RaceAi differ from the champion's, three methods and fifteen fields are gone and none is added; no other class
+  differs. Three laps, the five slices: all 5,880 races byte-identical to the champion's. One lap, the 3,320 races:
+  3,309 byte-identical to the champion's and 11 different, and each of the 11 is the flag build's race with the
+  certificate alone removed (-Dai.rm=denial) and with the six removed. Ten are the races of the certificate's ten
+  real switches. The eleventh, Lobe2 s11, has none, and Lobe1 s9 and Rand18 s9 part before theirs (at moves 376 and
+  432, not 432 and 448): removed at every depth, the certificate also leaves the forecasts of its car's decisions.
+  None of the 22 races has a crash. The certificate's car, p8 every time, ends in the same place in eight of the 11
+  and higher without the certificate in three: Rand16 s22 (sixth against seventh), Rand18 s9 (seventh against the car
+  still running at the end) and Lobe2 s11 (fifth against seventh).
+- Spot races and CPU of the promoted jar: identical to the champion's race in 36 races (8 cars on random starts 9,
+  computed 6 and scattered 4; 4 cars on random starts 5 and computed 3; duels on random starts 6 and computed 3, the
+  Nordschleife in both duel sets) at 0.95x to 1.01x its CPU; check mode printed no PERF-AWARE line (8 cars, 4 cars,
+  duels, two races each); identical to the flag build under the six switches in 8 races, each JVM announcing them,
+  and to this round's first build (a8d55700, before the code review's fixes) in 10.
+- Round 347 as a candidate (arm 373, E:/tmp-claude/arm373_round347.py on round 346's code, jar a373 ff9da4d1: a
+  candidate's decisions run none of the six), against the round-346 champion in the standard screens, mirrored,
+  errors corrected for repeated races (boards favouring candidate / champion / tied; crashes candidate:champion). The
+  five legs had been measured only in fields of one kind; here a car without the six meets cars with them:
+
+| Slice | a373 |
+|---|---|
+| 8 cars, random starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 32:32) |
+| 8 cars, computed starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 45:45; 832 of 840 distinct) |
+| 8 cars, scattered starts, seeds 1-10 | +0.000 +- 0.000 (0/0/84; 8:8) |
+| Lone candidate (8 cars, every seat, random starts, seeds 1-5) | +0.000 +- 0.000 (4.500 against 4.500; 13:13) |
+| 4 cars, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 7:7) |
+| Duels, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 230:230; 1,615 of 1,680 distinct) |
+
+- Every race of the arm is the champion's race: all 11,760 race logs of the five mirrored slices and all 3,780 of the
+  lone-candidate check are byte-identical to the champion's race of the same course and seed (a sha256 over every
+  line but the candidate-slots header; /home/ubuntu/cmp_a373.py). Its checks: with no candidate slot it races as the
+  champion (25 races), with every slot a candidate as the champion (13 races) and as the promoted jar (17 races), and
+  check mode printed no PERF-AWARE line (6 races).
+- What this does not cover: human rivals; fields of three, five, six or seven cars; races of two laps or of more than
+  three; four cars and duels on scattered starts, and on computed starts beyond a handful of spot races; one-lap
+  races other than eight cars on random starts (three goldens and the browser fixture's duel aside), the Nordschleife
+  among them; mixed fields in one-lap races, a car without the six among cars with them, although one-lap races are
+  the only ones the round changes; and seeds beyond those raced. The veto and the two hold legs, like the
+  certificate, were written against crash families of older policies, and round 96's extension and round 169's slack
+  were pace rules, each promoted on one faster race (Coil s6, Hungaroring s12). That none of the five changes a race
+  of today's cars among themselves is what is measured.
+- Corpus: no race moves. With the promoted jar every golden and all 25 pins (78 races) pass unchanged (the box verify
+  below), and so does the browser's computed-start fixture race (hairpin-informed-s1-2p, 742028dc, raced natively).
+  The probe of the 78 pin races was run with the first build (a8d55700): nothing moved. Four pins change by hand for
+  the deletion. Finish denial loses its decision specimen, Rand16 s4, the certificate's switch at turn 440: no race
+  can show the certificate again, and the pin is an outcome pin of Hairpin s68. Private slack, finish-sprint true
+  confirm and finish frontier say that the mechanism they awaited a specimen for is deleted; finish frontier's three
+  column lines stay, which never were round 96's rule and race unchanged. Six-ahead acceleration and vmax deep still
+  await a specimen: their mechanisms stay.
+- Field neutral, a separate corpus decision ("4 return but you decide"). The pin returns to its outcomes and drops
+  its specimen, Zigzag s2. That specimen was a real decision of the pack comparison that is left of rounds 78 and 79,
+  a test on the mover's own verdict; the field boundary the pin is named for has not existed since round 279. The
+  comparison itself stays in the code and is live (65 real private-lane switches judged in the one-lap scan, 34
+  kept), and after this round no pin holds a real decision of it; the pin's docstring keeps what the scan found.
+  tests/test_decision_specimen.py's list now holds four pins and six specimens (early round trap, graduated field
+  acceleration, pace twice, staged pace twice), and all six race unchanged.
+- The specimen rule on the box. The re-freeze loop (refreeze_loop_box.py, a tool outside the repository) would have
+  re-frozen a moved specimen like an outcome, since the specimen check's messages have the shapes the loop rewrites.
+  Its copy from this round on (refreeze_loop347.py) stops at a specimen's message, and the probe's copy
+  (probe_pin347.py) records a moved specimen as a failure and runs on. Neither was needed here.
+- Round 117's admission and round 133's leg ("3 measure removal"). On round 347's code they still act: the flag build
+  with both also removed (-Dai.rm with r117 and fastv added to the six) races 3,316 of the 3,320 one-lap races as the
+  promoted jar and four differently, the same four as on round 346's code and each from the same first move:
+  Serpentine2 s15 and s20, Zigzag s16 and Rand16 s26. Rand16 s26 changes exactly as it did there, where the bisect
+  gave it to round 133's leg alone, so the leg does not need the certificate (the four were not bisected again on
+  round 347's code). In it p8's move 440 turns from NE to S; from v(-2,-9) no move reaches the leg's class, max-axis
+  11, so the leg acts there inside a forecast. In all four the car whose move changes first ends in the same place;
+  other cars change places in two (Serpentine2 s15, Zigzag s16). Arm 371 (a candidate without round 117's admission;
+  E:/tmp-claude/arm371_nor117.py, jar a371 b2581362) and arm 372 (a candidate without round 133's leg;
+  E:/tmp-claude/arm372_nofastv.py, jar a372 eed23a59) are being screened against this round's jar; whether either
+  leaves is the owner's call.
+- Box verify on the final round-347 tree with the promoted jar: every pin with the six specimen races, the goldens,
+  headless smoke, query replay, lap progress, compileall and the Python unit tests (run under timeout) pass (31/31).
+  Local, on the same sources (one Java test's wait raised for the busy machine): the Java suite, the browser build
+  and the browser engine's tests (BrowserTests, StartupTests, PlayerOrderTests) pass. Code review by an independent
+  reviewer (2026-11-17), from the diff, the bytecode of every method and the flag build's source: no hunk changes the
+  behaviour of code that stays; the bytecode changes are the deletions and two exact simplifications, and the flag
+  build's six switches match the deleted source. It found twelve points, none of behaviour, all taken up: comments
+  and text (among them that "never fired in a screen race" claimed more than byte identity shows, the census having
+  the certificate's confirm run in 70 real decisions of those races and keep every pick; that round 96's rival was
+  alongside and not ahead; three constants' comments and the search's debug line, which named deleted code), round
+  175's two epoch bumps, which nothing read any more, a parameter no caller fills any more (kept, its comment
+  corrected), the promotion script's unpinned input, and the naming of the field-neutral decision as one outside the
+  six. It also named what the facts it was given did not cover: the six removed together as one build against the
+  champion, the lone-candidate check, the certificate removed at every depth in one-lap races, frozen fixture tracks,
+  the small one-lap goldens and seeds above 40. The six-switch run, arm 373 with its lone-candidate check, the
+  one-lap run of the promoted jar, the pins and the goldens above cover all but the last. The fixes were not reviewed
+  again: by javap the promoted build differs from the reviewed one in three methods (the two bumps and the debug
+  line's text); it passed the fleets, the spot races, the box verify, the native fixture race and the local suites
+  above, and the probe was not repeated with it. A text review by a second independent reviewer (2026-11-18)
+  recomputed this entry's and the commit message's numbers from the reports, the race logs and the builds: every
+  number stood, and sixteen statements were corrected or narrowed, among them which build raced the probe, what the
+  code review had and had not found, the two pace rules among the five legs, what "three laps" and "the champion's
+  race" stand for, the thresholds in the certificate's description and what the round does not cover. The corrections
+  were not reviewed again. The pins date the round 2026-11-17, the day of the owner's calls and of the deletion; its
+  measurements ran into 2026-11-18, the day it landed.
+
 ## Decision specimens for the outcome pins (2026-11-13)
 
 Corpus only: tests/decision_specimen.py and its unit test tests/test_decision_specimen.py (both new) and twelve pins.

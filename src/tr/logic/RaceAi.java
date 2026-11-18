@@ -276,11 +276,6 @@ final class RaceAi {
 	 * body; an experiment must add an explicit kind gate to keep a control. */
 	Direction computeAiMove() {
 		reach.ensureReachabilityReady();
-		// Round 175: retire per-compute memo entries (the hold-overspeed
-		// verdict depends on the board, which is fixed only within one
-		// compute). Mobility searches take their own fresh epoch at build,
-		// so their entries are unaffected beyond correct retirement.
-		fmMemoEpoch++;
 		final Player p = game.players[game.subgamestate];
 		final int[] vel = p.getVelocity();
 		final int[] pos = p.getPosition();
@@ -555,7 +550,7 @@ final class RaceAi {
 	private final static int		AI1_TRUE_CONFIRM_ROUNDS	= 4;	// round 99: horizon for the true-rival confirm; round 100: 4 -- the s74 box seals at round index 3 (s32 sealed at 2); every extra round multiplies full-champion rival computes and widens the false-kill window
 	// danger joint search: rollout depth in rounds	// aggressive pace floor applies only when <= this many rivals remain
 	private final static int		AI1_DJS_SPD2	= 49;	// round 55 (AI1): DJS also fires at landing speed^2 >= this -- the ancestral speed-7-10 corner-entry class keeps the trap ladder at 0 until every alternative is dead, so the trap gate alone triggers too late; round 310: this trigger and the danger block are gone, the pace overrides keep it as their high-speed bar
-	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured); since round 310 the private pace override's and the round-175 hold leg's horizon
+	private final static int		AI1_DJS_SLOW_ROUNDS	= 5;	// round 59: rollout horizon for slow-class fires (landing spd^2 < AI1_DJS_SPD2) -- the slow queue dooms commit 3-5 rounds out (lemans-s4 start funnel, oracle-measured); since round 310 the private pace override's horizon (and, until round 347, the round-175 hold leg's)
 	private final static int		AI1_CHOOSER_MAXDIST	= 20;	// the owner's rule (rounds 262, 274): no live rival within this many cells -> the exact solo descent in every race mode (round 279), no chooser
 	private final static int		AI1_CHOOSER_ROUNDS	= 12;	// round 256/257: rounds of everyone's real policy behind a close call
 	private final static int		AI1_CHOOSER_DUEL_ROUNDS	= 16;	// round 327: the same, in a decision taken with only two cars live
@@ -574,31 +569,20 @@ final class RaceAi {
 	private final static int		AI1_ROBUST_KIN_CAP	= 24;	// round 212: the needle gate reaches as far as my stopping distance s(s+1)/2, capped here -- the rand6 long needle was entered at speed 7 with the parked pack 13 cells ahead, one outside the fixed radius
 	private final static int		AI1_KIN_CONFIRM_R	= 3;	// round 232: a live rival within this Chebyshev radius of the thin landing arms the kinematic confirm (the audited closers stood 1-3 cells away)
 	private final static int		AI1_KIN_HORIZON_CAP	= 10;	// round 205: kinematic DJS horizon cap (rounds-to-stop, lap mode)
-	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7); round 310: the escalations are gone, the sprint's field proof and the danger search's speed legs and target walk read it
+	private final static int		AI1_DEEP_HORIZON	= 8;	// round 65: rollout horizon for pack-gated deep escalations -- the hairpin-s10 doom commits 7 rounds out (oracle: three candidates FINISH @r6 while the chosen dies @r7); round 310: the escalations are gone; since round 347 the danger search's round-133 leg and its target walk read it
 	private final static int		AI1_DEEP_PACK_R	= 10;	// round 65: Chebyshev pack radius for the deep escalation gate (gone in round 310); the private pace override's field comparison reads it
 	private final static int		AI1_SLOW_PACK_SPD2	= 16;	// round 67: the dense slow-pack trigger's speed floor (the trigger went in round 310); the staged pace override reads it
 	private final static int		AI1_FUNNEL_WIDTH	= 4;	// round 83: static funnel escalation threshold -- the zandvoort corner and coil spiral pinch to ring width 4 while every measured open corridor is >= 7 (silverstone s1 distribution); round 310: the escalation is gone, the field-acceleration ring check reads it
-	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set; round 310: the corridor certification is gone, it stays the certification cap of the sprint, finish denial, the pace overrides and the danger search's confirms
+	private final static int		AI1_DEEP_CERT_RIVALS	= 6;	// round 73: scorer-rival cap for the ahead-pack corridor certification -- the interlagos-s10 m103 killers are ranks 4-6 by landing distance, beyond the round-59 nearest-3 set; round 310: the corridor certification is gone, it stays the certification cap of the sprint, the pace overrides and the danger search's confirms
 	private final static long	ROLLOUT_FAILURE_COST	= 1_000_000L;	// field comparison: one simulated rival failure dominates all finite TTF sums
 	private final static int		AI1_FINISH_CERT_TTF	= 15;	// round 75 (promoted): legacy mixed-field cap for the dual-model finish sprint
-	private final static int		AI1_FINISH_TRUE_CONFIRM_ROUNDS	= 5;	// round 176: faithful-rival veto for one-successor sprint lines
-	private final static int		AI1_FINISH_DENIAL_ROUNDS	= 8;	// bounded faithful horizon for a contested finish pocket
-	private final static int		AI1_FINISH_DENIAL_RIVALS	= 2;	// nearest full-fidelity rivals suffice for the measured denial class
-	private final static int		AI1_FINISH_DENIAL_MAX_TTF	= 5;	// only the final one-turn map-gain commitment
-	private final static int		AI1_FINISH_DENIAL_MIN_SPEED2	= 64;	// high-energy approach that can overrun a closing pocket
-	private final static int		AI1_FINISH_DENIAL_MIN_BRAKE2	= 16;	// require a materially lower-energy escape
-	private final static int		AI1_FINISH_DENIAL_NEAR_RIVALS	= 4;	// compact finish pack, not open-line racing
-	private final static int		AI1_FINISH_DENIAL_ALIGNED_RIVALS	= 2;	// similarly moving bodies ahead can close the lane
 	private final static int		AI1_FINISH_HOMOGENEOUS_TTF	= 20;	// round 94: extend only in mover-kind homogeneous fields; the new band forbids coasting
-	private final static int		AI1_FINISH_EXTENDED_TTF	= 30;	// round 96: one-turn, non-coasting homogeneous extension of the full finish proof
+	private final static int		AI1_FINISH_EXTENDED_TTF	= 30;	// round 96's bound; its finish-sprint extension went in round 347, and the field acceleration still skips a slow candidate inside it
 	private final static int		AI1_PRIVATE_BASE_HORIZON	= 3;	// round 77: cheap rectangular private-lane certificate
 	private final static int		AI1_PRIVATE_EXACT_HORIZON	= 4;	// round 77: geometry-clipped fallback horizon
 	private final static int		AI1_PRIVATE_BASE_ESCAPES	= 3;	// broad rectangles need the original wide frontier
 	private final static int		AI1_PRIVATE_EXACT_ESCAPES	= 2;	// clipped slow or homogeneous moderate-risk lines may use two exits
 	private final static int		AI1_PRIVATE_EXACT_NODES	= 512;	// per-turn exact-search budget; exhaustion fails closed
-	private final static double	AI1_PRIVATE_FRONTIER_REST_SLACK	= 0.25;	// round 169: bounded exact-private/scorer-field frontier
-	private final static int		AI1_PRIVATE_FRONTIER_MIN_TTF	= 46;	// incumbent phase; the candidate is exactly one turn faster
-	private final static int		AI1_PRIVATE_FRONTIER_MAX_TTF	= 90;	// keep the eight-round field proof in medium range
 	private final static int		AI1_PRIVATE_FIELD_MIN_RIVALS	= 5;	// round 78: compare field effects only in compressed large fields
 	private final static int		AI1_PRIVATE_CONVOY_RADIUS_V	= 2;	// round 79: look two mover-velocity spans along a nearly collinear train
 	private final static int		AI1_PRIVATE_CONVOY_HALF_WIDTH	= 4;	// maximum perpendicular distance from the mover's velocity ray
@@ -619,20 +603,16 @@ final class RaceAi {
 	/** Forensic gates: -Dai.debug.player=N per-turn pick dump for that player;
 	 *  -Dai.debug.djs DJS-death events for all players. All are off by default.
 	 *  (-Dai.debug.fieldVector printed the round-177 field proof, removed with
-	 *  it on 2026-09-26; the flag is now ignored.) */
+	 *  it on 2026-09-26; -Dai.debug.finishDenial and -Dai.debug.finishDenialRivalCap
+	 *  printed and capped the finish-denial certificate, removed with it in round
+	 *  347. The three flags are now ignored.) */
 	private final static int		AI_DEBUG_PLAYER	= Integer.getInteger("ai.debug.player", -1);
 	private final static boolean	AI_DEBUG_DJS	= Boolean.getBoolean("ai.debug.djs");
-	private final static boolean	AI_DEBUG_FINISH_DENIAL	=
-			Boolean.getBoolean("ai.debug.finishDenial");
-	private final static int		AI_DEBUG_FINISH_DENIAL_RIVAL_CAP	=
-			Integer.getInteger("ai.debug.finishDenialRivalCap", AI1_FINISH_DENIAL_RIVALS);
 	private final static boolean	AI_DEBUG_COMP	= Boolean.getBoolean("ai.debug.comp");
 	/** True while this game instance computes a rollout move with the real
 	 *  scorer. Instance scope prevents concurrent games from suppressing each
 	 *  other's recursive machinery; the flag is restored in a finally. */
 	private boolean				inScorerSim;
-	/** Instance-scoped recursion guard for the rare finish-denial proof. */
-	private boolean				inFinishDenialConfirm;
 	/** Round 99 latch, round 103 DEPTH: a binary latch stripped the confirm
 	 *  from every in-confirm rival -- and since round 99 the confirm IS part
 	 *  of champion behavior, so latched rivals diverged from real ones by
@@ -644,7 +624,6 @@ final class RaceAi {
 	private final static int		AI1_FASTV_MAX	= 11;	// round 133: max-axis speed from which the vmax overspeed deep check arms -- the serpentine2 dooms commit exactly at the 10->11 acceleration (VMAX-1); braking from 11 overruns what a hairpin absorbs once traffic fills the escape rows
 	private final static int		AI1_FASTV_PACK_R	= 6;	// round 133: the vmax doom needs a train -- a rival within this Chebyshev radius of the mover; the three commitments carry theirs at 1, 2 and 5, and the gate excludes the lone-runner false kill (golden lemans-s1-4p)
 	// multi-lap shedability now lives in Reachability.shedableLanding (minShed2 <= 36)
-	private final static int		AI1_HOLDV_MAX	= 10;	// round 175: max-axis speed from which the hold-overspeed cheap-world check arms (hold or accel, with a train rival) -- the harvest-30 cross-track commitments hold 10 down a straight and die 4-7 oracle rounds out
 	private final static int		AI1_EG_ETA		= 12;		// endgame solver: both cars within this many turns of the finish
 	private final static int		AI1_EG_DEPTH	= 10;		// endgame solver: rounds of exact search (2x plies)
 	private final static int		AI1_EG_NODES	= 50_000;	// endgame solver: node budget; blown -> claim nothing (200k added ~2x 1v1 bench time on unprovable positions; real proofs are shallow forcing lines found far below 50k)
@@ -677,7 +656,12 @@ final class RaceAi {
 	 * -- the slots a race's candidateSlots names -- until its own independently
 	 * measured promotion. Round 310 removed the danger block, and with it Round
 	 * 126's false-target veto, Round 174's squeeze check, the thin-ridge check and
-	 * its axial-vmax extension.
+	 * its axial-vmax extension. Round 347 removed the finish-denial override, Round
+	 * 169's exact-private slack, Round 96's finish-sprint extension, Round 176's
+	 * finish-sprint veto and the danger search's two hold legs (Rounds 175 and
+	 * 176/177): off for a candidate car the override changed no screen race, and where
+	 * it switched a pick, in one-lap races, it gained nothing; the other five changed
+	 * no measured race.
 	 * Round 337 landed the owner's calls of rounds 294 and 295, which the notes listed as landed and
 	 * master never had, round 293's fixes, screened inert beside them, and the owner's answer of
 	 * 2026-10-31 on doomed forecasts; each site says which. Against the round-336 champion: places
@@ -1322,68 +1306,31 @@ final class RaceAi {
 				final int chosenT = poTByDir[chosen.ordinal()];
 				final boolean homogeneousLive = chosenT > AI1_FINISH_CERT_TTF
 						&& kindHomogeneousField(playerNum);
-				final boolean extendedContext = chosenT >= AI1_FINISH_HOMOGENEOUS_TTF + 2
-						&& chosenT <= AI1_FINISH_EXTENDED_TTF + 1
-						&& kindHomogeneousRoster(playerNum)
-						&& liveRivalsRemaining(playerNum) >= AI1_PRIVATE_FIELD_MIN_RIVALS
-						&& hasAdjacentPriorVelocityPeer(pos, vel, playerNum);
 				// Multi-lap: the sprint exists to cross ASAP -- final lap only.
 				int sprintT = game.onFinalLap(playerNum) ? chosenT : Integer.MIN_VALUE;
 				Direction sprint = null;
 				for (final Direction d : DIRECTIONS) {
 					final int t = poTByDir[d.ordinal()];
-					final boolean extendedFrontier = t > AI1_FINISH_HOMOGENEOUS_TTF
-							&& t <= AI1_FINISH_EXTENDED_TTF && t + 1 == chosenT
-							&& d != Direction.NONE && extendedContext
-							&& trapByDir[d.ordinal()] == AI1_TRAP_L2;
-					if (d == chosen || t >= sprintT
-							|| (t > AI1_FINISH_HOMOGENEOUS_TTF && !extendedFrontier)
+					if (d == chosen || t >= sprintT || t > AI1_FINISH_HOMOGENEOUS_TTF
 							|| (t > AI1_FINISH_CERT_TTF && (d == Direction.NONE
 									|| !homogeneousLive))
 							|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
 						continue;
 					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-					if (extendedFrontier && sealable(nx, ny, nvx, nvy, playerNum))
-						continue;
 					final int rounds = t + 1;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, false) % VERDICT_PLACE_STRIDE != 0)
 						continue;
 					if (simOutcome(nx, ny, nvx, nvy, playerNum, rounds, true, true, true, true,
 							AI1_DEEP_CERT_RIVALS, null) % VERDICT_PLACE_STRIDE != 0)
 						continue;
-					// Round 176: a one-successor sprint can pass both proxy worlds
-					// while faithful rivals occupy its only continuation one round
-					// later. Confirm only that narrow, traffic-dependent class;
-					// wider sprint lines retain the established cheaper certificate.
-					if (t >= AI1_FINISH_TRUE_CONFIRM_ROUNDS
-							&& trapByDir[d.ordinal()] >= AI1_TRAP_L1
-							&& liveRivalsRemaining(playerNum) > 0) {
-						if (trueConfirmDepth >= AI1_TRUE_CONFIRM_MAXDEPTH)
-							continue;
-						trueConfirmDepth++;
-						try {
-							if (simOutcome(nx, ny, nvx, nvy, playerNum,
-									AI1_FINISH_TRUE_CONFIRM_ROUNDS, true, true, true, true,
-									false, true, AI1_DEEP_CERT_RIVALS, null, null, null) < 0)
-								continue;
-						} finally {
-							trueConfirmDepth--;
-						}
-					}
-					if (extendedFrontier) {
-						final int frontierCvx = vel[0] + chosen.dx, frontierCvy = vel[1] + chosen.dy;
-						// Round 279: the field's cost is no veto (the racecraft rule), so
-						// neither rollout rolls the rivals on past the mover's finish to
-						// price it (review, 2026-09-29): the verdicts are the same.
-						final int chosenFinal = scorerFieldOutcome(pos[0] + frontierCvx,
-								pos[1] + frontierCvy, frontierCvx, frontierCvy, playerNum,
-								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, null);
-						final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy, playerNum,
-								AI1_DEEP_HORIZON, AI1_DEEP_CERT_RIVALS, null);
-						if (chosenFinal < 0 || candidateFinal < 0 || candidateFinal >= chosenFinal)
-							continue;
-					}
+					// Round 347: two later tests are gone from here. Round 96 extended the sprint
+					// to 21..30 map turns beside a rival that had already moved at the mover's
+					// velocity. Round 176 dropped a one-successor candidate five or more map turns
+					// from the finish that died in a five-round forecast against faithful rivals,
+					// or that met the confirm depth limit. Neither changed a real decision in 9,200
+					// fleet races, and with this round's five legs removed together at every depth
+					// every one of those races is unchanged.
 					sprint = d;
 					sprintT = t;
 				}
@@ -1394,14 +1341,12 @@ final class RaceAi {
 					chosen = sprint;
 				}
 			}
-			// A high-energy one-turn finish approach can be denied by a leader
-			// braking into the pocket after every cheap world has declared the
-			// line safe. Pay for a faithful confirm only on the measured compact,
-			// aligned, last-slot class. Since round 310 its pick is final: the danger
-			// block that held the last veto is gone.
-			if (!inScorerSim)
-				chosen = finishDenialOverride(pos, vel, playerNum, chosen,
-						candidateWorkspace);
+			// Round 347: the finish-denial certificate that ran here is gone. For the last car
+			// in the turn order, a few moves from home in a compact finish pack, it confirmed
+			// a high-energy pick by a faithful forecast and switched a pick that died there to
+			// a surviving brake. Off for a candidate car (arm 370) no screen race changed; in
+			// 3,320 one-lap fleet races its ten real switches avoided no crash and cost their
+			// car a place twice.
 
 			// Round 310: the danger joint search family is gone -- the round-40 guard
 			// that ran here and every leg only it armed (ridge, deep pack, corridor, queue,
@@ -1465,135 +1410,6 @@ final class RaceAi {
 		}
 		return scoreMinTurnsFallback(pos[0], pos[1], vel[0], vel[1],
 				fallbackLegalMask, fallbackIllegalMask, Direction.NONE);
-	}
-
-	/** Certificate for a high-energy line that a rival can close at the flag.
-	 * The incumbent must die under faithful policies; an escape must survive
-	 * both the deep scorer world and the same faithful world. */
-	private Direction finishDenialOverride(final int[] pos, final int[] vel,
-			final int playerNum, final Direction chosen,
-			final CandidateWorkspace candidates) {
-		if (inFinishDenialConfirm
-				|| trueConfirmDepth >= AI1_TRUE_CONFIRM_MAXDEPTH
-				|| game.subgamestate != game.players.length - 1
-				|| !game.onFinalLap(playerNum) || lapGate != 0)
-			return chosen;
-		final double[] trapByDir = candidates.trapByDirection;
-		final int[] turnsByDir = candidates.turnsByDirection;
-		final int chosenT = turnsByDir[chosen.ordinal()];
-		if (chosenT < 0 || chosenT > AI1_FINISH_DENIAL_MAX_TTF
-				|| ttf(pos[0], pos[1], vel[0], vel[1]) != chosenT + 1)
-			return chosen;
-		final int cvx = vel[0] + chosen.dx, cvy = vel[1] + chosen.dy;
-		final int cx = pos[0] + cvx, cy = pos[1] + cvy;
-		// Final lap, no gate owed: the scan has already returned any move that
-		// crosses the line legally, so neither the chosen landing nor a brake
-		// alternative below (a scanned row) finishes.
-		final int chosenSpeed2 = speedSquared(cvx, cvy);
-		if (chosenSpeed2 < AI1_FINISH_DENIAL_MIN_SPEED2
-				|| countRivalsWithinCheb(pos[0] + vel[0], pos[1] + vel[1], playerNum, 1) == 0
-				|| countRivalsWithinCheb(cx, cy, playerNum, AI1_SCORER_NEAR)
-						< AI1_FINISH_DENIAL_NEAR_RIVALS)
-			return chosen;
-		int alignedAhead = 0;
-		for (final Player p : game.players) {
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pp = p.getPosition();
-			if (Math.abs(pp[0] - cx) > AI1_SCORER_NEAR
-					|| Math.abs(pp[1] - cy) > AI1_SCORER_NEAR
-					|| (long) (pp[0] - cx) * cvx + (long) (pp[1] - cy) * cvy <= 0L)
-				continue;
-			final int[] pv = p.getVelocity();
-			if (Math.abs(pv[0] - cvx) <= 2 && Math.abs(pv[1] - cvy) <= 2)
-				alignedAhead++;
-		}
-		if (alignedAhead < AI1_FINISH_DENIAL_ALIGNED_RIVALS)
-			return chosen;
-
-		int brakeMask = 0;
-		for (final Direction d : DIRECTIONS) {
-			if (d == chosen || turnsByDir[d.ordinal()] > chosenT + 1
-					|| trapByDir[d.ordinal()] > AI1_TRAP_L1)
-				continue;
-			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-			if (chosenSpeed2 - speedSquared(nvx, nvy) >= AI1_FINISH_DENIAL_MIN_BRAKE2)
-				brakeMask |= 1 << d.ordinal();
-		}
-		if (brakeMask == 0)
-			return chosen;
-
-		final int faithfulCap = AI_DEBUG_FINISH_DENIAL
-				? Math.max(1, Math.min(game.players.length,
-						AI_DEBUG_FINISH_DENIAL_RIVAL_CAP))
-				: AI1_FINISH_DENIAL_RIVALS;
-		// The nested confirms run a level deeper, on their own candidate rows
-		// (round 223): this level's rows need no snapshot (review, 2026-09-29).
-		inFinishDenialConfirm = true;
-		trueConfirmDepth++;
-		try {
-			final int chosenFinal = faithfulFinishDenialOutcome(cx, cy, cvx, cvy,
-					playerNum, faithfulCap);
-			if (chosenFinal >= 0) {
-				if (AI_DEBUG_FINISH_DENIAL)
-					System.err.println("AIDBG FINISH-DENIAL cap=" + faithfulCap
-							+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
-							+ ") chosen=" + chosen + " keep sim=" + chosenFinal);
-				return chosen;
-			}
-			Direction best = null;
-			int bestFinal = Integer.MAX_VALUE;
-			int bestSpeed2 = Integer.MAX_VALUE;
-			int bestT = Integer.MAX_VALUE;
-			for (final Direction d : DIRECTIONS) {
-				if ((brakeMask & 1 << d.ordinal()) == 0)
-					continue;
-				final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-				final int speed2 = speedSquared(nvx, nvy);
-				final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-				final int t = ttf(nx, ny, nvx, nvy);
-				if (!game.aiMoveLegal(pos[0], pos[1], nx, ny)
-						|| game.isCrashingPlayer(nx, ny, playerNum)
-						|| !reach.isAlive(nx, ny, nvx, nvy))
-					continue;
-				final int scorerFinal = simOutcome(nx, ny, nvx, nvy, playerNum,
-						AI1_FINISH_DENIAL_ROUNDS, true, true, true, true, true,
-						AI1_DEEP_CERT_RIVALS, null);
-				final int candidateFinal = scorerFinal < 0 ? -1
-						: faithfulFinishDenialOutcome(nx, ny, nvx, nvy,
-								playerNum, faithfulCap);
-				if (AI_DEBUG_FINISH_DENIAL || AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
-					System.err.println("AIDBG FINISH-DENIAL cap=" + faithfulCap
-							+ " alt=" + d + " t=" + t + " speed2=" + speed2
-							+ " scorer=" + scorerFinal + " faithful=" + candidateFinal);
-				if (candidateFinal < 0)
-					continue;
-				if (candidateFinal < bestFinal
-						|| candidateFinal == bestFinal && speed2 < bestSpeed2
-						|| candidateFinal == bestFinal && speed2 == bestSpeed2 && t < bestT) {
-					best = d;
-					bestFinal = candidateFinal;
-					bestSpeed2 = speed2;
-					bestT = t;
-				}
-			}
-			if (AI_DEBUG_FINISH_DENIAL || AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
-				System.err.println("AIDBG FINISH-DENIAL cap=" + faithfulCap
-						+ " p=" + playerNum + " pos=(" + pos[0] + "," + pos[1]
-						+ ") chosen=" + chosen + " dies -> "
-						+ (best == null ? "keep (no survivor)" : "switch " + best
-								+ " sim=" + bestFinal + " speed2=" + bestSpeed2));
-			return best != null ? best : chosen;
-		} finally {
-			trueConfirmDepth--;
-			inFinishDenialConfirm = false;
-		}
-	}
-
-	private int faithfulFinishDenialOutcome(final int x, final int y, final int vx,
-			final int vy, final int playerNum, final int faithfulCap) {
-		return simOutcome(x, y, vx, vy, playerNum, AI1_FINISH_DENIAL_ROUNDS,
-				true, true, true, true, true, true, faithfulCap, null, null, null);
 	}
 
 	/** Round 226: the mover whose decision this is, for candidate gating inside
@@ -1740,27 +1556,6 @@ final class RaceAi {
 				return false;
 		return true;
 	}
-
-	/** Whether a previously moved live rival is adjacent, shares the mover's
-	 *  current velocity, and has a lateral (or nearly lateral) offset. */
-	private boolean hasAdjacentPriorVelocityPeer(final int[] pos, final int[] vel,
-			final int playerNum) {
-		for (int i = 0; i < game.subgamestate; i++) {
-			final Player p = game.players[i];
-			if (p.getNumber() == playerNum || p.isFinished())
-				continue;
-			final int[] pp = p.getPosition();
-			final int dx = pp[0] - pos[0], dy = pp[1] - pos[1];
-			if (Math.max(Math.abs(dx), Math.abs(dy)) != 1)
-				continue;
-			final int[] pv = p.getVelocity();
-			if (pv[0] == vel[0] && pv[1] == vel[1]
-					&& Math.abs((long) dx * vel[0] + (long) dy * vel[1]) <= 1L)
-				return true;
-		}
-		return false;
-	}
-
 
 	/** Round 117 candidate-formation proof: a previously moved rival is
 	 * adjacent to the proposed landing and already carries its exact velocity.
@@ -1934,28 +1729,12 @@ final class RaceAi {
 			return chosen;
 		final double chosenRest = scoreByDir[chosen.ordinal()] - trapByDir[chosen.ordinal()];
 		RaceAiPrivateLane.ProofSession privateProof = null;
-		RaceAiPrivateLane.ProofSession slackProof = null;
 		// Promotion semantics (round 83 mirror, round 223): "self-play" means
 		// every rival runs the mover's policy -- since the 2026-09-04 promotion
 		// that is every AI kind, so only a human breaks it.
-		final int slackChosenVx = vel[0] + chosen.dx;
-		final int slackChosenVy = vel[1] + chosen.dy;
-		final int slackChosenSpeed2 = speedSquared(slackChosenVx, slackChosenVy);
-		final int slackCurrentSpeed2 = speedSquared(vel[0], vel[1]);
-		final boolean slackFrontier = chosenT >= AI1_PRIVATE_FRONTIER_MIN_TTF
-				&& chosenT <= AI1_PRIVATE_FRONTIER_MAX_TTF
-				&& chosen != Direction.NONE
-				&& kindHomogeneousRoster(playerNum);
 		final boolean homogeneousFrontier = kindHomogeneousField(playerNum);
 		Direction best = null;
-		Direction slackBest = null;
 		int bestT = chosenT;
-		int slackChosenFinal = Integer.MIN_VALUE;
-		long slackChosenField = Long.MAX_VALUE;
-		int slackBestFinal = Integer.MAX_VALUE;
-		long slackBestField = Long.MAX_VALUE;
-		double slackBestScore = Double.MAX_VALUE;
-		double slackBestRestDelta = Double.MAX_VALUE;
 		double bestTrap = Double.MAX_VALUE;
 		double bestScore = Double.MAX_VALUE;
 		for (final Direction d : DIRECTIONS) {
@@ -1969,67 +1748,13 @@ final class RaceAi {
 			if (trap == 0.0)
 				continue;
 			final double rest = scoreByDir[d.ordinal()] - trap;
-			if (rest > chosenRest + 1e-9) {
-				final double restDelta = rest - chosenRest;
-				// Frontier experiment: a tiny non-trap score concession may recover
-				// exactly one map turn only for a kind-homogeneous starting roster. Keep this
-				// candidate separate so it cannot displace an existing private-lane
-				// winner. Keep the eight-round field proof in its established
-				// non-overlapping medium-range phase; both moves must be non-coasting,
-				// and the low-energy candidate must preserve current energy while
-				// improving on and remaining aligned with the chosen acceleration. It
-				// must otherwise be exact-L2 with zero uncertainty and unsealable,
-				// exact-private with two exits, and strictly better for the mover while
-				// non-worsening for the field in the longer eight-round scorer world.
-				if (slackFrontier && restDelta <= AI1_PRIVATE_FRONTIER_REST_SLACK + 1e-9
-						&& turns + 1 == chosenT && d != Direction.NONE
-						&& chosen.dx * d.dx + chosen.dy * d.dy > 0
-						&& trap == AI1_TRAP_L2) {
-					final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
-					final int nx = pos[0] + nvx, ny = pos[1] + nvy;
-					final int speed2 = speedSquared(nvx, nvy);
-					if (speed2 < AI1_DJS_SPD2 && speed2 >= slackCurrentSpeed2
-							&& speed2 > slackChosenSpeed2
-							&& !sealable(nx, ny, nvx, nvy, playerNum)) {
-						if (slackProof == null)
-							slackProof = privateLane.begin(playerNum,
-									AI1_PRIVATE_EXACT_HORIZON + 1, AI1_PRIVATE_EXACT_NODES);
-						if (slackProof.certifiesExact(nx, ny, nvx, nvy, turns,
-								AI1_PRIVATE_EXACT_HORIZON, AI1_PRIVATE_EXACT_ESCAPES)) {
-							if (slackChosenFinal == Integer.MIN_VALUE) {
-								slackChosenFinal = scorerFieldOutcome(pos[0] + slackChosenVx,
-										pos[1] + slackChosenVy, slackChosenVx, slackChosenVy, playerNum,
-										AI1_STAGED_HORIZON, AI1_DEEP_CERT_RIVALS,
-										rolloutFieldCost);
-								slackChosenField = rolloutFieldCost[0];
-							}
-							if (slackChosenFinal >= 0
-									&& slackChosenFinal != Integer.MAX_VALUE) {
-								final int candidateFinal = scorerFieldOutcome(nx, ny, nvx, nvy,
-										playerNum, AI1_STAGED_HORIZON,
-										AI1_DEEP_CERT_RIVALS, rolloutFieldCost);
-								final long candidateField = rolloutFieldCost[0];
-								final double score = scoreByDir[d.ordinal()];
-								// Round 337 (round 295): ties go to the rivals' worse line.
-								if (candidateFinal >= 0 && candidateFinal != Integer.MAX_VALUE
-										&& candidateFinal < slackChosenFinal
-										&& (slackBest == null || candidateFinal < slackBestFinal
-												|| candidateFinal == slackBestFinal
-														&& (candidateField > slackBestField
-																|| candidateField == slackBestField
-																		&& score < slackBestScore))) {
-									slackBest = d;
-									slackBestFinal = candidateFinal;
-									slackBestField = candidateField;
-									slackBestScore = score;
-									slackBestRestDelta = restDelta;
-								}
-							}
-						}
-					}
-				}
+			// Round 347: round 169's score-slack branch is gone. It let a candidate exactly one
+			// map turn faster concede up to 0.25 of non-trap score on an exact private proof and
+			// an eight-round field proof. It changed no real decision in 9,200 fleet races, and
+			// with this round's five legs removed together at every depth every one of those
+			// races is unchanged.
+			if (rest > chosenRest + 1e-9)
 				continue;
-			}
 			final int nvx = vel[0] + d.dx, nvy = vel[1] + d.dy;
 			final int nx = pos[0] + nvx, ny = pos[1] + nvy;
 			if (sealable(nx, ny, nvx, nvy, playerNum))
@@ -2061,16 +1786,8 @@ final class RaceAi {
 				bestScore = score;
 			}
 		}
-		if (best == null) {
-			if (slackBest != null && AI_DEBUG_DJS)
-				System.err.println("AIDBG PRIVATE-SLACK p=" + playerNum + " pos=(" + pos[0]
-						+ "," + pos[1] + ") " + chosen + " -> " + slackBest + " ttf "
-						+ chosenT + " -> " + turnsByDir[slackBest.ordinal()] + " self "
-						+ slackChosenFinal + " -> " + slackBestFinal + " field "
-						+ slackChosenField + " -> " + slackBestField + " trap "
-						+ AI1_TRAP_L2 + " restDelta " + slackBestRestDelta);
-			return slackBest != null ? slackBest : chosen;
-		}
+		if (best == null)
+			return chosen;
 		final int bestVx = vel[0] + best.dx, bestVy = vel[1] + best.dy;
 		final int bestX = pos[0] + bestVx, bestY = pos[1] + bestVy;
 		// Cross-model check once, after the adversarial certificate has ranked all
@@ -3232,7 +2949,7 @@ final class RaceAi {
 		// upgraded move has; it excludes the suppressed memo (memoized needs !upgrade).
 		final boolean upMemo = upgrade && suppressedMovesOwned && upgradedMemoOn() && !suppress
 				&& !previousScorerSim && simDepth == 1 && trueConfirmDepth == 0
-				&& outerAwarePolicyDepth == 0 && !inFinishDenialConfirm && placeKeyDepth == 1
+				&& outerAwarePolicyDepth == 0 && placeKeyDepth == 1
 				&& awareDepth == 1;
 		int upKnown = RaceAiMoveMemo.MISS;
 		boolean upFromOld = false;
@@ -3456,7 +3173,7 @@ final class RaceAi {
 	/** perf (upmemo, exact): may scorerMoveOverState replay upgraded moves from the
 	 *  race-scoped memo? An upgraded move is made only by awareMoveOverState in a top-level
 	 *  chooser's rollout (awareDepth 1), so always in one context: simDepth 1, inScorerSim
-	 *  false, no true or finish-denial confirm, placeKeyDepth 1, and every decision beneath
+	 *  false, no true confirm, placeKeyDepth 1, and every decision beneath
 	 *  it suppressed (awarePolicyDepth 0 -> 1). scorerMoveOverState asserts all of it, and
 	 *  that a top-level decision owns the memo (maintainUpgradedMemo ran), so any other
 	 *  context bypasses it. There the move is a function of the suppressed memo's key --
@@ -3466,8 +3183,7 @@ final class RaceAi {
 	 *  per call, there is no clock and no RNG, and what a replay skips is rewritten before
 	 *  it is read (placeKey, chooserJudgedPace, the workspaces), compared only at deeper
 	 *  rollouts (allScorerRolloutDepth, awareDepth) or a pure cache. Off with the kill
-	 *  switch, wherever a suppressed decision prints, and under the finish-denial debug
-	 *  lines, which an upgraded decision prints (it runs unsuppressed). An arm that makes
+	 *  switch and wherever a suppressed decision prints. An arm that makes
 	 *  nested behaviour depend on the top-level decider must turn it off. Round 314's tie
 	 *  re-roll does not: it runs only at simDepth 0, an upgraded move does not depend on
 	 *  the forecast's depth, and it serves both memos without storing (movesMemoFrozen).
@@ -3476,7 +3192,7 @@ final class RaceAi {
 	 *  field's (two live cars or more), the same for every car deciding at one moment, and
 	 *  maintainUpgradedMemo empties both generations when it changes (upgradedDuel). */
 	private boolean upgradedMemoOn() {
-		return !PERF_NO_UPMEMO && suppressedMovesOn() && !AI_DEBUG_FINISH_DENIAL;
+		return !PERF_NO_UPMEMO && suppressedMovesOn();
 	}
 
 	/** perf (upmemo): first in every top-level decision. Both generations are emptied
@@ -3974,7 +3690,6 @@ final class RaceAi {
 			final boolean trueRivals, final boolean scorerSelf, final int scorerCap,
 			final int[] outAudit) {
 		reach.ensureReachabilityReady();
-		fmMemoEpoch++;
 		final Player me = game.players[mover];
 		final int[] mp = me.getPosition(), mv = me.getVelocity();
 		prepareDecisionFrame(mp, mv, me.getNumber());
@@ -4010,7 +3725,9 @@ final class RaceAi {
 	 *  viable>=2 on all slots in the same cheap world. The count is model-free:
 	 *  no rival fidelity needed, no extra simulations, just the candidate
 	 *  enumeration my own sim move already performs. Round 98's thread search went
-	 *  in round 310; legHold11's thread tell and the sim2 query audit read the count. */
+	 *  in round 310 and legHold11's thread tell in round 347, so no caller of this overload
+	 *  passes an array any more (as for outFinalTier since round 310); the sim2 query audit
+	 *  reads the count through simulate. */
 	private int simOutcome(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final boolean scorerSelf,
@@ -4787,7 +4504,8 @@ final class RaceAi {
 	 *  the danger block armed went with it -- round 98's thread search, the round
 	 *  99-107 corridor, slow-pack, deep-tier and ESC confirms, round 102's forced
 	 *  target confirm, round 114's pair and round 128's fast finish-funnel legs;
-	 *  the round 133, 175 and 176 speed legs stay. */
+	 *  the round 133, 175 and 176 speed legs stayed. Round 347: the round-175 and
+	 *  round-176/177 hold legs are gone too; round 133's leg is the one left. */
 	private Direction dangerJointSearch(final int[] pos, final int[] vel, final int playerNum,
 			final Direction chosen, final boolean simFinishVanish, final boolean exactSelf,
 			final boolean exactRivals, final boolean scorerRivals, final int rounds, final int scorerCap,
@@ -4821,43 +4539,14 @@ final class RaceAi {
 					&& Math.max(Math.abs(cvx), Math.abs(cvy)) > Math.max(Math.abs(vel[0]),
 							Math.abs(vel[1]))
 					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, AI1_FASTV_PACK_R) >= 1;
-			// Round 175: the hold-overspeed check -- harvest-30's cross-track
-			// family HOLDS max-axis 10 down a straight (no acceleration, so
-			// the round-133 arm never sees it) and dies 4-7 oracle rounds
-			// out; one-unit deviations survive. The CHEAP slow world (smoke
-			// shape: 5 rounds, cap 3) kills both reachable commitments and
-			// measured ZERO false deads across 1459 probed fires on eight
-			// tracks -- cheaper AND cleaner than the certification cap,
-			// whose serpentine2 hold false-positives vanish at cap 3.
-			// In OR LEAVING the top band: the rand16-s43 sibling commits by
-			// DECELERATING 10->9 at the same straight-end (dies @r8, holding
-			// 10 survives) -- the cheap world kills it too; only the arm
-			// missed it.
-			// EXACTLY the 10-band: at max-axis 11-12 the cheap world
-			// false-killed a surviving braking line in mixed-front lemans s7
-			// (m246, the round-93 pin race) -- that regime belongs to the
-			// round-133 cert-cap leg; the harvest-30 commitments all live at
-			// 10 (hold) or 9-leaving-10 (decel).
-			// Train bar at Chebyshev 3: the commitments carry their pressing
-			// rival at 1 (rand16 s31, two adjacent), 3 (s43) -- and the tight
-			// bar cuts the speed-10-native cruise flood roughly in half.
-			final boolean legHoldV = (Math.max(Math.abs(cvx), Math.abs(cvy)) == AI1_HOLDV_MAX
-					|| Math.max(Math.abs(cvx), Math.abs(cvy)) == AI1_HOLDV_MAX - 1
-							&& Math.max(Math.abs(vel[0]), Math.abs(vel[1])) >= AI1_HOLDV_MAX)
-					&& countRivalsWithinCheb(pos[0], pos[1], playerNum, 3) >= 1;
-			// Round 176: the 11-12 HOLD band (accel stays with the round-133
-			// leg). lobe5-s35 holds 11 and dies @r4 with every scorer world
-			// alive -- but the scorer-8 audit is loud (thread 4/7) and the
-			// true world kills. Audit-only s8: its one band DEAD verdict
-			// sits in the round-93 pin race, which survives it, so only
-			// alive-with-thread>=4 escalates to the true-4 verdict; probe:
-			// zero escalations in 282 canon band fires. No train bar -- the
-			// lobe5 rival is 11 away; the thread tell is the selectivity.
-			final boolean legHold11 = Math.max(Math.abs(cvx), Math.abs(cvy)) >= AI1_FASTV_MAX
-					&& Math.max(Math.abs(cvx), Math.abs(cvy)) <= Math.max(Math.abs(vel[0]),
-							Math.abs(vel[1]));
-			if ((legFastV || legHoldV || legHold11)
-					&& trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
+			// Round 347: two more speed legs are gone from here. Round 175's judged a pick at
+			// max-axis 10, or at 9 from 10 or more, with a rival within three cells of the mover,
+			// in a cheap five-round world. Rounds 176 and 177's judged a pick at max-axis 11 or
+			// more that does not raise it, by a thread count and a true-rival forecast. In 5,880
+			// three-lap fleet races they judged 11,288 real picks and killed none, and with this
+			// round's five legs removed together at every depth each of 9,200 fleet races is
+			// unchanged.
+			if (legFastV && trueConfirmDepth < AI1_TRUE_CONFIRM_MAXDEPTH) {
 				trueConfirmDepth++;
 				try {
 					// Round 103: confirms ALWAYS run the certification cap --
@@ -4866,42 +4555,17 @@ final class RaceAi {
 					// vacates the kill cell) and true-DEAD at cap 6, matching
 					// the offline all-champion roll and the real race.
 					final int confirmCap = Math.max(scorerCap, AI1_DEEP_CERT_RIVALS);
-					if (legFastV) {
-						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
-								simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
-								confirmCap, null, null, null) < 0;
-					} else if (legHoldV) {
-						// Its round-175 verdict memo never hit: every nested compute bumps the
-						// epoch before a repeat (0 hits in 497 lookups on four fast courses;
-						// review, 2026-09-28).
-						trueDead = simOutcome(cx, cy, cvx, cvy, playerNum,
-								AI1_DJS_SLOW_ROUNDS, simFinishVanish, exactSelf,
-								exactRivals, true, scorerSelf, false,
-								AI1_SCORER_MAXRIVALS, null, null, null) < 0;
-					} else if (legHold11) {
-						final int[] h11Tr = { 0, 0 };
-						simOutcome(cx, cy, cvx, cvy, playerNum,
-								AI1_DEEP_HORIZON, simFinishVanish, exactSelf, exactRivals,
-								true, scorerSelf, false, confirmCap, null, null, h11Tr);
-						// Round 177: the s8 verdict is ignored entirely (both
-						// worlds false-kill the round-93 pin fire, thread=1);
-						// the THREAD level is the separator -- pin 1, the
-						// lobe5 siblings 3 and 4, canon 279x0/3x1 -- so the
-						// true-4 verdict runs at thread >= 2.
-						trueDead = h11Tr[0] >= 2
-								&& simOutcome(cx, cy, cvx, cvy, playerNum,
-										AI1_TRUE_CONFIRM_ROUNDS, simFinishVanish,
-										exactSelf, exactRivals, true, scorerSelf, true,
-										confirmCap, null, null, null) < 0;
-					}
+					trueDead = simOutcome(cx, cy, cvx, cvy, playerNum, AI1_DEEP_HORIZON,
+							simFinishVanish, exactSelf, exactRivals, true, scorerSelf, false,
+							confirmCap, null, null, null) < 0;
 				} finally {
 					trueConfirmDepth--;
 				}
 				if (AI_DEBUG_DJS || AI_DEBUG_PLAYER == playerNum)
 					System.err.println("AIDBG TRUECONF p=" + playerNum + " pos=(" + pos[0] + ","
 							+ pos[1] + ") chosen=" + chosen + " tier=-1 thread=-1" // no audit since round 310
-							+ " -> true rivals "
-							+ (trueDead ? "KILL @" + AI1_TRUE_CONFIRM_ROUNDS + "r, switching"
+							+ " -> deep suppressed world "
+							+ (trueDead ? "KILL @" + AI1_DEEP_HORIZON + "r, switching"
 									: "keep alive"));
 			}
 			if (!trueDead)
@@ -5642,7 +5306,7 @@ final class RaceAi {
 	 *  restored, rebuilt before they are read, or pure caches (only hit rates change).
 	 *  Gated to the potential's domain: a lap course with the potential built, aiGridLegal
 	 *  false or no pocket, and a live rival (the rollout cannot start with the race over).
-	 *  Off wherever a skipped decision would print (suppressedMovesOn, finish-denial debug).
+	 *  Off wherever a skipped decision would print (suppressedMovesOn).
 	 *  -Dai.perf.noBnb=true rolls every landing (the round-310 loop, a same-jar CPU control);
 	 *  -Dai.perf.bnbStats=true prints PERF-STATS BNB at exit (movesSaved counts
 	 *  AI1_CHOOSER_ROUNDS rounds a rollout, round 327's sixteen-round decisions too; in check mode the cuts and
@@ -5678,8 +5342,7 @@ final class RaceAi {
 	/** perf_bnb: the exact potential when it bounds this chooser call's verdicts from below
 	 *  (see PERF_NO_BNB), else null. */
 	private OptimalPotential bnbPotential(final int playerNum) {
-		if (PERF_NO_BNB || exactPot == null || game.lapGates == null || !suppressedMovesOn()
-				|| AI_DEBUG_FINISH_DENIAL)
+		if (PERF_NO_BNB || exactPot == null || game.lapGates == null || !suppressedMovesOn())
 			return null;
 		boolean liveRival = false;
 		for (final Player p : game.players)
@@ -7140,7 +6803,11 @@ final class RaceAi {
 	 *  (long keys, double values, epoch validity). Replaces the per-turn boxed
 	 *  HashMap that dominated the mobility recursion's self time (JFR: getNode
 	 *  plus per-turn resize churn). Probe chains are capped; past the cap a
-	 *  store is skipped -- correctness never depends on a store landing. */
+	 *  store is skipped -- correctness never depends on a store landing. Every
+	 *  search takes a fresh epoch at build (mobilitySearch) and reads no other.
+	 *  Round 175 also bumped the counter at every compute and query, to retire its
+	 *  hold leg's verdict memo; the memo went earlier (review, 2026-09-28) and the
+	 *  bumps, which by then only renumbered epochs, with the leg in round 347. */
 	private static final int FM_MEMO_BITS = 15;
 	private static final int FM_MEMO_PROBE_CAP = 32;
 	private final long[] fmMemoKeys = new long[1 << FM_MEMO_BITS];

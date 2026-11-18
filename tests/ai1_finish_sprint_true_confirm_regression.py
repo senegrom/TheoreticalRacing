@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 """Pin the faithful-rival finish-sprint safety confirmation.
 
-Outcome pin, awaiting a decision specimen (2026-11-13). Round 176 drops a
-finish-sprint candidate that is five or more map turns from the finish and
-leaves one safe successor when a five-round forecast against faithful rivals
-kills it. On round 345's grids the race below holds no real decision of the
-sprint or of any pace override, and a fleet scan found the veto dropping a
-candidate in no real decision: the 83 courses other than the Nordschleife over
-seeds 1-40, eight AI2 cars, one lap, random starts, 3,320 races, raced by a
-scratch build that prints the legs of top-level decisions only. The scan shows
-a drop, not a veto that ran and passed, so it does not say how often the veto
-was asked. The finish sprint took 130 real moves in them, 111 within 15 map
-turns of the finish and 19 in round 94's band of 16 to 20. The pin holds the
+Outcome pin. Round 176 dropped a finish-sprint candidate that is five or more
+map turns from the finish and leaves one safe successor when a five-round
+forecast against faithful rivals killed it. On round 345's grids the race below
+held no real decision of the sprint or of any pace override, and a fleet scan
+(2026-11-12) found the veto dropping a candidate in no real decision: the 83
+courses other than the Nordschleife over seeds 1-40, eight AI2 cars, one lap,
+random starts, 3,320 races, raced by a scratch build that prints the legs of
+top-level decisions only. The scan shows a drop, not a veto that ran and
+passed, so it does not say how often the veto was asked. The finish sprint took
+130 real moves in them, 111 within 15 map turns of the finish and 19 in round
+94's band of 16 to 20. Round 347 (2026-11-17) deleted the veto with four other
+legs: removed together at every depth, in real decisions and forecasts alike,
+they changed none of those 3,320 races and none of the 5,880 three-lap races of
+the standard screens. No race can exercise it any more; the pin holds the
 race's outcome and trajectory.
 """
 

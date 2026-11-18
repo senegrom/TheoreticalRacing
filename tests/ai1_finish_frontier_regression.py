@@ -8,14 +8,17 @@ seeds 6, 47 and 49 race from new grids; the pin holds the champion's new
 races there and one finish-frontier column decision in each
 (EXPECTED_DECISION).
 
-2026-11-13: the rule itself awaits a decision specimen. Round 96 lets the
-finish sprint take a move 21 to 30 map turns from the finish. The three lines
-below are column decisions at the finish frontier, not the rule firing (round
-345), and a fleet scan found the sprint taking no real move in that band: the
-83 courses other than the Nordschleife over seeds 1-40, eight AI2 cars, one
-lap, random starts, 3,320 races, raced by a scratch build that prints the legs
-of top-level decisions only. The finish sprint took 130 real moves in them,
-every one within 20 map turns of the finish.
+2026-11-13: round 96 let the finish sprint take a move 21 to 30 map turns from
+the finish. The three lines below are column decisions at the finish frontier,
+not that rule firing (round 345), and a fleet scan found the sprint taking no
+real move in that band: the 83 courses other than the Nordschleife over seeds
+1-40, eight AI2 cars, one lap, random starts, 3,320 races, raced by a scratch
+build that prints the legs of top-level decisions only. The finish sprint took
+130 real moves in them, every one within 20 map turns of the finish. Round 347
+(2026-11-17) deleted the extension with four other legs: removed together at
+every depth, in real decisions and forecasts alike, they changed none of those
+3,320 races and none of the 5,880 three-lap races of the standard screens. The
+three lines stay: without the extension this pin's three races run unchanged.
 """
 
 from pathlib import Path

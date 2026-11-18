@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Pin the contested-finish denial rescue.
 
-Hairpin seed 68, eight cars: p8 arrives at the flag on a high-energy line a
-rival can close, and without the override it crashes at move 104 (its old
-frozen AI2 control: 6 finishers, one crash, p8 last). The finish-denial
-certificate switches it to a braking escape that survives both the deep
-scorer world and the faithful world, and it does not crash. Until the
+Hairpin seed 68, eight cars, as first pinned: p8 arrived at the flag on a
+high-energy line a rival could close, and without the override it crashed at
+move 104 (its old frozen AI2 control: 6 finishers, one crash, p8 last). The
+finish-denial certificate switched it to a braking escape that survived both
+the deep scorer world and the faithful world, and it did not crash. Until the
 2026-09-04 promotion that arm was AI1-only and this pin froze the AI2 crash
 as a control. Both kinds now run one policy, so since 2026-09-27 the pin
 races the all-AI2 roster once; ai1_label_invariance_regression checks that
@@ -25,8 +25,17 @@ one landing of 64 or more, SE to v(7,4) from (61,12) at move 128, is p3's
 cell (68,16). Raced with the same flag over Hairpin seeds 1-1000 on the new
 grids, no logged move of p8 is a rescue: all 28 'dies -> switch' prints,
 in nine seeds, come from forecasts (RESCUED_DECISION below). The pin holds
-the new race's outcome and trajectory, and its decision specimen is a race
-of its own, Rand16 seed 4 (SPECIMEN below; 2026-11-13).
+the new race's outcome and trajectory; from 2026-11-13 to round 347 its
+decision specimen was a race of its own, Rand16 seed 4.
+
+Round 347 (2026-11-17): the certificate left the code (the owner: "promote
+370"). Off for a candidate car, arm 370, it changed no race of the standard
+screens, which race three laps; in the 3,320 one-lap fleet races of the
+specimen search its ten real switches avoided no crash and cost their car a
+place twice. No race can exercise it any more: the Rand16 seed 4 specimen is
+retired with it, and the pin is an outcome pin of the Hairpin seed 68 race. The
+flag -Dai.debug.finishDenial, with which the notes here were measured, left the
+code with it.
 """
 
 from pathlib import Path
@@ -38,7 +47,6 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tracks"))
 
 import bench_ai  # noqa: E402
-import decision_specimen  # noqa: E402
 from forensics_common import normalized_lines, normalized_sha256, race_events  # noqa: E402
 
 TARGET = ("hairpin", 68)
@@ -182,8 +190,8 @@ RESCUED_MOVES = {1: 17, 2: 16, 3: 18, 4: 17, 5: 17, 6: 17, 7: 18, 8: 17}
 # (59,10) on, a round behind. Round 330's S steer from (48,7), pinned here for p8 at move 104 in rounds
 # 316 and 330 and p7's at move 103 in round 333, is p1's now, at move 105.
 # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
-# the new Hairpin s68 race holds no rescue, so the decision specimen is a race of its own (SPECIMEN below). The
-# line pinned until round 344,
+# the new Hairpin s68 race holds no rescue, so from 2026-11-13 to round 347 the decision specimen was a race of
+# its own (Rand16 seed 4, below). The line pinned until round 344,
 # "104 p8 AI W v(7,1)→(6,1) (47,7)→(53,8) ok", belonged to the race on the grid before round 345,
 # and was no rescue there either: with round 344's jar and -Dai.debug.finishDenial=true (which
 # prints and turns off only exact shortcuts: the race kept its pinned digest) the certificate never got
@@ -200,7 +208,7 @@ RESCUED_MOVES = {1: 17, 2: 16, 3: 18, 4: 17, 5: 17, 6: 17, 7: 18, 8: 17}
 # stands within a cell of its coast landing (48,5); p8's SW at move 104, v(6,0) to (5,1) from
 # (44,6) to (49,7), with p3 at (50,7) beside its coast landing (50,6), leaves no high-energy line
 # behind (its highest-energy landings, NE, E and SE at vx 7, are 49 and 50 speed2). Over Hairpin
-# seeds 1-1000 on the new grids, -Dai.debug.finishDenial shows no rescue in any logged move of p8. Its
+# seeds 1-1000 on the new grids, -Dai.debug.finishDenial showed no rescue in any logged move of p8. Its
 # 28 'dies -> switch' prints, in nine seeds, are all forecasts': a scratch build whose prints also name
 # a top-level decision (the code's own test at the certificate's entry: simDepth == 0, not inScorerSim,
 # trueConfirmDepth == 0) marks none of them, while in those nine races it marks four real decisions of
@@ -227,28 +235,10 @@ RESCUED_DECISION = None
 # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
 # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the note above RESCUED.
 RESCUED_SHA256 = "dfdfe33bb9e8fd652fd982ab7b29c2f2cadcffb780d6548c84f689fe751f4899"
-# Decision specimen (2026-11-13). The fleet's 83 courses other than the Nordschleife were raced over seeds 1-40 on
-# round 345's grids with this pin's setup (eight AI2 cars, one lap, random starts) and a scratch build whose
-# finish-denial prints also name a top-level decision (simDepth == 0, not inScorerSim, trueConfirmDepth == 0, taken
-# at the certificate's entry): 3,320 races, in which the certificate's faithful confirm ran in 342 real decisions,
-# kept the pick in 332 and switched it in ten (Lobe1 s9; Rand16 s4, s19 and s22; Rand18 s4, s9, s10, s16, s19 and
-# s25). Rand16 seed 4 is the first of the ten by seed and then by course. At turn 440 p8, last in the turn order, on
-# its 55th of 60 moves and five moves from home, stands at (132,83) with v(-2,-9). Its pick is NE to v(-1,-10), 101
-# speed2, onto (131,73). p5 stands at (131,75), beside p8's coast landing (130,74); p2, p4, p5 and p7 are within ten
-# cells of the pick's landing, and p2 at (131,64), p4 at (131,65) and p7 at (131,67) run ahead of it at v(0,-10),
-# v(0,-10) and v(-1,-8). The pick dies in the faithful forecast, and the certificate switches it to E, v(-1,-9), 82
-# speed2, onto (131,74): a brake of 19 speed2. The race has seven finishers and no crash: p1 is home on its 58th
-# move, p2 and p4 on their 59th, p5, p7 and p8 on their 60th and p3 on its 61st, and p6 is the car still running at
-# the end, after 60 moves (477 turns). The switch is real, and this race did not need it: with the certificate off in
-# top-level decisions only, a scratch build races the same race through turn 439 and plays NE at turn 440, and p8
-# still finishes sixth on its 60th move with no car crashing. So it is in all ten races: each parts exactly at its
-# switch with the certificate off, none has a crash either way, and p8 ends in the same place in eight and one place
-# lower with the certificate in two (Rand16 s22, Rand18 s9).
-SPECIMEN = decision_specimen.Specimen(
-    "rand16", 4, (7, 0, [58, 59, 59, 60, 60, 60, 61]),
-    "a65d283c5a4f0b87b484f30327d541d1c2aaf1de0820362516f5ae6d3138a31c",
-    "440 p8 AI E v(-2,-9)→(-1,-9) (132,83)→(131,74) ok",
-)
+# Round 347: the certificate is gone, and with it the decision specimen held here since 2026-11-13: Rand16 seed 4,
+# where at turn 440 it switched p8's pick NE (101 speed2) to E (82), five moves from home, in a race that did not
+# need it. racing-memory.md keeps the search ("Decision specimens", 2026-11-13) and the removal's measurement
+# (round 347).
 
 
 def logged_kinds(text: str, nplayers: int) -> list[str]:
@@ -314,8 +304,7 @@ def main() -> int:
             raise SystemExit(
                 f"finish-denial {label} events changed: crashes={crashes}, moves={moves}"
             )
-        # Round 345: the Hairpin race holds no decision line (RESCUED_DECISION is None); the specimen's is checked
-        # below (SPECIMEN).
+        # Round 345: the Hairpin race holds no decision line (RESCUED_DECISION is None).
         if RESCUED_DECISION is not None and RESCUED_DECISION not in normalized_lines(logs[label]):
             raise SystemExit(f"finish-denial {label} decision missing: {RESCUED_DECISION}")
         digest = normalized_sha256(logs[label])
@@ -324,13 +313,11 @@ def main() -> int:
                 f"finish-denial {label} trajectory changed: {digest}, expected {RESCUED_SHA256}"
             )
 
-    decision_specimen.check("finish-denial", SPECIMEN)
-
-    # Round 345: the new Hairpin race holds no rescue (docstring); the message names what is pinned.
+    # Round 345: the new Hairpin race holds no rescue (docstring); the message names what is pinned. Round 347:
+    # the certificate is gone.
     print(
         "AI1FinishDenialRegression: OK "
-        "(hairpin s68: seven finishers, no crash, trajectory pinned; "
-        "decision specimen pinned on rand16 s4)"
+        "(hairpin s68: seven finishers, no crash, trajectory pinned; the certificate left the code in round 347)"
     )
     return 0
 
