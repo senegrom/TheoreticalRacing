@@ -55,7 +55,12 @@ jobs:
     # The browsers test the artifact parity built and Pages publishes -- not a
     # rebuild of their own (review, 2026-09-28).
     needs: parity
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04, not ubuntu-latest: the pinned Playwright 1.57.0 installs no
+    # browser on Ubuntu 26.04 ("Playwright does not support chromium on
+    # ubuntu26.04-x64"), which ubuntu-latest became between 2026-11-13 and
+    # 2026-11-18. Move both together: a Playwright that supports the new image,
+    # then the image.
+    runs-on: ubuntu-24.04
     # Two whole AI races in the browser JVM, each allowed 30 minutes since round
     # 303's aware forecasts (2026-10-11) and 60 since rounds 305/309 (2026-10-16).
     timeout-minutes: 150
