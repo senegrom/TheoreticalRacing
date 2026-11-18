@@ -87,7 +87,10 @@ jobs:
     name: Publish GitHub Pages
     needs: [java, frozen-ai2, tooling, browser]
     if: github.ref == 'refs/heads/master' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
+    # Ubuntu 24.04, as the browser jobs (browser.yml): the live-site check
+    # installs the same pinned Playwright, which supports no browser on the
+    # Ubuntu 26.04 that ubuntu-latest became.
+    runs-on: ubuntu-24.04
     # The live-site check races the browser test's two whole AI races again, each
     # allowed 60 minutes since rounds 305/309 (as the browser job).
     timeout-minutes: 150
