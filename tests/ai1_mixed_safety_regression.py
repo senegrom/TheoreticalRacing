@@ -49,6 +49,9 @@ def main() -> int:
         # before round 345; seed 7 now starts from a new grid (random starts:
         # each car's own draw from the seed's SplitMix64 stream) and is a new
         # race, with one crash (p7's, recorded below).
+        # Round 348 (in a small group the chooser's equal forecasts go to the
+        # larger margin): the race has two crashes now, p4's and p7's, on the
+        # same cells (recorded below).
         expected_by_label = {
             # Round 229: re-frozen from measurement (the soft caution stack left the score); finishers and crashes unchanged.
             # Round 234 (the seal guard left the decision): re-frozen from
@@ -74,7 +77,8 @@ def main() -> int:
             # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); seven finishers and no crash as before, but p1, the car still running at the end before, after 72 moves, now comes home seventh on its 71st and p8, seventh home on its 72nd before, is the car still running at the end, after 70 moves, so one place moves between the halves, the first since round 301a' set these sums; behind p2 to p5, still first to fourth on their 66th to 69th, p7 moves up to fifth on its 69th (sixth on its 71st before) and p6 down to sixth, still on its 70th. Both labels race one policy, so that place follows p1's and p8's lines, not a label. Crash-free as round 316 left it, and that is what is pinned below. The race parts from round 335's on move 136 (p8's 17th: SW to (39,8) at v(2,2) rather than W to (39,7) at v(2,1)).
             # Round 341: re-frozen from measurement (the score's rival twin plays the rival's own gate rules); seven finishers and no crash as before, but p8, the car still running at the end before, after 70 moves, now comes home seventh on its 72nd and p1, seventh home on its 71st before, is the car still running at the end, after 72 moves, so the one place round 336 moved between the halves moves back, to the sums round 301a' set; behind p2 to p5, still first to fourth on their 66th to 69th, p6 moves up to fifth, still on its 70th (sixth before), and p7 down to sixth on its 71st (fifth on its 69th before). Both labels race one policy, so that place follows p1's and p8's lines, not a label. Crash-free as round 316 left it, and that is what is pinned below. The race parts from round 336's on move 303 (p7's 38th: NW to (84,162) at v(-1,3) rather than N to (85,162) at v(0,3)).
             # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); seed 7 starts from a new grid and is a new race, and it loses a car: p7 (AI2) crashes on its 35th move, at turn 279 -- NE from (81,147) at v(1,8) to v(2,7), its move to (83,154) cuts the track's edge -- and is placed eighth; six cars come home: p2, p3 and p4 (AI1) first to third on their 66th, 67th and 68th, p5 and p6 (AI2) fourth and fifth on their 69th and 70th and p8 (AI2) sixth on its 71st, and p1 (AI1) is the car still running at the end, after 71 moves, placed seventh (AI1 7 + 1 + 2 + 3 = 13, AI2 4 + 5 + 8 + 6 = 23) -- recorded, not vetoed (AGENTS.md), and pinned by its identity below.
-            "front": {"AI1": (13, 4, 0), "AI2": (23, 4, 1)},
+            # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); p4 (AI1), third home on its 68th move before, now crashes on its 34th (move 268), on the cells of p7's crash: NE from (81,147) at v(1,8) to (83,154) at v(2,7); p7 (AI2) crashes there as before, on its 35th (move 278; move 279 before) -- five finishers, recorded, not vetoed (AGENTS.md). p2 and p3 still come home first and second on their 66th and 67th; p5, p6 and p8, fourth to sixth on their 69th, 70th and 71st before, are third to fifth on their 68th, 69th and 70th, and p1 is still the car running at the end, after 70 moves (71 before). The race parts from round 347's on move 213 (p5's 27th: NW from (65,71) at v(3,11) to (67,81) at v(2,10) rather than holding v(3,11) to (68,82)).
+            "front": {"AI1": (17, 4, 1), "AI2": (19, 4, 1)},
         }
         orderings = (
             ("front", ["AI1"] * 4 + ["AI2"] * 4),
@@ -106,8 +110,10 @@ def main() -> int:
             # Round 305/309: re-frozen from measurement (aware plays the mover's first five forecast continuation moves; a rival's forecast crash is no win); one crash again, p1 into the wall at (37,1) on move 121, its 16th, at the top of the course -- recorded, not vetoed, and the round-234 identity pin returns for p1.
             # Round 316: re-frozen from measurement (the chooser ranks its forecasts by projected place, then time); crash-free again -- the race parts from round 310's on move 6 (p6's 1st), p1 is no longer at (35,3) on its 16th move (move 121 takes it from (30,6) to (33,5)) and is the car still running at the end, after 72 moves, and p8 comes home seventh on move 555, its 72nd -- and that is what is pinned, as in rounds 247, 278 and 301a'.
             # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the new race from a new grid has one crash: p7 on its 35th move, at turn 279, NE from (81,147) at v(1,8) through the track's edge to (83,154) -- recorded, not vetoed, and the round-234 identity pin returns for p7.
+            # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); two crashes: p4 (AI1) on move 268, its 34th, classified eighth, and p7 (AI2) on move 278, its 35th, classified seventh, both NE from (81,147) at v(1,8) to (83,154) at v(2,7) -- recorded, not vetoed (AGENTS.md), and pinned by their identities.
             crashed = [line for line in log_lines if " CRASH " in line]
-            if len(crashed) != 1 or " p7 " not in crashed[0] or "place=8" not in crashed[0]:
+            if (len(crashed) != 2 or " p4 " not in crashed[0] or "place=8" not in crashed[0]
+                    or " p7 " not in crashed[1] or "place=7" not in crashed[1]):
                 raise SystemExit(
                     f"Round-93 mixed Le Mans seed-7 {label} crash set changed: {crashed}"
                 )
@@ -136,9 +142,10 @@ def main() -> int:
 
     # Round 345: the new Le Mans seed-7 race loses p7 (recorded and pinned above), so the message no longer calls
     # it safe.
+    # Round 348: it loses p4 too; the message counts both.
     print(
         "AI1MixedSafetyRegression: OK "
-        "(Le Mans seed 7 pinned at its one recorded crash; Gear seed 1 mixed places pinned)"
+        "(Le Mans seed 7 pinned at its two recorded crashes; Gear seed 1 mixed places pinned)"
     )
     return 0
 

@@ -562,6 +562,9 @@ final class RaceAi {
 	private final static int		AI1_AWARE_OTHER_MOVES	= 2;	// round 334: every other live rival's forecast moves played by its full policy, beside those (one; round 335: two)
 	private final static int		AI1_TIE_SELF_MOVES	= 1;	// round 314: the mover's forecast continuation moves played by its full policy when the chooser re-rolls an exact tie with two live cars (round 303's depth)
 	private final static int		AI1_CHOOSER_WIDTH	= 3;	// round 256/259: at most this many close calls are rolled
+	private final static int		AI1_MARGIN_NEAR	= 3;	// round 348: the margin orders a chooser's equal forecasts where at most this many live rivals stand within AI1_MARGIN_RADIUS cells of the deciding car
+	private final static int		AI1_MARGIN_RADIUS	= 20;	// round 348: that distance (Chebyshev). The forecast census counted the rivals near at twenty cells, the value of AI1_CHOOSER_MAXDIST; it is a constant of its own so that a change of the owner's rule constant does not move this gate unmeasured
+	private final static int		AI1_MARGIN_CLIP	= 5;	// round 348: one rival's share of the margin, at most this many half rounds either way (a rival two rounds or more away counts as one two rounds away)
 	private final static int		AI1_SCORER_NEAR	= 10;	// round 59: Chebyshev radius for real-scorer rivals in slow-class rollouts
 	private final static int		AI1_SCORER_MAXRIVALS	= 3;	// round 59: at most this many nearest real-scorer rivals per rollout (cost bound; the box formers are always adjacent)
 	private final static int		AI1_TRAP_SOLO_R	= 16;	// round 61: trap relief radius -- L1/L2 threads are only dangerous if a rival can contest them; no live rival within this Chebyshev range of the landing = the map's own certification suffices (max per-axis closure is |v|+1 <= 13 per round)
@@ -3181,7 +3184,7 @@ final class RaceAi {
 	 *  world -- of the race world and (round 327) of its decision's horizon, chooserDuel,
 	 *  which its nested choosers forecast; maintainUpgradedMemo validates both. Budgets are
 	 *  per call, there is no clock and no RNG, and what a replay skips is rewritten before
-	 *  it is read (placeKey, chooserJudgedPace, the workspaces), compared only at deeper
+	 *  it is read (placeKey, placeMargin, chooserJudgedPace, the workspaces), compared only at deeper
 	 *  rollouts (allScorerRolloutDepth, awareDepth) or a pure cache. Off with the kill
 	 *  switch and wherever a suppressed decision prints. An arm that makes
 	 *  nested behaviour depend on the top-level decider must turn it off. Round 314's tie
@@ -3190,7 +3193,10 @@ final class RaceAi {
 	 *  Round 326's nested projected place does not either: every car's nested choosers rank
 	 *  by it, whoever decides at the top. Nor does round 327's horizon: it is the real
 	 *  field's (two live cars or more), the same for every car deciding at one moment, and
-	 *  maintainUpgradedMemo empties both generations when it changes (upgradedDuel). */
+	 *  maintainUpgradedMemo empties both generations when it changes (upgradedDuel). Nor does
+	 *  round 348's margin: every car's nested choosers order their equal verdicts by it from
+	 *  the installed board alone -- the cars live and those within AI1_MARGIN_RADIUS cells of
+	 *  the decider -- whoever decides at the top. */
 	private boolean upgradedMemoOn() {
 		return !PERF_NO_UPMEMO && suppressedMovesOn();
 	}
@@ -3872,6 +3878,28 @@ final class RaceAi {
 		return ((long) finishedAhead * n + ahead) * PLACE_KEY_STRIDE + time;
 	}
 
+	/** Round 348: what a projected-place forecast leaves the mover beyond its place and its time. Over
+	 *  every rival with a projection, how far that rival's projected finishing move lies behind the
+	 *  mover's in the turn order, in half rounds: twice the rounds between them, plus one for a rival
+	 *  in a later slot than the mover and minus one for a rival in an earlier slot (within a round the
+	 *  earlier slot finishes first, as ppPlaceKey breaks that tie). So a share is odd: 1 for a rival
+	 *  less than a round behind the mover, 3 for one to two rounds behind, -1 and -3 likewise for a
+	 *  rival ahead. Each share is clipped to +-AI1_MARGIN_CLIP and the shares are summed. More is
+	 *  better for the mover: a rival behind it is further behind, a rival ahead of it less far ahead.
+	 *  As in the key, a rival whose forecast crashed keeps its last projection and a finished one has
+	 *  none. */
+	private static long ppMargin(final int myIdx, final long myRound, final int[] arrival) {
+		long sum = 0;
+		for (int i = 0; i < arrival.length; i++) {
+			final int a = arrival[i];
+			if (i == myIdx || a == PP_UNDEF || a == PP_DONE)
+				continue;
+			final long m = 2 * (a - myRound) + (i < myIdx ? -1 : 1);
+			sum += Math.max(-AI1_MARGIN_CLIP, Math.min(AI1_MARGIN_CLIP, m));
+		}
+		return sum;
+	}
+
 	/** Round 337 (the owner, 2026-10-31): a forecast that leaves the mover doomed, with no finite
 	 *  distance at its end, ranks below any live one, whatever the finishers ahead; added to the
 	 *  key, so doomed forecasts keep their order among themselves. */
@@ -3988,6 +4016,14 @@ final class RaceAi {
 	private int awarePolicyDepth;
 	private long placeKey = -1;
 	private int placeKeyDepth = -1;
+	/** Round 348: the margin (ppMargin) of the forecast that wrote placeKey; 0 where it has none -- a
+	 *  forecast not ranked by projected place, one that ends with the mover finished or doomed, and
+	 *  one that ends by a classification which a rival's forecast crash reopens. That last one is
+	 *  ranked as at a horizon (round 316) and can share a horizon forecast's verdict, its 0 against
+	 *  a sum; it needs every rival that did not crash to finish inside the forecast, and the arm was
+	 *  measured so. The rollout started at simDepth == placeKeyDepth writes it wherever it writes
+	 *  placeKey; a rollout that dies leaves a value no pick rule reads. */
+	private long placeMargin;
 
 	private int simOutcomeCore(final int myX, final int myY, final int myVx, final int myVy,
 			final int playerNum, final int rounds, final boolean simFinishVanish, final boolean exactSelf,
@@ -4059,8 +4095,10 @@ final class RaceAi {
 				if (outFinalTier != null)
 					outFinalTier[0] = 3;
 				if (outFieldCost == null) {
-					if (simDepth == placeKeyDepth)
+					if (simDepth == placeKeyDepth) {
 						placeKey = 0;
+						placeMargin = 0; // round 348
+					}
 					return 0;
 				}
 			}
@@ -4363,8 +4401,10 @@ final class RaceAi {
 						if (outFinalTier != null)
 							outFinalTier[0] = 3;
 						if (outFieldCost == null) {
-							if (simDepth == placeKeyDepth)
+							if (simDepth == placeKeyDepth) {
 								placeKey = rivalsFinished * PLACE_KEY_STRIDE + round;
+								placeMargin = 0; // round 348
+							}
 							if (pp && simDepth == placeKeyDepth) { // round 316: projected place
 								ppControlKey = placeKey;
 								placeKey = ppPlaceKey(myIdx, rivalsFinished, true, round, round, alive, arrival);
@@ -4471,6 +4511,8 @@ final class RaceAi {
 					myIdx, px, py, alive);
 		final int myTime = myFinished ? 0 : ttf(px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
 		if (simDepth == placeKeyDepth)
+			placeMargin = 0; // round 348: no margin unless the horizon branch below writes one
+		if (simDepth == placeKeyDepth)
 			placeKey = myFinished
 					? aheadAtMyFinish * PLACE_KEY_STRIDE + myFinishRound
 					: myTime == Integer.MAX_VALUE ? PP_DOOMED // Round 337 (round 293): below every live key
@@ -4481,11 +4523,13 @@ final class RaceAi {
 		// racing: then the race is not over and it ranks as at a horizon from the mover's state.
 		if (pp && simDepth == placeKeyDepth) {
 			ppControlKey = placeKey;
-			if (!myFinished)
+			if (!myFinished) {
 				placeKey = ppDoomed(myTime) + ppPlaceKey(myIdx, rivalsFinished, false,
 						myTime == Integer.MAX_VALUE ? Long.MAX_VALUE : rounds - 1L + myTime,
 						rounds - 1L + Math.min(myTime, PLACE_KEY_STRIDE / 2), alive, arrival);
-			else if (!ppRacing(myIdx, arrival))
+				if (myTime != Integer.MAX_VALUE) // round 348: the margin at the horizon, on the key's rounds
+					placeMargin = ppMargin(myIdx, rounds - 1L + myTime, arrival);
+			} else if (!ppRacing(myIdx, arrival))
 				placeKey = ppPlaceKey(myIdx, aheadAtMyFinish, true, myFinishRound, myFinishRound, alive, arrival);
 			else {
 				final int t = ttfFor(myIdx, px[myIdx], py[myIdx], vx[myIdx], vy[myIdx]);
@@ -4982,7 +5026,12 @@ final class RaceAi {
 	 *  decision taken with two live cars forecasts AI1_CHOOSER_DUEL_ROUNDS (16) rounds
 	 *  (chooserDuel, chooserRounds). Rounds 303-334 (aware): at a top-level call the forecast
 	 *  plays the mover's and the rivals' first moves by the full policy instead of the scorer
-	 *  (round 334: every live rival's; see the loop's note and simOutcomeCore). */
+	 *  (round 334: every live rival's; see the loop's note and simOutcomeCore). Round 348: where
+	 *  the deciding car races a small group -- more than two cars live, at most AI1_MARGIN_NEAR
+	 *  live rivals within AI1_MARGIN_RADIUS cells of it -- and the call ranks by projected place,
+	 *  landings whose verdicts are equal go to the larger margin (ppMargin), and only equal
+	 *  margins to the score's order; the round-34 pace swap still takes a pace landing the window
+	 *  held that ties the pick's verdict, by its map time (round 301a'). */
 	private Direction jointChooser(final int[] pos, final int[] vel, final int playerNum,
 			final Direction best, final double[] scoreByDir, final double bestScore,
 			final Direction pace) {
@@ -5039,10 +5088,42 @@ final class RaceAi {
 		Direction pick = null;
 		long pickVerdict = -1;
 		long paceVerdict = Long.MIN_VALUE;
+		// Round 348: in a small group, equal forecasts go to the larger margin. The verdict is the mover's
+		// projected place and its projected finishing round, in whole rounds, and most chooser calls end
+		// with two or more landings sharing the best one; the score's order then picked the first. The
+		// margin (ppMargin) reads the same forecasts for what the verdict leaves out: how far each
+		// landing leaves the rivals behind the mover, or the mover behind them. Place first and time
+		// second are untouched: only landings with EQUAL verdicts are ordered, and equal margins keep
+		// the score's order. It is asked where the call ranks by projected place (ppOn), more than two
+		// cars are live (two keep round 314's re-roll) and at most AI1_MARGIN_NEAR live rivals stand
+		// within AI1_MARGIN_RADIUS cells of the deciding car, on the board it decides on. The bound is
+		// the forecast census's, which held top-level forecasts against the races that followed, by the
+		// rivals near. A nested call follows the same rule on its own board, though its forecast runs
+		// without aware's upgraded moves, so that a forecast plays each car by the rule that car races
+		// by. After the chooser the round-34 pace swap still takes a pace landing that the window held
+		// and that ties the pick's verdict, when it is faster by map turns (round 301a'), whatever the
+		// margins; a pace landing the chooser added itself is rolled last and can now take an exact tie
+		// on its margin, where it needed a strictly better verdict before.
+		// Arm 375 (the rule for candidate cars) against the round-347 champion, three laps. Four-car fields, mirrored:
+		// -0.039 +- 0.011 places on random starts, -0.051 +- 0.011 held-out and -0.054 +- 0.012 computed; one candidate
+		// among three champions, every seat: -0.029 +- 0.010. Eight-car fields, mirrored: -0.001 +- 0.004 on random
+		// starts, -0.008 +- 0.005 computed and -0.009 +- 0.002 scattered; one candidate among seven champions: -0.001
+		// +- 0.002. Duels +0.000, no place changed. In four-car fields the candidates win no more races: fewer fourths,
+		// more seconds. Crashes, candidates to champions, are level but for four cars on computed starts, 14 to 34.
+		// Asked of every decision with more than two live cars (arm 374) it raced the same four-car races and lost in
+		// eight-car packs, +0.100 +- 0.028 on random starts and +0.078 +- 0.026 computed: with all seven rivals near, a
+		// top-level forecast held for its twelve rounds in half of the decisions, with at most three near in four of
+		// five (the forecast census, 2026-11). At one lap no gain shows: on the 73 lap courses four cars read -0.008 +-
+		// 0.011 on random starts and +0.002 +- 0.011 computed (fewer wins, more seconds), eight cars +0.005 +- 0.003.
+		final boolean marginTie = ppOn && liveRivalsRemaining(playerNum) >= 2
+				&& countRivalsWithinCheb(pos[0], pos[1], playerNum, AI1_MARGIN_RADIUS) <= AI1_MARGIN_NEAR;
+		long pickMargin = 0, bnbPickMargin = 0;
 		// perf_bnb (exact, tie-preserving; bnbPotential): a later landing whose lower bound
 		// passes the live incumbent's verdict STRICTLY is not rolled, or its rollout stops, and
 		// counts as dead. Check mode rolls every landing and plays that loop beside this one
-		// (bnbPick, bnbPickVerdict, bnbPaceVerdict), comparing the two after it.
+		// (bnbPick, bnbPickVerdict, bnbPaceVerdict), comparing the two after it. Round 348: a landing
+		// that ties the incumbent is therefore always rolled in full and its margin read; both loops
+		// order the tied landings by the same rule (pickMargin, bnbPickMargin).
 		final OptimalPotential boundPot = bnbPotential(playerNum);
 		final boolean boundTop = simDepth == 0 && !inScorerSim && trueConfirmDepth == 0;
 		Direction bnbPick = null;
@@ -5094,6 +5175,7 @@ final class RaceAi {
 			final int outerKeyDepth = placeKeyDepth;
 			placeKeyDepth = simDepth + 1;
 			placeKey = -1;
+			placeMargin = 0; // round 348: a rollout that writes no key leaves no margin behind
 			final int outerPpDepth = ppDepth; // round 316
 			ppDepth = ppOn ? simDepth + 1 : -1;
 			if (ppOn)
@@ -5134,6 +5216,7 @@ final class RaceAi {
 				bnbCutoff = Long.MAX_VALUE;
 			}
 			final long key = placeKey;
+			final long margin = placeMargin; // round 348
 			placeKeyDepth = outerKeyDepth;
 			ppDepth = outerPpDepth; // round 316
 			awareDepth = outerAwareDepth;
@@ -5152,16 +5235,20 @@ final class RaceAi {
 			if (PP_DEBUG && ppOn && simDepth == 0 && !inScorerSim && trueConfirmDepth == 0)
 				System.err.println("AIDBG PP p=" + playerNum + " turn=" + game.turnCount() + " d=" + d
 						+ " pp=" + verdict + " ctrl=" + (outcome >= 0 && ppControlKey >= 0 ? ppControlKey : outcome));
-			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict)) {
+			if (pick == null || verdict >= 0 && (pickVerdict < 0 || verdict < pickVerdict
+					|| marginTie && verdict == pickVerdict && margin > pickMargin)) { // round 348
 				pick = d;
 				pickVerdict = verdict;
+				pickMargin = margin;
 			}
 			if (PERF_CHECK && boundPot != null) {
 				if (d == pace)
 					bnbPaceVerdict = bnbVerdict;
-				if (bnbPick == null || bnbVerdict >= 0 && (bnbPickVerdict < 0 || bnbVerdict < bnbPickVerdict)) {
+				if (bnbPick == null || bnbVerdict >= 0 && (bnbPickVerdict < 0 || bnbVerdict < bnbPickVerdict
+						|| marginTie && bnbVerdict == bnbPickVerdict && margin > bnbPickMargin)) { // round 348
 					bnbPick = d;
 					bnbPickVerdict = bnbVerdict;
+					bnbPickMargin = margin;
 				}
 			}
 		}

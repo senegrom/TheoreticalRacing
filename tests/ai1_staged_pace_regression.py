@@ -2,8 +2,10 @@
 """Pin the Round-82/91 self-play-only staged-pace boundaries.
 
 Decision specimens (2026-11-13): on round 345's grids the thirteen races below
-hold six real switches of the staged override, none with exactly three rivals
-ahead (round 82's class) and none from rest on the grid (round 91's). The pin
+held six real switches of the staged override, none with exactly three rivals
+ahead (round 82's class) and none from rest on the grid (round 91's). On round
+348's code, which moves seven of the thirteen, they hold eight, again none of
+either class (a print build of the promoted round, 2026-11-20). The pin
 also races one race with each: Le Mans seed 1 on the live track and Coil seed 6
 (THREE_AHEAD_SPECIMEN and LAUNCH_SPECIMEN below). Two of the boundaries it was
 written for cannot be raced by an all-AI field any more: the finite field
@@ -49,20 +51,34 @@ CASES = {
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
     # seven finishers and no crash (the list is under EXACT_MOVES), and p6 is the car still running at the end, after
     # 72 moves: 486 moves, the ceiling (501 before, measured on the grid before round 345).
-    ("lemans", 3): 486,
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin);
+    # six finishers (the list is under EXACT_MOVES); p7 crashes on its 37th move (see the safety notes in main), and p6
+    # is still the car running at the end, after 71 moves: 418 moves, the ceiling (486 before, with seven finishers).
+    ("lemans", 3): 418,
     # Round 234: seven finishers here now instead of six, so the sum grows.
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
     # six finishers: p2 wins on its 66th move, p3 is second on its 67th, p5 third on its 68th, p6 and p7 fourth and
     # fifth on their 69th, and p1 sixth on its 71st; p8 crashes on its 7th (see the safety notes in main), and p4 is
     # the car still running at the end, after 70 moves: 410 moves, the ceiling (489 before, measured on the grid
     # before round 345).
-    ("lemans", 11): 410,
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin);
+    # five finishers: p3 wins on its 67th move, p6 is second on its 68th, p7 third on its 69th, p2 fourth on its 70th
+    # and p1 fifth on its 71st; p8 still crashes on its 7th and p5 now crashes on its 37th (see the safety notes in
+    # main), and p4 is still the car running at the end, after 70 moves: 345 moves, the ceiling (410 before, with six
+    # finishers).
+    ("lemans", 11): 345,
     # Round 229: re-anchored from measurement (the soft caution stack left the score).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
     # p5 wins on its 78th move, p6 is second on its 79th, p3 third on its 82nd, p8 fourth on its 83rd, p2 and p7 fifth
     # and sixth on their 84th, and p1 seventh on its 85th; no crash, and p4 is the car still running at the end, after
     # 84 moves: 575 moves, the ceiling (569 before, measured on the grid before round 345).
-    ("spa", 11): 575,  # Round 247: re-anchored from measurement.
+    # Round 247: re-anchored from measurement.
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin);
+    # p5 and p6 still finish first and second on their 78th and 79th moves; p7 is third on its 80th, p8 fourth on its
+    # 81st, p1 and p4 fifth and sixth on their 82nd and p2 seventh on its 83rd; no crash, and p3 is the car still
+    # running at the end, after 82 moves: 565 moves, the ceiling (575 before). The race parts from round 347's on move
+    # 161 (p1's 21st: N from (88,75) at v(5,11) to (93,85) at v(5,10) rather than W to (92,86) at v(4,11)).
+    ("spa", 11): 565,
     # Round 326: re-frozen from measurement (every chooser call ranks by projected place, nested ones too).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream);
     # six finishers (the list is under EXACT_MOVES); p8 crashes on its 75th move (see the safety notes in main), and
@@ -140,7 +156,13 @@ EXACT_MOVES = {
     # p3 wins on its 66th move, p5 is second on its 67th, p7 third on its 68th, p8 fourth on its 69th, p1 fifth on its
     # 71st, p2 sixth on its 72nd and p4 seventh on its 73rd; no crash, and p6 is the car still running at the end,
     # after 72 moves (486 moves, the ceiling above).
-    ("lemans", 3): [66, 67, 68, 69, 71, 72, 73],
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin);
+    # p5 wins on its 67th move, p8 is second on its 68th, p1 and p3 third and fourth on their 70th, p2 fifth on its
+    # 71st and p4 sixth on its 72nd; p7, third home on its 68th before, crashes on its 37th (see the safety notes in
+    # main), and p6 is still the car running at the end, after 71 moves (418 moves, the ceiling above). The race parts
+    # from round 347's on move 205 (p5's 26th: NW from (65,71) at v(3,11) to (67,81) at v(2,10) rather than holding
+    # v(3,11) to (68,82)).
+    ("lemans", 3): [67, 68, 70, 70, 71, 72],
     # Round 234: same seven finishers, one move redistributed.
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 303: re-frozen from measurement (aware forecasts, the chooser lab's aware promoted);
@@ -208,14 +230,20 @@ EXACT_MOVES = {
 # Le Mans s1, the live track (the Le Mans races above run the frozen fixture geometry): at turn 85 p5, on its 11th
 # move, stands at (37,17) with v(3,-4) and exactly three live rivals ahead ((rival - mover) . velocity > 0): p4 at
 # (38,16), p6 at (38,15) and p1 at (43,13). Its pick is S to v(3,-3), 18 speed2, above round 82's floor of 16, and
-# the override switches it to SE, v(4,-3), 25 speed2, one map turn faster (136 to 135). The race has six finishers
-# and one crash: p6 wins on its 147th move, p8, p1 and p2 follow on their 148th, 149th and 150th and p3 and p4 on
-# their 152nd, p7 crashes on its 54th move (turn 431), and p5 is the car still running at the end, after 151 moves
-# (1,103 turns). With the override off in top-level decisions only, a twin scratch build races the same race through
-# turn 84 and plays S at turn 85.
+# the override switches it to SE, v(4,-3), 25 speed2, one map turn faster (136 to 135). With the override off in
+# top-level decisions only, a twin scratch build races the same race through turn 84 and plays S at turn 85.
+# Round 348 (in a small group the chooser's equal forecasts go to the larger margin) moves this race from turn 203 on
+# (p3's 26th move), after the decision, which stands and was shown again on round 348's code (2026-11-22): a print build
+# of the promoted round races the promoted jar's race and prints the switch at turn 85, S to SE with three rivals ahead,
+# 136 to 135 map turns, and its twin, the override off in top-level decisions only, races that race through turn 84 and
+# plays S at turn 85. The summary and the digest below are the new race's: six finishers and one crash, p6 wins on its
+# 147th move, p8, p1 and p4 follow on their 148th, 149th and 150th, p5 is fifth on its 151st and p2 sixth on its 153rd,
+# p7 crashes on its 54th move (turn 431), and p3 is the car still running at the end, after 152 moves (1,104 turns).
+# Before round 348 p2 was fourth on its 150th, p3 and p4 fifth and sixth on their 152nd, and p5 the car still running at
+# the end, after 151 moves (1,103 turns).
 THREE_AHEAD_SPECIMEN = decision_specimen.Specimen(
-    "lemans", 1, (6, 1, [147, 148, 149, 150, 152, 152]),
-    "37f5048d64f5df2f3d99429166d88a2ee4f5ce869e83c5a5b0cde9bac98dd5f6",
+    "lemans", 1, (6, 1, [147, 148, 149, 150, 151, 153]),
+    "d3eacd3083b8b2325332a08823c561b47382541b4d599508b51010d2e6121a4e",
     "85 p5 AI SE v(3,-4)→(4,-3) (37,17)→(41,14) ok",
 )
 # Coil s6: at turn 2 p2 makes its first move, from rest on the grid at (82,48), with five rivals ahead by track
@@ -496,7 +524,19 @@ def main() -> int:
             # and p8 is the car still running at the end, after 125 moves (741 moves, the ceiling). The other nine
             # cases, Silverstone 18 and Hungaroring 25 (on this list before) among them, finish seven cars with no
             # crash and take the (7, 0) default, each at its ceiling.
-            SAFETY = {("lemans", 11): (6, 1), ("silverstone", 15): (6, 1), ("hungaroring", 10): (6, 1)}
+            # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger
+            # margin). Le Mans 3 loses a car and joins this list, and Le Mans 11 loses a second -- recorded, not vetoed
+            # (AGENTS.md). Le Mans 3: p7 crashes on its 37th move, at turn 295, NW from (85,166) at v(0,5) to (84,170)
+            # at v(-1,4); p5, p8, p1, p3, p2 and p4 finish first to sixth (the list is under EXACT_MOVES), and p6 is the
+            # car still running at the end, after 71 moves (418 moves, the ceiling). Le Mans 11: p8 still crashes on its
+            # 7th move, at turn 56, and p5, third home on its 68th before, crashes on its 37th, at turn 264, from the
+            # cell and at the velocity of Le Mans 3's crash; p3, p6, p7, p2 and p1 finish first to fifth on their 67th
+            # to 71st, and p4 is still the car running at the end, after 70 moves (345 moves, the ceiling). Spa 11 keeps
+            # every car in a faster race (565 moves, the ceiling; 575 before). Hungaroring 4 and 25, Interlagos 3 and
+            # Silverstone 18 keep their finish lists on new trajectories, each at its ceiling; Spa 4, Silverstone 15,
+            # Coil 18 and Hungaroring 8 and 10 are round 347's races byte for byte.
+            SAFETY = {("lemans", 3): (6, 1), ("lemans", 11): (5, 2), ("silverstone", 15): (6, 1),
+                      ("hungaroring", 10): (6, 1)}
             finishes, crashes, finish_moves = result
             if (finishes, crashes) != SAFETY.get((track, seed), (7, 0)):
                 raise SystemExit(

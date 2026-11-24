@@ -72,7 +72,7 @@
       "track": "lemans",
       "seed": 4,
       "players": 8,
-      "sha256": "82f085b99c3bc62adbb85a8212709ea801e0897f052cb644fb22a3011c0fd8fc",
+      "sha256": "654d843f6e5629c5df15356e2ea713c63f4a54e9d005fce9f78f7cd823db9d47",
       "summary": {
         "turns": 1188,
         "finishes": 7,
@@ -110,16 +110,16 @@
       "track": "monaco",
       "seed": 9,
       "players": 4,
-      "sha256": "c9dd8cd871b9ac126188f22ec1630b3559d0ed0087111cb9ab997ee861e209a0",
+      "sha256": "ddad9d38719b0527c566ac39796c2cdff1d36c3dc5809a4c77dff0858c94747f",
       "summary": {
-        "turns": 541,
+        "turns": 544,
         "finishes": 3,
         "crashes": 0,
         "results": [
           "A",
+          "B",
           "C",
-          "D",
-          "B"
+          "D"
         ]
       }
     },
@@ -128,7 +128,7 @@
       "track": "monaco",
       "seed": 16,
       "players": 8,
-      "sha256": "a9d5394947f912e57bd892c6105b065bbce76e97cb3254f8a62a4f0f0a914bf3",
+      "sha256": "c1d52a089b1f330424d6e4e959ad1d9fef57b8cd59484fc56f044c1597a4b9ba",
       "summary": {
         "turns": 1103,
         "finishes": 7,
@@ -150,7 +150,7 @@
       "track": "nurburgring",
       "seed": 19,
       "players": 8,
-      "sha256": "18909dcc0bda0909d7e7f5ef5b373c6e13ba6275b7be45403c7cd2e276d3af25",
+      "sha256": "41bdaf0fdce62a8da5c20f8100870071a378c7cc66ac139f41a664fc79511ea5",
       "summary": {
         "turns": 1118,
         "finishes": 7,
@@ -172,7 +172,7 @@
       "track": "interlagos",
       "seed": 10,
       "players": 8,
-      "sha256": "b387c6421147a4a234807092db35b426340fe4368c72c246e1300928a75200ac",
+      "sha256": "3f30078206b0be3edecfce65bf08aa5655f29b39d87993ae76745bec783338e1",
       "summary": {
         "turns": 989,
         "finishes": 7,
@@ -238,14 +238,14 @@
       "track": "lemans",
       "seed": 1,
       "players": 4,
-      "sha256": "6e63e384f14a213b3f4a1b386b80e046bb1647e19468ef038d0e0191ffaf7d55",
+      "sha256": "915416b3af7c133a052463458cf796b19957f3dc07ac251dbbcfadb19e998e7c",
       "summary": {
-        "turns": 593,
+        "turns": 589,
         "finishes": 3,
         "crashes": 0,
         "results": [
-          "B",
           "A",
+          "B",
           "D",
           "C"
         ]

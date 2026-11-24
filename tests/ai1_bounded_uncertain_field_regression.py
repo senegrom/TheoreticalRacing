@@ -60,6 +60,7 @@ PROOF_VETO = ("lemans", 87)
 # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); p8, sixth home on its 71st move before, now crashes on its 38th (move 304, into the wall at (87,167) at the bottom right of the course: on the exact solo line since its 13th, it reached (79,128) at v(2,9) on its 32nd, move 256, where its one landing that could still slow for the bend was (80,136) at v(1,8), and p7, beside it on (78,128), took that cell on move 263, its 33rd, the move before p8's; p8 went W to (80,137) at v(1,9), from where no line makes the bend, and from (86,163) at v(2,5), its 37th, every landing left the track) -- six finishers, ending the crash-free run round 333 restored. p1, p3, p5 and p6 still come home first to fourth on their 66th to 69th; p2 moves up to fifth on its 71st (seventh on its 73rd before), p4, the car still running at the end before, after 72 moves, comes home sixth on its 72nd, and p7, fifth home on its 70th before, is now the car still running at the end, after 71 moves -- recorded, not vetoed (AGENTS.md). The race parts from round 335's on move 160 (p8's 20th: it now holds v(2,4) to (47,18) rather than going S to (47,19) at v(2,5)).
 # Round 341: re-frozen from measurement (the score's rival twin plays the rival's own gate rules).
 # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); a new grid and a new race, seven finishers and no crash: p2 wins on its 66th own move, p4 is second on its 67th, p5 third on its 68th, p6 and p7 fourth and fifth on their 69th, p8 sixth on its 70th and p1 seventh on its 72nd, and p3 is the car still running at the end, after 71 moves.
+# Round 348: measured, nothing re-frozen (in a small group the chooser's equal forecasts go to the larger margin); the same seven finish in the same order on the same moves and p3 still runs at the end, after 71 moves, on a trajectory that parts from round 347's on move 214 (p6's 27th: NW from (65,71) at v(3,11) to (67,81) at v(2,10) rather than holding v(3,11) to (68,82)).
 PROMOTED = (7, 0, [66, 67, 68, 69, 69, 70, 72])
 # Round 278: re-frozen from measurement (the chooser's pick stands).
 # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -111,6 +112,10 @@ PROMOTED_ALL_MOVES = {1: 72, 2: 66, 3: 71, 4: 67, 5: 68, 6: 69, 7: 69, 8: 70}
 # s93 and s14 are new races, seven finishers and no crash each; every case is
 # re-frozen from measurement and keeps the new race's summary and complete
 # trajectory as a champion retention control.
+# Round 348 (in a small group the chooser's equal forecasts go to the larger
+# margin): s93 and s14 each lose a car -- p8 on its 32nd move and p6 on its
+# 37th -- recorded, not vetoed (AGENTS.md), and s87 keeps its summary on a new
+# trajectory; all three are re-frozen from measurement.
 RETENTION_CASES = {
     # Round 228: these three Le Mans trajectories changed; the five other
     # retention trajectories remain byte-identical.
@@ -145,7 +150,8 @@ RETENTION_CASES = {
                  # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
                  # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); finishers, crashes and every move count unchanged -- the trajectory parts from round 335's on move 127 (p7's 16th: it now goes SW to (39,6) at v(2,1) rather than S to (40,6) at v(3,1)).
                  # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the summary note above.
-                 '31311bf3fbc9a35cbc7ea2b52f9b3461ba33b737f7dd047d9dadfa2444a0a086'),
+                 # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); finishers, crashes and every move count unchanged -- the trajectory parts from round 347's on move 457 (p1's 58th: NE from (20,131) at v(-2,-5) to (19,125) at v(-1,-6) rather than E to (19,126) at v(-1,-5)).
+                 '8794ac65028034bd9323ccdfa0f6d0fd18e39510dd363d786f417a28b2cf5fd6'),
     # Round 226 (the needle tie-break): re-frozen from measurement.
     # Round 232 (the kinematic confirm): s93 loses p6/p7's race here -- the
     # perturbation this fixture's frozen geometry keeps giving back, while the
@@ -163,7 +169,8 @@ RETENTION_CASES = {
     # Round 330: re-frozen from measurement (a third rival in contact with the mover plays one stronger forecast move too); the same seven finish in the same order and no car crashes, p1 seventh home one own move faster (73 -> 72), so p6, the car still running at the end, stops on its 71st (72 before). The race parts from round 329's on move 1 (p1's 1st: it now waits on its start cell).
     # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); the same seven finish in the same order and no car crashes, p6 fifth, p8 sixth and p1 seventh home each one own move faster (70 -> 69, 71 -> 70 and 73 -> 72), so p7, the car still running at the end, stops on its 71st (72 before). p2 to p5 still come home first to fourth on their 66th to 69th. The race parts from round 335's on move 186 (p2's 24th, its checkpoint-1 landing: S to (65,71) at v(3,11) rather than SW to (64,71) at v(2,11)).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); a new grid and a new race, seven finishers and no crash: p1 wins on its 66th own move, p2 is second on its 67th, p3 third on its 68th, p4 fourth on its 69th, p5 fifth on its 70th, p6 and p7 sixth and seventh on their 71st, and p8 is the car still running at the end, after 70 moves.
-    ("lemans", 93): ((7, 0, [66, 67, 68, 69, 70, 71, 71]),
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); p8, the car still running at the end before (after 70 moves), now crashes on its 32nd move (move 256: NW from (80,130) at v(3,10) to (82,139) at v(2,9)) -- six finishers, recorded, not vetoed (AGENTS.md). p1 to p4 still come home first to fourth on their 66th to 69th; p6 and p7, sixth and seventh on their 71st before, are fifth on its 70th and sixth on its 71st, and p5, fifth home on its 70th before, is the car still running at the end, after 71 moves. The race parts from round 347's on move 196 (p4's 25th: it holds v(3,9) from (59,50) to (62,59) rather than S to (62,60) at v(3,10)).
+    ("lemans", 93): ((6, 1, [66, 67, 68, 69, 70, 71]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
                      # Round 300a: re-frozen from measurement (every live rival plays its scorer in every top-level rollout).
@@ -179,7 +186,8 @@ RETENTION_CASES = {
                      # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); finishers, crashes and every move count unchanged -- the trajectory parts from round 333's on move 1 (p1's 1st: it now goes E to (4,41) rather than waiting a move on its start cell).
                      # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
                      # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the summary note above.
-                     '6ffc5c87e3b8f586c576976046ba4abdb16b562d711d86c788ca72824f351f06'),
+                     # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the race of the summary note above.
+                     'bc22f7d3a67a0993798a24720ea45ebb01a1a940e3464f4cbcc7ed14f9ec1ab8'),
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -197,7 +205,8 @@ RETENTION_CASES = {
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); p7, fifth home on its 70th move before, is now the car still running at the end, after 72 moves (it now waits on its start cell on its 1st, move 7, rather than leaving at once), and p3, the car still running at the end before (after 71 moves), comes home seventh on its 73rd; p8 moves up to fifth on its 70th (sixth on its 71st before) and p1 to sixth on its 72nd (seventh on its 72nd before). p2, p4, p5 and p6 still come home first to fourth on their 66th to 69th -- seven finishers and no crash, the sixth and seventh home one own move later each (71 -> 72, 72 -> 73), the numbers of round 301a'; recorded, not vetoed (AGENTS.md). The race parts from round 333's on move 3 (p3's 1st: it now steps W to (4,40) rather than waiting on its start cell).
     # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them); the same seven finish in the same order and no car crashes, p3 seventh home one own move faster (73 -> 72), so p7, the car still running at the end, stops on its 71st (72 before). p2, p4, p5 and p6 still come home first to fourth on their 66th to 69th, p8 fifth on its 70th and p1 sixth on its 72nd. The race parts from round 335's on move 186 (p2's 24th, its checkpoint-1 landing: S to (65,71) at v(3,11) rather than SW to (64,71) at v(2,11)).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); a new grid and a new race, seven finishers and no crash: p2 wins on its 66th own move, p3 is second on its 67th, p6 third on its 68th, p7 and p8 fourth and fifth on their 69th, p1 sixth on its 71st and p4 seventh on its 72nd, and p5 is the car still running at the end, after 71 moves.
-    ("lemans", 14): ((7, 0, [66, 67, 68, 69, 69, 71, 72]),
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); p6, third home on its 68th move before, now crashes on its 37th (move 294: NW from (85,166) at v(0,5) to (84,170) at v(-1,4)) -- six finishers, recorded, not vetoed (AGENTS.md). p3, second on its 67th before, wins on its 67th; p7 and p8, fourth and fifth on their 69th before, are second on its 68th and third on its 69th; p2, the winner on its 66th before, is fourth on its 70th; p1 and p4 still come home on their 71st and 72nd, now fifth and sixth, and p5 is still the car running at the end, after 71 moves. The race parts from round 347's on move 203 (p3's 26th: NW from (65,71) at v(3,11) to (67,81) at v(2,10) rather than holding v(3,11) to (68,82)).
+    ("lemans", 14): ((6, 1, [67, 68, 69, 70, 71, 72]),
                      # Round 278: re-frozen from measurement (the chooser's pick stands).
                      # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
                      # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
@@ -216,7 +225,8 @@ RETENTION_CASES = {
                      # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
                      # Round 336: re-frozen from measurement (gates are ordinary landings wherever the exact potential prices them).
                      # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the race of the summary note above.
-                     '3c632ec570d832119eff4a9967d9f1b2300085adca3f29d07518e851510c6aeb'),
+                     # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the race of the summary note above.
+                     '59de0ed7420d0a80350241f445727d9e31157ded42df2370d46b168c1cdcbdc5'),
     # Spa s12, s31, s40, s47 and Silverstone s78 raced here too: the same fixture
     # geometry, profile and roster as ai1_six_ahead_high_speed_regression, which
     # pins the same races by summary and digest -- so they race once, there

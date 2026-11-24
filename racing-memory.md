@@ -1,5 +1,353 @@
 # racing-memory.md — full working state for continuing the AI campaign
 
+## Round 348 promoted (2026-11-24): in a small group the chooser's equal forecasts go to the landing that leaves the rivals further behind
+
+A racecraft rule, on measurement: it gains 0.04 to 0.05 places in four-car fields over three laps and reads within
+about 0.01 places of level in every other field measured: eight cars, duels, and every one-lap screen. The owner's
+request, 2026-11-20: "Carl asks you to improve racecraft: how the cars race each other in traffic, such as
+overtaking, defending, braking and line choice. Measure it before and after, keep CI green, and report what changed."
+It was taken as the go for one measured improvement by the round procedure, and he was told so. The readings went to
+him as they came in: the first four-car slices and the duels on 2026-11-20, which he answered with "good keep going";
+the whole table, the corpus counts, the decision to land and the bound for the one-lap screens on 2026-11-22, after
+his message of that day ("Please run the check now and carry on with the racecraft work.", sent with a move to
+another profile), which he sent again on 2026-11-23. The one-lap readings below were read on 2026-11-23 and went to
+him that day with the limit they set: no gain at one lap and fewer wins there with four cars, the landing to go ahead
+on the three-lap screens with that limit stated first, and a stop before the push if he would rather not have the
+round on those terms. His next message came on 2026-11-24, again with a move of profile: "please pick up where you
+stopped and carry on." The landing rests on the request as read here, not on an answer to those later reports. Only
+src/tr/logic/RaceAi.java changes in the engine (the browser build copies it byte for byte): 97 lines enter and 10
+leave.
+
+**The rule.** The chooser (jointChooser) forecasts its shortlisted landings and ranks them by a verdict: the mover's
+projected place first, its projected finishing round second, in whole rounds (rounds 316 and 326). Landings whose
+verdicts were equal went to the first of them in the score's order. Now, where the deciding car races a small group
+-- more than two cars live, and at most three live rivals within twenty cells (Chebyshev) of it, on the board it
+decides on -- and the call ranks by projected place (every course but a lap course over the exact potential's budget,
+the Nordschleife), landings with equal verdicts go to the one with the larger margin, and only equal margins to the
+score's order. The margin (ppMargin) is read off the same forecast at its horizon. Over every rival with a projection
+it takes how far that rival's projected finishing move lies behind the mover's in the turn order, in half rounds:
+twice the rounds between them, plus one for a rival in a later slot than the mover and minus one for a rival in an
+earlier slot, as the place key orders two cars in one round. So a rival's share is odd: 1 for a rival less than a
+round behind the mover, 3 for one to two rounds behind, -1 and -3 likewise for a rival ahead. Each share is clipped
+to five either way (two rounds or more count alike) and the shares are summed. More is better for the mover: a rival
+behind it is further behind, a rival ahead of it less far ahead. A forecast that ends with the mover finished or
+doomed has margin 0, and so has one that ends by a classification which a rival's forecast crash reopens: that one is
+ranked as at a horizon since round 316 and can share a horizon forecast's verdict, its 0 against a sum; it needs
+every rival that did not crash to finish inside the forecast, and the arm was measured so. Place first and time
+second are untouched (the rank-first rule): the margin orders exact ties only. Every chooser call follows the rule on
+its own board, nested ones too, so a forecast plays each car by the rule that car races by. Two live cars keep round
+314's re-roll. After the chooser the round-34 pace swap still takes a pace landing that the window held and that ties
+the pick's verdict, when it is faster by map turns (round 301a'), whatever the margins; a pace landing the chooser
+added itself is forecast last and can now take an exact tie on its margin, where it needed a strictly better verdict
+before. Constants AI1_MARGIN_NEAR = 3, AI1_MARGIN_RADIUS = 20 and AI1_MARGIN_CLIP = 5, the field placeMargin beside
+placeKey; the branch-and-bound prunes only landings strictly worse than the incumbent, so a tied landing is always
+forecast in full, and check mode's twin loop orders ties by the same rule.
+
+**Where it came from: the forecast census (2026-11-18 to 20).** A print-only scratch build of round 347's code
+(fc347, jar 9fa91aff, -Dai.fc.top=true) printed, for every top-level chooser call, the verdicts of its landings and
+the forecast of its pick, and a reader held each forecast against the race that followed. 84 courses, seeds 1-2,
+three laps: 168 races each with 8 cars on random starts, 8 cars on computed starts, 4 cars and duels; all 672 are the
+champion's races by digest.
+
+- Forecasts are faithful, and their misses are spread thin. Exact after 1, 3, 6 and 12 whole rounds: 89, 76, 69 and
+  59% with 8 cars on random starts, 89, 78, 71 and 62% on computed starts, 97, 92, 88 and 82% with 4 cars, 99, 98, 97
+  and 94% in duels. Of the 120,337 eight-car forecasts on random starts that diverge inside twelve rounds, the first
+  simulated move that differs from the race is a rival's scorer move in 38%, a full-policy move of a rival that is
+  not the relevant one or in contact in 32%, the mover's own full-policy continuation in 9% (its scorer moves in 1%
+  more), the relevant rival's in 8%, the second rival's in 6% and the third's in 5%. No single model carries the
+  error.
+- Most chooser calls end in an exact tie. Two or more landings share the best live verdict in 75% of the calls with
+  eight live cars on random starts (222,815 of 295,693; 76% on computed starts), in 76% with four live cars in
+  four-car fields (114,634 of 149,941) and in 78% of the duels' calls; outside duels the pick was the first tied
+  landing in score order every time.
+- How long a forecast holds depends on how many rivals are near. By the live rivals within twenty cells of the
+  deciding car, the share of forecasts that do not diverge in their twelve rounds (or before the race ends):
+
+| Live rivals within 20 cells | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
+|---|---|---|---|---|---|---|---|
+| 8 cars, random starts: share of chooser calls | 1.5% | 4.2% | 7.4% | 9.1% | 11.0% | 13.7% | 53.1% |
+| 8 cars, random starts: forecasts that hold | 86.9% | 83.7% | 80.9% | 76.2% | 71.4% | 63.1% | 49.4% |
+| 8 cars, computed starts: forecasts that hold | 88.8% | 83.5% | 80.7% | 77.3% | 73.9% | 65.8% | 52.7% |
+| 4 cars: share of chooser calls | 4.4% | 12.4% | 83.1% | | | | |
+| 4 cars: forecasts that hold | 96.4% | 93.5% | 80.2% | | | | |
+
+**The arms.** Arm 374 (E:/tmp-claude/arm374_margin.py, jar a374 66fa9a28) gave a candidate the margin in every
+decision with more than two live cars. Arm 375 (E:/tmp-claude/arm375_margin.py with AR375_MAXNEAR=3, jar a375
+058c84ed) is the promoted rule: the same, only where at most three live rivals are within twenty cells. The bound of
+three is the four-car field's own count, set from the census before arm 375's screens; no other value was screened.
+Both against the round-347 champion over three laps (the screens' standard profile), in mirrored screens and, in two
+rows, the lone-candidate check; errors corrected for repeated races (boards favouring candidate / champion / tied;
+crashes candidate:champion):
+
+| Slice | Arm 374 (every decision) | Arm 375 (at most three rivals near; promoted) |
+|---|---|---|
+| 4 cars, random starts, seeds 1-20 | -0.039 +- 0.011 (38/38/8; 17:14) | -0.039 +- 0.011 (38/38/8; 17:14), the same 3,360 races byte for byte (the sha256 of every race log) |
+| 4 cars, random starts, held-out seeds 21-40 | | -0.051 +- 0.011 (43/33/8; 15:16) |
+| 4 cars, computed starts, seeds 1-20 | | -0.054 +- 0.012 (40/28/16; 14:34; 1,539 of 1,680 distinct) |
+| Lone candidate, 4 cars, every seat, seeds 1-10 | | -0.029 +- 0.010 (41/30/13; 4:4; lone mean 2.471 against 2.500) |
+| 8 cars, random starts, seeds 1-10 | +0.100 +- 0.028 (34/46/4; 67:79) | -0.001 +- 0.004 (14/16/54; 32:33) |
+| 8 cars, computed starts, seeds 1-10 | +0.078 +- 0.026 (35/45/4; 68:81; 832 of 840 distinct) | -0.008 +- 0.005 (18/12/54; 46:48; 832 of 840 distinct) |
+| 8 cars, scattered starts, seeds 1-10 | -0.008 +- 0.002 (19/7/58; 9:8) | -0.009 +- 0.002 (20/4/60; 9:8) |
+| Lone candidate, 8 cars, every seat, seeds 1-5 | +0.079 +- 0.026 (29/47/8; 15:13; lone mean 4.579 against 4.500) | -0.001 +- 0.002 (10/15/59; 13:13; lone mean 4.499 against 4.500) |
+| Duels, random starts, seeds 1-20 | +0.000 +- 0.000 (0/0/84; 230:230; 1,615 of 1,680 distinct) | +0.000 +- 0.000 (0/0/84; 230:230; 1,615 of 1,680 distinct) |
+
+- The gain is a four-car gain, and it is made behind the winner: fourth places become seconds. The three four-car
+  slices read -0.039, -0.051 and -0.054, and a lone candidate among three champions gains 0.029 +- 0.010. The
+  candidates win no more races (1,676:1,684, 1,676:1,684 and 1,673:1,687): against the champions in the same races
+  they finish fourth 136, 198 and 164 times less often and second 142, 162 and 224 times more often (thirds +2, +44
+  and -46; firsts -8, -8 and -14).
+- It leans on a few courses. Fractal3 gains about 1.3 places in every four-car slice and carries 0.015 or 0.016 of
+  each reading (without it: -0.024, -0.036 and -0.038; the lone check -0.019); hybrid12, hybrid6 and rand2 gain in
+  all three, and weave7 and fractal1 lose in all three (weave7 +0.300, +0.475 and +0.325; fractal1 +0.225, +0.225 and
+  +0.500); on computed starts hybrid9 (+0.600) and hybrid2 (+0.550) lose most. The boards split 38 to 38 on the first
+  slice, 43 to 33 and 40 to 28 on the other two. The table's errors take the track-seeds as the unit, as
+  head_to_head.py does. With the courses as the unit (cluster-robust; E:/tmp-claude/p349/lap_only.py, which
+  reproduces the tool's readings and boards) the three four-car readings carry errors of 0.0222, 0.0248 and 0.0295,
+  1.8 to 2.1 standard errors each: the gain repeats on these courses, on held-out seeds too, and is less settled for
+  a course outside the fleet.
+- In eight-car fields the gated rule changes few places and reads no loss: 268 of 6,720 same-seat comparisons differ
+  on random starts (131 gains, 137 losses), 257 on computed starts (140, 117), 156 on scattered starts (106, 50) and
+  38 of 3,360 as a lone entrant (20, 18). The boards lean to the champion on random starts (14/16/54) and in the lone
+  check (10/15/59), and each of those two readings turns to +0.001 with one course left out (dspiral2, the
+  Nurburgring). The races themselves do change once every car races by the rule: seven of the thirteen eight-car
+  identity races with every slot a candidate are different races from the champion's (4 of 8 on random starts, 1 of 2
+  scattered, 2 of 3 computed). Duels do not change: the rule is not asked with two live cars.
+- Why the gate. Without it the rule lost a tenth of a place in eight-car packs, at the front: on computed starts the
+  car on pole averaged place 1.58 as a candidate against 1.29 as a champion, and the candidates took 58 fewer wins
+  and 118 fewer thirds than the champions and 74 more sixths and 82 more sevenths (random starts: 66 fewer wins, 116
+  fewer thirds, 74 more sixths, 120 more sevenths). The margin counts on a delay that the forecast shows; with every
+  rival near, the forecast holds for its twelve rounds in half of the decisions. Earlier forecast-derived overrides
+  of the score's order failed in the same place: round 314's re-roll with any number of cars (+0.049), round 311's
+  wider window (+0.044), setup on aware (+0.057), the detached learning judge (+0.083).
+- What the rule does in a decision, from a print build of the arm (a375dbg, -Dai.mg.top=true; a local sample: ten
+  courses, seeds 1-2, four cars, candidates in slots 1 and 3): 158 top-level picks taken by the margin in 9,855
+  candidate moves, 147 of them the move then played (in ten the first tied landing was played after all, in one
+  another move). The pick's margin is one round better in 139 and two in 19. Between the two forecasts 175
+  projections of rivals differ: in 163 a rival behind the mover arrives later, in 7 a rival ahead arrives later, in 5
+  a rival behind arrives sooner. It is a defending rule: among lines that cost the car nothing by its own forecast,
+  it takes the one on which the car behind loses a round. The two forecasts part anywhere in their twelve rounds (a
+  second print build, a374dbg2, which also prints when they part: 64 changed projections in five four-car races of
+  seed 1, spread over rounds 1 to 12, on the same picks as a375dbg's), so the pick is a line, not a block on the next
+  move. In eight-car races (four races) a375dbg made one such pick in 2,901 candidate moves; the same print build
+  compiled without the gate (a374dbg, AR375_MAXNEAR=99) made 110 in 2,907, 89 of them with all seven rivals within
+  twenty cells.
+- CPU as the champion's: the promoted build read 1.02x in four eight-car races (one of them a different race from the
+  champion's) and 1.025x in four duels (the champion's races); in four four-car races it read 0.92x, but all four are
+  different races from the champion's, so that ratio is no cost per decision. The arm with every slot a candidate
+  read 1.00x to 1.03x in thirteen eight-car races (seven of them different races).
+
+**At one lap the gain does not show.** The screens above race three laps. The corpus pins race one lap, and so do the
+default races of the desktop and the browser (the browser's setup form starts at four drivers, one lap, computed
+starts, with one human and three AI cars; the desktop's default is two players, a field in which the rule is not
+asked), so arm 375 was screened on the pins' one-lap profile too (tracks/bench.properties, which sets no laps key):
+mirrored, against the round-347 champion, on the same 84 courses. The Nordschleife was raced by itself with slots
+kept empty, after the kernel had killed its races for memory beside another workflow's job; the first column is
+head_to_head.py's reading over both pairs of fleets (boards, crashes and wins candidate:champion). Eleven of the 84
+courses are point-to-point and race their one pass under either profile, so there these screens repeat the three-lap
+screens' races (220 of the 1,680 four-car track-seeds, 110 of the 840 eight-car ones; the same readings to the last
+digit): the one-lap evidence is the 73 lap courses. They are the second column, beside the same courses' three-lap
+readings (E:/tmp-claude/p349/lap_only.py, with head_to_head.py's unit and its correction for repeated races; in
+brackets the error with the courses as the unit, then the boards of courses):
+
+| Arm 375, one lap | All 84 courses | The 73 lap courses | The same 73 at three laps |
+|---|---|---|---|
+| 4 cars, random starts, seeds 1-20 | -0.010 +- 0.011 (39/41/4; crashes 13:13; wins 1,656:1,704) | -0.008 +- 0.011 (0.015; 33/36/4) | -0.041 +- 0.012 (0.025; 32/33/8) |
+| 4 cars, computed starts, seeds 1-20 | -0.005 +- 0.011 (35/33/16; crashes 3:20; wins 1,631:1,729; 1,539 of 1,680 distinct) | +0.002 +- 0.011 (0.022; 30/30/13; 1,334 of 1,460 distinct) | -0.054 +- 0.013 (0.033; 35/25/13) |
+| 8 cars, random starts, seeds 1-10 | +0.004 +- 0.003 (8/14/62; crashes 24:24; wins 838:842) | +0.005 +- 0.003 (0.003; 7/13/53) | -0.001 +- 0.004 (0.005; 13/15/45) |
+
+- None of the three screens' readings is a loss by the bound written down for the 83-course screens before the
+  results came in (a place reading worse than two standard errors, or candidate crashes above the champions' by more
+  than twice the root of their sum; with the Nordschleife they pass it too, and so do the lap courses' readings), and
+  none is a gain in places. The measured gain is a gain of four-car races over three laps.
+- With four cars at one lap the candidates take more seconds, from both sides: fewer wins, and fewer thirds and
+  fourths. On the 73 lap courses, against the champions in the same races, they take 118 fewer firsts, 196 more
+  seconds, 48 fewer thirds and 30 fewer fourths on computed starts, and 58 fewer firsts, 116 more seconds, 10 fewer
+  thirds and 48 fewer fourths on random starts (three laps on the same courses: 34 and 18 fewer firsts). On computed
+  starts, on those courses, the car on pole averages place 1.229 as a candidate against 1.158 as a champion (three
+  laps: 1.245 against 1.224), seats two and three gain (2.029 against 2.060, 2.928 against 2.996) and seat four loses
+  (3.817 against 3.783). On those courses the difference in wins is -118 +- 30 on computed starts (+- 70 with the
+  courses as the unit) and -58 +- 22 on random starts (+- 41; lap_only.py, corrected for repeated races): beyond two
+  standard errors by the track-seeds' error on both starts, within two by the courses'. The eleven point-to-point
+  courses, the same races at either setting, add 20 and 10 firsts to the candidates' side.
+- The eight-car reading leans to the champion without reaching the bound (same-seat comparisons: 60 gains, 76 losses
+  of 6,720). Every one of its 24 crashes is the same car on the same turn in both halves, a candidate in one and a
+  champion in the other (E:/tmp-claude/p349/crash_by_track.py).
+- Le Mans, where the pinned crashes are, reads -0.275 with four cars on random starts and level in the other two
+  screens. The Nordschleife by itself, where one lap fits the exact potential's budget and the rule is asked: +0.075
+  +- 0.075 with eight cars (10 track-seeds), -0.125 +- 0.050 with four on random starts and +0.000 +- 0.037 on
+  computed starts (20 each).
+
+**The promotion** (E:/tmp-claude/p349/promote348.py). The arm asked candidate(playerNum) at one place, the chooser's
+gate; the promoted code is the arm's without it, with the arm's own count of the rivals near replaced by the existing
+countRivalsWithinCheb (the same cars, the same distance) and its other options (AR375_MAXLIVE, AR375_WHO and
+AR375_DUEL, at their defaults in arm 375) left out. The promoted round as first built (jar p348t 05d5b143) races
+exactly as the arm with every slot a candidate: 8 cars on random (9 races), computed (6) and scattered (4) starts, 4
+cars on random (5) and computed (3) starts, and duels on random (6) and computed (3) starts; its check mode printed
+no PERF-AWARE line (8 cars, 4 cars with the Nordschleife, duels: two races each). The arm raced exactly as the
+champion with no candidate (25 races in seven sets), and its check mode with every slot a candidate printed none
+either. The code review then changed comments and gave the count's radius a constant of its own (AI1_MARGIN_RADIUS =
+20, where the arm read AI1_CHOOSER_MAXDIST, the owner's rule constant of the same value). The final jar (p348f
+ecf91e2b) therefore differs from the first build in line tables and in that constant's declaration: javap shows the
+code of every method identical and one constant added, and against the champion's classes only RaceAi's code differs
+(four of its nested classes differ in line tables alone). On the box the first build and the final jar raced
+identically (10 races: three with eight cars, three with four on random starts, two with four on computed starts, two
+duels); the arm with every slot a candidate raced exactly as the final jar in check mode on two eight-car races that
+the rule changes (Monaco s1 and rand4 s1, both different from the champion's), and that check mode printed no
+PERF-AWARE line. Last, the one-lap readings went into jointChooser's note of readings, on the same eleven lines: the
+jar built from that tree is the same file byte for byte (ecf91e2b), the box verify, the Java suite and the browser
+build below were run on that tree, and the identity races, which are the jar's, were run again with it and read the
+same.
+
+**A unit test of the measure.** OwnerRuleTests.testMargin calls ppMargin on the two forecasts of the decision
+specimen below (-23 and -21) and on boards that tell its parts apart: the slot offset in the mover's round and beyond
+it, half rounds, the clip either way, a finished rival, one never projected, the mover's own entry, and the sum.
+Twelve wrong versions of the measure (E:/tmp-claude/p349/mut348.py: no clip, a clip of four, of six, no lower clip,
+the slot order reversed, no slot term, whole rounds, a finished rival counted, an unprojected one counted, the mover
+counted, the last rival only, the sign reversed) each fail it. It tests the measure, not the gate: that the rule is
+asked only in a small group and only on equal verdicts rests on the code review, the screens (duels unchanged,
+eight-car fields nearly so) and the print builds.
+
+**The field with every car on the rule** (the first build, three laps, against the champion's all-field fleet of
+round 347; field totals describe and never veto). The kernel killed the Nordschleife's races in every slice for
+memory, and two more courses on scattered starts (dspiral2, fractal23), so the totals compare the lap courses raced
+(the fleet tool totals no point-to-point course; the counts of differing races below include the eleven). At three
+laps the Nordschleife says nothing about the rule: its exact potential is over budget, the call does not rank by
+projected place and the rule is not asked, and in the four of arm 375's screens that the champion's fleet also raced
+(eight cars on random, computed and scattered starts, four cars on random starts) its 50 races with the candidates in
+the odd slots are the champion's fleet races byte for byte, and the 50 with them in the even slots but for the line
+that names the slots. Eight cars on random starts, 720 races: 30 crashes against the champion field's 29, and
+1,685,215 moves against 1,685,111. Computed starts, 720 races: 43 against 41, and 1,679,980 against 1,680,215.
+Scattered starts, 700 races: 6 against 5, and 1,290,230 against 1,290,098. Four cars on random starts, 1,440 races: 4
+against 4, and 1,679,938 against 1,679,151. The races themselves are other races: 556 of the 830 logged with eight
+cars on random starts differ from the champion's field race, 552 of 830 on computed starts, 482 of 810 on scattered
+starts and 1,650 of 1,660 with four cars.
+
+**A decision specimen, and a pin of its own.** Zandvoort s1 on the live track, eight AI2 cars, one lap: at turn 390
+p6, on its 49th move, stands at (82,75) with v(9,1) and three live rivals within twenty cells (p8 beside it on
+(83,75), p7 on (89,76), p4 on (100,76)). Two landings carry the same verdict, six rivals projected to finish before
+it and its own finish projected in round 89: NONE, to (91,76) at v(9,1), first by the score (88.67 against 88.69),
+and W, to (90,76) at v(8,1). In NONE's forecast p8, the one car projected behind p6, finishes in round 89 too; in W's
+it finishes in round 90. The margins are -23 and -21, and p6 takes W: it lifts where it would have held its speed,
+and the car behind loses a round in the forecast. A print build of the final source (ctf348f, jar 433698a9:
+E:/tmp-claude/p349/ctf348f.py) races the final jar's race and prints that decision, the only top-level margin pick of
+the race; its twin, the margin off in top-level decisions only (forecasts keep it), races the same race through turn
+389 and plays NONE at turn 390. The final jar's race, the twin's and the champion's all end in the same
+classification on the same own moves, seven finishers and no crash: the specimen shows that the rule acts, not that
+it pays. The final jar's race parts from the champion's at turn 360, through forecasts, before that pick. The new pin
+tests/ai1_margin_regression.py holds the race's summary, its digest and the decision's line
+(tests/test_decision_specimen.py lists it), so the corpus has 26 pins. A scan for specimens with the print build of
+the round as first built (ctf348b, jar 0fb40074; 14 courses, seeds 1-3, the pins' one-lap profile with eight AI2 cars
+on the live tracks) found a top-level margin pick in 7 of 42 races, 15 picks in all: in an eight-car one-lap race the
+gate is mostly shut. The scan's courses do not include Le Mans, whose s1 race on the live track has eight top-level
+picks by itself. A second specimen, Le Mans s1 at turn 211 (p3 lifts NW where the score put SE first, margins -27 and
+-25; print build and twin as above), lies in the race of the staged-pace pin's specimen and is not pinned, so that no
+race is raced twice and the two specimens do not fall together. There the twin, which plays SE, ends with seven
+finishers and no crash (1,206 moves), where the final jar's race and the champion's both have six finishers and p7's
+crash: one race, in which the rule's pick does not pay.
+
+**Corpus on the box** (the first-built jar; job 0397b3y_corpus348, and the champion's races of the moved pins raced
+again for the notes):
+
+- Goldens: 6 of 12 re-frozen. Four eight-car races keep their turns, finishers and classification on a new trajectory
+  (Le Mans s4, Monaco s16, Nurburgring s19, Interlagos s10); the two four-car races change their order: Monaco s9
+  (541 to 544 turns; A, C, D, B becomes A, B, C, D) and Le Mans s1 (593 to 589 turns; B, A, D, C becomes A, B, D, C).
+  No golden gains or loses a car. Hairpin s1 with two cars still runs 31 turns (the browser's golden), and the
+  browser parity duel keeps its digest (742028dc).
+- Pins: 7 of 25 failed the probe and 18 pass. The 25 race 78 races, and 28 of them change (held against round 347's
+  probe of every pin and, for the ten pins concerned, the champion's final jar): 17 keep the summary their pin or the
+  probe records on a new trajectory, five keep every car with new finishing moves or a new order, and six lose a car.
+  Five of the 28 are in three pins that pass: equal-speed veto's Zandvoort s115 and pace's Monaco s1 and Le Mans s12,
+  each with the same classification on the same moves, and vmax deep's Serpentine2 s6 and s35, whose classifications
+  change (the pin holds crash counts, which stand; it gains a note with the new orders). The box loop re-froze three
+  pins: energy pace (Nurburgring s1's finisher moves), private slack (five trajectory digests, every summary
+  unchanged) and six-ahead high speed (Spa s12's summary and digest); the loop writes one bare note a file, so each
+  of those values got its note by hand, and Zandvoort s44 in energy pace and Le Mans s29 in bounded uncertain field,
+  which changed while their pinned values held, got one too. Four pins were re-frozen by hand, each value from the
+  probe's record and each note from the two races' logs (E:/tmp-claude/p349/corpus348.py, pin_diff.py). Bounded
+  uncertain field: Le Mans s93 and s14 lose a car each (p8 on its 32nd move, p6 on its 37th), s87 keeps its summary
+  on a new trajectory, and s29 keeps every pinned value. Fast funnel: Le Mans s36 loses p8 (AI2) on its 37th move,
+  and s45 keeps its totals. Mixed safety: Le Mans s7 loses p4 (AI1) on its 34th move, on the cells where p7 crashes
+  in the champion's race and in this one; the pin's crash check names both. Staged pace: Le Mans s3 loses p7 on its
+  37th move and Le Mans s11 loses p5 on its 37th beside p8 on its 7th; Spa s11 keeps every car in a faster race (575
+  to 565 finisher moves).
+- The staged-pace pin's three-ahead specimen. Its race, Le Mans s1 on the live track, changes from turn 203 on, after
+  its decision at turn 85. By the specimen rule it was not re-frozen from measurement: the print build and the twin
+  of the final source (ctf348f) show the staged override's switch again at turn 85, S to SE with three rivals ahead,
+  in the final jar's race, and the specimen takes that race's summary and digest. The pin's count of the override's
+  real switches in its thirteen races, six on round 346's code, is eight on round 348's (counted by a print build of
+  the round as first built, ctf348, jar f74d6152), none in either of its two classes.
+- The Le Mans crashes. Six of the 28 changed races gain a crash and none loses one, and all six are one-lap eight-car
+  races on the frozen Le Mans geometry; the eleven such races the corpus holds all change. Five of the eleven part
+  from the champion's race at one board: a car at (65,71) with v(3,11) keeps that speed in the champion's race and
+  lifts to v(2,10) in the new one (s29, s14, s7, s3 and s11); s93 and s36 part two and three moves earlier on the
+  same run, where a car that accelerates in the champion's race holds its speed or sheds some. The six crashes come
+  seven to thirteen rounds after those moves: four on one move, NW from (85,166) at v(0,5) (s14, s36, s3 and s11),
+  one from (81,147), where the champion's race loses a car too (s7), and one from (80,130) (s93). In the three races
+  looked at with a detail print build (p348dbg, jar f54e378a: arm 375 with its candidate gate removed and the prints
+  added, whose races are the final jar's by digest; Le Mans s7 on the frozen geometry, Le Mans s1 and Zandvoort s1 on
+  the live tracks) the race parts from the champion's before its first top-level margin pick, at move 213 against
+  218, 203 against 211 and 360 against 390: the first changed move comes from forecasts, in which every car now races
+  by the rule. The lift is not Le Mans's alone: two pinned races on the frozen Zandvoort geometry (equal-speed veto's
+  s115 and private slack's s34) part from the champion's at one board, (124,70) at v(8,-3), where the champion's car
+  holds its speed and the new one lifts to v(7,-3); neither gains a crash. Recorded, not vetoed: these are fields
+  made entirely of the rule's cars, on one course's frozen geometry. In the mirrored eight-car one-lap screen on the
+  live tracks (above), with half the field on the rule, no crash is added, on Le Mans either: its two crashes there,
+  s1's p7 at turn 431 and s6's p4 at turn 300, happen in both halves. No fleet of one-lap fields with every car on
+  the rule was raced against the champion's on the live tracks; such fields are here only the pin races off the
+  frozen courses, the specimen races and the specimen scan.
+
+**Checks.** Box verify on the final tree with the final jar: 32 of 32 pass (every pin with its specimen races, the
+goldens, headless smoke, query replay, lap progress, compileall and the Python unit tests under timeout). On the box
+too, because this PC was short of memory: the Java suite on the final tree (run_tests.sh under JDK 25.0.4.1: exit 0,
+ten programs, 14 OK lines, OwnerRuleTests' with the margin among them) and the browser engine's build and tests (the
+strict --release 17 compile, the engine identity record, BrowserTests, StartupTests and PlayerOrderTests; RaceAi.java
+is copied byte for byte). The icons, the page files and the site seal were left to CI.
+
+**Reviews.** An independent code review (2026-11-22) found no behavioural defect: the promoted code is the arm with
+every slot a candidate, the margin of a forecast that dies is never read, the branch-and-bound keeps every tie, the
+move memos stay exact, and the margin cannot override place or time. Its seven lesser findings and its notes but one
+were taken up. The comments now name the reopened classification's margin of 0, what the pace swap still does with an
+exact tie, and the odd shares; the gate's radius has its own constant; the corpus record counts every changed race
+(the review found the five in pins that pass); every re-frozen value has its note; the print builds' outputs are
+kept; and the final verify adds eight-car check-mode races that the rule changes. One note was not taken: merging two
+consecutive tests of one condition in simOutcomeCore would have changed bytecode after the identity runs. An
+independent text review (2026-11-22) recomputed the numbers of this entry and of the commit message from the raw
+files and found them to reproduce; its fifteen findings were taken up, among them a wrong count (the Java suite has
+ten programs, not fourteen) and an overclaim (which of the owner's messages answered which report). A second reader
+(2026-11-23) checked what was written after it, the one-lap screens, the fleet, the final identity and the comment's
+readings: the numbers reproduce, and its thirteen findings were taken up. The weightiest: eleven of the 84 courses
+are point-to-point and race the same pass under either profile, so the one-lap evidence is the 73 lap courses, whose
+readings were then computed; the fleet's totals count lap courses only; the comment's one-lap sentence stood where it
+made arm 374's readings look like one-lap ones, and moved to the end; and the error by courses was quoted for an
+unfavourable figure only, so it now stands beside the gain too. The same reader checked the answers twice more: three
+corrections the first time (the win difference's errors belonged to another set of courses than the counts beside
+them, one sentence was too absolute, one rounding in the commit message) and four small points the second, all made;
+in between, the lap courses' errors became the ones corrected for repeated races. The note of readings in
+jointChooser was written three times in this, each time on the same eleven lines: the jar stayed the same file, and
+the checks above were run on the last tree.
+
+**Limits.** The bound of three, the radius of twenty and the clip of five were not tuned. The measure counts every
+rival with a projection, near or far. The gain is a gain of four-car fields; in eight-car fields the screens show no
+loss and next to no change of places, though the races themselves change. The screens race three laps on 73 lap
+courses and one pass on 11 point-to-point courses; at one lap, the default race length of the desktop and the
+browser, the gain does not show, and the one-lap screens have neither held-out seeds nor scattered starts, eight cars
+on computed starts, duels, a lone-candidate check or a field with every car on the rule. A human rival counts as a
+rival near; no race with a human was measured.
+
+**In flight, each needing its own go.** The margin in duels (arm 377: arm 375, and with two live cars the margin
+orders the landings that round 314's re-roll leaves tied and takes the ties of nested two-car chooser calls, which
+have no re-roll; E:/tmp-claude/arm375_margin.py with AR375_DUEL=1, jar a377 4de48f5a) against the round-347 champion:
+-0.021 +- 0.005 on random starts (seeds 1-20; 10/4/70; crashes 260:149; 1,615 of 1,680 distinct), -0.026 +- 0.005
+held-out (21-40; 10/5/69; 268:167; 1,658 distinct) and -0.035 +- 0.005 computed (1-20; 8/3/73; 255:148; 1,295
+distinct); spiral carries about 0.010 of each. The margin instead of the re-roll (arm 378) read -0.018 +- 0.005 on
+random starts (9/10/65; 217:147; 1,615 distinct): no better, so the re-roll stays. The margin to the two nearest
+rivals only -- the nearest ahead of the mover and the nearest behind it by projected round -- with no distance gate
+(arm 379, AR375_MAXNEAR=99 AR375_WHO=1, jar a379 bbf1ea31) read -0.064 +- 0.023 in eight-car fields on random starts
+(seeds 1-10; 44/37/3; 52:63), where arm 374's sum over every rival lost 0.100, and its replications came in on
+2026-11-23: -0.072 +- 0.024 on held-out seeds (11-20; 47/31/6; 54:62; wins 869:811), -0.057 +- 0.022 on computed
+starts (1-10; 38/43/3; 70:68; wins 871:809; 832 of 840 distinct) and -0.028 +- 0.019 as a lone entrant among seven
+champions (seeds 1-5; 47/31/6; 11:13). Four-car fields, duels, scattered starts and one lap are not screened for it.
+
 ## Round 347 promoted (2026-11-18): the finish-denial certificate and five legs that changed no measured race leave the code
 
 A deletion, on measurement. The owner, 2026-11-17, on the four calls open after the search for decision specimens and

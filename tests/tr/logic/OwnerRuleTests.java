@@ -17,14 +17,16 @@ public final class OwnerRuleTests {
 
     public static void main(final String[] args) throws Exception {
         testRankVerdict();
+        testMargin();
         testSoloBoundary();
         testPointToPointSolo();
         testFinishingMove();
         testLappedRival();
         testCheckpointMemoKeys();
         testGridRule();
-        System.out.println("OwnerRuleTests: rank-first verdicts, the 20-cell single-player boundary in lap and"
-                + " point-to-point races, finishing crossings, lapped rivals, checkpoint memo keys and the grid rule OK");
+        System.out.println("OwnerRuleTests: rank-first verdicts, the margin of equal verdicts, the 20-cell"
+                + " single-player boundary in lap and point-to-point races, finishing crossings, lapped rivals,"
+                + " checkpoint memo keys and the grid rule OK");
     }
 
     /** Round 279 (round 275): a point-to-point course builds no exact potential,
@@ -216,6 +218,43 @@ public final class OwnerRuleTests {
         check(RaceAi.rankVerdict(3, Integer.MAX_VALUE) == Integer.MAX_VALUE, "an unreachable verdict overflowed");
         check(RaceAi.rankVerdict(7, s + 5) == 8 * s - 1, "time spilled into the place digit");
         check(RaceAi.rankVerdict(2, 41) % s == 41, "the time part of a verdict is lost");
+    }
+
+    /** Round 348: the margin that orders a chooser's equal verdicts (RaceAi.ppMargin). Over every rival with a
+     *  projection, how far its projected finishing move lies behind the mover's in the turn order, in half rounds:
+     *  twice the rounds between them, plus one for a rival in a later slot and minus one for one in an earlier slot,
+     *  so 1 for a rival less than a round behind and 3 for one to two rounds behind; each share clipped to five
+     *  either way, summed. A finished rival, one never projected and the mover's own entry have no share. The
+     *  first two boards are the two forecasts of the decision specimen in tests/ai1_margin_regression.py. */
+    private static void testMargin() throws Exception {
+        final Method margin = RaceAi.class.getDeclaredMethod("ppMargin", int.class, long.class, int[].class);
+        margin.setAccessible(true);
+        final int none = Integer.MAX_VALUE, done = Integer.MIN_VALUE; // RaceAi.PP_UNDEF and PP_DONE
+        check((long) margin.invoke(null, 5, 89L, new int[]{87, 86, 87, 88, 87, none, 88, 89}) == -23,
+                "the specimen's first landing does not have margin -23");
+        check((long) margin.invoke(null, 5, 89L, new int[]{87, 86, 87, 88, 87, none, 88, 90}) == -21,
+                "the specimen's pick does not have margin -21");
+        check((long) margin.invoke(null, 0, 50L, new int[]{none, 50}) == 1
+                && (long) margin.invoke(null, 1, 50L, new int[]{50, none}) == -1,
+                "a rival in the mover's round is not half a round behind or ahead of it by its slot");
+        check((long) margin.invoke(null, 1, 50L, new int[]{51, none}) == 1
+                && (long) margin.invoke(null, 0, 50L, new int[]{none, 49}) == -1,
+                "a rival in the next round and an earlier slot, or in the round before and a later slot, is not"
+                        + " half a round away");
+        check((long) margin.invoke(null, 0, 50L, new int[]{none, 51}) == 3
+                && (long) margin.invoke(null, 1, 50L, new int[]{49, none}) == -3,
+                "a rival more than a round away is not three half rounds away");
+        check((long) margin.invoke(null, 0, 50L, new int[]{none, 52}) == 5
+                && (long) margin.invoke(null, 0, 50L, new int[]{none, 53}) == 5
+                && (long) margin.invoke(null, 0, 50L, new int[]{none, 90}) == 5
+                && (long) margin.invoke(null, 1, 50L, new int[]{48, none}) == -5
+                && (long) margin.invoke(null, 1, 50L, new int[]{47, none}) == -5
+                && (long) margin.invoke(null, 1, 50L, new int[]{3, none}) == -5,
+                "one rival's share is not clipped to five half rounds either way");
+        check((long) margin.invoke(null, 1, 50L, new int[]{done, none, none, done}) == 0,
+                "a finished rival or one never projected has a share");
+        check((long) margin.invoke(null, 1, 50L, new int[]{52, 7, 49, done, 50, none}) == 3,
+                "the shares of the rivals with a projection are not summed, or the mover's own entry counts");
     }
 
     /** No live rival within AI1_CHOOSER_MAXDIST (20) Chebyshev cells: the exact

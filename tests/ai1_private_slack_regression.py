@@ -245,7 +245,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy); the same classification as before, a different trajectory from p5's 44th move at turn 349: every car finishes in the same place on the same own move and p7 is still the car running at the end, after 71 moves.
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the new race of VETO_CASES above: seven finishers and no crash, p1 to p7 home in number order on their 66th to 72nd own moves, p8 the car still running at the end, after 71 moves.
-    ("lemans", 2): '208899f10462a527e5382ad776fdcd8944ac42ea7894a4319c3cdfa4af4ada8c',
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the same classification on the same own moves, a different trajectory from move 217 (p1's 28th: NE from (72,102) at v(2,10) to (75,111) at v(3,9) rather than N to (74,111) at v(2,9)).
+    ("lemans", 2): '7f511d92a3913699b9c49b617b19614281239af349fdbf00ca1b04b70727bd94',
     # Round 279: re-frozen from measurement (four rule-conformance and correctness fixes).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 292b: re-frozen from measurement (the chooser judges the pace landing it adds).
@@ -299,7 +300,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); the same classification as before, a different trajectory from p6's 9th move at turn 70: every car finishes in the same place on the same own move and p3 is still the car running at the end, after 130 moves.
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy); the same classification as before, a different trajectory from p6's 8th move at turn 62: every car finishes in the same place on the same own move and p3 is still the car running at the end, after 130 moves.
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the new race of VETO_CASES above: seven finishers and no crash, p1 home first on its 124th own move and p8 seventh on its 131st, p6 the car still running at the end, after 131 moves.
-    ("interlagos", 47): 'f9b8660665aac7a8359f0e56e46a5810d7fb7f5d9e8f8cea6975d5ebea1cf1cb',
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the same classification on the same own moves, a different trajectory from move 751 (p7's 94th: W from (100,49) at v(2,3) to (101,52) at v(1,3) rather than SW to (101,53) at v(1,4)).
+    ("interlagos", 47): '61fcc8cc79b279fb32745dc8c6f39faac36f8b7af05d3722b1e1ddfc89a9dee5',
     # Referee correction: turn 647 p5 N replaces an illegal NW finish;
     # every earlier move, race total and finishing place is unchanged.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
@@ -314,7 +316,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy); the same summary as before (round 333's race, which the box loop re-froze here without a note), a different race from p8's 3rd move at turn 24: p7 (the car still running at the end before, after 80 moves) now finishes seventh on its 80th and p8 (seventh before, on its 80th) is the car still running at the end, after 79 moves; p1 to p6 finish as before -- p1 to p7 home in number order again, as last in round 329.
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the new race of VETO_CASES above: seven finishers and no crash, p1 home first on its 78th own move and p7 seventh on its 81st, p8 the car still running at the end, after 80 moves.
-    ("monza", 30): '1326388d902a151c70e14945db7c30c6184b25e7796317d7e7a001ee2ac227b4',
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the same classification on the same own moves, a different trajectory from move 447 (p7's 56th: it holds v(-1,-2) from (17,121) to (16,119) rather than E to (17,119) at v(0,-2)).
+    ("monza", 30): 'd25c84e06190e17a0eae1b10dd6417069ee6f71526edfdb93096319003c055fd',
     # Round 224, the one case that changes its result: still seven finishers,
     # but car 1 finishes seventh where car 7 used to, and the race is nine
     # moves longer. The fleet cleared the change on 1460 races either side
@@ -335,7 +338,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the new race of VETO_CASES above: seven finishers and no crash, p1 home first on its 112th own move and p7 seventh on its 119th, p3 the car still running at the end, after 119 moves.
-    ("monaco", 35): '9ea9518d366ac412a7beeb990a83b85a24630e966bb1ab0efac1055cc9329795',
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the same classification on the same own moves, a different trajectory from move 423 (p7's 53rd: N from (95,65) at v(-6,4) to (89,68) at v(-6,3) rather than NW to (88,68) at v(-7,3)).
+    ("monaco", 35): 'aa2db2ccc2d42ca109b4210af052abcb1b4484f55c59a7d1b767b50d8054e95c',
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 281: re-frozen from measurement (every live rival plays its scorer in the chooser's rollouts).
     # Round 301a': re-frozen from measurement (the pace swap breaks only exact faithful ties).
@@ -349,7 +353,8 @@ VETO_NORMALIZED_SHA256 = {
     # Round 334: re-frozen from measurement (every other live rival plays its first forecast move by its full policy).
     # Round 335: re-frozen from measurement (every rival but the relevant one plays its first two forecast moves by its full policy).
     # Round 345: re-frozen from measurement (random starts: each car's own draw from the seed's SplitMix64 stream); the new race of VETO_CASES above: seven finishers and no crash, p2 home first on its 137th own move and p1 seventh on its 143rd, p3 the car still running at the end, after 142 moves.
-    ("zandvoort", 34): '4ae3fd97b55b96ac57aa65d2b5b92912d00da35edb8c248f831fa9aa7536df36',
+    # Round 348: re-frozen from measurement (in a small group the chooser's equal forecasts go to the larger margin); the same classification on the same own moves, a different trajectory from move 402 (p2's 51st: W from (124,70) at v(8,-3) to (131,67) at v(7,-3) rather than holding v(8,-3) to (132,67)).
+    ("zandvoort", 34): 'a6e75a34a4ddbe5c41bd065d3d1b4c0aaa0db4798d39cedaee091e4478362413',
     # Same illegal finishing vector at turn 640; legal N preserves all counters.
     # Round 278: re-frozen from measurement (the chooser's pick stands).
     # Round 296: re-frozen from measurement (landings priced with the checkpoints they collect paid).

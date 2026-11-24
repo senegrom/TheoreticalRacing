@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SPECIMENS = {
     "ai1_early_round_trap_regression": 1,
     "ai1_graduated_field_accel_regression": 1,
+    "ai1_margin_regression": 1,
     "ai1_pace_regression": 2,
     "ai1_staged_pace_regression": 2,
 }
